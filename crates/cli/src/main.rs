@@ -151,10 +151,10 @@ fn engine_for(id: &str) -> Res<Arc<dyn Engine>> {
 
 fn registry() -> Registry {
     let mut reg = Registry::builtin();
-    if let Some(dir) = user_actions_dir() {
-        if let Err(e) = reg.add_dir(&dir) {
-            eprintln!("sbarhive: ignoring user actions: {e}");
-        }
+    if let Some(dir) = user_actions_dir()
+        && let Err(e) = reg.add_dir(&dir)
+    {
+        eprintln!("sbarhive: ignoring user actions: {e}");
     }
     reg
 }

@@ -11,6 +11,7 @@ use std::sync::mpsc::Receiver;
 
 pub fn submit(st: &mut State, queue: &Queue, action: ActionDef, files: Vec<PathBuf>) -> JobId {
     let label = action.label.get(st.lang).to_string();
+    let action = st.configured(action);
     let job = queue.submit(action, files);
     st.jobs.entry(job).or_insert(JobInfo {
         label,
@@ -61,7 +62,18 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
         if let Some(cancelled) = finished
             && let Some(info) = st.jobs.remove(&job)
         {
-            notify::finished(lang, &info, cancelled);
+            if st.config.notify {
+                notify::finished(lang, &info, cancelled);
+            }
+            if st.config.open_folder_when_done
+                && !cancelled
+                && let Some(dir) = info
+                    .first_output
+                    .as_deref()
+                    .and_then(std::path::Path::parent)
+            {
+                let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+            }
         }
         let active: Vec<(String, f32)> = st
             .jobs

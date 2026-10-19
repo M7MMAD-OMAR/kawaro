@@ -90,7 +90,7 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
             reply(&mut stream, &Response::Ok);
         }
         Request::Reload => {
-            lock(state).registry = crate::state::load_registry();
+            lock(state).reload();
             reply(&mut stream, &Response::Ok);
         }
         Request::Quit => {
