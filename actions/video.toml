@@ -1,0 +1,141 @@
+# Video actions, run by the FFmpeg engine (crates/engines/src/ffmpeg.rs).
+# Schema: crates/core/src/action.rs. Story: backlog/S-008-ffmpeg-engine.md.
+
+# Ring 1
+
+[[action]]
+id = "video.to-mp4"
+engine = "ffmpeg"
+op = "convert-video"
+ring = 1
+order = 10
+accepts = ["video"]
+skip_ext = ["mp4"]
+output = { mode = "per-file", ext = "mp4" }
+code = { ar = "MP4", en = "MP4" }
+label = { ar = "تحويل إلى MP4", en = "Convert to MP4" }
+[action.params]
+crf = 23
+
+[[action]]
+id = "video.to-webm"
+engine = "ffmpeg"
+op = "convert-video"
+ring = 1
+order = 20
+accepts = ["video"]
+skip_ext = ["webm"]
+output = { mode = "per-file", ext = "webm" }
+code = { ar = "WEBM", en = "WEBM" }
+label = { ar = "تحويل إلى WebM", en = "Convert to WebM" }
+
+[[action]]
+id = "video.to-gif"
+engine = "ffmpeg"
+op = "to-gif"
+ring = 1
+order = 30
+accepts = ["video"]
+output = { mode = "per-file", ext = "gif" }
+code = { ar = "GIF", en = "GIF" }
+label = { ar = "تحويل إلى صورة GIF متحركة", en = "Convert to animated GIF" }
+[action.params]
+fps = 12
+width = 480
+
+[[action]]
+id = "video.extract-mp3"
+engine = "ffmpeg"
+op = "extract-audio"
+ring = 1
+order = 40
+accepts = ["video"]
+output = { mode = "per-file", ext = "mp3" }
+code = { ar = "MP3", en = "MP3" }
+label = { ar = "استخراج الصوت بصيغة MP3", en = "Extract audio as MP3" }
+
+[[action]]
+id = "video.compress"
+engine = "ffmpeg"
+op = "compress-video"
+ring = 1
+order = 50
+accepts = ["video"]
+# The output keeps the input container; these have no H.264 path here.
+skip_ext = ["wmv", "mpeg", "mpg"]
+output = { mode = "per-file", suffix = "-compressed" }
+code = { ar = "ضغط", en = "SHRINK" }
+label = { ar = "ضغط الفيديو", en = "Compress video" }
+[action.params]
+crf = 28
+max_height = 1080
+
+# Ring 2
+
+[[action]]
+id = "video.to-mkv"
+engine = "ffmpeg"
+op = "convert-video"
+ring = 2
+order = 10
+accepts = ["video"]
+skip_ext = ["mkv"]
+output = { mode = "per-file", ext = "mkv" }
+code = { ar = "MKV", en = "MKV" }
+label = { ar = "تحويل إلى MKV", en = "Convert to MKV" }
+
+[[action]]
+id = "video.to-mov"
+engine = "ffmpeg"
+op = "convert-video"
+ring = 2
+order = 20
+accepts = ["video"]
+skip_ext = ["mov"]
+output = { mode = "per-file", ext = "mov" }
+code = { ar = "MOV", en = "MOV" }
+label = { ar = "تحويل إلى MOV", en = "Convert to MOV" }
+
+[[action]]
+id = "video.extract-ogg"
+engine = "ffmpeg"
+op = "extract-audio"
+ring = 2
+order = 30
+accepts = ["video"]
+output = { mode = "per-file", ext = "ogg" }
+code = { ar = "OGG", en = "OGG" }
+label = { ar = "استخراج الصوت بصيغة OGG", en = "Extract audio as OGG" }
+
+[[action]]
+id = "video.extract-m4a"
+engine = "ffmpeg"
+op = "extract-audio"
+ring = 2
+order = 40
+accepts = ["video"]
+output = { mode = "per-file", ext = "m4a" }
+code = { ar = "M4A", en = "M4A" }
+label = { ar = "استخراج الصوت بصيغة M4A", en = "Extract audio as M4A" }
+
+[[action]]
+id = "video.extract-flac"
+engine = "ffmpeg"
+op = "extract-audio"
+ring = 2
+order = 50
+accepts = ["video"]
+output = { mode = "per-file", ext = "flac" }
+code = { ar = "FLAC", en = "FLAC" }
+label = { ar = "استخراج الصوت بصيغة FLAC", en = "Extract audio as FLAC" }
+
+[[action]]
+id = "video.extract-wav"
+engine = "ffmpeg"
+op = "extract-audio"
+ring = 2
+order = 60
+accepts = ["video"]
+output = { mode = "per-file", ext = "wav" }
+code = { ar = "WAV", en = "WAV" }
+label = { ar = "استخراج الصوت بصيغة WAV", en = "Extract audio as WAV" }
