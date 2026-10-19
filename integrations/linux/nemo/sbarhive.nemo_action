@@ -1,0 +1,13 @@
+# SbarHive action for Nemo. Install to ~/.local/share/nemo/actions/.
+# scripts/install.sh replaces the bare `sbarhive` in Exec with an absolute
+# path. Nemo gives no activation token; the CLI falls back to the
+# environment.
+[Nemo Action]
+Name=SbarHive
+Name[ar]=صبار هايف
+Comment=Open the selected files in SbarHive
+Comment[ar]=افتح الملفات المحددة في صبار هايف
+Exec=sbarhive open -- %F
+Icon-Name=sbarhive
+Selection=notnone
+Extensions=any;
