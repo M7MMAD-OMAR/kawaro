@@ -101,8 +101,8 @@ mod ffmpeg {
     fn assert_progress(seen: &[f32]) {
         assert!(!seen.is_empty(), "no progress reported");
         assert!(
-            seen.windows(2).all(|w| w[0] <= w[1]),
-            "progress not monotonic: {seen:?}"
+            seen.windows(2).all(|w| w[0] < w[1]),
+            "progress not strictly increasing: {seen:?}"
         );
         assert!(seen.iter().all(|f| (0.0..=1.0).contains(f)), "{seen:?}");
         assert_eq!(*seen.last().unwrap(), 1.0);
@@ -163,6 +163,10 @@ mod ffmpeg {
         let input = make_wav(dir.path());
         let t = task("trim-silence", &input, dir.path().join("o.wav"), "");
         let (r, _) = run(&FfmpegEngine::default(), &t);
+        assert!(matches!(r, Err(EngineError::UnsupportedOp(_))), "{r:?}");
+        // The op is checked before anything else, even tool availability.
+        let gone = FfmpegEngine::with_binaries("/nonexistent/ffmpeg", "/nonexistent/ffprobe");
+        let (r, _) = run(&gone, &t);
         assert!(matches!(r, Err(EngineError::UnsupportedOp(_))), "{r:?}");
     }
 

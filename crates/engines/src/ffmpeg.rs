@@ -82,10 +82,9 @@ impl FfmpegEngine {
             .stdin(Stdio::null())
             .stderr(Stdio::null())
             .output();
-        match out {
-            Ok(o) if o.status.success() => parse_probe(&String::from_utf8_lossy(&o.stdout)),
-            _ => MediaInfo::default(),
-        }
+        // A failed probe prints nothing on stdout, which parses to the default.
+        out.map(|o| parse_probe(&String::from_utf8_lossy(&o.stdout)))
+            .unwrap_or_default()
     }
 }
 
