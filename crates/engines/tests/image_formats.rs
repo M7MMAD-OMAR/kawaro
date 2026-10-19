@@ -438,4 +438,31 @@ fn strip_png_keeps_pixels() {
     assert!(!contains(&out, b"eXIf"));
 }
 
+#[test]
+fn ico_pads_tall_sources_left_and_right() {
+    let d = tempdir().unwrap();
+    // orient6.jpg displays as 48x64, so padding is 8 columns on each side.
+    let bytes = run_one("convert", &fixture("orient6.jpg"), d.path(), "ico", "");
+    let img = decode(&bytes).to_rgba8();
+    assert_eq!(img.dimensions(), (64, 64));
+    assert_eq!(img.get_pixel(2, 40)[3], 0, "left padding");
+    assert_eq!(img.get_pixel(61, 40)[3], 0, "right padding");
+    assert_eq!(img.get_pixel(10, 40)[3], 255, "picture starts at column 8");
+    assert_eq!(img.get_pixel(54, 40)[3], 255, "picture ends at column 55");
+}
+
+#[test]
+fn default_quality_is_90_and_75_for_compress() {
+    let d = tempdir().unwrap();
+    let src = d.path().join("src.png");
+    std::fs::write(&src, png_bytes(&detailed())).unwrap();
+    let default = run_one("convert", &src, d.path(), "jpg", "");
+    let ninety = run_one("convert", &src, d.path(), "jpg", "quality = 90");
+    assert_eq!(default, ninety);
+    let compressed = run_one("compress", &src, d.path(), "jpg", "");
+    let seventy_five = run_one("compress", &src, d.path(), "jpg", "quality = 75");
+    assert_eq!(compressed, seventy_five);
+    assert_ne!(compressed, ninety);
+}
+
 use image::ImageEncoder;
