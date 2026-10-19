@@ -147,7 +147,9 @@ h3 { font-size: calc(var(--font-size-title) * 1.25); margin-block-end: var(--spa
 }
 .button-primary:hover { background: var(--color-accent); border-color: var(--color-text-primary); }
 
+.hero .wrap > * { min-width: 0; }
 .hero-visual { display: flex; justify-content: center; }
+.grid > * { min-width: 0; }
 
 /* The hive. Classes mirror the app: surface-2 cells, surface-3 centre,
    accent for the cell under the pointer, accent-ink for its label. */
