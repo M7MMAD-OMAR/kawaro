@@ -12,7 +12,7 @@ pub const SOCKET_NAME: &str = "sbarhive.sock";
 pub fn socket_path() -> PathBuf {
     let dir = std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir());
+        .unwrap_or_else(std::env::temp_dir);
     dir.join(SOCKET_NAME)
 }
 
