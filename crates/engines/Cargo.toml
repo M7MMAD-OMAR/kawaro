@@ -9,6 +9,13 @@ license.workspace = true
 sbarhive-core.workspace = true
 thiserror.workspace = true
 toml.workspace = true
+# Image engine. Licenses and reasons in docs/engines.md.
+# The `nasm` feature of `image` stays off, so rav1e builds without assembly
+# and NASM is not needed.
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif", "bmp", "tiff", "ico", "webp", "avif", "rayon"] }
+webp = { version = "0.3.1", default-features = false }
+pdf-writer = "0.15.0"
+miniz_oxide = "0.8"
 
 [dev-dependencies]
 tempfile.workspace = true
