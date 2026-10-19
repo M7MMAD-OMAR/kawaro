@@ -3,9 +3,13 @@
 use sbarhive_core::Engine;
 use std::sync::Arc;
 
+pub mod ffmpeg;
 pub mod image;
 
 /// Every engine compiled into this build, available or not.
 pub fn all() -> Vec<Arc<dyn Engine>> {
-    vec![Arc::new(image::ImageEngine::default())]
+    vec![
+        Arc::new(image::ImageEngine::default()),
+        Arc::new(ffmpeg::FfmpegEngine::default()),
+    ]
 }
