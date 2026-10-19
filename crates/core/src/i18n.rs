@@ -11,10 +11,10 @@ impl Lang {
     /// From `SBARHIVE_LANG`, then `LC_ALL`, `LC_MESSAGES`, `LANGUAGE`, `LANG`.
     pub fn detect() -> Self {
         for var in ["SBARHIVE_LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"] {
-            if let Ok(v) = std::env::var(var) {
-                if !v.is_empty() {
-                    return Self::parse(&v);
-                }
+            if let Ok(v) = std::env::var(var)
+                && !v.is_empty()
+            {
+                return Self::parse(&v);
             }
         }
         Lang::En
