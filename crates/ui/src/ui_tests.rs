@@ -76,9 +76,18 @@ fn hive_behaviour() {
     assert_eq!(ui.get_cells().row_count(), 4);
     assert_eq!(ui.get_centre_text(), "3 images");
     let first = ui.get_cells().row_data(0).unwrap();
-    assert_eq!((first.code.as_str(), first.label.as_str()), ("WEBP", "label webp"));
-    assert!(first.x > ui.get_centre_x(), "LTR ring 1 starts right of the centre");
-    assert!(first.y < ui.get_centre_y(), "ring 1 starts above the centre");
+    assert_eq!(
+        (first.code.as_str(), first.label.as_str()),
+        ("WEBP", "label webp")
+    );
+    assert!(
+        first.x > ui.get_centre_x(),
+        "LTR ring 1 starts right of the centre"
+    );
+    assert!(
+        first.y < ui.get_centre_y(),
+        "ring 1 starts above the centre"
+    );
 
     // Esc closes and dismisses.
     key(&hive, Key::Escape);
@@ -133,7 +142,10 @@ fn hive_behaviour() {
     // Focus loss dismisses only after the window had focus.
     hive.present("3 images", cells(), None).unwrap();
     focus_changed(false);
-    assert!(hive.inner.visible(), "focus loss without prior focus keeps the hive");
+    assert!(
+        hive.inner.visible(),
+        "focus loss without prior focus keeps the hive"
+    );
     focus_changed(true);
     focus_changed(false);
     assert!(!hive.inner.visible());
@@ -151,7 +163,8 @@ fn hive_behaviour() {
     // Accessibility: each cell is a button labelled with its full name, and
     // its default action chooses it.
     hive.present("3 images", cells(), None).unwrap();
-    let found: Vec<ElementHandle> = ElementHandle::find_by_accessible_label(ui, "label gray").collect();
+    let found: Vec<ElementHandle> =
+        ElementHandle::find_by_accessible_label(ui, "label gray").collect();
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].accessible_role(), Some(AccessibleRole::Button));
     found[0].invoke_accessible_default_action();
@@ -177,7 +190,10 @@ fn hive_behaviour() {
     ar.present("3 صور", cells(), None).unwrap();
     let ui = &ar.inner.ui;
     let first = ui.get_cells().row_data(0).unwrap();
-    assert!(first.x < ui.get_centre_x(), "Arabic ring 1 starts left of the centre");
+    assert!(
+        first.x < ui.get_centre_x(),
+        "Arabic ring 1 starts left of the centre"
+    );
     // Right arrow goes back in Arabic.
     key(&ar, Key::Tab);
     key(&ar, Key::RightArrow);

@@ -14,23 +14,46 @@
 //! not consulted.
 
 /// Explicit override from the environment variable value.
-pub fn parse_env(_value: &str) -> Option<bool> {
-    unimplemented!("parse_env")
+pub fn parse_env(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "1" | "true" | "yes" | "on" => Some(true),
+        "0" | "false" | "no" | "off" => Some(false),
+        _ => None,
+    }
 }
 
 /// `Some(true)` when kdeglobals sets the animation speed to instant.
-pub fn parse_kdeglobals(_text: &str) -> Option<bool> {
-    unimplemented!("parse_kdeglobals")
+pub fn parse_kdeglobals(text: &str) -> Option<bool> {
+    let mut in_kde = false;
+    for line in text.lines().map(str::trim) {
+        if line.starts_with('[') {
+            in_kde = line == "[KDE]";
+            continue;
+        }
+        if !in_kde {
+            continue;
+        }
+        if let Some((key, value)) = line.split_once('=')
+            && key.trim() == "AnimationDurationFactor"
+        {
+            return value.trim().parse::<f32>().ok().map(|f| f == 0.0);
+        }
+    }
+    None
 }
 
 /// `Some(true)` when gsettings reports animations disabled.
-pub fn parse_gsettings(_output: &str) -> Option<bool> {
-    unimplemented!("parse_gsettings")
+pub fn parse_gsettings(output: &str) -> Option<bool> {
+    match output.trim() {
+        "false" => Some(true),
+        "true" => Some(false),
+        _ => None,
+    }
 }
 
 /// Combines the sources in priority order. `None` everywhere means animate.
-pub fn decide(_env: Option<bool>, _kde: Option<bool>, _gnome: Option<bool>) -> bool {
-    unimplemented!("decide")
+pub fn decide(env: Option<bool>, kde: Option<bool>, gnome: Option<bool>) -> bool {
+    env.or(kde).or(gnome).unwrap_or(false)
 }
 
 /// Reads the sources listed in the module comment. Blocking, call once.
@@ -90,8 +113,14 @@ mod tests {
         assert_eq!(parse_kdeglobals(slow), Some(false));
         let other_group = "[Other]\nAnimationDurationFactor=0\n[KDE]\nLookAndFeel=x\n";
         assert_eq!(parse_kdeglobals(other_group), None);
-        assert_eq!(parse_kdeglobals("[KDE]\nAnimationDurationFactor = 0 \n"), Some(true));
-        assert_eq!(parse_kdeglobals("[KDE]\nAnimationDurationFactor=bad\n"), None);
+        assert_eq!(
+            parse_kdeglobals("[KDE]\nAnimationDurationFactor = 0 \n"),
+            Some(true)
+        );
+        assert_eq!(
+            parse_kdeglobals("[KDE]\nAnimationDurationFactor=bad\n"),
+            None
+        );
         assert_eq!(parse_kdeglobals(""), None);
     }
 

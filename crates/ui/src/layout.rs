@@ -16,7 +16,8 @@
 //!   from the top-left cell counterclockwise (Arabic), see `geometry::ring`.
 
 use crate::HiveCell;
-use crate::geometry::{Axial, Layout};
+use crate::geometry::{Axial, Layout, ring};
+use crate::tokens::{HEX_GAP, HEX_SIZE_MD, PAD, RING1, RING2};
 
 /// A cell with its slot and its pixel centre inside the hive window.
 #[derive(Clone, Debug, PartialEq)]
@@ -37,20 +38,55 @@ pub struct Plan {
 }
 
 /// Splits cells into ring 1 and ring 2 following the slot rules above.
-pub fn assign(_cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
-    unimplemented!("assign")
+pub fn assign(cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
+    let (mut ring1, ring2): (Vec<_>, Vec<_>) = cells.into_iter().partition(|c| c.ring <= 1);
+    let mut outer: Vec<HiveCell> = if ring1.len() > RING1 {
+        ring1.split_off(RING1)
+    } else {
+        Vec::new()
+    };
+    outer.extend(ring2);
+    outer.truncate(RING2);
+    (ring1, outer)
 }
 
-/// Lays out the cells for a window, using the token sizes.
-pub fn plan(_cells: Vec<HiveCell>, _rtl: bool) -> Plan {
-    unimplemented!("plan")
+/// Lays out the cells for a window, using the token sizes. The window holds
+/// one ring when ring 2 is empty, two otherwise.
+pub fn plan(cells: Vec<HiveCell>, rtl: bool) -> Plan {
+    let (ring1, ring2) = assign(cells);
+    let rings = if ring2.is_empty() { 1 } else { 2 };
+    let radius = HEX_SIZE_MD / 3f32.sqrt();
+    let (width, height) = Layout::extent(radius, HEX_GAP, rings, PAD);
+    let layout = Layout {
+        radius,
+        gap: HEX_GAP,
+        rtl,
+        origin: (width / 2.0, height / 2.0),
+    };
+    let slots = ring(1)
+        .into_iter()
+        .zip(ring1)
+        .chain(ring(2).into_iter().zip(ring2));
+    let cells = slots
+        .map(|(axial, cell)| {
+            let (x, y) = layout.center(axial);
+            Placed { cell, axial, x, y }
+        })
+        .collect();
+    Plan {
+        cells,
+        width,
+        height,
+        layout,
+    }
 }
 
 impl Plan {
     /// Index into `cells` of the action under the point, or -1 for the
     /// centre, a gap, an empty slot or the transparent corners.
-    pub fn pick(&self, _x: f32, _y: f32) -> i32 {
-        unimplemented!("pick")
+    pub fn pick(&self, x: f32, y: f32) -> i32 {
+        let slots: Vec<Axial> = self.cells.iter().map(|c| c.axial).collect();
+        self.layout.pick(&slots, x, y).map_or(-1, |i| i as i32)
     }
 }
 
@@ -68,8 +104,16 @@ pub enum Nav {
 impl Nav {
     /// The integer code the .slint side sends: 0 Tab, 1 Shift+Tab, 2 Left,
     /// 3 Right, 4 Up, 5 Down.
-    pub fn from_code(_code: i32) -> Option<Nav> {
-        unimplemented!("from_code")
+    pub fn from_code(code: i32) -> Option<Nav> {
+        match code {
+            0 => Some(Nav::Next),
+            1 => Some(Nav::Prev),
+            2 => Some(Nav::Left),
+            3 => Some(Nav::Right),
+            4 => Some(Nav::Up),
+            5 => Some(Nav::Down),
+            _ => None,
+        }
     }
 }
 
@@ -77,14 +121,27 @@ impl Nav {
 /// Next, Down and the arrow pointing along the reading direction (Right in
 /// LTR, Left in Arabic) go forward through the ring order; the others go
 /// back. Wraps at both ends. Returns -1 when there are no cells.
-pub fn step(_current: i32, _nav: Nav, _count: usize, _rtl: bool) -> i32 {
-    unimplemented!("step")
+pub fn step(current: i32, nav: Nav, count: usize, rtl: bool) -> i32 {
+    if count == 0 {
+        return -1;
+    }
+    let forward = match nav {
+        Nav::Next | Nav::Down => true,
+        Nav::Prev | Nav::Up => false,
+        Nav::Right => !rtl,
+        Nav::Left => rtl,
+    };
+    let n = count as i32;
+    if current < 0 {
+        return if forward { 0 } else { n - 1 };
+    }
+    let delta = if forward { 1 } else { -1 };
+    (current + delta).rem_euclid(n)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::geometry::ring;
 
     fn cell(id: &str, ring: u8) -> HiveCell {
         HiveCell {
@@ -100,7 +157,9 @@ mod tests {
     }
 
     fn many(prefix: &str, n: usize, ring: u8) -> Vec<HiveCell> {
-        (0..n).map(|i| cell(&format!("{prefix}{i}"), ring)).collect()
+        (0..n)
+            .map(|i| cell(&format!("{prefix}{i}"), ring))
+            .collect()
     }
 
     #[test]
@@ -156,7 +215,10 @@ mod tests {
         let r1 = ring(1);
         let r2 = ring(2);
         assert_eq!(slots, [r1[0], r1[1], r1[2], r2[0], r2[1]]);
-        assert_eq!(ids(&p.cells.iter().map(|c| c.cell.clone()).collect::<Vec<_>>()), ["a0", "a1", "a2", "b0", "b1"]);
+        assert_eq!(
+            ids(&p.cells.iter().map(|c| c.cell.clone()).collect::<Vec<_>>()),
+            ["a0", "a1", "a2", "b0", "b1"]
+        );
         for c in &p.cells {
             assert_eq!((c.x, c.y), p.layout.center(c.axial));
         }
@@ -211,7 +273,14 @@ mod tests {
 
     #[test]
     fn nav_codes_match_the_slint_side() {
-        let want = [Nav::Next, Nav::Prev, Nav::Left, Nav::Right, Nav::Up, Nav::Down];
+        let want = [
+            Nav::Next,
+            Nav::Prev,
+            Nav::Left,
+            Nav::Right,
+            Nav::Up,
+            Nav::Down,
+        ];
         for (code, nav) in want.iter().enumerate() {
             assert_eq!(Nav::from_code(code as i32), Some(*nav));
         }
@@ -230,7 +299,11 @@ mod tests {
         assert_eq!(step(1, Nav::Down, 4, false), 2);
         assert_eq!(step(1, Nav::Up, 4, false), 0);
         assert_eq!(step(-1, Nav::Next, 0, false), -1);
-        assert_eq!(step(5, Nav::Next, 3, false), 0, "stale index wraps into range");
+        assert_eq!(
+            step(5, Nav::Next, 3, false),
+            0,
+            "stale index wraps into range"
+        );
     }
 
     #[test]

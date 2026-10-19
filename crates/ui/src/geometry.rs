@@ -13,38 +13,49 @@ pub struct Axial {
     pub r: i32,
 }
 
-const DIRECTIONS: [Axial; 6] = [
-    Axial { q: 1, r: 0 },
-    Axial { q: 1, r: -1 },
-    Axial { q: 0, r: -1 },
-    Axial { q: -1, r: 0 },
-    Axial { q: -1, r: 1 },
+/// Top-right neighbour on screen (y grows downwards). Each ring starts at
+/// `TOP_RIGHT * k`.
+const TOP_RIGHT: Axial = Axial { q: 1, r: -1 };
+
+/// The six sides of a ring, walked clockwise on screen from the top-right
+/// corner: down to the right corner, then bottom right, bottom left, left,
+/// top left and back to the top right.
+const CLOCKWISE: [Axial; 6] = [
     Axial { q: 0, r: 1 },
+    Axial { q: -1, r: 1 },
+    Axial { q: -1, r: 0 },
+    Axial { q: 0, r: -1 },
+    Axial { q: 1, r: -1 },
+    Axial { q: 1, r: 0 },
 ];
 
-/// The `k`-th ring. Spike order, kept until the clockwise order lands.
+/// The `k`-th ring (6k cells), clockwise on screen from its top-right corner.
+/// With `Layout::rtl` the same order is drawn mirrored: from the top-left
+/// corner, counterclockwise.
 pub fn ring(k: i32) -> Vec<Axial> {
-    spiral(k).split_off(1 + 3 * k as usize * (k as usize - 1))
+    let mut out = Vec::with_capacity(6 * k.max(0) as usize);
+    let mut cur = Axial {
+        q: TOP_RIGHT.q * k,
+        r: TOP_RIGHT.r * k,
+    };
+    for dir in CLOCKWISE {
+        for _ in 0..k {
+            out.push(cur);
+            cur = Axial {
+                q: cur.q + dir.q,
+                r: cur.r + dir.r,
+            };
+        }
+    }
+    out
 }
 
 /// Centre first, then each ring in order, so index 0 is always the middle cell.
+#[cfg(test)]
 pub fn spiral(rings: i32) -> Vec<Axial> {
     let mut out = vec![Axial { q: 0, r: 0 }];
     for k in 1..=rings {
-        // Start at the cell `k` steps in direction 4, then walk the six sides.
-        let mut cur = Axial {
-            q: DIRECTIONS[4].q * k,
-            r: DIRECTIONS[4].r * k,
-        };
-        for dir in DIRECTIONS {
-            for _ in 0..k {
-                out.push(cur);
-                cur = Axial {
-                    q: cur.q + dir.q,
-                    r: cur.r + dir.r,
-                };
-            }
-        }
+        out.extend(ring(k));
     }
     out
 }
@@ -198,8 +209,7 @@ mod tests {
     fn clock_angle(l: &Layout, a: Axial) -> f32 {
         let (x, y) = l.center(a);
         let (dx, dy) = (x - l.origin.0, y - l.origin.1);
-        let deg = dx.atan2(-dy).to_degrees();
-        if deg < 0.0 { deg + 360.0 } else { deg }
+        dx.atan2(-dy).to_degrees().rem_euclid(360.0)
     }
 
     #[test]
@@ -222,10 +232,19 @@ mod tests {
             assert_eq!(cells.len(), 6 * k as usize, "ring {k} size");
             assert_eq!(cells[0], Axial { q: k, r: -k }, "ring {k} start");
             let angles: Vec<f32> = cells.iter().map(|a| clock_angle(&l, *a)).collect();
-            for w in angles.windows(2) {
+            assert!(
+                (angles[0] - 30.0).abs() < 1e-2,
+                "ring {k} start not top right"
+            );
+            // Clockwise from the start: the angle swept from the first cell
+            // grows along the ring and stays below a full turn.
+            let swept: Vec<f32> = angles
+                .iter()
+                .map(|a| (a - angles[0]).rem_euclid(360.0))
+                .collect();
+            for w in swept.windows(2) {
                 assert!(w[1] > w[0], "ring {k} not clockwise: {angles:?}");
             }
-            assert!(angles[0] > 0.0 && angles[0] < 90.0, "ring {k} start not top right");
         }
     }
 
@@ -243,7 +262,10 @@ mod tests {
         let l = layout(true);
         let cells = ring(1);
         let (x, y) = l.center(cells[0]);
-        assert!(x < l.origin.0 && y < l.origin.1, "ring 1 must start top left in RTL");
+        assert!(
+            x < l.origin.0 && y < l.origin.1,
+            "ring 1 must start top left in RTL"
+        );
         let angles: Vec<f32> = cells.iter().map(|a| clock_angle(&l, *a)).collect();
         for w in angles.windows(2) {
             assert!(w[1] < w[0], "RTL ring not counterclockwise: {angles:?}");

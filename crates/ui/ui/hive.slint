@@ -76,7 +76,11 @@ export component HiveWindow inherits Window {
     }
 
     touch := TouchArea {
-        moved => {
+        // `moved` only fires while pressed; hover needs the position itself.
+        changed mouse-x => {
+            root.highlight = root.pick(self.mouse-x, self.mouse-y);
+        }
+        changed mouse-y => {
             root.highlight = root.pick(self.mouse-x, self.mouse-y);
         }
         changed has-hover => {

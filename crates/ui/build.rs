@@ -43,7 +43,10 @@ fn main() {
     let config = slint_build::CompilerConfiguration::new()
         .with_style("fluent".into())
         .with_include_paths(vec![out.clone()])
-        .embed_resources(slint_build::EmbedResourcesKind::EmbedFiles);
+        .embed_resources(slint_build::EmbedResourcesKind::EmbedFiles)
+        // Element debug info lets the behaviour test find cells by their
+        // accessible label. Dev profile only; release builds stay lean.
+        .with_debug_info(std::env::var("PROFILE").as_deref() == Ok("debug"));
     slint_build::compile_with_config(manifest.join("ui/hive.slint"), config)
         .expect("compile ui/hive.slint");
     rerun_dir(&manifest.join("ui"));
@@ -100,12 +103,27 @@ fn slint_tokens(t: &Value) -> String {
         let v = num(t, &["hex", "size", size]);
         writeln!(s, "    out property <length> hex-{size}: {v}px;").unwrap();
     }
-    writeln!(s, "    out property <length> hex-gap: {}px;", num(t, &["hex", "gap"])).unwrap();
+    writeln!(
+        s,
+        "    out property <length> hex-gap: {}px;",
+        num(t, &["hex", "gap"])
+    )
+    .unwrap();
     for k in ["1", "2", "3", "4", "5", "6"] {
-        writeln!(s, "    out property <length> space-{k}: {}px;", num(t, &["space", k])).unwrap();
+        writeln!(
+            s,
+            "    out property <length> space-{k}: {}px;",
+            num(t, &["space", k])
+        )
+        .unwrap();
     }
     for k in ["sm", "md", "lg"] {
-        writeln!(s, "    out property <length> radius-{k}: {}px;", num(t, &["radius", k])).unwrap();
+        writeln!(
+            s,
+            "    out property <length> radius-{k}: {}px;",
+            num(t, &["radius", k])
+        )
+        .unwrap();
     }
     for k in ["default", "focus"] {
         writeln!(
