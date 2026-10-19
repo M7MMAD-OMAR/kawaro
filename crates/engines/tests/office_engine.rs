@@ -399,6 +399,20 @@ fn office_missing_program_is_unavailable_error() {
     )
     .0;
     assert!(matches!(r, Err(EngineError::Unavailable(_))), "{r:?}");
+    assert!(!engine.available());
+    assert!(OfficeEngine::with_program("/bin/sh", vec![]).available());
+
+    // A program that exists but cannot run is an I/O error, not "missing".
+    let not_exec = dir.path().join("soffice");
+    std::fs::write(&not_exec, "not a program").unwrap();
+    let engine = OfficeEngine::with_program(&not_exec, vec![]).temp_root(dir.path());
+    let r = run(
+        &engine,
+        &task("to-pdf", &txt, &dir.path().join("a.pdf"), ""),
+        &CancelToken::new(),
+    )
+    .0;
+    assert!(matches!(r, Err(EngineError::Io(_))), "{r:?}");
 }
 
 /// A fake LibreOffice: a shell script that starts a grandchild `sleep`,

@@ -496,6 +496,12 @@ mod tests {
     }
 
     #[test]
+    fn office_path_dirs_reads_path() {
+        // Every unix PATH holds `sh`; an empty or bogus list would not find it.
+        assert!(find_program(&["sh"], &path_dirs()).is_some());
+    }
+
+    #[test]
     fn office_timeout_param_defaults_and_validates() {
         let task = |params: &str| Task {
             action_id: "t".into(),

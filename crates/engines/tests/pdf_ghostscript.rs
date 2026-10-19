@@ -300,6 +300,15 @@ fn pdf_ghostscript_rejects_bad_params_and_unknown_op() {
     )
     .0;
     assert!(matches!(r, Err(EngineError::Unavailable(_))), "{r:?}");
+    let not_exec = dir.path().join("gs");
+    std::fs::write(&not_exec, "not a program").unwrap();
+    let r = run(
+        &GhostscriptEngine::with_program(&not_exec).temp_root(dir.path()),
+        &task("compress", &input, &dir.path().join("x.pdf"), ""),
+        &CancelToken::new(),
+    )
+    .0;
+    assert!(matches!(r, Err(EngineError::Io(_))), "{r:?}");
 }
 
 /// Any live process whose command line mentions `needle`.
