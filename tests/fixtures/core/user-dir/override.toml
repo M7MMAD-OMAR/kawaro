@@ -1,0 +1,24 @@
+# A user file that overrides a built-in id and adds one action.
+[[action]]
+id = "image.to-webp"
+engine = "image"
+op = "convert"
+ring = 1
+order = 10
+accepts = ["image"]
+skip_ext = ["webp"]
+output = { mode = "per-file", ext = "webp" }
+code = { ar = "WEBP", en = "WEBP" }
+label = { ar = "تحويل إلى WebP", en = "Convert to WebP" }
+[action.params]
+quality = 50
+
+[[action]]
+id = "user.extra"
+engine = "fake"
+op = "copy"
+ring = 1
+accepts = ["image"]
+output = { mode = "per-file", ext = "out" }
+code = { ar = "ن", en = "N" }
+label = { ar = "نسخ", en = "Copy" }
