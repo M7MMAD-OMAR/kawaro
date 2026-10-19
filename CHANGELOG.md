@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- Brand: hexagon and cactus app icon, tray icon, wordmark, PNG exports; bilingual landing page in site/.
 - Core settings file `~/.config/sbarhive/config.toml`: language, theme, output place, quality preset.
 - `sbarhived` service: Unix socket protocol, job pump, tray icon, end-of-job notifications.
 - `sbarhive` command line: open, convert, run, actions, daemon control, clipboard input.
