@@ -1,5 +1,13 @@
 //! `sbarhive`: thin client for the daemon, plus in-process conversion.
 
+/// Like `println!`, but a closed stdout (for example `| head`) is not a panic.
+macro_rules! out {
+    ($($t:tt)*) => {{
+        use std::io::Write as _;
+        let _ = writeln!(std::io::stdout(), $($t)*);
+    }};
+}
+
 mod client;
 mod clipboard;
 
@@ -94,7 +102,7 @@ fn main() -> ExitCode {
             Ok(())
         }
         Cmd::Daemon => client::exec_daemon(),
-        Cmd::Ping => client::request(&Request::Ping).map(|_| println!("pong")),
+        Cmd::Ping => client::request(&Request::Ping).map(|_| out!("pong")),
         Cmd::Quit => client::request(&Request::Quit).map(|_| ()),
     };
     match result {
@@ -197,7 +205,7 @@ fn run_local(action: &ActionDef, files: &[PathBuf]) -> Res<()> {
         }
     }
     for o in &outputs {
-        println!("{}", o.display());
+        out!("{}", o.display());
     }
     if failed > 0 {
         Err(format!("{failed} file(s) failed"))
@@ -260,7 +268,7 @@ fn run(id: &str, wait: bool, files: &[PathBuf]) -> Res<()> {
     client::stream(&req, |resp| {
         if let Response::Event { event } = resp {
             match event {
-                Event::TaskDone { output, .. } => println!("{}", output.display()),
+                Event::TaskDone { output, .. } => out!("{}", output.display()),
                 Event::TaskFailed { input, error, .. } => {
                     eprintln!("failed: {}: {error}", input.display());
                     failed += 1;
@@ -286,11 +294,11 @@ fn on_path(tool: &str) -> bool {
 
 fn doctor() {
     let mark = |ok: bool| if ok { "ok     " } else { "missing" };
-    println!("engines");
+    out!("engines");
     for e in engines() {
-        println!("  {} {}", mark(e.available()), e.id());
+        out!("  {} {}", mark(e.available()), e.id());
     }
-    println!("tools");
+    out!("tools");
     let tools: [(&str, &str); 8] = [
         ("ffmpeg", "video and audio"),
         ("ffprobe", "video and audio progress"),
@@ -302,10 +310,10 @@ fn doctor() {
         ("sbarhived", "background service"),
     ];
     for (tool, why) in tools {
-        println!("  {} {tool:<10} {why}", mark(on_path(tool)));
+        out!("  {} {tool:<10} {why}", mark(on_path(tool)));
     }
-    println!("service");
-    println!(
+    out!("service");
+    out!(
         "  {} sbarhived answering on {}",
         mark(client::daemon_up()),
         sbarhive_core::ipc::socket_path().display()
@@ -327,13 +335,13 @@ fn actions(json: bool, files: &[PathBuf]) -> Res<()> {
                 })
             })
             .collect();
-        println!(
+        out!(
             "{}",
             serde_json::to_string_pretty(&v).map_err(|e| e.to_string())?
         );
     } else {
         for a in list {
-            println!(
+            out!(
                 "{}\t{}\t{}\t{}",
                 a.id,
                 a.ring,
