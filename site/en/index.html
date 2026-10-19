@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SbarHive: convert files from the right-click menu</title>
+<meta name="description" content="A free, open source file converter for Linux. Select files in your file manager, pick a format from the hive, and the result lands next to the original. Nothing leaves your machine.">
+<link rel="canonical" href="https://m7mmad-omar.github.io/sbarhive/en/">
+<link rel="alternate" hreflang="ar" href="https://m7mmad-omar.github.io/sbarhive/">
+<link rel="alternate" hreflang="en" href="https://m7mmad-omar.github.io/sbarhive/en/">
+<link rel="alternate" hreflang="x-default" href="https://m7mmad-omar.github.io/sbarhive/">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SbarHive">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ar_AR">
+<meta property="og:title" content="SbarHive: convert files from the right-click menu">
+<meta property="og:description" content="A free, open source file converter for Linux. The result lands next to the original, and nothing leaves your machine.">
+<meta property="og:url" content="https://m7mmad-omar.github.io/sbarhive/en/">
+<meta property="og:image" content="https://m7mmad-omar.github.io/sbarhive/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The SbarHive logo next to the hexagonal hive with image conversion formats">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="../fonts/IBMPlexSansArabic-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="../style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"SbarHive","alternateName":"صبار هايف","applicationCategory":"UtilitiesApplication","operatingSystem":"Linux","license":"https://www.gnu.org/licenses/gpl-3.0.html","isAccessibleForFree":true,"url":"https://m7mmad-omar.github.io/sbarhive/en/","sameAs":"https://github.com/M7MMAD-OMAR/sbarhive","inLanguage":["en","ar"]}
+</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="./">
+      <img src="../favicon.svg" alt="" width="32" height="32">
+      <span>SbarHive</span>
+    </a>
+    <nav class="site-nav" aria-label="Sections">
+      <span class="nav-sections">
+        <a href="#how">How it works</a>
+        <a href="#formats">Formats</a>
+        <a href="#install">Install</a>
+      </span>
+      <a href="../" hreflang="ar" lang="ar">العربية</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow">Free and open source, for Linux</p>
+        <h1 id="hero-title">Convert files from the <span style="white-space:nowrap">right-click</span> menu</h1>
+        <p class="lead">Select files in your file manager and pick an action from the hive. The result is saved next to the original, and nothing leaves your machine.</p>
+        <div class="actions">
+          <a class="button button-primary" href="#install">Install</a>
+          <a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive">Source on GitHub</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+<!-- hive:start -->
+<svg class="hive" viewBox="0 0 344 317" role="img" aria-labelledby="hive-title">
+  <title id="hive-title">The hive for one image: target formats in the first ring, image actions in the second</title>
+  <g aria-hidden="true">
+    <g class="cell cell-center" style="--i:0">
+      <path d="M171.9,122.4L203.1,140.4L203.1,176.4L171.9,194.4L140.7,176.4L140.7,140.4Z"/>
+      <text x="171.9" y="158.4">To WebP</text>
+    </g>
+    <g class="cell cell-active" style="--i:1">
+      <path d="M137.7,181.6L168.9,199.6L168.9,235.6L137.7,253.6L106.5,235.6L106.5,199.6Z"/>
+      <text x="137.7" y="217.6">WEBP</text>
+    </g>
+    <g class="cell" style="--i:2">
+      <path d="M206.1,181.6L237.2,199.6L237.2,235.6L206.1,253.6L174.9,235.6L174.9,199.6Z"/>
+      <text x="206.1" y="217.6">PNG</text>
+    </g>
+    <g class="cell" style="--i:3">
+      <path d="M240.2,122.4L271.4,140.4L271.4,176.4L240.2,194.4L209.1,176.4L209.1,140.4Z"/>
+      <text x="240.2" y="158.4">JPG</text>
+    </g>
+    <g class="cell" style="--i:4">
+      <path d="M206.1,63.2L237.2,81.2L237.2,117.2L206.1,135.2L174.9,117.2L174.9,81.2Z"/>
+      <text x="206.1" y="99.2">AVIF</text>
+    </g>
+    <g class="cell" style="--i:5">
+      <path d="M137.7,63.2L168.9,81.2L168.9,117.2L137.7,135.2L106.5,117.2L106.5,81.2Z"/>
+      <text x="137.7" y="99.2">PDF</text>
+    </g>
+    <g class="cell" style="--i:6">
+      <path d="M103.5,122.4L134.7,140.4L134.7,176.4L103.5,194.4L72.4,176.4L72.4,140.4Z"/>
+      <text x="103.5" y="158.4">GIF</text>
+    </g>
+    <g class="cell" style="--i:7">
+      <path d="M103.5,240.8L134.7,258.8L134.7,294.8L103.5,312.8L72.4,294.8L72.4,258.8Z"/>
+      <text x="103.5" y="276.8">BMP</text>
+    </g>
+    <g class="cell" style="--i:8">
+      <path d="M171.9,240.8L203.1,258.8L203.1,294.8L171.9,312.8L140.7,294.8L140.7,258.8Z"/>
+      <text x="171.9" y="276.8">TIFF</text>
+    </g>
+    <g class="cell" style="--i:9">
+      <path d="M240.2,240.8L271.4,258.8L271.4,294.8L240.2,312.8L209.1,294.8L209.1,258.8Z"/>
+      <text x="240.2" y="276.8">ICO</text>
+    </g>
+    <g class="cell" style="--i:10">
+      <path d="M274.4,181.6L305.6,199.6L305.6,235.6L274.4,253.6L243.2,235.6L243.2,199.6Z"/>
+      <text x="274.4" y="217.6">RESIZE</text>
+    </g>
+    <g class="cell" style="--i:11">
+      <path d="M308.6,122.4L339.8,140.4L339.8,176.4L308.6,194.4L277.4,176.4L277.4,140.4Z"/>
+      <text x="308.6" y="158.4">ROTATE</text>
+    </g>
+    <g class="cell" style="--i:12">
+      <path d="M274.4,63.2L305.6,81.2L305.6,117.2L274.4,135.2L243.2,117.2L243.2,81.2Z"/>
+      <text x="274.4" y="99.2">FLIP</text>
+    </g>
+    <g class="cell" style="--i:13">
+      <path d="M240.2,4.0L271.4,22.0L271.4,58.0L240.2,76.0L209.1,58.0L209.1,22.0Z"/>
+      <text x="240.2" y="40.0">GRAY</text>
+    </g>
+    <g class="cell" style="--i:14">
+      <path d="M171.9,4.0L203.1,22.0L203.1,58.0L171.9,76.0L140.7,58.0L140.7,22.0Z"/>
+      <text x="171.9" y="40.0">SHRINK</text>
+    </g>
+    <g class="cell" style="--i:15">
+      <path d="M103.5,4.0L134.7,22.0L134.7,58.0L103.5,76.0L72.4,58.0L72.4,22.0Z"/>
+      <text x="103.5" y="40.0">STRIP</text>
+    </g>
+    <g class="cell cell-empty" style="--i:16">
+      <path d="M69.4,63.2L100.5,81.2L100.5,117.2L69.4,135.2L38.2,117.2L38.2,81.2Z"/>
+    </g>
+    <g class="cell cell-empty" style="--i:17">
+      <path d="M35.2,122.4L66.4,140.4L66.4,176.4L35.2,194.4L4.0,176.4L4.0,140.4Z"/>
+    </g>
+    <g class="cell cell-empty" style="--i:18">
+      <path d="M69.4,181.6L100.5,199.6L100.5,235.6L69.4,253.6L38.2,235.6L38.2,199.6Z"/>
+    </g>
+  </g>
+</svg>
+<!-- hive:end -->
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="band" aria-labelledby="how-title">
+    <div class="wrap">
+      <h2 id="how-title">Three steps</h2>
+      <ol class="steps grid grid-3">
+        <li class="card">
+          <h3>Select</h3>
+          <p>In Dolphin, Nautilus, Nemo or Thunar, right-click and choose SbarHive.</p>
+        </li>
+        <li class="card">
+          <h3>Pick a cell</h3>
+          <p>Only the actions that fit appear: by file kind, file count, and the tools you have installed.</p>
+        </li>
+        <li class="card">
+          <h3>Done</h3>
+          <p>The output gets a new name in the same folder. The original stays as it was.</p>
+        </li>
+      </ol>
+      <p class="section-intro">On Hyprland you can bind Super plus right-click to open the hive directly.</p>
+    </div>
+  </section>
+
+  <section id="privacy" aria-labelledby="privacy-title">
+    <div class="wrap">
+      <h2 id="privacy-title">Your files stay on your machine</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>No uploads</h3>
+          <p>Every conversion runs locally. No server receives the file, and there is no account to create.</p>
+        </div>
+        <div class="card">
+          <h3>No telemetry</h3>
+          <p>SbarHive sends nothing about your files or how you use it.</p>
+        </div>
+        <div class="card">
+          <h3>Originals untouched</h3>
+          <p>Output is written to a temporary file, then renamed into place. The original is never modified, and an interrupted job leaves no half-written file.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="formats" class="band" aria-labelledby="formats-title">
+    <div class="wrap">
+      <h2 id="formats-title">Formats</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <span class="tag">v0.1</span>
+          <h3>Images</h3>
+          <p>Convert, resize, rotate, flip, grayscale, compress, strip metadata, and combine several images into one PDF.</p>
+          <ul class="chips" aria-label="Image formats">
+            <li>PNG</li><li>JPEG</li><li>WebP</li><li>AVIF</li><li>GIF</li><li>BMP</li><li>TIFF</li><li>ICO</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="tag">v0.2</span>
+          <h3>Video and audio</h3>
+          <p>Convert video, extract the audio track, compress video, convert audio. Needs FFmpeg.</p>
+          <ul class="chips" aria-label="Video and audio formats">
+            <li>MP4</li><li>WebM</li><li>GIF</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>Opus</li>
+          </ul>
+        </div>
+        <div class="card">
+          <span class="tag">v0.2</span>
+          <h3>Documents and PDF</h3>
+          <p>Office and ODF documents to PDF, DOCX and ODT both ways, compress, merge and rotate PDFs, turn pages into images. Needs LibreOffice and Ghostscript.</p>
+          <ul class="chips" aria-label="Document formats">
+            <li>DOCX</li><li>ODT</li><li>XLSX</li><li>ODS</li><li>PPTX</li><li>ODP</li><li>PDF</li>
+          </ul>
+        </div>
+      </div>
+      <p class="section-intro">If a tool is missing, its actions stay out of the hive. <code>sbarhive doctor</code> shows what was found and what is missing.</p>
+    </div>
+  </section>
+
+  <section id="install" aria-labelledby="install-title">
+    <div class="wrap">
+      <h2 id="install-title">Install</h2>
+      <p class="section-intro">SbarHive is in development and builds from source on Linux. You need Rust 1.85 or newer.</p>
+      <pre><code>git clone https://github.com/M7MMAD-OMAR/sbarhive
+cd sbarhive
+./scripts/install.sh</code></pre>
+      <ul class="install-notes">
+        <li>The script installs for your user only, without root, adds SbarHive to the right-click menu of the file managers it finds, and starts the service with your session.</li>
+        <li>Nautilus needs the <code>nautilus-python</code> package.</li>
+        <li>To remove it: <code>./scripts/uninstall.sh</code></li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="compare" class="band" aria-labelledby="compare-title">
+    <div class="wrap">
+      <h2 id="compare-title">What about other tools?</h2>
+      <div class="grid grid-3">
+        <div class="card">
+          <h3>File Converter</h3>
+          <p>The same idea in the right-click menu, for Windows only. SbarHive starts on Linux, with Windows on its roadmap.</p>
+        </div>
+        <div class="card">
+          <h3>FFmpeg and ImageMagick</h3>
+          <p>They convert almost anything from a terminal, if you know the flags. SbarHive uses FFmpeg for video and audio and puts the options in a cell.</p>
+        </div>
+        <div class="card">
+          <h3>Linux apps and extensions</h3>
+          <p>Each covers a part: images only, or one task in one file manager. SbarHive handles images, video, audio and documents from one menu, in four file managers.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="license" aria-labelledby="license-title">
+    <div class="wrap">
+      <h2 id="license-title">Open source</h2>
+      <p class="section-intro">Licensed GPL-3.0-or-later. Code, issues and contributions are on <a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a>. A new format is one TOML file and a small adapter.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <p>SbarHive, free software under GPLv3.</p>
+    <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="../" hreflang="ar" lang="ar">العربية</a></p>
+  </div>
+</footer>
+</body>
+</html>
