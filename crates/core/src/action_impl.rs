@@ -10,7 +10,7 @@ use serde::Deserialize;
 use std::path::Path;
 
 /// Files in the repository `actions/` folder, in file name order.
-const BUILTIN: &[(&str, &str)] = &[("images.toml", include_str!("../../../actions/images.toml"))];
+const BUILTIN: &[(&str, &str)] = include!(concat!(env!("OUT_DIR"), "/builtin_actions.rs"));
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

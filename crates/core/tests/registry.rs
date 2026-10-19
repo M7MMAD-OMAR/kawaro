@@ -193,11 +193,15 @@ fn ac2_parse_error_in_dir_leaves_registry_unchanged() {
 fn ac2_user_dir_overrides_builtin() {
     let mut reg = Registry::builtin();
     let before = reg.all().len();
+    let pos = |r: &Registry| r.all().iter().position(|a| a.id == "image.to-webp");
+    let webp_pos = pos(&reg);
     reg.add_dir(&fixtures().join("user-dir")).unwrap();
     assert_eq!(reg.all().len(), before + 1);
     let webp = reg.get("image.to-webp").unwrap();
     assert_eq!(webp.params.get("quality").unwrap().as_integer(), Some(50));
-    assert_eq!(reg.all()[0].id, "image.to-webp");
+    // The override replaces the built-in in place.
+    assert!(webp_pos.is_some());
+    assert_eq!(pos(&reg), webp_pos);
     assert!(reg.get("user.extra").is_some());
 }
 
@@ -240,9 +244,11 @@ const IMAGES: &str = include_str!("../../../actions/images.toml");
 #[test]
 fn ac4_builtin_contains_every_repository_action_once() {
     let reg = Registry::builtin();
-    let mut expected = Registry::default();
-    expected.add_toml("images.toml", IMAGES).unwrap();
-    assert_eq!(reg.all(), expected.all());
+    let mut images = Registry::default();
+    images.add_toml("images.toml", IMAGES).unwrap();
+    for a in images.all() {
+        assert_eq!(reg.get(&a.id), Some(a), "{} missing from builtin", a.id);
+    }
     let unique: HashSet<_> = reg.all().iter().map(|a| &a.id).collect();
     assert_eq!(unique.len(), reg.all().len());
     // Every file in actions/ must be embedded: compare ids with a fresh parse of the folder.
@@ -475,7 +481,8 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
         ),
         ("image.to-bmp", 2, "convert", P, "bmp", "", &["bmp"], &[]),
     ];
-    assert_eq!(reg.all().len(), rows.len());
+    let image_actions = reg.all().iter().filter(|a| a.engine == "image").count();
+    assert_eq!(image_actions, rows.len());
     for (id, ring, op, mode, ext, suffix, skip, params) in rows {
         let a = reg.get(id).unwrap_or_else(|| panic!("missing {id}"));
         assert_eq!(a.engine, "image", "{id}");
@@ -505,9 +512,13 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
         }
         assert!(!a.label.ar.is_empty() && !a.label.en.is_empty(), "{id}");
     }
-    let ring1 = reg.all().iter().filter(|a| a.ring == 1).count();
-    let ring2 = reg.all().iter().filter(|a| a.ring == 2).count();
-    assert_eq!((ring1, ring2), (6, 10));
+    let image = |ring| {
+        reg.all()
+            .iter()
+            .filter(|a| a.engine == "image" && a.ring == ring)
+            .count()
+    };
+    assert_eq!((image(1), image(2)), (6, 10));
 }
 
 #[test]
