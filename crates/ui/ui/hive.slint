@@ -1,0 +1,139 @@
+// The hive popup: a transparent frameless window holding the centre cell and
+// up to 18 action cells. Geometry (cell centres, picking, keyboard order)
+// is computed in Rust (src/layout.rs); this file only draws and forwards input.
+import { Tokens } from "tokens.slint";
+import { HexCell } from "../components/hex-cell.slint";
+
+// Embedded so the hive never depends on system fonts.
+import "../fonts/IBMPlexSansArabic-Regular.otf";
+import "../fonts/IBMPlexSansArabic-Medium.otf";
+import "../fonts/IBMPlexSansArabic-SemiBold.otf";
+
+export { Tokens }
+
+export struct CellData {
+    x: length,
+    y: length,
+    code: string,
+    label: string,
+}
+
+export component HiveWindow inherits Window {
+    in property <[CellData]> cells;
+    in property <length> hex-r;
+    in property <length> centre-x;
+    in property <length> centre-y;
+    in property <length> win-w;
+    in property <length> win-h;
+    in property <string> centre-text;
+    in property <string> centre-label;
+    // Index into `cells` of the highlighted cell (mouse or keyboard), or -1.
+    in-out property <int> highlight: -1;
+    // False then true again on every present, to replay the opening scale.
+    in-out property <bool> opened: true;
+
+    // Index into `cells` under the point, -1 for nothing.
+    callback pick(length, length) -> int;
+    // Next highlight for a key code (see layout::Nav::from_code).
+    callback navigate(int, int) -> int;
+    callback choose(int);
+    callback dismiss();
+
+    no-frame: true;
+    background: transparent;
+    title: "SbarHive";
+    width: root.win-w;
+    height: root.win-h;
+    default-font-family: Tokens.font-family;
+    forward-focus: keys;
+
+    layer := Rectangle {
+        transform-scale: root.opened ? Tokens.hive-scale-to : Tokens.hive-scale-from;
+        animate transform-scale { duration: Tokens.hive-open; easing: ease-out; }
+
+        for cell[i] in root.cells: HexCell {
+            x: cell.x - self.width / 2;
+            y: cell.y - self.height / 2;
+            r: root.hex-r;
+            text: cell.code;
+            highlighted: i == root.highlight;
+            accessible-role: button;
+            accessible-label: cell.label;
+            accessible-action-default => {
+                root.choose(i);
+            }
+        }
+
+        centre := HexCell {
+            x: root.centre-x - self.width / 2;
+            y: root.centre-y - self.height / 2;
+            r: root.hex-r;
+            centre: true;
+            text: root.highlight >= 0 && root.highlight < root.cells.length ? root.cells[root.highlight].label : root.centre-text;
+            accessible-role: text;
+            accessible-label: root.centre-label;
+        }
+    }
+
+    touch := TouchArea {
+        // `moved` only fires while pressed; hover needs the position itself.
+        changed mouse-x => {
+            root.highlight = root.pick(self.mouse-x, self.mouse-y);
+        }
+        changed mouse-y => {
+            root.highlight = root.pick(self.mouse-x, self.mouse-y);
+        }
+        changed has-hover => {
+            if !self.has-hover {
+                root.highlight = -1;
+            }
+        }
+        clicked => {
+            if root.pick(self.pressed-x, self.pressed-y) >= 0 {
+                root.choose(root.pick(self.pressed-x, self.pressed-y));
+            } else {
+                root.dismiss();
+            }
+        }
+    }
+
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismiss();
+                return accept;
+            }
+            if event.text == Key.Return || event.text == Key.Space {
+                if root.highlight >= 0 {
+                    root.choose(root.highlight);
+                }
+                return accept;
+            }
+            if event.text == Key.Backtab || (event.text == Key.Tab && event.modifiers.shift) {
+                root.highlight = root.navigate(root.highlight, 1);
+                return accept;
+            }
+            if event.text == Key.Tab {
+                root.highlight = root.navigate(root.highlight, 0);
+                return accept;
+            }
+            if event.text == Key.LeftArrow {
+                root.highlight = root.navigate(root.highlight, 2);
+                return accept;
+            }
+            if event.text == Key.RightArrow {
+                root.highlight = root.navigate(root.highlight, 3);
+                return accept;
+            }
+            if event.text == Key.UpArrow {
+                root.highlight = root.navigate(root.highlight, 4);
+                return accept;
+            }
+            if event.text == Key.DownArrow {
+                root.highlight = root.navigate(root.highlight, 5);
+                return accept;
+            }
+            reject
+        }
+    }
+}
