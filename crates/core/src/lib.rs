@@ -5,6 +5,7 @@
 
 pub mod action;
 mod action_impl;
+pub mod config;
 pub mod engine;
 pub mod i18n;
 pub mod ipc;
