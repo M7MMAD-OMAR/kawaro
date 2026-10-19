@@ -10,7 +10,10 @@ name = "sbarhived"
 path = "src/main.rs"
 
 [dependencies]
+ksni = { version = "0.3.6", default-features = false, features = ["blocking", "async-io"] }
+notify-rust = "4.18.2"
 sbarhive-core.workspace = true
 sbarhive-engines.workspace = true
 sbarhive-ui.workspace = true
 serde_json.workspace = true
+slint.workspace = true
