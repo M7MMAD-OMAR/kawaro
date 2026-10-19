@@ -64,8 +64,9 @@ pub(crate) fn plan(action: &ActionDef, files: &[PathBuf]) -> Vec<(Task, PathBuf)
     let mut out = Vec::new();
     for inputs in groups {
         let first = &inputs[0];
-        let dir = first.parent().unwrap_or(Path::new(""));
-        let fin = final_path_with(first, &action.output, dir, &|p| {
+        let parent = first.parent().unwrap_or(Path::new(""));
+        let dir = parent.join(&action.output.dir);
+        let fin = final_path_with(first, &action.output, &dir, &|p| {
             planned.iter().any(|q| q == p)
         });
         planned.push(fin.clone());
@@ -98,6 +99,11 @@ fn run_task(
     cancel: &CancelToken,
     progress: &(dyn Fn(f32) + Send + Sync),
 ) -> Result<PathBuf, (String, bool)> {
+    if let Some(dir) = task.output.parent()
+        && let Err(e) = std::fs::create_dir_all(dir)
+    {
+        return Err((format!("{}: {e}", dir.display()), false));
+    }
     let r = match catch_unwind(AssertUnwindSafe(|| engine.run(task, progress, cancel))) {
         Ok(Ok(())) => finalize(&task.output, fin).map_err(|e| (e.to_string(), false)),
         Ok(Err(e)) => Err((e.to_string(), matches!(e, EngineError::Cancelled))),

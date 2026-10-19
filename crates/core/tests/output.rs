@@ -11,6 +11,7 @@ fn spec(ext: &str, suffix: &str) -> OutputSpec {
         mode: OutputMode::PerFile,
         ext: ext.into(),
         suffix: suffix.into(),
+        dir: String::new(),
     }
 }
 

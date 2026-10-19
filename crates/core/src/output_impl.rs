@@ -217,6 +217,7 @@ mod tests {
             mode: crate::action::OutputMode::PerFile,
             ext: "webp".into(),
             suffix: String::new(),
+            dir: String::new(),
         };
         let first = d.path().join("a.webp");
         let got = final_path_with(&d.path().join("a.png"), &spec, d.path(), &|p| p == first);

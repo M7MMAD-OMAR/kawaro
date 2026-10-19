@@ -124,6 +124,7 @@ pub fn action(engine: &str, mode: OutputMode, ext: &str, suffix: &str) -> Action
             mode,
             ext: ext.into(),
             suffix: suffix.into(),
+            dir: String::new(),
         },
         code: Localized {
             ar: "ن".into(),

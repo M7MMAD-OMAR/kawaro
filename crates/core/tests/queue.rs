@@ -817,3 +817,25 @@ fn ac9_engine_available() {
     assert!(!q.engine_available("off"));
     assert!(!q.engine_available("nope"));
 }
+
+#[test]
+fn output_dir_setting_writes_into_a_created_subfolder() {
+    let dir = tempfile::tempdir().unwrap();
+    let inputs = files(dir.path(), &["a.png"]);
+    let mut act = action("fake", PerFile, "webp", "");
+    act.output.dir = "محوّل".into();
+    let planned = plan(&act, &inputs);
+    assert_eq!(planned[0].1, dir.path().join("محوّل").join("a.webp"));
+    let (tx, _rx) = channel();
+    let out = run_job(
+        1,
+        &act,
+        &inputs,
+        &FakeEngine::new(),
+        &CancelToken::new(),
+        &tx,
+    );
+    assert_eq!(out, vec![dir.path().join("محوّل").join("a.webp")]);
+    assert!(out[0].is_file());
+    assert_eq!(listing(&dir.path().join("محوّل")), ["a.webp"]);
+}
