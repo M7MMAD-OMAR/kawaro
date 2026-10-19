@@ -1,0 +1,43 @@
+// The hexagon cell, pointy top. Used for the action cells and the centre.
+// The outline is drawn in a unit viewbox scaled to the cell, so no length is
+// written here: every size comes from the parent or from Tokens.
+import { Tokens } from "tokens.slint";
+
+export component HexCell inherits Rectangle {
+    // Circumradius of the hexagon.
+    in property <length> r;
+    in property <string> text;
+    in property <bool> highlighted;
+    in property <bool> centre;
+
+    width: r * 1.7320508;
+    height: r * 2;
+
+    Path {
+        width: parent.width;
+        height: parent.height;
+        viewbox-width: 1.7320508;
+        viewbox-height: 2;
+        commands: "M 0.8660254 0 L 1.7320508 0.5 L 1.7320508 1.5 L 0.8660254 2 L 0 1.5 L 0 0.5 Z";
+        fill: root.highlighted ? Tokens.accent : (root.centre ? Tokens.surface-3 : Tokens.surface-2);
+        stroke: root.highlighted ? Tokens.accent : Tokens.border;
+        stroke-width: Tokens.border-default;
+        animate fill, stroke { duration: Tokens.hover; }
+    }
+
+    Text {
+        // Keep text inside the flat sides of the hexagon.
+        x: Tokens.space-2;
+        width: parent.width - 2 * Tokens.space-2;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        wrap: word-wrap;
+        overflow: elide;
+        text: root.text;
+        font-size: root.centre ? Tokens.font-label : Tokens.font-body;
+        font-weight: root.centre ? Tokens.weight-medium : Tokens.weight-semibold;
+        color: root.highlighted ? Tokens.accent-ink : Tokens.text-primary;
+        accessible-role: none;
+    }
+}
