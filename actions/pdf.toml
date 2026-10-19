@@ -1,0 +1,66 @@
+# PDF actions (S-010). Engine "pdf" is pure Rust (lopdf) and always
+# available; engine "ghostscript" needs `gs` and is hidden when it is missing.
+# split and to-images write one ZIP because an engine task has exactly one
+# output file.
+
+[[action]]
+id = "pdf.compress"
+engine = "ghostscript"
+op = "compress"
+ring = 1
+order = 10
+accepts = ["pdf"]
+output = { mode = "per-file", suffix = "-compressed" }
+code = { ar = "ضغط", en = "SHRINK" }
+label = { ar = "ضغط ملف PDF", en = "Compress PDF" }
+[action.params]
+preset = "ebook"
+
+[[action]]
+id = "pdf.merge"
+engine = "pdf"
+op = "merge"
+ring = 1
+order = 20
+accepts = ["pdf"]
+min_files = 2
+output = { mode = "combined", ext = "pdf", suffix = "-merged" }
+code = { ar = "دمج", en = "MERGE" }
+label = { ar = "دمج ملفات PDF في ملف واحد", en = "Merge PDFs into one" }
+
+[[action]]
+id = "pdf.to-images"
+engine = "ghostscript"
+op = "to-images"
+ring = 1
+order = 30
+accepts = ["pdf"]
+output = { mode = "per-file", ext = "zip", suffix = "-pages" }
+code = { ar = "صور", en = "IMAGES" }
+label = { ar = "تحويل الصفحات إلى صور PNG", en = "Convert pages to PNG images" }
+[action.params]
+dpi = 150
+
+[[action]]
+id = "pdf.rotate"
+engine = "pdf"
+op = "rotate"
+ring = 1
+order = 40
+accepts = ["pdf"]
+output = { mode = "per-file", suffix = "-rotated" }
+code = { ar = "تدوير", en = "ROTATE" }
+label = { ar = "تدوير الصفحات 90 درجة", en = "Rotate pages 90 degrees" }
+[action.params]
+degrees = 90
+
+[[action]]
+id = "pdf.split"
+engine = "pdf"
+op = "split"
+ring = 2
+order = 10
+accepts = ["pdf"]
+output = { mode = "per-file", ext = "zip", suffix = "-split" }
+code = { ar = "تقسيم", en = "SPLIT" }
+label = { ar = "تقسيم إلى ملف PDF لكل صفحة", en = "Split into one PDF per page" }

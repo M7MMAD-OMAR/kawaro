@@ -1,0 +1,87 @@
+# Office documents through LibreOffice (engine "office", S-009).
+# The schema has no "only these extensions" field, so each conversion lists
+# the other families in skip_ext: a spreadsheet never offers DOCX. A mixed
+# selection can still show it; the engine then rejects the wrong family.
+
+[[action]]
+id = "documents.to-pdf"
+engine = "office"
+op = "to-pdf"
+ring = 1
+order = 10
+accepts = ["document"]
+output = { mode = "per-file", ext = "pdf" }
+code = { ar = "PDF", en = "PDF" }
+label = { ar = "تحويل إلى PDF", en = "Convert to PDF" }
+
+[[action]]
+id = "documents.to-docx"
+engine = "office"
+op = "convert-doc"
+ring = 1
+order = 20
+accepts = ["document"]
+skip_ext = ["docx", "xls", "xlsx", "ods", "csv", "ppt", "pptx", "odp"]
+output = { mode = "per-file", ext = "docx" }
+code = { ar = "DOCX", en = "DOCX" }
+label = { ar = "تحويل إلى DOCX", en = "Convert to DOCX" }
+
+[[action]]
+id = "documents.to-odt"
+engine = "office"
+op = "convert-doc"
+ring = 1
+order = 30
+accepts = ["document"]
+skip_ext = ["odt", "xls", "xlsx", "ods", "csv", "ppt", "pptx", "odp"]
+output = { mode = "per-file", ext = "odt" }
+code = { ar = "ODT", en = "ODT" }
+label = { ar = "تحويل إلى ODT", en = "Convert to ODT" }
+
+[[action]]
+id = "documents.to-xlsx"
+engine = "office"
+op = "convert-sheet"
+ring = 1
+order = 40
+accepts = ["document"]
+skip_ext = ["xlsx", "doc", "docx", "odt", "rtf", "txt", "md", "ppt", "pptx", "odp"]
+output = { mode = "per-file", ext = "xlsx" }
+code = { ar = "XLSX", en = "XLSX" }
+label = { ar = "تحويل إلى XLSX", en = "Convert to XLSX" }
+
+[[action]]
+id = "documents.to-ods"
+engine = "office"
+op = "convert-sheet"
+ring = 1
+order = 50
+accepts = ["document"]
+skip_ext = ["ods", "doc", "docx", "odt", "rtf", "txt", "md", "ppt", "pptx", "odp"]
+output = { mode = "per-file", ext = "ods" }
+code = { ar = "ODS", en = "ODS" }
+label = { ar = "تحويل إلى ODS", en = "Convert to ODS" }
+
+[[action]]
+id = "documents.to-pptx"
+engine = "office"
+op = "convert-slides"
+ring = 1
+order = 60
+accepts = ["document"]
+skip_ext = ["pptx", "doc", "docx", "odt", "rtf", "txt", "md", "xls", "xlsx", "ods", "csv"]
+output = { mode = "per-file", ext = "pptx" }
+code = { ar = "PPTX", en = "PPTX" }
+label = { ar = "تحويل إلى PPTX", en = "Convert to PPTX" }
+
+[[action]]
+id = "documents.to-odp"
+engine = "office"
+op = "convert-slides"
+ring = 1
+order = 70
+accepts = ["document"]
+skip_ext = ["odp", "doc", "docx", "odt", "rtf", "txt", "md", "xls", "xlsx", "ods", "csv"]
+output = { mode = "per-file", ext = "odp" }
+code = { ar = "ODP", en = "ODP" }
+label = { ar = "تحويل إلى ODP", en = "Convert to ODP" }

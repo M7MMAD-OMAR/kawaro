@@ -16,8 +16,17 @@ image = { version = "0.25.10", default-features = false, features = ["png", "jpe
 webp = { version = "0.3.1", default-features = false }
 pdf-writer = "0.15.0"
 miniz_oxide = "0.8"
+# office and pdf engines (licenses in docs/engines.md)
+lopdf = { version = "0.45", default-features = false }
+tempfile.workspace = true
+zip = { version = "9", default-features = false }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 [dev-dependencies]
+serde.workspace = true
 tempfile.workspace = true
 serde_json.workspace = true
-serde.workspace = true
+# reading the DOCX, XLSX and PPTX archives LibreOffice writes
+zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
