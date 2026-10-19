@@ -165,6 +165,34 @@ unset PREFIX FAKE_GST_ACTIVE
 drop_sandbox
 
 ###########################################################################
+echo "== scenario E: default detection (no overrides)"
+# lib.sh puts fake dolphin, nautilus, nemo, thunar, hyprctl and systemctl
+# first on PATH, so detection finds them all; Nautilus additionally needs the
+# real nautilus-python plugin library on this machine.
+make_sandbox
+guard_home
+before="$(snapshot "$HOME")"
+export SBARHIVE_BRAND_DIR="$SB/no-brand"
+export SBARHIVE_THUNAR_SYSTEM_UCA="$FX/uca-system.xml"
+D="$XDG_DATA_HOME"; C="$XDG_CONFIG_HOME"
+if "$INSTALL" --no-build > "$SB/log/install.out" 2>&1; then pass; else fail "install exit code"; cat "$SB/log/install.out" >&2; fi
+assert_file "$D/kio/servicemenus/sbarhive.desktop" 755
+assert_file "$D/nemo/actions/sbarhive.nemo_action" 644
+assert_contains "Thunar detected" "$C/Thunar/uca.xml" "<unique-id>sbarhive</unique-id>"
+assert_file "$HOME/.local/bin/sbarhive-open-selection" 755
+assert_file "$C/systemd/user/sbarhive.service" 644
+if compgen -G '/usr/lib*/nautilus/extensions-4/libnautilus-python.so' >/dev/null ||
+   compgen -G '/usr/lib/*/nautilus/extensions-4/libnautilus-python.so' >/dev/null; then
+  assert_file "$D/nautilus-python/extensions/sbarhive.py" 644
+else
+  assert_absent "$D/nautilus-python/extensions/sbarhive.py"
+fi
+assert_absent "$SB/log/forbidden.log"
+if "$UNINSTALL" > /dev/null 2>&1; then pass; else fail "uninstall exit code"; fi
+assert_eq "tree restored" "$(snapshot "$HOME")" "$before"
+drop_sandbox
+
+###########################################################################
 echo "== scenario D: --no-build without binaries fails cleanly"
 make_sandbox
 guard_home

@@ -30,7 +30,7 @@
 ## قرارات
 - الملفات المصدرية تكتب `sbarhive` كما في المواصفة. المثبّت يستبدله بالمسار المطلق `${PREFIX}/bin/sbarhive` لأن مدير الملفات الذي تطلقه الجلسة قد لا يملك `~/.local/bin` في PATH.
 - Dolphin: لا نمرر `--token`. KDE يضع `XDG_ACTIVATION_TOKEN` في بيئة الأمر الذي يطلقه، والـ CLI يقرؤه عند غياب `--token` (docs/architecture.md، قسم CLI).
-- Dolphin: `all/allfiles` يغطي الملفات دون المجلدات، و`X-KDE-Protocols=file` يحصر العنصر في الملفات المحلية.
+- Dolphin: `all/allfiles` يغطي الملفات دون المجلدات، و`X-KDE-Protocols=file` يحصر العنصر في الملفات المحلية (المفتاح موجود في libKF6KIOWidgets). الثمن: لا يظهر العنصر للعناصر بمخطط غير `file`، مثل عرض `desktop:/` في Plasma. Dolphin على Hyprland لا يتأثر.
 - Thunar: إذا لم يوجد `~/.config/Thunar/uca.xml` نبدأ من `/etc/xdg/Thunar/uca.xml`، لأن ملف المستخدم يحل محل ملف النظام كاملاً، ولو بدأنا من ملف فارغ لاختفت إجراءات Thunar الافتراضية.
 - Hyprland: `SUPER, mouse:273` هو ربط تغيير حجم النافذة في الإعداد الافتراضي (`bindm`)، فالبديل من لوحة المفاتيح هو المقترح الأول في README.
 
