@@ -1,0 +1,104 @@
+import { Tokens } from "tokens.slint";
+export { Tokens }
+
+export struct Cell {
+    x: length,
+    y: length,
+    code: string,
+    name: string,
+}
+
+export component Hive inherits Window {
+    in property <[Cell]> cells;
+    in property <length> hex-r;
+    in property <length> win-w;
+    in property <length> win-h;
+    in property <string> center-text;
+    in property <bool> animate: true;
+    in-out property <int> hovered: -1;
+    out property <bool> opened: false;
+
+    callback pick(length, length) -> int;
+    callback activated(int);
+    callback dismiss();
+
+    no-frame: true;
+    background: transparent;
+    title: "SbarHive";
+    width: win-w;
+    height: win-h;
+    default-font-family: Tokens.font-family;
+    forward-focus: keys;
+
+    public function reset() {
+        root.hovered = -1;
+        root.opened = false;
+        root.opened = true;
+    }
+
+    init => {
+        root.opened = true;
+    }
+
+    layer := Rectangle {
+        opacity: root.opened || !root.animate ? 1 : 0;
+        transform-scale: root.opened || !root.animate ? 1 : Tokens.hive-scale-from;
+        animate opacity, transform-scale { duration: Tokens.hive-open; easing: ease-out; }
+
+        for cell[i] in root.cells: Rectangle {
+            x: cell.x - root.hex-r * 0.866;
+            y: cell.y - root.hex-r;
+            width: root.hex-r * 1.732;
+            height: root.hex-r * 2;
+
+            Path {
+                width: parent.width;
+                height: parent.height;
+                viewbox-width: 1.732;
+                viewbox-height: 2;
+                commands: "M 0.866 0 L 1.732 0.5 L 1.732 1.5 L 0.866 2 L 0 1.5 L 0 0.5 Z";
+                fill: i == root.hovered ? Tokens.accent : (i == 0 ? Tokens.surface-3 : Tokens.surface-2);
+                stroke: Tokens.border;
+                stroke-width: Tokens.border-width;
+            }
+
+            Text {
+                width: parent.width;
+                height: parent.height;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                wrap: word-wrap;
+                text: i == 0 ? (root.hovered > 0 ? root.cells[root.hovered].name : root.center-text) : cell.code;
+                font-size: i == 0 ? Tokens.font-label : Tokens.font-body;
+                font-weight: i == 0 ? Tokens.weight-medium : Tokens.weight-semibold;
+                color: i == root.hovered ? Tokens.accent-ink : Tokens.text-primary;
+                accessible-role: none;
+            }
+
+            accessible-role: button;
+            accessible-label: cell.name;
+        }
+    }
+
+    touch := TouchArea {
+        changed mouse-x => { root.hovered = root.pick(self.mouse-x, self.mouse-y); }
+        changed mouse-y => { root.hovered = root.pick(self.mouse-x, self.mouse-y); }
+        clicked => {
+            if root.pick(self.pressed-x, self.pressed-y) >= 1 {
+                root.activated(root.pick(self.pressed-x, self.pressed-y));
+            } else {
+                root.dismiss();
+            }
+        }
+    }
+
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismiss();
+                return accept;
+            }
+            reject
+        }
+    }
+}

@@ -1,0 +1,21 @@
+// Values copied by hand from design/tokens.json for the spike only.
+// The real project generates this file. It is the only .slint file allowed raw values.
+export global Tokens {
+    in-out property <bool> dark: true;
+    out property <color> surface-0: dark ? #15130F : #FAF7F0;
+    out property <color> surface-2: dark ? #27231C : #E9E1D0;
+    out property <color> surface-3: dark ? #322C23 : #DFD3BB;
+    out property <color> border: dark ? #3E372C : #D2C6AE;
+    out property <color> text-primary: dark ? #F2ECE0 : #1F1A12;
+    out property <color> text-secondary: dark ? #B3AA99 : #5C5446;
+    out property <color> accent: dark ? #F0A93B : #D9921A;
+    out property <color> accent-ink: dark ? #2A1A00 : #3A2500;
+    out property <length> border-width: 1px;
+    out property <length> font-label: 12px;
+    out property <length> font-body: 14px;
+    out property <int> weight-medium: 500;
+    out property <int> weight-semibold: 600;
+    out property <duration> hive-open: 120ms;
+    out property <float> hive-scale-from: 0.92;
+    out property <string> font-family: "IBM Plex Sans Arabic";
+}

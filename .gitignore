@@ -1,0 +1,6 @@
+/target
+*.zip
+/graft/
+spikes/*/target/
+spikes/*/out/*.log
+spikes/*/out/*.txt
