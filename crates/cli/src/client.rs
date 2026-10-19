@@ -1,0 +1,104 @@
+//! Socket client for the daemon protocol in `sbarhive_core::ipc`.
+
+use sbarhive_core::ipc::{Request, Response, socket_path};
+use std::io::{BufRead, BufReader, Write};
+use std::os::unix::net::UnixStream;
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::time::{Duration, Instant};
+
+const START_TIMEOUT: Duration = Duration::from_secs(2);
+
+fn connect() -> std::io::Result<UnixStream> {
+    let s = UnixStream::connect(socket_path())?;
+    s.set_read_timeout(Some(Duration::from_secs(10)))?;
+    Ok(s)
+}
+
+fn send(stream: &mut UnixStream, req: &Request) -> Result<(), String> {
+    let line = serde_json::to_string(req).map_err(|e| e.to_string())?;
+    writeln!(stream, "{line}").map_err(|e| format!("daemon: {e}"))
+}
+
+fn parse(line: &str) -> Result<Response, String> {
+    serde_json::from_str(line).map_err(|e| format!("bad reply from daemon: {e}"))
+}
+
+/// Sends one request and returns the first reply. `Error` replies become `Err`.
+pub fn request(req: &Request) -> Result<Response, String> {
+    let mut s = connect().map_err(|e| format!("daemon not running ({e})"))?;
+    send(&mut s, req)?;
+    let mut line = String::new();
+    BufReader::new(s)
+        .read_line(&mut line)
+        .map_err(|e| format!("daemon: {e}"))?;
+    match parse(&line)? {
+        Response::Error { message } => Err(message),
+        r => Ok(r),
+    }
+}
+
+/// Sends one request and feeds every reply line to `f` until it returns false
+/// or the daemon closes the connection.
+pub fn stream(req: &Request, mut f: impl FnMut(Response) -> bool) -> Result<(), String> {
+    let mut s = connect().map_err(|e| format!("daemon not running ({e})"))?;
+    s.set_read_timeout(None).ok();
+    send(&mut s, req)?;
+    for line in BufReader::new(s).lines() {
+        let line = line.map_err(|e| format!("daemon: {e}"))?;
+        match parse(&line)? {
+            Response::Error { message } => return Err(message),
+            r => {
+                if !f(r) {
+                    break;
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+pub fn daemon_up() -> bool {
+    matches!(request(&Request::Ping), Ok(Response::Ok))
+}
+
+/// The daemon binary: next to this executable when present, else from PATH.
+fn daemon_binary() -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|d| d.join("sbarhived")))
+        .filter(|p| p.is_file())
+        .unwrap_or_else(|| PathBuf::from("sbarhived"))
+}
+
+/// Starts the daemon detached when it does not answer, then waits for it.
+pub fn ensure_daemon() -> Result<(), String> {
+    if daemon_up() {
+        return Ok(());
+    }
+    use std::os::unix::process::CommandExt;
+    Command::new(daemon_binary())
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        // The activation token belongs to this request, not to the daemon's lifetime.
+        .env_remove("XDG_ACTIVATION_TOKEN")
+        .env_remove("DESKTOP_STARTUP_ID")
+        .process_group(0)
+        .spawn()
+        .map_err(|e| format!("cannot start sbarhived: {e}"))?;
+    let t0 = Instant::now();
+    while t0.elapsed() < START_TIMEOUT {
+        if daemon_up() {
+            return Ok(());
+        }
+        std::thread::sleep(Duration::from_millis(25));
+    }
+    Err("sbarhived did not start within 2 seconds".into())
+}
+
+pub fn exec_daemon() -> Result<(), String> {
+    use std::os::unix::process::CommandExt;
+    let err = Command::new(daemon_binary()).exec();
+    Err(format!("cannot run sbarhived: {err}"))
+}
