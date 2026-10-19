@@ -385,6 +385,40 @@ fn ac3_progress_ignores_regressions_and_out_of_range_reports() {
 }
 
 #[test]
+fn ac3_progress_advances_per_task_without_engine_reports() {
+    struct Silent;
+    impl Engine for Silent {
+        fn id(&self) -> &'static str {
+            "fake"
+        }
+        fn capabilities(&self) -> Vec<(&'static str, Vec<sbarhive_core::MediaKind>)> {
+            vec![]
+        }
+        fn run(
+            &self,
+            t: &sbarhive_core::Task,
+            _: sbarhive_core::Progress,
+            _: &CancelToken,
+        ) -> Result<(), sbarhive_core::EngineError> {
+            std::fs::write(&t.output, b"x")?;
+            Ok(())
+        }
+    }
+    let d = tempfile::tempdir().unwrap();
+    let fs = files(d.path(), &["a.png", "b.png", "c.png", "d.png"]);
+    let (tx, rx) = channel();
+    run_job(
+        1,
+        &action("fake", PerFile, "webp", ""),
+        &fs,
+        &Silent,
+        &CancelToken::new(),
+        &tx,
+    );
+    assert_eq!(progress_of(&drain(&rx), 1), [0.25, 0.5, 0.75, 1.0]);
+}
+
+#[test]
 fn ac4_failure_and_panic_leave_no_files() {
     let d = tempfile::tempdir().unwrap();
     let fs = files(d.path(), &["bad.png", "boom.png"]);
@@ -576,6 +610,23 @@ fn ac6_queue_unknown_engine_fails_every_task() {
         3
     );
     assert_eq!(eng.calls(), 0);
+}
+
+#[test]
+fn ac6_queue_unavailable_engine_fails_every_task() {
+    let d = tempfile::tempdir().unwrap();
+    let fs = files(d.path(), &["a.png", "b.png"]);
+    let eng = Arc::new(FakeEngine {
+        unavailable: true,
+        ..FakeEngine::new()
+    });
+    let (tx, rx) = channel();
+    let q = Queue::new(vec![eng.clone()], 1, tx);
+    let job = q.submit(action("fake", PerFile, "webp", ""), fs);
+    let ev = until_finished(&rx, 1);
+    assert_eq!(finished_of(&ev, job), (0, 2, false));
+    assert_eq!(eng.calls(), 0);
+    assert_eq!(listing(d.path()), ["a.png", "b.png"]);
 }
 
 #[test]

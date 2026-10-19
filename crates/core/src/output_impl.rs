@@ -89,14 +89,9 @@ fn numbered(path: &Path) -> (Name, u32) {
     let parsed = stem
         .strip_suffix(')')
         .and_then(|s| s.rsplit_once(" ("))
-        .and_then(|(b, n)| {
-            let ok = !n.is_empty() && n.bytes().all(|c| c.is_ascii_digit());
-            if ok {
-                n.parse::<u32>().ok().map(|n| (b, n))
-            } else {
-                None
-            }
-        });
+        // Digits only: `parse` alone would also accept a leading `+`.
+        .filter(|(_, n)| n.bytes().all(|c| c.is_ascii_digit()))
+        .and_then(|(b, n)| n.parse::<u32>().ok().map(|n| (b, n)));
     let (base, start) = match parsed {
         Some((b, n)) => (OsString::from(b), n),
         None => (path.file_stem().map(OsString::from).unwrap_or_default(), 0),
@@ -206,6 +201,8 @@ mod tests {
             "/d/a (x).png",
             "/d/a(2).png",
             "/d/a (2)b.png",
+            "/d/a (+2).png",
+            "/d/a (99999999999).png",
         ] {
             let (n, s) = numbered(Path::new(odd));
             assert_eq!(s, 0, "{odd}");

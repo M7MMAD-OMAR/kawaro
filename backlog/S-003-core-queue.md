@@ -1,5 +1,5 @@
 # S-003 طابور المهام في core
-الحالة: معتمدة
+الحالة: مراجعة
 
 ## القصة
 بصفتي مستخدماً اختار إجراءً من الخلية، أريد أن يعمل التحويل في الخلفية مع تقدم واضح وإمكانية الإلغاء،
@@ -36,3 +36,11 @@
 ## سجل المراجعة
 - قرار: الأعداد في `Finished` بالمهام لا بالملفات، مطابقة لـ `Started.tasks`؛ الإجراء المدمج مهمة واحدة.
 - قرار: المهام التي لم تبدأ بعد الإلغاء لا ترسل `TaskFailed` ولا تُعد في `failed`.
+- قرار: انهيار المحرك (panic) يُلتقط ويصير `TaskFailed` بنص «engine panicked»، فلا يموت العامل ولا تبقى الوظيفة معلقة في `active()`.
+- قرار: إسقاط `Queue` يلغي كل الوظائف وينتظر العمال، فلا يبقى ملف مؤقت بعده.
+- قرار: الوظيفة تُحذف من `active()` قبل إرسال `Finished`، فمن يستلم `Finished` يرى العدد الصحيح.
+- tester (قبل التنفيذ، على دوال `todo!`): `queue: 0 passed; 25 failed`، كلها `panicked at crates/core/src/queue_impl.rs` (`not yet implemented: core track`).
+- طفرات: الجولة الأولى على الحزمة كشفت طفرتين ناجيتين في `queue_impl.rs` (`(i + 1)` إلى `(i * 1)` في التقدم بعد المهمة، وحارس `e.available()` في العامل)، فأُضيف `ac3_progress_advances_per_task_without_engine_reports` و`ac6_queue_unavailable_engine_fails_every_task`. بعدها `cargo mutants -f` على ملفات المسار الثلاثة: 104 طفرات، 94 مقتولة، 10 غير قابلة للبناء، صفر ناجية.
+- بوابات: `cargo fmt --all --check` نظيف، `cargo clippy -p sbarhive-core --all-targets -- -D warnings` نظيف (بعد أخذ إصلاحَي المدير في `i18n.rs` و`ipc.rs` من `main` كما هما)، `cargo test -p sbarhive-core` 71 اختباراً ناجحاً.
+- خارج ملكيتي: تشغيل `cargo mutants -p sbarhive-core` كاملاً يعطي 174 طفرة، 29 ناجية كلها في `engine.rs` (19) و`i18n.rs` (7) و`action.rs` (2، `Localized::get`) و`ipc.rs` (1). تحتاج اختبارات من مالك تلك الملفات.
+- implementer: اختبار واحد (ac3) كان يفترض أن آخر `Progress` يسبق `Finished` مباشرة، وهذا أشد من AC3 (آخر قيمة 1). عُدّل ليتحقق مما يقوله المعيار: آخر قيمة 1 و`Finished` آخر حدث.
