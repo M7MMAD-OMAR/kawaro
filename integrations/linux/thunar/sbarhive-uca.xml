@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SbarHive custom action for Thunar. merge_uca.py inserts this <action> into
+  ~/.config/Thunar/uca.xml, keyed by unique-id "sbarhive", and replaces the
+  command with the absolute path chosen by scripts/install.sh.
+-->
+<action>
+	<icon>sbarhive</icon>
+	<name>SbarHive</name>
+	<name xml:lang="ar">صبار هايف</name>
+	<submenu></submenu>
+	<unique-id>sbarhive</unique-id>
+	<command>sbarhive open -- %F</command>
+	<description>Open the selected files in SbarHive</description>
+	<description xml:lang="ar">افتح الملفات المحددة في صبار هايف</description>
+	<range>*</range>
+	<patterns>*</patterns>
+	<audio-files/>
+	<image-files/>
+	<other-files/>
+	<text-files/>
+	<video-files/>
+</action>

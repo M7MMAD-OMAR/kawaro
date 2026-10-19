@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=SbarHive daemon
+Name[ar]=خدمة صبار هايف
+Comment=Starts the SbarHive background service at login
+Comment[ar]=يشغّل خدمة صبار هايف الخلفية عند تسجيل الدخول
+Exec=sbarhived
+Icon=sbarhive
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Name=SbarHive
+Name[ar]=صبار هايف
+GenericName=File Converter
+GenericName[ar]=محوّل ملفات
+Comment=Convert files locally from your file manager
+Comment[ar]=حوّل الملفات محلياً من مدير الملفات
+Exec=sbarhive open -- %F
+Icon=sbarhive
+Terminal=false
+NoDisplay=true
+StartupNotify=true
+Categories=Utility;
+Keywords=convert;converter;image;pdf;webp;
+Keywords[ar]=تحويل;محول;صورة;صور;
