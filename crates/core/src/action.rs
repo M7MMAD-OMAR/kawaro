@@ -41,6 +41,11 @@ pub struct OutputSpec {
     /// Added before the extension, for example "-small" gives `photo-small.jpg`.
     #[serde(default)]
     pub suffix: String,
+    /// Subfolder, relative to the first input's folder, that receives the
+    /// output. Empty means next to the input. Set by the daemon from the
+    /// user's settings; action files normally leave it out.
+    #[serde(default)]
+    pub dir: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -1,0 +1,9 @@
+[[action]]
+id = "fx.from-b"
+engine = "fake"
+op = "copy"
+ring = 1
+accepts = ["image"]
+output = { mode = "per-file", ext = "out" }
+code = { ar = "ن", en = "N" }
+label = { ar = "نسخ", en = "Copy" }

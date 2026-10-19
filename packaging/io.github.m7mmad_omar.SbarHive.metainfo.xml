@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.m7mmad_omar.SbarHive</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>SbarHive</name>
+  <name xml:lang="ar">صبار هايف</name>
+  <summary>Convert files locally from your file manager</summary>
+  <summary xml:lang="ar">حوّل الملفات محلياً من مدير الملفات</summary>
+  <developer id="io.github.m7mmad_omar">
+    <name>M7MMAD-OMAR</name>
+  </developer>
+  <description>
+    <p>
+      SbarHive converts and processes files entirely on your computer. Select
+      files in your file manager, choose SbarHive from the context menu, and a
+      honeycomb of actions that fit the selected files appears. The result is
+      saved as a new file next to the original.
+    </p>
+    <p xml:lang="ar">
+      يحوّل صبار هايف الملفات ويعالجها على جهازك بالكامل. حدد الملفات في مدير
+      الملفات واختر صبار هايف من قائمة النقر اليمين، فتظهر خلية نحل بالإجراءات
+      المناسبة لها، ويُحفظ الناتج ملفاً جديداً بجانب الأصل.
+    </p>
+    <p>No file ever leaves your computer.</p>
+    <p xml:lang="ar">لا يغادر أي ملف جهازك.</p>
+  </description>
+  <launchable type="desktop-id">io.github.m7mmad_omar.SbarHive.desktop</launchable>
+  <url type="homepage">https://github.com/M7MMAD-OMAR/sbarhive</url>
+  <url type="bugtracker">https://github.com/M7MMAD-OMAR/sbarhive/issues</url>
+  <url type="vcs-browser">https://github.com/M7MMAD-OMAR/sbarhive</url>
+  <categories>
+    <category>Utility</category>
+  </categories>
+  <provides>
+    <binary>sbarhive</binary>
+    <binary>sbarhived</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="0.1.0" date="2026-10-19">
+      <description>
+        <p>First development release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

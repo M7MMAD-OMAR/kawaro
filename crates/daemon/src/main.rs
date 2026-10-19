@@ -9,7 +9,7 @@ mod text;
 mod tray;
 mod ui;
 
-use sbarhive_core::i18n::Lang;
+use sbarhive_core::config::Config;
 use sbarhive_core::ipc::{Request, Response, socket_path};
 use sbarhive_core::queue::Queue;
 use state::lock;
@@ -54,7 +54,11 @@ fn main() -> ExitCode {
         }
     };
 
-    let lang = Lang::detect();
+    let (config, warning) = Config::load();
+    if let Some(w) = warning {
+        eprintln!("sbarhived: settings: {w}");
+    }
+    let lang = config.lang();
     if let Err(e) = sbarhive_ui::init() {
         eprintln!("sbarhived: no display: {e}");
         return ExitCode::FAILURE;
@@ -70,7 +74,7 @@ fn main() -> ExitCode {
     let engines = sbarhive_engines::all();
     let (ev_tx, ev_rx) = mpsc::channel();
     let queue = Arc::new(Queue::new(engines.clone(), workers(), ev_tx));
-    let state: state::Shared = Arc::new(Mutex::new(state::State::new(lang, &engines)));
+    let state: state::Shared = Arc::new(Mutex::new(state::State::new(config, &engines)));
 
     {
         let (state, queue) = (state.clone(), queue.clone());

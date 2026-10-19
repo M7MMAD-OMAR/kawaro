@@ -1,0 +1,74 @@
+# Audio actions, run by the FFmpeg engine (crates/engines/src/ffmpeg.rs).
+# Schema: crates/core/src/action.rs. Story: backlog/S-008-ffmpeg-engine.md.
+
+[[action]]
+id = "audio.to-mp3"
+engine = "ffmpeg"
+op = "convert-audio"
+ring = 1
+order = 10
+accepts = ["audio"]
+skip_ext = ["mp3"]
+output = { mode = "per-file", ext = "mp3" }
+code = { ar = "MP3", en = "MP3" }
+label = { ar = "تحويل إلى MP3", en = "Convert to MP3" }
+
+[[action]]
+id = "audio.to-m4a"
+engine = "ffmpeg"
+op = "convert-audio"
+ring = 1
+order = 20
+accepts = ["audio"]
+skip_ext = ["m4a"]
+output = { mode = "per-file", ext = "m4a" }
+code = { ar = "M4A", en = "M4A" }
+label = { ar = "تحويل إلى M4A", en = "Convert to M4A" }
+
+[[action]]
+id = "audio.to-ogg"
+engine = "ffmpeg"
+op = "convert-audio"
+ring = 1
+order = 30
+accepts = ["audio"]
+skip_ext = ["ogg", "oga"]
+output = { mode = "per-file", ext = "ogg" }
+code = { ar = "OGG", en = "OGG" }
+label = { ar = "تحويل إلى OGG", en = "Convert to OGG" }
+
+[[action]]
+id = "audio.to-flac"
+engine = "ffmpeg"
+op = "convert-audio"
+ring = 1
+order = 40
+accepts = ["audio"]
+skip_ext = ["flac"]
+output = { mode = "per-file", ext = "flac" }
+code = { ar = "FLAC", en = "FLAC" }
+label = { ar = "تحويل إلى FLAC", en = "Convert to FLAC" }
+
+[[action]]
+id = "audio.to-opus"
+engine = "ffmpeg"
+op = "convert-audio"
+ring = 1
+order = 50
+accepts = ["audio"]
+skip_ext = ["opus"]
+output = { mode = "per-file", ext = "opus" }
+code = { ar = "OPUS", en = "OPUS" }
+label = { ar = "تحويل إلى Opus", en = "Convert to Opus" }
+
+[[action]]
+id = "audio.to-wav"
+engine = "ffmpeg"
+op = "convert-audio"
+ring = 1
+order = 60
+accepts = ["audio"]
+skip_ext = ["wav"]
+output = { mode = "per-file", ext = "wav" }
+code = { ar = "WAV", en = "WAV" }
+label = { ar = "تحويل إلى WAV", en = "Convert to WAV" }

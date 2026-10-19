@@ -64,6 +64,8 @@ enum Cmd {
         #[arg(required = true)]
         files: Vec<PathBuf>,
     },
+    /// Report which engines and helper tools this system has.
+    Doctor,
     /// Start the daemon in the foreground.
     Daemon,
     /// Check that the daemon answers.
@@ -87,6 +89,10 @@ fn main() -> ExitCode {
             files,
         } => run(&action, wait, &files),
         Cmd::Actions { json, files } => actions(json, &files),
+        Cmd::Doctor => {
+            doctor();
+            Ok(())
+        }
         Cmd::Daemon => client::exec_daemon(),
         Cmd::Ping => client::request(&Request::Ping).map(|_| println!("pong")),
         Cmd::Quit => client::request(&Request::Quit).map(|_| ()),
@@ -145,10 +151,10 @@ fn engine_for(id: &str) -> Res<Arc<dyn Engine>> {
 
 fn registry() -> Registry {
     let mut reg = Registry::builtin();
-    if let Some(dir) = user_actions_dir() {
-        if let Err(e) = reg.add_dir(&dir) {
-            eprintln!("sbarhive: ignoring user actions: {e}");
-        }
+    if let Some(dir) = user_actions_dir()
+        && let Err(e) = reg.add_dir(&dir)
+    {
+        eprintln!("sbarhive: ignoring user actions: {e}");
     }
     reg
 }
@@ -270,6 +276,40 @@ fn run(id: &str, wait: bool, files: &[PathBuf]) -> Res<()> {
     } else {
         Ok(())
     }
+}
+
+fn on_path(tool: &str) -> bool {
+    std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).any(|d| d.join(tool).is_file()))
+        .unwrap_or(false)
+}
+
+fn doctor() {
+    let mark = |ok: bool| if ok { "ok     " } else { "missing" };
+    println!("engines");
+    for e in engines() {
+        println!("  {} {}", mark(e.available()), e.id());
+    }
+    println!("tools");
+    let tools: [(&str, &str); 8] = [
+        ("ffmpeg", "video and audio"),
+        ("ffprobe", "video and audio progress"),
+        ("soffice", "documents"),
+        ("gs", "PDF compression and pages to images"),
+        ("wl-paste", "open from clipboard on Wayland"),
+        ("xclip", "open from clipboard on X11"),
+        ("xdg-open", "open folder from notifications"),
+        ("sbarhived", "background service"),
+    ];
+    for (tool, why) in tools {
+        println!("  {} {tool:<10} {why}", mark(on_path(tool)));
+    }
+    println!("service");
+    println!(
+        "  {} sbarhived answering on {}",
+        mark(client::daemon_up()),
+        sbarhive_core::ipc::socket_path().display()
+    );
 }
 
 fn actions(json: bool, files: &[PathBuf]) -> Res<()> {

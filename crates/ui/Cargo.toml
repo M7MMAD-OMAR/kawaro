@@ -11,3 +11,10 @@ slint.workspace = true
 
 [build-dependencies]
 slint-build.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# Headless Slint platform for the behaviour test; same pinned version as slint.
+i-slint-backend-testing = "=1.18.1"
+# PNG encode and decode for the snapshot example.
+png = "0.17"

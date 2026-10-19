@@ -1,5 +1,6 @@
 //! State shared between the socket server, the event pump, the tray and the hive.
 
+use sbarhive_core::config::{Config, OutputPlace};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::ipc::{ActionSummary, Event, Response};
 use sbarhive_core::queue::JobId;
@@ -21,6 +22,7 @@ pub struct JobInfo {
 }
 
 pub struct State {
+    pub config: Config,
     pub lang: Lang,
     pub registry: Registry,
     pub available: Vec<String>,
@@ -54,9 +56,10 @@ fn user_actions_dir() -> Option<PathBuf> {
 }
 
 impl State {
-    pub fn new(lang: Lang, engines: &[Arc<dyn Engine>]) -> Self {
+    pub fn new(config: Config, engines: &[Arc<dyn Engine>]) -> Self {
         Self {
-            lang,
+            lang: config.lang(),
+            config,
             registry: load_registry(),
             available: engines
                 .iter()
@@ -67,6 +70,33 @@ impl State {
             jobs: HashMap::new(),
             subscribers: HashMap::new(),
         }
+    }
+
+    /// The action as it should run under the current settings: output
+    /// folder and quality preset applied.
+    pub fn configured(&self, mut action: ActionDef) -> ActionDef {
+        if self.config.output == OutputPlace::Subfolder {
+            let name = self.config.output_folder.trim();
+            let safe = !name.is_empty() && !name.contains('/') && name != "." && name != "..";
+            action.output.dir = if safe {
+                name.to_string()
+            } else {
+                "SbarHive".into()
+            };
+        }
+        self.config.apply_quality(&mut action.params);
+        action
+    }
+
+    /// Re-reads settings and action files.
+    pub fn reload(&mut self) {
+        let (config, warning) = Config::load();
+        if let Some(w) = warning {
+            eprintln!("sbarhived: settings: {w}");
+        }
+        self.lang = config.lang();
+        self.config = config;
+        self.registry = load_registry();
     }
 
     pub fn matching(&self, files: &[PathBuf]) -> Vec<ActionDef> {
