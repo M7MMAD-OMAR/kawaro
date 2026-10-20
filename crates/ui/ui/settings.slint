@@ -1,0 +1,255 @@
+// The settings window: a normal decorated window built from the vendored
+// Material 3 components (crates/ui/material, see its README and
+// docs/adr/0002-settings-components.md). Strings, option order and the
+// mapping to the settings file live in Rust (src/settings.rs); this file only
+// lays out and forwards input.
+//
+// Right to left: Rust reverses the option lists for Arabic, and `rtl` mirrors
+// the label alignment, the switch rows and the button row here.
+import { Tokens } from "tokens.slint";
+import { SbarMaterial } from "material-tokens.slint";
+import { MaterialPalette, MaterialWindow, SegmentedButton, Switch, TextField, FilledButton, TextButton } from "@material";
+import { Palette } from "std-widgets.slint";
+
+import "../fonts/IBMPlexSansArabic-Regular.otf";
+import "../fonts/IBMPlexSansArabic-Medium.otf";
+import "../fonts/IBMPlexSansArabic-SemiBold.otf";
+
+export { Tokens, Palette }
+
+// Every visible string, filled from Rust in the window language.
+export struct SettingsText {
+    title: string,
+    language: string,
+    theme: string,
+    output: string,
+    folder: string,
+    quality: string,
+    notify: string,
+    open-folder: string,
+    save: string,
+    cancel: string,
+}
+
+// A section heading, aligned to the reading side.
+component Heading inherits Text {
+    in property <bool> rtl;
+    font-size: Tokens.font-title;
+    font-weight: Tokens.weight-semibold;
+    color: Tokens.text-primary;
+    horizontal-alignment: root.rtl ? right : left;
+}
+
+// A labelled group of mutually exclusive options. `items` arrive already in
+// visual order; `current` is a visual index.
+component Choice inherits VerticalLayout {
+    in property <bool> rtl;
+    in property <string> label;
+    in property <[string]> items;
+    in-out property <int> current;
+
+    spacing: Tokens.space-2;
+
+    Heading {
+        rtl: root.rtl;
+        text: root.label;
+    }
+
+    HorizontalLayout {
+        alignment: root.rtl ? end : start;
+
+        SegmentedButton {
+            accessible-label: root.label;
+            items: root.items.length == 3 ? [
+                { text: root.items[0] },
+                { text: root.items[1] },
+                { text: root.items[2] },
+            ] : [
+                { text: root.items[0] },
+                { text: root.items[1] },
+            ];
+            current-index <=> root.current;
+        }
+    }
+}
+
+// A switch with its label; the switch sits on the far side of the reading
+// direction (right in English, left in Arabic).
+component SwitchRow inherits Rectangle {
+    in property <bool> rtl;
+    in property <string> label;
+    in-out property <bool> checked;
+
+    min-height: max(toggle.min-height, text.min-height);
+
+    text := Text {
+        x: root.rtl ? toggle.width + Tokens.space-4 : 0;
+        width: root.width - toggle.width - Tokens.space-4;
+        height: root.height;
+        text: root.label;
+        font-size: Tokens.font-body;
+        color: Tokens.text-primary;
+        vertical-alignment: center;
+        horizontal-alignment: root.rtl ? right : left;
+        // The switch carries the label for screen readers.
+        accessible-role: none;
+    }
+
+    toggle := Switch {
+        x: root.rtl ? 0 : root.width - self.width;
+        y: (root.height - self.height) / 2;
+        width: self.min-width;
+        height: self.min-height;
+        accessible-label: root.label;
+        checked <=> root.checked;
+    }
+}
+
+export component SettingsUi inherits MaterialWindow {
+    in property <bool> rtl;
+    in property <SettingsText> text;
+    in property <[string]> language-items;
+    in property <[string]> theme-items;
+    in property <[string]> output-items;
+    in property <[string]> quality-items;
+
+    // Visual indices into the lists above.
+    in-out property <int> language;
+    in-out property <int> theme;
+    in-out property <int> output;
+    in-out property <int> quality;
+    in-out property <string> folder;
+    in-out property <bool> notify;
+    in-out property <bool> open-folder;
+    // Visual index of the subfolder option in `output-items` (it depends on
+    // the direction, so Rust sets it). The folder name is editable only then.
+    in property <int> subfolder-index;
+
+    callback save();
+    callback cancel();
+
+    title: root.text.title;
+    default-font-family: Tokens.font-family;
+    preferred-width: Tokens.space-6 * 16;
+    forward-focus: keys;
+
+    init => {
+        MaterialPalette.schemes = SbarMaterial.schemes;
+    }
+
+    // Esc anywhere closes without saving; every other key goes on to the
+    // focused control.
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.cancel();
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            padding: Tokens.space-6;
+            spacing: Tokens.space-5;
+
+            Choice {
+                rtl: root.rtl;
+                label: root.text.language;
+                items: root.language-items;
+                current <=> root.language;
+            }
+
+            Choice {
+                rtl: root.rtl;
+                label: root.text.theme;
+                items: root.theme-items;
+                current <=> root.theme;
+            }
+
+            VerticalLayout {
+                spacing: Tokens.space-3;
+
+                Choice {
+                    rtl: root.rtl;
+                    label: root.text.output;
+                    items: root.output-items;
+                    current <=> root.output;
+                }
+
+                TextField {
+                    label: root.text.folder;
+                    accessible-label: root.text.folder;
+                    enabled: root.output == root.subfolder-index;
+                    horizontal-alignment: root.rtl ? right : left;
+                    text <=> root.folder;
+                }
+            }
+
+            Choice {
+                rtl: root.rtl;
+                label: root.text.quality;
+                items: root.quality-items;
+                current <=> root.quality;
+            }
+
+            VerticalLayout {
+                spacing: Tokens.space-3;
+
+                SwitchRow {
+                    rtl: root.rtl;
+                    label: root.text.notify;
+                    checked <=> root.notify;
+                }
+
+                SwitchRow {
+                    rtl: root.rtl;
+                    label: root.text.open-folder;
+                    checked <=> root.open-folder;
+                }
+            }
+
+            // Primary action on the far side of the reading direction.
+            if !root.rtl: HorizontalLayout {
+                alignment: end;
+                spacing: Tokens.space-2;
+
+                TextButton {
+                    text: root.text.cancel;
+                    accessible-label: root.text.cancel;
+                    clicked => {
+                        root.cancel();
+                    }
+                }
+
+                FilledButton {
+                    text: root.text.save;
+                    accessible-label: root.text.save;
+                    clicked => {
+                        root.save();
+                    }
+                }
+            }
+
+            if root.rtl: HorizontalLayout {
+                alignment: start;
+                spacing: Tokens.space-2;
+
+                FilledButton {
+                    text: root.text.save;
+                    accessible-label: root.text.save;
+                    clicked => {
+                        root.save();
+                    }
+                }
+
+                TextButton {
+                    text: root.text.cancel;
+                    accessible-label: root.text.cancel;
+                    clicked => {
+                        root.cancel();
+                    }
+                }
+            }
+        }
+    }
+}
