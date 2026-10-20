@@ -25,5 +25,9 @@ exclude_re = [
   "in frame_presented$",
   "replace frame_presented with",
   "in token_hook$",
-  "replace token_hook with",
+  "replace token_hook -> ",
+  # init() picks the platform on a live display only (tests/overlay/*.sh,
+  # snapshots.sh); the surface decision it calls stays mutated in overlay.rs.
+  "in init$",
+  "replace init -> ",
 ]
