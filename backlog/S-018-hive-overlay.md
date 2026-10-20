@@ -141,3 +141,45 @@
     error: could not compile `sbarhive-ui` (test "thumb") due to 1 previous error
     ```
 - 2026-10-20، المدير: المنفِّذان لـ S-018a وS-018g توقفا مع انتهاء الجلسة قبل التثبيت، وأكمل المدير البوابات على شيفرتهما كما هي: fmt وclippy نظيفان، `cargo test --workspace` 419 ناجحاً، `overlay_pure` 25 من 25 و`thumb` 38 من 38، design-lint نظيف. أيقونة `file.svg` فُحصت بالعين بجانب document وpdf وimage: الإطار والخط والزوايا من العائلة نفسها، وتُعتمد بالتفويض. فحص الطفرات يلي هذا المدخل.
+- 2026-10-20، المختبِر (S-018b فقط، AC4 إلى AC7): كُتبت الاختبارات من المعايير وشُغّل كل سكربت جديد مرة واحدة على بناء `1d42105` (`cargo build --release`، `nice`). فشلت فحوص AC4 وAC5 وAC7 الخاصة بالطبقة لأن السطح الطبقي غير موجود بعد، وبقيت فحوص «كما اليوم» ناجحة حارساتٍ للانحدار.
+  - الملفات: `tests/overlay/kwin.sh` (الوضع الافتراضي طبقة، و`kwin.sh window` يشغّل الخدمة بـ `SBARHIVE_SURFACE=window`)، و`tests/overlay/gnome.sh`، و`tests/overlay/other.py` (نافذة GTK بملء الشاشة بلون واحد بلا إطار ولا نص، فلا تتغير صورتها مع التركيز)، و`tests/overlay/shot.py` (نسخة من `spikes/overlay/shot.py`)، و`tests/overlay/boxdiff.py` (صندوق البكسلات المتغيرة بين لقطتين، مكتبة Python القياسية وحدها)، وتعديل `crates/ui/tests/snapshots.sh`، و`tests/overlay/out/` في `.gitignore`. الإدخال من `tests/drop/kwin-input` المبني.
+  - `kwin.sh`: KWin مخفي 1280×800، الخدمة بـ `WAYLAND_DEBUG=1` فوق `other.py`، وخمسة ظهورات: `open` بلا رمز، `open --token sbh-test-token`، `drop`، ثم `language = "ar"` في `config.toml` الخاص، ثم `theme = "dark"` (انتظار 3 ث لكلٍّ، الخدمة تراقب الملف كل 2 ث). يُقطع الأثر بعلامات أسطر لكل ظهور. لكل ظهور: `get_layer_surface` واحد بالضبط، وبالطبقة 3 والاسم `"sbarhive"`، و`set_anchor` كله 15، و`set_exclusive_zone` كله -1، و`set_keyboard_interactivity` كله 1 (عدا ظهور `drop`، لأن AC13 يجعلها 0)، و`get_subsurface` واحد بالضبط، وصفر `get_xdg_surface`. وفي الأثر كله صفر `get_xdg_surface` (ولا سطح نافذة مخفي عند البدء)، ولا `wl_display#1.error(` ولا «protocol error». لقطة ScreenShot2 قبل الظهور الأول وأثناءه: مركز صندوق الفرق في (640، 400) بفرق 1 px أو أقل، والصندوق بين 300 × 280 و394 × 363 (لا شريط عنوان، والماسك شفاف).
+  - `gnome.sh`: GNOME Shell مخفي، ثلاثة ظهورات (بلا رمز، برمز، `drop`): نافذة `SbarHive` ظاهرة من `Shell.Eval`، و`get_xdg_surface` حتى نهاية الظهور، وصفر `get_layer_surface`، ولا خطأ بروتوكول.
+  - `snapshots.sh` (AC7): كل مرجع يُقارن مرتين، بـ `SBARHIVE_SURFACE=layer` وبـ `window`، مع أثر `WAYLAND_DEBUG=1` لكل تشغيل: تشغيل الطبقة يشترط `get_layer_surface` واحداً أو أكثر وصفر `get_xdg_surface`، وتشغيل النافذة العكس. `SNAP_SURFACES` يحصر القائمة، و`--update` يكتب المراجع من تشغيل النافذة وحده. `settings_snapshots.sh` دون تغيير ولم يُشغَّل (حمل الجهاز).
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل):
+    1. على KWin بلا `SBARHIVE_SURFACE` يكون كل ظهور من الخدمة، بما فيه `drop` وما بعد تغيير اللغة والسمة في `config.toml`، سطحاً طبقياً بالطلبات أعلاه، ولا تنشئ الخدمة أي `xdg_surface` للخلية ولا عند البدء.
+    2. **Esc (evdev 1) يغلق الخلية على مسار الطبقة من S-018b**، لا من S-018c: الاختبار يغلق كل ظهور بـ Esc عبر `org_kde_kwin_fake_input` قبل الظهور التالي، وإلا لم يكن ظهوراً جديداً بسطح جديد. ظهور `drop` يُنتظر بعده 10 ث (مهلة S-014a AC3) لأن لوحة المفاتيح قد تكون 0.
+    3. `SBARHIVE_SURFACE=window` و`layer` يُقرآن في الخدمة وفي مثال `hive_snapshot`، و`take_snapshot` يعمل على محوّل الطبقة بأبعاد المرجع (393 × 362).
+    4. صيغة الأثر: الطلبات `-> interface#id.request(` (wayland-rs) أو بـ `@` (libwayland)، والاختبارات تقبل الاثنين.
+  - ما حُسم حيث سكت المعيار: عدد `set_anchor` و`set_exclusive_zone` و`set_keyboard_interactivity` واحد أو أكثر بشرط أن تكون كلها بالقيمة المطلوبة. ورمز مختلَق يكفي لظهور «برمز» في AC5 (العدّ وحده، والتفعيل الحقيقي في AC10).
+  - الاختبارات القائمة: لم يُعدَّل `tests/focus/kwin.sh:42-47` ولا `tests/drop/lib.sh:157-163` ولا `tests/drop/kwin.sh:51`، لأنها تعتمد على سطري `hive focus` و`hive surface` (AC11، S-018c) وعلى المستقبِل على اتصال الطبقة (S-018d). ولم يُعدَّل `tests/e2e/run.sh` بعد السطر 64: الإغلاق الصريح يحتاج إدخالاً محقوناً، وتشغيل KWin فيه (السطر 15) بلا `KWIN_WAYLAND_NO_PERMISSION_CHECKS`، وهذا خارج السطور المسموحة. تنبيه للمنفِّذ والمراجع: من S-018b يصير KWin طبقةً افتراضياً، فقد تبقى الخلية ظاهرة من السطر 64 حتى فحص الذاكرة في السطر 105 (AC18، S-018f). وكذلك `tests/focus/kwin.sh` و`tests/drop/kwin.sh` قد يتغير سلوكهما على KWin قبل S-018c وS-018d.
+  - لم يُشغَّل: `kwin.sh window` (AC6، تعليمات المدير: تشغيل واحد لكل سكربت جديد، وهو اليوم مطابق للوضع الافتراضي)، و`settings_snapshots.sh`. فحص `strace -e openat` لـ AC23 لم يُضف هنا (S-018g/h).
+  - ملاحظة من الأثر: النافذة اليوم في KWin تطلب `get_subsurface` خمس مرات لكل ظهور تقريباً، فشرط «واحد بالضبط» لا يصح إلا لأن مسار الطبقة لا ينشئ نافذة winit للخلية.
+  - مخرجات الفشل، `nice -n 10 tests/overlay/kwin.sh` (RESULT FAIL (33)، مقتطف):
+    ```
+    INFO whole trace: get_xdg_surface 5, get_layer_surface 0
+    INFO show 1 (plain): get_layer_surface 0 (layer 3 "sbarhive" 0), set_anchor(15) 0, set_exclusive_zone(-1) 0, set_keyboard_interactivity(1) 0, get_subsurface 0, get_xdg_surface 0
+    FAIL AC5 show 1 (plain): exactly one get_layer_surface
+    FAIL AC4 show 1 (plain): the layer surface is on layer 3 (overlay) with namespace sbarhive
+    FAIL AC4 show 1 (plain): anchors 15 (all edges)
+    FAIL AC4 show 1 (plain): exclusive_zone -1
+    FAIL AC4 show 1 (plain): keyboard_interactivity 1 (exclusive)
+    FAIL AC4 show 1 (plain): exactly one get_subsurface (the hive in the catcher)
+    PASS AC5 show 1 (plain): no get_xdg_surface
+    INFO show 2 (token): get_layer_surface 0 (layer 3 "sbarhive" 0), set_anchor(15) 0, set_exclusive_zone(-1) 0, set_keyboard_interactivity(1) 0, get_subsurface 5, get_xdg_surface 1
+    FAIL AC5 show 2 (token): exactly one get_layer_surface
+    FAIL AC5 show 2 (token): no get_xdg_surface
+    INFO show 3 (drop): get_layer_surface 0 (layer 3 "sbarhive" 0), set_anchor(15) 0, set_exclusive_zone(-1) 0, set_keyboard_interactivity(1) 0, get_subsurface 10, get_xdg_surface 2
+    FAIL AC5 show 3 (drop): exactly one get_layer_surface
+    FAIL AC5 show 3 (drop): no get_xdg_surface
+    (الظهوران 4 و5 بالفشل نفسه)
+    FAIL AC4/AC5: no get_xdg_surface in the whole trace (no hive toplevel, not even a hidden one)
+    PASS AC4: no protocol error in the daemon log
+    INFO hive pixel box: 447 223 384 353
+    PASS AC4: screenshot box centred within 1 px
+    PASS AC4: screenshot box no larger than the hive (no title bar, transparent catcher)
+    RESULT FAIL (33)
+    ```
+    الظهوران 1 و5 بلا `get_xdg_surface` في قطعتيهما لأن الأول يعيد استخدام سطح winit المنشأ عند البدء، والخامس كذلك على ما يبدو؛ فحص الأثر كله يلتقطهما. فحوص اللقطة ناجحة اليوم لأن النافذة الحالية بلا إطار وفي المنتصف: حارسات انحدار.
+  - `nice -n 19 tests/overlay/gnome.sh`: RESULT PASS (11 فحصاً)، متوقَّع لأن AC6 «كما اليوم»: حارس انحدار.
+  - `CARGO_BUILD_JOBS=2 nice -n 19 crates/ui/tests/snapshots.sh`: `snapshots: FAILED`. المقارنة بالبكسل ناجحة في التشغيلات الثمانية (`diff 0 pixels`)، والفشل في فحص السطح للتشغيلات الأربعة بـ `layer`. سطور FAIL قُطعت من المخرجات المعروضة (`tail`)، وأعداد الأثر المحفوظة في مجلد المخرجات قبل حذفه: `layer-hive-{en,ar}-{dark,light}.trace` كلها `get_layer_surface 0` و`get_xdg_surface 1`، فالسطر المطبوع لكلٍّ منها: `FAIL AC7 layer hive-en-dark.png: drawn on get_layer_surface 0, get_xdg_surface 1 (want >= 1 and 0)`. تشغيلات `window` كلها `0` و`1`، ناجحة.

@@ -9,6 +9,12 @@
 # Usage: crates/ui/tests/snapshots.sh [--update]
 #   --update  rewrites the references (review them before committing).
 # Exit code 0 when every snapshot matches.
+#
+# S-018 AC7: every reference is compared twice, with SBARHIVE_SURFACE=layer
+# (the layer-shell adapter) and with SBARHIVE_SURFACE=window (winit). Each run
+# keeps a WAYLAND_DEBUG=1 trace, so a layer run that silently fell back to a
+# window (or a window run that made a layer surface) fails. SNAP_SURFACES
+# narrows the list; --update writes the references from the window run only.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -30,16 +36,29 @@ inner() {
     echo "private compositor did not start"; tail "$OUT/kwin.log"; kill $cpid 2>/dev/null; return 2
   fi
   sleep 1
-  local fail=0
-  for lang in en ar; do
-    for scheme in dark light; do
-      local name="hive-$lang-$scheme.png"
-      local cmp=(--compare "$REF/$name")
-      [ "$UPDATE" = 1 ] && cmp=()
-      if ! SBARHIVE_COLOR_SCHEME=$scheme SBARHIVE_REDUCED_MOTION=1 \
-          "$BIN" "$OUT/$name" --lang "$lang" --highlight 0 "${cmp[@]}"; then
-        echo "FAIL $name (actual: $OUT/$name)"; fail=1
-      fi
+  local fail=0 surface
+  local surfaces; read -ra surfaces <<<"${SNAP_SURFACES:-layer window}"
+  [ "$UPDATE" = 1 ] && surfaces=(window)
+  for surface in "${surfaces[@]}"; do
+    for lang in en ar; do
+      for scheme in dark light; do
+        local name="hive-$lang-$scheme.png"
+        local out="$OUT/$surface-$name" trace="$OUT/$surface-${name%.png}.trace"
+        local cmp=(--compare "$REF/$name")
+        [ "$UPDATE" = 1 ] && { cmp=(); out="$OUT/$name"; }
+        if ! SBARHIVE_SURFACE=$surface WAYLAND_DEBUG=1 SBARHIVE_COLOR_SCHEME=$scheme SBARHIVE_REDUCED_MOTION=1 \
+            "$BIN" "$out" --lang "$lang" --highlight 0 "${cmp[@]}" 2>"$trace"; then
+          echo "FAIL $surface $name (actual: $out)"; fail=1
+        fi
+        local layer xdg
+        layer=$(grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$trace")
+        xdg=$(grep -cE -- '-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$trace")
+        if [ "$surface" = layer ] && { [ "$layer" -lt 1 ] || [ "$xdg" -ne 0 ]; }; then
+          echo "FAIL AC7 $surface $name: drawn on get_layer_surface $layer, get_xdg_surface $xdg (want >= 1 and 0)"; fail=1
+        elif [ "$surface" = window ] && { [ "$layer" -ne 0 ] || [ "$xdg" -lt 1 ]; }; then
+          echo "FAIL AC7 $surface $name: drawn on get_layer_surface $layer, get_xdg_surface $xdg (want 0 and >= 1)"; fail=1
+        fi
+      done
     done
   done
   kill $cpid 2>/dev/null
@@ -48,7 +67,7 @@ inner() {
 }
 
 export -f inner
-export BIN OUT REF UPDATE
+export BIN OUT REF UPDATE SNAP_SURFACES
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"

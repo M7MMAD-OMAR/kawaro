@@ -8,4 +8,5 @@ spikes/*/out/*.txt
 mutants.out*/
 tests/focus/out/
 tests/drop/out/
+tests/overlay/out/
 tests/drop/kwin-input/target/
