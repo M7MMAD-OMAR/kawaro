@@ -30,9 +30,27 @@
 #                    window once and the hive stays, and each show requests
 #                    one wl_data_device after get_layer_surface with every
 #                    earlier one released first (tests/drop/layer.sh).
+#   scheme           AC15 (S-018e): a fake org.freedesktop.portal.Desktop
+#                    (portal.py) serves the Settings color-scheme on the
+#                    private bus. With theme = "auto": 1 makes the centre
+#                    cell color.dark.surface-3, SettingChanged to 2 while the
+#                    hive is hidden makes the next show light, and back to 1
+#                    dark. theme = "light" or "dark" in config.toml, and then
+#                    SBARHIVE_COLOR_SCHEME (daemon restarted with it), win
+#                    over the portal. Every show is a layer.
+#   1.5              AC17 (S-018e): a reference show at scale 1, then a
+#                    second private KWin at scale 1.5 (1920x1200 physical,
+#                    1280x800 logical; the scale is seeded in
+#                    kwinoutputconfig.json and read back with kscreen-doctor):
+#                    preferred_scale(180) before the first configure, the
+#                    hive buffer 590 x 543 (AC2), destination 393 x 362, and
+#                    the screenshot box 1.5 times the scale 1 box within 1 px.
+# The layer mode also checks AC16 (S-018e): every wl_pointer.enter on the
+# catcher or the hive is followed by wp_cursor_shape_device_v1.set_shape(
+# <serial>, 1); each show moves the pointer over the catcher and the hive.
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
-# Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop] [target/release]
+# Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop|scheme|1.5] [target/release]
 # Conditions go to check() in single quotes and are expanded by eval.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -41,7 +59,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in window|input|token|a11y|drop) MODE=$a ;; *) BIN="$a" ;; esac
+  case "$a" in window|input|token|a11y|drop|scheme|1.5) MODE=$a ;; *) BIN="$a" ;; esac
 done
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
@@ -52,8 +70,9 @@ export BIN HERE ROOT OUT MODE INPUT
 
 inner() {
   set -u
-  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE SBARHIVE_SURFACE
-  local log="$OUT/kwin-$MODE"
+  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE SBARHIVE_SURFACE SBARHIVE_COLOR_SCHEME
+  # The 1.5 mode runs twice: PHASE=ref at scale 1, then PHASE=main at 1.5.
+  local log="$OUT/kwin-$MODE${PHASE:+-$PHASE}"
   local FAILS=0
   check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
   : >"$log-cli.log"
@@ -65,7 +84,12 @@ inner() {
     printf '[Windows]\nFocusStealingPreventionLevel=1\n' >"$XDG_CONFIG_HOME/kwinrc"
   fi
   # English and light to start with; shows 4 and 5 of layer/window change them.
-  printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  # The scheme mode follows the system (AC15) until it changes the theme.
+  if [ "$MODE" = scheme ]; then
+    printf 'language = "en"\ntheme = "auto"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  else
+    printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  fi
   # Lets shot.py (python3) use org.kde.KWin.ScreenShot2 in this private KWin only.
   mkdir -p "$XDG_DATA_HOME/applications"
   printf '[Desktop Entry]\nType=Application\nName=sbh shot\nExec=%s\nNoDisplay=true\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n' \
@@ -83,14 +107,43 @@ inner() {
     timeout 10 gdbus wait --session org.a11y.Bus || echo "INFO fake org.a11y.Bus did not appear"
   fi
 
+  # AC15: the fake portal owns org.freedesktop.portal.Desktop before KWin and
+  # other.py start, so nothing activates the real xdg-desktop-portal here.
+  local portal="" portalf="$XDG_RUNTIME_DIR/portal.fifo"
+  if [ "$MODE" = scheme ]; then
+    mkfifo "$portalf"
+    python3 -I -W ignore::DeprecationWarning "$HERE/portal.py" "$portalf" 1 >"$log-portal.log" 2>&1 &
+    portal=$!
+    exec 5>"$portalf"
+    timeout 10 gdbus wait --session org.freedesktop.portal.Desktop || echo "INFO fake portal did not appear"
+  fi
+
+  # AC17: scale 1.5 on a 1920x1200 virtual output is 1280x800 logical, the
+  # AC2 case. `kscreen-doctor output.Virtual-0.scale.1.5` exits 0 and changes
+  # nothing in headless KWin 6.7.5 (no kde_output_configuration request), so
+  # the scale is seeded in KWin's own output config and read back below.
+  local kw=1280 kh=800
+  if [ "$MODE" = 1.5 ] && [ "${PHASE:-}" = main ]; then
+    kw=1920; kh=1200
+    cat >"$XDG_CONFIG_HOME/kwinoutputconfig.json" <<'JSON'
+[{"name": "outputs", "data": [{"connectorName": "Virtual-0", "mode": {"width": 1920, "height": 1200, "refreshRate": 60000}, "scale": 1.5, "transform": "Normal"}]},
+ {"name": "setups", "data": [{"lidClosed": false, "outputs": [{"enabled": true, "outputIndex": 0, "position": {"x": 0, "y": 0}, "priority": 0}]}]}]
+JSON
+  fi
+
   # KWIN_WAYLAND_NO_PERMISSION_CHECKS lets the test's own input client and
   # shot.py use fake input and ScreenShot2 in this private compositor only.
   KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
-    kwin_wayland --virtual --no-lockscreen --socket "$WAYLAND_DISPLAY" --width 1280 --height 800 >"$log-kwin.log" 2>&1 &
+    kwin_wayland --virtual --no-lockscreen --socket "$WAYLAND_DISPLAY" --width "$kw" --height "$kh" >"$log-kwin.log" 2>&1 &
   local kwin=$!
   for _ in $(seq 150); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
-  [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "kwin did not start"; tail "$log-kwin.log"; kill $kwin $a11y 2>/dev/null; return 1; }
+  [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "kwin did not start"; tail "$log-kwin.log"; kill $kwin $a11y $portal 2>/dev/null; return 1; }
   sleep 2
+  local outputs=""
+  if [ "$MODE" = 1.5 ]; then
+    outputs=$(KSCREEN_BACKEND=KWayland timeout 10 kscreen-doctor -o 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'Geometry|Scale' | tr -s ' \t\n' ' ')
+    echo "INFO kscreen-doctor: $outputs"
+  fi
 
   local f="$XDG_RUNTIME_DIR/in"; mkfifo "$f"
   "$INPUT" <"$f" >"$log-input.log" 2>&1 &
@@ -175,6 +228,13 @@ PY
       "$@" >>"$log-cli.log" 2>&1
       sleep 1.5
       [ "$name" = plain ] && shot "$log-shown.png"
+      # AC16: the pointer enters the catcher, then the hive, then the catcher
+      # again (after the screenshot, so the hover does not change it).
+      if [ "$MODE" = layer ] && [ "$name" != drop ]; then
+        echo "move 201 201" >&3; sleep 0.3
+        echo "move 640 400" >&3; sleep 0.3
+        echo "move 200 200" >&3; sleep 0.3
+      fi
       esc; sleep 1
     }
     show plain "$BIN/sbarhive" open "$W/photo.png"
@@ -273,6 +333,58 @@ PY
 
     if [ "$MODE" = layer ]; then
       check "AC4/AC5: no get_xdg_surface in the whole trace (no hive toplevel, not even a hidden one)" '[ "$xdg_all" -eq 0 ]'
+      # AC16: match each pointer enter on this show's catcher or hive
+      # subsurface to a later set_shape(<its serial>, 1) before the next
+      # pointer enter. Serials come from the compositor, so they are unique
+      # across the four connections of the trace.
+      local ac16
+      ac16=$(python3 -I - "$DLOG" "${marks[@]}" <<'PY'
+import re, sys
+lines = open(sys.argv[1], errors="replace").read().split("\n")
+marks = [int(m) for m in sys.argv[2:]]
+enter = re.compile(r"^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.enter\(([0-9]+), (wl_surface[#@][0-9]+),")
+total = {"catcher": 0, "hive": 0}
+bad = []
+for i in range(len(marks) - 1):
+    seg = lines[marks[i]:marks[i + 1]]
+    cat = hive = None
+    for l in seg:
+        m = re.search(r"-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, (wl_surface[#@][0-9]+)", l)
+        if m and cat is None:
+            cat = m.group(1)
+        m = re.search(r"-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, (wl_surface[#@][0-9]+)", l)
+        if m and hive is None:
+            hive = m.group(1)
+    got = {"catcher": 0, "hive": 0}
+    shaped = 0
+    for j, l in enumerate(seg):
+        m = enter.match(l)
+        if not m or m.group(2) not in (cat, hive):
+            continue
+        serial, kind = m.group(1), ("catcher" if m.group(2) == cat else "hive")
+        got[kind] += 1
+        ok = False
+        for l2 in seg[j + 1:]:
+            if enter.match(l2):
+                break
+            if re.search(r"-> wp_cursor_shape_device_v1[#@][0-9]+\.set_shape\(" + serial + r", 1\)", l2):
+                ok = True
+                break
+        if ok:
+            shaped += 1
+        else:
+            bad.append(f"show {i + 1} {kind} enter serial {serial}")
+    total["catcher"] += got["catcher"]
+    total["hive"] += got["hive"]
+    print(f"INFO AC16 show {i + 1}: catcher {cat}, hive {hive}, pointer enters on the catcher {got['catcher']} on the hive {got['hive']}, followed by set_shape(serial, 1) {shaped}")
+print(f"INFO AC16 enters without set_shape(serial, 1): {', '.join(bad) or 'none'}")
+print(f"SUMMARY {total['catcher']} {total['hive']} {len(bad)}")
+PY
+)
+      grep '^INFO' <<<"$ac16"
+      local c16 h16 b16; read -r _ c16 h16 b16 <<<"$(grep '^SUMMARY' <<<"$ac16")"
+      check "AC16: the pointer entered the catcher and the hive (the test reached both)" '[ "${c16:-0}" -ge 1 ] && [ "${h16:-0}" -ge 1 ]'
+      check "AC16: every wl_pointer.enter on the catcher or the hive is followed by wp_cursor_shape_device_v1.set_shape(<serial>, 1)" '[ -n "${b16:-}" ] && [ "$b16" -eq 0 ]'
     else
       check "AC6: no get_layer_surface in the whole trace" '[ "$layer_all" -eq 0 ]'
       check "AC6: get_xdg_surface in the trace" '[ "$xdg_all" -ge 1 ]'
@@ -510,30 +622,162 @@ PY
       '[ "$(layer_destroys "$seg")" -eq 1 ] && [ "$dt" != none ] && [ "$dt" -ge 9000 ]'
     check "AC13: no protocol error in the daemon log" 'no_protocol_error'
     ;;
+
+  scheme)
+    # AC15. The sample is a 3 x 3 patch in the centre cell above the square a
+    # preview will take (S-018 AC24): 0.72 of the cell radius above the
+    # centre, inside the hexagon. Both hive-en-* references show surface-3
+    # there and at the centre; the exact centre (640, 400) is printed too.
+    local sy
+    sy=$(python3 -I - "$ROOT/design/tokens.json" <<'PY'
+import json, math, sys
+r = json.load(open(sys.argv[1]))["hex"]["size"]["md"] / math.sqrt(3)
+print(400 - round(0.72 * r))
+PY
+)
+    restart_daemon() { # restart_daemon [VAR=VALUE...]: a new daemon, same log
+      "$BIN/sbarhive" quit >/dev/null 2>&1
+      timeout 5 tail --pid="$d" -f /dev/null || kill "$d" 2>/dev/null
+      env "$@" SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+      d=$!
+      for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+    }
+    local want=()
+    sshow() { # sshow NAME EXPECTED: one show, a screenshot, closed with Esc
+      begin "$1"; want+=("$2")
+      "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+      sleep 1.5
+      shot "$log-$1.png"
+      esc; sleep 1
+    }
+    sshow portal-1 dark
+    echo 2 >&5; sleep 1.5
+    sshow changed-to-2 light
+    echo 1 >&5; sleep 1.5
+    sshow changed-to-1 dark
+    printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    sshow config-light-portal-1 light
+    echo 2 >&5
+    printf 'language = "en"\ntheme = "dark"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    sshow config-dark-portal-2 dark
+    printf 'language = "en"\ntheme = "auto"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    restart_daemon SBARHIVE_COLOR_SCHEME=dark
+    sshow env-dark-portal-2 dark
+    echo 1 >&5; sleep 0.5
+    restart_daemon SBARHIVE_COLOR_SCHEME=light
+    sshow env-light-portal-1 light
+    finish
+    echo "INFO portal: $(grep -cE '^call ' "$log-portal.log") call(s), $(grep -E '^SettingChanged' "$log-portal.log" | tr '\n' ' ')"
+    local i
+    for ((i = 0; i < ${#names[@]}; i++)); do
+      local seg name=${names[i]} exp=${want[i]} got centre gl xs
+      seg=$(seg_of "$i")
+      gl=$(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$seg")
+      xs=$(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$seg")
+      got="none"; centre="none"
+      if [ -s "$log-$name.png" ]; then
+        got=$(python3 -I "$HERE/pixel.py" "$log-$name.png" 640 "$sy" "$ROOT/design/tokens.json" 2>&1)
+        centre=$(python3 -I "$HERE/pixel.py" "$log-$name.png" 640 400 "$ROOT/design/tokens.json" 2>&1)
+      fi
+      echo "INFO show $((i + 1)) ($name): get_layer_surface $gl, get_xdg_surface $xs, patch at (640, $sy) $got, centre (640, 400) $centre"
+      check "AC15 show $((i + 1)) ($name): a layer surface (not the window path)" '[ "$gl" -eq 1 ] && [ "$xs" -eq 0 ]'
+      check "AC15 show $((i + 1)) ($name): the centre cell is color.$exp.surface-3" '[ "${got%% *}" = "$exp" ]'
+    done
+    check "AC15: no protocol error in the daemon log" 'no_protocol_error'
+    ;;
+
+  1.5)
+    shot "$log-before.png"
+    begin "scale-${PHASE}"
+    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+    sleep 1.5
+    shot "$log-shown.png"
+    esc; sleep 1
+    finish
+    local box="none"
+    if [ -s "$log-before.png" ] && [ -s "$log-shown.png" ]; then
+      box=$(python3 -I "$HERE/boxdiff.py" "$log-before.png" "$log-shown.png" 8 2>&1)
+    fi
+    if [ "$PHASE" = ref ]; then
+      # Scale 1: the box this hive draws, to compare the 1.5 box against.
+      echo "INFO scale 1 reference box: $box"
+      echo "$box" >"$OUT/kwin-1.5-ref.box"
+    else
+      local seg; seg=$(seg_of 0)
+      local gl xs pl cl
+      gl=$(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$seg")
+      xs=$(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$seg")
+      pl=$(grep -nE '^\[[0-9:.]+\] wp_fractional_scale_v1[#@][0-9]+\.preferred_scale\(180\)' <<<"$seg" | head -1 | cut -d: -f1)
+      cl=$(grep -nE '^\[[0-9:.]+\] zwlr_layer_surface_v1[#@][0-9]+\.configure\(' <<<"$seg" | head -1 | cut -d: -f1)
+      local hive; hive=$(grep -oE -- "${R}wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+" <<<"$seg" | grep -oE 'wl_surface[#@][0-9]+$' | head -1)
+      local bufs nbuf nbad
+      bufs=$(grep -oE -- "${R}wl_shm_pool[#@][0-9]+\.create_buffer\(new id wl_buffer[#@][0-9]+, -?[0-9]+, [0-9]+, [0-9]+" <<<"$seg" | sed -E 's/.*new id (wl_buffer[#@][0-9]+), -?[0-9]+, ([0-9]+), ([0-9]+)$/\1 \2 \3/')
+      nbuf=$(grep -c . <<<"$bufs"); nbad=$(awk '$2 != 590 || $3 != 543' <<<"$bufs" | grep -c .)
+      local attached=0 b
+      while read -r b; do
+        [ -n "$b" ] && grep -qE -- "${R}${hive:-none}\.attach\($b, " <<<"$seg" && attached=$((attached + 1))
+      done < <(awk '$2 == 590 && $3 == 543 { print $1 }' <<<"$bufs")
+      local sl; sl=$(surface_lines "$seg" | head -1)
+      echo "INFO scale 1.5: get_layer_surface $gl, get_xdg_surface $xs, first preferred_scale(180) at segment line ${pl:-none}, first layer configure at ${cl:-none}"
+      echo "INFO scale 1.5: hive ${hive:-none}, shm buffers $(awk '{ printf "%s %sx%s; ", $1, $2, $3 }' <<<"$bufs")attached to the hive at 590x543: $attached; ${sl:-no surface line}"
+      check "AC17: kscreen-doctor reports scale 1.5 and a 1280x800 logical output" \
+        'grep -q "Geometry: 0,0 1280x800" <<<"$outputs" && grep -q "Scale: 1.5" <<<"$outputs"'
+      check "AC17: the hive is a layer surface at scale 1.5" '[ "$gl" -eq 1 ] && [ "$xs" -eq 0 ]'
+      check "AC17: preferred_scale(180) arrives before the first zwlr_layer_surface_v1.configure" \
+        '[ -n "$pl" ] && [ -n "$cl" ] && [ "$pl" -lt "$cl" ]'
+      check "AC17: every wl_shm buffer of the show is 590 x 543 (AC2 at 180), and the hive gets one" \
+        '[ "$nbuf" -ge 1 ] && [ "$nbad" -eq 0 ] && [ "$attached" -ge 1 ]'
+      check "AC17: the hive is placed at (444, 219) with set_destination(393, 362) (AC2, logical)" \
+        'grep -qE -- "${R}wl_subsurface[#@][0-9]+\.set_position\(444, 219\)" <<<"$seg" && grep -qE -- "${R}wp_viewport[#@][0-9]+\.set_destination\(393, 362\)" <<<"$seg"'
+      local ref; ref=$(cat "$OUT/kwin-1.5-ref.box" 2>/dev/null || echo none)
+      echo "INFO scale 1.5 box (physical): $box, scale 1 reference box: $ref"
+      local bx by bw bh rx ry rw rh
+      read -r bx by bw bh <<<"$box"; read -r rx ry rw rh <<<"$ref"
+      # The opaque hive pixels are narrower than the surface (384 against
+      # 393 at scale 1), so the box is held to 1.5 times the scale 1 box,
+      # centred on the 1920x1200 output, inside the 1.5 times subsurface.
+      check "AC17: the screenshot box width is 1.5 times the scale 1 box within 1 px" \
+        '[ -n "${bh:-}" ] && [ -n "${rh:-}" ] && python3 -I -c "import sys; w,r=map(int,sys.argv[1:]); sys.exit(not abs(w-1.5*r)<=1)" "$bw" "$rw"'
+      check "AC17: the screenshot box is centred on (960, 600) within 1 px and inside (666, 328.5, 589.5, 543)" \
+        '[ -n "${bh:-}" ] && python3 -I -c "import sys; x,y,w,h=map(int,sys.argv[1:]); sys.exit(not (abs(x+w/2-960)<=1 and abs(y+h/2-600)<=1 and x>=665 and y>=328 and x+w<=1256 and y+h<=872))" "$bx" "$by" "$bw" "$bh"'
+      check "AC17: no protocol error in the daemon log" 'no_protocol_error'
+    fi
+    ;;
   esac
 
-  if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
+  # The 1.5 reference phase only measures; the main phase gives the result.
+  if [ "${PHASE:-}" != ref ]; then
+    if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
+  fi
 
   exec 3>&-
   [ -n "$a11y" ] && { echo quit >&4; exec 4>&-; }
+  [ -n "$portal" ] && { echo quit >&5; exec 5>&-; }
   "$BIN/sbarhive" quit >/dev/null 2>&1
   sleep 0.5
-  kill $other $d $a11y 2>/dev/null
+  kill $other $d $a11y $portal 2>/dev/null
   kill $kwin 2>/dev/null
   timeout 5 tail --pid=$kwin -f /dev/null || kill -9 $kwin
 }
 export -f inner
 
 echo "== kwin $MODE"
-SANDBOX="$(mktemp -d)"
-RUNTIME="$(mktemp -d)"
-chmod 700 "$RUNTIME"
-# Environment set BEFORE dbus-run-session, so nothing the private bus
-# activates can reach the live desktop or the real profile.
-env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
-  HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
-  XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
-  XDG_RUNTIME_DIR="$RUNTIME" WAYLAND_DISPLAY=wayland-sbh-overlay-kwin \
-  dbus-run-session -- bash -c inner 2>"$OUT/kwin-$MODE-bus.log" | tee "$OUT/kwin-$MODE.txt"
-rm -rf "$SANDBOX" "$RUNTIME"
+# One private session per phase; only the 1.5 mode has two (scale 1, then 1.5).
+phases=("")
+[ "$MODE" = 1.5 ] && { phases=(ref main); rm -f "$OUT/kwin-1.5-ref.box"; }
+: >"$OUT/kwin-$MODE.txt"
+for PHASE in "${phases[@]}"; do
+  export PHASE
+  SANDBOX="$(mktemp -d)"
+  RUNTIME="$(mktemp -d)"
+  chmod 700 "$RUNTIME"
+  # Environment set BEFORE dbus-run-session, so nothing the private bus
+  # activates can reach the live desktop or the real profile.
+  env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
+    HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
+    XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
+    XDG_RUNTIME_DIR="$RUNTIME" WAYLAND_DISPLAY=wayland-sbh-overlay-kwin \
+    dbus-run-session -- bash -c inner 2>"$OUT/kwin-$MODE${PHASE:+-$PHASE}-bus.log" | tee -a "$OUT/kwin-$MODE.txt"
+  rm -rf "$SANDBOX" "$RUNTIME"
+done
 grep -q '^RESULT PASS' "$OUT/kwin-$MODE.txt"
