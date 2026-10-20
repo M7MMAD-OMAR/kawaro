@@ -415,4 +415,6 @@ fn dismiss_weak(w: &Weak<Inner>) {
 }
 
 #[cfg(test)]
+mod drop_tests;
+#[cfg(test)]
 mod ui_tests;

@@ -385,3 +385,98 @@ fn doctor_reports_tools_found_on_path() {
     assert!(text.contains("ok      image"), "{text}");
     assert!(text.contains("missing sbarhived answering"), "{text}");
 }
+
+/// Like `fake_daemon`, but records raw JSON, so a request the protocol does
+/// not know yet still reaches the assertion instead of a parse panic.
+fn raw_daemon(env: &Env) -> Arc<Mutex<Vec<serde_json::Value>>> {
+    let listener = UnixListener::bind(env.root().join("sbarhive.sock")).unwrap();
+    let seen = Arc::new(Mutex::new(Vec::new()));
+    let log = seen.clone();
+    std::thread::spawn(move || {
+        for conn in listener.incoming() {
+            let Ok(mut conn) = conn else { return };
+            let mut line = String::new();
+            BufReader::new(&conn).read_line(&mut line).unwrap();
+            let Ok(v) = serde_json::from_str::<serde_json::Value>(&line) else {
+                continue;
+            };
+            if v["cmd"] != "ping" {
+                log.lock().unwrap().push(v);
+            }
+            let ok = serde_json::to_string(&Response::Ok).unwrap();
+            let _ = writeln!(conn, "{ok}");
+        }
+    });
+    seen
+}
+
+/// Runs `sbarhive drop` with the given args and environment, and returns the
+/// one request the daemon saw.
+fn drop_request(args: &[&str], vars: &[(&str, &str)]) -> serde_json::Value {
+    let env = Env::new(None);
+    let seen = raw_daemon(&env);
+    let mut all = vec!["drop"];
+    all.extend_from_slice(args);
+    let mut c = env.cmd(&all);
+    for (k, v) in vars {
+        c.env(k, v);
+    }
+    let o = c.output().unwrap();
+    assert!(o.status.success(), "drop failed: {}", stderr(&o));
+    let seen = seen.lock().unwrap();
+    assert_eq!(seen.len(), 1, "requests: {seen:?}");
+    let v = seen[0].clone();
+    assert_eq!(v["cmd"], "drop", "{v}");
+    assert!(v.get("files").is_none(), "drop sends no files: {v}");
+    v
+}
+
+fn token(v: &serde_json::Value) -> Option<&str> {
+    v.get("token").and_then(|t| t.as_str())
+}
+
+#[test]
+fn ac4_drop_token_flag_wins_over_both_environment_variables() {
+    let v = drop_request(
+        &["--token", "flag"],
+        &[
+            ("XDG_ACTIVATION_TOKEN", "xdg"),
+            ("DESKTOP_STARTUP_ID", "x11"),
+        ],
+    );
+    assert_eq!(token(&v), Some("flag"));
+}
+
+#[test]
+fn ac4_drop_takes_xdg_activation_token_before_desktop_startup_id() {
+    let v = drop_request(
+        &[],
+        &[
+            ("XDG_ACTIVATION_TOKEN", "xdg"),
+            ("DESKTOP_STARTUP_ID", "x11"),
+        ],
+    );
+    assert_eq!(token(&v), Some("xdg"));
+}
+
+#[test]
+fn ac4_drop_falls_back_to_desktop_startup_id() {
+    let v = drop_request(&[], &[("DESKTOP_STARTUP_ID", "x11")]);
+    assert_eq!(token(&v), Some("x11"));
+}
+
+#[test]
+fn ac4_drop_without_any_token_sends_none() {
+    let v = drop_request(&[], &[]);
+    assert_eq!(token(&v), None, "{v}");
+    assert!(v.get("token").is_none_or(|t| t.is_null()), "{v}");
+}
+
+#[test]
+fn ac4_drop_skips_an_empty_environment_token_like_open() {
+    let v = drop_request(
+        &[],
+        &[("XDG_ACTIVATION_TOKEN", ""), ("DESKTOP_STARTUP_ID", "x11")],
+    );
+    assert_eq!(token(&v), Some("x11"));
+}

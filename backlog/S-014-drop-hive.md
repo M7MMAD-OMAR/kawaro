@@ -64,3 +64,44 @@
 ## سجل المراجعة
 - 2026-10-20، المخطِّط: الجهد في ADR 0003 نحو 6 إلى 7 أيام، فقُسّمت القصة إلى ست قصص فرعية في ملف واحد بطلب المدير. الربط المفضّل `<Super><Control>F11` هو المتحقَّق منه في التجربة، ويحتاج موافقة محمد. ينتظر الموافقة.
 - 2026-10-20، محمد (عبر المدير): القصة معتمدة. الاختصار الافتراضي `Super+Z`: من يسار لوحة المفاتيح ومفتاحان فقط. مفتاح تعديل وحده (Super أو Alt أو Shift) لا يصلح: Shift وCtrl وAlt أثناء السحب تغيّر نوع الإفلات في مدير الملفات (نقل، نسخ، ربط)، وSuper وحده يفتح نظرة الأنشطة في GNOME وقائمة التطبيقات في KDE فيقطع السحب، وبوابة الاختصارات لا تقبل مفتاح تعديل وحده. Super+Z غير مستعمل في GNOME وKDE افتراضياً ولا في إعداد Hyprland عند محمد. يغيّره المستخدم من إعدادات النظام.
+- 2026-10-20، المختبِر (S-014a فقط، AC1 إلى AC4): كُتبت الاختبارات من المعايير وفشلت كلها قبل التنفيذ.
+  - الملفات: `crates/core/tests/uri_list.rs` (AC1)، `crates/core/tests/ipc_drop.rs` (AC4، شكل الرسالة)، `crates/ui/src/drop_tests.rs` مع سطر `#[cfg(test)] mod drop_tests;` في `crates/ui/src/lib.rs` (AC2 وAC3)، وخمسة اختبارات `ac4_*` في `crates/cli/tests/cli.rs` بخدمة وهمية تسجّل JSON الخام، وفحص «drop starts the daemon» في `tests/e2e/run.sh`.
+  - العقد الذي تثبّته الاختبارات (لا تُعدَّل):
+    - `sbarhive_core::uri_list::parse(text: &str) -> Vec<PathBuf>`
+    - `sbarhive_core::ipc::Request::Drop { token: Option<String> }` بالشكل `{"cmd":"drop","token":...}`، دون `files`، و`{"cmd":"drop"}` وحده يعني `token: None`.
+    - `crate::dnd::pick(plan: &Plan, x: f64, y: f64) -> Option<usize>` في `crates/ui`.
+    - `crate::dnd::State { Hidden, Normal, Waiting, Over(usize), Running(usize) }` بـ `Clone, Copy, Debug, PartialEq, Eq`.
+    - `crate::dnd::Event { Show { drop: bool }, Enter, Motion(Option<usize>), Leave, Drop, Cancel, Escape, FocusLost, ClickOutside, Tick }`.
+    - `crate::dnd::Machine`: `new()` (Hidden)، `state()`، `handle(&mut self, event: Event, now: Instant) -> State`، والساعة محقونة عبر `now`.
+    - `sbarhive drop [--token T]`: الرمز من `--token` ثم `XDG_ACTIVATION_TOKEN` ثم `DESKTOP_STARTUP_ID`، والقيمة الفارغة تُتخطّى كما في `open`.
+  - ملاحظة: سطر `mod drop_tests` يجعل كل اختبارات وحدة `sbarhive-ui` (ومنها `ui_tests` و`layout`) لا تُبنى حتى تُضاف الوحدة `dnd`. هذا متوقَّع.
+  - مخرجات الفشل:
+    ```
+    $ cargo test -p sbarhive-core --test uri_list --test ipc_drop
+    error[E0432]: unresolved import `sbarhive_core::uri_list`
+     --> crates/core/tests/uri_list.rs:5:20
+    error[E0599]: no variant named `Drop` found for enum `sbarhive_core::ipc::Request`
+     --> crates/core/tests/ipc_drop.rs:7:22
+    error: could not compile `sbarhive-core` (test "uri_list") due to 1 previous error
+    error: could not compile `sbarhive-core` (test "ipc_drop") due to 3 previous errors
+
+    $ cargo test -p sbarhive-ui --lib
+    error[E0432]: unresolved import `crate::dnd`
+      --> crates/ui/src/drop_tests.rs:16:12
+    error: could not compile `sbarhive-ui` (lib test) due to 1 previous error
+
+    $ cargo test -p sbarhive-cli --test cli
+    thread 'ac4_drop_token_flag_wins_over_both_environment_variables' panicked at crates/cli/tests/cli.rs:425:5:
+    drop failed: error: unrecognized subcommand 'drop'
+    failures:
+        ac4_drop_falls_back_to_desktop_startup_id
+        ac4_drop_skips_an_empty_environment_token_like_open
+        ac4_drop_takes_xdg_activation_token_before_desktop_startup_id
+        ac4_drop_token_flag_wins_over_both_environment_variables
+        ac4_drop_without_any_token_sends_none
+    test result: FAILED. 14 passed; 5 failed
+
+    $ tests/e2e/run.sh   (KWin مخفي خاص)
+    FAIL drop starts the daemon
+    ```
+  - في التشغيل نفسه فشل أيضاً `idle memory after use within 40 MB`، وهو فحص قائم لا يخص هذه القصة، وبُني الإصدار مع تعديلات غير مُودَعة لعمل آخر في الشجرة (أمر `settings`).

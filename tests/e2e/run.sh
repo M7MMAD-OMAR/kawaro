@@ -28,6 +28,11 @@ inner() {
   "$BIN/sbarhive" quit >/dev/null 2>&1
   for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/sbarhive.sock" ] || break; sleep 0.1; done
 
+  # S-014a AC4: drop with no daemon running must start one within 2 s, like open.
+  check "drop starts the daemon" '"$BIN/sbarhive" drop && "$BIN/sbarhive" ping | grep -q pong'
+  "$BIN/sbarhive" quit >/dev/null 2>&1
+  for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/sbarhive.sock" ] || break; sleep 0.1; done
+
   "$BIN/sbarhived" >"$SANDBOX/daemon.log" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
