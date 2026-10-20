@@ -1,0 +1,20 @@
+# S-018g AC23 fixture: a small shared-mime-info globs2 (weight:type:glob[:flags]).
+# Order here does not matter; weight then pattern length decide.
+50:image/png:*.png
+50:image/jpeg:*.jpg
+50:video/mp4:*.mp4
+50:audio/mpeg:*.mp3
+50:application/pdf:*.pdf
+50:application/vnd.oasis.opendocument.text:*.odt
+50:application/vnd.oasis.opendocument.spreadsheet:*.ods
+50:application/vnd.oasis.opendocument.presentation:*.odp
+50:text/csv:*.csv
+50:text/plain:*.txt
+50:text/x-makefile:makefile
+50:application/gzip:*.gz
+50:application/x-compressed-tar:*.tar.gz
+50:application/x-long:*.x.ab
+60:application/x-short:*.ab
+50:application/x-foo:*.Foo:cs
+50:application/x-tie-system:*.tie
+50:application/zip:*.zip

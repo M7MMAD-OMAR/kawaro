@@ -115,3 +115,28 @@
 
     error: could not compile `sbarhive-ui` (test "overlay_pure") due to 1 previous error
     ```
+- 2026-10-20، المختبِر (S-018g فقط، AC21 إلى AC23): كُتبت الاختبارات من المعايير وفشلت كلها قبل التنفيذ، لأن الوحدة غير موجودة.
+  - الملفات: `crates/ui/tests/thumb.rs` (هدف تكامل مستقل، 38 اختباراً بأسماء `ac21_*` و`ac22_*` و`ac23_*`، فلا يُعدَّل `lib.rs`)، و`tests/fixtures/mime/home/mime/globs2` (مكان `XDG_DATA_HOME`) و`tests/fixtures/mime/system/mime/globs2` (مدخل من `XDG_DATA_DIRS`). ذاكرة الصور المصغّرة تُبنى في كل اختبار تحت `CARGO_TARGET_TMPDIR/s018g/`: صور PNG بحجم 1 × 1 بقطع `tEXt` (`Thumb::URI` و`Thumb::MTime` و`Thumb::Size`). لا يُقرأ شيء من ذاكرة المالك ولا من مجلدات بياناته.
+  - قيم `Gio.File.get_uri()` محفوظة في الاختبار لتسعة أسماء تحت `/home/u/`: الثمانية في AC21، وتاسع لبقية المحارف المسموحة (`x'!*=:@$-_.png`)، سُجّلت بـ PyGObject اليوم. وقيمتا MD5 للمسار محسوبتان بـ Python `hashlib`.
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل)، في وحدة عامة `sbarhive_ui::thumb` بلا قراءة بيئة في الدوال المختبَرة:
+    - `file_uri(path: &Path) -> String` (صيغة GLib)، و`kio_uri(path: &Path) -> String` (صيغة Qt، `;` حرفية).
+    - `thumbnails_dir(xdg_cache_home: Option<&OsStr>, home: &Path) -> PathBuf`: القيمة الفارغة أو النسبية تعني `~/.cache`.
+    - `enum Size { Normal, Large, XLarge, XxLarge }` بـ `Clone, Copy, Debug, PartialEq, Eq`، و`Size::dir(self) -> &'static str`، و`const SEARCH_ORDER: [Size; 4]`.
+    - `thumbnail_path(thumbnails: &Path, size: Size, uri: &str) -> PathBuf`، و`find_thumbnail(thumbnails: &Path, file: &Path) -> Option<PathBuf>`.
+    - `data_dirs(xdg_data_home: Option<&OsStr>, xdg_data_dirs: Option<&OsStr>, home: &Path) -> Vec<PathBuf>`.
+    - `struct Globs` بـ `Globs::load(dirs: &[PathBuf]) -> Globs` (يقرأ `<dir>/mime/globs2`) و`mime_of(&self, file_name: &str) -> Option<String>`.
+    - `enum Kind { Image, Video, Audio, Pdf, Document, Sheet, Slides, Text, File }` بـ `Clone, Copy, Debug, PartialEq, Eq` و`Kind::icon(self) -> &'static str`، و`kind_of(mime: &str) -> Kind`، و`kind_for(globs: &Globs, file_name: &str) -> Kind`، و`common_kind<I: IntoIterator<Item = Kind>>(kinds: I) -> Kind`، و`format_code(file_name: &str) -> Option<String>`.
+  - ما اختارته الاختبارات حيث سكت المعيار: (1) الرابط الرمزي يجرّب رابطه هو أولاً ثم هدفه، وزمن التعديل والحجم من الهدف (`stat` يتبع الرابط). (2) صيغة Qt تُقبل فقط إن كان `Thumb::URI` فيها صيغة Qt نفسها. (3) غياب `Thumb::URI` أو `Thumb::MTime` رفض. (4) عند تساوي الوزن وطول النمط يفوز الملف الأسبق في الترتيب (`XDG_DATA_HOME`)، والملفات تُدمج ولا يحل أحدها محل الآخر. (5) بلا علامة `cs` المطابقة غير حساسة لحالة الحروف، والنمط دون `*` يطابق الاسم كله. (6) قائمة المستندات والجداول والعروض: ODF وMS Office القديم وOOXML، و`application/rtf` مستند كما في `crates/core/src/media.rs`. (7) `format_code`: الامتداد الأخير، 1 إلى 4 محارف، وإلا `None`. (8) سجل `fail/` وحده لا يعطي صورة، ولم يُثبَّت ما يحدث إن وُجد سجل فشل وصورة صالحة معاً.
+  - `ac23_kind_icons_are_our_monoline_set` يشترط أن تكون `file` في `sbarhive_ui::icon_names()`، فيبقى فاشلاً حتى تُضاف `crates/ui/icons/file.svg` (قرار المدير 3).
+  - خارج هذه الوحدة: «لا يُفتح أي ملف تحت `/usr/share/icons`» يُتحقق منه بـ `strace -e openat` في `tests/overlay/kwin.sh` (S-018b)؛ هنا يكفي أن العقد لا يقبل مجلد سمة أيقونات أصلاً.
+  - التحقق من صحة الاختبارات: نُسخ الملف إلى crate مؤقت خارج المستودع مع تنفيذ مرجعي صغير للتحقق فقط (لم يُودَع) فنجحت الـ 38 كلها، ومع دوال `todo!()` فشلت كلها وخرج `clippy -D warnings` نظيفاً. فالفشل الحالي سببه غياب الوحدة وحده.
+  - مخرجات الفشل (`nice -n 10 cargo test -j 4 -p sbarhive-ui --test thumb`):
+    ```
+    error[E0432]: unresolved import `sbarhive_ui::thumb`
+      --> crates/ui/tests/thumb.rs:34:18
+       |
+    34 | use sbarhive_ui::thumb::{
+       |                  ^^^^^ could not find `thumb` in `sbarhive_ui`
+
+    error: could not compile `sbarhive-ui` (test "thumb") due to 1 previous error
+    ```

@@ -1,0 +1,2 @@
+# S-018g AC23 fixture: the XDG_DATA_HOME globs2, read before XDG_DATA_DIRS.
+50:application/x-tie-home:*.tie
