@@ -152,10 +152,15 @@ protocol_checks() {
     local seg; seg=$(sed -n "$((MARKS[i] + 1)),$((MARKS[i + 1]))p" "$DLOG")
     # The hive's new toplevel surface in this show, then a data device
     # requested after it (Slint destroys the surface on hide, ADR 0001, 5).
+    # Line numbers are absolute in the trace. The first show reuses the
+    # toplevel winit created when the daemon started (never mapped before),
+    # so its get_xdg_surface can come before the show's mark: search the
+    # whole trace up to the end of this show, not only its segment.
     local xs dd
-    xs=$(grep -n -- '-> xdg_wm_base#[0-9]*\.get_xdg_surface(' <<<"$seg" | tail -1 | cut -d: -f1)
+    xs=$(head -n "${MARKS[i + 1]}" "$DLOG" | grep -n -- '-> xdg_wm_base#[0-9]*\.get_xdg_surface(' | tail -1 | cut -d: -f1)
     dd=$(grep -n -- '-> wl_data_device_manager#[0-9]*\.get_data_device(' <<<"$seg" | tail -1 | cut -d: -f1)
-    echo "INFO show $((i + 1)): get_xdg_surface at +${xs:-none}, get_data_device at +${dd:-none}, count $(grep -c -- '-> wl_data_device_manager#[0-9]*\.get_data_device(' <<<"$seg")"
+    [ -n "$dd" ] && dd=$((dd + MARKS[i]))
+    echo "INFO show $((i + 1)): get_xdg_surface at line ${xs:-none}, get_data_device at line ${dd:-none}, count $(grep -c -- '-> wl_data_device_manager#[0-9]*\.get_data_device(' <<<"$seg")"
     check "AC5 show $((i + 1)): wl_data_device requested for the new hive surface" \
       '[ -n "$xs" ] && [ -n "$dd" ] && [ "$dd" -gt "$xs" ]'
     # Events print without the arrow. Every show must reach the receiver,

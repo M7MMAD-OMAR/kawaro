@@ -53,7 +53,8 @@ inner() {
 
   hive_geo() {
     shell_eval 'global.get_window_actors().map(a => a.meta_window)
-      .filter(w => w.get_title() === "SbarHive" && !w.minimized)
+      .filter(w => w.get_title() === "SbarHive" && !w.minimized && w.showing_on_its_workspace())
+      .filter(w => { const r = w.get_frame_rect(); return r.width > 0 && r.height > 0; })
       .map(w => { const r = w.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(" "); }).join("")' \
       | grep -o '[0-9-]\+ [0-9-]\+ [0-9]\+ [0-9]\+' | head -1
   }
