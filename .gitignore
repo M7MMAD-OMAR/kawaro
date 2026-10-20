@@ -6,3 +6,4 @@ spikes/*/out/*.log
 spikes/*/out/*.txt
 .claude/worktrees/
 mutants.out*/
+tests/focus/out/

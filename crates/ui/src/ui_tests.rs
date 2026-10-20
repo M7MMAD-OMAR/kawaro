@@ -32,13 +32,15 @@ fn cells() -> Vec<HiveCell> {
 
 fn key(hive: &Hive, k: Key) {
     let text: SharedString = k.into();
-    let w = hive.inner.ui.window();
+    let ui = hive.inner.ui.borrow();
+    let w = ui.window();
     w.dispatch_event(WindowEvent::KeyPressed { text: text.clone() });
     w.dispatch_event(WindowEvent::KeyReleased { text });
 }
 
 fn click(hive: &Hive, x: f32, y: f32) {
-    let w = hive.inner.ui.window();
+    let ui = hive.inner.ui.borrow();
+    let w = ui.window();
     let position = LogicalPosition::new(x, y);
     w.dispatch_event(WindowEvent::PointerMoved { position });
     w.dispatch_event(WindowEvent::PointerPressed {
@@ -75,7 +77,9 @@ fn wired(lang: Lang) -> (Hive, Rc<Log>) {
 fn hive_behaviour() {
     i_slint_backend_testing::init_no_event_loop();
     let (hive, log) = wired(Lang::En);
-    let ui = &hive.inner.ui;
+    let ui = hive.inner.ui.borrow();
+    // Before any present there is no plan, so nothing can be picked.
+    assert_eq!(ui.invoke_pick(10.0, 10.0), -1);
 
     // present maps cells to the model and shows the window.
     hive.present("3 images", cells(), None).unwrap();
@@ -133,6 +137,7 @@ fn hive_behaviour() {
     let (x, y) = centre_of(&hive, 2);
     hive.inner
         .ui
+        .borrow()
         .window()
         .dispatch_event(WindowEvent::PointerMoved {
             position: LogicalPosition::new(x, y),
@@ -180,7 +185,7 @@ fn hive_behaviour() {
     // its default action chooses it.
     hive.present("3 images", cells(), None).unwrap();
     let found: Vec<ElementHandle> =
-        ElementHandle::find_by_accessible_label(ui, "label gray").collect();
+        ElementHandle::find_by_accessible_label(&*ui, "label gray").collect();
     assert_eq!(found.len(), 1);
     assert_eq!(found[0].accessible_role(), Some(AccessibleRole::Button));
     found[0].invoke_accessible_default_action();
@@ -199,13 +204,18 @@ fn hive_behaviour() {
         .collect();
     hive.present("25", many, None).unwrap();
     assert_eq!(ui.get_cells().row_count(), 18);
+    // The snapshot hook highlights; closing clears the highlight.
+    hive.set_highlight(2);
+    assert_eq!(ui.get_highlight(), 2);
     hive.close();
+    assert_eq!(ui.get_highlight(), -1);
+    drop(ui);
     drop(hive);
 
     // Arabic mirrors: ring 1 starts left of the centre.
-    let (ar, _log) = wired(Lang::Ar);
+    let (ar, ar_log) = wired(Lang::Ar);
     ar.present("3 صور", cells(), None).unwrap();
-    let ui = &ar.inner.ui;
+    let ui = ar.inner.ui.borrow();
     let first = ui.get_cells().row_data(0).unwrap();
     assert!(
         first.x < ui.get_centre_x(),
@@ -220,7 +230,53 @@ fn hive_behaviour() {
     // Focus events of another window (the settings window in the daemon)
     // never count as the hive's: only the latest hive window does.
     let other = HiveWindow::new().unwrap();
-    assert!(is_hive_window(Some(ar.inner.ui.window())));
+    assert!(is_hive_window(Some(ar.inner.ui.borrow().window())));
     assert!(!is_hive_window(Some(other.window())));
     assert!(is_hive_window(None));
+    drop(ui);
+
+    // S-013: Slint applies the activation token only when a component creates
+    // its window adapter, so a token builds a fresh, fully wired component;
+    // without a token the window is reused.
+    let builds = ar.inner.builds.get();
+    ar.present("3 صور", cells(), None).unwrap();
+    assert_eq!(ar.inner.builds.get(), builds, "no token, same component");
+    let old = window_key(ar.inner.ui.borrow().window());
+    ar.present("3 صور", cells(), Some("token-1".into()))
+        .unwrap();
+    assert_eq!(
+        ar.inner.builds.get(),
+        builds + 1,
+        "a token builds a new one"
+    );
+    let fresh = window_key(ar.inner.ui.borrow().window());
+    assert_ne!(fresh, old);
+    assert!(ar.inner.visible());
+    assert!(is_hive_window(Some(ar.inner.ui.borrow().window())));
+    assert!(
+        PENDING_TOKEN.lock().unwrap().is_none(),
+        "the token never waits for a later window"
+    );
+    assert_eq!(ar.inner.ui.borrow().get_cells().row_count(), 4);
+    let dismissed = ar_log.dismissed.get();
+    key(&ar, Key::Escape);
+    assert_eq!(
+        ar_log.dismissed.get(),
+        dismissed + 1,
+        "the new window is wired"
+    );
+    assert!(!ar.inner.visible());
+
+    // A window that outlives its hive answers navigation with -1.
+    let orphan = ar.inner.ui.borrow().clone_strong();
+    drop(ar);
+    assert_eq!(orphan.invoke_navigate(0, 0), -1);
+}
+
+#[test]
+fn colour_scheme_override() {
+    assert_eq!(forced_dark(Some("light")), Some(false));
+    assert_eq!(forced_dark(Some("dark")), Some(true));
+    assert_eq!(forced_dark(Some("auto")), None);
+    assert_eq!(forced_dark(None), None);
 }
