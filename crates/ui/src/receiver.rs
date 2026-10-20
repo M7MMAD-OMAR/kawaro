@@ -1,12 +1,14 @@
 //! Wayland drop receiver for the hive (S-014b, ADR 0003).
 //!
 //! winit 0.30 has no Wayland drag and drop, so this opens a second
-//! wayland-client `Connection` on the `wl_display` that owns the hive surface,
+//! wayland-client `Connection` on the `wl_display` that owns the drop surface,
 //! with its own event queue and thread, as in `spikes/drop/`: winit's display
 //! on the window path, the layer connection's on the overlay (S-018d), one
 //! receiver for each. After every drop-mode show the main thread releases the
-//! old `wl_data_device` and asks for a new one, because the hive surface is
-//! destroyed on hide; events are kept only for the current hive surface.
+//! old `wl_data_device` and asks for a new one, because the drop surface is
+//! destroyed on hide; events are kept only for the current drop surface. The
+//! drop surface is the hive window on the window path and the catcher on the
+//! layer path (S-020), offset by the hive position given to [`set_offset`].
 //!
 //! The receiver accepts `text/uri-list` over the cells only, and only as a
 //! copy (`set_actions(Copy, Copy)`), so a source offering a move never deletes
@@ -59,7 +61,7 @@ struct Shared {
     manager: WlDataDeviceManager,
     seat: WlSeat,
     device: Mutex<Option<WlDataDevice>>,
-    /// `wl_surface` pointer of the hive in drop mode, 0 when detached.
+    /// `wl_surface` pointer of the drop surface, 0 when detached.
     target: AtomicUsize,
 }
 
@@ -72,7 +74,7 @@ static PLAN: Mutex<Option<Plan>> = Mutex::new(None);
 /// hive itself (0, 0).
 static OFFSET: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
 
-/// Binds a new data device for the hive surface `surface` on `display` (raw
+/// Binds a new data device for the drop surface `surface` on `display` (raw
 /// `wl_display` and `wl_surface` pointers, from winit or the layer
 /// connection). Every earlier device is released first. Starts the receiver
 /// of `display` on first use. Call after every drop-mode show, once the
@@ -193,7 +195,7 @@ struct Receiver {
     sink: Sink,
     offer: Option<WlDataOffer>,
     mimes: Vec<String>,
-    /// The current drag is over the hive surface.
+    /// The current drag is over the drop surface.
     on_us: bool,
     serial: u32,
     hover: Option<usize>,

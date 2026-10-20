@@ -96,12 +96,18 @@ globals the compositor advertises, the screen reader state and the
   software renderer on its own wayland-client connection. Each show creates
   a catcher, a `zwlr_layer_shell_v1` surface on the overlay layer with the
   namespace `sbarhive`, anchored to every edge, exclusive zone -1 and
-  exclusive keyboard (none in drop mode, whose input region is empty). Its
+  exclusive keyboard (none in drop mode). Its
   buffer is one transparent pixel from `wp_single_pixel_buffer_manager_v1`
   stretched over the output by `wp_viewporter`; a click on it closes the
   hive. The hive itself is a `wl_subcompositor` subsurface of the catcher,
   centred by `overlay::place`, holding the Slint frame in a `wl_shm` buffer
   scaled by its own `wp_viewporter` (fractional scale when offered). An
+  In drop mode the catcher's input region is empty until the first
+  configure, then exactly the hive rectangle, and the hive subsurface takes
+  no input: the drop receiver binds to the catcher and subtracts the hive
+  position before picking a cell, because Hyprland sends no drag motion to
+  a subsurface of a layer surface (S-020). Outside the hive drags and
+  clicks pass through. An
   activation token goes to `xdg_activation_v1.activate` with the first
   frame. On hide every surface, the `zwlr_layer_surface_v1` and every
   buffer of the show not yet released are destroyed together, so no
