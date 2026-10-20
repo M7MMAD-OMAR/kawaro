@@ -26,7 +26,7 @@ inner() {
   local log="$OUT/kwin-l$LEVEL-$CASE"
   mkdir -p "$XDG_CONFIG_HOME"
   printf '[Windows]\nFocusStealingPreventionLevel=%s\n' "$LEVEL" >"$XDG_CONFIG_HOME/kwinrc"
-  QT_FORCE_STDERR_LOGGING=1 QT_LOGGING_RULES='kwin_scripting.debug=true;js.debug=true' kwin_wayland --virtual --no-lockscreen --socket "$WAYLAND_DISPLAY" --width 1280 --height 800 \
+  KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 QT_FORCE_STDERR_LOGGING=1 QT_LOGGING_RULES='kwin_scripting.debug=true;js.debug=true' kwin_wayland --virtual --no-lockscreen --socket "$WAYLAND_DISPLAY" --width 1280 --height 800 \
     >"$log-kwin.log" 2>&1 &
   local kwin=$!
   for _ in $(seq 150); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
@@ -69,6 +69,16 @@ EOF
   if [ -z "${NO_WARMUP:-}" ]; then
     "$BIN/sbarhive" open "$W/b.jpg"; sleep 10
     echo "warm-up: $(state)"
+    # S-018c: on the layer path focus loss no longer closes the hive, so the
+    # warm-up hive is closed with Esc through org_kde_kwin_fake_input (this
+    # private KWin only, KWIN_WAYLAND_NO_PERMISSION_CHECKS above), then a
+    # pause so the key is not recent user activity for the client.
+    local f="$XDG_RUNTIME_DIR/in"; mkfifo "$f"
+    "$ROOT/tests/drop/kwin-input/target/release/kwin-input" <"$f" >"$log-input.log" 2>&1 &
+    exec 3>"$f"
+    echo "keydown 1" >&3; echo "sleep 40" >&3; echo "keyup 1" >&3
+    exec 3>&-
+    sleep 3
   fi
 
   # The client takes focus, then launches `sbarhive open` 3 s later.

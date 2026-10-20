@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # S-018b AC6 on GNOME Shell (Mutter): no zwlr_layer_shell_v1, so the hive stays
 # an xdg_toplevel as today, with no get_layer_surface and no protocol error.
+# S-018c AC11: with SBARHIVE_DEBUG_FOCUS each show prints one
+# "hive surface: window X Y W H" line, compared with the Shell.Eval frame.
 # The daemon runs with WAYLAND_DEBUG=1 and shows the hive three times (no
 # token, a token, drop mode); each open show is closed with Esc through
 # Mutter's RemoteDesktop API (tests/drop/input_gnome.py).
@@ -61,7 +63,7 @@ inner() {
   local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo.png"
   local DLOG="$log-daemon.log"
-  SBARHIVE_LANG=en WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  SBARHIVE_LANG=en SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
 
@@ -95,6 +97,17 @@ inner() {
       '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$upto")" -ge 1 ]'
     check "AC6 show $n ($name): no get_layer_surface" \
       '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$seg")" -eq 0 ]'
+    # AC11: no Wayland client knows its own window position, so W H must be
+    # the mapped frame's size within 1 px and X Y only have to lie on screen.
+    local sl ns kind sx sy sw sh gx gy gw gh
+    sl=$(grep -E '^hive surface: ' <<<"$seg"); ns=$(grep -c . <<<"$sl")
+    read -r _ _ kind sx sy sw sh <<<"$(head -1 <<<"$sl")"
+    read -r gx gy gw gh <<<"${geos[i]}"
+    echo "INFO show $n ($name): ${ns} surface line(s): ${sl:-none}"
+    check "AC11 show $n ($name): exactly one \"hive surface: window X Y W H\" line" \
+      '[ "$ns" -eq 1 ] && grep -qE "^hive surface: window -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$" <<<"$sl"'
+    check "AC11 show $n ($name): W H equal the SbarHive frame within 1 px, X Y on the 1280x800 screen" \
+      '[ "${kind:-}" = window ] && [ -n "${gh:-}" ] && [ $((sw - gw)) -ge -1 ] && [ $((sw - gw)) -le 1 ] && [ $((sh - gh)) -ge -1 ] && [ $((sh - gh)) -le 1 ] && [ "$sx" -ge 0 ] && [ "$sy" -ge 0 ] && [ $((sx + sw)) -le 1280 ] && [ $((sy + sh)) -le 800 ]'
   done
   check "AC6: no get_layer_surface in the whole trace" \
     '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$(cat "$DLOG")")" -eq 0 ]'

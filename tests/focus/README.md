@@ -56,7 +56,10 @@ passed as the last argument.
 - KWin: `kwin_wayland --virtual`, with `FocusStealingPreventionLevel` written
   to the throwaway `kwinrc`. No input is injected (ydotool works through
   `/dev/uinput`, which would reach the live session, so it is never used);
-  `client.py` launches by itself 3 s after start (`CLIENT_AUTO`). KWin issues
+  `client.py` launches by itself 3 s after start (`CLIENT_AUTO`). Since S-018c the warm-up hive is closed with one Esc through KWin's
+  own `org_kde_kwin_fake_input` (`tests/drop/kwin-input`, allowed by
+  `KWIN_WAYLAND_NO_PERMISSION_CHECKS=1` in this private KWin only), because on
+  the layer path focus loss no longer closes it. KWin issues
   tokens to the active window without an input serial. State is read with a
   KWin script loaded over D-Bus that prints to KWin's log.
 

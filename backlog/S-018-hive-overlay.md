@@ -193,3 +193,54 @@
   - تشغيل واحد لكلٍّ (`nice -n 19`، بناء `-j 2`): `tests/overlay/kwin.sh` RESULT PASS (كل فحوص الظهورات الخمسة، وصفر `get_xdg_surface` في الأثر كله، و5 `zwlr_layer_surface_v1.destroy`، وصندوق اللقطة `448 223 384 353`)؛ `tests/overlay/gnome.sh` RESULT PASS؛ `crates/ui/tests/snapshots.sh` `snapshots: ok`، المراجع الأربعة `diff 0 pixels` بـ `layer` و`window`. لم يُشغَّل `kwin.sh window` ولا `settings_snapshots.sh` ولا `measure.sh` ولا e2e ولا `cargo mutants` (حمل الجهاز).
   - البوابات: `cargo fmt --all --check` نظيف، `cargo clippy --workspace --all-targets -- -D warnings` نظيف، `cargo test --workspace` 419 ناجحاً و0 فاشلاً، `scripts/design-lint.sh crates/ui` نظيف.
   - مخاطر مفتوحة: (1) على مسار الطبقة مع `theme = "auto"` لا يصل مخطط ألوان النظام إلى Slint، فالخلية فاتحة حتى S-018e (البوابة). (2) لا شكل مؤشر على الماسك والخلية حتى S-018e. (3) مستقبِل الإفلات لا يُربط على مسار الطبقة (`ATTACH_PENDING` يبقى مرفوعاً بلا أثر) حتى S-018d، فـ `tests/drop/kwin.sh` يفشل على KWin كما قرّر المدير، ومعه `tests/focus/kwin.sh` و`tests/e2e/run.sh` (لم تُشغَّل). (4) مخازن `wl_shm` تُنشأ لكل إطار بـ memfd جديد وتُهدم عند `release` فقط؛ الهدم الصريح عند الإخفاء والميزانية في S-018f. (5) Hyprland وSway لم يُشغَّلا.
+- 2026-10-20، المختبِر (S-018c فقط، AC8 إلى AC12): كُتبت الاختبارات من المعايير وشُغّل كل سكربت جديد أو معدَّل مرة واحدة على بناء `b55b071` (`cargo build --release -j 2`، `nice -n 19`). تفشل فحوص AC11 (سطر `hive surface` على المسارين) وAC12 (قارئ الشاشة) وAC10 (المستوى 4 بالرمز الحقيقي). وتنجح اليوم فحوص النقر ولوحة المفاتيح والرمز لأن S-018b سلّمت سلوكها مسبقاً (سجل المنفِّذ أعلاه: النقر على الماسك يمر بـ `CloseRequested`، و`leave` لا يغلق، و`PENDING_TOKEN` يُرسَل بـ `activate`)، فهي حارسات انحدار لا اختبارات خاطئة.
+  - الملفات: `tests/overlay/kwin.sh` بثلاثة أوضاع جديدة لكلٍّ منها مؤلِّف خاص: `input` (AC8، AC9، و`kwinrc` بـ `FocusPolicy=FocusFollowsMouse` والمستوى 1)، و`token` (AC10: ثلاثة ظهورات `open --token sbh-token-<n>` ثم ظهور بلا رمز)، و`a11y` (AC12). وأُضيفت فحوص AC11 إلى الوضعين `layer` و`window`، وظهور سادس في `window` (نقرة على نافذة GTK). وكذلك `tests/overlay/a11y.py` (خدمة وهمية)، و`tests/overlay/focus.sh` (AC10 بالرمز الحقيقي، على نمط `tests/focus/kwin.sh`)، وفحوص AC11 في `tests/overlay/gnome.sh`، و`ac8_ac9_layer_input_reference` في `crates/ui/src/ui_tests.rs` (اختبار مستقل بخيطه، فلا تتغير أعداد `hive_behaviour`). الخدمة في كل الأوضاع بـ `SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1`.
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل):
+    1. AC8: خلية الحلقة الأولى يمين المركز هي المحوري (1، 0)، الموضع 1 في الحلقة (`geometry::ring`)، أي `image.to-jpg` لملف PNG (ثاني سطر حلقته 1 في `sbarhive actions`). النقر في (640 + 78، 400) (الإزاحة من `hex.size.md` و`gap` في الرموز) يكتب `photo.jpg` من نوع `image/jpeg`، ولا شيء غيره، و0 نقرات عند GTK، وهدم السطح الطبقي. النقر في (100، 700): `wl_pointer.button(..., 272, 1)` يصل الماسك، و`zwlr_layer_surface_v1.destroy` خلال 500 ms **من الضغط** (طابعا الأثر)، وهدم واحد بالضبط، ولا ملف جديد، و0 نقرات عند GTK. «`on_dismiss` مرة واحدة» لا يُرى من خارج الخدمة: يثبته `ui_tests` (`CloseRequested` يستدعيه مرة، والثاني والخلية مخفية لا يضيف شيئاً)، والسكربت يثبت الإغلاق وغياب الناتج والنقر.
+    2. AC9: السهم الأيمن ثم Enter من دون تمييز يختاران الموضع 0 (`ui_tests`: المعرّف `webp`)، أي `photo.webp` بنوع `image/webp`، والمؤشر في (100، 700) فوق GTK. التجوال على (100، 700) و(1200، 80) و(640، 400) و(718، 400) و(60، 60) بلا نقر: لا هدم ولا `wl_keyboard.leave` قبل Esc، ثم Esc يهدم السطح. `sbarhive settings` والخلية ظاهرة: `get_xdg_surface` للإعدادات وصفر هدم للطبقة خلال 3 ث. مسار النافذة (`kwin.sh window`): النقرة تصل GTK مرة واحدة، و`hive focus: false` و`xdg_toplevel.destroy`.
+    3. AC10 (`kwin.sh token`): في كل ظهور طلب `xdg_activation_v1.activate` واحد بالضبط، برمز ذلك الظهور وعلى سطح الماسك (الـ `wl_surface` الممرَّر إلى `get_layer_surface` في القطعة نفسها)، وبعده في الأثر. الظهور الرابع بلا رمز: صفر `activate(`. Esc يغلق كل ظهور. اختير رمز مختلف لكل ظهور ليُكشف رمز قديم معلّق.
+    4. AC10 (`tests/overlay/focus.sh`، مؤلِّف لكل حالة: `1:token 1:notoken 4:token 4:notoken 4:bogus 2:notoken 3:notoken`): خلية تسخين تُغلق بـ Esc ثم 3 ث، ثم `client.py` بـ `CLIENT_AUTO`، ولا يُحقن أي حدث مؤشر (المؤشر ساكن). بالرمز في 1 و4: `activate("<رمز client.py>", <الماسك>)` و`hive focus: true`. بالمستوى 4 بلا رمز ومع المختلَق: صفر `hive focus: true`، والمختلَق يُرسَل `activate` مع ذلك. بالمستوى 1 بلا رمز: `wl_keyboard.enter` على الماسك خلال 500 ms من `get_layer_surface`. المستويان 2 و3 في جدول `TABLE` بلا فحص.
+    5. AC11: سطر واحد بالضبط لكل ظهور (ومنه ظهور الإفلات) بالصيغة `hive surface: layer|window X Y W H` حرفياً بأعداد صحيحة. على الطبقة في 1280×800 بمقياس 1: `444 219 393 362`، وX Y تساوي `wl_subsurface.set_position` في الأثر، وW H تساوي `wp_viewport.set_destination` فيه، وصندوق لقطة الظهور الأول داخل المستطيل. `hive focus: true` بعدد `wl_keyboard.enter` و`false` بعدد `leave` على سطح حي (KWin يرسل `leave(serial, nil)` بعد هدم الماسك، ولا يُعدّ)، و`true` واحد على الأقل في الظهورات غير الإفلات. على النافذة: لا يعرف عميل Wayland موضع نافذته، فيُشترط W H بحجم الخلية (393 × 362 بفرق 1 px في KWin، وإطار `Shell.Eval` بفرق 1 px في GNOME) وX Y داخل الشاشة فقط.
+    6. AC12: `a11y.py` يملك `org.a11y.Bus` قبل تشغيل KWin، على `/org/a11y/bus`: `org.a11y.Status` بالخاصيتين `IsEnabled` و`ScreenReaderEnabled` (قراءة بـ `Properties.Get` و`GetAll`)، و`org.a11y.Bus.GetAddress` بعنوان وهمي. عند التبديل يرسل `org.freedesktop.DBus.Properties.PropertiesChanged` على المسار نفسه بالواجهة `org.a11y.Status`. يبدأ `true`: الظهور الأول `get_xdg_surface` حتى نهايته وصفر `get_layer_surface`. ثم `false` وانتظار 1.5 ث: الظهور التالي `get_layer_surface` واحد وصفر `get_xdg_surface`.
+  - تعديل الاختبارات القائمة (التأكيدات كما هي): `tests/focus/kwin.sh:29` أضيف `KWIN_WAYLAND_NO_PERMISSION_CHECKS=1` إلى تشغيل KWin، وأضيفت السطور 72 إلى 81 بعد السطر 71: Esc لخلية التسخين عبر `tests/drop/kwin-input` ثم 3 ث. هذا شرط إغلاق خلية التسخين بـ Esc، لأن الإدخال المحقون يحتاج المتغير. وسطر في `tests/focus/README.md` بذلك. السطور 42 إلى 47 لم تُعدَّل: تشغيل اليوم يُظهر سطح الطبقة في `windowList` باسم فارغ، وسطر `daemon focus lines` كافٍ. `tests/drop/lib.sh` و`tests/drop/kwin.sh:51` و`tests/e2e/run.sh` لم تُعدَّل (S-018d وS-018f).
+  - تشغيل واحد لكلٍّ: `tests/overlay/kwin.sh` RESULT FAIL (25)، كل فحوص AC4 وAC5 ناجحة (43 PASS)، والفشل كله AC11. `kwin.sh window` RESULT FAIL (10)، كله AC11، وحارسا AC9 لمسار النافذة ناجحان. `kwin.sh input` RESULT FAIL (1)، والفشل كان خطأ في الاختبار نفسه (متغير مشترك لقائمة الملفات بين ظهورين)، فأُصلح وشُغّل مرة ثانية: RESULT PASS، ثم فُصل متغيرا الظهورين دون تشغيل ثالث. `kwin.sh token` RESULT PASS. `kwin.sh a11y` RESULT FAIL (2). `gnome.sh` RESULT FAIL (6)، كله AC11، وفحوص AC6 الـ 11 ناجحة. `focus.sh` RESULT FAIL (حالة واحدة). `tests/focus/kwin.sh` (المستوى 1، notoken وtoken): خلية التسخين أُغلقت (`before` فيه `focus-client` وحده)، و`hive focus: true` في الحالتين. `ac8_ac9_layer_input_reference` ناجح (مرجع). fmt وclippy لـ `sbarhive-ui` نظيفان.
+  - بعد التشغيل عُدّل شرطان دون إعادة تشغيل (حمل الجهاز): عدّ `leave` على سطح حي فقط (الفشل الوحيد لهذا الفحص كان `leave(.., nil)`)، وحُذف فحص «الخدمة الوهمية سُئلت» من `a11y` لأن KWin نفسه يسأل الخاصية فكان ينجح دائماً، فصار سطر INFO.
+  - مخرجات الفشل (مقتطف):
+    ```
+    == kwin layer
+    INFO show 1 (plain): 0 surface line(s): none
+    FAIL AC11 show 1 (plain): exactly one "hive surface: layer X Y W H" line
+    FAIL AC11 show 1 (plain): the layer line is 444 219 393 362 (AC2 on 1280x800, scale 1)
+    FAIL AC11 show 1 (plain): X Y equal the subsurface set_position in the trace
+    FAIL AC11 show 1 (plain): W H equal a wp_viewport set_destination in the trace
+    (والظهورات 2 إلى 5 بالفشل نفسه)
+    FAIL AC11: the screenshot box lies inside the first show's "hive surface" rectangle
+    RESULT FAIL (25)
+    == kwin window
+    FAIL AC11 show 1 (plain): exactly one "hive surface: window X Y W H" line
+    FAIL AC11 show 1 (plain): the window line has the hive's size and lies on the 1280x800 screen
+    PASS AC9 window path (guard): focus loss closes the hive (xdg_toplevel destroyed)
+    RESULT FAIL (10)
+    == kwin a11y
+    INFO reader on: get_layer_surface 1, get_xdg_surface up to its end 0
+    FAIL AC12 ScreenReaderEnabled=true: the next show is an xdg_surface (window)
+    FAIL AC12 ScreenReaderEnabled=true: no get_layer_surface
+    PASS AC12 PropertiesChanged to false: the next show is a layer again
+    RESULT FAIL (2)
+    == gnome
+    INFO show 1 (plain): hive window 444 235 393 362
+    FAIL AC11 show 1 (plain): exactly one "hive surface: window X Y W H" line
+    RESULT FAIL (6)
+    == kwin focus level 4 token
+    INFO level 4 token: catcher wl_surface#24, token kwin-2, activate: -> xdg_activation_v1#12.activate("kwin-2", wl_surface#24), keyboard enter after none ms, hive focus lines:
+    FAIL AC10 level 4 token: the hive takes the keyboard (hive focus: true)
+    == AC10 table
+      level=1 case=token focus=true enter_ms=4
+      level=1 case=notoken focus=true enter_ms=4
+      level=4 case=token focus=false enter_ms=none
+      level=4 case=notoken focus=false enter_ms=none
+      level=4 case=bogus focus=false enter_ms=none
+      level=2 case=notoken focus=true enter_ms=3
+      level=3 case=notoken focus=true enter_ms=5
+    ```
+  - ملاحظات للمنفِّذ والمراجع: (1) بالمستوى 4 يُرسَل الرمز الحقيقي على الماسك ولا يعطي KWin لوحة المفاتيح. والرمز صالح، فعلى مسار النافذة أخذ التركيز به في S-013. السبب لم يُبحث هنا (قد يكون استهلاك الرمز أو سياسة KWin للطبقات). (2) لا تعارض اليوم بين AC4 (لوحة مفاتيح 1) وAC10: بالمستوى 4 بلا رمز لا تأخذ الطبقة التركيز. (3) فحوص `input` و`token` الناجحة اليوم يجب أن تبقى ناجحة.

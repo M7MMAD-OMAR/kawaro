@@ -280,3 +280,41 @@ fn colour_scheme_override() {
     assert_eq!(forced_dark(Some("auto")), None);
     assert_eq!(forced_dark(None), None);
 }
+
+/// S-018c reference values for tests/overlay/kwin.sh input, which can only see
+/// the daemon from outside. Own thread, so its own testing platform.
+/// AC9: Right arrow then Enter on a fresh English hive chooses the first cell
+/// (index 0), so for a PNG the script expects the first ring-1 action (WEBP).
+/// AC8: a close request (what a click on the layer catcher sends) dismisses
+/// exactly once, and a second one while hidden adds nothing; the script checks
+/// the closed surface, no output and no click below, not the callback count.
+#[test]
+fn ac8_ac9_layer_input_reference() {
+    i_slint_backend_testing::init_no_event_loop();
+    let (hive, log) = wired(Lang::En);
+    hive.present("photo.png", cells(), None).unwrap();
+    key(&hive, Key::RightArrow);
+    assert_eq!(hive.inner.ui.borrow().get_highlight(), 0);
+    key(&hive, Key::Return);
+    assert_eq!(*log.chosen.borrow(), ["webp"]);
+    assert!(!hive.inner.visible());
+
+    hive.present("photo.png", cells(), None).unwrap();
+    let close = |h: &Hive| {
+        h.inner
+            .ui
+            .borrow()
+            .window()
+            .dispatch_event(WindowEvent::CloseRequested)
+    };
+    close(&hive);
+    assert!(!hive.inner.visible());
+    assert_eq!(log.dismissed.get(), 1);
+    close(&hive);
+    assert_eq!(
+        log.dismissed.get(),
+        1,
+        "a hidden hive is not dismissed again"
+    );
+    assert_eq!(log.chosen.borrow().len(), 1);
+}
