@@ -8,6 +8,10 @@ license.workspace = true
 [dependencies]
 sbarhive-core.workspace = true
 slint.workspace = true
+# Centre cell picture (S-018g): MD5 of the file URI for the thumbnail
+# name, PNG text chunks for its validity. Both already in the tree.
+md-5 = "0.11"
+png = "0.17"
 
 # Wayland drop receiver (S-014b, ADR 0003): a second connection on winit's
 # display. Same versions winit already pulls in, so no new packages.
@@ -23,5 +27,3 @@ serde_json.workspace = true
 [dev-dependencies]
 # Headless Slint platform for the behaviour test; same pinned version as slint.
 i-slint-backend-testing = "=1.18.1"
-# PNG encode and decode for the snapshot example.
-png = "0.17"

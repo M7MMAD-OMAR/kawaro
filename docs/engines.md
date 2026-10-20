@@ -264,3 +264,5 @@ Not engines, recorded here because CLAUDE.md asks for every new library.
 | wayland-client | 0.31.15 | MIT | ui (Linux) | drop receiver: a second connection on winit's `wl_display` (S-014b, ADR 0003); already in the tree through winit |
 | wayland-backend | 0.3.17, `client_system` | MIT | ui (Linux) | `Backend::from_foreign_display` for that connection; already in the tree through winit |
 | rustix | 1.1.5, `event` and `pipe` | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | ui (Linux) | pipe and poll to read the dragged `text/uri-list` with a timeout; already in the tree through wayland-backend |
+| md-5 | 0.11.0 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): MD5 of the file URI names the cached thumbnail; already in the tree through another dependency |
+| png | 0.17.16 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): reads the `Thumb::*` text chunks of a cached thumbnail; was a dev-dependency, already in the tree |

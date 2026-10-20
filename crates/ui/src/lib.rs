@@ -20,9 +20,12 @@ mod geometry;
 mod icons;
 mod layout;
 mod motion;
+pub mod overlay;
 #[cfg(target_os = "linux")]
 mod receiver;
 mod settings;
+#[cfg(unix)]
+pub mod thumb;
 mod tokens {
     include!(concat!(env!("OUT_DIR"), "/tokens.rs"));
 }

@@ -14,12 +14,13 @@ macro_rules! icons {
 
 /// Every icon, by name. The only list: add a file to `crates/ui/icons/` and
 /// its name here.
-const ICONS: [(&str, &[u8]); 21] = icons![
+const ICONS: [(&str, &[u8]); 22] = icons![
     "audio",
     "clean",
     "compress",
     "convert",
     "document",
+    "file",
     "fit",
     "flip",
     "gif",

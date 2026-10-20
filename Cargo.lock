@@ -4614,6 +4614,7 @@ name = "sbarhive-ui"
 version = "0.2.2"
 dependencies = [
  "i-slint-backend-testing",
+ "md-5",
  "png 0.17.16",
  "rustix 1.1.5",
  "sbarhive-core",
