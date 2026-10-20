@@ -84,10 +84,11 @@ inner() {
 
   mkdir -p "$XDG_CONFIG_HOME/sbarhive"
   printf 'notify = false\noutput = "subfolder"\noutput-folder = "out"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
-  "$BIN/sbarhive" reload
+  # No `sbarhive reload`: the daemon notices the edited file by itself.
+  sleep 3
   n0=$(notes)
   "$BIN/sbarhive" run image.to-gif --wait "$W/b.jpg" >/dev/null 2>&1
-  check "subfolder setting puts output in out/" '[ -f "$W/out/b.gif" ] && [ ! -f "$W/b.gif" ]'
+  check "edited settings apply without reload: output in out/" '[ -f "$W/out/b.gif" ] && [ ! -f "$W/b.gif" ]'
   sleep 1
   check "notify = false sends no notification" '[ "$(notes)" -eq "$n0" ]'
   rm -f "$XDG_CONFIG_HOME/sbarhive/config.toml"; "$BIN/sbarhive" reload

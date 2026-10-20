@@ -11,7 +11,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 - Settings window (S-011): language, theme, output place and folder, quality, notifications, built from the vendored Slint Material 3 components with token colours and no shadows, Arabic and English with full mirroring; opened from the tray menu.
 - Office and PDF engines (S-009, S-010): documents to PDF, DOCX, ODT, XLSX, ODS, PPTX, ODP through LibreOffice; PDF merge, rotate, split (ZIP) in pure Rust; compress and pages to PNG (ZIP) through Ghostscript.
 - FFmpeg engine (S-008): video to MP4, WebM, MKV, MOV and GIF, audio extraction and conversion, video compression with real progress.
-- `sbarhive doctor` and `sbarhive reload`.
+- `sbarhive doctor` and `sbarhive reload`; the service also reloads settings and user actions by itself when their files change.
 - Brand: hexagon and cactus app icon, tray icon, wordmark, PNG exports; bilingual landing page in `site/`.
 
 ### Fixed

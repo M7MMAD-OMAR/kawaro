@@ -84,8 +84,10 @@ theme follows the system colour scheme, Arabic mirrors the layout.
 language, theme, output place (beside the original, or a subfolder whose
 name the daemon puts in `OutputSpec.dir`), quality preset (shifts the
 `quality` parameter by -15, 0 or +10, clamped to 1..100), notify, open the
-folder when done. The daemon reads it at start and on `reload`; the settings
-window (v0.2, S-011) writes it.
+folder when done. The daemon reads it at start, on `reload`, and when the
+file or a user action file changes (polled every 2 s, `crates/daemon/src/watch.rs`);
+the settings window (v0.2, S-011) writes it. Output naming is fixed: same
+name with the new extension, " (1)", " (2)" on collision, never an overwrite.
 
 ## Daemon behaviour
 

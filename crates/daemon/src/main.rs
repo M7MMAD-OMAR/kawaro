@@ -8,6 +8,7 @@ mod state;
 mod text;
 mod tray;
 mod ui;
+mod watch;
 
 use state::lock;
 
@@ -83,6 +84,11 @@ fn main() -> ExitCode {
     {
         let (state, queue) = (state.clone(), queue.clone());
         std::thread::spawn(move || server::serve(listener, state, queue));
+    }
+
+    {
+        let (state, queue) = (state.clone(), queue.clone());
+        std::thread::spawn(move || watch::run(state, queue));
     }
 
     let result = slint::run_event_loop_until_quit();

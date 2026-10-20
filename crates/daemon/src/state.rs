@@ -48,7 +48,7 @@ pub fn load_registry() -> Registry {
     reg
 }
 
-fn user_actions_dir() -> Option<PathBuf> {
+pub fn user_actions_dir() -> Option<PathBuf> {
     let base = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;

@@ -17,3 +17,6 @@ sbarhive-engines.workspace = true
 sbarhive-ui.workspace = true
 serde_json.workspace = true
 slint.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

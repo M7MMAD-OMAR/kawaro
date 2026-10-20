@@ -79,8 +79,8 @@ fn settings_window() -> Result<(), slint::PlatformError> {
     Ok(())
 }
 
-/// Writes the settings, reloads them and rebuilds the windows when the
-/// language changed. Runs on the event loop thread (settings callback).
+/// Writes the settings and reloads them. Runs on the event loop thread
+/// (settings callback).
 fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) {
     let Some(path) = Config::path() else {
         eprintln!("sbarhived: no HOME, settings not saved");
@@ -90,6 +90,12 @@ fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) {
         eprintln!("sbarhived: cannot save {}: {e}", path.display());
         return;
     }
+    reload(state, queue);
+}
+
+/// Re-reads settings and actions, then follows a language or theme change in
+/// the tray and the windows. Runs on the event loop thread.
+pub fn reload(state: &Shared, queue: &Arc<Queue>) {
     let (before, after) = {
         let mut st = lock(state);
         let before = (st.lang, st.config.theme);
