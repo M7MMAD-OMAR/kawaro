@@ -65,6 +65,11 @@ fn main() -> ExitCode {
         eprintln!("sbarhived: no display: {e}");
         return ExitCode::FAILURE;
     }
+    // Matches the desktop file, so compositors, window rules and portals
+    // can tell SbarHive windows apart from any other.
+    if let Err(e) = slint::set_xdg_app_id("io.github.m7mmad_omar.SbarHive") {
+        eprintln!("sbarhived: app id: {e}");
+    }
     let engines = sbarhive_engines::all();
     let (ev_tx, ev_rx) = mpsc::channel();
     let queue = Arc::new(Queue::new(engines.clone(), workers(), ev_tx));
