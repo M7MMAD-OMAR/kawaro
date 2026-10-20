@@ -94,3 +94,24 @@
   5. شيفرة إرسال Wayland في محوّل الطبقة تُستثنى في `.cargo/mutants.toml` مع السبب، والأجزاء الخالصة تبقى تحت فحص الطفرات.
   6. الذاكرة: تحرير مخازن الرسم عند الإخفاء شرط في S-018f، والحد 40 MB لا يُرفع.
   7. S-014c إلى S-014f تنتظر انتهاء S-018 (تبني على المستقبِل الذي ينقله S-018d).
+- 2026-10-20، المختبِر (S-018a فقط، AC1 إلى AC3): كُتبت الاختبارات من المعايير وفشلت كلها قبل التنفيذ، لأن الوحدة غير موجودة.
+  - الملفات: `crates/ui/tests/overlay_pure.rs` (هدف تكامل مستقل، 25 اختباراً بأسماء `ac1_*` و`ac2_*` و`ac3_*`، فلا يُعدَّل `lib.rs` ولا يُكسر بناء اختبارات `--lib` التي يعمل عليها مختبِر S-018g بالتوازي)، والعوامّ في `tests/fixtures/overlay/kwin-6.7.5-globals.txt` و`gnome-50.5-globals.txt`: نسخ حرفية من `spikes/overlay/out/kwin-s1-FocusFollowsMouse-fsp1-globals.txt` و`gnome-globals.txt` (`overlay-spike globals` في KWin 6.7.5 الافتراضي وGNOME Shell 50.5 المخفي، تشغيلا اليوم؛ قوائم KWin الأربع متطابقة). الاختبار يحذف العلامة `*` ويأخذ الكلمة الأولى من كل سطر.
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل)، في وحدة عامة `sbarhive_ui::overlay` بلا أنواع Wayland ولا قراءة بيئة:
+    - `enum Surface { Layer, Window }` بـ `Debug, PartialEq`.
+    - `choose_surface(globals: &[&str], screen_reader: bool, wayland: bool, forced: Option<&str>) -> (Surface, Option<String>)`؛ `forced` قيمة `SBARHIVE_SURFACE` الخام، والعنصر الثاني سطر السجل.
+    - `struct Placement { x: i32, y: i32, buffer: (u32, u32), destination: (u32, u32) }` و`place(screen: (u32, u32), cell: (u32, u32), scale120: u32) -> Placement`.
+    - `key_for_evdev(code: u32) -> Option<slint::platform::Key>` (Enter هو `Key::Return`، والأسهم `UpArrow` و`DownArrow` و`LeftArrow` و`RightArrow`).
+    - `scheme_is_dark(env: Option<&str>, portal: Option<u32>) -> bool`؛ `env` قيمة `SBARHIVE_COLOR_SCHEME` الخام (`light|dark` كما في `forced_dark` اليوم)، و`portal` قيمة `color-scheme`، والغياب والخطأ كلاهما `None` عند المستدعي (لا تفرّق الدالة بينهما).
+    - `wants_cursor_shape(globals: &[&str]) -> bool`.
+  - ملاحظات على النص: (1) AC1 يذكر `wp_single_pixel_buffer_v1`، وهو اسم البروتوكول؛ العامّ المُعلَن اسمه `wp_single_pixel_buffer_manager_v1`، والاختبارات تشترطه بهذا الاسم. (2) AC2: الخلية 393 × 362 تُمرَّر قيمةً ثابتة كما طلبها المدير في S-017 AC13، ولا يشتقها الاختبار من `Layout::extent`. القيم المتوقعة: الموضع (444، 219) و(444، 219) و(764، 359) و(1724، 899)، والمخزن 393 × 362 و590 × 543 و786 × 724 و492 × 453، والوجهة 393 × 362 دائماً. ثلاث حالات تقع على نصف بكسل في x، فالقسمة الصحيحة المقطوعة تفشل. (3) ما سكت عنه المعيار لم يُثبَّت: قيمة `SBARHIVE_SURFACE` غير معروفة، والفرض بـ `layer` خارج Wayland، ووجود سطر سجل في غير حالة «layer دون العوامّ».
+  - التحقق من صحة الاختبارات: نُسخ الملف إلى مجلد مؤقت مع تنفيذ مرجعي صغير مكتوب للتحقق فقط (لم يُودَع) فنجحت الـ 25 كلها، فالفشل الحالي سببه غياب الوحدة وحده.
+  - مخرجات الفشل (`nice -n 10 cargo test -j 4 -p sbarhive-ui --test overlay_pure`):
+    ```
+    error[E0432]: unresolved import `sbarhive_ui::overlay`
+     --> crates/ui/tests/overlay_pure.rs:9:18
+      |
+    9 | use sbarhive_ui::overlay::{
+      |                  ^^^^^^^ could not find `overlay` in `sbarhive_ui`
+
+    error: could not compile `sbarhive-ui` (test "overlay_pure") due to 1 previous error
+    ```
