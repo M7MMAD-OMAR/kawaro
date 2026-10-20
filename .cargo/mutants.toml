@@ -45,4 +45,13 @@ exclude_re = [
   "replace report_window with",
   "replace wants_layer -> bool",
   "replace built_on_layer -> bool",
+  # Diagnostic stderr line for the headless scripts (tests/overlay/preview.sh,
+  # tests/e2e/run.sh read it); no unit test can observe stderr here.
+  "in debug_preview$",
+  "replace debug_preview with",
+  # Daemon glue that needs the socket, the windows and the event loop
+  # together; tests/e2e/run.sh and tests/overlay/*.sh cover it end to end.
+  "replace handle with \\(\\)",
+  "replace build -> Result",
+  "replace present with \\(\\)",
 ]
