@@ -1,0 +1,16 @@
+[package]
+name = "drop-spike"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+# Outside the workspace on purpose (spikes/ is never merged as is).
+[workspace]
+
+[dependencies]
+slint = { version = "=1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-software", "compat-1-2", "unstable-winit-030"] }
+raw-window-handle = "0.6"
+wayland-client = { version = "0.31", features = ["system"] }
+wayland-backend = { version = "0.3", features = ["client_system"] }
+wayland-protocols-plasma = { version = "0.3", features = ["client"] }
+rustix = { version = "1", features = ["pipe", "fs"] }
