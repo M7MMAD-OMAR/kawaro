@@ -5,7 +5,7 @@
 use crate::jobs;
 use crate::state::{Shared, lock};
 use sbarhive_core::ActionDef;
-use sbarhive_core::config::Config;
+use sbarhive_core::config::{Config, Theme};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
 use sbarhive_ui::{Hive, HiveCell, SettingsWindow};
@@ -17,9 +17,25 @@ thread_local! {
     static SETTINGS: RefCell<Option<SettingsWindow>> = const { RefCell::new(None) };
 }
 
-/// Creates the hive and the settings window for `lang` and wires them to the
-/// queue. Called at start and again when the language setting changes.
-pub fn build(lang: Lang, state: &Shared, queue: &Arc<Queue>) -> Result<(), slint::PlatformError> {
+/// The colour scheme override the UI crate reads when a window is created.
+fn apply_theme(theme: Theme) {
+    // Only the main thread reads or writes this variable, before creating windows.
+    match theme {
+        Theme::Auto => unsafe { std::env::remove_var("SBARHIVE_COLOR_SCHEME") },
+        Theme::Light => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "light") },
+        Theme::Dark => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "dark") },
+    }
+}
+
+/// Creates the hive and the settings window for `lang` and `theme` and wires
+/// them to the queue. Called at start and again when either setting changes.
+pub fn build(
+    lang: Lang,
+    theme: Theme,
+    state: &Shared,
+    queue: &Arc<Queue>,
+) -> Result<(), slint::PlatformError> {
+    apply_theme(theme);
     let hive = Hive::new(lang)?;
     {
         let (state, queue) = (state.clone(), queue.clone());
@@ -62,15 +78,18 @@ fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) {
     }
     let (before, after) = {
         let mut st = lock(state);
-        let before = st.lang;
+        let before = (st.lang, st.config.theme);
         st.reload();
-        (before, st.lang)
+        (before, (st.lang, st.config.theme))
     };
+    if before.0 != after.0 {
+        crate::tray::set_lang(after.0);
+    }
     if before != after {
         // Rebuild after the settings window's own callback has returned.
         let (state, queue) = (state.clone(), queue.clone());
         slint::Timer::single_shot(std::time::Duration::ZERO, move || {
-            if let Err(e) = build(after, &state, &queue) {
+            if let Err(e) = build(after.0, after.1, &state, &queue) {
                 eprintln!("sbarhived: cannot rebuild windows: {e}");
             }
         });

@@ -7,7 +7,10 @@ use ksni::blocking::{Handle, TrayMethods};
 use ksni::menu::{MenuItem, StandardItem};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
+
+/// A second handle for updates that do not come from the job pump.
+static TRAY: OnceLock<Handle<SbarTray>> = OnceLock::new();
 
 pub struct SbarTray {
     lang: Lang,
@@ -100,7 +103,10 @@ pub fn start(lang: Lang, queue: Arc<Queue>, state: Shared) -> TrayHandle {
     })
     .spawn()
     {
-        Ok(h) => Some(h),
+        Ok(h) => {
+            let _ = TRAY.set(h.clone());
+            Some(h)
+        }
         Err(e) => {
             eprintln!("sbarhived: no tray icon ({e})");
             None
@@ -111,5 +117,12 @@ pub fn start(lang: Lang, queue: Arc<Queue>, state: Shared) -> TrayHandle {
 pub fn set_active(tray: &TrayHandle, active: Vec<(String, f32)>) {
     if let Some(h) = tray {
         h.update(|t| t.active = active);
+    }
+}
+
+/// Switches the tray menu and tooltip to `lang` (after a settings change).
+pub fn set_lang(lang: Lang) {
+    if let Some(h) = TRAY.get() {
+        h.update(|t| t.lang = lang);
     }
 }

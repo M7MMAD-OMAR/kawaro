@@ -9,6 +9,8 @@ mod text;
 mod tray;
 mod ui;
 
+use state::lock;
+
 use sbarhive_core::config::Config;
 use sbarhive_core::ipc::{Request, Response, socket_path};
 use sbarhive_core::queue::Queue;
@@ -67,7 +69,8 @@ fn main() -> ExitCode {
     let queue = Arc::new(Queue::new(engines.clone(), workers(), ev_tx));
     let state: state::Shared = Arc::new(Mutex::new(state::State::new(config, &engines)));
 
-    if let Err(e) = ui::build(lang, &state, &queue) {
+    let theme = lock(&state).config.theme;
+    if let Err(e) = ui::build(lang, theme, &state, &queue) {
         eprintln!("sbarhived: cannot create the windows: {e}");
         return ExitCode::FAILURE;
     }
