@@ -1,11 +1,12 @@
 //! Wayland drop receiver for the hive (S-014b, ADR 0003).
 //!
 //! winit 0.30 has no Wayland drag and drop, so this opens a second
-//! wayland-client `Connection` on winit's own `wl_display`, with its own event
-//! queue and thread, as in `spikes/drop/`. After every drop-mode show the main
-//! thread releases the old `wl_data_device` and asks for a new one, because
-//! Slint destroys the hive surface on hide; events are kept only for the
-//! current hive surface.
+//! wayland-client `Connection` on the `wl_display` that owns the hive surface,
+//! with its own event queue and thread, as in `spikes/drop/`: winit's display
+//! on the window path, the layer connection's on the overlay (S-018d), one
+//! receiver for each. After every drop-mode show the main thread releases the
+//! old `wl_data_device` and asks for a new one, because the hive surface is
+//! destroyed on hide; events are kept only for the current hive surface.
 //!
 //! The receiver accepts `text/uri-list` over the cells only, and only as a
 //! copy (`set_actions(Copy, Copy)`), so a source offering a move never deletes
@@ -21,7 +22,7 @@ use std::io::Read;
 use std::os::fd::AsFd;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use wayland_client::globals::{GlobalListContents, registry_queue_init};
 use wayland_client::protocol::wl_data_device::{self, WlDataDevice};
@@ -60,46 +61,55 @@ struct Shared {
     device: Mutex<Option<WlDataDevice>>,
     /// `wl_surface` pointer of the hive in drop mode, 0 when detached.
     target: AtomicUsize,
-    plan: Mutex<Option<Plan>>,
 }
 
-static SHARED: OnceLock<Option<Arc<Shared>>> = OnceLock::new();
+/// One receiver per `wl_display` pointer; `None` when it failed to start.
+static RECEIVERS: Mutex<Vec<(usize, Option<Arc<Shared>>)>> = Mutex::new(Vec::new());
+/// The cells every receiver picks from; `None` refuses every drop.
+static PLAN: Mutex<Option<Plan>> = Mutex::new(None);
 
 /// Binds a new data device for the hive surface `surface` on `display` (raw
-/// `wl_display` and `wl_surface` pointers from winit). Starts the receiver on
-/// first use. Call after every drop-mode show, once the surface exists.
+/// `wl_display` and `wl_surface` pointers, from winit or the layer
+/// connection). Every earlier device is released first. Starts the receiver
+/// of `display` on first use. Call after every drop-mode show, once the
+/// surface exists.
 pub fn attach(display: usize, surface: usize, sink: Sink) {
-    let shared = SHARED.get_or_init(|| start(display, sink));
+    let shared = {
+        let mut all = lock(&RECEIVERS);
+        for s in all.iter().filter_map(|(_, s)| s.as_ref()) {
+            s.target.store(0, Ordering::SeqCst);
+            release(s);
+            let _ = s.conn.flush();
+        }
+        match all.iter().find(|(d, _)| *d == display) {
+            Some((_, s)) => s.clone(),
+            None => {
+                let s = start(display, sink);
+                all.push((display, s.clone()));
+                s
+            }
+        }
+    };
     let Some(s) = shared else { return };
-    release(s);
     s.target.store(surface, Ordering::SeqCst);
     let device = s.manager.get_data_device(&s.seat, &s.qh, ());
     *lock(&s.device) = Some(device);
     let _ = s.conn.flush();
 }
 
-/// Stops receiving: releases the data device and forgets the surface.
+/// Stops receiving: releases the data devices and forgets the surface.
 pub fn detach() {
-    if let Some(Some(s)) = SHARED.get() {
+    for s in lock(&RECEIVERS).iter().filter_map(|(_, s)| s.as_ref()) {
         s.target.store(0, Ordering::SeqCst);
         release(s);
-        *lock(&s.plan) = None;
         let _ = s.conn.flush();
     }
+    *lock(&PLAN) = None;
 }
 
 /// The cells the receiver picks from; `None` refuses every drop.
 pub fn set_plan(plan: Option<Plan>) {
-    if let Some(Some(s)) = SHARED.get() {
-        *lock(&s.plan) = plan;
-    } else if let Some(plan) = plan {
-        // Not started yet: keep it for the first attach.
-        EARLY_PLAN.with(|p| *p.borrow_mut() = Some(plan));
-    }
-}
-
-thread_local! {
-    static EARLY_PLAN: std::cell::RefCell<Option<Plan>> = const { std::cell::RefCell::new(None) };
+    *lock(&PLAN) = plan;
 }
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
@@ -115,8 +125,9 @@ fn release(s: &Shared) {
 }
 
 fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
-    // SAFETY: the pointer is winit's live `wl_display`, which winit keeps for
-    // the life of its event loop, that is the life of this process.
+    // SAFETY: the pointer is a live `wl_display`, winit's (kept for the life
+    // of its event loop) or the layer connection's (kept in a thread local of
+    // the event loop thread), that is for the life of this process.
     let backend =
         unsafe { wayland_backend::client::Backend::from_foreign_display(display as *mut _) };
     let conn = Connection::from_backend(backend);
@@ -141,7 +152,6 @@ fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
         seat,
         device: Mutex::new(None),
         target: AtomicUsize::new(0),
-        plan: Mutex::new(EARLY_PLAN.with(|p| p.borrow_mut().take())),
     });
     let mut state = Receiver {
         shared: shared.clone(),
@@ -194,9 +204,7 @@ impl Receiver {
     }
 
     fn pick(&self, x: f64, y: f64) -> Option<usize> {
-        lock(&self.shared.plan)
-            .as_ref()
-            .and_then(|p| dnd::pick(p, x, y))
+        lock(&PLAN).as_ref().and_then(|p| dnd::pick(p, x, y))
     }
 
     /// Accepts over a cell only, so the cursor shows "no drop" elsewhere.

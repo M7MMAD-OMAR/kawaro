@@ -264,6 +264,15 @@ fn attach_receiver(window: Option<&winit::window::Window>) {
 #[cfg(not(target_os = "linux"))]
 fn attach_receiver(_window: Option<&winit::window::Window>) {}
 
+/// Binds the drop receiver to the hive subsurface on the layer connection
+/// (S-018d), once per drop-mode show, right after its surfaces are made.
+#[cfg(target_os = "linux")]
+fn attach_layer_receiver(display: usize, surface: usize) {
+    if ATTACH_PENDING.with(|c| c.replace(false)) {
+        receiver::attach(display, surface, on_note);
+    }
+}
+
 /// A note from the drop receiver, on the event loop thread.
 #[cfg(target_os = "linux")]
 fn on_note(note: receiver::Note) {

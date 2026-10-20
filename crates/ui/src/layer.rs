@@ -13,6 +13,8 @@
 //! One wayland-client connection for the process, read on a thread; its
 //! events are dispatched on the Slint thread and go to the adapter that is
 //! shown. Decisions (surface, placement, keys) come from [`crate::overlay`].
+//! A drop-mode show also binds the drop receiver (`receiver.rs`) on this
+//! connection's display, to the hive subsurface (S-018d).
 
 use crate::overlay::{self, Surface};
 use rustix::event::{PollFd, PollFlags, poll};
@@ -207,7 +209,13 @@ fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
 fn reader(conn: Connection, pending: Arc<AtomicBool>) {
     loop {
         let Some(guard) = conn.prepare_read() else {
-            // Events wait in the queue for the Slint thread.
+            // Events wait in the queue for the Slint thread, maybe read by
+            // the drop receiver's thread on this display (S-018d).
+            if !pending.swap(true, Ordering::SeqCst)
+                && slint::invoke_from_event_loop(dispatch).is_err()
+            {
+                return;
+            }
             std::thread::sleep(Duration::from_millis(1));
             continue;
         };
@@ -466,23 +474,37 @@ impl LayerAdapter {
                 .as_ref()
                 .map(|f| f.get_fractional_scale(&hive, qh, ()));
             catcher.commit();
+            let ids = (
+                s.as_ref()?.conn.backend().display_ptr() as usize,
+                hive.id().as_ptr() as usize,
+            );
+            let wl = &mut s.as_mut()?.wl;
             wl.catcher = Some(catcher.clone());
             wl.hive = Some(hive.clone());
             wl.pointer_on_hive = false;
-            Some(Surfaces {
-                catcher,
-                layer,
-                catcher_vp,
-                hive,
-                sub,
-                hive_vp,
-                frac,
-                configured: None,
-            })
+            Some((
+                ids,
+                Surfaces {
+                    catcher,
+                    layer,
+                    catcher_vp,
+                    hive,
+                    sub,
+                    hive_vp,
+                    frac,
+                    configured: None,
+                },
+            ))
         });
-        if made.is_some() {
-            *self.surfaces.borrow_mut() = made;
+        if let Some(((display, hive), surfaces)) = made {
+            *self.surfaces.borrow_mut() = Some(surfaces);
             OWNER.with(|o| *o.borrow_mut() = self.me.clone());
+            if drop_mode {
+                // The receiver's data device lives on this connection, the
+                // only one the compositor names the hive subsurface to.
+                flush();
+                crate::attach_layer_receiver(display, hive);
+            }
         }
         self.waiting_frame.set(false);
         flush();

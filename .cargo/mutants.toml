@@ -27,6 +27,10 @@ exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
   "in attach_receiver$",
   "replace attach_receiver with",
+  # The layer path's attach (S-018d) binds on a live layer connection only
+  # (tests/overlay/kwin.sh drop, tests/drop/kwin.sh).
+  "in attach_layer_receiver$",
+  "replace attach_layer_receiver with",
   "in frame_presented$",
   "replace frame_presented with",
   "in token_hook$",
