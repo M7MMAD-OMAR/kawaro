@@ -191,6 +191,20 @@ mod tests {
         assert_eq!(failed(Lang::En, 1, 3), "1 of 3 failed");
     }
 
+    /// S-018 AC25: with several files the centre's accessible name is this
+    /// text, so the Arabic number forms must hold for a mixed selection (no
+    /// common kind) and for `Other`: 2 "ملفان", 3 "3 ملفات", 12 "12 ملفاً".
+    #[test]
+    fn ac25_several_files_name_the_centre_with_the_arabic_number_forms() {
+        for kind in [None, Some(MediaKind::Other)] {
+            assert_eq!(selection(Lang::Ar, 2, kind), "ملفان");
+            assert_eq!(selection(Lang::Ar, 3, kind), "3 ملفات");
+            assert_eq!(selection(Lang::Ar, 12, kind), "12 ملفاً");
+            assert_eq!(selection(Lang::En, 2, kind), "2 files");
+            assert_eq!(selection(Lang::En, 12, kind), "12 files");
+        }
+    }
+
     #[test]
     fn english_counts_pluralise() {
         assert_eq!(selection(Lang::En, 1, Some(MediaKind::Image)), "1 image");

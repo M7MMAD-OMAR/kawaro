@@ -15,6 +15,22 @@
 # keeps a WAYLAND_DEBUG=1 trace, so a layer run that silently fell back to a
 # window (or a window run that made a layer surface) fails. SNAP_SURFACES
 # narrows the list; --update writes the references from the window run only.
+#
+# S-018 AC26 (S-018h): four more references show the selected files in the
+# centre, with no cell highlighted (--highlight -1):
+#   hive-en-dark-thumb.png   one photo.png with a 256 px "large" thumbnail
+#   hive-ar-light-icon.png   one report.pdf, no thumbnail: kind icon and PDF
+#   hive-en-light-stack.png  a.png b.png c.png: stack and count
+#   hive-ar-dark-stack.png   the same, mirrored
+# The files and the thumbnail are made in the sandbox (tests/overlay/thumbs.py
+# writes into the sandbox's XDG_CACHE_HOME, never the owner's cache), with a
+# fixed mtime, and XDG_DATA_DIRS is the MIME fixture. hive_snapshot takes
+# each selected file as "--file PATH" (repeatable) and then presents them with
+# Hive::present_files, reading thumbnails and globs from its environment like
+# the daemon. The new references are written only by --update and need the
+# owner's (or the manager's) approval before they are committed. Also checked:
+# the four older references are byte for byte the ones S-018h started from,
+# and the thumb snapshot shows the thumbnail's sky and sun in the centre.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -61,13 +77,63 @@ inner() {
       done
     done
   done
+  preview "${surfaces[@]}" || fail=1
   kill $cpid 2>/dev/null
   timeout 5 tail --pid=$cpid -f /dev/null || kill -9 $cpid 2>/dev/null
   return $fail
 }
 
-export -f inner
-export BIN OUT REF UPDATE SNAP_SURFACES
+# S-018 AC26: the four preview snapshots, for every surface in "$@".
+preview() {
+  local P="$HOME/preview" fail=0 surface entry
+  mkdir -p "$P"
+  for f in photo.png report.pdf a.png b.png c.png; do
+    printf 'selected file %s\n' "$f" >"$P/$f"
+    touch -d @1700000000 "$P/$f"
+  done
+  python3 -I "$ROOT/tests/overlay/thumbs.py" "$P/photo.png" "$XDG_CACHE_HOME" large 256 256 photo >/dev/null || return 1
+  local entries=(
+    "hive-en-dark-thumb.png en dark photo.png"
+    "hive-ar-light-icon.png ar light report.pdf"
+    "hive-en-light-stack.png en light a.png b.png c.png"
+    "hive-ar-dark-stack.png ar dark a.png b.png c.png"
+  )
+  for surface in "$@"; do
+    for entry in "${entries[@]}"; do
+      local name lang scheme files args=()
+      read -r name lang scheme files <<<"$entry"
+      for f in $files; do args+=(--file "$P/$f"); done
+      local out="$OUT/$surface-$name" trace="$OUT/$surface-${name%.png}.trace"
+      local cmp=(--compare "$REF/$name")
+      [ "$UPDATE" = 1 ] && { cmp=(); out="$OUT/$name"; }
+      # The --file options go first, so the output path is the last bare word.
+      if ! XDG_DATA_DIRS="$ROOT/tests/fixtures/mime/system" SBARHIVE_SURFACE=$surface WAYLAND_DEBUG=1 \
+          SBARHIVE_COLOR_SCHEME=$scheme SBARHIVE_REDUCED_MOTION=1 \
+          "$BIN" "${args[@]}" "$out" --lang "$lang" --highlight -1 "${cmp[@]}" 2>"$trace"; then
+        echo "FAIL AC26 $surface $name (actual: $out)"; fail=1
+      fi
+      if [ "$name" = hive-en-dark-thumb.png ] && [ -f "$out" ]; then
+        if ! python3 -I "$ROOT/tests/overlay/centre.py" "$out" 70,130,200 250,200,40; then
+          echo "FAIL AC24 $surface $name: the thumbnail's sky and sun are not in the centre square"; fail=1
+        fi
+      fi
+    done
+  done
+  # The older references stay as they were (AC26).
+  if ! (cd "$REF" && sha256sum --quiet -c - <<'SUMS'
+cce9553fd6e7191cae17ec0bfc05b1bebfcdc569f21a65c5b4e537f8be18762d  hive-ar-dark.png
+db234726d5056ca17949cbbc13511476857dd38497a3a915600a69583328b4a7  hive-ar-light.png
+59bb06535a0648295572e505689e3f145b1eaf29bae53ea87e53bc4fb55bda57  hive-en-dark.png
+ca1c02f8d7bbe4824a9680bc27fbe6381e31fa07f6610f50703d500decebe214  hive-en-light.png
+SUMS
+  ); then
+    echo "FAIL AC26: the four older hive references changed"; fail=1
+  fi
+  return $fail
+}
+
+export -f inner preview
+export BIN OUT REF UPDATE SNAP_SURFACES ROOT
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"

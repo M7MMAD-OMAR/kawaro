@@ -7,6 +7,7 @@
 #   gnome.sh                     the window path on a headless GNOME Shell
 #   focus.sh                     AC10, every level and case
 #   budget.sh                    AC18 budgets (measure.sh 20 60, twice)
+#   preview.sh                   AC27 first frame with a 1024 px thumbnail
 # Build first: cargo build --release, plus
 # cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml
 # Each step's output goes to tests/overlay/out/run-<step>.txt. Exits 1 if any
@@ -35,6 +36,7 @@ done
 step gnome "$HERE/gnome.sh"
 step focus "$HERE/focus.sh"
 step budget "$HERE/budget.sh"
+step preview "$HERE/preview.sh"
 
 if [ -z "$FAILED" ]; then echo "RESULT PASS"; else echo "RESULT FAIL:$FAILED"; fi
 [ -z "$FAILED" ]

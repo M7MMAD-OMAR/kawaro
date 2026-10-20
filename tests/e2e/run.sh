@@ -124,6 +124,39 @@ inner() {
   local rss1; rss1=$(rss_mb)
   echo "INFO idle memory after the hive and jobs: ${rss1} MB"
   check "idle memory after use within 40 MB" '[ "$rss1" -le 40 ]'
+
+  # S-018 AC27: 20 shows of one file whose only thumbnail is a 1024 px
+  # "xx-large" one (written into the sandbox cache by tests/overlay/thumbs.py),
+  # each closed by Esc, then the memory again. With SBARHIVE_DEBUG_FOCUS the
+  # hive prints "hive preview: thumb W H" per show (the size handed to Slint).
+  mkdir -p "$W/preview"
+  ffmpeg -loglevel error -f lavfi -i testsrc=size=1024x1024:rate=1 -frames:v 1 "$W/preview/photo.png"
+  python3 -I "$ROOT/tests/overlay/thumbs.py" "$W/preview/photo.png" "$XDG_CACHE_HOME" xx-large 1024 1024 noise >/dev/null
+  layers() { grep -cE "^hive surface: layer " "$SANDBOX/daemon.log"; }
+  closes() { grep -cE -- "-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" "$SANDBOX/daemon.log"; }
+  local p0 l0 c0 shows=0; p0=$(grep -c "^hive preview: thumb " "$SANDBOX/daemon.log"); l0=$(layers); c0=$(closes)
+  local pf="$XDG_RUNTIME_DIR/in-preview"; mkfifo "$pf"
+  "$INPUT" <"$pf" >"$SANDBOX/input-preview.log" 2>&1 &
+  exec 4>"$pf"
+  sleep 0.5
+  for i in $(seq 20); do
+    "$BIN/sbarhive" open "$W/preview/photo.png" || break
+    for _ in $(seq 30); do [ "$(layers)" -ge $((l0 + i)) ] && break; sleep 0.1; done
+    sleep 0.3
+    echo "keydown 1" >&4; echo "sleep 40" >&4; echo "keyup 1" >&4
+    for _ in $(seq 30); do [ "$(closes)" -ge $((c0 + i)) ] && break; sleep 0.1; done
+    [ "$(closes)" -ge $((c0 + i)) ] && shows=$i
+  done
+  exec 4>&-
+  local pv; pv=$(grep "^hive preview: thumb " "$SANDBOX/daemon.log" | tail -n +$((p0 + 1)))
+  echo "INFO S-018 AC27: $shows shows closed, preview lines: $(sort <<<"$pv" | uniq -c | tr '\n' ';')"
+  check "S-018 AC27: 20 shows of the file with a 1024 px xx-large thumbnail, each closed by Esc" '[ "$shows" -eq 20 ]'
+  check "S-018 AC27: every show drew the thumbnail downscaled before Slint (20 \"hive preview: thumb W H\" lines, W and H 1 to 128)" \
+    '[ "$(grep -c . <<<"$pv")" -eq 20 ] && awk '"'"'{ if ($4 < 1 || $5 < 1 || $4 > 128 || $5 > 128) bad = 1 } END { exit bad }'"'"' <<<"$pv"'
+  sleep 2
+  local rss2; rss2=$(rss_mb)
+  echo "INFO memory after 20 preview shows: ${rss2} MB"
+  check "S-018 AC27: memory after 20 preview shows within 40 MB" '[ "$rss2" -le 40 ]'
   # After the idle measurement: the settings window stays open until closed.
   check "settings opens from the launcher command" '"$BIN/sbarhive" settings && sleep 0.5 && ! grep -q "cannot .*settings" "$SANDBOX/daemon.log"'
 

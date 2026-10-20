@@ -8,6 +8,10 @@
 #   CPUS=0,1  pins the compositor and the daemon to those cores (taskset).
 #   SHOW_TOKEN=T  passes an activation token with every show, which takes the
 #             path that builds a fresh hive window (S-013).
+#   PREVIEW=1 every show presents one selected file whose only thumbnail is a
+#             1024 px "xx-large" one (S-018 AC27): the file and the thumbnail
+#             are made in this script's sandbox (tests/overlay/thumbs.py), and
+#             hive_bench gets "--file PATH" for its daemon and cold runs.
 # Prints one line per request, then the first show on its own and the median
 # of the rest, then the RSS after the idle wait.
 set -u
@@ -28,17 +32,25 @@ inner() {
   for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
   [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "compositor did not start"; tail "$OUT/kwin.log"; return 1; }
   sleep 2
+  local files=()
+  if [ -n "${PREVIEW:-}" ]; then
+    mkdir -p "$HOME/preview"
+    printf 'selected file\n' >"$HOME/preview/photo.png"
+    python3 -I "$ROOT/tests/overlay/thumbs.py" "$HOME/preview/photo.png" "$XDG_CACHE_HOME" xx-large 1024 1024 noise \
+      || { echo "preview thumbnail not written"; return 1; }
+    files=(--file "$HOME/preview/photo.png")
+  fi
 
   echo "== cold start"
   for i in $(seq 5); do
     t0=$(date +%s%3N)
-    line=$("${PIN[@]}" "$BIN" run 2>/dev/null | tr '\n' ' ')
+    line=$("${PIN[@]}" "$BIN" run "${files[@]}" 2>/dev/null | tr '\n' ' ')
     ff=$(grep -o 'first_frame_epoch_ms=[0-9]*' <<<"$line" | cut -d= -f2)
     echo "cold $i exec_to_frame_ms=$(( ${ff:-0} - t0 )) $line"
   done
 
   echo "== daemon"
-  "${PIN[@]}" "$BIN" daemon 2>"$OUT/daemon.log" &
+  "${PIN[@]}" "$BIN" daemon "${files[@]}" 2>"$OUT/daemon.log" &
   local dpid=$!
   for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/sbarhive-ui-bench.sock" ] && break; sleep 0.1; done
   sleep 1
@@ -58,7 +70,7 @@ inner() {
 }
 
 export -f inner
-export BIN OUT RUNS IDLE CPUS SHOW_TOKEN
+export BIN OUT RUNS IDLE CPUS SHOW_TOKEN PREVIEW ROOT
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"

@@ -412,3 +412,62 @@
   - البوابات: `cargo fmt --all --check` و`cargo clippy --workspace --all-targets -- -D warnings` و`cargo test --workspace` و`scripts/design-lint.sh crates/ui` ناجحة. بلا `cargo mutants` (حمل الجهاز).
   - تشغيل واحد لكلٍّ على البناء المعدَّل (`nice -n 19`، `cargo build --release -j 2`): `tests/overlay/kwin.sh` (الافتراضي) RESULT PASS، 95 PASS، وفي الظهورات الخمسة «not freed at the hide shm 0 px 0, left buffers 0 pools 0». `tests/overlay/docs.sh` RESULT PASS. `tests/overlay/budget.sh` RESULT PASS: بلا رمز وسيط 2.9 ms وRSS 29736 kB، وبالرمز 3.1 ms و29816 kB، و21 سطر `layer` وصفر `window` في كلٍّ. `tests/e2e/run.sh`: `e2e: all passed`، الذاكرة 28 MB عند البدء و37 MB بعد الاستعمال. لا مؤلِّف خاص يعمل بعدها، وحُذف مجلدا `mktemp` اللذان تركهما e2e.
   - مخاطر مفتوحة: (1) لم تُشغَّل أوضاع `kwin.sh` الأخرى ولا `gnome.sh` ولا `focus.sh` ولا `run.sh` كاملاً (حمل الجهاز)؛ التغيير في مسار الطبقة وحده، ووضع `drop` مغطى بالظهور 3 في الوضع الافتراضي. (2) قاعدة Hyprland لم تُجرَّب، وصيغة hyprlang من ويكي 0.54 لا من شيفرة Hyprland. (3) مخزن يُهدم وهو ما زال مرفقاً بسطح مهدوم: البروتوكول يسمح بذلك (المحتوى غير معرَّف فقط)، وKWin لم يشتكِ في الأثر.
+- 2026-10-20، المختبِر (S-018h فقط، AC24 إلى AC27): كُتبت الاختبارات من المعايير وقرار المدير في ADR 0004 (المعاينة تملأ السداسي المركزي بحجمه الحالي، والتخطيط لا يتغير)، وشُغّل كل اختبار أو سكربت جديد أو معدَّل مرة واحدة (`nice -n 19`، `-j 2`، بناء release من `542f50c` مع تعديلات الاختبار). تفشل كلها إلا حارسات «كما اليوم» المذكورة أدناه. كل الملفات المؤقتة والصور المصغّرة مولَّدة في مجلدات خاصة، ولا يُقرأ شيء من ذاكرة المالك.
+  - الملفات: تسعة اختبارات (سبعة `ac24_*` واثنان `ac25_*`) مضافة في آخر `crates/ui/src/ui_tests.rs` (لا تعديل لـ `lib.rs`)، و`ac25_several_files_name_the_centre_with_the_arabic_number_forms` في `crates/daemon/src/text.rs`، و`tests/overlay/thumbs.py` جديد (يكتب صورة مصغّرة PNG بقطع `tEXt` في `XDG_CACHE_HOME` لصندوق رمل، بنمطين حتميين `photo` و`noise`)، و`tests/overlay/centre.py` جديد (ألوان مربع المركز في لقطة)، و`tests/overlay/preview.sh` جديد (AC27)، وتعديل `crates/ui/tests/snapshots.sh` (AC26) و`crates/ui/tests/measure.sh` (وضع `PREVIEW=1`) و`tests/e2e/run.sh` (فحوص AC27 بعد فحص الذاكرة الثاني، السطور 128 إلى 159 الجديدة، قبل فتح الإعدادات؛ التأكيدات القائمة كما هي) و`tests/overlay/run.sh` (خطوة `preview`).
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل):
+    1. `Hive::set_preview_source(&self, thumbnails: PathBuf, globs: thumb::Globs)`: مصدر البحث. الخدمة والأمثلة تمرّر `thumb::thumbnails_dir` و`thumb::Globs::load(&thumb::data_dirs(..))` من بيئتها، والاختبارات تمرّر ذاكرة خاصة. الواجهة لا تقرأ `XDG_CACHE_HOME` بنفسها.
+    2. `Hive::present_files(&self, centre: &str, files: &[PathBuf], cells: Vec<HiveCell>, token: Option<String>) -> Result<(), slint::PlatformError>`: كـ `present` مع الملفات، و`centre` نص `text::selection` من الخدمة. `present` بتوقيعه الحالي ولا معاينة فيه (`preview-count` صفر). الخدمة تستدعي `present_files` في المسارين (`server.rs` و`ui.rs`).
+    3. خصائص `HiveWindow`: `preview-image` (الصورة المصغّرة بعد فكّها وتصغيرها في Rust، فارغة إن لم توجد)، و`preview-icon` (أيقونة النوع حين لا صورة، وإلا فارغة)، و`preview-code` (`thumb::format_code`)، و`preview-count` (عدد الملفات). الصورتان تُفرَّغان عند كل إخفاء: `close()` وEsc والاختيار.
+    4. عناصر `hive.slint` بمعرّف ينتهي بـ `::preview` (عنصر Image في المربع المحاط بالسداسي المركزي، `image-fit: contain`، يملأ المربع للصورة المصغّرة)، و`::stack-1` و`::stack-2` (السداسيتان الخلفيتان، الثانية أبعد في الجهة نفسها) و`::badge` (العدد). «غير ظاهر» يعني غياب العنصر (`if`) أو شفافيته 0 أو حجماً صفرياً. و`::centre` يبقى الخلية المركزية.
+    5. المربع المحاط بسداسي رأسه للأعلى ونصف قطره r ضلعه `(3 - sqrt 3) r` (نحو 52.7 px اليوم، r = 41.57). الصورة المسلَّمة لـ Slint ضلعها الأطول بين `0.75` و`ceil` من الضلع الفيزيائي (الضلع × `scale_factor`)، وتحفظ النسبة 2:1، وبكسلاتها من الصورة (أحمر يساراً وأزرق يميناً). بالمقياس 2 تكون أعرض من الضلع المنطقي.
+    6. التسمية الوصفية للمركز (دور Text): اسم الملف لملف واحد (`صورة 1.png`، ولا عنصر باسم `صورة واحدة`)، والنص الممرَّر لعدة ملفات («ملفان» و«3 ملفات» و«12 ملفاً»).
+    7. الكومة: لـ 3 ملفات العناصر الثلاثة ظاهرة، وكلٌّ داخل حدود نافذة الخلية بفرق 0.5 px، وإزاحة الكومة والشارة بالعربية مرآة الإنكليزية (مجموع الإزاحتين الأفقيتين 1 px أو أقل، والعمودية نفسها). لملف واحد لا كومة ولا شارة. و`win-w` و`win-h` و`hex-r` والمركز ومواضع الخلايا متطابقة بين `present` و`present_files` بالعربية والإنكليزية.
+    8. سطر تشخيص: مع `SBARHIVE_DEBUG_FOCUS` يطبع كل ظهور بملفات سطراً واحداً على stderr: `hive preview: thumb W H` (أبعاد الصورة المسلَّمة لـ Slint) أو `hive preview: icon NAME` (`Kind::icon`).
+    9. `hive_snapshot` يقبل `--file PATH` مكرراً (قبل مسار الإخراج) و`--highlight -1`، و`hive_bench daemon|run` يقبل `--file PATH`، وكلاهما يأخذ مصدر البحث من البيئة كالخدمة.
+  - ما حُسم حيث سكت المعيار: (1) العنصر يملأ المربع (يفرضه «في المربع بـ `image-fit: contain`»)، والتصغير إلى 0.75 من الضلع على الأقل حتى لا ينجح الفحص بصورة صغيرة جداً. (2) «حدود الخلية» في AC25 فُهمت حدود نافذة الخلية (الخلية هنا الواجهة كلها)، كخلل القص في التجربة. (3) لم يُثبَّت ما يعرضه المركز لعدة ملفات (صورة الأول أو أيقونة الفئة المشتركة)، ولا موضع الشارة إلا أنه مرآة. (4) ألوان الكومة والشارة من الرموز يفحصها `design-lint.sh` واعتماد اللقطات، لا اختبار هنا.
+  - مخرجات الفشل:
+    - `nice -n 19 cargo test -j 2 -p sbarhive-ui --lib`: لا يُبنى، وكل الأخطاء بنود عقد غائبة فقط (لا خطأ في الاختبار نفسه):
+      ```
+      15 error[E0599]: no method named `present_files` found for struct `Hive` in the current scope
+       1 error[E0599]: no method named `set_preview_source` found for struct `Hive` in the current scope
+       7 error[E0599]: no method named `get_preview_count` found for struct `Ref<'_, slint_generatedHiveWindow::HiveWindow>` in the current scope
+       2 error[E0599]: no method named `get_preview_image` found ...
+       1 error[E0599]: no method named `get_preview_icon` found ...
+       1 error[E0599]: no method named `get_preview_code` found ...
+      error: could not compile `sbarhive-ui` (lib test) due to 27 previous errors
+      ```
+      التحقق من الاختبارات: مع بذرة مؤقتة (لم تُودَع، وأُرجعت بـ `git checkout`) فيها `present_files` يستدعي `present` و`set_preview_source` فارغ والخصائص الأربع بلا استعمال، بُنيت الاختبارات وفشلت التسعة كلها في تأكيدات العقد، لا في أدوات الاختبار: صور الذاكرة الخاصة يقبلها `thumb::find_thumbnail` (تأكيد في الأداة)، والحالات القديمة والفاشلة يرفضها.
+    - `cargo test -p sbarhive-daemon --bin sbarhived text::`: الاختبار الجديد ناجح، حارس انحدار لأن AC25 يطلب نص `text::selection` «الحالي» بصيغه القائمة.
+    - `CARGO_BUILD_JOBS=2 nice -n 19 crates/ui/tests/snapshots.sh`: `snapshots: FAILED`. المراجع الثمانية القديمة `diff 0 pixels` بالمسارين، وبصمات sha256 للمراجع الأربعة القديمة مطابقة (حارس). والجديدة:
+      ```
+      FAIL AC26 layer hive-en-dark-thumb.png (actual: /tmp/tmp.NAcW1zh7Yn/layer-hive-en-dark-thumb.png)
+      centre colours: 70,130,200 0, 250,200,40 0 (want >= 20 each)
+      FAIL AC24 layer hive-en-dark-thumb.png: the thumbnail's sky and sun are not in the centre square
+      FAIL AC26 layer hive-ar-light-icon.png (actual: ...)
+      FAIL AC26 layer hive-en-light-stack.png (actual: ...)
+      FAIL AC26 layer hive-ar-dark-stack.png (actual: ...)
+      (وبالفشل نفسه للمسار window)
+      ```
+      سبب فشل AC26 في الأثر: `Error: "No such file or directory (os error 2)"`، أي المرجع غير موجود. المراجع الأربعة الجديدة يكتبها `snapshots.sh --update` بعد التنفيذ، ويعتمدها محمد أو المدير بالتفويض قبل الإيداع؛ لم يكتب المختبِر أي مرجع.
+    - `nice -n 19 tests/overlay/preview.sh`: RESULT FAIL (2).
+      ```
+      INFO shows 21 (warm 20), preview lines thumb 0 icon 0 (sizes: none), median 2.8 ms
+      PASS AC27: measure.sh ran all 21 daemon shows
+      FAIL AC27: every show drew the xx-large thumbnail (one "hive preview: thumb W H" line per show, no icon line)
+      FAIL AC24/AC27: the 1024 px thumbnail reached Slint downscaled (W and H 1 to 128)
+      PASS AC27: median warm first frame under 150 ms with the preview
+      RESULT FAIL (2)
+      ```
+      الوسيط ينجح اليوم لأن المعاينة غير موجودة؛ الفحصان الفاشلان يمنعان نجاحه فارغاً.
+    - `nice -n 19 tests/e2e/run.sh` (بعد `cargo build --release -j 2`): كل الفحوص القائمة ناجحة، والجديد:
+      ```
+      INFO S-018 AC27: 20 shows closed, preview lines:       1 ;
+      PASS S-018 AC27: 20 shows of the file with a 1024 px xx-large thumbnail, each closed by Esc
+      FAIL S-018 AC27: every show drew the thumbnail downscaled before Slint (20 "hive preview: thumb W H" lines, W and H 1 to 128)
+      INFO memory after 20 preview shows: 38 MB
+      PASS S-018 AC27: memory after 20 preview shows within 40 MB
+      e2e: failures
+      ```
+      فحص الذاكرة ينجح اليوم (38 MB بلا معاينة) فهو حارس، ومعناه يأتي من الفحص الفاشل الذي يثبت أن الظهورات العشرين رسمت الصورة فعلاً. الهامش ضيق: 38 من 40 قبل المعاينة.
+  - تحقق من أداة الاختبار نفسها (ليس إعادة تشغيل للسكربتات): (1) مسبار مؤقت قبل الكتابة أثبت أن `ScaleFactorChanged` يعمل في منصة الاختبار، وأن المعرّفات تُقرأ (`HiveWindow::centre`)، وأن `absolute_position` يشمل مقياس الفتح 0.92 دون `size`؛ فـ `settle()` يضع `opened` ويقدّم الزمن الوهمي ثانية (المدة 120 ms والمقياس النهائي 1 في `tokens.json`)، وأثبت مسبار ثانٍ على البذرة أن منتصف صندوق المركز بعده يساوي `centre-x` و`centre-y` بفرق 0.5 أو أقل. (2) `cargo clippy -p sbarhive-ui --lib --tests -- -D warnings` على البذرة وجد تحويلاً زائداً (`n as i32`)، فأُصلح، ثم خرج نظيفاً، و`cargo fmt --all --check` نظيف. (3) الفروع الناجحة لفحوص الصدفة جُرّبت بمدخلات مصطنعة دون مؤلِّف: تعبير e2e ينجح بعشرين سطر `thumb 52 52` ويفشل إن كان أحدها `200 52`، وخطوط `preview.sh` تعدّ 21 وصفر وصفر ثم تلتقط `1024 1024`، و`centre.py` ينجح على صورة `photo` من `thumbs.py`، ومفكّكه يطابق `ffmpeg` بايتاً ببايت على `hive-en-dark.png` و`settings-ar-light.png`. أُرجعت البذرة والمسباران بـ `git checkout`.
+  - ملاحظات للمدير والمنفِّذ: (1) فحص `strace -e openat` لـ AC23 («لا يُفتح أي ملف تحت `/usr/share/icons`») تركه مختبِر S-018b لـ S-018g/h، ولم يُضف في أيٍّ منهما. لم أضفه هنا لأنه خارج AC24 إلى AC27؛ يحتاج قراراً. (2) لم تُشغَّل `settings_snapshots.sh` ولا أوضاع `kwin.sh` ولا `cargo mutants` (حمل الجهاز)، ولم يتغير فيها شيء. (3) لا مؤلِّف خاص يعمل بعد التشغيلات، وحُذفت مجلدات `mktemp` التي تركتها تشغيلاتي.
