@@ -133,7 +133,7 @@ fn strings(lang: Lang) -> Strings {
         },
         Lang::En => Strings {
             text: SettingsText {
-                title: "SbarHive".into(),
+                title: "SbarHive settings".into(),
                 language: "Language".into(),
                 theme: "Theme".into(),
                 output: "Where results go".into(),
@@ -541,7 +541,7 @@ mod tests {
             }
         }
         assert_eq!(strings(Lang::Ar).text.title, "إعدادات صبار هايف");
-        assert_eq!(strings(Lang::En).text.title, "SbarHive");
+        assert_eq!(strings(Lang::En).text.title, "SbarHive settings");
     }
 
     mod window {
@@ -623,7 +623,7 @@ mod tests {
             win.open(&start).unwrap();
             assert!(win.inner.visible());
             assert_eq!(win.inner.state(), FormState::from_config(&start, false));
-            assert_eq!(win.inner.ui.borrow().get_text().title, "SbarHive");
+            assert_eq!(win.inner.ui.borrow().get_text().title, "SbarHive settings");
             let folder = find(&win, "Folder name", AccessibleRole::TextInput);
             assert_eq!(
                 folder.accessible_enabled(),
