@@ -1,0 +1,37 @@
+[package]
+name = "overlay-spike"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "GPL-3.0-or-later"
+
+# Outside the workspace on purpose (spikes/ is never merged as is).
+[workspace]
+
+[dependencies]
+# The real hive from crates/ui, unchanged, shown on our own layer surface.
+sbarhive-ui = { path = "../../crates/ui" }
+slint = { version = "=1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-software", "accessibility", "compat-1-2", "unstable-winit-030"] }
+# The winit platform we wrap (settings window, GNOME, X11 keep using it).
+i-slint-backend-winit = "=1.18.1"
+# Only for InternalToken and SlintContextWeak in the forwarded Platform methods.
+i-slint-core = "=1.18.1"
+# Same versions winit 0.30.13 and smithay-client-toolkit 0.19.2 already pull in.
+wayland-client = "0.31.15"
+wayland-protocols = { version = "0.32.13", features = ["client", "staging"] }
+wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
+wayland-protocols-plasma = { version = "0.3.12", features = ["client"] }
+rustix = { version = "1", features = ["event", "fs"] }
+# Thumbnail lookup: MD5 of the file URI, PNG text chunks and pixels.
+md-5 = "0.10"
+png = "0.17"
+
+[build-dependencies]
+slint-build = "=1.18.1"
+
+# Same patch as the workspace (transparent winit windows, vendor/softbuffer).
+[patch.crates-io]
+softbuffer = { path = "../../vendor/softbuffer" }
+
+[profile.release]
+debug = false
