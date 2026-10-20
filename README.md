@@ -40,7 +40,7 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 ## الإعدادات
 
-في `~/.config/sbarhive/config.toml`: اللغة، والمظهر، ومكان الناتج (بجانب الأصل أو في مجلد فرعي)، ومستوى الجودة. ويمكن إضافة إجراءات خاصة بك بملفات TOML في `~/.config/sbarhive/actions/`.
+افتح الإعدادات من أيقونة صبار هايف في شريط النظام، أو عدّل `~/.config/sbarhive/config.toml` مباشرة: اللغة، والمظهر، ومكان الناتج (بجانب الأصل أو في مجلد فرعي)، ومستوى الجودة. ويمكن إضافة إجراءات خاصة بك بملفات TOML في `~/.config/sbarhive/actions/`.
 
 ## المساهمة
 
@@ -108,7 +108,7 @@ selected files directly; see `integrations/linux/hyprland/README.md`.
 
 ## Settings
 
-`~/.config/sbarhive/config.toml` holds the language, theme, output place
+Open Settings from the SbarHive tray icon, or edit `~/.config/sbarhive/config.toml`, which holds the language, theme, output place
 (next to the original or in a subfolder) and quality preset. Your own actions
 go in `~/.config/sbarhive/actions/*.toml`.
 
