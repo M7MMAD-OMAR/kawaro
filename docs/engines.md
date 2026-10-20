@@ -248,3 +248,16 @@ Limitations:
 lopdf's own dependencies (flate2, aes, cbc, ecb, md-5, sha2, nom, indexmap,
 weezl, rangemap, stringprep, encoding_rs, brotli-decompressor) are MIT,
 Apache-2.0 or BSD-3-Clause, all compatible with GPL-3.0-or-later.
+
+## Application dependencies (daemon, CLI, UI)
+
+Not engines, recorded here because CLAUDE.md asks for every new library.
+
+| crate | version | license | used by | why |
+| --- | --- | --- | --- | --- |
+| slint | 1.18.1 (pinned) | GPL-3.0-only OR Slint royalty-free OR Slint software licence; we use it under GPL-3.0 | ui, daemon | hive and settings windows, software renderer (ADR 0001) |
+| Slint Material components | vendored from Slint v1.18.1 in `crates/ui/material/` | MIT | ui | settings window components, shadows removed (ADR 0002) |
+| ksni | 0.3.6 | Unlicense | daemon | tray icon over StatusNotifierItem, blocking API without tokio |
+| notify-rust | 4.18.2 | MIT OR Apache-2.0 | daemon | end-of-job desktop notification with an "Open folder" action |
+| clap | 4.6.7 | MIT OR Apache-2.0 | cli | argument parsing |
+| IBM Plex Sans Arabic | system copy, embedded | OFL-1.1 | ui, site | the only interface font, so rendering never depends on system fonts |

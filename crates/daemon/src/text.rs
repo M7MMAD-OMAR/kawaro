@@ -132,6 +132,66 @@ mod tests {
     }
 
     #[test]
+    fn every_kind_has_its_own_noun_in_both_languages() {
+        use MediaKind::*;
+        let ar = |k| selection(Lang::Ar, 3, Some(k));
+        assert_eq!(ar(Video), "3 مقاطع فيديو");
+        assert_eq!(ar(Audio), "3 ملفات صوتية");
+        assert_eq!(ar(Document), "3 مستندات");
+        assert_eq!(ar(Pdf), "3 ملفات PDF");
+        assert_eq!(ar(Other), "3 ملفات");
+        assert_eq!(selection(Lang::Ar, 1, Some(Video)), "فيديو واحد");
+        assert_eq!(selection(Lang::Ar, 2, Some(Audio)), "ملفان صوتيان");
+        assert_eq!(selection(Lang::Ar, 12, Some(Document)), "12 مستنداً");
+        let en = |k| selection(Lang::En, 1, Some(k));
+        assert_eq!(en(Audio), "1 audio file");
+        assert_eq!(en(Document), "1 document");
+        assert_eq!(en(Pdf), "1 PDF");
+        assert_eq!(en(Other), "1 file");
+        assert_eq!(selection(Lang::En, 2, Some(Audio)), "2 audio files");
+        assert_eq!(selection(Lang::En, 2, Some(Document)), "2 documents");
+        assert_eq!(selection(Lang::En, 2, Some(Pdf)), "2 PDFs");
+        assert_eq!(selection(Lang::En, 2, Some(Image)), "2 images");
+    }
+
+    #[test]
+    fn fixed_strings_in_both_languages() {
+        type Text = fn(Lang) -> &'static str;
+        let cases: [(Text, &str, &str); 8] = [
+            (
+                no_actions,
+                "لا توجد إجراءات لهذه الملفات",
+                "No actions for these files",
+            ),
+            (cancelled, "أُلغيت المهمة", "Cancelled"),
+            (open_folder, "فتح المجلد", "Open folder"),
+            (cancel_all, "إلغاء كل المهام", "Cancel all jobs"),
+            (settings, "الإعدادات", "Settings"),
+            (quit, "إنهاء صبار هايف", "Quit SbarHive"),
+            (app_name, "صبار هايف", "SbarHive"),
+            (
+                idle,
+                "جاهز. حدّد ملفات في مدير الملفات وافتح صبار هايف من قائمة النقر اليمين.",
+                "Ready. Select files in your file manager and open SbarHive from the right-click menu.",
+            ),
+        ];
+        for (f, ar, en) in cases {
+            assert_eq!(f(Lang::Ar), ar);
+            assert_eq!(f(Lang::En), en);
+        }
+    }
+
+    #[test]
+    fn job_summaries_in_both_languages() {
+        assert_eq!(done(Lang::Ar, 1), "اكتمل: ملف واحد");
+        assert_eq!(done(Lang::Ar, 3), "اكتمل: 3 ملفات");
+        assert_eq!(done(Lang::En, 1), "Done: 1 file");
+        assert_eq!(done(Lang::En, 3), "Done: 3 files");
+        assert_eq!(failed(Lang::Ar, 1, 3), "تعذّر إنجاز 1 من 3");
+        assert_eq!(failed(Lang::En, 1, 3), "1 of 3 failed");
+    }
+
+    #[test]
     fn english_counts_pluralise() {
         assert_eq!(selection(Lang::En, 1, Some(MediaKind::Image)), "1 image");
         assert_eq!(selection(Lang::En, 4, Some(MediaKind::Video)), "4 videos");

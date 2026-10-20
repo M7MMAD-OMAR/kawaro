@@ -11,7 +11,7 @@ export BIN SANDBOX ROOT
 
 inner() {
   set -u
-  unset DISPLAY XDG_ACTIVATION_TOKEN
+  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP
   kwin_wayland --virtual --socket "$WAYLAND_DISPLAY" --width 1920 --height 1080 >"$SANDBOX/kwin.log" 2>&1 &
   local kwin=$!
   for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
@@ -23,11 +23,19 @@ inner() {
   ffmpeg -loglevel error -f lavfi -i testsrc=size=96x64:rate=1 -frames:v 1 "$W/sub dir/صورة 1.png"
   ffmpeg -loglevel error -f lavfi -i testsrc=size=80x60:rate=1 -frames:v 1 "$W/b.jpg"
 
+  # Auto-start: open with no daemon running must start one within 2 s.
+  check "open starts the daemon" '"$BIN/sbarhive" open "$W/b.jpg" && "$BIN/sbarhive" ping | grep -q pong'
+  "$BIN/sbarhive" quit >/dev/null 2>&1
+  for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/sbarhive.sock" ] || break; sleep 0.1; done
+
   "$BIN/sbarhived" >"$SANDBOX/daemon.log" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
   check "daemon answers ping" '"$BIN/sbarhive" ping | grep -q pong'
+  local inode; inode=$(stat -c %i "$XDG_RUNTIME_DIR/sbarhive.sock")
   check "single instance" '"$BIN/sbarhived" 2>&1 | grep -q "already running"'
+  check "second instance leaves the socket alone" '[ "$(stat -c %i "$XDG_RUNTIME_DIR/sbarhive.sock")" = "$inode" ] && "$BIN/sbarhive" ping | grep -q pong'
+  notes() { grep -c "sbarhived: notify:" "$SANDBOX/daemon.log"; }
 
   check "actions listed for images" '"$BIN/sbarhive" actions "$W/b.jpg" | grep -q "image.to-webp\|webp"'
   out=$("$BIN/sbarhive" run image.to-webp --wait "$W/sub dir/صورة 1.png" 2>&1)
@@ -43,7 +51,26 @@ inner() {
   check "combined PDF from two images" '[ -n "$pdf_id" ] && ls "$W"/b*.pdf >/dev/null 2>&1 && [ "$(head -c 4 "$W"/b*.pdf)" = %PDF ]'
 
   check "open shows the hive" '"$BIN/sbarhive" open "$W/b.jpg"'
+  local n0; n0=$(notes)
   check "open with no matching actions fails" '! "$BIN/sbarhive" open "$ROOT/LICENSE"'
+  check "and sends exactly one notification" '[ "$(notes)" -eq $((n0 + 1)) ]'
+
+  n0=$(notes)
+  "$BIN/sbarhive" run image.to-png --wait "$W/b.jpg" >/dev/null 2>&1
+  # The notification follows the Finished event the client waits for.
+  for _ in $(seq 20); do [ "$(notes)" -gt "$n0" ] && break; sleep 0.1; done
+  sleep 0.3
+  check "a finished job sends one notification" '[ "$(notes)" -eq $((n0 + 1)) ]'
+
+  mkdir -p "$XDG_CONFIG_HOME/sbarhive"
+  printf 'notify = false\noutput = "subfolder"\noutput-folder = "out"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  "$BIN/sbarhive" reload
+  n0=$(notes)
+  "$BIN/sbarhive" run image.to-gif --wait "$W/b.jpg" >/dev/null 2>&1
+  check "subfolder setting puts output in out/" '[ -f "$W/out/b.gif" ] && [ ! -f "$W/b.gif" ]'
+  sleep 1
+  check "notify = false sends no notification" '[ "$(notes)" -eq "$n0" ]'
+  rm -f "$XDG_CONFIG_HOME/sbarhive/config.toml"; "$BIN/sbarhive" reload
   check "convert works without daemon" '"$BIN/sbarhive" convert --to png "$W/b.jpg" >/dev/null && [ -f "$W/b.png" ]'
 
   "$BIN/sbarhive" quit >/dev/null 2>&1

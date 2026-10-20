@@ -78,6 +78,8 @@ enum Cmd {
     Daemon,
     /// Check that the daemon answers.
     Ping,
+    /// Make the daemon re-read settings and action files.
+    Reload,
     /// Stop the daemon.
     Quit,
 }
@@ -103,6 +105,7 @@ fn main() -> ExitCode {
         }
         Cmd::Daemon => client::exec_daemon(),
         Cmd::Ping => client::request(&Request::Ping).map(|_| out!("pong")),
+        Cmd::Reload => client::request(&Request::Reload).map(|_| ()),
         Cmd::Quit => client::request(&Request::Quit).map(|_| ()),
     };
     match result {
@@ -138,12 +141,18 @@ fn open(token: Option<String>, from_clipboard: bool, mut files: Vec<PathBuf>) ->
     if files.is_empty() {
         return Err("no files".into());
     }
-    let token = token
-        .or_else(|| std::env::var("XDG_ACTIVATION_TOKEN").ok())
-        .or_else(|| std::env::var("DESKTOP_STARTUP_ID").ok())
-        .filter(|t| !t.is_empty());
+    let token = resolve_token(token, &|k| std::env::var(k).ok());
     client::ensure_daemon()?;
     client::request(&Request::Open { files, token }).map(|_| ())
+}
+
+/// `--token` first, then the variables launchers set: Wayland's
+/// XDG_ACTIVATION_TOKEN, then X11's DESKTOP_STARTUP_ID. Empty values are skipped.
+fn resolve_token(arg: Option<String>, env: &dyn Fn(&str) -> Option<String>) -> Option<String> {
+    arg.into_iter()
+        .chain(env("XDG_ACTIVATION_TOKEN"))
+        .chain(env("DESKTOP_STARTUP_ID"))
+        .find(|t| !t.is_empty())
 }
 
 fn engines() -> Vec<Arc<dyn Engine>> {
@@ -351,4 +360,37 @@ fn actions(json: bool, files: &[PathBuf]) -> Res<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_token;
+
+    #[test]
+    fn token_comes_from_the_flag_then_wayland_then_x11() {
+        let env = |vars: &'static [(&'static str, &'static str)]| {
+            move |k: &str| {
+                vars.iter()
+                    .find(|(n, _)| *n == k)
+                    .map(|(_, v)| v.to_string())
+            }
+        };
+        let both = env(&[
+            ("XDG_ACTIVATION_TOKEN", "wl"),
+            ("DESKTOP_STARTUP_ID", "x11"),
+        ]);
+        assert_eq!(
+            resolve_token(Some("flag".into()), &both).as_deref(),
+            Some("flag")
+        );
+        assert_eq!(resolve_token(None, &both).as_deref(), Some("wl"));
+        let x11 = env(&[("DESKTOP_STARTUP_ID", "x11")]);
+        assert_eq!(resolve_token(None, &x11).as_deref(), Some("x11"));
+        let blank = env(&[("XDG_ACTIVATION_TOKEN", ""), ("DESKTOP_STARTUP_ID", "x11")]);
+        assert_eq!(
+            resolve_token(Some(String::new()), &blank).as_deref(),
+            Some("x11")
+        );
+        assert_eq!(resolve_token(None, &env(&[])), None);
+    }
 }

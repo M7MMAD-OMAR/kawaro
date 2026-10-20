@@ -246,6 +246,74 @@ mod tests {
     }
 
     #[test]
+    fn max_preset_adds_ten() {
+        let c = Config {
+            quality: Quality::Max,
+            ..Config::default()
+        };
+        let mut p = toml::Table::new();
+        p.insert("quality".into(), 85.into());
+        c.apply_quality(&mut p);
+        assert_eq!(p["quality"].as_integer(), Some(95));
+    }
+
+    #[test]
+    fn unreadable_file_warns_unlike_a_missing_one() {
+        let dir = tempfile::tempdir().unwrap();
+        // A directory where the file should be: a read error that is not NotFound.
+        let p = dir.path().join("config.toml");
+        std::fs::create_dir(&p).unwrap();
+        let (c, warn) = Config::load_from(&p);
+        assert_eq!(c, Config::default());
+        assert!(warn.unwrap().contains("config.toml"));
+    }
+
+    #[test]
+    fn path_and_load_follow_xdg_then_home() {
+        // The only test in this binary that touches these variables.
+        let saved = (
+            std::env::var_os("XDG_CONFIG_HOME"),
+            std::env::var_os("HOME"),
+        );
+        let dir = tempfile::tempdir().unwrap();
+        let xdg = dir.path().join("xdg");
+        unsafe { std::env::set_var("XDG_CONFIG_HOME", &xdg) };
+        assert_eq!(
+            Config::path(),
+            Some(xdg.join("sbarhive").join("config.toml"))
+        );
+        Config {
+            quality: Quality::Light,
+            ..Config::default()
+        }
+        .save_to(&xdg.join("sbarhive").join("config.toml"))
+        .unwrap();
+        assert_eq!(Config::load().0.quality, Quality::Light);
+        assert!(Config::load().1.is_none());
+
+        unsafe { std::env::remove_var("XDG_CONFIG_HOME") };
+        unsafe { std::env::set_var("HOME", dir.path()) };
+        let home_path = dir
+            .path()
+            .join(".config")
+            .join("sbarhive")
+            .join("config.toml");
+        assert_eq!(Config::path(), Some(home_path));
+        assert_eq!(Config::load(), (Config::default(), None));
+
+        unsafe { std::env::remove_var("HOME") };
+        assert_eq!(Config::path(), None);
+        assert_eq!(Config::load(), (Config::default(), None));
+
+        for (k, v) in [("XDG_CONFIG_HOME", saved.0), ("HOME", saved.1)] {
+            match v {
+                Some(v) => unsafe { std::env::set_var(k, v) },
+                None => unsafe { std::env::remove_var(k) },
+            }
+        }
+    }
+
+    #[test]
     fn explicit_language_overrides_locale() {
         let c = Config {
             language: LangSetting::Ar,

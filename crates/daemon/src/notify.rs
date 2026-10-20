@@ -8,6 +8,8 @@ use sbarhive_core::i18n::Lang;
 use std::path::Path;
 
 pub fn info(lang: Lang, body: &str) {
+    // One log line per notification, so tests can count them.
+    eprintln!("sbarhived: notify: {body}");
     let _ = Notification::new()
         .appname(text::app_name(lang))
         .summary(text::app_name(lang))
@@ -34,6 +36,7 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
             .unwrap_or_default();
         (text::done(lang, job.ok), name)
     };
+    eprintln!("sbarhived: notify: {summary}");
     let folder = job
         .first_output
         .as_deref()
