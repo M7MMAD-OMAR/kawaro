@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Conditions are passed to check() in single quotes and expanded by eval.
-# shellcheck disable=SC2016
+# shellcheck disable=SC2016,SC2034
 # S-014b drop receiver on KWin (AC5, AC6, AC7), on the layer path since
 # S-018d (S-018 AC13, AC14). A GTK 4 window drags a PNG,
 # `sbarhive drop` is run mid-drag (what the shortcut does), and the file is
@@ -20,29 +20,39 @@
 # so the highlight is drawn at once and the shots are stable.
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
-# Usage: tests/drop/kwin.sh [level=N] [target/release]
+# S-014d (AC11), mode "shortcut": Super+Z is bound the way the KDE docs tell
+# users to (System Settings, Shortcuts, Add New, Command: a .desktop entry in
+# XDG_DATA_HOME/applications and a [services] entry in kglobalshortcutsrc,
+# launched by the kglobalacceld inside this private KWin) to a wrapper that
+# marks the time and execs `sbarhive drop`. Three drags each press Super+Z
+# mid-drag and drop on the WEBP cell, then Esc is pressed mid-drag over the
+# hive and before the hive (tests/drop/lib.sh, shortcut_shows). The five
+# S-014b and S-014c shows are not run in this mode.
+# Usage: tests/drop/kwin.sh [level=N] [shortcut] [target/release]
 #   level: focus stealing prevention 0..4, default 1 (Low)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 LEVEL=1
+MODE=""
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in level=*) LEVEL="${a#level=}" ;; *) BIN="$a" ;; esac
+  case "$a" in level=*) LEVEL="${a#level=}" ;; shortcut) MODE=shortcut ;; *) BIN="$a" ;; esac
 done
+TAG="kwin-l$LEVEL${MODE:+-$MODE}"
 INPUT="$HERE/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
-export BIN HERE ROOT OUT LEVEL INPUT
+export BIN HERE ROOT OUT LEVEL INPUT MODE TAG
 
 inner() {
   set -u
   unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
   # shellcheck source=lib.sh
   source "$HERE/lib.sh"
-  OUT_LOG="$OUT/kwin-l$LEVEL"
+  OUT_LOG="$OUT/$TAG"
   local log="$OUT_LOG"
   : >"$log-cli.log"
   mkdir -p "$XDG_CONFIG_HOME"
@@ -54,6 +64,17 @@ inner() {
   mkdir -p "$XDG_DATA_HOME/applications"
   printf '[Desktop Entry]\nType=Application\nName=sbh shot\nExec=%s\nNoDisplay=true\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n' \
     "$(readlink -f "$(command -v python3)")" >"$XDG_DATA_HOME/applications/sbh-shot.desktop"
+  # S-014d AC11: a KDE custom command shortcut, as the docs describe it.
+  SHORTCUT_MARKS="$XDG_RUNTIME_DIR/shortcut-marks"
+  SHORTCUT_WRAP="$XDG_RUNTIME_DIR/sbh-drop"
+  if [ "$MODE" = shortcut ]; then
+    printf '#!/bin/sh\ndate -u +%%T.%%6N >>"%s"\nexec "%s" drop >>"%s" 2>&1\n' \
+      "$SHORTCUT_MARKS" "$BIN/sbarhive" "$log-cli.log" >"$SHORTCUT_WRAP"
+    chmod +x "$SHORTCUT_WRAP"
+    printf '[Desktop Entry]\nExec=%s\nName=SbarHive drop\nNoDisplay=true\nStartupNotify=false\nType=Application\nX-KDE-GlobalAccel-CommandShortcut=true\n' \
+      "$SHORTCUT_WRAP" >"$XDG_DATA_HOME/applications/net.local.sbarhive-drop.desktop"
+    printf '[services][net.local.sbarhive-drop.desktop]\n_launch=Meta+Z\n' >"$XDG_CONFIG_HOME/kglobalshortcutsrc"
+  fi
   kbuildsycoca6 --noincremental >/dev/null 2>&1
   # KWIN_WAYLAND_NO_PERMISSION_CHECKS lets the test's own input client use
   # org_kde_kwin_fake_input in this private compositor only.
@@ -186,6 +207,18 @@ inner() {
     snap_check AC9 over
   }
 
+  if [ "$MODE" = shortcut ]; then
+    # Meta (125) + Z (44) and Esc (1), evdev codes, through fake_input.
+    press_shortcut() { echo "keydown 125" >&3; echo "keydown 44" >&3; echo "sleep 50" >&3; echo "keyup 44" >&3; echo "keyup 125" >&3; }
+    press_esc() { echo "keydown 1" >&3; echo "sleep 30" >&3; echo "keyup 1" >&3; }
+    HIVE_DESTROY_RE='-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\('
+    ESC_NO_KEYBOARD=1
+    local comps; comps=$(gdbus call --session --dest org.kde.kglobalaccel --object-path /kglobalaccel \
+      --method org.kde.KGlobalAccel.allComponents 2>&1)
+    check "AC11 setup: kglobalacceld lists the custom command shortcut component" 'grep -q sbarhive_drop <<<"$comps"'
+    shortcut_shows
+    summary
+  else
   cycle 1 "$W/photo one.png" webp 0
   cycle 2 "$W/photo two.png" corner 0
   cycle 3 "$W/photo three.png" webp 1
@@ -201,6 +234,7 @@ inner() {
     layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1
   done
   summary
+  fi
 
   exec 3>&-
   "$BIN/sbarhive" quit >/dev/null 2>&1
@@ -211,7 +245,7 @@ inner() {
 }
 export -f inner
 
-echo "== kwin level $LEVEL"
+echo "== kwin level $LEVEL${MODE:+ $MODE}"
 SANDBOX="$(mktemp -d)"
 RUNDIR="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX" "$RUNDIR"' EXIT
@@ -221,5 +255,5 @@ env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
   HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
   XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
   XDG_RUNTIME_DIR="$RUNDIR" WAYLAND_DISPLAY=wayland-sbh-drop-kwin \
-  dbus-run-session -- bash -c inner 2>"$OUT/kwin-l$LEVEL-bus.log" | tee "$OUT/kwin-l$LEVEL.txt"
-grep -q '^RESULT PASS' "$OUT/kwin-l$LEVEL.txt"
+  dbus-run-session -- bash -c inner 2>"$OUT/$TAG-bus.log" | tee "$OUT/$TAG.txt"
+grep -q '^RESULT PASS' "$OUT/$TAG.txt"

@@ -8,6 +8,9 @@
 #   CPUS=0,1  pins the compositor and the daemon to those cores (taskset).
 #   SHOW_TOKEN=T  passes an activation token with every show, which takes the
 #             path that builds a fresh hive window (S-013).
+#   DROP=1    every show is a drop-mode show (S-014 AC12): hive_bench gets
+#             "show --drop", which presents the hive the way `sbarhive drop`
+#             does (Hive::present_drop), and prints "mode=drop" in its line.
 #   PREVIEW=1 every show presents one selected file whose only thumbnail is a
 #             1024 px "xx-large" one (S-018 AC27): the file and the thumbnail
 #             are made in this script's sandbox (tests/overlay/thumbs.py), and
@@ -55,6 +58,7 @@ inner() {
   for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/sbarhive-ui-bench.sock" ] && break; sleep 0.1; done
   sleep 1
   local tok=(); [ -n "${SHOW_TOKEN:-}" ] && tok=(--token "$SHOW_TOKEN")
+  [ -n "${DROP:-}" ] && tok+=(--drop)
   echo "first $("$BIN" show "${tok[@]}" 2>&1 | tr '\n' ' ')"
   "$BIN" ctl hide; sleep 0.5
   for i in $(seq "$RUNS"); do
@@ -70,7 +74,7 @@ inner() {
 }
 
 export -f inner
-export BIN OUT RUNS IDLE CPUS SHOW_TOKEN PREVIEW ROOT
+export BIN OUT RUNS IDLE CPUS SHOW_TOKEN PREVIEW DROP ROOT
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"

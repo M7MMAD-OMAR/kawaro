@@ -16,6 +16,10 @@ cargo build --release
 cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml   # KWin only
 tests/drop/kwin.sh             # KWin, focus stealing prevention Low (level=1)
 tests/drop/gnome.sh            # Mutter, focus-new-windows=smart
+tests/drop/kwin.sh shortcut    # S-014d AC11: Super+Z mid-drag, Esc
+tests/drop/gnome.sh shortcut
+tests/drop/budget.sh           # S-014d AC12: drop-mode first frame, 20 shows
+tests/drop/docs.sh             # S-014d AC12: binding docs, no compositor
 ```
 
 Each prints `PASS`/`FAIL` lines, ends with `RESULT PASS` or `RESULT FAIL (n)`,
@@ -88,6 +92,42 @@ with `SBARHIVE_DEBUG_FOCUS=1`.
   approves a candidate from `out/` and it is copied to `snapshots/`.
 - `source.py` uses a one pixel transparent drag icon, so the shots show the
   hive only.
+
+## S-014d: the shortcut mid-drag (AC11, AC12)
+
+`kwin.sh shortcut` and `gnome.sh shortcut` never run `sbarhive drop`
+themselves. Super+Z is bound inside the private compositor to a wrapper that
+writes one time line and execs `sbarhive drop`:
+
+- KWin: a KDE custom command shortcut, as the docs describe it: a `.desktop`
+  entry with `X-KDE-GlobalAccel-CommandShortcut=true` in the sandbox
+  `applications` folder and `[services][net.local.sbarhive-drop.desktop]
+  _launch=Meta+Z` in `kglobalshortcutsrc`, launched by the kglobalacceld in
+  KWin. Keys go through `org_kde_kwin_fake_input` (evdev 125 + 44, Esc 1).
+- GNOME: `global.display.grab_accelerator('<Super>z')` in the normal action
+  mode through `Shell.Eval`, which spawns the wrapper (ADR 0003, result 4).
+  gsd-media-keys custom shortcuts are out of scope (S-014). The overview must
+  stay closed after Super+Z.
+
+Three drags (one session) each press Super+Z mid-drag and drop a PNG on the
+WEBP cell: the binding ran once, the hive appeared, `<name>.webp` is written,
+`deleted=False`. Then Esc mid-drag twice, no file written in either:
+
+- over the WEBP cell after `enter`: the source sees `drag-cancel`, and the
+  daemon's trace shows the hive surface destroyed within 500 ms of the Esc
+  (the trace stamps are UTC wall time, compared with `date -u` at the Esc);
+- before the drag enters the hive: the compositor cancels the drag at the
+  source and nothing reaches the hive (on the KWin layer path the hive takes
+  no keyboard in drop mode, S-018 AC13; on GNOME Mutter's drag grab takes
+  Esc), so it closes by its 10 s timeout (checked within 12 s).
+
+On KWin no `wl_keyboard` enter or key may reach the daemon in those shows.
+
+`budget.sh` runs `crates/ui/tests/measure.sh 20 1` with `DROP=1`
+(`hive_bench show --drop`): every show line must say `mode=drop`, every show
+is a layer surface that takes no keyboard (no `hive focus: true`), and the
+median warm first frame is under 150 ms. `docs.sh` checks the GNOME, KDE and
+Hyprland binding sections in `docs/`, in Arabic and in English.
 
 ## Input
 

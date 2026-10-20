@@ -229,6 +229,158 @@ enter_cells_checks() {
     '[ -n "$first" ] && [ -n "$other" ] && [ "$first" != "$other" ]'
 }
 
+# S-014d AC11: the shortcut pressed mid-drag. The caller (shortcut mode of
+# kwin.sh and gnome.sh) binds Super+Z in its private compositor to the
+# wrapper $SHORTCUT_WRAP, which appends one UTC time line to $SHORTCUT_MARKS
+# and execs `sbarhive drop`. This script never runs `sbarhive drop` itself in
+# that mode. The caller also defines:
+#   press_shortcut   Super+Z through the compositor's input path
+#   press_esc        Esc through the compositor's input path
+# and sets HIVE_DESTROY_RE, the daemon trace request that ends a show (KWin:
+# the layer surface's destroy; GNOME: the toplevel's destroy), and
+# ESC_NO_KEYBOARD=1 when the hive is a layer that takes no keyboard in drop
+# mode (S-018 AC13), so Esc must never reach the daemon there.
+
+# Seconds of the day of a "[HH:MM:SS.ffffff]" trace stamp or "HH:MM:SS.ffffff".
+tod() { awk -F: '{gsub(/[][]/, ""); printf "%.6f\n", $1 * 3600 + $2 * 60 + $3}' <<<"$1"; }
+marks_count() { if [ -f "$SHORTCUT_MARKS" ]; then grep -c . "$SHORTCUT_MARKS"; else echo 0; fi; }
+
+# Press on the source and drag past GTK's threshold; checks the drag is on.
+start_drag() { # start_drag N SMARK
+  local i
+  ptr_move 150 150; sleep 0.2; ptr_down; sleep 0.2
+  for i in 1 2 3 4 5 6; do ptr_move $((150 + i * 10)) $((150 + i * 5)); sleep 0.05; done
+  sleep 1
+  local src; src=$(tail -n +$(($2 + 1)) "$SLOG")
+  check "AC11 $1: the drag is under way before the shortcut (drag-begin, no drag-end or drag-cancel yet)" \
+    'grep -q "drag-begin" <<<"$src" && ! grep -qE "drag-end|drag-cancel" <<<"$src"'
+}
+
+# The shortcut mid-drag: the hive appears, shown by the binding, not by us.
+# Sets GEO to the hive geometry, empty when it did not appear.
+shortcut_show() { # shortcut_show N
+  local n=$1 m0 m1
+  check "AC11 $n: no hive is shown before the shortcut" '[ -z "$(hive_geo)" ]'
+  m0=$(marks_count)
+  press_shortcut
+  GEO=$(wait_geo 8)
+  m1=$(marks_count)
+  echo "INFO AC11 $n: binding ran $((m1 - m0)) time(s), hive ${GEO:-not shown}"
+  check "AC11 $n: Super+Z mid-drag ran the bound \`sbarhive drop\` exactly once" '[ $((m1 - m0)) -eq 1 ]'
+  check "AC11 $n: the hive appeared within 8 s of the shortcut" '[ -n "$GEO" ]'
+}
+
+# One shortcut run: drag a PNG, Super+Z, enter the hive, drop on WEBP.
+shortcut_drop() { # shortcut_drop N FILE
+  local n="run $1" file=$2 base="${2%.*}" smark
+  echo "== AC11 $n: $(basename "$file"), Super+Z mid-drag, drop on WEBP"
+  printf '%s\n' "$file" >"$NEXT"
+  smark=$(wc -l <"$SLOG")
+  local sha_before; sha_before=$(sha256sum "$file" | cut -d' ' -f1)
+  start_drag "$n" "$smark"
+  shortcut_show "$n"
+  [ -n "$GEO" ] || { ptr_up; sleep 1; wait_gone 12; return; }
+  local gx gy gw gh dx dy; read -r gx gy gw gh <<<"$GEO"
+  read -r dx dy <<<"$(webp_offset)"
+  local wx=$((gx + gw / 2 + dx)) wy=$((gy + gh / 2 + dy))
+  ptr_move $((gx + 4)) $((gy + 4)); sleep 0.2
+  ptr_move $(((gx + 4 + wx) / 2)) $(((gy + 4 + wy) / 2)); sleep 0.2
+  ptr_move "$wx" "$wy"; sleep 0.4
+  ptr_up; sleep 0.3
+  check "AC11 $n: $(basename "$base").webp written next to the original within 5 s" 'wait_file "$base.webp" 5'
+  check "AC11 $n: output is image/webp" '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
+  local src; src=$(tail -n +$((smark + 1)) "$SLOG")
+  check "AC11 $n: source reports deleted=False and the original's sha256 is unchanged" \
+    'grep -q "drag-end deleted=False" <<<"$src" && [ "$(sha256sum "$file" 2>/dev/null | cut -d" " -f1)" = "$sha_before" ]'
+  wait_gone 5 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
+  sleep 1
+}
+
+# Esc mid-drag. WHERE=over: the drag has entered the hive and is over the
+# WEBP cell (a release would write a file), then Esc. The compositor cancels
+# the drag (the source sees drag-cancel) and the hive gets leave: it must be
+# gone within 500 ms of the Esc, timed from the daemon's trace stamps.
+# WHERE=before: Esc before the drag enters the hive. On the layer path
+# nothing reaches the hive (keyboard 0 in drop mode, S-018 AC13), so it may
+# close only by its 10 s timeout (AC3): checked within 12 s, the close delay
+# after Esc is INFO. In both, no file is written.
+shortcut_esc() { # shortcut_esc N FILE over|before
+  local n="esc $3" file=$2 where=$3 smark dmark
+  echo "== AC11 $n: $(basename "$file"), Super+Z mid-drag, Esc $([ "$where" = over ] && echo 'over the WEBP cell' || echo 'before entering the hive')"
+  printf '%s\n' "$file" >"$NEXT"
+  smark=$(wc -l <"$SLOG")
+  local before; before=$(find "$W" -type f | sort)
+  start_drag "$n" "$smark"
+  shortcut_show "$n"
+  [ -n "$GEO" ] || { ptr_up; sleep 1; wait_gone 12; return; }
+  local gx gy gw gh dx dy; read -r gx gy gw gh <<<"$GEO"
+  if [ "$where" = over ]; then
+    read -r dx dy <<<"$(webp_offset)"
+    local wx=$((gx + gw / 2 + dx)) wy=$((gy + gh / 2 + dy))
+    ptr_move $((gx + 4)) $((gy + 4)); sleep 0.2
+    ptr_move $(((gx + 4 + wx) / 2)) $(((gy + 4 + wy) / 2)); sleep 0.2
+    ptr_move "$wx" "$wy"; sleep 0.6
+  fi
+  dmark=$(wc -l <"$DLOG")
+  local t_esc; t_esc=$(date -u +%T.%6N)
+  press_esc
+  if [ "$where" = over ]; then
+    sleep 1.5
+  else
+    wait_gone 12
+  fi
+  ptr_up; sleep 0.3
+  local seg; seg=$(tail -n +$((dmark + 1)) "$DLOG")
+  local entered; entered=$(sed -n "$((DSHOW + 1)),${dmark}p" "$DLOG" | grep -cE '^\[[0-9:.]+\] wl_data_device[#@][0-9]+\.enter\(')
+  local gone_line gone_ms=""
+  gone_line=$(grep -m1 -E -- "$HIVE_DESTROY_RE" <<<"$seg" | grep -oE '^\[[0-9:.]+\]')
+  if [ -n "$gone_line" ]; then
+    gone_ms=$(awk -v a="$(tod "$t_esc")" -v b="$(tod "$gone_line")" 'BEGIN{d=b-a; if (d < -43200) d += 86400; printf "%d\n", d * 1000}')
+  fi
+  echo "INFO AC11 $n: drag entered the hive before Esc: $entered enter event(s); hive surface destroyed ${gone_ms:-never} ms after Esc ($t_esc UTC)"
+  local src; src=$(tail -n +$((smark + 1)) "$SLOG")
+  # GTK 4 follows drag-cancel with drag-end deleted=False; a drop would
+  # give drag-end without drag-cancel.
+  check "AC11 $n: Esc cancels the drag (source drag-cancel, no drag-end deleted=True)" \
+    'grep -q "drag-cancel" <<<"$src" && ! grep -q "drag-end deleted=True" <<<"$src"'
+  if [ "$where" = over ]; then
+    check "AC11 $n: the drag had entered the hive before Esc (a release would have dropped)" '[ "$entered" -ge 1 ]'
+    check "AC11 $n: the hive is gone within 500 ms of Esc (daemon trace)" '[ -n "$gone_ms" ] && [ "$gone_ms" -le 500 ]'
+  else
+    check "AC11 $n: the drag never entered the hive before Esc" '[ "$entered" -eq 0 ]'
+    check "AC11 $n: the hive closes by its timeout (within 12 s of Esc)" '[ -n "$gone_ms" ] && [ "$gone_ms" -le 12000 ]'
+  fi
+  check "AC11 $n: the hive is no longer shown" 'wait_gone 2'
+  if [ "${ESC_NO_KEYBOARD:-0}" = 1 ]; then
+    check "AC11 $n: Esc never reaches the daemon (no wl_keyboard enter or key in drop mode)" \
+      '! grep -qE "^\[[0-9:.]+\] wl_keyboard[#@][0-9]+\.(enter|key)\(" <<<"$(tail -n +$((DSHOW + 1)) "$DLOG")"'
+  fi
+  sleep 5
+  check "AC11 $n: no file written" '[ "$(find "$W" -type f | sort)" = "$before" ]'
+  wait_gone 5 || true
+  sleep 1
+}
+
+# AC11 in one private compositor session: RUNS shortcut drops (3 of 3), then
+# Esc over the hive, then Esc before the hive.
+shortcut_shows() {
+  local i ok=0
+  for i in $(seq "${RUNS:-3}"); do
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$W/run $i.png"
+    DSHOW=$(wc -l <"$DLOG")
+    shortcut_drop "$i" "$W/run $i.png"
+    [ "$(file --mime-type -b "$W/run $i.webp" 2>/dev/null)" = image/webp ] && ok=$((ok + 1))
+  done
+  echo "INFO AC11: $ok of ${RUNS:-3} shortcut drops wrote a WEBP"
+  check "AC11: ${RUNS:-3} of ${RUNS:-3} shortcut runs wrote the file" '[ "$ok" -eq "${RUNS:-3}" ]'
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/esc over.png"
+  DSHOW=$(wc -l <"$DLOG")
+  shortcut_esc 1 "$W/esc over.png" over
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/esc before.png"
+  DSHOW=$(wc -l <"$DLOG")
+  shortcut_esc 2 "$W/esc before.png" before
+}
+
 summary() {
   if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 }

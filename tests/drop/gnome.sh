@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# Conditions are passed to check() in single quotes and expanded by eval.
+# shellcheck disable=SC2016,SC2034
 # S-014b drop receiver on GNOME Shell (Mutter), AC5, AC6, AC7. A GTK 4 window
 # drags a PNG, `sbarhive drop` is run mid-drag (what the shortcut does), and
 # the file is dropped: show 1 on the WEBP cell, show 2 on a transparent
@@ -12,27 +14,38 @@
 # Runs in a private headless gnome-shell with a throwaway
 # HOME, XDG dirs, runtime dir and session bus. Never touches the live
 # desktop or profile.
-# Usage: tests/drop/gnome.sh [smart|strict] [target/release]
+# S-014d (AC11), mode "shortcut": Super+Z is grabbed in this private shell
+# with global.display.grab_accelerator in the normal action mode (the path
+# the GlobalShortcuts portal backend and gnome-shell's own keybindings take,
+# ADR 0003 result 4) and spawns a wrapper that marks the time and execs
+# `sbarhive drop`. Custom shortcuts through gsd-media-keys are out of scope
+# (S-014). Three drags each press Super+Z mid-drag and drop on the WEBP
+# cell, then Esc is pressed mid-drag over the hive and before the hive
+# (tests/drop/lib.sh, shortcut_shows). The five S-014b and S-014c shows are
+# not run in this mode.
+# Usage: tests/drop/gnome.sh [smart|strict] [shortcut] [target/release]
 #   Mutter focus-new-windows, default smart
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 POLICY=smart
+MODE=""
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in smart|strict) POLICY="$a" ;; *) BIN="$a" ;; esac
+  case "$a" in smart|strict) POLICY="$a" ;; shortcut) MODE=shortcut ;; *) BIN="$a" ;; esac
 done
+TAG="gnome-$POLICY${MODE:+-$MODE}"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
-export BIN HERE ROOT OUT POLICY
+export BIN HERE ROOT OUT POLICY MODE TAG
 
 inner() {
   set -u
   unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
   # shellcheck source=lib.sh
   source "$HERE/lib.sh"
-  OUT_LOG="$OUT/gnome-$POLICY"
+  OUT_LOG="$OUT/$TAG"
   local log="$OUT_LOG"
   : >"$log-cli.log"
   # Writes the throwaway HOME's dconf through the private bus only.
@@ -95,6 +108,33 @@ inner() {
   local src=$!
   sleep 4
 
+  if [ "$MODE" = shortcut ]; then
+    SHORTCUT_MARKS="$XDG_RUNTIME_DIR/shortcut-marks"
+    SHORTCUT_WRAP="$XDG_RUNTIME_DIR/sbh-drop"
+    printf '#!/bin/sh\ndate -u +%%T.%%6N >>"%s"\nexec "%s" drop >>"%s" 2>&1\n' \
+      "$SHORTCUT_MARKS" "$BIN/sbarhive" "$log-cli.log" >"$SHORTCUT_WRAP"
+    chmod +x "$SHORTCUT_WRAP"
+    local grab
+    grab=$(shell_eval "const Meta = imports.gi.Meta; const Shell = imports.gi.Shell; const GLib = imports.gi.GLib;
+      const a = global.display.grab_accelerator('<Super>z', Meta.KeyBindingFlags.NONE);
+      Main.wm.allowKeybinding(Meta.external_binding_name_for_action(a), Shell.ActionMode.NORMAL);
+      global.display.connect('accelerator-activated', (d, act) => {
+        if (act === a) GLib.spawn_async(null, ['$SHORTCUT_WRAP'], null, GLib.SpawnFlags.DEFAULT, null);
+      });
+      a")
+    echo "INFO AC11 setup: grab_accelerator <Super>z: $grab"
+    check "AC11 setup: Super+Z grabbed in the normal action mode" 'grep -qE "true, .[1-9][0-9]*" <<<"$grab"'
+    press_shortcut() {
+      echo "key Super_L+z" >&3; sleep 0.3
+      local ov; ov=$(shell_eval 'Main.overview.visible')
+      check "AC11: Super+Z mid-drag does not open the overview" 'grep -q false <<<"$ov"'
+    }
+    press_esc() { echo "key Escape" >&3; }
+    HIVE_DESTROY_RE='-> xdg_toplevel[#@][0-9]+\.destroy\('
+    ESC_NO_KEYBOARD=0
+    shortcut_shows
+    summary
+  else
   cycle 1 "$W/photo one.png" webp 0
   cycle 2 "$W/photo two.png" corner 0
   cycle 3 "$W/photo three.png" webp 1
@@ -103,6 +143,7 @@ inner() {
   protocol_checks
   enter_cells_checks
   summary
+  fi
 
   echo quit >&3; exec 3>&-
   "$BIN/sbarhive" quit >/dev/null 2>&1
@@ -113,7 +154,7 @@ inner() {
 }
 export -f inner
 
-echo "== gnome $POLICY"
+echo "== gnome $POLICY${MODE:+ $MODE}"
 SANDBOX="$(mktemp -d)"
 RUNDIR="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX" "$RUNDIR"' EXIT
@@ -123,5 +164,5 @@ env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
   HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
   XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
   XDG_RUNTIME_DIR="$RUNDIR" WAYLAND_DISPLAY=wayland-sbh-drop-gnome \
-  dbus-run-session -- bash -c inner 2>"$OUT/gnome-$POLICY-bus.log" | tee "$OUT/gnome-$POLICY.txt"
-grep -q '^RESULT PASS' "$OUT/gnome-$POLICY.txt"
+  dbus-run-session -- bash -c inner 2>"$OUT/$TAG-bus.log" | tee "$OUT/$TAG.txt"
+grep -q '^RESULT PASS' "$OUT/$TAG.txt"

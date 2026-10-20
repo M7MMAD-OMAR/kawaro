@@ -198,3 +198,50 @@
   - لم يُشغَّل: `cargo mutants` وe2e (بطلب المدير). النص العربي في المركز يغطيه اختبار الوحدة لا لقطة.
   - الحالة: الرأس يغطي القصص الست، فتركته «معتمدة» كما فعل منفّذ S-014b، وأسجّل هنا أن S-014c جاهزة للمراجعة.
 - 2026-10-21، المدير: الشفافية في لقطة الانتظار كانت من حركة فتح KWin (تأثير scale، 200 ms)، لا من الخلية. أوقفها المدير في kwinrc الخاص بـ `tests/drop/kwin.sh` (`[Plugins] scaleEnabled=false`) لتكون اللقطة ثابتة. اللقطتان `drop-en-light-waiting.png` (المركز وحده «Drop files here»، معتم بلون surface-3 تماماً) و`drop-en-light-over.png` (WEBP مُبرزة وتسميتها في المركز) فُحصتا بالعين ومعتمدتان بالتفويض. التشغيل التالي: `RESULT PASS`. حركة KWin على سطح الطبقة لمستخدمي KDE تُراجع مع S-017.
+- 2026-10-21، المختبِر (S-014d فقط، AC11 وAC12): كُتبت الاختبارات من المعايير وجدول الحالات، وشُغّل كل سكربت مرة في مؤلِّف مخفي خاص (`nice -n 19`، `-j 2`)، والمتغيرات المكتبية مُلغاة قبل `dbus-run-session`. أُعيد تشغيل `kwin.sh shortcut` مرة واحدة لأن السكربت كان معطوباً (انظر أدناه).
+  - الملفات: `tests/drop/lib.sh` (`start_drag` و`shortcut_show` و`shortcut_drop` و`shortcut_esc` و`shortcut_shows`)، `tests/drop/kwin.sh` و`tests/drop/gnome.sh` (وضع `shortcut`، والوضع الافتراضي كما هو)، `tests/drop/budget.sh` (جديد)، `tests/drop/docs.sh` (جديد)، `crates/ui/tests/measure.sh` (`DROP=1`)، و`tests/drop/README.md`.
+  - ربط الاختصار في الاختبار: السكربت لا يشغّل `sbarhive drop` بنفسه في وضع `shortcut`. Super+Z مربوط داخل المؤلِّف الخاص بغلاف يكتب سطر وقت ثم ينفّذ `sbarhive drop`. في KWin بطريقة «اختصار أمر مخصص» في KDE التي سيصفها التوثيق: ملف `.desktop` بـ `X-KDE-GlobalAccel-CommandShortcut=true` ومدخل `[services]` في `kglobalshortcutsrc`، يشغّله kglobalacceld داخل KWin (تحققت بتجربة قصيرة دون سحب: ضغطتان أعطتا علامتين). في GNOME بـ `grab_accelerator('<Super>z')` في الوضع NORMAL عبر `Shell.Eval` كما في التجربة (ADR 0003، النتيجة 4)، لأن اختصارات gsd-media-keys خارج النطاق. المفاتيح تمر بمسار إدخال المؤلِّف (fake_input في KWin، وRemoteDesktop في GNOME).
+  - تفسيران للمدير:
+    - «3 من 3 تشغيلات»: ثلاث سحبات متتالية بالاختصار في جلسة مؤلِّف واحدة لكل مؤلِّف، لا ثلاث جلسات، احتراماً لحمل الجهاز. إن أراد المدير ثلاث جلسات فيكفي تشغيل `kwin.sh level=1 shortcut` و`gnome.sh smart shortcut` ثلاث مرات.
+    - Esc: على مسار الطبقة لوحة المفاتيح 0 في وضع الإفلات (S-018 AC13)، فلا يصل Esc إلى الخلية، بل يلغي المؤلِّف السحب عند المصدر. لذلك حالتان: (1) Esc والسحب فوق خلية WEBP بعد `enter`: المصدر يبلغ `drag-cancel`، والخلية تختفي خلال 500 ms من Esc بحسب طوابع أثر الخدمة (`zwlr_layer_surface_v1.destroy` في KWin و`xdg_toplevel.destroy` في GNOME، مقارنة بـ `date -u` عند Esc)، ولا ملف. (2) Esc قبل دخول السحب إلى الخلية: لا يصلها شيء، فتُغلق بمهلتها (تُفحص خلال 12 ثانية)، ولا ملف. وفي KWin لا يصل الخدمة `wl_keyboard.enter` ولا `key` في الحالتين. لم تُخفَّف حالة «فوق الخلية» إلى المهلة.
+  - تعارض للمدير: سطر Alt عند محمد ليس ربط «نقرة ثم إفلات المفتاح» (`bindr`)، بل ربط ضغط غير مستهلك `ALT + ALT_L` بصيغة Lua يشغّل مساعداً (ينتظر 0.4 ثانية ويتحقق أن Alt والزر الأيسر ما زالا مضغوطين، ويحتاج مجموعة `input`)، والمساعد في مجلد محمد لا في المستودع. لذلك لا يثبّت `docs.sh` نوع الربط: يكفي سطر بالمفتاح `ALT_L` يشغّل sbarhive بصيغة hyprlang أو Lua، لكن كل برنامج يشغّله سطر موثَّق يجب أن يكون `sbarhive` أو ملفاً في المستودع، ولا مسارات `/home/`. السؤال: هل يُشحن المساعد؟ إن لم يُشحن فسطر `bindr = ALT, ALT_L, exec, sbarhive drop` يرضي الفحص. السؤال يمس فحص Alt وحده.
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل):
+    - التوثيق في `docs/` (أي ملف `.md` خارج `docs/adr/` و`docs/PLAN.md`)، بالعربية وبالإنكليزية، كل لغة في قسم (بين عنوانين) لغته غالبة في النثر: GNOME (الإعدادات، لوحة المفاتيح، اختصار مخصص / Settings، Keyboard، Custom Shortcuts، والأمر `sbarhive drop`)، KDE (إعدادات النظام، الاختصارات / System Settings، Shortcuts، والأمر `sbarhive drop`)، Hyprland (سطر Super+Z يشغّل `sbarhive drop`، وسطر `ALT_L` يشغّل sbarhive)، وذكر Super+Z. والسطران نفساهما في قسمي `integrations/linux/hyprland/README.md`. ولا شرطة طويلة.
+    - `hive_bench show --drop` يُظهر الخلية كما يُظهرها `sbarhive drop` (`Hive::present_drop`)، ويطبع `mode=drop` في سطر كل ظهور. `measure.sh` يمرّره مع `DROP=1`.
+  - مخرجات الفشل:
+    ```
+    $ tests/drop/docs.sh
+    INFO sections in docs/: none;
+    FAIL AC12: docs/ in Arabic: GNOME: Settings, Keyboard, custom shortcut running `sbarhive drop`
+    FAIL AC12: docs/ in English: GNOME: Settings, Keyboard, custom shortcut running `sbarhive drop`
+    FAIL AC12: docs/ in Arabic: KDE: System Settings, Shortcuts, command `sbarhive drop`
+    FAIL AC12: docs/ in English: KDE: System Settings, Shortcuts, command `sbarhive drop`
+    FAIL AC12: docs/ in Arabic: Hyprland: a Super+Z bind line running `sbarhive drop`
+    FAIL AC12: docs/ in English: Hyprland: a Super+Z bind line running `sbarhive drop`
+    FAIL AC12: docs/ in Arabic: Hyprland: a left Alt (ALT_L) bind line running sbarhive
+    FAIL AC12: docs/ in English: Hyprland: a left Alt (ALT_L) bind line running sbarhive
+    FAIL AC12: docs/ in Arabic: names the default shortcut Super+Z
+    FAIL AC12: docs/ in English: names the default shortcut Super+Z
+    FAIL AC12: integrations/linux/hyprland/README.md in Arabic: hypr-superz bind line
+    FAIL AC12: integrations/linux/hyprland/README.md in English: hypr-superz bind line
+    FAIL AC12: integrations/linux/hyprland/README.md in Arabic: hypr-alt bind line
+    FAIL AC12: integrations/linux/hyprland/README.md in English: hypr-alt bind line
+    FAIL AC12: the documented binds run programs that exist (a bind was found)
+    FAIL AC12: every program a documented bind runs is sbarhive or a file the repository ships
+    PASS AC12: no /home/ path in the docs
+    PASS AC12: no em dash or en dash in the docs
+    RESULT FAIL (16)
+
+    $ tests/drop/budget.sh   (measure.sh 20 1، DROP=1، KWin مخفي)
+    INFO drop: shows 21 (warm 20), mode=drop lines 0, hive surface layer 21 window 0, hive focus: true 20, median 2.7 ms
+    PASS AC12: measure.sh ran all 21 daemon shows
+    FAIL AC12: every show line says mode=drop (hive_bench show --drop)
+    PASS AC12: every show was a layer surface (one "hive surface: layer" line per show, no window line)
+    FAIL AC12: no show took the keyboard (no "hive focus: true": drop mode, S-018 AC13)
+    PASS AC12: median warm first frame of drop-mode shows under 150 ms
+    RESULT FAIL (2)
+    ```
+    السبب: `hive_bench show` يتجاهل `--drop` فيُظهر الخلية العادية التي تأخذ لوحة المفاتيح، ولا توثيق للربط في `docs/` ولا سطر `sbarhive drop` في توثيق Hyprland.
+  - ما ينجح قبل التنفيذ ولماذا: AC11 كله. `tests/drop/kwin.sh level=1 shortcut` و`tests/drop/gnome.sh smart shortcut` كلاهما `RESULT PASS`: 3 من 3 سحبات كتبت WEBP، وفي كل منها شغّل الربط `sbarhive drop` مرة واحدة أثناء السحب، و`deleted=False`. Esc فوق الخلية: أُتلف سطح الخلية بعد 0 ms (KWin) و4 ms (GNOME) من Esc. Esc قبل الخلية: أُغلقت بالمهلة بعد 9894 ms (KWin) و9731 ms (GNOME). السبب أن السلوك كله بنته S-014a إلى S-014c، والربط في الاختبار خارجي (المؤلِّف). لم يُلوَ الاختبار ليفشل، ويبقى حارساً، والمنفِّذ لا يحتاج شيفرة له.
+  - أُصلح في أثناء العمل (سبب إعادة `kwin.sh shortcut`): في التشغيل الأول `RESULT FAIL (3)` لعيبين في السكربت: حلقة `start_drag` غيّرت المتغير `i` في `shortcut_shows` («0 of 3» مع أن الفحوص الثلاثة نجحت)، وGTK 4 يرسل `drag-end deleted=False` بعد `drag-cancel`، فصار الفحص «`drag-cancel` ولا `drag-end deleted=True`» كما في S-014b.
+  - حدود: زمن AC12 لا يشمل ما بين الضغطة وبدء عملية `sbarhive drop` (تشغيل المؤلِّف لها)؛ `measure.sh` يقيس من طلب IPC إلى أول إطار. `budget.sh` يبني `hive_bench` بـ `CARGO_BUILD_JOBS=2` ويحذف مجلد `measure.sh` المؤقت. لم يُشغَّل: الوضع الافتراضي لـ `kwin.sh` و`gnome.sh` (لم يتغير منطقه، `bash -n` و`shellcheck -x` نظيفان)، و`cargo mutants`، وe2e.
