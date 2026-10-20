@@ -46,7 +46,7 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 ## المساهمة
 
-اقرأ `CLAUDE.md` و`docs/architecture.md` قبل أي تعديل. إضافة صيغة جديدة تعني ملف TOML في `actions/` ومحوّلا صغيرا في `crates/engines/`.
+اقرأ `CONTRIBUTING.md` و`docs/architecture.md` قبل أي تعديل. للإبلاغ عن ثغرة أمنية راجع `SECURITY.md`، وسجل التغييرات في `CHANGELOG.md`. إضافة صيغة جديدة تعني ملف TOML في `actions/` ومحوّلا صغيرا في `crates/engines/`.
 
 ## الرخصة
 
@@ -118,7 +118,8 @@ go in `~/.config/sbarhive/actions/*.toml`.
 
 ## Contributing
 
-Read `CLAUDE.md` and `docs/architecture.md` first. A new format is one TOML
+Read `CONTRIBUTING.md` and `docs/architecture.md` first. Security reports:
+see `SECURITY.md`. Release history: `CHANGELOG.md`. A new format is one TOML
 file in `actions/` plus a small adapter in `crates/engines/`.
 
 ## License
