@@ -7,12 +7,23 @@
 # hooks below run only inside a winit event loop on a compositor. They are
 # covered by tests/drop/kwin.sh and tests/drop/gnome.sh (AC5 to AC7), not by
 # unit tests; the main-thread side (on_note, Inner::drag) stays mutated.
+#
+# The layer-shell adapter and the thin platform over winit (S-018b) send and
+# dispatch Wayland requests on a live compositor only; they are covered by
+# tests/overlay/kwin.sh, gnome.sh and snapshots.sh, not by unit tests. The
+# decisions they use stay mutated in overlay.rs (S-018 manager decision 5).
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",
+  "crates/ui/src/layer.rs",
+  "crates/ui/src/platform.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
   "in attach_receiver$",
   "replace attach_receiver with",
+  "in frame_presented$",
+  "replace frame_presented with",
+  "in token_hook$",
+  "replace token_hook with",
 ]

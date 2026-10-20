@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- Hive overlay (S-018b): on compositors that offer wlr-layer-shell (checked on headless KWin) every hive show is a full-output overlay with the hive centred in it, no window frame or tiling, closed with Esc; GNOME and `SBARHIVE_SURFACE=window` keep the window, `SBARHIVE_SURFACE=layer|window` forces the choice.
 - Centre picture lookups (S-018g): `sbarhive_ui::thumb` finds a valid cached freedesktop thumbnail for a file (GLib and Qt URIs, symlink targets, read only), its MIME type from shared-mime-info `globs2`, its kind icon (new monoline `file` icon) and format code.
 - Overlay groundwork (S-018a): pure surface choice between a layer-shell overlay and a window, hive placement and buffer size per scale, evdev keys, colour scheme and cursor shape decisions in `sbarhive_ui::overlay`.
 - Drop receiver (S-014b): on Wayland the hive shown by `sbarhive drop` takes a file dragged onto it, reads the files when the drag enters, builds their cells and runs the action of the cell it is dropped on, as a copy only; a drop elsewhere closes it and runs nothing.

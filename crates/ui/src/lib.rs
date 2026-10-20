@@ -18,9 +18,13 @@
 mod dnd;
 mod geometry;
 mod icons;
+#[cfg(target_os = "linux")]
+mod layer;
 mod layout;
 mod motion;
 pub mod overlay;
+#[cfg(target_os = "linux")]
+mod platform;
 #[cfg(target_os = "linux")]
 mod receiver;
 mod settings;
@@ -139,9 +143,7 @@ impl CustomApplicationHandler for FocusWatcher {
                 }
                 // Slint draws right after this hook returns; a zero timer
                 // fires on the next loop turn, once the frame is submitted.
-                if let Some(f) = AFTER_FRAME.with(|h| h.borrow_mut().take()) {
-                    slint::Timer::single_shot(Duration::ZERO, f);
-                }
+                frame_presented();
             }
             _ => {}
         }
@@ -149,21 +151,46 @@ impl CustomApplicationHandler for FocusWatcher {
     }
 }
 
+/// Runs the [`after_next_frame`] hook on the next loop turn.
+fn frame_presented() {
+    if let Some(f) = AFTER_FRAME.with(|h| h.borrow_mut().take()) {
+        slint::Timer::single_shot(Duration::ZERO, f);
+    }
+}
+
+/// Hands a pending activation token to a new winit window.
+fn token_hook(attrs: winit::window::WindowAttributes) -> winit::window::WindowAttributes {
+    use winit::platform::startup_notify::WindowAttributesExtStartupNotify;
+    use winit::window::ActivationToken;
+    let token = PENDING_TOKEN.lock().ok().and_then(|mut t| t.take());
+    match token {
+        Some(t) => attrs.with_activation_token(ActivationToken::from_raw(t)),
+        None => attrs,
+    }
+}
+
 /// Selects winit with the software renderer, installs the activation-token
 /// hook and the focus watcher. Call once, before creating any window.
+///
+/// On Wayland, when [`overlay::choose_surface`] gives `Layer` for the
+/// compositor's globals and `SBARHIVE_SURFACE`, winit is wrapped by a thin
+/// platform that puts every hive build on a layer-shell overlay (S-018b,
+/// ADR 0004); other windows stay winit's.
 pub fn init() -> Result<(), slint::PlatformError> {
+    #[cfg(target_os = "linux")]
+    if layer::start() {
+        let winit = i_slint_backend_winit::Backend::builder()
+            .with_renderer_name("software")
+            .with_window_attributes_hook(token_hook)
+            .with_custom_application_handler(Box::new(FocusWatcher))
+            .build()?;
+        return slint::platform::set_platform(Box::new(platform::Wrap { winit }))
+            .map_err(slint::PlatformError::SetPlatformError);
+    }
     slint::BackendSelector::new()
         .backend_name("winit".into())
         .renderer_name("software".into())
-        .with_winit_window_attributes_hook(|attrs| {
-            use winit::platform::startup_notify::WindowAttributesExtStartupNotify;
-            use winit::window::ActivationToken;
-            let token = PENDING_TOKEN.lock().ok().and_then(|mut t| t.take());
-            match token {
-                Some(t) => attrs.with_activation_token(ActivationToken::from_raw(t)),
-                None => attrs,
-            }
-        })
+        .with_winit_window_attributes_hook(token_hook)
         .with_winit_custom_application_handler(FocusWatcher)
         .select()
 }
@@ -455,6 +482,8 @@ impl Hive {
             .machine
             .borrow_mut()
             .handle(dnd::Event::Show { drop }, Instant::now());
+        #[cfg(target_os = "linux")]
+        layer::set_drop_mode(drop);
         if drop {
             DROP_HIVE.with(|h| *h.borrow_mut() = Rc::downgrade(inner));
             ATTACH_PENDING.with(|c| c.set(true));
@@ -533,7 +562,13 @@ impl Hive {
 /// A new hive component with the theme overrides applied. Creating it
 /// creates its window adapter, which runs the attributes hook.
 fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError> {
-    let ui = HiveWindow::new()?;
+    // Every hive build goes through the surface decision (S-018 AC5).
+    #[cfg(target_os = "linux")]
+    platform::building_hive(true);
+    let ui = HiveWindow::new();
+    #[cfg(target_os = "linux")]
+    platform::building_hive(false);
+    let ui = ui?;
     let tokens = ui.global::<Tokens>();
     if let Some(dark) = forced_dark(std::env::var("SBARHIVE_COLOR_SCHEME").ok().as_deref()) {
         tokens.set_dark(dark);

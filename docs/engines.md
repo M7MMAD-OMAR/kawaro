@@ -263,6 +263,10 @@ Not engines, recorded here because CLAUDE.md asks for every new library.
 | IBM Plex Sans Arabic | system copy, embedded | OFL-1.1 | ui, site | the only interface font, so rendering never depends on system fonts |
 | wayland-client | 0.31.15 | MIT | ui (Linux) | drop receiver: a second connection on winit's `wl_display` (S-014b, ADR 0003); already in the tree through winit |
 | wayland-backend | 0.3.17, `client_system` | MIT | ui (Linux) | `Backend::from_foreign_display` for that connection; already in the tree through winit |
-| rustix | 1.1.5, `event` and `pipe` | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | ui (Linux) | pipe and poll to read the dragged `text/uri-list` with a timeout; already in the tree through wayland-backend |
+| rustix | 1.1.5, `event`, `pipe` and `fs` | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | ui (Linux) | pipe and poll to read the dragged `text/uri-list` with a timeout, `memfd_create` for the overlay's shm buffers (S-018b); already in the tree through wayland-backend |
+| i-slint-backend-winit | 1.18.1 (pinned, `=1.18.1`) | GPL-3.0-only OR Slint royalty-free OR Slint software licence; we use it under GPL-3.0 | ui (Linux) | the winit platform wrapped by the thin layer-shell platform (S-018b, ADR 0004); already in the tree through slint |
+| i-slint-core | 1.18.1 (pinned, `=1.18.1`) | GPL-3.0-only OR Slint royalty-free OR Slint software licence; we use it under GPL-3.0 | ui (Linux) | `InternalToken` and `SlintContextWeak` for the forwarded `Platform` methods (S-018b); already in the tree through slint |
+| wayland-protocols | 0.32.13, `client` and `staging` | MIT | ui (Linux) | viewporter, single pixel buffer, fractional scale and xdg-activation for the hive overlay (S-018b); already in the tree through winit |
+| wayland-protocols-wlr | 0.3.12, `client` | MIT | ui (Linux) | `zwlr_layer_shell_v1` for the hive overlay (S-018b); already in the tree through winit |
 | md-5 | 0.11.0 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): MD5 of the file URI names the cached thumbnail; already in the tree through another dependency |
 | png | 0.17.16 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): reads the `Thumb::*` text chunks of a cached thumbnail; was a dev-dependency, already in the tree |
