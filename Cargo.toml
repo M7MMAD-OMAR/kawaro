@@ -25,3 +25,8 @@ slint-build = "=1.18.1"
 lto = "thin"
 codegen-units = 4
 strip = true
+
+# Transparent windows on Wayland with the software renderer; see
+# vendor/softbuffer/SBARHIVE-PATCH.md.
+[patch.crates-io]
+softbuffer = { path = "vendor/softbuffer" }

@@ -15,6 +15,9 @@ use std::sync::Arc;
 thread_local! {
     static HIVE: RefCell<Option<Hive>> = const { RefCell::new(None) };
     static SETTINGS: RefCell<Option<SettingsWindow>> = const { RefCell::new(None) };
+    /// What the settings window needs when it is first opened. Creating it
+    /// lazily avoids an empty unmapped toplevel for a window rarely opened.
+    static SETTINGS_ARGS: RefCell<Option<(Lang, Shared, Arc<Queue>)>> = const { RefCell::new(None) };
 }
 
 /// The colour scheme override the UI crate reads when a window is created.
@@ -55,12 +58,23 @@ pub fn build(
         hive.on_dismiss(move || lock(&state).pending = None);
     }
 
-    let settings = SettingsWindow::new(lang)?;
-    {
-        let (state, queue) = (state.clone(), queue.clone());
-        settings.on_save(move |config| save_settings(config, &state, &queue));
-    }
     HIVE.with(|h| *h.borrow_mut() = Some(hive));
+    // A language or theme change drops the old settings window; the next
+    // open builds one with the new settings.
+    SETTINGS.with(|s| *s.borrow_mut() = None);
+    SETTINGS_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone(), queue.clone())));
+    Ok(())
+}
+
+fn settings_window() -> Result<(), slint::PlatformError> {
+    if SETTINGS.with(|s| s.borrow().is_some()) {
+        return Ok(());
+    }
+    let Some((lang, state, queue)) = SETTINGS_ARGS.with(|a| a.borrow().clone()) else {
+        return Ok(());
+    };
+    let settings = SettingsWindow::new(lang)?;
+    settings.on_save(move |config| save_settings(config, &state, &queue));
     SETTINGS.with(|s| *s.borrow_mut() = Some(settings));
     Ok(())
 }
@@ -120,6 +134,10 @@ pub fn present(centre: String, cells: Vec<HiveCell>, token: Option<String>) {
 
 pub fn open_settings(config: Config) {
     let _ = slint::invoke_from_event_loop(move || {
+        if let Err(e) = settings_window() {
+            eprintln!("sbarhived: cannot create settings: {e}");
+            return;
+        }
         SETTINGS.with(|s| {
             if let Some(w) = s.borrow().as_ref()
                 && let Err(e) = w.open(&config)
