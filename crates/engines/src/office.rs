@@ -294,10 +294,12 @@ fn is_executable(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 }
 
+// The non-Unix versions live in their own file, so `.cargo/mutants.toml`
+// can leave them out: a Linux build never compiles them.
 #[cfg(not(unix))]
-fn is_executable(path: &Path) -> bool {
-    path.is_file()
-}
+mod non_unix;
+#[cfg(not(unix))]
+use non_unix::{is_executable, kill_group};
 
 pub(crate) struct ChildOutcome {
     pub status: ExitStatus,
@@ -401,11 +403,6 @@ fn kill_group(child: &mut std::process::Child) {
     unsafe {
         libc::killpg(pgid, libc::SIGKILL);
     }
-}
-
-#[cfg(not(unix))]
-fn kill_group(child: &mut std::process::Child) {
-    let _ = child.kill();
 }
 
 #[cfg(test)]

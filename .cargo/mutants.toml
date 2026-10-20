@@ -1,0 +1,4 @@
+# cargo-mutants configuration.
+# Code compiled only on other platforms cannot be tested by a Linux run, so
+# its mutants would always be reported as missed.
+exclude_globs = ["crates/engines/src/office/non_unix.rs"]

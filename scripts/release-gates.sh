@@ -40,7 +40,8 @@ M="$OUT/mutants-tree"
 rm -rf "$M" && mkdir -p "$M" && git archive HEAD | tar -x -C "$M"
 for f in crates/daemon/src/text.rs crates/core/src/config.rs crates/cli/src/clipboard.rs \
          crates/cli/src/main.rs crates/core/src/engine.rs crates/core/src/i18n.rs \
-         crates/core/src/ipc.rs crates/core/src/action.rs crates/ui/src/layout.rs; do
+         crates/core/src/ipc.rs crates/core/src/action.rs crates/ui/src/layout.rs \
+         crates/engines/src/office.rs crates/engines/src/pdf.rs; do
   name="mutants-$(echo "$f" | tr '/' '_')"
   step "$name" bash -c "cd '$M' && cargo mutants --file '$f' -j 4 --timeout 90 --output '$OUT/$name'"
   grep -hE "MISSED" "$OUT/$name.log" | sed 's/^/  /' | tee -a "$REPORT"

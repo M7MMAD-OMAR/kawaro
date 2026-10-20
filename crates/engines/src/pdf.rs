@@ -125,16 +125,12 @@ fn merge(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), En
         cancel.check()?;
         let mut doc = load_pdf(path)?;
         doc.renumber_objects_with(next_id);
+        next_id = doc.max_id + 1;
         let pages: Vec<ObjectId> = doc.get_pages().into_values().collect();
-        let root = doc.trailer.get(b"Root").and_then(Object::as_reference).ok();
-        for (id, object) in doc.objects {
-            // The old catalog and page tree nodes are replaced by new ones.
-            let is_tree = object.type_name().is_ok_and(|t| t == b"Pages");
-            if Some(id) != root && !is_tree {
-                next_id = next_id.max(id.0 + 1);
-                out.objects.insert(id, object);
-            }
-        }
+        // Everything is copied. The old catalog, page tree and cross-reference
+        // stream become unreachable once the pages get the new Parent, and
+        // prune_objects drops them below.
+        out.objects.extend(doc.objects);
         for page in pages {
             if let Ok(dict) = out.get_dictionary_mut(page) {
                 dict.set("Parent", pages_id);
@@ -156,8 +152,9 @@ fn merge(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), En
         Object::Dictionary(dictionary! { "Type" => "Catalog", "Pages" => pages_id }),
     );
     out.trailer.set("Root", catalog_id);
-    out.max_id = next_id - 1;
     out.prune_objects();
+    // The highest id still in use, so the dropped objects reserve no ids.
+    out.max_id = out.objects.keys().next_back().map_or(0, |id| id.0);
     save(&mut out, &task.output)
 }
 
@@ -318,17 +315,12 @@ impl GhostscriptEngine {
         cmd.args(["-dSAFER", "-dBATCH", "-dNOPAUSE"])
             .args(args)
             .arg(input);
-        let mut total = 0usize;
-        let outcome = run_child(
-            &mut cmd,
-            cancel,
-            timeout,
-            &mut |line| match parse_gs_line(line) {
-                GsLine::Total(n) => total = n,
-                GsLine::Page(n) if total > 0 => progress(n.min(total) as f32 / total as f32 * 0.9),
-                _ => {}
-            },
-        )
+        let mut pages = GsProgress::default();
+        let outcome = run_child(&mut cmd, cancel, timeout, &mut |line| {
+            if let Some(fraction) = pages.feed(line) {
+                progress(fraction);
+            }
+        })
         .map_err(|e| match e {
             EngineError::Io(err) if err.kind() == std::io::ErrorKind::NotFound => {
                 EngineError::Unavailable(format!("{} not found", program.display()))
@@ -522,6 +514,30 @@ fn parse_gs_line(line: &str) -> GsLine {
     }
 }
 
+/// Turns Ghostscript's output into progress fractions up to 0.9.
+#[derive(Default)]
+struct GsProgress {
+    /// Page count from `Processing pages`, 0 until Ghostscript prints it.
+    total: usize,
+}
+
+impl GsProgress {
+    /// The fraction to report for this line, if any. Nothing is reported
+    /// before the page count is known.
+    fn feed(&mut self, line: &str) -> Option<f32> {
+        match parse_gs_line(line) {
+            GsLine::Total(n) => {
+                self.total = n;
+                None
+            }
+            GsLine::Page(n) if self.total > 0 => {
+                Some(n.min(self.total) as f32 / self.total as f32 * 0.9)
+            }
+            _ => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -593,6 +609,24 @@ mod tests {
         assert_eq!(parse_gs_line("Page two"), GsLine::Other);
         assert_eq!(parse_gs_line("GPL Ghostscript 10.06.0"), GsLine::Other);
         assert_eq!(gs_path(Path::new("/t/50%/a")), "/t/50%%/a");
+    }
+
+    #[test]
+    fn pdf_gs_progress_waits_for_the_page_count() {
+        let mut p = GsProgress::default();
+        assert_eq!(p.feed("GPL Ghostscript 10.06.0"), None);
+        // A page line before the count reports nothing.
+        assert_eq!(p.feed("Page 1"), None);
+        assert_eq!(p.feed("Processing pages 1 through 4."), None);
+        let mut seen = Vec::new();
+        for line in ["Page 1", "Loading font", "Page 2", "Page 4", "Page 9"] {
+            seen.extend(p.feed(line));
+        }
+        let want = [0.225, 0.45, 0.9, 0.9];
+        assert_eq!(seen.len(), want.len(), "{seen:?}");
+        for (got, want) in seen.iter().zip(want) {
+            assert!((got - want).abs() < 1e-6, "{seen:?}");
+        }
     }
 
     #[test]

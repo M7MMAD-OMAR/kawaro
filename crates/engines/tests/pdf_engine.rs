@@ -397,3 +397,122 @@ fn pdf_engine_cancel_unknown_op_and_capabilities() {
     assert_eq!(ops, ["merge", "rotate", "split"]);
     assert!(caps.iter().all(|(_, kinds)| kinds == &[MediaKind::Pdf]));
 }
+
+fn assert_progress(got: &[f32], want: &[f32]) {
+    assert_eq!(got.len(), want.len(), "progress {got:?}, want {want:?}");
+    for (g, w) in got.iter().zip(want) {
+        assert!((g - w).abs() < 1e-5, "progress {got:?}, want {want:?}");
+    }
+}
+
+fn count_type(doc: &Document, name: &[u8]) -> usize {
+    doc.objects
+        .values()
+        .filter(|o| o.type_name().is_ok_and(|t| t == name))
+        .count()
+}
+
+/// Like `make_pdf`, but the catalog and page tree take the lowest ids, a
+/// page is the highest id, and the file has a classic xref table. So an
+/// input's highest id belongs to a live object, and an id collision in the
+/// merged output loses a page.
+fn make_pdf_pages_last(path: &Path, texts: &[&str]) {
+    let mut doc = Document::with_version("1.5");
+    doc.reference_table.cross_reference_type = lopdf::xref::XrefType::CrossReferenceTable;
+    let pages_id = doc.new_object_id();
+    let catalog_id = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
+    let font_id = doc.add_object(dictionary! {
+        "Type" => "Font", "Subtype" => "Type1", "BaseFont" => "Helvetica",
+    });
+    let mut kids = Vec::new();
+    for text in texts {
+        let content = format!("BT /F1 12 Tf 10 10 Td ({text}) Tj ET");
+        let content_id = doc.add_object(Stream::new(dictionary! {}, content.into_bytes()));
+        let page = dictionary! {
+            "Type" => "Page", "Parent" => pages_id, "Contents" => content_id,
+            "Resources" => dictionary! { "Font" => dictionary! { "F1" => font_id } },
+        };
+        kids.push(Object::Reference(doc.add_object(page)));
+    }
+    doc.objects.insert(
+        pages_id,
+        Object::Dictionary(dictionary! {
+            "Type" => "Pages", "Count" => texts.len() as i64, "Kids" => kids,
+        }),
+    );
+    doc.trailer.set("Root", catalog_id);
+    doc.save(path).unwrap();
+}
+
+#[test]
+fn pdf_merge_numbers_objects_tightly_and_drops_the_old_trees() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut inputs = Vec::new();
+    for (name, texts) in [
+        ("a.pdf", &["A1", "A2"][..]),
+        ("b.pdf", &["B1"][..]),
+        ("c.pdf", &["C1", "C2", "C3"][..]),
+    ] {
+        let path = dir.path().join(name);
+        make_pdf_pages_last(&path, texts);
+        let input = Document::load(&path).unwrap();
+        assert_eq!(count_type(&input, b"XRef"), 0, "fixture has an xref stream");
+        let last = *input.objects.keys().next_back().unwrap();
+        assert_eq!(input.objects[&last].type_name().unwrap(), b"Page");
+        inputs.push(path);
+    }
+    let out = dir.path().join("merged.pdf");
+    let (result, progress) = run(&task("merge", &inputs, &out, ""), &CancelToken::new());
+    result.unwrap();
+    assert_progress(&progress, &[0.0, 0.3, 0.6, 0.9, 1.0]);
+
+    let doc = load(&out);
+    let texts = page_texts(&doc);
+    assert_eq!(texts.len(), 6);
+    for (text, want) in texts.iter().zip(["A1", "A2", "B1", "C1", "C2", "C3"]) {
+        assert!(
+            text.contains(&format!("({want})")),
+            "{text} should show {want}"
+        );
+    }
+    // The output's own cross-reference stream comes back as an object too.
+    let (xref_ids, ids): (Vec<_>, Vec<_>) = doc
+        .objects
+        .iter()
+        .map(|(id, o)| (id.0, o.type_name().is_ok_and(|t| t == b"XRef")))
+        .partition(|(_, is_xref)| *is_xref);
+    // Per input: one font plus a page and a content stream per page. Then
+    // the new catalog and page tree. A collision would lose objects.
+    assert_eq!(ids.len(), 5 + 3 + 7 + 2);
+    // Only the new catalog and page tree, not the inputs' own.
+    assert_eq!(count_type(&doc, b"Catalog"), 1);
+    assert_eq!(count_type(&doc, b"Pages"), 1);
+    // The xref stream takes the next free id: no ids are left reserved for
+    // the dropped catalogs and page trees.
+    let highest = ids.iter().map(|(id, _)| *id).max().unwrap();
+    assert_eq!(xref_ids.len(), 1);
+    assert_eq!(xref_ids[0].0, highest + 1);
+}
+
+#[test]
+fn pdf_split_reports_each_page_and_stores_entries_uncompressed() {
+    let dir = tempfile::tempdir().unwrap();
+    let a = dir.path().join("a.pdf");
+    make_pdf(&a, &["S1", "S2", "S3"], Layout::default());
+    let out = dir.path().join("a-split.zip");
+    let (result, progress) = run(
+        &task("split", std::slice::from_ref(&a), &out, ""),
+        &CancelToken::new(),
+    );
+    result.unwrap();
+    assert_progress(&progress, &[0.0, 0.33, 0.66, 0.99, 1.0]);
+
+    let mut archive = zip::ZipArchive::new(std::fs::File::open(&out).unwrap()).unwrap();
+    assert_eq!(archive.len(), 3);
+    for i in 0..archive.len() {
+        assert_eq!(
+            archive.by_index(i).unwrap().compression(),
+            zip::CompressionMethod::Stored
+        );
+    }
+}
