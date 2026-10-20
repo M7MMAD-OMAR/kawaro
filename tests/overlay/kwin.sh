@@ -48,6 +48,10 @@
 # The layer mode also checks AC16 (S-018e): every wl_pointer.enter on the
 # catcher or the hive is followed by wp_cursor_shape_device_v1.set_shape(
 # <serial>, 1); each show moves the pointer over the catcher and the hive.
+# And AC18 (S-018f): each hide frees that show's buffers (buffers.py): every
+# wl_buffer alive at the show's zwlr_layer_surface_v1.destroy is destroyed by
+# the client then, before the compositor releases it, and no wl_buffer or
+# wl_shm_pool of the show is left.
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
 # Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop|scheme|1.5] [target/release]
@@ -385,6 +389,26 @@ PY
       local c16 h16 b16; read -r _ c16 h16 b16 <<<"$(grep '^SUMMARY' <<<"$ac16")"
       check "AC16: the pointer entered the catcher and the hive (the test reached both)" '[ "${c16:-0}" -ge 1 ] && [ "${h16:-0}" -ge 1 ]'
       check "AC16: every wl_pointer.enter on the catcher or the hive is followed by wp_cursor_shape_device_v1.set_shape(<serial>, 1)" '[ -n "${b16:-}" ] && [ "$b16" -eq 0 ]'
+
+      # AC18 (S-018f): each hide frees that show's buffers. buffers.py follows
+      # every wl_buffer and wl_shm_pool of the show line by line: a buffer still
+      # alive at the show's zwlr_layer_surface_v1.destroy must be destroyed by
+      # the client within 250 ms and before the compositor's release of it, and
+      # no buffer or pool the show made is alive at its end.
+      local ranges=() j
+      for ((j = 0; j < nshows; j++)); do ranges+=("${marks[j]}:${marks[j + 1]}"); done
+      local ac18; ac18=$(python3 -I "$HERE/buffers.py" "$DLOG" "${ranges[@]}" 2>&1)
+      grep '^INFO' <<<"$ac18"
+      for ((j = 0; j < nshows; j++)); do
+        local n=$((j + 1)) name=${names[j]} shm px ld ah lshm lpx lb lp
+        read -r shm px _ ld ah lshm lpx lb lp <<<"$(grep "^SHOW $n " <<<"$ac18" | cut -d' ' -f3- | sed -E 's/[a-z_]+=//g')"
+        echo "INFO AC18 show $n ($name): shm buffers ${shm:-?}, single pixel ${px:-?}, layer destroys ${ld:-?}, alive at the hide ${ah:-?}, not freed at the hide shm ${lshm:-?} px ${lpx:-?}, left buffers ${lb:-?} pools ${lp:-?}"
+        check "AC18 show $n ($name): the show drew into wl_shm buffers (the check is not empty)" '[ "${shm:-0}" -ge 1 ]'
+        check "AC18 show $n ($name): the hide sends zwlr_layer_surface_v1.destroy (exactly one)" '[ "${ld:-0}" -eq 1 ]'
+        check "AC18 show $n ($name): every wl_shm buffer alive at the hide gets wl_buffer.destroy at the hide, not after its release" '[ -n "${lshm:-}" ] && [ "$lshm" -eq 0 ]'
+        check "AC18 show $n ($name): the catcher's single pixel buffer gets wl_buffer.destroy at the hide, not after its release" '[ -n "${lpx:-}" ] && [ "$lpx" -eq 0 ]'
+        check "AC18 show $n ($name): no wl_buffer or wl_shm_pool of the show is left alive" '[ -n "${lp:-}" ] && [ "$lb" -eq 0 ] && [ "$lp" -eq 0 ]'
+      done
     else
       check "AC6: no get_layer_surface in the whole trace" '[ "$layer_all" -eq 0 ]'
       check "AC6: get_xdg_surface in the trace" '[ "$xdg_all" -ge 1 ]'

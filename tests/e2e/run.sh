@@ -6,8 +6,12 @@ set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BIN="${1:-$ROOT/target/release}"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+# S-018 AC18: Esc closes the shown hive before the memory checks; on the layer
+# path focus loss no longer closes it. Input comes from fake input.
+INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
+[ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 SANDBOX="$(mktemp -d)"
-export BIN SANDBOX ROOT
+export BIN SANDBOX ROOT INPUT
 
 inner() {
   set -u
@@ -33,7 +37,9 @@ inner() {
   "$BIN/sbarhive" quit >/dev/null 2>&1
   for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/sbarhive.sock" ] || break; sleep 0.1; done
 
-  "$BIN/sbarhived" >"$SANDBOX/daemon.log" 2>&1 &
+  # S-018 AC18: the hive surface and focus lines and the Wayland trace show
+  # the hive as a layer and its close by Esc below.
+  SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$SANDBOX/daemon.log" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
   check "daemon answers ping" '"$BIN/sbarhive" ping | grep -q pong'
@@ -62,6 +68,21 @@ inner() {
   check "combined PDF from two images" '[ -n "$pdf_id" ] && ls "$W"/b*.pdf >/dev/null 2>&1 && [ "$(head -c 4 "$W"/b*.pdf)" = %PDF ]'
 
   check "open shows the hive" '"$BIN/sbarhive" open "$W/b.jpg"'
+  # S-018 AC18: close the hive explicitly, so the memory check below measures
+  # the daemon after a hide. On KWin the hive is a layer surface (AC1) and
+  # takes the keyboard (AC4), so Esc from fake input closes it (AC9).
+  for _ in $(seq 30); do grep -q '^hive focus: true$' "$SANDBOX/daemon.log" && break; sleep 0.1; done
+  check "S-018 AC18: the hive is a layer surface with the keyboard" \
+    'grep -qE "^hive surface: layer " "$SANDBOX/daemon.log" && grep -q "^hive focus: true$" "$SANDBOX/daemon.log"'
+  local inf="$XDG_RUNTIME_DIR/in"; mkfifo "$inf"
+  "$INPUT" <"$inf" >"$SANDBOX/input.log" 2>&1 &
+  exec 3>"$inf"
+  sleep 0.5
+  echo "keydown 1" >&3; echo "sleep 40" >&3; echo "keyup 1" >&3
+  exec 3>&-
+  sleep 1
+  check "S-018 AC18: Esc closes the hive before the memory checks (zwlr_layer_surface_v1.destroy)" \
+    'grep -qE -- "-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" "$SANDBOX/daemon.log"'
 
   # v0.2 engines through the daemon.
   ffmpeg -loglevel error -f lavfi -i testsrc=size=160x120:rate=10 -f lavfi -i sine=frequency=440 -t 1 -shortest "$W/clip.mp4"
@@ -120,4 +141,5 @@ export -f inner
 HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
 XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
 XDG_RUNTIME_DIR="$(mktemp -d)" WAYLAND_DISPLAY=wayland-sbh-e2e \
+KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
   dbus-run-session -- bash -c inner
