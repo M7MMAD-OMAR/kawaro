@@ -52,14 +52,18 @@ On KWin the hive is a layer surface (S-018): `kwin.sh` reads the hive's
 rectangle from the daemon's `hive surface: layer X Y W H` line (the daemon
 runs with `SBARHIVE_DEBUG_FOCUS=1`), counts it shown while there are more of
 those lines than `zwlr_layer_surface_v1.destroy` requests, and takes the
-show's new surface from `get_layer_surface`. It then runs the S-018d checks
-in `layer.sh` (AC13, AC14) for each show: keyboard interactivity 0, an empty
-input region on the catcher, one `get_data_device` after `get_layer_surface`
-with every earlier data device released first, and the drag's `enter` on
-this show's data device naming the hive subsurface. GNOME stays on the window
+show's new surface from `get_layer_surface`. It then runs the checks in
+`layer.sh` (S-018d AC13, revised by S-020 AC1 and AC2) for each show:
+keyboard interactivity 0; an empty input region on the catcher before its
+first commit, then, after the first configure and before the first hive
+frame, a region of exactly the hive rectangle; an empty input region on the
+hive subsurface; one `get_data_device` after `get_layer_surface` with every
+earlier data device released first; and the drag's first `enter` on this
+show's data device naming the catcher, at a point inside the hive rectangle. GNOME stays on the window
 path (`get_xdg_surface`). `tests/overlay/kwin.sh drop` runs the same
 `layer.sh` checks without a drag, plus a click at (100, 700) that must reach
-the window below while the hive stays.
+the window below while the hive stays, with no pointer enter on the catcher
+outside the hive and no button.
 
 The WEBP cell is located from the shipped layout rule (`crates/ui/src/layout.rs`,
 `geometry.rs`, `design/tokens.json`): first cell of ring 1, top right of the
