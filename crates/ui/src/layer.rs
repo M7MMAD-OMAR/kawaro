@@ -109,6 +109,9 @@ struct Wl {
     pointer_on_hive: bool,
     shift: bool,
     events: Vec<Ev>,
+    /// Buffers of the shown hive the compositor has not released yet,
+    /// destroyed on release or, at the latest, on hide (S-018 AC18).
+    buffers: Vec<WlBuffer>,
 }
 
 /// What the Wayland side saw, handed to the shown adapter after dispatching.
@@ -215,6 +218,7 @@ fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
         pointer_on_hive: false,
         shift: false,
         events: Vec::new(),
+        buffers: Vec::new(),
     })
 }
 
@@ -544,6 +548,11 @@ impl LayerAdapter {
                 sh.wl.catcher = None;
                 sh.wl.hive = None;
                 sh.wl.pointer_on_hive = false;
+                // The surfaces are gone, so no buffer is in use any more:
+                // free them now rather than on a later release.
+                for b in sh.wl.buffers.drain(..) {
+                    b.destroy();
+                }
             }
         });
         let _ = OWNER.try_with(|o| {
@@ -563,8 +572,8 @@ impl LayerAdapter {
         let Some((w, h)) = s.configured else { return };
         let p = self.placement((w, h));
         SHARED.with(|sh| {
-            let sh = sh.borrow();
-            let Some(sh) = sh.as_ref() else { return };
+            let mut sh = sh.borrow_mut();
+            let Some(sh) = sh.as_mut() else { return };
             let pixel = sh
                 .wl
                 .single_pixel
@@ -572,6 +581,7 @@ impl LayerAdapter {
             s.catcher_vp.set_destination(w as i32, h as i32);
             s.catcher.attach(Some(&pixel), 0, 0);
             s.catcher.damage_buffer(0, 0, i32::MAX, i32::MAX);
+            sh.wl.buffers.push(pixel);
         });
         s.sub.set_position(p.x, p.y);
     }
@@ -593,8 +603,8 @@ impl LayerAdapter {
         self.renderer.render(&mut pixels, pw as usize);
         let bytes: Vec<u8> = pixels.iter().flat_map(|c| [c.b, c.g, c.r, c.a]).collect();
         let drawn = SHARED.with(|sh| {
-            let sh = sh.borrow();
-            let sh = sh.as_ref()?;
+            let mut sh = sh.borrow_mut();
+            let sh = sh.as_mut()?;
             let buffer = shm_buffer(&sh.wl.shm, &sh.wl.qh, pw, ph, &bytes)?;
             s.hive.attach(Some(&buffer), 0, 0);
             s.hive.damage_buffer(0, 0, pw as i32, ph as i32);
@@ -609,6 +619,7 @@ impl LayerAdapter {
             if let (Some(a), Some(t)) = (&sh.wl.activation, self.activation.borrow_mut().take()) {
                 a.activate(t, &s.catcher);
             }
+            sh.wl.buffers.push(buffer);
             Some(())
         });
         drop(surfaces);
@@ -740,7 +751,7 @@ delegate_noop!(Wl: ignore WpCursorShapeDeviceV1);
 
 impl Dispatch<WlBuffer, ()> for Wl {
     fn event(
-        _: &mut Self,
+        s: &mut Self,
         b: &WlBuffer,
         e: wl_buffer::Event,
         _: &(),
@@ -748,6 +759,7 @@ impl Dispatch<WlBuffer, ()> for Wl {
         _: &QueueHandle<Self>,
     ) {
         if let wl_buffer::Event::Release = e {
+            s.buffers.retain(|x| x != b);
             b.destroy();
         }
     }

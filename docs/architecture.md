@@ -85,6 +85,48 @@ Rules from the spike (ADR 0001): software renderer, embedded IBM Plex Sans
 Arabic, colours and sizes generated from `design/tokens.json` at build time,
 theme follows the system colour scheme, Arabic mirrors the layout.
 
+### Hive surface: layer path and window path (S-018, ADR 0004)
+
+The hive is drawn on one of two surfaces, chosen again at every hive build
+by `overlay::choose_surface` (`crates/ui/src/overlay.rs`, pure) from the
+globals the compositor advertises, the screen reader state and the
+`SBARHIVE_SURFACE` environment variable:
+
+- **Layer path** (`crates/ui/src/layer.rs`): a Slint window adapter with the
+  software renderer on its own wayland-client connection. Each show creates
+  a catcher, a `zwlr_layer_shell_v1` surface on the overlay layer with the
+  namespace `sbarhive`, anchored to every edge, exclusive zone -1 and
+  exclusive keyboard (none in drop mode, whose input region is empty). Its
+  buffer is one transparent pixel from `wp_single_pixel_buffer_manager_v1`
+  stretched over the output by `wp_viewporter`; a click on it closes the
+  hive. The hive itself is a `wl_subcompositor` subsurface of the catcher,
+  centred by `overlay::place`, holding the Slint frame in a `wl_shm` buffer
+  scaled by its own `wp_viewporter` (fractional scale when offered). An
+  activation token goes to `xdg_activation_v1.activate` with the first
+  frame. On hide every surface, the `zwlr_layer_surface_v1` and every
+  buffer of the show not yet released are destroyed together, so no
+  Wayland surface or buffer of a hidden hive stays alive (AC18).
+- **Window path**: the winit backend, an ordinary `xdg_toplevel`
+  (xdg-shell) window centred by the compositor, as before S-018. It is
+  used on GNOME, X11 and Windows, and wherever the layer path cannot be.
+
+Choice rule:
+
+1. `SBARHIVE_SURFACE=window` always gives the window path.
+2. `SBARHIVE_SURFACE=layer` gives the layer path, even with a screen reader,
+   when the compositor has all four of `zwlr_layer_shell_v1`,
+   `wl_subcompositor`, `wp_viewporter` and `wp_single_pixel_buffer` (the
+   `wp_single_pixel_buffer_manager_v1` global); otherwise a window, with a
+   log line naming what is missing.
+3. With no override, the layer path needs Wayland, those four globals and no
+   screen reader. A running screen reader (`ScreenReaderEnabled` on
+   `org.a11y.Status`, watched on the session bus) makes the next show a
+   window, since the overlay has no accessibility tree; when it stops, the
+   next show is a layer again.
+
+On Hyprland a layer rule for the `sbarhive` namespace can turn off its
+animation; see `integrations/linux/hyprland/README.md`.
+
 ## Settings
 
 `~/.config/sbarhive/config.toml`, model in `crates/core/src/config.rs`:

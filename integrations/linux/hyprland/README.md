@@ -27,6 +27,22 @@ bind = SUPER, mouse:273, exec, ~/.local/bin/sbarhive-open-selection
 - Hyprland دون uwsm لا يشغّل `graphical-session.target` ولا ملفات autostart. الخدمة تبدأ عند أول طلب من `sbarhive open`، أو أضف: `exec-once = ~/.local/bin/sbarhived`.
 - إن ثبّتّ بمسار PREFIX مختلف فاستبدل `~/.local/bin` به. المثبّت يطبع السطر بالمسار الصحيح.
 
+### إلغاء حركة ظهور الخلية
+
+على Hyprland تظهر الخلية طبقةً (layer-shell) باسم `sbarhive`، فيطبّق عليها Hyprland حركة الطبقات. لإلغائها أضف قاعدة طبقة. القاعدة لم يُتحقق منها بعد على Hyprland حقيقي.
+
+بصيغة Lua (Hyprland 0.55 وما بعده، الملف `hyprland.lua`):
+
+```
+hl.layer_rule({ match = { namespace = "^sbarhive$" }, no_anim = true })
+```
+
+بصيغة hyprlang (Hyprland 0.53 و0.54، الملف `hyprland.conf`)، لم يُتحقق منها:
+
+```
+layerrule = no_anim on, match:namespace ^sbarhive$
+```
+
 ## English
 
 `scripts/install.sh` installs `~/.local/bin/sbarhive-open-selection` when it finds `hyprctl`. It never edits `hyprland.conf`; add a bind yourself.
@@ -53,3 +69,19 @@ Notes:
 - If your file manager is slow to copy, raise the delay: `SBARHIVE_COPY_DELAY=0.3`.
 - Hyprland without uwsm starts neither `graphical-session.target` nor autostart files. The daemon starts on the first `sbarhive open`, or add `exec-once = ~/.local/bin/sbarhived`.
 - With a different PREFIX, replace `~/.local/bin`. The installer prints the line with the right path.
+
+### Turning off the hive's animation
+
+On Hyprland the hive is a layer-shell surface with the namespace `sbarhive`, so Hyprland animates it like any layer. A layer rule turns that off. The rule is not verified yet on a real Hyprland session.
+
+Lua form (Hyprland 0.55 and later, `hyprland.lua`):
+
+```
+hl.layer_rule({ match = { namespace = "^sbarhive$" }, no_anim = true })
+```
+
+hyprlang form (Hyprland 0.53 and 0.54, `hyprland.conf`), not verified:
+
+```
+layerrule = no_anim on, match:namespace ^sbarhive$
+```
