@@ -157,10 +157,12 @@ protocol_checks() {
     # so its get_xdg_surface can come before the show's mark: search the
     # whole trace up to the end of this show, not only its segment.
     local xs dd
-    xs=$(head -n "${MARKS[i + 1]}" "$DLOG" | grep -n -- '-> xdg_wm_base#[0-9]*\.get_xdg_surface(' | tail -1 | cut -d: -f1)
+    # S-018d: on the layer path (KWin) the hive's new surface is the catcher
+    # given to get_layer_surface; on the window path (GNOME) get_xdg_surface.
+    xs=$(head -n "${MARKS[i + 1]}" "$DLOG" | grep -nE -- '-> (xdg_wm_base#[0-9]+\.get_xdg_surface|zwlr_layer_shell_v1#[0-9]+\.get_layer_surface)\(' | tail -1 | cut -d: -f1)
     dd=$(grep -n -- '-> wl_data_device_manager#[0-9]*\.get_data_device(' <<<"$seg" | tail -1 | cut -d: -f1)
     [ -n "$dd" ] && dd=$((dd + MARKS[i]))
-    echo "INFO show $((i + 1)): get_xdg_surface at line ${xs:-none}, get_data_device at line ${dd:-none}, count $(grep -c -- '-> wl_data_device_manager#[0-9]*\.get_data_device(' <<<"$seg")"
+    echo "INFO show $((i + 1)): hive surface (get_xdg_surface or get_layer_surface) at line ${xs:-none}, get_data_device at line ${dd:-none}, count $(grep -c -- '-> wl_data_device_manager#[0-9]*\.get_data_device(' <<<"$seg")"
     check "AC5 show $((i + 1)): wl_data_device requested for the new hive surface" \
       '[ -n "$xs" ] && [ -n "$dd" ] && [ "$dd" -gt "$xs" ]'
     # Events print without the arrow. Every show must reach the receiver,

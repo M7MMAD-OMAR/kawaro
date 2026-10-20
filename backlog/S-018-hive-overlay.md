@@ -255,3 +255,56 @@
 - 2026-10-20، المختبِر (S-018c، إصلاح الأداة في AC10 بالمستوى 4 بموافقة المدير): لم تتغير أي فحوص. السبب من سجل المنفِّذ: KWin بالمستوى 4 يقبل الرمز فقط إذا كان `lastInteractionSerial() <=` رقم الرمز (`src/activation.cpp:604`)، و`client.py` كان يأخذ رمزه برقم 0 بعد Esc التسخين المحقون.
   - الملفات: `tests/focus/client.py` (وضع `CLIENT_CLICK=1`: تُكبَّر النافذة، ويحجز `Gtk.GestureClick` الضغطة، لأن `Gtk.Entry` كان يحجزها فتُلغى الإيماءة بلا تحرير، والإطلاق عند التحرير كما يفعل مدير الملفات)، و`tests/overlay/focus.sh` و`tests/focus/kwin.sh` (في حالة `token` وحدها نقرة محقونة في (640، 400) بعد إغلاق التسخين، وأثر العميل في `*-client-wayland.log`؛ و`notoken` و`bogus` بلا تغيير، والمؤشر ساكن)، و`tests/focus/README.md`. وفي `kwin.sh` يبدأ `kwin-input` مرة واحدة قبل التسخين ويبقى مفتوحاً حتى النهاية.
   - التشغيل (`nice -n 19`، بناء `-j 2`): `tests/overlay/focus.sh` كاملاً مرة: نجحت `1:notoken` و`4:notoken` و`4:bogus` و`2:notoken` و`3:notoken`، وفشلت حالتا `token` لأن الأداة كانت معطوبة (الإيماءة أُلغيت فلا إطلاق). بعد حجز الضغطة أُعيدت حالتا `token` فقط: `1:token` RESULT PASS و`4:token` RESULT PASS (`activate("kwin-2", wl_surface#24)`، ثم `wl_keyboard.enter` بعد 5 ms، و`hive focus: true`). أثر العميل: الضغطة `button(21, ..., 1)` والتحرير `button(22, ..., 0)` ثم `set_serial(21, wl_seat)`، فالتحرير لا يُحسب تفاعلاً أحدث. `tests/focus/kwin.sh token level=4`: `daemon focus lines: hive focus: true`، الرمز `kwin-2` برقم 21. الجدول: `1:token true 5 ms`، `1:notoken true 4 ms`، `4:token true 5 ms`، `4:notoken false`، `4:bogus false`، `2:notoken true 3 ms`، `3:notoken true 3 ms`.
+- 2026-10-20، المختبِر (S-018d فقط، AC13 وAC14): كُتبت الاختبارات من المعايير وشُغّل كل سكربت جديد أو معدَّل مرة واحدة على بناء `6bdf20a` (`cargo build --release -j 2`، `nice -n 19`). تفشل فحوص جهاز البيانات على اتصال الطبقة وكل فحوص الإفلات الفعلي في KWin، لأن المستقبِل لا يُربط على مسار الطبقة (سجل المنفِّذ في S-018b، الخطر 3). وتنجح اليوم فحوص الماسك في وضع الإفلات (لوحة المفاتيح 0، منطقة الإدخال الفارغة، النقرة تصل GTK والخلية باقية)، لأن S-018b سلّمتها مسبقاً (سجل المنفِّذ: «لوحة المفاتيح 1 أو 0 في ظهور الإفلات مع منطقة إدخال فارغة»)، فهي حارسات انحدار كما في AC8 وAC9، ولم يُختلق شرط زائد ليفشلها.
+  - الملفات: `tests/drop/layer.sh` جديد (الدالة `layer_drop_show N FROM TO ENTER` يستعملها السكربتان)، ووضع `drop` جديد في `tests/overlay/kwin.sh` (السطور 26 إلى 32 في الرأس، والسطران 35 و44 لقائمة الأوضاع، والسطور 478 إلى 512)، وتعديل `tests/drop/kwin.sh` و`tests/drop/lib.sh` و`tests/drop/README.md`.
+  - تعديل الاختبارات القائمة (التأكيدات كما هي):
+    1. `tests/drop/lib.sh:160` (كان السطر 160 وحده، صار 160 إلى 162): سطح الظهور الجديد هو آخر `get_xdg_surface` **أو** `get_layer_surface` حتى نهاية الظهور، بالبحث نفسه في الأثر كله. يخدم السطرُ المسارين: على KWin صفر `get_xdg_surface` (S-018 AC4)، وعلى GNOME صفر `get_layer_surface` (AC6)، والشرط `dd > xs` كما هو. و`:165` (كان 163) نص سطر INFO فقط. لا تغيير آخر في `lib.sh`.
+    2. `tests/drop/kwin.sh:46` إلى `:59` (كانت 46 إلى 63، ومنها السطر 51): `hive_geo` لا يمكن أن يأتي من سكربت KWin، لأن نافذة الطبقة في `windowList` هي الماسك بملء الشاشة واسمها فارغ. صار يقرأ سطر `hive surface: layer X Y W H` من سجل الخدمة (S-018 AC11)، والخلية ظاهرة ما دام عدد هذه الأسطر أكبر من عدد `zwlr_layer_surface_v1.destroy` في الأثر، فيبقى `wait_gone` (شرط AC7) صحيحاً. لذلك أُضيف `SBARHIVE_DEBUG_FOCUS=1` إلى تشغيل الخدمة في `:78` (كان 82)، لأن السطر لا يُطبع دونه. وفي `:2` و`:3` سطر الرأس، و`:91` إلى `:96` جديدة بعد `protocol_checks`: فحوص `layer.sh` لكل ظهور بـ `ENTER=1`.
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل)، لكل ظهور بوضع الإفلات على KWin (`layer.sh`):
+    1. `get_layer_surface` واحد بالضبط، وكل `set_keyboard_interactivity` في الظهور بالقيمة 0 (واحد على الأقل).
+    2. منطقة إدخال فارغة على الماسك (الـ `wl_surface` الممرَّر إلى `get_layer_surface`): `wl_compositor.create_region(new id wl_region#R)` ثم `<الماسك>.set_input_region(wl_region#R)` بلا `wl_region#R.add` بينهما. `set_input_region(nil)` لا يُقبل (منطقة لا نهائية).
+    3. `wl_data_device_manager.get_data_device` واحد بالضبط في الظهور، بعد `get_layer_surface` فيه.
+    4. كل `wl_data_device` أُنشئ قبله في الأثر كله يُرسَل له `wl_data_device#N.release()` بعد إنشائه وقبل `get_data_device` الجديد. فالجهاز السابق يُحرَّر قبل الجديد، ولا يُستثنى الظهور الأول.
+    5. AC14 (`tests/drop/kwin.sh` وحده، بسحب حقيقي): حدث `enter` على جهاز هذا الظهور نفسه يسمّي السطح الفرعي للخلية في هذا الظهور (أول `wl_surface` في `get_subsurface`). هذا دليل «اتصال الطبقة»: الأثر فيه أربعة اتصالات بمعرّفات متكررة، ولا يخبر المؤلِّفُ بسطح الخلية إلا جهازاً على اتصاله، فالمطابقة تجري داخل قطعة الظهور.
+    6. `tests/overlay/kwin.sh drop`: ثلاثة ظهورات `sbarhive drop` بلا سحب، كلٌّ يُغلق بمهلة 10 ث (لا لوحة مفاتيح فلا Esc). في الأول نقرة في (100، 700) بعد 1.5 ث: نقرة واحدة عند GTK، وصفر `wl_pointer.enter` على الماسك وصفر `wl_pointer.button` في الخدمة، وصفر `wl_keyboard.enter`، وهدم طبقة واحد بالضبط بعد 9000 ms أو أكثر من `get_layer_surface` (المهلة لا النقرة). ولا خطأ بروتوكول.
+    7. `tests/drop/kwin.sh level=1`: كل فحوص S-014b كما هي على مسار الطبقة، وموقع الخلية من سطر `hive surface` (444 219 393 362 في هذا التشغيل)، فيجب أن يُطبع السطر في كل ظهور إفلات كما في AC11.
+  - ما حُسم حيث سكت المعيار: «لوحة مفاتيح 0» تعني أن كل طلب `set_keyboard_interactivity` في ظهور الإفلات بالقيمة 0؛ «المنطقة الفارغة» تعني منطقة بلا `add`؛ «الخلية باقية» تعني أن الهدم من المهلة (9 ث أو أكثر بعد الظهور)؛ «الجهاز السابق يُحرَّر قبله» يشمل كل جهاز سابق في الأثر.
+  - تشغيل واحد لكلٍّ:
+    - `nice -n 19 tests/overlay/kwin.sh drop`: RESULT FAIL (6).
+      ```
+      INFO S-018d show 1: catcher wl_surface#15, hive subsurface wl_surface#19, keyboard_interactivity 0 x1 other x0, input region wl_region#17 (adds 0), get_data_device x0 none at line none, unreleased before it: none
+      PASS AC13 show 1: exactly one get_layer_surface (drop mode is a layer)
+      PASS AC13 show 1: the catcher takes no keyboard (every set_keyboard_interactivity is 0)
+      PASS AC13 show 1: the catcher has an empty input region (create_region, no add, set_input_region)
+      FAIL AC13 show 1: exactly one get_data_device, after get_layer_surface
+      FAIL AC13 show 1: every earlier wl_data_device is released before it
+      (الظهوران 2 و3 بالفشل نفسه)
+      INFO drop1: GTK clicks 1, layer destroys 1, shown for 10005 ms, pointer enter on the catcher 0, pointer buttons 0, keyboard enter 0
+      PASS AC13 drop mode: the click at (100, 700) reaches the GTK window (one click)
+      PASS AC13 drop mode: the catcher gets no pointer enter and the daemon no button
+      PASS AC13 drop mode: the catcher gets no keyboard (no wl_keyboard.enter)
+      PASS AC13 drop mode: the hive stays after the click (closed once, by the 10 s timeout, not by the click)
+      PASS AC13: no protocol error in the daemon log
+      RESULT FAIL (6)
+      ```
+    - `nice -n 19 tests/drop/kwin.sh level=1`: RESULT FAIL (28). `hive_geo` الجديد وجد الخلية في كل ظهور (`INFO show 1: hive at 444 219 393x362`)، فالأداة سليمة والفشل من غياب المستقبِل:
+      ```
+      FAIL AC7 show 1: photo one.webp written next to the original within 5 s
+      FAIL AC7 show 1: output is image/webp
+      FAIL AC7 show 2: drop on the corner closes the hive
+      FAIL AC7 show 3: photo three.webp written next to the original within 5 s
+      FAIL AC7 show 4: drop on the centre closes the hive
+      INFO show 1: hive surface (get_xdg_surface or get_layer_surface) at line 407, get_data_device at line none, count 0
+      FAIL AC5 show 1: wl_data_device requested for the new hive surface
+      FAIL AC6 show 1: receiver got enter on its data device
+      (الظهورات 2 إلى 4 بالفشل نفسه)
+      FAIL AC6: set_actions(Copy, Copy) sent
+      FAIL AC6: accepts "text/uri-list" and no other type
+      FAIL AC13 show 1: exactly one get_data_device, after get_layer_surface
+      FAIL AC13 show 1: every earlier wl_data_device is released before it
+      FAIL AC14 show 1: the drag enters this show's data device on the hive subsurface (layer connection)
+      (الظهورات 2 إلى 4 بالفشل نفسه، وفحوص لوحة المفاتيح 0 والمنطقة الفارغة ناجحة في الأربعة)
+      RESULT FAIL (28)
+      ```
+    - `nice -n 19 tests/drop/gnome.sh smart` (لأن `lib.sh` المشترك تغيّر): RESULT PASS، حارس AC14 على مسار النافذة.
+  - ملاحظات للمنفِّذ والمراجع: (1) السطح الفرعي للخلية `wl_surface#19` نفسه في كل الظهورات (يُعاد استعماله ويُنشأ له `wl_subsurface` جديد)، والاختبار لا يشترط سطحاً جديداً. (2) `tests/drop/kwin.sh` لا يدعم اليوم `SBARHIVE_SURFACE=window` على KWin (`hive_geo` من سطر الطبقة وحده)، لأن AC14 يطلب مسار الطبقة؛ مسار النافذة يحرسه `gnome.sh`. (3) السكربتان `tests/drop/*.sh` يتركان مجلدَي `mktemp` في `/tmp` كما قبل هذه القصة؛ حُذفت مجلدات تشغيلَيّ يدوياً. (4) لم يُشغَّل `tests/overlay/kwin.sh` بوضعه الافتراضي ولا `focus.sh` ولا e2e ولا `cargo mutants` (حمل الجهاز)، ولم يُعدَّل أي فحص فيها.

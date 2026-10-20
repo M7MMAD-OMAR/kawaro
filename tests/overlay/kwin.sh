@@ -23,9 +23,16 @@
 #                    with ScreenReaderEnabled=true makes the next show an
 #                    xdg_surface; after PropertiesChanged to false the next
 #                    show is a layer again.
+#   drop             AC13 (S-018d): three `sbarhive drop` shows with no drag,
+#                    each closed by the 10 s timeout (no keyboard, so no Esc).
+#                    The catcher takes no keyboard and has an empty input
+#                    region, a click at (100, 700) in show 1 reaches the GTK
+#                    window once and the hive stays, and each show requests
+#                    one wl_data_device after get_layer_surface with every
+#                    earlier one released first (tests/drop/layer.sh).
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
-# Usage: tests/overlay/kwin.sh [window|input|token|a11y] [target/release]
+# Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop] [target/release]
 # Conditions go to check() in single quotes and are expanded by eval.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -34,7 +41,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in window|input|token|a11y) MODE=$a ;; *) BIN="$a" ;; esac
+  case "$a" in window|input|token|a11y|drop) MODE=$a ;; *) BIN="$a" ;; esac
 done
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
@@ -467,6 +474,41 @@ PY
       '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$off")" -eq 1 ]'
     check "AC12 PropertiesChanged to false: no get_xdg_surface for that show" '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$off")" -eq 0 ]'
     check "AC12: no protocol error in the daemon log" 'no_protocol_error'
+    ;;
+
+  drop)
+    # shellcheck source=../drop/layer.sh
+    source "$ROOT/tests/drop/layer.sh"
+    local n
+    for n in 1 2 3; do
+      begin "drop$n"
+      "$BIN/sbarhive" drop >>"$log-cli.log" 2>&1
+      sleep 1.5
+      # AC13: in drop mode a click outside the hive passes to the window below.
+      [ "$n" = 1 ] && click 100 700
+      # No drag enters it, so it closes 10 s after showing (S-014a AC3).
+      sleep 11
+    done
+    finish
+    local i
+    for ((i = 0; i < 3; i++)); do
+      layer_drop_show $((i + 1)) "${marks[i]}" "${marks[i + 1]}" 0
+    done
+    local seg cat gls dls dt=none pe pb ke
+    seg=$(seg_of 0); cat=$(catcher_of "$seg")
+    gls=$(grep -E -- "${R}zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" <<<"$seg" | head -1)
+    dls=$(grep -E -- "${R}zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" <<<"$seg" | head -1)
+    [ -n "$gls" ] && [ -n "$dls" ] && dt=$(( $(ts_ms "$dls") - $(ts_ms "$gls") ))
+    pe=$(evcount "wl_pointer[#@][0-9]+\.enter\([0-9]+, ${cat:-none}," "$seg")
+    pb=$(evcount 'wl_pointer[#@][0-9]+\.button\(' "$seg")
+    ke=$(evcount 'wl_keyboard[#@][0-9]+\.enter\(' "$seg")
+    echo "INFO drop1: GTK clicks $(clicks_of 0), layer destroys $(layer_destroys "$seg"), shown for ${dt} ms, pointer enter on the catcher $pe, pointer buttons $pb, keyboard enter $ke"
+    check "AC13 drop mode: the click at (100, 700) reaches the GTK window (one click)" '[ "$(clicks_of 0)" -eq 1 ]'
+    check "AC13 drop mode: the catcher gets no pointer enter and the daemon no button" '[ -n "$cat" ] && [ "$pe" -eq 0 ] && [ "$pb" -eq 0 ]'
+    check "AC13 drop mode: the catcher gets no keyboard (no wl_keyboard.enter)" '[ "$ke" -eq 0 ]'
+    check "AC13 drop mode: the hive stays after the click (closed once, by the 10 s timeout, not by the click)" \
+      '[ "$(layer_destroys "$seg")" -eq 1 ] && [ "$dt" != none ] && [ "$dt" -ge 9000 ]'
+    check "AC13: no protocol error in the daemon log" 'no_protocol_error'
     ;;
   esac
 

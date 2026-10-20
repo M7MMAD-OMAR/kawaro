@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# S-014b drop receiver on KWin (AC5, AC6, AC7). A GTK 4 window drags a PNG,
+# S-014b drop receiver on KWin (AC5, AC6, AC7), on the layer path since
+# S-018d (S-018 AC13, AC14). A GTK 4 window drags a PNG,
 # `sbarhive drop` is run mid-drag (what the shortcut does), and the file is
 # dropped: show 1 on the WEBP cell, show 2 on a transparent corner, show 3 on
 # the WEBP cell with Shift held, show 4 on the centre cell. The daemon runs
@@ -43,23 +44,18 @@ inner() {
   [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "kwin did not start"; tail "$log-kwin.log"; return 1; }
   sleep 2
 
-  hive_geo() { # KWin script printing the hive's frame geometry to KWin's log
-    # Called in $(...) subshells, so the tag cannot come from a counter.
-    local tag="sbh-geo-${EPOCHREALTIME/./}-$RANDOM" id
-    local js="$XDG_RUNTIME_DIR/$tag.js"
-    cat >"$js" <<JS
-workspace.windowList().filter(w => w.caption === "SbarHive" && !w.minimized && !w.deleted)
-  .forEach(w => { const g = w.frameGeometry; print("$tag " + Math.round(g.x) + " " + Math.round(g.y) + " " + Math.round(g.width) + " " + Math.round(g.height)); });
-print("$tag end");
-JS
-    id=$(gdbus call --session --dest org.kde.KWin --object-path /Scripting \
-      --method org.kde.kwin.Scripting.loadScript "$js" "$tag" | grep -o '[0-9]\+' | head -1)
-    gdbus call --session --dest org.kde.KWin --object-path "/Scripting/Script$id" \
-      --method org.kde.kwin.Script.run >/dev/null 2>&1
-    for _ in $(seq 20); do grep -q "$tag end" "$log-kwin.log" && break; sleep 0.05; done
-    gdbus call --session --dest org.kde.KWin --object-path /Scripting \
-      --method org.kde.kwin.Scripting.unloadScript "$tag" >/dev/null 2>&1
-    grep -o "$tag [0-9-]\+ [0-9-]\+ [0-9]\+ [0-9]\+" "$log-kwin.log" | tail -1 | cut -d' ' -f2-
+  # S-018d: on KWin the hive is a layer surface (S-018 AC4), and the layer
+  # window KWin lists is the full screen catcher, not the hive. The hive's
+  # rectangle comes from the daemon's "hive surface: layer X Y W H" line
+  # (S-018 AC11, printed once per show with SBARHIVE_DEBUG_FOCUS), and the
+  # hive is shown while there are more such lines than layer surface
+  # destroys in the trace.
+  hive_geo() {
+    local shown gone
+    shown=$(grep -cE '^hive surface: layer ' "$DLOG")
+    gone=$(grep -cE -- '-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\(' "$DLOG")
+    [ "$shown" -gt "$gone" ] || return 0
+    grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' "$DLOG" | tail -1 | cut -d' ' -f4-
   }
 
   local f="$XDG_RUNTIME_DIR/in"; mkfifo "$f"
@@ -79,7 +75,7 @@ JS
 
   # English layout, so the WEBP cell is top right of the centre. No warm-up
   # show: the first drop-mode show is part of AC5.
-  SBARHIVE_LANG=en WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  SBARHIVE_LANG=en SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
 
@@ -92,6 +88,12 @@ JS
   cycle 3 "$W/photo three.png" webp 1
   cycle 4 "$W/photo four.png" centre 0
   protocol_checks
+  # S-018d (AC13, AC14): the layer path's drop checks, per show.
+  # shellcheck source=layer.sh
+  source "$HERE/layer.sh"
+  for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
+    layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1
+  done
   summary
 
   exec 3>&-

@@ -44,6 +44,19 @@ receiver's data device and requests a
 destroys the surface on hide), `set_actions` offers copy only, and `accept`
 names `text/uri-list` only.
 
+On KWin the hive is a layer surface (S-018): `kwin.sh` reads the hive's
+rectangle from the daemon's `hive surface: layer X Y W H` line (the daemon
+runs with `SBARHIVE_DEBUG_FOCUS=1`), counts it shown while there are more of
+those lines than `zwlr_layer_surface_v1.destroy` requests, and takes the
+show's new surface from `get_layer_surface`. It then runs the S-018d checks
+in `layer.sh` (AC13, AC14) for each show: keyboard interactivity 0, an empty
+input region on the catcher, one `get_data_device` after `get_layer_surface`
+with every earlier data device released first, and the drag's `enter` on
+this show's data device naming the hive subsurface. GNOME stays on the window
+path (`get_xdg_surface`). `tests/overlay/kwin.sh drop` runs the same
+`layer.sh` checks without a drag, plus a click at (100, 700) that must reach
+the window below while the hive stays.
+
 The WEBP cell is located from the shipped layout rule (`crates/ui/src/layout.rs`,
 `geometry.rs`, `design/tokens.json`): first cell of ring 1, top right of the
 centre in the English layout.
