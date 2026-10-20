@@ -71,6 +71,7 @@ fn main() {
     rerun_dir(&manifest.join("ui"));
     rerun_dir(&manifest.join("components"));
     rerun_dir(&manifest.join("fonts"));
+    rerun_dir(&manifest.join("icons"));
     rerun_dir(&material);
 }
 
@@ -248,6 +249,14 @@ fn slint_tokens(t: &Value) -> String {
         num(t, &["hex", "gap"])
     )
     .unwrap();
+    for k in ["icon-size", "icon-gap"] {
+        writeln!(
+            s,
+            "    out property <length> hex-{k}: {}px;",
+            num(t, &["hex", k])
+        )
+        .unwrap();
+    }
     for k in ["1", "2", "3", "4", "5", "6"] {
         writeln!(
             s,

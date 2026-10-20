@@ -51,7 +51,9 @@ for formats without alpha (JPEG, BMP).
 ## UI contract (crates/ui)
 
 ```rust
-pub struct HiveCell { pub id: String, pub code: String, pub label: String, pub ring: u8 }
+/// `icon` names an SVG of the built-in set in crates/ui/icons/ (`icon_names()`);
+/// empty or unknown shows the code alone.
+pub struct HiveCell { pub id: String, pub code: String, pub label: String, pub icon: String, pub ring: u8 }
 
 /// Selects winit with the software renderer, installs the activation-token
 /// hook and the focus watcher. Call once, before creating any window.

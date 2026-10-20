@@ -13,6 +13,7 @@ accepts = ["pdf"]
 output = { mode = "per-file", suffix = "-compressed" }
 code = { ar = "ضغط", en = "SHRINK" }
 label = { ar = "ضغط ملف PDF", en = "Compress PDF" }
+icon = "compress"
 [action.params]
 preset = "ebook"
 
@@ -27,6 +28,7 @@ min_files = 2
 output = { mode = "combined", ext = "pdf", suffix = "-merged" }
 code = { ar = "دمج", en = "MERGE" }
 label = { ar = "دمج ملفات PDF في ملف واحد", en = "Merge PDFs into one" }
+icon = "merge"
 
 [[action]]
 id = "pdf.to-images"
@@ -38,6 +40,7 @@ accepts = ["pdf"]
 output = { mode = "per-file", ext = "zip", suffix = "-pages" }
 code = { ar = "صور", en = "IMAGES" }
 label = { ar = "تحويل الصفحات إلى صور PNG", en = "Convert pages to PNG images" }
+icon = "pages"
 [action.params]
 dpi = 150
 
@@ -51,6 +54,7 @@ accepts = ["pdf"]
 output = { mode = "per-file", suffix = "-rotated" }
 code = { ar = "تدوير", en = "ROTATE" }
 label = { ar = "تدوير الصفحات 90 درجة", en = "Rotate pages 90 degrees" }
+icon = "rotate"
 [action.params]
 degrees = 90
 
@@ -64,3 +68,4 @@ accepts = ["pdf"]
 output = { mode = "per-file", ext = "zip", suffix = "-split" }
 code = { ar = "تقسيم", en = "SPLIT" }
 label = { ar = "تقسيم إلى ملف PDF لكل صفحة", en = "Split into one PDF per page" }
+icon = "split"

@@ -42,6 +42,12 @@ moves with the token.
   `accent-ink` label, all stroked with `border`.
 - A cell shows a format code (WEBP, PDF) or a short action word. The full name
   appears in the centre cell on hover, never inside a small cell.
+- Above the code sits a monoline icon (`hex.icon-size` 18 px, `hex.icon-gap`
+  2 px above the code), coloured like the code: `text-primary`, `accent-ink`
+  on hover. A cell without an icon shows the code alone, centred.
+- Cell icons live in `crates/ui/icons/`: 24 px viewBox, 1.75 stroke, round
+  caps and joins, black only (the app colourises them). Actions pick one by
+  name with `icon = "..."` in `actions/*.toml`.
 
 The implementations: `spikes/hive/src/geometry.rs` (app) and `site/hive.py`
 (landing page hero). Keep them in step.

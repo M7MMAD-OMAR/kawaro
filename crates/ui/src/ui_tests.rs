@@ -14,13 +14,20 @@ struct Log {
 }
 
 fn cells() -> Vec<HiveCell> {
-    let c = |id: &str, ring| HiveCell {
+    let c = |id: &str, icon: &str, ring| HiveCell {
         id: id.into(),
         code: id.to_uppercase(),
         label: format!("label {id}"),
+        icon: icon.into(),
         ring,
     };
-    vec![c("webp", 1), c("png", 1), c("jpg", 1), c("gray", 2)]
+    // An icon, another icon, none, and a name outside the set.
+    vec![
+        c("webp", "image", 1),
+        c("png", "convert", 1),
+        c("jpg", "", 1),
+        c("gray", "no-such-icon", 2),
+    ]
 }
 
 fn key(hive: &Hive, k: Key) {
@@ -80,6 +87,15 @@ fn hive_behaviour() {
         (first.code.as_str(), first.label.as_str()),
         ("WEBP", "label webp")
     );
+    // Known icons reach the cell as a loaded image; empty and unknown names
+    // leave the code alone.
+    let icons: Vec<(bool, u32)> = (0..4)
+        .map(|i| {
+            let c = ui.get_cells().row_data(i).unwrap();
+            (c.has_icon, c.icon.size().width)
+        })
+        .collect();
+    assert_eq!(icons, [(true, 24), (true, 24), (false, 0), (false, 0)]);
     assert!(
         first.x > ui.get_centre_x(),
         "LTR ring 1 starts right of the centre"
@@ -177,6 +193,7 @@ fn hive_behaviour() {
             id: format!("a{i}"),
             code: format!("A{i}"),
             label: format!("action {i}"),
+            icon: "image".into(),
             ring: if i < 10 { 1 } else { 2 },
         })
         .collect();

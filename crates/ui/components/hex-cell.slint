@@ -7,6 +7,9 @@ export component HexCell inherits Rectangle {
     // Circumradius of the hexagon.
     in property <length> r;
     in property <string> text;
+    // Drawn above the text when `has-icon`; black-only SVG, coloured here.
+    in property <image> icon;
+    in property <bool> has-icon;
     in property <bool> highlighted;
     in property <bool> centre;
 
@@ -25,7 +28,38 @@ export component HexCell inherits Rectangle {
         animate fill, stroke { duration: Tokens.hover; }
     }
 
-    Text {
+    property <color> ink: root.highlighted ? Tokens.accent-ink : Tokens.text-primary;
+
+    // Icon and code, centred together inside the flat sides of the hexagon.
+    // The code keeps to one line, so it never runs past the hexagon's points.
+    if root.has-icon: VerticalLayout {
+        x: Tokens.space-2;
+        width: parent.width - 2 * Tokens.space-2;
+        height: parent.height;
+        alignment: center;
+        spacing: Tokens.hex-icon-gap;
+
+        Image {
+            height: Tokens.hex-icon-size;
+            source: root.icon;
+            image-fit: contain;
+            colorize: root.ink;
+            accessible-role: none;
+        }
+
+        Text {
+            horizontal-alignment: center;
+            overflow: elide;
+            text: root.text;
+            font-size: Tokens.font-body;
+            font-weight: Tokens.weight-semibold;
+            color: root.ink;
+            accessible-role: none;
+        }
+    }
+
+    // No icon, and the centre cell: the text alone, wrapped and centred.
+    if !root.has-icon: Text {
         // Keep text inside the flat sides of the hexagon.
         x: Tokens.space-2;
         width: parent.width - 2 * Tokens.space-2;
@@ -37,7 +71,7 @@ export component HexCell inherits Rectangle {
         text: root.text;
         font-size: root.centre ? Tokens.font-label : Tokens.font-body;
         font-weight: root.centre ? Tokens.weight-medium : Tokens.weight-semibold;
-        color: root.highlighted ? Tokens.accent-ink : Tokens.text-primary;
+        color: root.ink;
         accessible-role: none;
     }
 }

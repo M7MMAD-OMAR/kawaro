@@ -14,6 +14,7 @@
 //!   KDE or GNOME settings, see the `motion` module).
 
 mod geometry;
+mod icons;
 mod layout;
 mod motion;
 mod settings;
@@ -21,6 +22,7 @@ mod tokens {
     include!(concat!(env!("OUT_DIR"), "/tokens.rs"));
 }
 
+pub use icons::icon_names;
 pub use sbarhive_core::i18n::Lang;
 pub use settings::SettingsWindow;
 
@@ -36,12 +38,15 @@ slint::include_modules!();
 
 /// One action in the hive. `code` is the short text drawn in the cell
 /// (WEBP, PDF), `label` the full name shown in the centre on hover and read by
-/// screen readers. `ring` is 1 for common actions, 2 for the rest.
+/// screen readers. `icon` names one of the built-in icons ([`icon_names`]),
+/// drawn above the code; empty or unknown shows the code alone. `ring` is 1
+/// for common actions, 2 for the rest.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HiveCell {
     pub id: String,
     pub code: String,
     pub label: String,
+    pub icon: String,
     pub ring: u8,
 }
 
@@ -280,11 +285,16 @@ impl Hive {
         let data: Vec<CellData> = plan
             .cells
             .iter()
-            .map(|p| CellData {
-                x: p.x,
-                y: p.y,
-                code: p.cell.code.as_str().into(),
-                label: p.cell.label.as_str().into(),
+            .map(|p| {
+                let icon = icons::image(&p.cell.icon);
+                CellData {
+                    x: p.x,
+                    y: p.y,
+                    code: p.cell.code.as_str().into(),
+                    label: p.cell.label.as_str().into(),
+                    has_icon: icon.is_some(),
+                    icon: icon.unwrap_or_default(),
+                }
             })
             .collect();
         ui.set_cells(ModelRc::new(VecModel::from(data)));

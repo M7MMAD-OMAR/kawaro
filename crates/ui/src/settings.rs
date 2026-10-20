@@ -608,6 +608,7 @@ mod tests {
                 id: "a".into(),
                 code: "A".into(),
                 label: "a".into(),
+                icon: String::new(),
                 ring: 1,
             };
             hive.present("1", vec![cell], None).unwrap();
