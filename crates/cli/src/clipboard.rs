@@ -47,7 +47,7 @@ pub fn read_files_with(wayland: bool, run: Runner) -> Result<Vec<PathBuf>, Strin
 pub fn parse_uri_list(text: &str) -> Vec<PathBuf> {
     text.lines()
         .map(str::trim)
-        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+        // Blank and `#` comment lines never start with `file://`, so this drops them too.
         .filter_map(|l| l.strip_prefix("file://"))
         // Drop an optional host part: file://localhost/x or file:///x.
         .filter_map(|rest| rest.find('/').map(|i| &rest[i..]))
