@@ -4587,6 +4587,7 @@ dependencies = [
  "sbarhive-ui",
  "serde_json",
  "slint",
+ "tempfile",
 ]
 
 [[package]]
