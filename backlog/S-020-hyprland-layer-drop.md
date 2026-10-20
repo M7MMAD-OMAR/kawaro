@@ -47,3 +47,26 @@
   5. سطر في جدول 0.3.0 في `docs/PLAN.md` بجانب S-019.
   6. `stay_focused` خارج النطاق، مسجّل أعلاه.
 - 2026-10-21، المدير: اعتماد القصة. النقاط الخمس كما اقترحها المخطِّط: ترتيب منطقة الإدخال بعد configure وقبل أول إطار، وAC4 معتمد (12 فحصاً)، والنقرة على الخلية بلا سحب تُترك لـ S-019، وgnome.sh smart بوابة إضافية، والدليل فحصا repro.sh لا سطر drop cells.
+- 2026-10-21، المختبِر: الاختبارات من المعايير وحدها، على الشيفرة الحالية بعد `cargo build --release` (`nice -n 19`، `CARGO_BUILD_JOBS=2`، مؤلِّف واحد في كل مرة، كل سكربت ثقيل مرة واحدة).
+  - `tests/drop/layer.sh`: السطران 70-71 صارا ثلاثة فحوص AC1 (منطقة فارغة قبل أول `commit` للماسك؛ بعد أول `configure` وقبل أول `commit` للماسك بعده، وهو الذي يعرض الخلية المتزامنة، آخر منطقة للماسك `add` واحد يساوي `X Y W H` من سطر `hive surface: layer`؛ والسطح الفرعي `set_input_region(wl_region)` بلا `add`، و`nil` مرفوض لأنه منطقة غير محدودة). السطران 76-77 صارا فحصي AC2 (أول `enter` يسمّي الماسك، وإحداثياته داخل المستطيل بمقارنة awk للأعداد العشرية). طرح `(X, Y)` قبل `dnd::pick` لا يظهر في الأثر، ويحرسه الإفلات الفعلي على WEBP.
+  - `tests/overlay/kwin.sh`: فحص السطر 643 صار: لا `wl_pointer.enter` على الماسك بإحداثيات خارج المستطيل، وصفر `wl_pointer.button`. وفحص AC5 جديد في وضع layer: صفر `set_input_region` في كل ظهور غير `drop`.
+  - `tests/hyprland/repro.sh`: فحص AC4 في ظهور `drop` دون سحب (نقرة واحدة في `keys.py`، والخلية ظاهرة بعد النقرة، وتختفي بعد 9 ث أو أكثر من الظهور)، خارج شرط `ping` فيبقى المجموع 12 دائماً. ومعه إصلاحات مراجعة المنسِّق: زمن الظهور يُقاس على خدمة بلا `WAYLAND_DEBUG` (تُعاد بعد الظهور الأول) وبانتظار `tail -f | grep -m1` بدل الاستطلاع؛ حُذفت قاعدة `stay_focused` مع تعليق بالسبب؛ `drag_past_threshold` و`move_to_webp` من `tests/drop/lib.sh` عبر `ptr_move` و`ptr_down` و`ptr_up`؛ خريطة المؤشر تُحسب مرة واحدة و`move` حساب صحيح؛ قراءة CPU لعمليتين بنوم واحد؛ `"skipped": 0` مباشرة؛ ودالة `start_keys`. أُبقي `keys.py` ولم يُدمج في `tests/overlay/other.py`: AC4 المعتمد يسمّيه، والدمج يغيّر معرّف التطبيق (`org.sbarhive.HyprKeys` الذي ينتظره `repro.sh`) وبادئة السجل وقابلية التركيز في `other.py`.
+  - الفشل قبل التنفيذ:
+    - `repro.sh --json`: `{"total": 12, "failed": 2, "skipped": 0}`:
+      ```
+      INFO drag cell: under way yes; drop hive at 284 89 393 362 in 3 ms; enter at 196.50000000,181.00000000 (surface-local); cursor over WEBP at 519, 201; motion events 0; sbarhived 1% CPU; file written no; hive gone yes; source: drag-end deleted=False
+      FAIL drop mid-drag: the hive gets drag motion events
+      FAIL drop mid-drag: released over the WEBP cell writes the file
+      ```
+      السبب: الدخول على السطح الفرعي للخلية، وHyprland لا يرسل له `motion`، فيُرفض الإفلات.
+    - `tests/drop/kwin.sh level=1`: `RESULT FAIL (20)`، أربعة لكل ظهور من الخمسة، مثل الظهور 1:
+      ```
+      FAIL S-020 AC1 show 1: after the first configure and before the first hive frame the catcher's last input region is one add equal to the hive rectangle
+      FAIL S-020 AC1 show 1: the hive subsurface has an empty input region (wl_region, no add)
+      INFO S-020 show 1: first enter on wl_data_device#28: surface wl_surface#21 at 4.00000000 4.00000000 (catcher wl_surface#17, hive 444 219 393 362)
+      FAIL S-020 AC2 show 1: the first enter on this show's data device names the catcher
+      FAIL S-020 AC2 show 1: the first enter is inside the hive rectangle [X, X+W] x [Y, Y+H]
+      ```
+      السبب: الماسك لا يأخذ منطقة الخلية بعد `configure`، والسطح الفرعي بلا `set_input_region`، والدخول على السطح الفرعي بإحداثياته المحلية (4، 4).
+    - `tests/overlay/kwin.sh drop`: `RESULT FAIL (6)`، فحصا AC1 نفسهما في كل ظهور من الثلاثة.
+  - حُرّاس تنجح اليوم عمداً، لأنها تحمي ما يجب ألا يتغير: AC1 «منطقة فارغة قبل أول commit»، وAC4 (`keys.py clicks 1`، والخلية اختفت بعد 10052 ms)، وفحص السطر 643 المعدّل (صفر دخول وصفر زر اليوم)، وAC5 (`tests/overlay/kwin.sh` في وضع layer: `RESULT PASS`). `gnome.sh smart` لم يُعدَّل ولم يُشغَّل، فهو بوابة للمنفِّذ.

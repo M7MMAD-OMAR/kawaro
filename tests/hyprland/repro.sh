@@ -20,11 +20,14 @@
 #                      not implemented yet, so each counts as failed.
 # Checks (layer or window): surface shown, keyboard focus received, show
 # latency under 150 ms, Esc closes, click outside closes, input reaches the
-# other client after close; then drop mode mid-drag, as the owner's Super+Z
+# other client after close, a click outside a drop show passes through;
+# then drop mode mid-drag, as the owner's Super+Z
 # and Alt-hold bindings run it (a GTK source from tests/drop/source.py drags
 # a PNG): the hive gets wl_data_device.motion, a release over the WEBP cell
 # writes the file, the drop timeout and Esc mid-drag both end with the hive
-# gone and pointer input working. Exit 0 only when none failed.
+# gone and pointer input working. In a drop show with no drag (S-020 AC4) a
+# click at (40, 40), outside the hive, reaches keys.py once and the hive
+# stays until the drop timeout. Exit 0 only when none failed.
 # On Hyprland 0.56.2 the layer path gets no drag motion: Hyprland makes no
 # view for a subsurface of a layer surface, so its drag motion listener finds
 # none for the hive subsurface and sends nothing (src/protocols/core/
@@ -69,7 +72,13 @@ inner() {
   set -u
   local log="$OUT/hypr-$SURFACE"
   [ "$SELFTEST" = 1 ] && log="$OUT/hypr-selftest"
-  local TOTAL=0 FAILS=0 SKIPS=0
+  local TOTAL=0 FAILS=0
+  # Shared drop helpers (webp_offset, drag_past_threshold, move_to_webp),
+  # which drive the pointer through ptr_move, ptr_down and ptr_up, defined
+  # below. lib.sh defines its own check(); the one below replaces it so
+  # that TOTAL counts every check.
+  # shellcheck source-path=SCRIPTDIR source=../drop/lib.sh
+  source "$ROOT/tests/drop/lib.sh"
   # Human lines go to stdout here; the caller sends them to stderr in --json.
   say() { echo "$*"; }
   check() { TOTAL=$((TOTAL + 1)); if eval "$2"; then say "PASS $1"; else say "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
@@ -97,6 +106,9 @@ inner() {
   sleep 1
 
   mkdir -p "$XDG_CONFIG_HOME/hypr"
+  # No stay_focused rule for the hive window: the owner's live config has
+  # one, but integrations/linux/hyprland/README.md does not recommend it, and
+  # it keeps the window path's hive open on a click outside by construction.
   cat >"$XDG_CONFIG_HOME/hypr/sbh.lua" <<LUA
 hl.monitor({ output = "", mode = "1280x720", position = "0x0", scale = "$HYPR_SCALE" })
 hl.config({
@@ -111,7 +123,6 @@ hl.window_rule({ match = sbarhive, center = true })
 hl.window_rule({ match = sbarhive, pin = true })
 hl.window_rule({ match = sbarhive, no_anim = true })
 hl.window_rule({ match = sbarhive, border_size = 0 })
-hl.window_rule({ match = sbarhive, stay_focused = true })
 hl.layer_rule({ match = { namespace = "^sbarhive$" }, no_anim = true })
 LUA
   WAYLAND_DISPLAY=sbh-kwin LIBSEAT_BACKEND=seatd HYPRLAND_NO_SD_NOTIFY=1 HYPRLAND_NO_CRASHREPORTER=1 \
@@ -136,10 +147,14 @@ LUA
   export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland
   say "INFO nested $(Hyprland --version | head -1 | cut -d' ' -f1-2) on $wl, scale $HYPR_SCALE, output $(hyprctl monitors | grep -m1 -oE '[0-9]+x[0-9]+@[0-9.]+')"
 
-  local KLOG="$log-keys.log"
-  GDK_BACKEND=wayland GTK_A11Y=none python3 -I "$HERE/keys.py" >"$KLOG" 2>&1 &
-  local kp=$!
-  pids+=("$kp")
+  local KLOG="$log-keys.log" kp
+  # start_keys: a new keys.py (the other client), logging to KLOG; sets kp.
+  start_keys() {
+    GDK_BACKEND=wayland GTK_A11Y=none python3 -I "$HERE/keys.py" >"$KLOG" 2>&1 &
+    kp=$!
+    pids+=("$kp")
+  }
+  start_keys
   local mapped=0
   for _ in $(seq 50); do hyprctl clients 2>/dev/null | grep -q 'class: org.sbarhive.HyprKeys' && { mapped=1; break; }; sleep 0.2; done
 
@@ -158,16 +173,22 @@ LUA
   key() { echo "keydown $1" >&3; echo "sleep 40" >&3; echo "keyup $1" >&3; }
 
   # The nested output is a window in KWin: learn KWin position = o + s * hypr.
+  # Computed once, in millipixels (ox, oy) and millionths (sc), so that
+  # move() is integer arithmetic with no process per move.
   local ox oy sc
   cal() { echo "move $1 $2" >&3; sleep 0.4; hyprctl cursorpos | tr -d ' '; }
   local p1 p2; p1=$(cal 500 400); p2=$(cal 900 700)
-  read -r ox oy sc < <(python3 -c '
-import sys
-(x1,y1),(x2,y2)=[tuple(map(float,a.split(","))) for a in sys.argv[1:3]]
-s=400/(x2-x1) if x2!=x1 else 1
-print(500-s*x1, 400-s*y1, s)' "$p1" "$p2" 2>/dev/null)
-  say "INFO pointer map: kwin = ($ox, $oy) + $sc * hypr (from $p1 and $p2)"
-  move() { echo "move $(python3 -c "print($ox+$sc*$1, $oy+$sc*$2)")" >&3; }
+  read -r ox oy sc < <(awk -v a="$p1" -v b="$p2" 'BEGIN {
+    split(a, p, ","); split(b, q, ",")
+    s = (q[1] != p[1]) ? 400 / (q[1] - p[1]) : 1
+    printf "%d %d %d\n", (500 - s * p[1]) * 1000, (400 - s * p[2]) * 1000, s * 1000000 }')
+  : "${ox:=0}" "${oy:=0}" "${sc:=1000000}"
+  say "INFO pointer map: kwin = ($ox, $oy) / 1000 + $sc / 1000000 * hypr (from $p1 and $p2)"
+  move() { echo "move $(( (ox * 1000 + sc * $1 + 500000) / 1000000 )) $(( (oy * 1000 + sc * $2 + 500000) / 1000000 ))" >&3; }
+  # The lib.sh caller contract, in Hyprland logical pixels.
+  ptr_move() { move "$1" "$2"; }
+  ptr_down() { echo "down" >&3; }
+  ptr_up() { echo "up" >&3; }
   click() { move "$1" "$2"; echo "sleep 150" >&3; echo "down" >&3; echo "sleep 40" >&3; echo "up" >&3; }
   # Focus the other client with a click on it, then measure from there.
   # keys.py now and then maps but never takes input (seen 2 runs in ~15);
@@ -178,9 +199,7 @@ print(500-s*x1, 400-s*y1, s)' "$p1" "$p2" 2>/dev/null)
     if [ "$tries" = 3 ]; then
       say "INFO keys.py took no input after 3 clicks; starting a new one"
       kill "$kp" 2>/dev/null; sleep 0.5
-      GDK_BACKEND=wayland GTK_A11Y=none python3 -I "$HERE/keys.py" >"$KLOG" 2>&1 &
-      kp=$!
-      pids+=("$kp")
+      start_keys
       sleep 2
     fi
   done
@@ -192,19 +211,33 @@ print(500-s*x1, 400-s*y1, s)' "$p1" "$p2" 2>/dev/null)
   printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   local DLOG="$log-daemon.log"
   : >"$DLOG"
+  # start_daemon [WL]: WL=1 (the default) adds WAYLAND_DEBUG=1. Show 1, the
+  # latency show, runs on a daemon without it, so the trace's writes are not
+  # part of the measured time.
+  local DAEMON_WL=1
   start_daemon() {
-    SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+    DAEMON_WL=${1:-1}
+    if [ "$DAEMON_WL" = 1 ]; then
+      SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+    else
+      SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+    fi
     d=$!
     pids+=("$d")
     for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
   }
-  start_daemon
+  stop_daemon() {
+    "$BIN/sbarhive" quit >/dev/null 2>&1
+    timeout 3 tail --pid="$d" -f /dev/null 2>/dev/null || kill "$d" 2>/dev/null
+    sleep 0.3
+  }
+  start_daemon 0
   # A hive left shown by a failed check would spoil the next ones: restart.
   reset_hive() {
     shown || return 0
     say "INFO hive still shown after $1; restarting the daemon"
-    "$BIN/sbarhive" quit >/dev/null 2>&1; sleep 0.5; kill "$d" 2>/dev/null; sleep 0.3
-    start_daemon
+    stop_daemon
+    start_daemon "$DAEMON_WL"
   }
 
   # Shown: a layer named sbarhive, or the window titled exactly SbarHive.
@@ -215,8 +248,15 @@ print(500-s*x1, 400-s*y1, s)' "$p1" "$p2" 2>/dev/null)
   gone_within() { local i; for i in $(seq "$1"); do shown || return 0; sleep 0.1; done; ! shown; }
   after() { sed -n "$(($1 + 1)),\$p" "$DLOG" | grep -v '^\['; }
   cpu() { awk '{print $14 + $15}' "/proc/$1/stat" 2>/dev/null || echo 0; }
-  # cpu_pct PID SECONDS: share of one core over the interval.
-  cpu_pct() { local a b; a=$(cpu "$1"); sleep "$2"; b=$(cpu "$1"); echo $(( (b - a) * 100 / ($(getconf CLK_TCK) * $2) )); }
+  # cpu_pct SECONDS PID...: each PID's share of one core over one shared
+  # interval (every stat file read, one sleep, every stat file read again).
+  cpu_pct() {
+    local t=$1 p a=() out=() i=0 hz; shift; hz=$(getconf CLK_TCK)
+    for p in "$@"; do a+=("$(cpu "$p")"); done
+    sleep "$t"
+    for p in "$@"; do out+=("$(( ($(cpu "$p") - a[i]) * 100 / (hz * t) ))"); i=$((i + 1)); done
+    echo "${out[*]}"
+  }
 
   # geo: the shown hive's x y w h in Hyprland logical pixels.
   geo() {
@@ -229,22 +269,23 @@ for c in json.load(sys.stdin):
       done
     fi
   }
-  # show CMD...: runs it, waits for the `hive surface` line; LAT is in ms.
+  # show CMD...: runs it, waits (up to 5 s) for the `hive surface` line by
+  # following the log from MARK; LAT is in ms. The window path prints its
+  # surface line once per build, so a later window show is seen by its
+  # first focus line.
   local MARK LAT
   show() {
     MARK=$(wc -l <"$DLOG")
-    local t0 t1; t0=$(now_us)
+    local t0 pat="^hive surface:"
+    [ "$SURFACE" = window ] && pat="^hive surface:|^hive focus: true$"
+    t0=$(now_us)
     "$@" >>"$log-cli.log" 2>&1
     LAT=""
-    local end=$(( t0 + 5000000 ))
-    while [ "$(now_us)" -lt "$end" ]; do
-      # The window path prints its surface line once per build, so a later
-      # window show is seen by its first focus line.
-      if after "$MARK" | grep -qE "^hive surface:|^hive focus: true$([ "$SURFACE" = window ] || echo NEVER)"; then
-        t1=$(now_us); LAT=$(( (t1 - t0) / 1000 )); break
-      fi
-      sleep 0.005
-    done
+    # grep returns at the first match; the tail behind it ends at its next
+    # write or at the timeout.
+    if grep -m1 -qE "$pat" < <(timeout 5 tail -n +"$((MARK + 1))" -f "$DLOG"); then
+      LAT=$(( ($(now_us) - t0) / 1000 ))
+    fi
   }
 
   # Show 1: open, then Esc.
@@ -254,14 +295,17 @@ for c in json.load(sys.stdin):
   sleep 0.5
   check "keyboard focus received (hive focus: true)" 'after "$MARK" | grep -q "^hive focus: true"'
   local k0; k0=$(wc -l <"$KLOG")
-  local cd ch; cd=$(cpu_pct "$d" 2) ; ch=$(cpu_pct "$hy" 2)
+  local cd ch; read -r cd ch <<<"$(cpu_pct 2 "$d" "$hy")"
   say "INFO shown 2 s: sbarhived ${cd}% CPU, Hyprland ${ch}% CPU (one core = 100)"
   key 30; sleep 0.5
   say "INFO a key while shown reached the other client: $( [ "$(wc -l <"$KLOG")" -gt "$k0" ] && echo yes || echo no )"
   key 1
   check "Esc closes" 'gone_within 15'
-  [ "$SURFACE" = layer ] && say "INFO layer client wl_keyboard.enter events this show: $(sed -n "$((MARK + 1)),\$p" "$DLOG" | grep -c 'wl_keyboard#[0-9]*\.enter')"
+  say "INFO hive focus: true lines this show: $(after "$MARK" | grep -c '^hive focus: true$')"
   reset_hive Esc
+  # From here on the daemon traces its Wayland requests (WAYLAND_DEBUG=1).
+  stop_daemon
+  start_daemon 1
 
   # Show 2: open, then a click far from the centre (on the catcher, inside the smallest logical output).
   show "$BIN/sbarhive" open "$W/photo.png"
@@ -276,14 +320,28 @@ for c in json.load(sys.stdin):
   key 30; sleep 0.5
   check "input reaches another client after close" '[ "$(sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -c "^keys: key")" -ge 1 ]'
 
-  # Drop mode, for comparison (informative): no keyboard, empty input region.
+  # Drop mode with no drag (informative numbers), then S-020 AC4: a click
+  # at (40, 40), outside the hive rectangle, passes through to keys.py
+  # (exactly one click) and the hive stays until the 10 s drop timeout.
+  local dclicks=none dstay=no dgone=none
   if "$BIN/sbarhive" ping >/dev/null 2>&1; then
+    local dt0; dt0=$(now_us)
     show "$BIN/sbarhive" drop
     sleep 0.5
     k0=$(wc -l <"$KLOG")
     key 30; sleep 0.5
-    say "INFO drop: surface $(after "$MARK" | grep -m1 '^hive surface:' | cut -d' ' -f3 || true) in ${LAT:-none} ms, focus lines $(after "$MARK" | grep -c '^hive focus'), key reached other client: $( [ "$(wc -l <"$KLOG")" -gt "$k0" ] && echo yes || echo no ), sbarhived $(cpu_pct "$d" 2)% CPU"
+    say "INFO drop: surface $(after "$MARK" | grep -m1 '^hive surface:' | cut -d' ' -f3 || true) in ${LAT:-none} ms, focus lines $(after "$MARK" | grep -c '^hive focus'), key reached other client: $( [ "$(wc -l <"$KLOG")" -gt "$k0" ] && echo yes || echo no ), sbarhived $(cpu_pct 2 "$d")% CPU"
+    k0=$(wc -l <"$KLOG")
+    local dpre=no; shown && dpre=yes
+    click 40 40; sleep 0.6
+    dclicks=$(sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -c '^keys: click$')
+    [ "$dpre" = yes ] && shown && dstay=yes
+    local i; for i in $(seq 150); do shown || { dgone=$(( ($(now_us) - dt0) / 1000 )); break; }; sleep 0.1; done
+    reset_hive "the drop show"
   fi
+  say "INFO drop click at (40, 40): keys.py clicks ${dclicks}, hive shown after the click ${dstay}, hive gone ${dgone} ms after \`sbarhive drop\`"
+  check "S-020 AC4 drop show: a click at (40, 40) outside the hive reaches keys.py once and the hive stays until the timeout" \
+    '[ "$dclicks" = 1 ] && [ "$dstay" = yes ] && [ "$dgone" != none ] && [ "$dgone" -ge 9000 ]'
 
   # Drop mode mid-drag, as the owner's Super+Z and Alt-hold bindings do: a
   # GTK drag source (tests/drop/source.py) drags a PNG and `sbarhive drop`
@@ -300,19 +358,8 @@ for c in json.load(sys.stdin):
   GDK_BACKEND=wayland GTK_A11Y=none python3 -I "$ROOT/tests/drop/source.py" "$NEXT" >"$SLOG" 2>&1 &
   pids+=("$!")
   sleep 2
-  local dx dy; read -r dx dy < <(python3 -I - "$ROOT/design/tokens.json" <<'PY'
-import json, math, sys
-t = json.load(open(sys.argv[1]))["hex"]
-r = t["size"]["md"] / math.sqrt(3)
-s = r + t["gap"] / math.sqrt(3)
-print(round(s * math.sqrt(3) / 2), round(-1.5 * s))
-PY
-)
-  begin_drag() { # begin_drag: press on the source and pass GTK's threshold
-    local i; move 150 150; sleep 0.2; echo "down" >&3; sleep 0.2
-    for i in 1 2 3 4 5 6; do move $((150 + i * 10)) $((150 + i * 5)); sleep 0.05; done
-    sleep 0.5
-  }
+  # begin_drag: press on the source and pass GTK's threshold (lib.sh).
+  begin_drag() { drag_past_threshold; }
   # drag_case CASE: sets MOTIONS (wl_data_device.motion events the hive got),
   # WROTE, CLOSED and AFTER (a new drag began afterwards).
   local MOTIONS WROTE CLOSED AFTER
@@ -330,12 +377,10 @@ PY
     local gx gy gw gh cdrag="" cur=""
     read -r gx gy gw gh < <(geo)
     if [ -n "${gw:-}" ]; then
-      local wx=$((gx + gw / 2 + dx)) wy=$((gy + gh / 2 + dy))
-      move $((gx + 4)) $((gy + 4)); sleep 0.2
-      move $(((gx + 4 + wx) / 2)) $(((gy + 4 + wy) / 2)); sleep 0.2
-      move "$wx" "$wy"; sleep 0.4
+      # Corner, midpoint, then the WEBP cell (lib.sh, through ptr_move).
+      move_to_webp "$gx" "$gy" "$gw" "$gh"
       cur="$(hyprctl cursorpos)"
-      cdrag=$(cpu_pct "$d" 1)
+      cdrag=$(cpu_pct 1 "$d")
       case "$c" in
         cell) echo "up" >&3 ;;
         timeout) sleep 10; move 60 60; sleep 0.3; echo "up" >&3 ;;
@@ -354,7 +399,7 @@ PY
     AFTER=no; sed -n "$((s1 + 1)),\$p" "$SLOG" | grep -q drag-begin && AFTER=yes
     gone_within 130 || true
     reset_hive "drag $c"
-    say "INFO drag $c: under way $dragging; drop hive ${gw:+at $gx $gy $gw $gh} in ${LAT:-none} ms; enter at hive-local ${enter:-none}; cursor over WEBP at ${cur:-?}; motion events $MOTIONS; sbarhived ${cdrag:-?}% CPU; file written $WROTE; hive gone $CLOSED; source: $(sed -n "$((s0 + 1)),$((s1))p" "$SLOG" | grep -oE 'drag-(end|cancel).*' | tr '\n' ' ')"
+    say "INFO drag $c: under way $dragging; drop hive ${gw:+at $gx $gy $gw $gh} in ${LAT:-none} ms; enter at ${enter:-none} (surface-local); cursor over WEBP at ${cur:-?}; motion events $MOTIONS; sbarhived ${cdrag:-?}% CPU; file written $WROTE; hive gone $CLOSED; source: $(sed -n "$((s0 + 1)),$((s1))p" "$SLOG" | grep -oE 'drag-(end|cancel).*' | tr '\n' ' ')"
   }
   drag_case cell
   check "drop mid-drag: the hive gets drag motion events" '[ "$MOTIONS" -gt 0 ]'
@@ -373,7 +418,7 @@ PY
 
   finish
   say "RESULT $([ "$FAILS" -eq 0 ] && echo PASS || echo "FAIL ($FAILS)")"
-  echo "{\"total\": $TOTAL, \"failed\": $FAILS, \"skipped\": $SKIPS}" >"$XDG_RUNTIME_DIR/json"
+  echo "{\"total\": $TOTAL, \"failed\": $FAILS, \"skipped\": 0}" >"$XDG_RUNTIME_DIR/json"
   [ "$FAILS" -eq 0 ]
 }
 export -f inner

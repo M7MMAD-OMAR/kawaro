@@ -25,9 +25,11 @@
 #                    show is a layer again.
 #   drop             AC13 (S-018d): three `sbarhive drop` shows with no drag,
 #                    each closed by the 10 s timeout (no keyboard, so no Esc).
-#                    The catcher takes no keyboard and has an empty input
-#                    region, a click at (100, 700) in show 1 reaches the GTK
-#                    window once and the hive stays, and each show requests
+#                    The catcher takes no keyboard and its input region is
+#                    the hive rectangle (S-020), a click at (100, 700) in
+#                    show 1 reaches the GTK window once, the catcher gets no
+#                    pointer enter outside the hive and no button, and the
+#                    hive stays, and each show requests
 #                    one wl_data_device after get_layer_surface with every
 #                    earlier one released first (tests/drop/layer.sh).
 #   scheme           AC15 (S-018e): a fake org.freedesktop.portal.Desktop
@@ -308,6 +310,9 @@ PY
         [ "$name" != drop ] && check "AC4 show $n ($name): keyboard_interactivity 1 (exclusive)" '[ "$kb" -ge 1 ] && [ "$kb_bad" -eq 0 ]'
         check "AC4 show $n ($name): exactly one get_subsurface (the hive in the catcher)" '[ "$sub" -eq 1 ]'
         check "AC5 show $n ($name): no get_xdg_surface" '[ "$xs" -eq 0 ]'
+        # S-020 AC5: the input region is set in drop mode only.
+        [ "$name" != drop ] && check "S-020 AC5 show $n ($name): no set_input_region outside drop mode" \
+          '[ "$(count "wl_surface[#@][0-9]+\.set_input_region\(" "$seg")" -eq 0 ]'
         check "AC11 show $n ($name): exactly one \"hive surface: layer X Y W H\" line" \
           '[ "$ns" -eq 1 ] && grep -qE "^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$" <<<"$sl"'
         # 1280x800 at scale 1, hive 393 x 362 (AC2): (444, 219).
@@ -635,12 +640,21 @@ PY
     gls=$(grep -E -- "${R}zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" <<<"$seg" | head -1)
     dls=$(grep -E -- "${R}zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" <<<"$seg" | head -1)
     [ -n "$gls" ] && [ -n "$dls" ] && dt=$(( $(ts_ms "$dls") - $(ts_ms "$gls") ))
+    # S-020: the catcher's input region is the hive rectangle in drop mode,
+    # so a pointer enter on it is allowed only inside that rectangle.
+    local hx hy hw hh
+    read -r _ _ _ hx hy hw hh <<<"$(grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$seg" | head -1)"
     pe=$(evcount "wl_pointer[#@][0-9]+\.enter\([0-9]+, ${cat:-none}," "$seg")
+    local pe_out
+    pe_out=$(grep -E -- "^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.enter\([0-9]+, ${cat:-none}, " <<<"$seg" \
+      | sed -nE 's/.*enter\([0-9]+, wl_surface[#@][0-9]+, (-?[0-9.]+), (-?[0-9.]+)\).*/\1 \2/p' \
+      | awk -v X="${hx:-0}" -v Y="${hy:-0}" -v W="${hw:-0}" -v H="${hh:-0}" '!($1 >= X && $1 <= X + W && $2 >= Y && $2 <= Y + H) { n++ } END { print n + 0 }')
     pb=$(evcount 'wl_pointer[#@][0-9]+\.button\(' "$seg")
     ke=$(evcount 'wl_keyboard[#@][0-9]+\.enter\(' "$seg")
-    echo "INFO drop1: GTK clicks $(clicks_of 0), layer destroys $(layer_destroys "$seg"), shown for ${dt} ms, pointer enter on the catcher $pe, pointer buttons $pb, keyboard enter $ke"
+    echo "INFO drop1: GTK clicks $(clicks_of 0), layer destroys $(layer_destroys "$seg"), shown for ${dt} ms, pointer enter on the catcher $pe (outside the hive ${hx:-?} ${hy:-?} ${hw:-?} ${hh:-?}: $pe_out), pointer buttons $pb, keyboard enter $ke"
     check "AC13 drop mode: the click at (100, 700) reaches the GTK window (one click)" '[ "$(clicks_of 0)" -eq 1 ]'
-    check "AC13 drop mode: the catcher gets no pointer enter and the daemon no button" '[ -n "$cat" ] && [ "$pe" -eq 0 ] && [ "$pb" -eq 0 ]'
+    check "S-020 AC13 drop mode: no pointer enter on the catcher outside the hive rectangle, and no wl_pointer.button for the click at (100, 700)" \
+      '[ -n "$cat" ] && [ -n "$hh" ] && [ "$pe_out" -eq 0 ] && [ "$pb" -eq 0 ]'
     check "AC13 drop mode: the catcher gets no keyboard (no wl_keyboard.enter)" '[ "$ke" -eq 0 ]'
     check "AC13 drop mode: the hive stays after the click (closed once, by the 10 s timeout, not by the click)" \
       '[ "$(layer_destroys "$seg")" -eq 1 ] && [ "$dt" != none ] && [ "$dt" -ge 9000 ]'
