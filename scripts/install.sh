@@ -151,6 +151,10 @@ fi
 for b in sbarhive sbarhived; do
   [ -x "$BIN_SRC/$b" ] || die "missing $BIN_SRC/$b (build first, or drop --no-build)"
 done
+# A running daemon, from an earlier install or started on demand outside
+# systemd, would keep the old code and make the new one exit with "already
+# running". Ask it to quit through the socket; nothing answers if none runs.
+"$BIN_SRC/sbarhive" quit >/dev/null 2>&1 || true
 put "$BIN_SRC/sbarhive" "$BIN/sbarhive" 0755
 put "$BIN_SRC/sbarhived" "$BIN/sbarhived" 0755
 done_item "binaries in $BIN" "الملفات التنفيذية في $BIN"
