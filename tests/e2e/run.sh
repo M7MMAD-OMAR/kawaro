@@ -51,6 +51,20 @@ inner() {
   check "combined PDF from two images" '[ -n "$pdf_id" ] && ls "$W"/b*.pdf >/dev/null 2>&1 && [ "$(head -c 4 "$W"/b*.pdf)" = %PDF ]'
 
   check "open shows the hive" '"$BIN/sbarhive" open "$W/b.jpg"'
+
+  # v0.2 engines through the daemon.
+  ffmpeg -loglevel error -f lavfi -i testsrc=size=160x120:rate=10 -f lavfi -i sine=frequency=440 -t 1 -shortest "$W/clip.mp4"
+  "$BIN/sbarhive" run video.extract-mp3 --wait "$W/clip.mp4" >/dev/null 2>&1
+  check "video: extract audio to MP3" '[ -f "$W/clip.mp3" ] && ffprobe -v error -show_entries stream=codec_type -of csv=p=0 "$W/clip.mp3" | grep -qx audio'
+  check "video actions offered for mp4" '"$BIN/sbarhive" actions "$W/clip.mp4" | grep -q "^video.to-webm"'
+  cp "$W"/b*.pdf "$W/one.pdf"; cp "$W/one.pdf" "$W/two.pdf"
+  "$BIN/sbarhive" run pdf.merge --wait "$W/one.pdf" "$W/two.pdf" >/dev/null 2>&1
+  check "pdf: merge two files" 'ls "$W"/one*merged*.pdf >/dev/null 2>&1'
+  printf 'SbarHive e2e\nسطر عربي\n' >"$W/note.txt"
+  if command -v soffice >/dev/null; then
+    timeout 120 "$BIN/sbarhive" run documents.to-pdf --wait "$W/note.txt" >/dev/null 2>&1
+    check "documents: text to PDF" '[ "$(head -c 4 "$W/note.pdf" 2>/dev/null)" = %PDF ]'
+  fi
   local n0; n0=$(notes)
   check "open with no matching actions fails" '! "$BIN/sbarhive" open "$ROOT/LICENSE"'
   check "and sends exactly one notification" '[ "$(notes)" -eq $((n0 + 1)) ]'
