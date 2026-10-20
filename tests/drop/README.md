@@ -30,14 +30,16 @@ Nautilus) drags a copy of `tests/fixtures/images/alpha.png` in four shows:
 
 1. drop on the WEBP cell: `photo one.webp` within 5 s, `file --mime-type` is
    `image/webp`;
-2. drop on a transparent corner: no new file, the hive closes, the source sees
-   the drop refused;
+2. over the WEBP cell, then drop on a transparent corner: the hive closes
+   within 2 s of the release (not by the 10 s enter timeout), no new file,
+   the source sees the drop refused;
 3. drop on the WEBP cell with Shift held: the source reports `deleted=False`
    and the original's sha256 is unchanged (`source.py` deletes the original
    when a move is taken, as a file manager would);
 4. drop on the centre cell: as 2.
 
-Then, from the daemon's protocol trace: each show requests a
+Then, from the daemon's protocol trace: each show gets an `enter` on the
+receiver's data device and requests a
 `wl_data_device` after the new hive surface's `get_xdg_surface` (Slint
 destroys the surface on hide), `set_actions` offers copy only, and `accept`
 names `text/uri-list` only.

@@ -104,10 +104,13 @@ cycle() { # cycle N FILE TARGET SHIFT
     centre) tx=$cx; ty=$cy ;;
   esac
   # Enter at the transparent corner (KWin sends enter only after motion),
-  # then go to the target in two steps.
+  # then over the WEBP cell, so a refusal on the corner or centre is a real
+  # switch from accepted to declined, then to the target.
+  local wx=$((cx + dx)) wy=$((cy + dy))
   ptr_move $((gx + 4)) $((gy + 4)); sleep 0.2
-  ptr_move $(((gx + 4 + tx) / 2)) $(((gy + 4 + ty) / 2)); sleep 0.2
-  ptr_move "$tx" "$ty"; sleep 0.4
+  ptr_move $(((gx + 4 + wx) / 2)) $(((gy + 4 + wy) / 2)); sleep 0.2
+  ptr_move "$wx" "$wy"; sleep 0.4
+  [ "$target" != webp ] && { ptr_move "$tx" "$ty"; sleep 0.4; }
   [ "$shift" = 1 ] && { shift_down; sleep 0.2; }
   ptr_up; sleep 0.3
   [ "$shift" = 1 ] && shift_up
@@ -125,9 +128,11 @@ cycle() { # cycle N FILE TARGET SHIFT
       wait_gone 3 || echo "INFO show $n: hive still shown 3 s after the drop"
       ;;
     corner|centre)
+      # Right after the release, so the 10 s enter timeout (AC3) cannot be
+      # what closed it.
+      check "AC7 show $n: drop on the $target closes the hive" 'wait_gone 2'
       sleep 5
       check "AC7 show $n: drop on the $target writes no file" '[ "$(find "$W" -type f | sort)" = "$before" ]'
-      check "AC7 show $n: drop on the $target closes the hive" 'wait_gone 2'
       src=$(tail -n +$((smark + 1)) "$SLOG")
       check "AC6 show $n: drop on the $target is refused (source drag-cancel, no drag-end)" \
         'grep -q "drag-cancel" <<<"$src" && ! grep -q "drag-end deleted=True" <<<"$src"'
@@ -153,6 +158,10 @@ protocol_checks() {
     echo "INFO show $((i + 1)): get_xdg_surface at +${xs:-none}, get_data_device at +${dd:-none}, count $(grep -c -- '-> wl_data_device_manager#[0-9]*\.get_data_device(' <<<"$seg")"
     check "AC5 show $((i + 1)): wl_data_device requested for the new hive surface" \
       '[ -n "$xs" ] && [ -n "$dd" ] && [ "$dd" -gt "$xs" ]'
+    # Events print without the arrow. Every show must reach the receiver,
+    # so the refused drops (corner, centre) cannot pass with no receiver.
+    check "AC6 show $((i + 1)): receiver got enter on its data device" \
+      'grep -q "wl_data_device#[0-9]*\.enter(" <<<"$seg"'
   done
   local sa; sa=$(grep -o -- '-> wl_data_offer#[0-9]*\.set_actions([^)]*)' "$DLOG" | sed 's/.*set_actions//' | sort -u | tr '\n' ' ')
   echo "INFO set_actions seen: ${sa:-none}"
