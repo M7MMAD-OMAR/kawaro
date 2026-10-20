@@ -13,13 +13,15 @@
 //! - `SBARHIVE_REDUCED_MOTION=1|0` forces reduced motion on or off (otherwise
 //!   KDE or GNOME settings, see the `motion` module).
 
-// Wired to the Wayland drop receiver in S-014b; only its tests use it until then.
+// Some events (Cancel, Escape, ClickOutside) are only fed by its tests so far.
 #[cfg_attr(not(test), allow(dead_code))]
 mod dnd;
 mod geometry;
 mod icons;
 mod layout;
 mod motion;
+#[cfg(target_os = "linux")]
+mod receiver;
 mod settings;
 mod tokens {
     include!(concat!(env!("OUT_DIR"), "/tokens.rs"));
@@ -33,9 +35,10 @@ use layout::{Nav, Plan};
 use slint::winit_030::{CustomApplicationHandler, EventResult, winit};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::cell::{Cell, RefCell};
+use std::path::PathBuf;
 use std::rc::{Rc, Weak};
 use std::sync::Mutex;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 slint::include_modules!();
 
@@ -70,6 +73,11 @@ thread_local! {
     static HIVE_WINDOW: Cell<usize> = const { Cell::new(0) };
     /// Runs once right after the next frame is drawn (measurement hook).
     static AFTER_FRAME: RefCell<Option<Box<dyn FnOnce()>>> = const { RefCell::new(None) };
+    /// A drop-mode show waits for its new surface to bind the drop receiver.
+    static ATTACH_PENDING: Cell<bool> = const { Cell::new(false) };
+    /// The hive that gets the drop receiver's notes (the current one, since
+    /// a language or theme change builds a new hive).
+    static DROP_HIVE: RefCell<Weak<Inner>> = const { RefCell::new(Weak::new()) };
 }
 
 fn window_key(w: &slint::Window) -> usize {
@@ -118,6 +126,11 @@ impl CustomApplicationHandler for FocusWatcher {
                 focus_changed(*f)
             }
             winit::event::WindowEvent::RedrawRequested => {
+                // The new surface exists by its first redraw, after its
+                // get_xdg_surface, so the data device is bound to it.
+                if is_hive_window(slint_window) && ATTACH_PENDING.with(|c| c.replace(false)) {
+                    attach_receiver(_winit_window);
+                }
                 // Slint draws right after this hook returns; a zero timer
                 // fires on the next loop turn, once the frame is submitted.
                 if let Some(f) = AFTER_FRAME.with(|h| h.borrow_mut().take()) {
@@ -149,6 +162,45 @@ pub fn init() -> Result<(), slint::PlatformError> {
         .select()
 }
 
+/// Binds the drop receiver to the hive surface (Wayland only).
+#[cfg(target_os = "linux")]
+fn attach_receiver(window: Option<&winit::window::Window>) {
+    use winit::raw_window_handle::{
+        HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle,
+    };
+    let Some(w) = window else { return };
+    let display = match w.display_handle().map(|h| h.as_raw()) {
+        Ok(RawDisplayHandle::Wayland(d)) => d.display.as_ptr() as usize,
+        _ => return,
+    };
+    let surface = match w.window_handle().map(|h| h.as_raw()) {
+        Ok(RawWindowHandle::Wayland(s)) => s.surface.as_ptr() as usize,
+        _ => return,
+    };
+    receiver::attach(display, surface, on_note);
+}
+
+#[cfg(not(target_os = "linux"))]
+fn attach_receiver(_window: Option<&winit::window::Window>) {}
+
+/// A note from the drop receiver, on the event loop thread.
+#[cfg(target_os = "linux")]
+fn on_note(note: receiver::Note) {
+    let Some(inner) = DROP_HIVE.with(|h| h.borrow().upgrade()) else {
+        return;
+    };
+    let event = match note {
+        receiver::Note::Enter(files) => {
+            inner.drop_files(files);
+            dnd::Event::Enter
+        }
+        receiver::Note::Motion(cell) => dnd::Event::Motion(cell),
+        receiver::Note::Leave => dnd::Event::Leave,
+        receiver::Note::Drop => dnd::Event::Drop,
+    };
+    inner.drag(event);
+}
+
 /// Measurement hook: runs `f` once, right after the next frame is presented.
 /// Only works with the backend installed by [`init`].
 #[doc(hidden)]
@@ -158,6 +210,7 @@ pub fn after_next_frame(f: impl FnOnce() + 'static) {
 
 type ChooseFn = Rc<dyn Fn(String)>;
 type DismissFn = Rc<dyn Fn()>;
+type FilesFn = Rc<dyn Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>)>;
 
 struct Inner {
     /// Replaced by a fresh component when `present` gets a token.
@@ -169,8 +222,13 @@ struct Inner {
     plan: RefCell<Option<Plan>>,
     on_choose: RefCell<Option<ChooseFn>>,
     on_dismiss: RefCell<Option<DismissFn>>,
+    on_drop_files: RefCell<Option<FilesFn>>,
     /// Pending timer that starts the opening animation after the first frame.
     opener: slint::Timer,
+    /// Hive mode (normal or waiting for a drop), see `dnd`.
+    machine: RefCell<dnd::Machine>,
+    /// Clock for the drop hive's enter timeout.
+    ticker: slint::Timer,
 }
 
 impl Inner {
@@ -183,9 +241,86 @@ impl Inner {
         // reported as a dismissal.
         WAS_FOCUSED.with(|c| c.set(false));
         self.opener.stop();
+        self.ticker.stop();
+        *self.machine.borrow_mut() = dnd::Machine::new();
+        ATTACH_PENDING.with(|c| c.set(false));
+        #[cfg(target_os = "linux")]
+        receiver::detach();
         let ui = self.ui.borrow();
         ui.hide().ok();
         ui.set_highlight(-1);
+    }
+
+    /// Shows `plan` in the window and keeps it for picking.
+    fn apply(&self, centre: &str, plan: Plan) {
+        let ui = self.ui.borrow();
+        let data: Vec<CellData> = plan
+            .cells
+            .iter()
+            .map(|p| {
+                let icon = icons::image(&p.cell.icon);
+                CellData {
+                    x: p.x,
+                    y: p.y,
+                    code: p.cell.code.as_str().into(),
+                    label: p.cell.label.as_str().into(),
+                    has_icon: icon.is_some(),
+                    icon: icon.unwrap_or_default(),
+                }
+            })
+            .collect();
+        ui.set_cells(ModelRc::new(VecModel::from(data)));
+        ui.set_hex_r(plan.layout.radius);
+        ui.set_centre_x(plan.layout.origin.0);
+        ui.set_centre_y(plan.layout.origin.1);
+        ui.set_win_w(plan.width);
+        ui.set_win_h(plan.height);
+        ui.set_centre_text(centre.into());
+        ui.set_centre_label(centre.into());
+        #[cfg(target_os = "linux")]
+        receiver::set_plan(Some(plan.clone()));
+        *self.plan.borrow_mut() = Some(plan);
+    }
+
+    /// The drag entered with `files`: lays out their actions in the same
+    /// two-ring window, so the centre does not move under the drag.
+    fn drop_files(&self, files: Vec<PathBuf>) {
+        if !matches!(
+            self.machine.borrow().state(),
+            dnd::State::Waiting | dnd::State::Over(_)
+        ) {
+            return;
+        }
+        let f = self.on_drop_files.borrow().clone();
+        let (centre, cells) = f.map(|f| f(files)).unwrap_or_default();
+        self.apply(&centre, layout::plan_rings(cells, self.rtl, 2));
+    }
+
+    /// Feeds a drag or clock event to the mode machine and acts on the result.
+    fn drag(&self, event: dnd::Event) {
+        let (before, after) = {
+            let mut m = self.machine.borrow_mut();
+            let before = m.state();
+            (before, m.handle(event, Instant::now()))
+        };
+        match after {
+            dnd::State::Over(i) => self.ui.borrow().set_highlight(i as i32),
+            dnd::State::Waiting => self.ui.borrow().set_highlight(-1),
+            dnd::State::Running(i) if before != after => self.choose(i as i32),
+            dnd::State::Hidden if before != after => self.dismiss(),
+            _ => {}
+        }
+    }
+
+    /// Focus left the hive: closes it, except while waiting for a drop.
+    fn focus_lost(&self) {
+        let state = self
+            .machine
+            .borrow_mut()
+            .handle(dnd::Event::FocusLost, Instant::now());
+        if !matches!(state, dnd::State::Waiting | dnd::State::Over(_)) {
+            self.dismiss();
+        }
     }
 
     fn choose(&self, index: i32) {
@@ -235,11 +370,20 @@ impl Hive {
             plan: RefCell::new(None),
             on_choose: RefCell::new(None),
             on_dismiss: RefCell::new(None),
+            on_drop_files: RefCell::new(None),
             opener: slint::Timer::default(),
+            machine: RefCell::new(dnd::Machine::new()),
+            ticker: slint::Timer::default(),
         });
         wire(&inner);
         let w = Rc::downgrade(&inner);
-        ON_FOCUS_LOST.with(|h| *h.borrow_mut() = Some(Rc::new(move || dismiss_weak(&w))));
+        ON_FOCUS_LOST.with(|h| {
+            *h.borrow_mut() = Some(Rc::new(move || {
+                if let Some(i) = w.upgrade() {
+                    i.focus_lost();
+                }
+            }))
+        });
 
         Ok(Self { inner })
     }
@@ -254,6 +398,33 @@ impl Hive {
         centre: &str,
         cells: Vec<HiveCell>,
         token: Option<String>,
+    ) -> Result<(), slint::PlatformError> {
+        let plan = layout::plan(cells, self.inner.rtl);
+        self.show(centre, plan, token, false)
+    }
+
+    /// Shows an empty two-ring hive that waits for a dragged file (S-014,
+    /// `sbarhive drop`). When the drag enters, [`Hive::on_drop_files`] gives
+    /// the cells; a drop on a cell runs [`Hive::on_choose`], a drop elsewhere,
+    /// a `leave`, or 10 s without the drag closes it with
+    /// [`Hive::on_dismiss`]. Focus loss does not close it. On Wayland a drop
+    /// receiver is bound to each new hive surface; elsewhere nothing is
+    /// received yet.
+    pub fn present_drop(
+        &self,
+        centre: &str,
+        token: Option<String>,
+    ) -> Result<(), slint::PlatformError> {
+        let plan = layout::plan_rings(Vec::new(), self.inner.rtl, 2);
+        self.show(centre, plan, token, true)
+    }
+
+    fn show(
+        &self,
+        centre: &str,
+        plan: Plan,
+        token: Option<String>,
+        drop: bool,
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         if inner.visible() {
@@ -275,33 +446,27 @@ impl Hive {
             inner.builds.set(inner.builds.get() + 1);
             wire(inner);
         }
-        let ui = inner.ui.borrow();
-        let plan = layout::plan(cells, inner.rtl);
-        let data: Vec<CellData> = plan
-            .cells
-            .iter()
-            .map(|p| {
-                let icon = icons::image(&p.cell.icon);
-                CellData {
-                    x: p.x,
-                    y: p.y,
-                    code: p.cell.code.as_str().into(),
-                    label: p.cell.label.as_str().into(),
-                    has_icon: icon.is_some(),
-                    icon: icon.unwrap_or_default(),
-                }
-            })
-            .collect();
-        ui.set_cells(ModelRc::new(VecModel::from(data)));
-        ui.set_hex_r(plan.layout.radius);
-        ui.set_centre_x(plan.layout.origin.0);
-        ui.set_centre_y(plan.layout.origin.1);
-        ui.set_win_w(plan.width);
-        ui.set_win_h(plan.height);
-        ui.set_centre_text(centre.into());
-        ui.set_centre_label(centre.into());
-        *inner.plan.borrow_mut() = Some(plan);
+        inner.apply(centre, plan);
+        inner
+            .machine
+            .borrow_mut()
+            .handle(dnd::Event::Show { drop }, Instant::now());
+        if drop {
+            DROP_HIVE.with(|h| *h.borrow_mut() = Rc::downgrade(inner));
+            ATTACH_PENDING.with(|c| c.set(true));
+            let w = Rc::downgrade(inner);
+            inner.ticker.start(
+                slint::TimerMode::Repeated,
+                Duration::from_millis(250),
+                move || {
+                    if let Some(i) = w.upgrade() {
+                        i.drag(dnd::Event::Tick);
+                    }
+                },
+            );
+        }
 
+        let ui = inner.ui.borrow();
         ui.set_highlight(-1);
         WAS_FOCUSED.with(|c| c.set(false));
         if inner.reduced_motion {
@@ -337,6 +502,13 @@ impl Hive {
     /// close request from the compositor; the hive is already closed.
     pub fn on_dismiss(&self, f: impl Fn() + 'static) {
         *self.inner.on_dismiss.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Called on the event loop thread when a drag enters the drop hive,
+    /// with its local files (maybe none). Returns the centre text and the
+    /// cells for them; no cells refuses the drop.
+    pub fn on_drop_files(&self, f: impl Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>) + 'static) {
+        *self.inner.on_drop_files.borrow_mut() = Some(Rc::new(f));
     }
 
     /// Snapshot hook: highlights a cell as if hovered (-1 for none).

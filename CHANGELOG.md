@@ -5,7 +5,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
-- Drop groundwork (S-014a): `sbarhive drop [--token T]` asks the service for a hive that waits for dragged files (accepted and logged until S-014b), with a shared `text/uri-list` parser, drop point cell picking and the drop hive state machine.
+- Drop receiver (S-014b): on Wayland the hive shown by `sbarhive drop` takes a file dragged onto it, reads the files when the drag enters, builds their cells and runs the action of the cell it is dropped on, as a copy only; a drop elsewhere closes it and runs nothing.
+- Drop groundwork (S-014a): `sbarhive drop [--token T]` asks the service for a hive that waits for dragged files, with a shared `text/uri-list` parser, drop point cell picking and the drop hive state machine.
 
 ## [0.2.2] - 2026-10-20
 

@@ -68,8 +68,15 @@ impl Hive {
     /// builds a fresh window component, because Slint hands it to winit only
     /// when a window adapter is created (S-013).
     pub fn present(&self, centre: &str, cells: Vec<HiveCell>, token: Option<String>) -> Result<(), slint::PlatformError>;
+    /// Empty two-ring hive waiting for a dragged file (S-014, ADR 0003). On
+    /// Wayland a drop receiver binds a new wl_data_device to each new hive
+    /// surface, accepts text/uri-list over the cells only, copy only, and
+    /// reads the files when the drag enters.
+    pub fn present_drop(&self, centre: &str, token: Option<String>) -> Result<(), slint::PlatformError>;
     pub fn close(&self);
     pub fn on_choose(&self, f: impl Fn(String) + 'static);   // action id, hive already closed
+    /// Drag entered the drop hive with these files: centre text and cells (none refuses the drop).
+    pub fn on_drop_files(&self, f: impl Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>) + 'static);
     pub fn on_dismiss(&self, f: impl Fn() + 'static);        // Esc, focus loss, click outside or on the centre
 }
 ```
@@ -93,6 +100,9 @@ name with the new extension, " (1)", " (2)" on collision, never an overwrite.
 
 - `open`: match actions; none gives a notification, otherwise show the hive.
   Choosing submits a job and closes the hive at once.
+- `drop`: show the drop hive; when a drag enters, match actions for its files
+  and keep them as pending, so a drop on a cell runs like a click. A drop off
+  the cells or on the centre, a `leave`, or 10 s without a drag closes it.
 - Progress never takes focus: tray icon tooltip and status while jobs run, one
   desktop notification when a job ends (counts, first error, "Open folder").
 - Tray menu: Cancel all, Settings (v0.2), Quit.

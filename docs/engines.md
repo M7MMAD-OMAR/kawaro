@@ -261,3 +261,6 @@ Not engines, recorded here because CLAUDE.md asks for every new library.
 | notify-rust | 4.18.2 | MIT OR Apache-2.0 | daemon | end-of-job desktop notification with an "Open folder" action |
 | clap | 4.6.7 | MIT OR Apache-2.0 | cli | argument parsing |
 | IBM Plex Sans Arabic | system copy, embedded | OFL-1.1 | ui, site | the only interface font, so rendering never depends on system fonts |
+| wayland-client | 0.31.15 | MIT | ui (Linux) | drop receiver: a second connection on winit's `wl_display` (S-014b, ADR 0003); already in the tree through winit |
+| wayland-backend | 0.3.17, `client_system` | MIT | ui (Linux) | `Backend::from_foreign_display` for that connection; already in the tree through winit |
+| rustix | 1.1.5, `event` and `pipe` | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | ui (Linux) | pipe and poll to read the dragged `text/uri-list` with a timeout; already in the tree through wayland-backend |

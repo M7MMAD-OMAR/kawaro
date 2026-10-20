@@ -61,8 +61,14 @@ pub fn assign(cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
 /// Lays out the cells for a window, using the token sizes. The window holds
 /// one ring when ring 2 is empty, two otherwise.
 pub fn plan(cells: Vec<HiveCell>, rtl: bool) -> Plan {
+    plan_rings(cells, rtl, 1)
+}
+
+/// As [`plan`], with a window of at least `min_rings` rings. The drop hive
+/// uses 2, so its size and centre stay the same when its cells arrive.
+pub fn plan_rings(cells: Vec<HiveCell>, rtl: bool, min_rings: i32) -> Plan {
     let (ring1, ring2) = assign(cells);
-    let rings = if ring2.is_empty() { 1 } else { 2 };
+    let rings = if ring2.is_empty() { 1 } else { 2 }.max(min_rings);
     let radius = HEX_SIZE_MD / 3f32.sqrt();
     let (width, height) = Layout::extent(radius, HEX_GAP, rings, PAD);
     let layout = Layout {
@@ -377,5 +383,23 @@ mod tests {
         assert_eq!(step(1, Nav::Next, 4, true), 2);
         assert_eq!(step(1, Nav::Down, 4, true), 2);
         assert_eq!(step(1, Nav::Up, 4, true), 0);
+    }
+
+    #[test]
+    fn a_two_ring_minimum_keeps_the_window_and_the_first_slot() {
+        let full = plan(many("x", 18, 1), false);
+        for n in [0, 3, 18] {
+            let p = plan_rings(many("x", n, 1), false, 2);
+            assert_eq!((p.width, p.height), (full.width, full.height), "{n}");
+            assert_eq!(p.layout.origin, full.layout.origin, "{n}");
+            if n > 0 {
+                assert_eq!(
+                    (p.cells[0].x, p.cells[0].y),
+                    (full.cells[0].x, full.cells[0].y)
+                );
+            }
+        }
+        let one = plan_rings(many("x", 3, 1), false, 1);
+        assert!(one.width < full.width);
     }
 }

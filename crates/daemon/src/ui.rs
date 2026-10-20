@@ -2,8 +2,8 @@
 //! loop: the hive and the settings window. Other threads post work with
 //! `invoke_from_event_loop`.
 
-use crate::jobs;
-use crate::state::{Shared, lock};
+use crate::state::{Shared, common_kind, lock};
+use crate::{jobs, text};
 use sbarhive_core::ActionDef;
 use sbarhive_core::config::{Config, Theme};
 use sbarhive_core::i18n::Lang;
@@ -56,6 +56,24 @@ pub fn build(
     {
         let state = state.clone();
         hive.on_dismiss(move || lock(&state).pending = None);
+    }
+    {
+        // A drag entered the drop hive: its files wait for the chosen cell,
+        // which runs through `on_choose` like a click.
+        let state = state.clone();
+        hive.on_drop_files(move |files| {
+            let mut st = lock(&state);
+            let lang = st.lang;
+            let actions = st.matching(&files);
+            if actions.is_empty() {
+                st.pending = None;
+                return (text::no_actions(lang).to_string(), Vec::new());
+            }
+            let centre = text::selection(lang, files.len(), common_kind(&files));
+            let cells = actions.iter().map(|a| cell(a, lang)).collect();
+            st.pending = Some(files);
+            (centre, cells)
+        });
     }
 
     HIVE.with(|h| *h.borrow_mut() = Some(hive));
@@ -133,6 +151,19 @@ pub fn present(centre: String, cells: Vec<HiveCell>, token: Option<String>) {
                 && let Err(e) = hive.present(&centre, cells, token)
             {
                 eprintln!("sbarhived: cannot show the hive: {e}");
+            }
+        })
+    });
+}
+
+/// Shows the hive that waits for a dragged file (`sbarhive drop`).
+pub fn present_drop(token: Option<String>) {
+    let _ = slint::invoke_from_event_loop(move || {
+        HIVE.with(|h| {
+            if let Some(hive) = h.borrow().as_ref()
+                && let Err(e) = hive.present_drop("", token)
+            {
+                eprintln!("sbarhived: cannot show the drop hive: {e}");
             }
         })
     });

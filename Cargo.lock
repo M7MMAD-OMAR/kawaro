@@ -4615,10 +4615,13 @@ version = "0.2.2"
 dependencies = [
  "i-slint-backend-testing",
  "png 0.17.16",
+ "rustix 1.1.5",
  "sbarhive-core",
  "serde_json",
  "slint",
  "slint-build",
+ "wayland-backend",
+ "wayland-client",
 ]
 
 [[package]]

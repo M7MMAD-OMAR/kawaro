@@ -9,6 +9,13 @@ license.workspace = true
 sbarhive-core.workspace = true
 slint.workspace = true
 
+# Wayland drop receiver (S-014b, ADR 0003): a second connection on winit's
+# display. Same versions winit already pulls in, so no new packages.
+[target.'cfg(target_os = "linux")'.dependencies]
+wayland-client = "0.31.15"
+wayland-backend = { version = "0.3.17", features = ["client_system"] }
+rustix = { version = "1.1.5", features = ["event", "pipe"] }
+
 [build-dependencies]
 slint-build.workspace = true
 serde_json.workspace = true

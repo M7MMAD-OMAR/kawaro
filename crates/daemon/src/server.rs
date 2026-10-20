@@ -62,13 +62,9 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
             reply(&mut stream, &Response::Ok);
         }
         Request::Drop { token } => {
-            // S-014a: only the protocol and `sbarhive drop` exist so far. The
-            // drop receiver and the waiting hive come in S-014b and S-014c;
-            // until then the request is accepted and logged.
-            eprintln!(
-                "sbarhived: drop requested (token: {}); the drop hive is not built yet",
-                if token.is_some() { "yes" } else { "no" }
-            );
+            // The files come with the drag, when it enters the hive.
+            lock(state).pending = None;
+            ui::present_drop(token);
             reply(&mut stream, &Response::Ok);
         }
         Request::Run {
