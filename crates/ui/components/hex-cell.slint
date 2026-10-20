@@ -30,16 +30,16 @@ export component HexCell inherits Rectangle {
 
     property <color> ink: root.highlighted ? Tokens.accent-ink : Tokens.text-primary;
 
-    VerticalLayout {
-        // Keep the content inside the flat sides of the hexagon; icon and
-        // text are centred together, or the text alone without an icon.
+    // Icon and code, centred together inside the flat sides of the hexagon.
+    // The code keeps to one line, so it never runs past the hexagon's points.
+    if root.has-icon: VerticalLayout {
         x: Tokens.space-2;
         width: parent.width - 2 * Tokens.space-2;
         height: parent.height;
         alignment: center;
         spacing: Tokens.hex-icon-gap;
 
-        if root.has-icon: Image {
+        Image {
             height: Tokens.hex-icon-size;
             source: root.icon;
             image-fit: contain;
@@ -49,16 +49,29 @@ export component HexCell inherits Rectangle {
 
         Text {
             horizontal-alignment: center;
-            vertical-alignment: center;
-            // With an icon the code keeps to one line, so it never runs past
-            // the hexagon's points.
-            wrap: root.has-icon ? no-wrap : word-wrap;
             overflow: elide;
             text: root.text;
-            font-size: root.centre ? Tokens.font-label : Tokens.font-body;
-            font-weight: root.centre ? Tokens.weight-medium : Tokens.weight-semibold;
+            font-size: Tokens.font-body;
+            font-weight: Tokens.weight-semibold;
             color: root.ink;
             accessible-role: none;
         }
+    }
+
+    // No icon, and the centre cell: the text alone, wrapped and centred.
+    if !root.has-icon: Text {
+        // Keep text inside the flat sides of the hexagon.
+        x: Tokens.space-2;
+        width: parent.width - 2 * Tokens.space-2;
+        height: parent.height;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        wrap: word-wrap;
+        overflow: elide;
+        text: root.text;
+        font-size: root.centre ? Tokens.font-label : Tokens.font-body;
+        font-weight: root.centre ? Tokens.weight-medium : Tokens.weight-semibold;
+        color: root.ink;
+        accessible-role: none;
     }
 }
