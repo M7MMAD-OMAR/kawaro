@@ -151,16 +151,26 @@ inner() {
       [ -s "$OUT_LOG-shot-$n.png" ] && [ "$gw" -gt 0 ] &&
         python3 -I "$px" crop "$OUT_LOG-shot-$n.png" "$gx" "$gy" "$gw" "$gh" "$OUT/drop-en-light-$n.png"
     done
+    read -r dx dy <<<"$(webp_offset)"
     # AC10: the waiting text, in the centre hexagon's middle (72 x 48 around
-    # the hive's centre), before the drag enters.
-    local w="$OUT_LOG-shot-waiting.png"
-    [ -s "$w" ] && ink=$(count "$w" $((cx - 36)) $((cy - 24)) 72 48 text-primary 40)
+    # the hive's centre), before the drag enters. Guard first: the cells
+    # arrive on enter, so a shot taken before it has no surface-2 or accent
+    # in the WEBP cell's box. A late shot would show the selection text that
+    # enter sets, and must not pass as the waiting text.
+    local w="$OUT_LOG-shot-waiting.png" early="" late2="" late3=""
+    if [ -s "$w" ]; then
+      late2=$(count "$w" $((cx + dx - 28)) $((cy + dy - 28)) 56 56 surface-2)
+      late3=$(count "$w" $((cx + dx - 28)) $((cy + dy - 28)) 56 56 accent)
+      [ "${late2:-1}" -le 10 ] && [ "${late3:-1}" -le 10 ] && early=1
+    fi
+    echo "INFO AC10 show 1: WEBP box in the waiting shot: surface-2 ${late2:-none}, accent ${late3:-none}"
+    check "AC10 show 1: the waiting shot was taken before enter (no cells yet)" '[ "$early" = 1 ]'
+    [ "$early" = 1 ] && ink=$(count "$w" $((cx - 36)) $((cy - 24)) 72 48 text-primary 40)
     echo "INFO AC10 show 1: ${ink:-no} text-primary pixels in the centre before the drag enters"
     check "AC10 show 1: the waiting hive's centre shows text (text-primary ink) before enter" '[ "${ink:-0}" -ge 15 ]'
     snap_check AC10 waiting
     # AC9: 56 x 56 boxes around the WEBP cell (under the drag) and around the
     # ring 1 cell across the centre from it, axial (-1, 1).
-    read -r dx dy <<<"$(webp_offset)"
     local o="$OUT_LOG-shot-over.png"
     if [ -s "$o" ]; then
       hot=$(count "$o" $((cx + dx - 28)) $((cy + dy - 28)) 56 56 accent)

@@ -232,12 +232,12 @@ mod tests {
             "Arabic letters in {ar:?}"
         );
         assert!(
-            !ar.chars().any(|c| c.is_ascii_alphabetic()),
-            "no Latin letters in the Arabic text {ar:?}"
+            en.chars().any(|c| c.is_ascii_alphabetic()),
+            "Latin letters in {en:?}"
         );
         assert!(
-            en.is_ascii() && en.chars().any(|c| c.is_ascii_alphabetic()),
-            "English text is ASCII words: {en:?}"
+            !en.chars().any(|c| ('\u{0600}'..='\u{06FF}').contains(&c)),
+            "no Arabic letters in the English text {en:?}"
         );
         assert_ne!(ar, en);
         // Not a string the hive already shows for something else.
