@@ -128,7 +128,10 @@ impl CustomApplicationHandler for FocusWatcher {
             winit::event::WindowEvent::RedrawRequested => {
                 // The new surface exists by its first redraw, after its
                 // get_xdg_surface, so the data device is bound to it.
-                if is_hive_window(slint_window) && ATTACH_PENDING.with(|c| c.replace(false)) {
+                if is_hive_window(slint_window)
+                    && _winit_window.is_some()
+                    && ATTACH_PENDING.with(|c| c.replace(false))
+                {
                     attach_receiver(_winit_window);
                 }
                 // Slint draws right after this hook returns; a zero timer
@@ -589,6 +592,8 @@ fn dismiss_weak(w: &Weak<Inner>) {
     }
 }
 
+#[cfg(all(test, target_os = "linux"))]
+mod drop_hive_tests;
 #[cfg(test)]
 mod drop_tests;
 #[cfg(test)]
