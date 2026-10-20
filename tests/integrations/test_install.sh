@@ -66,7 +66,7 @@ assert_eq "binary copied" "$(cat "$BIN/sbarhive")" "$(cat "$SB/release/sbarhive"
 # AC6: absolute paths everywhere a launcher runs us.
 assert_eq "Dolphin Exec" "$(ini_get "$D/kio/servicemenus/sbarhive.desktop" 'Desktop Action sbarhive' Exec)" "$BIN/sbarhive open -- %F"
 assert_eq "Nemo Exec" "$(ini_get "$D/nemo/actions/sbarhive.nemo_action" 'Nemo Action' Exec)" "$BIN/sbarhive open -- %F"
-assert_eq "app Exec" "$(ini_get "$D/applications/io.github.m7mmad_omar.SbarHive.desktop" 'Desktop Entry' Exec)" "$BIN/sbarhive open -- %F"
+assert_eq "app Exec" "$(ini_get "$D/applications/io.github.m7mmad_omar.SbarHive.desktop" 'Desktop Entry' Exec)" "$BIN/sbarhive settings"
 assert_eq "unit ExecStart" "$(ini_get "$C/systemd/user/sbarhive.service" Service ExecStart)" "$BIN/sbarhived"
 assert_contains "Nautilus binary" "$D/nautilus-python/extensions/sbarhive.py" "SBARHIVE_BIN = \"$BIN/sbarhive\""
 assert_contains "Hyprland binary" "$BIN/sbarhive-open-selection" "$BIN/sbarhive"

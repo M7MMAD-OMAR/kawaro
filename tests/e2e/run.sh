@@ -103,6 +103,8 @@ inner() {
   local rss1; rss1=$(rss_mb)
   echo "INFO idle memory after the hive and jobs: ${rss1} MB"
   check "idle memory after use within 40 MB" '[ "$rss1" -le 40 ]'
+  # After the idle measurement: the settings window stays open until closed.
+  check "settings opens from the launcher command" '"$BIN/sbarhive" settings && sleep 0.5 && ! grep -q "cannot .*settings" "$SANDBOX/daemon.log"'
 
   "$BIN/sbarhive" quit >/dev/null 2>&1
   for _ in $(seq 30); do kill -0 $d 2>/dev/null || break; sleep 0.1; done

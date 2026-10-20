@@ -39,6 +39,8 @@ pub enum Request {
         files: Vec<PathBuf>,
     },
     CancelAll,
+    /// Open the settings window, as the tray menu does.
+    Settings,
     /// Re-read config and action files.
     Reload,
     Quit,
