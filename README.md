@@ -6,6 +6,8 @@
 
 يعمل كل شيء على جهازك: لا رفع ولا خوادم ولا جمع بيانات.
 
+![الخلية فوق سطح مكتب GNOME لصورة واحدة](docs/screenshots/hive-gnome.png)
+
 ## ماذا يفعل
 
 - **الصور:** تحويل بين PNG وJPEG وWebP وAVIF وGIF وBMP وTIFF وICO، وتغيير الحجم، والتدوير، والقلب، والتدرج الرمادي، والضغط، وحذف البيانات الوصفية، وجمع عدة صور في ملف PDF واحد.
@@ -61,6 +63,8 @@ and pick an action from the hive. The result is saved next to the original,
 which is never modified.
 
 Everything runs on your machine: no uploads, no servers, no telemetry.
+
+![The hive over a GNOME desktop for one image](docs/screenshots/hive-gnome.png)
 
 ## What it does
 
