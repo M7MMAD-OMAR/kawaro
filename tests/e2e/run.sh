@@ -138,6 +138,10 @@ inner() {
 }
 export -f inner
 
+# Environment set BEFORE dbus-run-session, so nothing the private bus
+# activates (a desktop portal, for one) can reach the live desktop.
+env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
+  -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION \
 HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
 XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
 XDG_RUNTIME_DIR="$(mktemp -d)" WAYLAND_DISPLAY=wayland-sbh-e2e \
