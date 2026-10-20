@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Added
+- RPM and DEB packages, built on Ubuntu 22.04 and test-installed on Fedora 41, current Fedora, Ubuntu 22.04 and 24.04 and Debian 12, attached to each GitHub release.
+
 ## [0.2.0] - 2026-10-20 «المحركات»
 
 ### Added

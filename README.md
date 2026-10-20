@@ -18,7 +18,18 @@
 
 ## التثبيت
 
-يعمل الإصدار الحالي على لينكس. تحتاج Rust 1.85 أو أحدث.
+يعمل الإصدار الحالي على لينكس (64 بت).
+
+**الأسهل:** نزّل الحزمة المناسبة من [صفحة آخر إصدار](https://github.com/M7MMAD-OMAR/sbarhive/releases/latest) وافتحها بمثبّت الحزم، أو من الطرفية:
+
+```bash
+sudo dnf install ./sbarhive-*.x86_64.rpm     # Fedora
+sudo apt install ./sbarhive_*_amd64.deb      # Ubuntu وDebian
+```
+
+تضيف الحزمة صبار هايف إلى قائمة النقر اليمين في Dolphin وNautilus وNemo، وتشغّل الخدمة مع كل جلسة. بعد التثبيت أعد فتح مدير الملفات. لـ Nautilus ثبّت `nautilus-python` (Fedora) أو `python3-nautilus` (Ubuntu). ولـ Thunar استعمل سكربت التثبيت أدناه.
+
+**من المصدر:** تحتاج Rust 1.85 أو أحدث.
 
 ```bash
 git clone https://github.com/M7MMAD-OMAR/sbarhive
@@ -83,7 +94,23 @@ tools installed on your system.
 
 ## Install
 
-Linux for now. Requires Rust 1.85 or newer.
+Linux (64 bit) for now.
+
+**Easiest:** download the package for your system from the
+[latest release](https://github.com/M7MMAD-OMAR/sbarhive/releases/latest)
+and open it with your software installer, or:
+
+```bash
+sudo dnf install ./sbarhive-*.x86_64.rpm     # Fedora
+sudo apt install ./sbarhive_*_amd64.deb      # Ubuntu, Debian
+```
+
+The package adds SbarHive to the right-click menu of Dolphin, Nautilus and
+Nemo and starts the service with every session; reopen your file manager
+after installing. Nautilus needs `nautilus-python` (Fedora) or
+`python3-nautilus` (Ubuntu). For Thunar use the script below.
+
+**From source:** requires Rust 1.85 or newer.
 
 ```bash
 git clone https://github.com/M7MMAD-OMAR/sbarhive
