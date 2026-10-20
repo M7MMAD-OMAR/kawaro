@@ -65,35 +65,52 @@ EOF
   SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$log-daemon.log" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  # Injected input through org_kde_kwin_fake_input (this private KWin only,
+  # KWIN_WAYLAND_NO_PERMISSION_CHECKS above): the warm-up Esc and, in the
+  # token case, the click on the client.
+  local f="$XDG_RUNTIME_DIR/in"; mkfifo "$f"
+  "$ROOT/tests/drop/kwin-input/target/release/kwin-input" <"$f" >"$log-input.log" 2>&1 &
+  exec 3>"$f"
   # Warm-up show, so the measured show is not the slow first one (ADR 0001, 8).
   # NO_WARMUP=1 skips it, so the measured show is the first one.
   if [ -z "${NO_WARMUP:-}" ]; then
     "$BIN/sbarhive" open "$W/b.jpg"; sleep 10
     echo "warm-up: $(state)"
     # S-018c: on the layer path focus loss no longer closes the hive, so the
-    # warm-up hive is closed with Esc through org_kde_kwin_fake_input (this
-    # private KWin only, KWIN_WAYLAND_NO_PERMISSION_CHECKS above), then a
-    # pause so the key is not recent user activity for the client.
-    local f="$XDG_RUNTIME_DIR/in"; mkfifo "$f"
-    "$ROOT/tests/drop/kwin-input/target/release/kwin-input" <"$f" >"$log-input.log" 2>&1 &
-    exec 3>"$f"
+    # warm-up hive is closed with Esc, then a pause so the key is not recent
+    # user activity for the client.
     echo "keydown 1" >&3; echo "sleep 40" >&3; echo "keyup 1" >&3
-    exec 3>&-
     sleep 3
   fi
 
-  # The client takes focus, then launches `sbarhive open` 3 s later.
+  # The client takes focus. notoken and bogus: it launches `sbarhive open`
+  # 3 s later. token: it is maximized, one primary click is injected on it at
+  # the screen centre about 3 s after start, and it launches on the release
+  # with a token carrying that click's serial, as a file manager does after
+  # the user's click. KWin at level 4 accepts a token only if no interaction
+  # is newer than its serial (src/activation.cpp:604), and the warm-up Esc
+  # is newer than a token taken with no click (serial 0).
   local mark; mark=$(wc -l <"$log-daemon.log")
-  CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>&1 &
+  if [ "$CASE" = token ]; then
+    CLIENT_CLICK=1 CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" WAYLAND_DEBUG=client \
+      python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>"$log-client-wayland.log" &
+  else
+    CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>&1 &
+  fi
   local client=$!
   sleep 2
   echo "before: $(state)"
+  if [ "$CASE" = token ]; then
+    echo "move 640 400" >&3; echo "sleep 100" >&3
+    echo "down" >&3; echo "sleep 40" >&3; echo "up" >&3
+  fi
   sleep 4
   echo "after:  $(state)"
   echo "daemon focus lines: $(tail -n +$((mark + 1)) "$log-daemon.log" | grep 'hive focus' | tr '\n' ' ')"
   echo "client: $(grep -E 'token|focus' "$log-client.log" | tr '\n' ' ')"
   grep -i "activation\|token" "$log-kwin.log" | grep -v sbh-state | tail -5 | sed 's/^/kwin: /'
   kill $client 2>/dev/null
+  exec 3>&-
 
   "$BIN/sbarhive" quit >/dev/null 2>&1
   sleep 0.5

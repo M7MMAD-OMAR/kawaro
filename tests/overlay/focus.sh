@@ -5,9 +5,14 @@
 # Modelled on tests/focus/kwin.sh. Per case one private kwin_wayland --virtual:
 # the daemon (SBARHIVE_DEBUG_FOCUS=1, WAYLAND_DEBUG=1) shows a warm-up hive,
 # which is closed with Esc through org_kde_kwin_fake_input (the layer path
-# does not close on focus loss); then client.py takes focus and launches
-# `sbarhive open` 3 s later (CLIENT_AUTO). No pointer event is injected, so
-# the pointer is still for the level 4 cases.
+# does not close on focus loss); then client.py takes focus. In the token
+# cases the client is maximized and one primary click is injected on it at
+# the screen centre 3 s after start, and it launches `sbarhive open` on the
+# release with a token carrying that click's serial, as a file manager does
+# after the user's click (KWin at level 4 accepts a token only if no
+# interaction is newer than its serial, src/activation.cpp:604). The other
+# cases launch 3 s after start (CLIENT_AUTO) with no pointer event, so the
+# pointer is still for the level 4 notoken and bogus cases.
 # Checks:
 #   token at levels 1 and 4: activate(<client's token>, <catcher>) on the
 #     show's catcher, and "hive focus: true".
@@ -72,9 +77,24 @@ inner() {
   sleep 3
 
   local mark; mark=$(wc -l <"$DLOG")
-  CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" python3 "$ROOT/tests/focus/client.py" "$W/b.png" >"$log-client.log" 2>&1 &
+  local click=0
+  [ "$CASE" = token ] && click=1
+  if [ "$click" = 1 ]; then
+    # WAYLAND_DEBUG=client to a separate file: the click's serials and the
+    # token's set_serial, without flooding the client log.
+    CLIENT_CLICK=1 CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" WAYLAND_DEBUG=client       python3 "$ROOT/tests/focus/client.py" "$W/b.png" >"$log-client.log" 2>"$log-client-wayland.log" &
+  else
+    CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" python3 "$ROOT/tests/focus/client.py" "$W/b.png" >"$log-client.log" 2>&1 &
+  fi
   local client=$!
-  sleep 6
+  if [ "$click" = 1 ]; then
+    sleep 3
+    echo "move 640 400" >&3; echo "sleep 100" >&3
+    echo "down" >&3; echo "sleep 40" >&3; echo "up" >&3
+    sleep 3
+  else
+    sleep 6
+  fi
   local seg; seg=$(tail -n +$((mark + 1)) "$DLOG")
   kill $client 2>/dev/null
 

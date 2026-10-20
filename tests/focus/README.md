@@ -55,13 +55,20 @@ passed as the last argument.
   token carries a real input serial. The case keys are F5 (token), F6 (none)
   and F7 (bogus). A screenshot lands in `out/gnome-*.png`.
 - KWin: `kwin_wayland --virtual`, with `FocusStealingPreventionLevel` written
-  to the throwaway `kwinrc`. No input is injected (ydotool works through
-  `/dev/uinput`, which would reach the live session, so it is never used);
-  `client.py` launches by itself 3 s after start (`CLIENT_AUTO`). Since S-018c the warm-up hive is closed with one Esc through KWin's
-  own `org_kde_kwin_fake_input` (`tests/drop/kwin-input`, allowed by
-  `KWIN_WAYLAND_NO_PERMISSION_CHECKS=1` in this private KWin only), because on
-  the layer path focus loss no longer closes it. KWin issues
-  tokens to the active window without an input serial. State is read with a
+  to the throwaway `kwinrc`. Input is injected only through KWin's own
+  `org_kde_kwin_fake_input` (`tests/drop/kwin-input`, allowed by
+  `KWIN_WAYLAND_NO_PERMISSION_CHECKS=1` in this private KWin only); ydotool
+  works through `/dev/uinput`, which would reach the live session, so it is
+  never used. Since S-018c the warm-up hive is closed with one Esc, because
+  on the layer path focus loss no longer closes it. In `notoken` and `bogus`
+  `client.py` launches by itself 3 s after start (`CLIENT_AUTO`), with the
+  pointer still. In `token` it runs with `CLIENT_CLICK=1`: the window is
+  maximized, one primary click is injected at the screen centre, and it
+  launches on the release, so its token carries that click's serial as a
+  file manager's does. KWin at level 4 accepts a token only if no
+  interaction is newer than the token's serial (`src/activation.cpp:604`),
+  and the warm-up Esc is newer than a token taken with no click (serial 0).
+  The client's protocol trace goes to `out/kwin-l<N>-token-client-wayland.log`. State is read with a
   KWin script loaded over D-Bus that prints to KWin's log.
 
 ## Nautilus

@@ -6,7 +6,8 @@ the Nautilus extension does:
   F5  with an xdg-activation token from Gdk.AppLaunchContext
   F6  without a token
   F7  with a made-up token (control: a policy that honours tokens rejects it)
-Usage: client.py FILE   (SBARHIVE names the CLI binary, CLIENT_AUTO below)
+Usage: client.py FILE   (SBARHIVE names the CLI binary, CLIENT_AUTO and
+CLIENT_CLICK below)
 """
 
 import os
@@ -74,9 +75,33 @@ def on_activate(app):
 
     # CLIENT_AUTO=token|notoken|bogus launches once, 3 s after start, for
     # compositors where this test cannot inject keys.
+    # With CLIENT_CLICK=1 it launches instead on the release of the first
+    # primary click on this window, as a file manager does after the user's
+    # click: GTK then puts that click's press serial in the token. The window
+    # is maximized so an injected click at the screen centre lands on it.
     auto = os.environ.get("CLIENT_AUTO")
     if auto in ("token", "notoken", "bogus"):
-        GLib.timeout_add(3000, lambda: launch(auto == "token", auto == "bogus") and False)
+        if os.environ.get("CLIENT_CLICK") == "1":
+            win.maximize()
+            click = Gtk.GestureClick()
+            click.set_button(1)
+            click.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+            done = []
+
+            # Claim the press, or the Entry's own gesture claims it and this
+            # one is cancelled without a release.
+            click.connect("pressed", lambda g, _n, _x, _y: g.set_state(Gtk.EventSequenceState.CLAIMED))
+
+            def on_released(_g, _n, x, y):
+                log("click", int(x), int(y))
+                if not done:
+                    done.append(True)
+                    launch(auto == "token", auto == "bogus")
+
+            click.connect("released", on_released)
+            win.add_controller(click)
+        else:
+            GLib.timeout_add(3000, lambda: launch(auto == "token", auto == "bogus") and False)
 
 
 app = Gtk.Application(
