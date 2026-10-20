@@ -249,7 +249,13 @@ fn slint_tokens(t: &Value) -> String {
         num(t, &["hex", "gap"])
     )
     .unwrap();
-    for k in ["icon-size", "icon-gap"] {
+    for k in [
+        "icon-size",
+        "icon-gap",
+        "preview-icon-size",
+        "stack-offset",
+        "badge-size",
+    ] {
         writeln!(
             s,
             "    out property <length> hex-{k}: {}px;",

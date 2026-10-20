@@ -56,9 +56,9 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
                 .iter()
                 .map(|a| ui::cell(a, lang))
                 .collect::<Vec<_>>();
-            st.pending = Some(files);
+            st.pending = Some(files.clone());
             drop(st);
-            ui::present(centre, cells, token);
+            ui::present(centre, files, cells, token);
             reply(&mut stream, &Response::Ok);
         }
         Request::Drop { token } => {

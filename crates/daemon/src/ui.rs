@@ -8,8 +8,9 @@ use sbarhive_core::ActionDef;
 use sbarhive_core::config::{Config, Theme};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
-use sbarhive_ui::{Hive, HiveCell, SettingsWindow};
+use sbarhive_ui::{Hive, HiveCell, SettingsWindow, thumb};
 use std::cell::RefCell;
+use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 thread_local! {
@@ -45,6 +46,8 @@ pub fn build(
 ) -> Result<(), slint::PlatformError> {
     apply_theme(theme);
     let hive = Hive::new(lang)?;
+    let (thumbnails, globs) = preview_source();
+    hive.set_preview_source(thumbnails, globs);
     {
         let (state, queue) = (state.clone(), queue.clone());
         hive.on_choose(move |id| {
@@ -149,11 +152,28 @@ pub fn cell(a: &ActionDef, lang: Lang) -> HiveCell {
     }
 }
 
-pub fn present(centre: String, cells: Vec<HiveCell>, token: Option<String>) {
+/// Where the hive finds thumbnails and file kinds, from this process's
+/// environment (S-018h): the freedesktop thumbnail cache and the
+/// shared-mime-info globs of the XDG data directories.
+fn preview_source() -> (PathBuf, thumb::Globs) {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let thumbnails = thumb::thumbnails_dir(std::env::var_os("XDG_CACHE_HOME").as_deref(), &home);
+    let dirs = thumb::data_dirs(
+        std::env::var_os("XDG_DATA_HOME").as_deref(),
+        std::env::var_os("XDG_DATA_DIRS").as_deref(),
+        &home,
+    );
+    (thumbnails, thumb::Globs::load(&dirs))
+}
+
+/// Shows the hive for `files`, with them in the centre cell.
+pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token: Option<String>) {
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
-                && let Err(e) = hive.present(&centre, cells, token)
+                && let Err(e) = hive.present_files(&centre, &files, cells, token)
             {
                 eprintln!("sbarhived: cannot show the hive: {e}");
             }

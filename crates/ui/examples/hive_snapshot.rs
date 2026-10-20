@@ -1,9 +1,11 @@
 //! Renders the hive once and writes a PNG, or compares it with a reference.
 //!
-//!     hive_snapshot OUT.png [--lang ar|en] [--highlight N] [--compare REF.png]
+//!     hive_snapshot [--file PATH]... OUT.png [--lang ar|en] [--highlight N] [--compare REF.png]
 //!
 //! `--highlight` marks a cell as hovered (default 0, the first ring-1 cell),
-//! so the snapshot shows the accent and the full label in the centre.
+//! so the snapshot shows the accent and the full label in the centre; -1
+//! hovers none. Each `--file` is a selected file shown in the centre
+//! (S-018h), with thumbnails and MIME globs from the environment.
 //! With `--compare` the exit code is 1 when more than 0.1 % of the pixels
 //! differ by more than 8 levels in any channel; OUT.png is still written.
 //! Needs a Wayland compositor: run it through crates/ui/tests/snapshots.sh,
@@ -42,6 +44,9 @@ fn parse(args: &[String]) -> Result<Opts, String> {
                     .ok_or("--highlight needs a number")?
             }
             "--compare" => o.compare = it.next().map(PathBuf::from),
+            "--file" => {
+                it.next();
+            }
             other => o.out = PathBuf::from(other),
         }
     }
@@ -95,7 +100,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let o = parse(&args)?;
     sbarhive_ui::init()?;
     let hive = std::rc::Rc::new(sbarhive_ui::Hive::new(lang)?);
-    hive.present(common::centre_text(lang), common::image_actions(lang), None)?;
+    let files = common::files_from_args(&args);
+    if files.is_empty() {
+        hive.present(common::centre_text(lang), common::image_actions(lang), None)?;
+    } else {
+        common::preview_source(&hive);
+        let centre = common::centre_text(lang);
+        hive.present_files(centre, &files, common::image_actions(lang), None)?;
+    }
     hive.set_highlight(o.highlight);
 
     let result = std::rc::Rc::new(std::cell::Cell::new(Ok::<(), String>(())));

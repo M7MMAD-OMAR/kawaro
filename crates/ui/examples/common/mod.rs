@@ -2,13 +2,37 @@
 
 #![allow(dead_code)]
 
-use sbarhive_ui::{HiveCell, Lang};
+use sbarhive_ui::{Hive, HiveCell, Lang, thumb};
+use std::path::PathBuf;
 
 pub fn lang_from_args(args: &[String]) -> Lang {
     args.windows(2)
         .find(|w| w[0] == "--lang")
         .map(|w| Lang::parse(&w[1]))
         .unwrap_or(Lang::En)
+}
+
+/// Every `--file PATH` in the arguments, in order.
+pub fn files_from_args(args: &[String]) -> Vec<PathBuf> {
+    args.windows(2)
+        .filter(|w| w[0] == "--file")
+        .map(|w| PathBuf::from(&w[1]))
+        .collect()
+}
+
+/// Gives the hive its thumbnail cache and MIME globs from this process's
+/// environment, as the daemon does (S-018h).
+pub fn preview_source(hive: &Hive) {
+    let home = std::env::var_os("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_default();
+    let thumbnails = thumb::thumbnails_dir(std::env::var_os("XDG_CACHE_HOME").as_deref(), &home);
+    let dirs = thumb::data_dirs(
+        std::env::var_os("XDG_DATA_HOME").as_deref(),
+        std::env::var_os("XDG_DATA_DIRS").as_deref(),
+        &home,
+    );
+    hive.set_preview_source(thumbnails, thumb::Globs::load(&dirs));
 }
 
 pub fn centre_text(lang: Lang) -> &'static str {

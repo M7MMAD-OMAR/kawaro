@@ -2,14 +2,19 @@
 //! hive API. Run it only inside crates/ui/tests/measure.sh (private headless
 //! compositor), never on a live desktop.
 //!
-//!     hive_bench daemon [--lang ar|en]   waits on $XDG_RUNTIME_DIR/sbarhive-ui-bench.sock
+//!     hive_bench daemon [--lang ar|en] [--file PATH]   waits on $XDG_RUNTIME_DIR/sbarhive-ui-bench.sock
 //!     hive_bench show [--token T]        asks for the hive, prints first_frame_ms
 //!     hive_bench ctl hide|quit
-//!     hive_bench run [--lang ar|en]      cold start, prints first_frame_epoch_ms
+//!     hive_bench run [--lang ar|en] [--file PATH]      cold start, prints first_frame_epoch_ms
+//!
+//! With `--file` every show presents that selected file in the centre
+//! (S-018h), with thumbnails and MIME globs from the environment.
 //!
 //! `first_frame_ms` is measured inside the daemon from the moment the request
 //! line arrives to the first frame presented after `present`, with the full
 //! 18-cell hive (1 + 6 + 12 = 19 hexagons, as AC1 asks).
+
+mod common;
 
 use sbarhive_ui::{Hive, HiveCell, Lang};
 use std::cell::RefCell;
@@ -50,9 +55,23 @@ fn epoch_ms() -> u128 {
         .unwrap_or(0)
 }
 
-fn daemon(lang: Lang) -> Result<(), Box<dyn std::error::Error>> {
+/// `present`, or `present_files` when the bench has selected files.
+fn present(
+    hive: &Hive,
+    files: &[PathBuf],
+    token: Option<String>,
+) -> Result<(), slint::PlatformError> {
+    if files.is_empty() {
+        hive.present("18", full_hive(), token)
+    } else {
+        hive.present_files("18", files, full_hive(), token)
+    }
+}
+
+fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     sbarhive_ui::init()?;
     let hive = Rc::new(Hive::new(lang)?);
+    common::preview_source(&hive);
     hive.on_choose(|id| eprintln!("chosen {id}"));
     hive.on_dismiss(|| eprintln!("dismissed"));
     let path = socket_path();
@@ -62,8 +81,10 @@ fn daemon(lang: Lang) -> Result<(), Box<dyn std::error::Error>> {
 
     thread_local! {
         static HIVE: RefCell<Option<Rc<Hive>>> = const { RefCell::new(None) };
+        static FILES: RefCell<Vec<PathBuf>> = const { RefCell::new(Vec::new()) };
     }
     HIVE.with(|h| *h.borrow_mut() = Some(hive));
+    FILES.with(|f| *f.borrow_mut() = files);
 
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
@@ -93,7 +114,8 @@ fn daemon(lang: Lang) -> Result<(), Box<dyn std::error::Error>> {
                             let ms = received.elapsed().as_secs_f64() * 1000.0;
                             writeln!(stream, "first_frame_ms={ms:.1}").ok();
                         });
-                        if let Err(e) = hive.present("18", full_hive(), token) {
+                        let shown = FILES.with(|f| present(&hive, &f.borrow(), token));
+                        if let Err(e) = shown {
                             eprintln!("present failed: {e}");
                         }
                     }
@@ -127,10 +149,11 @@ fn ctl(cmd: &str) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn cold(lang: Lang) -> Result<(), Box<dyn std::error::Error>> {
+fn cold(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let t0 = Instant::now();
     sbarhive_ui::init()?;
     let hive = Hive::new(lang)?;
+    common::preview_source(&hive);
     sbarhive_ui::after_next_frame(move || {
         println!(
             "first_frame_ms={:.1} first_frame_epoch_ms={}",
@@ -139,7 +162,7 @@ fn cold(lang: Lang) -> Result<(), Box<dyn std::error::Error>> {
         );
         slint::quit_event_loop().ok();
     });
-    hive.present("18", full_hive(), None)?;
+    present(&hive, &files, None)?;
     slint::run_event_loop_until_quit()?;
     hive.close();
     Ok(())
@@ -151,10 +174,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .map(|l| Lang::parse(&l))
         .unwrap_or(Lang::En);
     match args.first().map(String::as_str) {
-        Some("daemon") => daemon(lang),
+        Some("daemon") => daemon(lang, common::files_from_args(&args)),
         Some("show") => show(arg_after(&args, "--token")),
         Some("ctl") => ctl(args.get(1).map(String::as_str).unwrap_or("hide")),
-        Some("run") => cold(lang),
+        Some("run") => cold(lang, common::files_from_args(&args)),
         _ => Err("usage: hive_bench daemon|show|ctl|run".into()),
     }
 }

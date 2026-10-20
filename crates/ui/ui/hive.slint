@@ -29,6 +29,15 @@ export component HiveWindow inherits Window {
     in property <length> win-h;
     in property <string> centre-text;
     in property <string> centre-label;
+    // Arabic: the stack and the count go to the other side (S-018 AC25).
+    in property <bool> rtl;
+    // The selected files in the centre (S-018h). `preview-image` is a cached
+    // thumbnail already downscaled in Rust; without one, `preview-icon` and
+    // `preview-code` show the files' kind. No files: count 0, no preview.
+    in property <image> preview-image;
+    in property <image> preview-icon;
+    in property <string> preview-code;
+    in property <int> preview-count;
     // Index into `cells` of the highlighted cell (mouse or keyboard), or -1.
     in-out property <int> highlight: -1;
     // False then true again on every present, to replay the opening scale.
@@ -49,9 +58,32 @@ export component HiveWindow inherits Window {
     default-font-family: Tokens.font-family;
     forward-focus: keys;
 
+    // A cell under the pointer or the keyboard: the centre shows its name.
+    property <bool> hovering: root.highlight >= 0 && root.highlight < root.cells.length;
+    // Side of the square inscribed in the centre hexagon: (3 - sqrt 3) r.
+    property <length> preview-side: root.hex-r * 1.2679492;
+    property <bool> has-thumb: root.preview-image.width > 0;
+    property <float> side-sign: root.rtl ? -1 : 1;
+
     layer := Rectangle {
         transform-scale: root.opened ? Tokens.hive-scale-to : Tokens.hive-scale-from;
         animate transform-scale { duration: Tokens.hive-open; easing: ease-out; }
+
+        // Several files: two hexagons behind the centre, up and to the side,
+        // under the action cells too.
+        if root.preview-count > 2: stack-2 := HexCell {
+            x: root.centre-x + root.side-sign * 2 * Tokens.hex-stack-offset - self.width / 2;
+            y: root.centre-y - 2 * Tokens.hex-stack-offset - self.height / 2;
+            r: root.hex-r;
+            accessible-role: none;
+        }
+
+        if root.preview-count > 1: stack-1 := HexCell {
+            x: root.centre-x + root.side-sign * Tokens.hex-stack-offset - self.width / 2;
+            y: root.centre-y - Tokens.hex-stack-offset - self.height / 2;
+            r: root.hex-r;
+            accessible-role: none;
+        }
 
         for cell[i] in root.cells: HexCell {
             x: cell.x - self.width / 2;
@@ -73,9 +105,60 @@ export component HiveWindow inherits Window {
             y: root.centre-y - self.height / 2;
             r: root.hex-r;
             centre: true;
-            text: root.highlight >= 0 && root.highlight < root.cells.length ? root.cells[root.highlight].label : root.centre-text;
+            text: root.hovering ? root.cells[root.highlight].label : (root.preview-count > 0 ? "" : root.centre-text);
             accessible-role: text;
             accessible-label: root.centre-label;
+        }
+
+        // The thumbnail fills the inscribed square; the kind icon sits in it
+        // above the format code. A hover shows the name instead.
+        if root.preview-count > 0 && !root.hovering: VerticalLayout {
+            x: root.centre-x - root.preview-side / 2;
+            y: root.centre-y - root.preview-side / 2;
+            width: root.preview-side;
+            height: root.preview-side;
+            alignment: center;
+            spacing: Tokens.hex-icon-gap;
+
+            preview := Image {
+                height: root.has-thumb ? root.preview-side : Tokens.hex-preview-icon-size;
+                source: root.has-thumb ? root.preview-image : root.preview-icon;
+                image-fit: contain;
+                colorize: root.has-thumb ? transparent : Tokens.text-primary;
+                accessible-role: none;
+            }
+
+            if !root.has-thumb: Text {
+                horizontal-alignment: center;
+                overflow: elide;
+                text: root.preview-code;
+                font-size: Tokens.font-body;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.text-primary;
+                accessible-role: none;
+            }
+        }
+
+        // The number of files, on the square's upper corner at the stack side.
+        if root.preview-count > 1: badge := Rectangle {
+            width: max(Tokens.hex-badge-size, count.preferred-width + 2 * Tokens.space-1);
+            height: Tokens.hex-badge-size;
+            x: root.centre-x + root.side-sign * root.preview-side / 2 - self.width / 2;
+            y: root.centre-y - root.preview-side / 2 - self.height / 2;
+            border-radius: self.height / 2;
+            background: Tokens.accent;
+
+            count := Text {
+                width: parent.width;
+                height: parent.height;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                text: root.preview-count;
+                font-size: Tokens.font-label;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.accent-ink;
+                accessible-role: none;
+            }
         }
     }
 

@@ -27,6 +27,8 @@ mod motion;
 pub mod overlay;
 #[cfg(target_os = "linux")]
 mod platform;
+#[cfg(unix)]
+mod preview;
 #[cfg(target_os = "linux")]
 mod receiver;
 mod settings;
@@ -130,6 +132,15 @@ fn report_window(w: &winit::window::Window) {
         size.width.round() as u32,
         size.height.round() as u32,
     );
+}
+
+/// Prints `hive preview: WHAT` when `SBARHIVE_DEBUG_FOCUS` is set: the
+/// thumbnail size handed to Slint, or the kind icon (S-018 AC27).
+#[cfg(unix)]
+fn debug_preview(what: &str) {
+    if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+        eprintln!("hive preview: {what}");
+    }
 }
 
 fn window_key(w: &slint::Window) -> usize {
@@ -321,6 +332,9 @@ struct Inner {
     machine: RefCell<dnd::Machine>,
     /// Clock for the drop hive's enter timeout.
     ticker: slint::Timer,
+    /// Where `present_files` looks for thumbnails and file kinds.
+    #[cfg(unix)]
+    preview_source: RefCell<Option<(PathBuf, thumb::Globs)>>,
 }
 
 impl Inner {
@@ -341,6 +355,9 @@ impl Inner {
         let ui = self.ui.borrow();
         ui.hide().ok();
         ui.set_highlight(-1);
+        // Never keep a picture while hidden (S-018 AC24, AC27).
+        ui.set_preview_image(slint::Image::default());
+        ui.set_preview_icon(slint::Image::default());
     }
 
     /// Shows `plan` in the window and keeps it for picking.
@@ -369,9 +386,58 @@ impl Inner {
         ui.set_win_h(plan.height);
         ui.set_centre_text(centre.into());
         ui.set_centre_label(centre.into());
+        ui.set_rtl(self.rtl);
         #[cfg(target_os = "linux")]
         receiver::set_plan(Some(plan.clone()));
         *self.plan.borrow_mut() = Some(plan);
+    }
+
+    /// Puts `files` in the centre cell (S-018h): one file's cached thumbnail,
+    /// downscaled to the physical side of the square inscribed in the centre
+    /// hexagon, else the icon of the files' common kind with their shared
+    /// format code. One file names the centre by its file name; several keep
+    /// `centre`. No files shows no preview.
+    #[cfg(unix)]
+    fn set_preview(&self, centre: &str, files: &[PathBuf]) {
+        let ui = self.ui.borrow();
+        ui.set_preview_count(files.len() as i32);
+        ui.set_preview_image(slint::Image::default());
+        ui.set_preview_icon(slint::Image::default());
+        ui.set_preview_code("".into());
+        if files.is_empty() {
+            return;
+        }
+        let names: Vec<String> = files
+            .iter()
+            .map(|f| {
+                f.file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_default()
+            })
+            .collect();
+        ui.set_centre_label(if files.len() == 1 { &names[0] } else { centre }.into());
+        let code = names
+            .iter()
+            .map(|n| thumb::format_code(n))
+            .reduce(|a, b| if a == b { a } else { None });
+        ui.set_preview_code(code.flatten().unwrap_or_default().into());
+        let source = self.preview_source.borrow();
+        if let ([file], Some((thumbnails, _))) = (files, source.as_ref())
+            && let Some(path) = thumb::find_thumbnail(thumbnails, file)
+        {
+            let side = (3.0 - 3f32.sqrt()) * ui.get_hex_r() * ui.window().scale_factor();
+            if let Some(buf) = preview::decode_fit(&path, side.floor().max(1.0) as u32) {
+                debug_preview(&format!("thumb {} {}", buf.width(), buf.height()));
+                ui.set_preview_image(slint::Image::from_rgba8(buf));
+                return;
+            }
+        }
+        let kind = match source.as_ref() {
+            Some((_, globs)) => thumb::common_kind(names.iter().map(|n| thumb::kind_for(globs, n))),
+            None => thumb::Kind::File,
+        };
+        debug_preview(&format!("icon {}", kind.icon()));
+        ui.set_preview_icon(icons::image(kind.icon()).unwrap_or_default());
     }
 
     /// The drag entered with `files`: lays out their actions in the same
@@ -465,6 +531,8 @@ impl Hive {
             opener: slint::Timer::default(),
             machine: RefCell::new(dnd::Machine::new()),
             ticker: slint::Timer::default(),
+            #[cfg(unix)]
+            preview_source: RefCell::new(None),
         });
         wire(&inner);
         let w = Rc::downgrade(&inner);
@@ -491,7 +559,32 @@ impl Hive {
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
         let plan = layout::plan(cells, self.inner.rtl);
-        self.show(centre, plan, token, false)
+        self.show(centre, plan, token, false, &[])
+    }
+
+    /// [`Hive::present`] with the selected `files` in the centre cell
+    /// (S-018h): one file's cached thumbnail or the files' kind icon, and for
+    /// several a stack of two hexagons with their count. `centre` is the
+    /// selection text, read by screen readers for several files and shown
+    /// on no hover only when there is no file. The layout is `present`'s.
+    #[cfg(unix)]
+    pub fn present_files(
+        &self,
+        centre: &str,
+        files: &[PathBuf],
+        cells: Vec<HiveCell>,
+        token: Option<String>,
+    ) -> Result<(), slint::PlatformError> {
+        let plan = layout::plan(cells, self.inner.rtl);
+        self.show(centre, plan, token, false, files)
+    }
+
+    /// Where [`Hive::present_files`] looks for thumbnails (the freedesktop
+    /// `thumbnails` folder, see [`thumb::thumbnails_dir`]) and file kinds.
+    /// The caller reads its environment; the hive never does.
+    #[cfg(unix)]
+    pub fn set_preview_source(&self, thumbnails: PathBuf, globs: thumb::Globs) {
+        *self.inner.preview_source.borrow_mut() = Some((thumbnails, globs));
     }
 
     /// Shows an empty two-ring hive that waits for a dragged file (S-014,
@@ -507,7 +600,7 @@ impl Hive {
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
         let plan = layout::plan_rings(Vec::new(), self.inner.rtl, 2);
-        self.show(centre, plan, token, true)
+        self.show(centre, plan, token, true, &[])
     }
 
     fn show(
@@ -516,6 +609,7 @@ impl Hive {
         plan: Plan,
         token: Option<String>,
         drop: bool,
+        files: &[PathBuf],
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         if inner.visible() {
@@ -541,6 +635,10 @@ impl Hive {
             wire(inner);
         }
         inner.apply(centre, plan);
+        #[cfg(unix)]
+        inner.set_preview(centre, files);
+        #[cfg(not(unix))]
+        let _ = files;
         inner
             .machine
             .borrow_mut()

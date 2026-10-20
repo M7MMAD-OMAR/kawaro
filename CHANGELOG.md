@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- File preview in the centre cell (S-018h): with no cell hovered the centre shows the selected file's cached thumbnail, decoded row by row and downscaled to the square inscribed in the centre hexagon before Slint and freed on every hide, else the kind icon with the format code; several files add two stacked hexagons and a count badge, mirrored in Arabic; the centre is read as the file name or the selection text, and the layout is unchanged.
 - Overlay buffers, docs and suite (S-018f): hiding the overlay now frees every buffer of that show at once, the catcher's pixel included, instead of waiting for the compositor to release them; `docs/architecture.md` describes the layer and window paths and their choice rule, the Hyprland README gives an unverified layer rule that turns off the overlay animation, and `tests/overlay/run.sh` runs the whole overlay suite.
 - Overlay colour scheme and cursor (S-018e): `SBARHIVE_COLOR_SCHEME` given to the service now decides the overlay colours ahead of the portal when `theme = "auto"`, and the overlay asks for the default arrow cursor (`wp_cursor_shape_v1`) on every pointer enter.
 - Drop on the hive overlay (S-018d): `sbarhive drop` on the layer-shell overlay takes dragged files again, its drop receiver now bound on the overlay's connection to the hive surface, with clicks and drags outside the hive passing through.
