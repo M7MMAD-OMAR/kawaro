@@ -12,6 +12,7 @@ skip_ext = ["mp3"]
 output = { mode = "per-file", ext = "mp3" }
 code = { ar = "MP3", en = "MP3" }
 label = { ar = "تحويل إلى MP3", en = "Convert to MP3" }
+icon = "audio"
 
 [[action]]
 id = "audio.to-m4a"
@@ -24,6 +25,7 @@ skip_ext = ["m4a"]
 output = { mode = "per-file", ext = "m4a" }
 code = { ar = "M4A", en = "M4A" }
 label = { ar = "تحويل إلى M4A", en = "Convert to M4A" }
+icon = "audio"
 
 [[action]]
 id = "audio.to-ogg"
@@ -36,6 +38,7 @@ skip_ext = ["ogg", "oga"]
 output = { mode = "per-file", ext = "ogg" }
 code = { ar = "OGG", en = "OGG" }
 label = { ar = "تحويل إلى OGG", en = "Convert to OGG" }
+icon = "audio"
 
 [[action]]
 id = "audio.to-flac"
@@ -48,6 +51,7 @@ skip_ext = ["flac"]
 output = { mode = "per-file", ext = "flac" }
 code = { ar = "FLAC", en = "FLAC" }
 label = { ar = "تحويل إلى FLAC", en = "Convert to FLAC" }
+icon = "audio"
 
 [[action]]
 id = "audio.to-opus"
@@ -60,6 +64,7 @@ skip_ext = ["opus"]
 output = { mode = "per-file", ext = "opus" }
 code = { ar = "OPUS", en = "OPUS" }
 label = { ar = "تحويل إلى Opus", en = "Convert to Opus" }
+icon = "audio"
 
 [[action]]
 id = "audio.to-wav"
@@ -72,3 +77,4 @@ skip_ext = ["wav"]
 output = { mode = "per-file", ext = "wav" }
 code = { ar = "WAV", en = "WAV" }
 label = { ar = "تحويل إلى WAV", en = "Convert to WAV" }
+icon = "audio"

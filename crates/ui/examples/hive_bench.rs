@@ -34,6 +34,10 @@ fn full_hive() -> Vec<HiveCell> {
             id: format!("action.{i}"),
             code: format!("A{i}"),
             label: format!("Action number {i}"),
+            icon: sbarhive_ui::icon_names()
+                .nth(i % 21)
+                .unwrap_or_default()
+                .into(),
             ring: if i < 6 { 1 } else { 2 },
         })
         .collect()

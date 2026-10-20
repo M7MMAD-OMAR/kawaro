@@ -83,10 +83,24 @@ pub fn image_actions(lang: Lang) -> Vec<HiveCell> {
     ];
     rows.iter()
         .map(|(id, latin, arabic, en, ar_label, ring)| HiveCell {
+            icon: icon_for(id).into(),
             id: (*id).into(),
             code: if ar { *arabic } else { *latin }.into(),
             label: if ar { *ar_label } else { *en }.into(),
             ring: *ring,
         })
         .collect()
+}
+
+/// The icon each sample action uses, as in actions/images.toml.
+fn icon_for(id: &str) -> &'static str {
+    match id {
+        "image.to-webp" | "image.to-png" | "image.to-jpg" => "image",
+        "image.resize" => "resize",
+        "image.rotate" => "rotate",
+        "image.gray" => "grayscale",
+        "image.to-pdf" => "pdf",
+        "image.strip" => "clean",
+        _ => "",
+    }
 }

@@ -163,6 +163,7 @@ mod tests {
             id: id.into(),
             code: id.to_uppercase(),
             label: format!("label {id}"),
+            icon: String::new(),
             ring,
         }
     }

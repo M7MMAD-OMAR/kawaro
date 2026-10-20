@@ -82,6 +82,7 @@ pub fn cell(a: &ActionDef, lang: Lang) -> HiveCell {
         id: a.id.clone(),
         code: a.code.get(lang).to_string(),
         label: a.label.get(lang).to_string(),
+        icon: a.icon.clone(),
         ring: a.ring,
     }
 }
@@ -114,4 +115,30 @@ pub fn quit() {
     let _ = slint::invoke_from_event_loop(|| {
         let _ = slint::quit_event_loop();
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cell_carries_the_action_fields_in_the_chosen_language() {
+        let reg = sbarhive_core::Registry::builtin();
+        let a = reg.get("image.rotate-90").unwrap();
+        assert_eq!(
+            cell(a, Lang::Ar),
+            HiveCell {
+                id: "image.rotate-90".into(),
+                code: "تدوير".into(),
+                label: "تدوير 90 درجة".into(),
+                icon: "rotate".into(),
+                ring: a.ring,
+            }
+        );
+        let en = cell(a, Lang::En);
+        assert_eq!(
+            (en.code.as_str(), en.label.as_str(), en.icon.as_str()),
+            ("ROT", "Rotate 90°", "rotate")
+        );
+    }
 }

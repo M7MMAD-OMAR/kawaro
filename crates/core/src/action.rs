@@ -15,6 +15,8 @@
 //! output = { mode = "per-file", ext = "webp" }   # or mode = "combined"
 //! code = { ar = "WEBP", en = "WEBP" }            # short text inside the cell
 //! label = { ar = "تحويل إلى WebP", en = "Convert to WebP" }
+//! icon = "image"           # name from the hive icon set (crates/ui/icons/);
+//!                          # empty or left out means the code shows alone
 //! [action.params]
 //! quality = 85
 //! ```
@@ -81,6 +83,11 @@ pub struct ActionDef {
     pub output: OutputSpec,
     pub code: Localized,
     pub label: Localized,
+    /// Icon drawn above the code, a name from the fixed icon set in
+    /// `crates/ui/icons/` (for example "image", "pdf", "rotate"). Empty means
+    /// no icon: the cell shows the code alone.
+    #[serde(default)]
+    pub icon: String,
     #[serde(default)]
     pub params: toml::Table,
 }

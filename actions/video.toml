@@ -14,6 +14,7 @@ skip_ext = ["mp4"]
 output = { mode = "per-file", ext = "mp4" }
 code = { ar = "MP4", en = "MP4" }
 label = { ar = "تحويل إلى MP4", en = "Convert to MP4" }
+icon = "video"
 [action.params]
 crf = 23
 
@@ -28,6 +29,7 @@ skip_ext = ["webm"]
 output = { mode = "per-file", ext = "webm" }
 code = { ar = "WEBM", en = "WEBM" }
 label = { ar = "تحويل إلى WebM", en = "Convert to WebM" }
+icon = "video"
 
 [[action]]
 id = "video.to-gif"
@@ -39,6 +41,7 @@ accepts = ["video"]
 output = { mode = "per-file", ext = "gif" }
 code = { ar = "GIF", en = "GIF" }
 label = { ar = "تحويل إلى صورة GIF متحركة", en = "Convert to animated GIF" }
+icon = "gif"
 [action.params]
 fps = 12
 width = 480
@@ -53,6 +56,7 @@ accepts = ["video"]
 output = { mode = "per-file", ext = "mp3" }
 code = { ar = "MP3", en = "MP3" }
 label = { ar = "استخراج الصوت بصيغة MP3", en = "Extract audio as MP3" }
+icon = "audio"
 
 [[action]]
 id = "video.compress"
@@ -66,6 +70,7 @@ skip_ext = ["wmv", "mpeg", "mpg"]
 output = { mode = "per-file", suffix = "-compressed" }
 code = { ar = "ضغط", en = "SHRINK" }
 label = { ar = "ضغط الفيديو", en = "Compress video" }
+icon = "compress"
 [action.params]
 crf = 28
 max_height = 1080
@@ -83,6 +88,7 @@ skip_ext = ["mkv"]
 output = { mode = "per-file", ext = "mkv" }
 code = { ar = "MKV", en = "MKV" }
 label = { ar = "تحويل إلى MKV", en = "Convert to MKV" }
+icon = "video"
 
 [[action]]
 id = "video.to-mov"
@@ -95,6 +101,7 @@ skip_ext = ["mov"]
 output = { mode = "per-file", ext = "mov" }
 code = { ar = "MOV", en = "MOV" }
 label = { ar = "تحويل إلى MOV", en = "Convert to MOV" }
+icon = "video"
 
 [[action]]
 id = "video.extract-ogg"
@@ -106,6 +113,7 @@ accepts = ["video"]
 output = { mode = "per-file", ext = "ogg" }
 code = { ar = "OGG", en = "OGG" }
 label = { ar = "استخراج الصوت بصيغة OGG", en = "Extract audio as OGG" }
+icon = "audio"
 
 [[action]]
 id = "video.extract-m4a"
@@ -117,6 +125,7 @@ accepts = ["video"]
 output = { mode = "per-file", ext = "m4a" }
 code = { ar = "M4A", en = "M4A" }
 label = { ar = "استخراج الصوت بصيغة M4A", en = "Extract audio as M4A" }
+icon = "audio"
 
 [[action]]
 id = "video.extract-flac"
@@ -128,6 +137,7 @@ accepts = ["video"]
 output = { mode = "per-file", ext = "flac" }
 code = { ar = "FLAC", en = "FLAC" }
 label = { ar = "استخراج الصوت بصيغة FLAC", en = "Extract audio as FLAC" }
+icon = "audio"
 
 [[action]]
 id = "video.extract-wav"
@@ -139,3 +149,4 @@ accepts = ["video"]
 output = { mode = "per-file", ext = "wav" }
 code = { ar = "WAV", en = "WAV" }
 label = { ar = "استخراج الصوت بصيغة WAV", en = "Extract audio as WAV" }
+icon = "audio"

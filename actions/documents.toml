@@ -13,6 +13,7 @@ accepts = ["document"]
 output = { mode = "per-file", ext = "pdf" }
 code = { ar = "PDF", en = "PDF" }
 label = { ar = "تحويل إلى PDF", en = "Convert to PDF" }
+icon = "pdf"
 
 [[action]]
 id = "documents.to-docx"
@@ -25,6 +26,7 @@ skip_ext = ["docx", "xls", "xlsx", "ods", "csv", "ppt", "pptx", "odp"]
 output = { mode = "per-file", ext = "docx" }
 code = { ar = "DOCX", en = "DOCX" }
 label = { ar = "تحويل إلى DOCX", en = "Convert to DOCX" }
+icon = "document"
 
 [[action]]
 id = "documents.to-odt"
@@ -37,6 +39,7 @@ skip_ext = ["odt", "xls", "xlsx", "ods", "csv", "ppt", "pptx", "odp"]
 output = { mode = "per-file", ext = "odt" }
 code = { ar = "ODT", en = "ODT" }
 label = { ar = "تحويل إلى ODT", en = "Convert to ODT" }
+icon = "document"
 
 [[action]]
 id = "documents.to-xlsx"
@@ -49,6 +52,7 @@ skip_ext = ["xlsx", "doc", "docx", "odt", "rtf", "txt", "md", "ppt", "pptx", "od
 output = { mode = "per-file", ext = "xlsx" }
 code = { ar = "XLSX", en = "XLSX" }
 label = { ar = "تحويل إلى XLSX", en = "Convert to XLSX" }
+icon = "sheet"
 
 [[action]]
 id = "documents.to-ods"
@@ -61,6 +65,7 @@ skip_ext = ["ods", "doc", "docx", "odt", "rtf", "txt", "md", "ppt", "pptx", "odp
 output = { mode = "per-file", ext = "ods" }
 code = { ar = "ODS", en = "ODS" }
 label = { ar = "تحويل إلى ODS", en = "Convert to ODS" }
+icon = "sheet"
 
 [[action]]
 id = "documents.to-pptx"
@@ -73,6 +78,7 @@ skip_ext = ["pptx", "doc", "docx", "odt", "rtf", "txt", "md", "xls", "xlsx", "od
 output = { mode = "per-file", ext = "pptx" }
 code = { ar = "PPTX", en = "PPTX" }
 label = { ar = "تحويل إلى PPTX", en = "Convert to PPTX" }
+icon = "slides"
 
 [[action]]
 id = "documents.to-odp"
@@ -85,3 +91,4 @@ skip_ext = ["odp", "doc", "docx", "odt", "rtf", "txt", "md", "xls", "xlsx", "ods
 output = { mode = "per-file", ext = "odp" }
 code = { ar = "ODP", en = "ODP" }
 label = { ar = "تحويل إلى ODP", en = "Convert to ODP" }
+icon = "slides"

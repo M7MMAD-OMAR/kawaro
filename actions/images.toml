@@ -17,6 +17,7 @@ skip_ext = ["webp"]
 output = { mode = "per-file", ext = "webp" }
 code = { ar = "WEBP", en = "WEBP" }
 label = { ar = "تحويل إلى WebP", en = "Convert to WebP" }
+icon = "image"
 [action.params]
 quality = 85
 
@@ -31,6 +32,7 @@ skip_ext = ["png"]
 output = { mode = "per-file", ext = "png" }
 code = { ar = "PNG", en = "PNG" }
 label = { ar = "تحويل إلى PNG", en = "Convert to PNG" }
+icon = "image"
 
 [[action]]
 id = "image.to-jpg"
@@ -43,6 +45,7 @@ skip_ext = ["jpg", "jpeg", "jpe"]
 output = { mode = "per-file", ext = "jpg" }
 code = { ar = "JPG", en = "JPG" }
 label = { ar = "تحويل إلى JPG", en = "Convert to JPG" }
+icon = "image"
 [action.params]
 quality = 90
 
@@ -57,6 +60,7 @@ skip_ext = ["avif"]
 output = { mode = "per-file", ext = "avif" }
 code = { ar = "AVIF", en = "AVIF" }
 label = { ar = "تحويل إلى AVIF", en = "Convert to AVIF" }
+icon = "image"
 [action.params]
 quality = 70
 
@@ -71,6 +75,7 @@ min_files = 1
 output = { mode = "combined", ext = "pdf" }
 code = { ar = "PDF", en = "PDF" }
 label = { ar = "دمج الصور في ملف PDF واحد", en = "Combine into one PDF" }
+icon = "pdf"
 [action.params]
 page = "fit"
 
@@ -85,6 +90,7 @@ skip_ext = ["ico"]
 output = { mode = "per-file", ext = "ico" }
 code = { ar = "ICO", en = "ICO" }
 label = { ar = "تحويل إلى أيقونة ICO", en = "Convert to ICO" }
+icon = "icon"
 
 # Ring 2: transforms keep the input format and add a suffix, then the
 # less common formats.
@@ -99,6 +105,7 @@ accepts = ["image"]
 output = { mode = "per-file", suffix = "-50" }
 code = { ar = "50%", en = "50%" }
 label = { ar = "تصغير إلى النصف", en = "Resize to 50%" }
+icon = "resize"
 [action.params]
 scale = 50
 
@@ -112,6 +119,7 @@ accepts = ["image"]
 output = { mode = "per-file", suffix = "-1920" }
 code = { ar = "1920", en = "1920" }
 label = { ar = "تصغير الجانب الأطول إلى 1920 بكسل", en = "Fit to 1920 px" }
+icon = "fit"
 [action.params]
 max_side = 1920
 
@@ -125,6 +133,7 @@ accepts = ["image"]
 output = { mode = "per-file", suffix = "-rotated" }
 code = { ar = "تدوير", en = "ROT" }
 label = { ar = "تدوير 90 درجة", en = "Rotate 90°" }
+icon = "rotate"
 [action.params]
 degrees = 90
 
@@ -138,6 +147,7 @@ accepts = ["image"]
 output = { mode = "per-file", suffix = "-flipped" }
 code = { ar = "قلب", en = "FLIP" }
 label = { ar = "قلب أفقي", en = "Flip horizontally" }
+icon = "flip"
 [action.params]
 axis = "horizontal"
 
@@ -151,6 +161,7 @@ accepts = ["image"]
 output = { mode = "per-file", suffix = "-gray" }
 code = { ar = "رمادي", en = "GRAY" }
 label = { ar = "تحويل إلى الأبيض والأسود", en = "Grayscale" }
+icon = "grayscale"
 
 [[action]]
 id = "image.compress"
@@ -162,6 +173,7 @@ accepts = ["image"]
 output = { mode = "per-file", suffix = "-compressed" }
 code = { ar = "ضغط", en = "SMALL" }
 label = { ar = "ضغط الصورة", en = "Compress" }
+icon = "compress"
 [action.params]
 quality = 75
 
@@ -175,6 +187,7 @@ accepts = ["image"]
 output = { mode = "per-file", suffix = "-clean" }
 code = { ar = "تنظيف", en = "CLEAN" }
 label = { ar = "حذف البيانات الوصفية", en = "Remove metadata" }
+icon = "clean"
 
 [[action]]
 id = "image.to-gif"
@@ -187,6 +200,7 @@ skip_ext = ["gif"]
 output = { mode = "per-file", ext = "gif" }
 code = { ar = "GIF", en = "GIF" }
 label = { ar = "تحويل إلى GIF", en = "Convert to GIF" }
+icon = "gif"
 
 [[action]]
 id = "image.to-tiff"
@@ -199,6 +213,7 @@ skip_ext = ["tif", "tiff"]
 output = { mode = "per-file", ext = "tiff" }
 code = { ar = "TIFF", en = "TIFF" }
 label = { ar = "تحويل إلى TIFF", en = "Convert to TIFF" }
+icon = "image"
 
 [[action]]
 id = "image.to-bmp"
@@ -211,3 +226,4 @@ skip_ext = ["bmp"]
 output = { mode = "per-file", ext = "bmp" }
 code = { ar = "BMP", en = "BMP" }
 label = { ar = "تحويل إلى BMP", en = "Convert to BMP" }
+icon = "image"

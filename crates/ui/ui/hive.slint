@@ -16,6 +16,8 @@ export struct CellData {
     y: length,
     code: string,
     label: string,
+    icon: image,
+    has-icon: bool,
 }
 
 export component HiveWindow inherits Window {
@@ -56,6 +58,8 @@ export component HiveWindow inherits Window {
             y: cell.y - self.height / 2;
             r: root.hex-r;
             text: cell.code;
+            icon: cell.icon;
+            has-icon: cell.has-icon;
             highlighted: i == root.highlight;
             accessible-role: button;
             accessible-label: cell.label;
