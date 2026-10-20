@@ -129,7 +129,7 @@ fn lang_helpers() {
 fn lang_detect_prefers_the_override_then_the_locale() {
     // One test owns the environment so parallel tests do not race on it.
     let vars = ["SBARHIVE_LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"];
-    let saved: Vec<_> = vars.iter().map(|v| std::env::var_os(v)).collect();
+    let saved: Vec<_> = vars.iter().map(std::env::var_os).collect();
     let set = |pairs: &[(&str, &str)]| {
         for v in vars {
             unsafe { std::env::remove_var(v) };
