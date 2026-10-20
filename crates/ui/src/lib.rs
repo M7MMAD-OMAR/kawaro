@@ -14,6 +14,8 @@
 //!   KDE or GNOME settings, see the `motion` module).
 
 // Some events (Cancel, Escape, ClickOutside) are only fed by its tests so far.
+#[cfg(target_os = "linux")]
+mod a11y;
 #[cfg_attr(not(test), allow(dead_code))]
 mod dnd;
 mod geometry;
@@ -85,6 +87,49 @@ thread_local! {
     /// The hive that gets the drop receiver's notes (the current one, since
     /// a language or theme change builds a new hive).
     static DROP_HIVE: RefCell<Weak<Inner>> = const { RefCell::new(Weak::new()) };
+    /// The window path still owes this show's `hive surface` line, for a
+    /// window of this logical size (S-018 AC11).
+    static WINDOW_REPORT: Cell<Option<(f32, f32)>> = const { Cell::new(None) };
+}
+
+/// Prints `hive surface: KIND X Y W H` in logical screen pixels when
+/// `SBARHIVE_DEBUG_FOCUS` is set (S-018 AC11).
+fn report_surface(kind: &str, x: i32, y: i32, w: u32, h: u32) {
+    if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+        eprintln!("hive surface: {kind} {x} {y} {w} {h}");
+    }
+}
+
+/// The window path's line, on a redraw once the window has the hive's size.
+/// No Wayland client knows its own position, so X Y assume the compositor
+/// centres the window on its output, as GNOME and KWin do.
+fn report_window(w: &winit::window::Window) {
+    let Some((ew, eh)) = WINDOW_REPORT.with(Cell::get) else {
+        return;
+    };
+    let size = w.inner_size().to_logical::<f64>(w.scale_factor());
+    if (size.width - f64::from(ew)).abs() > 1.0 || (size.height - f64::from(eh)).abs() > 1.0 {
+        return;
+    }
+    WINDOW_REPORT.with(|c| c.set(None));
+    let (mx, my, mw, mh) = w
+        .current_monitor()
+        .or_else(|| w.available_monitors().next())
+        .map(|m| {
+            let s = m.scale_factor();
+            let p = m.position().to_logical::<f64>(s);
+            let z = m.size().to_logical::<f64>(s);
+            (p.x, p.y, z.width, z.height)
+        })
+        .unwrap_or((0.0, 0.0, size.width, size.height));
+    let centre = |o: f64, m: f64, s: f64| (o + ((m - s) / 2.0).max(0.0)).round() as i32;
+    report_surface(
+        "window",
+        centre(mx, mw, size.width),
+        centre(my, mh, size.height),
+        size.width.round() as u32,
+        size.height.round() as u32,
+    );
 }
 
 fn window_key(w: &slint::Window) -> usize {
@@ -140,6 +185,9 @@ impl CustomApplicationHandler for FocusWatcher {
                     && ATTACH_PENDING.with(|c| c.replace(false))
                 {
                     attach_receiver(_winit_window);
+                }
+                if let (true, Some(w)) = (is_hive_window(slint_window), _winit_window) {
+                    report_window(w);
                 }
                 // Slint draws right after this hook returns; a zero timer
                 // fires on the next loop turn, once the frame is submitted.
@@ -250,6 +298,8 @@ struct Inner {
     ui: RefCell<HiveWindow>,
     /// Number of components built so far (tests check the rebuild).
     builds: Cell<u32>,
+    /// The current component draws on the layer-shell overlay.
+    on_layer: Cell<bool>,
     rtl: bool,
     reduced_motion: bool,
     plan: RefCell<Option<Plan>>,
@@ -396,6 +446,7 @@ impl Hive {
         let inner = Rc::new(Inner {
             ui: RefCell::new(build_window(reduced_motion)?),
             builds: Cell::new(1),
+            on_layer: Cell::new(built_on_layer()),
             rtl: lang.rtl(),
             reduced_motion,
             plan: RefCell::new(None),
@@ -462,9 +513,11 @@ impl Hive {
             // Hide first so the old surface goes away before the new one.
             inner.close();
         }
-        if token.is_some() {
-            // Only a new window adapter runs the attributes hook, which hands
-            // the token to winit (see PENDING_TOKEN).
+        // A token needs a new window adapter, which runs the attributes hook
+        // and hands the token to winit (see PENDING_TOKEN). So does a changed
+        // surface decision, such as a screen reader turned on or off (S-018
+        // AC12): the adapter kind is fixed when the component is built.
+        if token.is_some() || inner.on_layer.get() != wants_layer() {
             if let Ok(mut t) = PENDING_TOKEN.lock() {
                 *t = token;
             }
@@ -474,6 +527,7 @@ impl Hive {
                 t.take();
             }
             *inner.ui.borrow_mut() = fresh?;
+            inner.on_layer.set(built_on_layer());
             inner.builds.set(inner.builds.get() + 1);
             wire(inner);
         }
@@ -502,6 +556,9 @@ impl Hive {
         let ui = inner.ui.borrow();
         ui.set_highlight(-1);
         WAS_FOCUSED.with(|c| c.set(false));
+        // The layer adapter prints its own line with its first frame.
+        let size = (!inner.on_layer.get()).then(|| (ui.get_win_w(), ui.get_win_h()));
+        WINDOW_REPORT.with(|c| c.set(size));
         if inner.reduced_motion {
             ui.set_opened(true);
             ui.show()
@@ -575,6 +632,22 @@ fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError
     }
     tokens.set_reduced_motion(reduced_motion);
     Ok(ui)
+}
+
+/// The next hive build goes on the overlay.
+fn wants_layer() -> bool {
+    #[cfg(target_os = "linux")]
+    return layer::wanted();
+    #[cfg(not(target_os = "linux"))]
+    false
+}
+
+/// The last hive build got the overlay adapter.
+fn built_on_layer() -> bool {
+    #[cfg(target_os = "linux")]
+    return platform::last_hive_on_layer();
+    #[cfg(not(target_os = "linux"))]
+    false
 }
 
 /// `SBARHIVE_COLOR_SCHEME` as a forced dark flag; `None` follows the system.

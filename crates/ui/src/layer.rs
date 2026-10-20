@@ -132,9 +132,12 @@ pub(crate) fn start() -> bool {
         .map(|g| g.interface)
         .collect();
     GLOBALS.with(|g| *g.borrow_mut() = names);
-    if decide(true) != Surface::Layer {
+    // The overlay is possible here; a screen reader only makes some shows
+    // windows, decided at every build (S-018 AC12).
+    if decide(true, false) != Surface::Layer {
         return false;
     }
+    crate::a11y::watch();
     let Some(mut wl) = bind(&globals, &queue.handle()) else {
         return false;
     };
@@ -159,12 +162,12 @@ pub(crate) fn start() -> bool {
 }
 
 /// The surface decision for the advertised globals; `log` prints its note.
-fn decide(log: bool) -> Surface {
+fn decide(log: bool, screen_reader: bool) -> Surface {
     let forced = std::env::var("SBARHIVE_SURFACE").ok();
     let (surface, note) = GLOBALS.with(|g| {
         let g = g.borrow();
         let names: Vec<&str> = g.iter().map(String::as_str).collect();
-        overlay::choose_surface(&names, false, true, forced.as_deref())
+        overlay::choose_surface(&names, screen_reader, true, forced.as_deref())
     });
     if let (true, Some(n)) = (log, note) {
         eprintln!("sbarhive: {n}");
@@ -174,7 +177,8 @@ fn decide(log: bool) -> Surface {
 
 /// The next hive build goes on the overlay (decided again at every build).
 pub(crate) fn wanted() -> bool {
-    SHARED.with(|s| s.borrow().is_some()) && decide(false) == Surface::Layer
+    SHARED.with(|s| s.borrow().is_some())
+        && decide(false, crate::a11y::screen_reader()) == Surface::Layer
 }
 
 fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
@@ -307,6 +311,11 @@ pub(crate) struct LayerAdapter {
     render_scheduled: Cell<bool>,
     /// Activation token handed over with this build (S-013), used once.
     token: RefCell<Option<String>>,
+    /// The token of the shown catcher, sent with its first frame: KWin
+    /// ignores an activation of a layer surface that is not mapped yet.
+    activation: RefCell<Option<String>>,
+    /// The `hive surface` line of this show was printed (S-018 AC11).
+    reported: Cell<bool>,
 }
 
 impl LayerAdapter {
@@ -324,6 +333,8 @@ impl LayerAdapter {
             redraw_wanted: Cell::new(false),
             render_scheduled: Cell::new(false),
             token: RefCell::new(token),
+            activation: RefCell::new(None),
+            reported: Cell::new(false),
         })
     }
 
@@ -417,7 +428,8 @@ impl LayerAdapter {
     /// Creates the catcher layer surface and the hive subsurface.
     fn map(&self) {
         let drop_mode = DROP_MODE.with(Cell::get);
-        let token = self.token.borrow_mut().take();
+        *self.activation.borrow_mut() = self.token.borrow_mut().take();
+        self.reported.set(false);
         let made = SHARED.with(|s| {
             let mut s = s.borrow_mut();
             let wl = &mut s.as_mut()?.wl;
@@ -454,9 +466,6 @@ impl LayerAdapter {
                 .as_ref()
                 .map(|f| f.get_fractional_scale(&hive, qh, ()));
             catcher.commit();
-            if let (Some(a), Some(t)) = (&wl.activation, token) {
-                a.activate(t, &catcher);
-            }
             wl.catcher = Some(catcher.clone());
             wl.hive = Some(hive.clone());
             wl.pointer_on_hive = false;
@@ -480,6 +489,8 @@ impl LayerAdapter {
     }
 
     fn unmap(&self) {
+        // A show closed before its first frame keeps no token for the next.
+        self.activation.borrow_mut().take();
         let Some(s) = self.surfaces.borrow_mut().take() else {
             return;
         };
@@ -559,10 +570,18 @@ impl LayerAdapter {
             s.hive.commit();
             // The subsurface is synchronised: its state applies with this.
             s.catcher.commit();
+            // Now the catcher is mapped, so the token can activate it.
+            if let (Some(a), Some(t)) = (&sh.wl.activation, self.activation.borrow_mut().take()) {
+                a.activate(t, &s.catcher);
+            }
             Some(())
         });
         drop(surfaces);
         if drawn.is_some() {
+            // Once per show, with the hive's real size (not the initial 1 x 1).
+            if self.logical.get() != (1, 1) && !self.reported.replace(true) {
+                crate::report_surface("layer", p.x, p.y, p.destination.0, p.destination.1);
+            }
             self.waiting_frame.set(true);
             flush();
             crate::frame_presented();

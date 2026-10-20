@@ -12,11 +12,16 @@
 # dispatch Wayland requests on a live compositor only; they are covered by
 # tests/overlay/kwin.sh, gnome.sh and snapshots.sh, not by unit tests. The
 # decisions they use stay mutated in overlay.rs (S-018 manager decision 5).
+# The screen reader watch (S-018c) reads a live session bus only; it is
+# covered by tests/overlay/kwin.sh a11y. The window path's surface line runs
+# only inside a winit event loop (tests/overlay/kwin.sh window, gnome.sh),
+# and the build kind helpers answer from the live platform only.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",
   "crates/ui/src/layer.rs",
   "crates/ui/src/platform.rs",
+  "crates/ui/src/a11y.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
@@ -30,4 +35,10 @@ exclude_re = [
   # snapshots.sh); the surface decision it calls stays mutated in overlay.rs.
   "in init$",
   "replace init -> ",
+  "in report_surface$",
+  "replace report_surface with",
+  "in report_window$",
+  "replace report_window with",
+  "replace wants_layer -> bool",
+  "replace built_on_layer -> bool",
 ]

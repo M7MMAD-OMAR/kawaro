@@ -14,6 +14,13 @@ use std::time::Duration;
 thread_local! {
     /// A hive component is being created on this thread.
     static HIVE_BUILD: Cell<bool> = const { Cell::new(false) };
+    /// The last hive build got the overlay adapter.
+    static LAST_LAYER: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Whether the last hive build got the overlay adapter.
+pub(crate) fn last_hive_on_layer() -> bool {
+    LAST_LAYER.with(Cell::get)
 }
 
 /// Marks the window adapters created until `building_hive(false)` as the
@@ -28,8 +35,12 @@ pub(crate) struct Wrap {
 
 impl Platform for Wrap {
     fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, PlatformError> {
-        if HIVE_BUILD.with(Cell::get) && crate::layer::wanted() {
-            return Ok(crate::layer::LayerAdapter::create());
+        if HIVE_BUILD.with(Cell::get) {
+            let layer = crate::layer::wanted();
+            LAST_LAYER.with(|c| c.set(layer));
+            if layer {
+                return Ok(crate::layer::LayerAdapter::create());
+            }
         }
         self.winit.create_window_adapter()
     }

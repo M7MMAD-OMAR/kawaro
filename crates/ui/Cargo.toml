@@ -26,6 +26,9 @@ i-slint-backend-winit = { version = "=1.18.1", default-features = false }
 i-slint-core = { version = "=1.18.1", default-features = false }
 wayland-protocols = { version = "0.32.13", features = ["client", "staging"] }
 wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
+# Screen reader state from org.a11y.Status (S-018 AC12). Same version
+# accesskit and the daemon's tray already pull in, so no new packages.
+zbus = { version = "5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
 
 [build-dependencies]
 slint-build.workspace = true

@@ -268,5 +268,6 @@ Not engines, recorded here because CLAUDE.md asks for every new library.
 | i-slint-core | 1.18.1 (pinned, `=1.18.1`) | GPL-3.0-only OR Slint royalty-free OR Slint software licence; we use it under GPL-3.0 | ui (Linux) | `InternalToken` and `SlintContextWeak` for the forwarded `Platform` methods (S-018b); already in the tree through slint |
 | wayland-protocols | 0.32.13, `client` and `staging` | MIT | ui (Linux) | viewporter, single pixel buffer, fractional scale and xdg-activation for the hive overlay (S-018b); already in the tree through winit |
 | wayland-protocols-wlr | 0.3.12, `client` | MIT | ui (Linux) | `zwlr_layer_shell_v1` for the hive overlay (S-018b); already in the tree through winit |
+| zbus | 5.19.0, `async-io`, `blocking-api` | MIT | ui (Linux) | reads `org.a11y.Status.ScreenReaderEnabled` and its `PropertiesChanged`, so the hive is a window while a screen reader runs (S-018c); already in the tree through accesskit and the tray |
 | md-5 | 0.11.0 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): MD5 of the file URI names the cached thumbnail; already in the tree through another dependency |
 | png | 0.17.16 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): reads the `Thumb::*` text chunks of a cached thumbnail; was a dev-dependency, already in the tree |
