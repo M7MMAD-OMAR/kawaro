@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.2.1" date="2026-10-20">
+      <description>
+        <p>RPM and DEB packages.</p>
+      </description>
+    </release>
     <release version="0.2.0" date="2026-10-20">
       <description>
         <p>Video, audio, documents and PDF through FFmpeg, LibreOffice and Ghostscript, a settings window, and focus that works under strict focus policies in GNOME and KDE.</p>
