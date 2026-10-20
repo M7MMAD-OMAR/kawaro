@@ -199,4 +199,11 @@ fn hive_behaviour() {
     key(&ar, Key::RightArrow);
     assert_eq!(ui.get_highlight(), 3);
     ar.close();
+
+    // Focus events of another window (the settings window in the daemon)
+    // never count as the hive's: only the latest hive window does.
+    let other = HiveWindow::new().unwrap();
+    assert!(is_hive_window(Some(ar.inner.ui.window())));
+    assert!(!is_hive_window(Some(other.window())));
+    assert!(is_hive_window(None));
 }

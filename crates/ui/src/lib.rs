@@ -55,8 +55,25 @@ thread_local! {
     static WAS_FOCUSED: Cell<bool> = const { Cell::new(false) };
     /// Called when focus goes away after having been there.
     static ON_FOCUS_LOST: RefCell<Option<Rc<dyn Fn()>>> = const { RefCell::new(None) };
+    /// Address of the hive's `slint::Window`, so focus events of other
+    /// windows (the settings window) never close the hive. 0 until a hive exists.
+    static HIVE_WINDOW: Cell<usize> = const { Cell::new(0) };
     /// Runs once right after the next frame is drawn (measurement hook).
     static AFTER_FRAME: RefCell<Option<Box<dyn FnOnce()>>> = const { RefCell::new(None) };
+}
+
+fn window_key(w: &slint::Window) -> usize {
+    w as *const slint::Window as usize
+}
+
+/// True when the event comes from the hive window. Events without a Slint
+/// window, or before a hive exists, count as the hive's (single-window case).
+fn is_hive_window(w: Option<&slint::Window>) -> bool {
+    let hive = HIVE_WINDOW.with(Cell::get);
+    match w {
+        Some(w) if hive != 0 => window_key(w) == hive,
+        _ => true,
+    }
 }
 
 /// Focus bookkeeping shared by the winit handler and the tests.
@@ -79,11 +96,13 @@ impl CustomApplicationHandler for FocusWatcher {
         _event_loop: &winit::event_loop::ActiveEventLoop,
         _id: winit::window::WindowId,
         _winit_window: Option<&winit::window::Window>,
-        _slint_window: Option<&slint::Window>,
+        slint_window: Option<&slint::Window>,
         event: &winit::event::WindowEvent,
     ) -> EventResult {
         match event {
-            winit::event::WindowEvent::Focused(f) => focus_changed(*f),
+            winit::event::WindowEvent::Focused(f) if is_hive_window(slint_window) => {
+                focus_changed(*f)
+            }
             winit::event::WindowEvent::RedrawRequested => {
                 // Slint draws right after this hook returns; a zero timer
                 // fires on the next loop turn, once the frame is submitted.
@@ -208,6 +227,7 @@ impl Hive {
             opener: slint::Timer::default(),
         });
         let ui = &inner.ui;
+        HIVE_WINDOW.with(|c| c.set(window_key(ui.window())));
 
         let w = Rc::downgrade(&inner);
         ui.on_pick(move |x, y| {
