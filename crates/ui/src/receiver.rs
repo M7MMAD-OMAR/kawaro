@@ -67,6 +67,10 @@ struct Shared {
 static RECEIVERS: Mutex<Vec<(usize, Option<Arc<Shared>>)>> = Mutex::new(Vec::new());
 /// The cells every receiver picks from; `None` refuses every drop.
 static PLAN: Mutex<Option<Plan>> = Mutex::new(None);
+/// Position of the hive on the attached surface, subtracted before picking:
+/// the layer path receives on the catcher (S-020), the window path on the
+/// hive itself (0, 0).
+static OFFSET: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
 
 /// Binds a new data device for the hive surface `surface` on `display` (raw
 /// `wl_display` and `wl_surface` pointers, from winit or the layer
@@ -90,6 +94,7 @@ pub fn attach(display: usize, surface: usize, sink: Sink) {
             }
         }
     };
+    *lock(&OFFSET) = (0.0, 0.0);
     let Some(s) = shared else { return };
     s.target.store(surface, Ordering::SeqCst);
     let device = s.manager.get_data_device(&s.seat, &s.qh, ());
@@ -105,6 +110,11 @@ pub fn detach() {
         let _ = s.conn.flush();
     }
     *lock(&PLAN) = None;
+}
+
+/// Where the hive sits on the attached surface; set after [`attach`].
+pub fn set_offset(x: f64, y: f64) {
+    *lock(&OFFSET) = (x, y);
 }
 
 /// The cells the receiver picks from; `None` refuses every drop.
@@ -204,7 +214,10 @@ impl Receiver {
     }
 
     fn pick(&self, x: f64, y: f64) -> Option<usize> {
-        lock(&PLAN).as_ref().and_then(|p| dnd::pick(p, x, y))
+        let (ox, oy) = *lock(&OFFSET);
+        lock(&PLAN)
+            .as_ref()
+            .and_then(|p| dnd::pick(p, x - ox, y - oy))
     }
 
     /// Accepts over a cell only, so the cursor shows "no drop" elsewhere.

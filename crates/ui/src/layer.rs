@@ -4,17 +4,19 @@
 //!
 //! Per show (`set_visible(true)`), destroyed again on hide:
 //! - catcher: a layer surface on the overlay layer anchored to all edges,
-//!   exclusive zone -1, keyboard exclusive (none in drop mode, whose input
-//!   region is empty). Its buffer is one transparent pixel stretched by
-//!   wp_viewporter; a click on it, outside the hive, asks to close.
+//!   exclusive zone -1, keyboard exclusive (none in drop mode). Its buffer is
+//!   one transparent pixel stretched by wp_viewporter; a click on it, outside
+//!   the hive, asks to close. In drop mode its input region is empty until
+//!   the first configure, then the hive rectangle, so it takes the drag
+//!   (S-020: Hyprland sends no drag motion to a layer surface's subsurface).
 //! - hive: a subsurface of the catcher, centred by [`overlay::place`],
-//!   holding the Slint frame in a wl_shm buffer.
+//!   holding the Slint frame in a wl_shm buffer; no input in drop mode.
 //!
 //! One wayland-client connection for the process, read on a thread; its
 //! events are dispatched on the Slint thread and go to the adapter that is
 //! shown. Decisions (surface, placement, keys) come from [`crate::overlay`].
 //! A drop-mode show also binds the drop receiver (`receiver.rs`) on this
-//! connection's display, to the hive subsurface (S-018d).
+//! connection's display, to the catcher, offset by the hive position (S-020).
 
 use crate::overlay::{self, Surface};
 use rustix::event::{PollFd, PollFlags, poll};
@@ -319,6 +321,8 @@ struct Surfaces {
     frac: Option<WpFractionalScaleV1>,
     /// Output size from the last configure.
     configured: Option<(u32, u32)>,
+    /// A drop show: the catcher's input region is the hive (S-020).
+    drop_mode: bool,
 }
 
 pub(crate) struct LayerAdapter {
@@ -484,6 +488,12 @@ impl LayerAdapter {
             }
             let catcher_vp = wl.viewporter.get_viewport(&catcher, qh, ());
             let hive = wl.compositor.create_surface(qh, ());
+            if drop_mode {
+                // The catcher takes the drag over the hive (S-020).
+                let r: WlRegion = wl.compositor.create_region(qh, ());
+                hive.set_input_region(Some(&r));
+                r.destroy();
+            }
             let sub = wl.subcompositor.get_subsurface(&hive, &catcher, qh, ());
             let hive_vp = wl.viewporter.get_viewport(&hive, qh, ());
             let frac = wl
@@ -493,7 +503,7 @@ impl LayerAdapter {
             catcher.commit();
             let ids = (
                 s.as_ref()?.conn.backend().display_ptr() as usize,
-                hive.id().as_ptr() as usize,
+                catcher.id().as_ptr() as usize,
             );
             let wl = &mut s.as_mut()?.wl;
             wl.catcher = Some(catcher.clone());
@@ -510,17 +520,18 @@ impl LayerAdapter {
                     hive_vp,
                     frac,
                     configured: None,
+                    drop_mode,
                 },
             ))
         });
-        if let Some(((display, hive), surfaces)) = made {
+        if let Some(((display, catcher), surfaces)) = made {
             *self.surfaces.borrow_mut() = Some(surfaces);
             OWNER.with(|o| *o.borrow_mut() = self.me.clone());
             if drop_mode {
                 // The receiver's data device lives on this connection, the
-                // only one the compositor names the hive subsurface to.
+                // only one the compositor names the catcher to.
                 flush();
-                crate::attach_layer_receiver(display, hive);
+                crate::attach_layer_receiver(display, catcher);
             }
         }
         self.waiting_frame.set(false);
@@ -565,7 +576,8 @@ impl LayerAdapter {
         flush();
     }
 
-    /// Gives the catcher its stretched transparent pixel and centres the hive.
+    /// Gives the catcher its stretched transparent pixel and centres the hive;
+    /// in drop mode the catcher's input region follows the hive.
     fn place(&self) {
         let surfaces = self.surfaces.borrow();
         let Some(s) = surfaces.as_ref() else { return };
@@ -582,6 +594,15 @@ impl LayerAdapter {
             s.catcher.attach(Some(&pixel), 0, 0);
             s.catcher.damage_buffer(0, 0, i32::MAX, i32::MAX);
             sh.wl.buffers.push(pixel);
+            if s.drop_mode {
+                let (dw, dh) = p.destination;
+                let r: WlRegion = sh.wl.compositor.create_region(&sh.wl.qh, ());
+                r.add(p.x, p.y, dw as i32, dh as i32);
+                s.catcher.set_input_region(Some(&r));
+                r.destroy();
+                // The drag arrives in catcher coordinates.
+                crate::receiver::set_offset(f64::from(p.x), f64::from(p.y));
+            }
         });
         s.sub.set_position(p.x, p.y);
     }

@@ -1,5 +1,5 @@
 # S-020 الإفلات على خلية الطبقة يعمل على Hyprland
-الحالة: معتمدة (المدير، بتفويض من محمد، 2026-10-21)
+الحالة: مراجعة
 
 الدليل (`tests/hyprland/repro.sh`، Hyprland 0.56.2 خاص متداخل): في وضع الإفلات الخلية سطح فرعي للماسك، والماسك بمنطقة إدخال فارغة، والمستقبِل يستهدف السطح الفرعي (`crates/ui/src/layer.rs` 479 إلى 524، `receiver.rs` 409 إلى 419). Hyprland لا ينشئ view لسطح فرعي من سطح طبقة (`Subsurface.cpp:14-60`، `WLSurface.cpp:195-199`)، فلا يرسل `wl_data_device.motion` (`DataDevice.cpp:614-628`)، ويأتي `enter` دائماً عند نصف حجم السطح (`DataDevice.cpp:712`). النتيجة: لا تضيء خلية، ويُرفض كل إفلات، وتبقى الخلية حتى مهلة 10 ثوانٍ. `repro.sh --json`: 11 فحصاً، يفشل منها اثنان. مسار النافذة وKWin سليمان. للإصدار 0.3.0، ويسبق S-019.
 
@@ -70,3 +70,8 @@
       السبب: الماسك لا يأخذ منطقة الخلية بعد `configure`، والسطح الفرعي بلا `set_input_region`، والدخول على السطح الفرعي بإحداثياته المحلية (4، 4).
     - `tests/overlay/kwin.sh drop`: `RESULT FAIL (6)`، فحصا AC1 نفسهما في كل ظهور من الثلاثة.
   - حُرّاس تنجح اليوم عمداً، لأنها تحمي ما يجب ألا يتغير: AC1 «منطقة فارغة قبل أول commit»، وAC4 (`keys.py clicks 1`، والخلية اختفت بعد 10052 ms)، وفحص السطر 643 المعدّل (صفر دخول وصفر زر اليوم)، وAC5 (`tests/overlay/kwin.sh` في وضع layer: `RESULT PASS`). `gnome.sh smart` لم يُعدَّل ولم يُشغَّل، فهو بوابة للمنفِّذ.
+- 2026-10-21، المنفِّذ: لم يُعدَّل أي اختبار.
+  - `crates/ui/src/layer.rs`: في وضع الإفلات يأخذ السطح الفرعي للخلية منطقة إدخال فارغة قبل `get_subsurface`؛ ويبقى للماسك منطقته الفارغة قبل أول `commit`؛ و`place()` (بعد كل `configure` وتغيّر حجم أو مقياس، وقبل `commit` الإطار) يضع للماسك منطقة فيها `add(X, Y, W, H)` واحد من `overlay::place`، ويمرّر `(X, Y)` إلى المستقبِل. المستقبِل يُربط بسطح الماسك بدل السطح الفرعي. الوضع العادي دون تغيير. الحقل `drop_mode` في `Surfaces` يثبّت الوضع للظهور كله.
+  - `crates/ui/src/receiver.rs`: `set_offset(x, y)` وثابت `OFFSET` يُصفَّر في كل `attach` (مسار النافذة يبقى (0، 0))، ويُطرح قبل `dnd::pick`.
+  - لا منطق جديد في `overlay.rs`: المستطيل هو `Placement` نفسه (`x`، `y`، `destination`) الذي يطبعه سطر `hive surface`، فلا حساب يُختبر وحدةً. الطرح والمنطقة في ملفين مستثنيين من الطفرات (قرار S-018 الخامس)، ويحرسهما الإفلات الفعلي على WEBP في Hyprland وKWin.
+  - البوابات (مرة واحدة، `nice -n 19`، `CARGO_BUILD_JOBS=2`، مؤلِّف واحد في كل مرة): `cargo fmt --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` نظيف؛ `cargo test -p sbarhive-ui` 94 و25 و38 ناجحة، 0 فاشل؛ `cargo build --release` ناجح؛ `tests/hyprland/repro.sh --json` `{"total": 12, "failed": 0, "skipped": 0}` (motion events 2، file written yes)؛ `tests/drop/kwin.sh level=1` `RESULT PASS` (98 PASS، ومعه `tests/drop/layer.sh`)؛ `tests/overlay/kwin.sh drop` `RESULT PASS` (26)؛ `tests/overlay/kwin.sh` `RESULT PASS` (99)؛ `tests/drop/gnome.sh smart` `RESULT PASS` (46)؛ `scripts/design-lint.sh` نظيف؛ `cargo mutants --in-diff -j 2`: لا طفرات (الفرق كله في ملفات مستثناة).
