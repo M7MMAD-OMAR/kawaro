@@ -9,4 +9,5 @@ mutants.out*/
 tests/focus/out/
 tests/drop/out/
 tests/overlay/out/
+tests/hyprland/out/
 tests/drop/kwin-input/target/
