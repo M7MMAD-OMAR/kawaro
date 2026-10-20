@@ -346,13 +346,20 @@ impl Hive {
 fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError> {
     let ui = HiveWindow::new()?;
     let tokens = ui.global::<Tokens>();
-    match std::env::var("SBARHIVE_COLOR_SCHEME").as_deref() {
-        Ok("light") => tokens.set_dark(false),
-        Ok("dark") => tokens.set_dark(true),
-        _ => {}
+    if let Some(dark) = forced_dark(std::env::var("SBARHIVE_COLOR_SCHEME").ok().as_deref()) {
+        tokens.set_dark(dark);
     }
     tokens.set_reduced_motion(reduced_motion);
     Ok(ui)
+}
+
+/// `SBARHIVE_COLOR_SCHEME` as a forced dark flag; `None` follows the system.
+fn forced_dark(scheme: Option<&str>) -> Option<bool> {
+    match scheme {
+        Some("light") => Some(false),
+        Some("dark") => Some(true),
+        _ => None,
+    }
 }
 
 /// Connects the current component's callbacks to `inner` and marks its

@@ -16,7 +16,7 @@
 ## حالات الاختبار
 | معيار | الاختبار | النوع |
 | --- | --- | --- |
-| AC1 | `tests/focus/gnome.sh token` و`tests/focus/kwin.sh token`: عدّ أسطر `activate(` في سجل الخدمة؛ وفي الوحدة `ui_tests::hive_behaviour` يبني الرمز مكوّناً جديداً موصولاً، ودونه يُعاد استخدام النافذة | تكامل، وحدة |
+| AC1 | `tests/focus/gnome.sh token` و`tests/focus/kwin.sh token`: عدّ أسطر `activate(` في سجل الخدمة؛ وفي الوحدة `ui_tests::hive_behaviour` يبني الرمز مكوّناً جديداً موصولاً، ودونه يُعاد استخدام النافذة؛ وزمن الظهور برمز بـ `SHOW_TOKEN` في `crates/ui/tests/measure.sh` | تكامل، وحدة، أداء |
 | AC2 | `tests/focus/gnome.sh strict token` | تكامل |
 | AC3 | `tests/focus/gnome.sh strict notoken bogus` | تكامل |
 | AC4 | `tests/focus/kwin.sh notoken token bogus level=4` | تكامل |
@@ -52,6 +52,8 @@ GNOME Shell 50.5 بوضع headless مع لوحة مفاتيح افتراضية �
 
 كان رمز التفعيل لا يصل إلى المؤلِّف أبداً. خطاف `with_winit_window_attributes_hook` في Slint 1.18.1 يُستدعى مرة واحدة عند إنشاء محوّل النافذة (`create_window_adapter`)، أي عند `HiveWindow::new()` في بداية الخدمة. أما `hide()` ثم `show()` فيعيدان بناء خصائص النافذة دون الخطاف (`WinitWindowAdapter::suspend`)، فلم يُرسل `activate` في أي ظهور (صفر أسطر في سجل Wayland). الإصلاح في `crates/ui/src/lib.rs`: حين يصل رمز يبني `present` مكوّن خلية جديداً بعد وضع الرمز في `PENDING_TOKEN`، ثم يفرغه حتى لا يصل إلى نافذة أخرى. دون رمز تبقى النافذة نفسها. التحقق: أصبح `activate("<الرمز>")` يُرسل على السطح الجديد، وأصبحت الخلية تأخذ التركيز في GNOME strict وKWin Extreme بعد أن كانت لا تأخذه.
 
+كلفة الإصلاح (KWin مخفي، `SHOW_TOKEN=made-up-token crates/ui/tests/measure.sh 40 5`، 40 ظهوراً متتالياً): وسيط الزمن من الطلب إلى أول إطار 36.0 ms برمز (أقصاه 45.2) مقابل 35.4 ms دونه (أقصاه 49.1)، والذاكرة بعد 41 ظهوراً برمز 26.4 MB مقابل 26.7 MB دونه. بناء مكوّن جديد في كل ظهور برمز لا يتجاوز ميزانية 150 ms ولا يراكم ذاكرة.
+
 ## ملاحظات جانبية (لم تُصلح هنا)
 - في GNOME تظهر زوايا نافذة الخلية سوداء معتمة بدل الشفافية (لقطة `tests/focus/out/gnome-strict-notoken.png`). تحتاج قصة مستقلة.
 - الخدمة تنشئ سطحين من نوع xdg_toplevel عند بدايتها بعنوان «SbarHive» وحجم 0×0 (يظهران في قائمة نوافذ Mutter)، والأرجح أن أحدهما نافذة الإعدادات. لا يُرسم فيهما شيء، ولم يُتحقق من أثرهما.
@@ -64,3 +66,4 @@ GNOME Shell 50.5 بوضع headless مع لوحة مفاتيح افتراضية �
 
 ## سجل المراجعة
 - 2026-10-20، المدير: نُفذت القصة كتجربة قياس ثم إصلاح، بموافقة مسبقة من المالك، فكُتبت الاختبارات والشيفرة في نفس الجلسة. هذا استثناء من ترتيب السلسلة، مسجّل هنا.
+- 2026-10-20، المدير: بوابات الجودة: `cargo fmt --check` و`cargo clippy --all-targets -- -D warnings` و`cargo test --all` و`scripts/design-lint.sh` نظيفة، و`tests/e2e/run.sh` نجح كله. `cargo mutants --in-diff` على `sbarhive-ui`: أول تشغيل ترك 6 طفرات ناجية في شيفرة نُقلت إلى `build_window` و`wire` (مسح التمييز عند الإغلاق، `set_highlight`، ذراعا `SBARHIVE_COLOR_SCHEME`، و-1 في `pick` و`navigate`)، فأُضيفت لها اختبارات، والتشغيل الثاني: 23 طفرة، 17 مكتشفة، 6 غير قابلة للبناء، ولا ناجية.

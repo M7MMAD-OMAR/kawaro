@@ -6,6 +6,8 @@
 #
 # Usage: crates/ui/tests/measure.sh [runs] [idle_seconds]
 #   CPUS=0,1  pins the compositor and the daemon to those cores (taskset).
+#   SHOW_TOKEN=T  passes an activation token with every show, which takes the
+#             path that builds a fresh hive window (S-013).
 # Prints one line per request, then the first show on its own and the median
 # of the rest, then the RSS after the idle wait.
 set -u
@@ -40,10 +42,11 @@ inner() {
   local dpid=$!
   for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/sbarhive-ui-bench.sock" ] && break; sleep 0.1; done
   sleep 1
-  echo "first $("$BIN" show 2>&1 | tr '\n' ' ')"
+  local tok=(); [ -n "${SHOW_TOKEN:-}" ] && tok=(--token "$SHOW_TOKEN")
+  echo "first $("$BIN" show "${tok[@]}" 2>&1 | tr '\n' ' ')"
   "$BIN" ctl hide; sleep 0.5
   for i in $(seq "$RUNS"); do
-    echo "warm $i $("$BIN" show 2>&1 | tr '\n' ' ')"
+    echo "warm $i $("$BIN" show "${tok[@]}" 2>&1 | tr '\n' ' ')"
     "$BIN" ctl hide
     sleep 0.5
   done
@@ -55,7 +58,7 @@ inner() {
 }
 
 export -f inner
-export BIN OUT RUNS IDLE CPUS
+export BIN OUT RUNS IDLE CPUS SHOW_TOKEN
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"

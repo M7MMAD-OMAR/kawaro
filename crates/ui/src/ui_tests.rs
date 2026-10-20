@@ -71,6 +71,8 @@ fn hive_behaviour() {
     i_slint_backend_testing::init_no_event_loop();
     let (hive, log) = wired(Lang::En);
     let ui = hive.inner.ui.borrow();
+    // Before any present there is no plan, so nothing can be picked.
+    assert_eq!(ui.invoke_pick(10.0, 10.0), -1);
 
     // present maps cells to the model and shows the window.
     hive.present("3 images", cells(), None).unwrap();
@@ -185,7 +187,11 @@ fn hive_behaviour() {
         .collect();
     hive.present("25", many, None).unwrap();
     assert_eq!(ui.get_cells().row_count(), 18);
+    // The snapshot hook highlights; closing clears the highlight.
+    hive.set_highlight(2);
+    assert_eq!(ui.get_highlight(), 2);
     hive.close();
+    assert_eq!(ui.get_highlight(), -1);
     drop(ui);
     drop(hive);
 
@@ -243,4 +249,17 @@ fn hive_behaviour() {
         "the new window is wired"
     );
     assert!(!ar.inner.visible());
+
+    // A window that outlives its hive answers navigation with -1.
+    let orphan = ar.inner.ui.borrow().clone_strong();
+    drop(ar);
+    assert_eq!(orphan.invoke_navigate(0, 0), -1);
+}
+
+#[test]
+fn colour_scheme_override() {
+    assert_eq!(forced_dark(Some("light")), Some(false));
+    assert_eq!(forced_dark(Some("dark")), Some(true));
+    assert_eq!(forced_dark(Some("auto")), None);
+    assert_eq!(forced_dark(None), None);
 }
