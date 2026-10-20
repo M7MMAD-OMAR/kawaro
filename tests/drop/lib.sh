@@ -335,7 +335,7 @@ shortcut_esc() { # shortcut_esc N FILE over|before
   local gone_line gone_ms=""
   gone_line=$(grep -m1 -E -- "$HIVE_DESTROY_RE" <<<"$seg" | grep -oE '^\[[0-9:.]+\]')
   if [ -n "$gone_line" ]; then
-    gone_ms=$(awk -v a="$(tod "$t_esc")" -v b="$(tod "$gone_line")" 'BEGIN{d=b-a; if (d < -43200) d += 86400; printf "%d\n", d * 1000}')
+    gone_ms=$(awk -v a="$(tod "$t_esc")" -v b="$(tod "$gone_line")" 'BEGIN{d=b-a; if (d < -43200) d += 86400; printf "%.1f\n", d * 1000}')
   fi
   echo "INFO AC11 $n: drag entered the hive before Esc: $entered enter event(s); hive surface destroyed ${gone_ms:-never} ms after Esc ($t_esc UTC)"
   local src; src=$(tail -n +$((smark + 1)) "$SLOG")
@@ -345,10 +345,13 @@ shortcut_esc() { # shortcut_esc N FILE over|before
     'grep -q "drag-cancel" <<<"$src" && ! grep -q "drag-end deleted=True" <<<"$src"'
   if [ "$where" = over ]; then
     check "AC11 $n: the drag had entered the hive before Esc (a release would have dropped)" '[ "$entered" -ge 1 ]'
-    check "AC11 $n: the hive is gone within 500 ms of Esc (daemon trace)" '[ -n "$gone_ms" ] && [ "$gone_ms" -le 500 ]'
+    # After the Esc, not before it (a destroy before the stamp is a bug).
+    check "AC11 $n: the hive is gone within 500 ms of Esc (daemon trace)" \
+      '[ -n "$gone_ms" ] && awk -v d="$gone_ms" "BEGIN{exit !(d >= 0 && d <= 500)}"'
   else
     check "AC11 $n: the drag never entered the hive before Esc" '[ "$entered" -eq 0 ]'
-    check "AC11 $n: the hive closes by its timeout (within 12 s of Esc)" '[ -n "$gone_ms" ] && [ "$gone_ms" -le 12000 ]'
+    check "AC11 $n: the hive closes by its timeout (within 12 s of Esc)" \
+      '[ -n "$gone_ms" ] && awk -v d="$gone_ms" "BEGIN{exit !(d >= 0 && d <= 12000)}"'
   fi
   check "AC11 $n: the hive is no longer shown" 'wait_gone 2'
   if [ "${ESC_NO_KEYBOARD:-0}" = 1 ]; then

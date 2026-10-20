@@ -14,8 +14,11 @@
 #   - every program a documented bind line runs is `sbarhive` or a file the
 #     repository ships (a helper the docs name must exist); no /home/ paths.
 #   - no em dash or en dash in those files.
-# A section is the text between two headings; its language is Arabic when its
-# prose (not code) has more Arabic than Latin letters, else English.
+# A section is the text between two headings (any level); its language is
+# Arabic when its prose (not code) has more Arabic than Latin letters, else
+# English. Each topic's words and its code block must sit in one section, with
+# no heading between them. Arabic is compared without harakat and with
+# أ إ آ read as ا. In docs/ the Hyprland section must name Hyprland.
 # Usage: tests/drop/docs.sh
 # shellcheck disable=SC2016
 set -u
@@ -29,6 +32,7 @@ check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS
 DOCS=$(find "$ROOT/docs" -name '*.md' -not -path "$ROOT/docs/adr/*" -not -name PLAN.md | sort)
 HYPR="$ROOT/integrations/linux/hyprland/README.md"
 
+# scan --hyprland-word|--any FILE...
 # Prints "KEY ar|en FILE:LINE" for every section that satisfies KEY.
 scan() {
   python3 -I - "$@" <<'PY'
@@ -36,6 +40,9 @@ import re, sys
 AR = re.compile(r"[؀-ۿ]")
 LAT = re.compile(r"[A-Za-z]")
 DIAC = re.compile(r"[ً-ْ]")
+HAMZA = str.maketrans("أإآ", "ااا")
+HYPR_WORD = sys.argv[1] == "--hyprland-word"
+FILES = sys.argv[2:]
 SUPERZ = [
     re.compile(r"^\s*bind[a-z]*\s*=\s*SUPER\s*,\s*Z\s*,\s*exec\s*,.*\bsbarhive drop\b", re.M | re.I),
     re.compile(r"hl\.bind\(\s*\"SUPER \+ Z\".{0,300}?\bsbarhive drop\b", re.S | re.I),
@@ -44,9 +51,11 @@ ALT = [
     re.compile(r"^\s*bind[a-z]*\s*=\s*(ALT)?\s*,\s*ALT_L\s*,\s*exec\s*,.*\bsbarhive", re.M | re.I),
     re.compile(r"hl\.bind\(\s*\"(ALT \+ )?ALT_L\".{0,300}?\bsbarhive", re.S | re.I),
 ]
+def norm(s):
+    return DIAC.sub("", s).translate(HAMZA).lower()
 def has(text, *words):
-    t = DIAC.sub("", text).lower()
-    return all(DIAC.sub("", w).lower() in t for w in words)
+    t = norm(text)
+    return all(norm(w) in t for w in words)
 KEYS = {
     "gnome": lambda t, l: has(t, "GNOME", "sbarhive drop") and (
         has(t, "الإعدادات", "لوحة المفاتيح", "اختصار") if l == "ar"
@@ -54,11 +63,11 @@ KEYS = {
     "kde": lambda t, l: has(t, "KDE", "sbarhive drop") and (
         has(t, "إعدادات النظام", "اختصار") if l == "ar"
         else has(t, "System Settings", "Shortcuts")),
-    "hypr-superz": lambda t, l: has(t, "Hyprland") and any(r.search(t) for r in SUPERZ),
-    "hypr-alt": lambda t, l: has(t, "Hyprland") and any(r.search(t) for r in ALT),
+    "hypr-superz": lambda t, l: (has(t, "Hyprland") or not HYPR_WORD) and any(r.search(t) for r in SUPERZ),
+    "hypr-alt": lambda t, l: (has(t, "Hyprland") or not HYPR_WORD) and any(r.search(t) for r in ALT),
     "superz": lambda t, l: re.search(r"Super\s*\+\s*Z|<Super>z", t, re.I) is not None,
 }
-for path in sys.argv[1:]:
+for path in FILES:
     try:
         lines = open(path, encoding="utf-8").read().split("\n")
     except OSError:
@@ -88,7 +97,7 @@ PY
 }
 
 # shellcheck disable=SC2086
-found=$(scan $DOCS)
+found=$(scan --hyprland-word $DOCS)
 echo "INFO docs/ files: $(tr "\n" " " <<<"${DOCS//$ROOT\//}")"
 echo "INFO sections in docs/: $(tr '\n' ';' <<<"${found:-none}")"
 has_key() { grep -qE "^$1 $2 " <<<"$3"; }
@@ -104,7 +113,8 @@ for k in gnome kde hypr-superz hypr-alt superz; do
   check "AC12: docs/ in English: $what" 'has_key "$k" en "$found"'
 done
 
-hfound=$(scan "$HYPR")
+# The whole README is about Hyprland: the word is not needed in the section.
+hfound=$(scan --any "$HYPR")
 echo "INFO sections in integrations/linux/hyprland/README.md: $(tr '\n' ';' <<<"${hfound:-none}")"
 for k in hypr-superz hypr-alt; do
   check "AC12: integrations/linux/hyprland/README.md in Arabic: $k bind line" 'has_key "$k" ar "$hfound"'
