@@ -36,6 +36,12 @@ inner() {
   check "single instance" '"$BIN/sbarhived" 2>&1 | grep -q "already running"'
   check "second instance leaves the socket alone" '[ "$(stat -c %i "$XDG_RUNTIME_DIR/sbarhive.sock")" = "$inode" ] && "$BIN/sbarhive" ping | grep -q pong'
   notes() { grep -c "sbarhived: notify:" "$SANDBOX/daemon.log"; }
+  rss_mb() { awk '/^VmRSS:/ {print int($2 / 1024)}' "/proc/$d/status"; }
+  # S-001 AC2: the idle service stays within 40 MB.
+  sleep 2
+  local rss0; rss0=$(rss_mb)
+  echo "INFO idle memory at start: ${rss0} MB"
+  check "idle memory at start within 40 MB" '[ "$rss0" -le 40 ]'
 
   check "actions listed for images" '"$BIN/sbarhive" actions "$W/b.jpg" | grep -q "image.to-webp\|webp"'
   out=$("$BIN/sbarhive" run image.to-webp --wait "$W/sub dir/صورة 1.png" 2>&1)
@@ -86,6 +92,11 @@ inner() {
   check "notify = false sends no notification" '[ "$(notes)" -eq "$n0" ]'
   rm -f "$XDG_CONFIG_HOME/sbarhive/config.toml"; "$BIN/sbarhive" reload
   check "convert works without daemon" '"$BIN/sbarhive" convert --to png "$W/b.jpg" >/dev/null && [ -f "$W/b.png" ]'
+
+  sleep 2
+  local rss1; rss1=$(rss_mb)
+  echo "INFO idle memory after the hive and jobs: ${rss1} MB"
+  check "idle memory after use within 40 MB" '[ "$rss1" -le 40 ]'
 
   "$BIN/sbarhive" quit >/dev/null 2>&1
   for _ in $(seq 30); do kill -0 $d 2>/dev/null || break; sleep 0.1; done
