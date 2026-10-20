@@ -891,3 +891,88 @@ fn ac25_centre_accessible_name_is_the_file_name_or_the_selection_text() {
         assert_eq!(hive.inner.ui.borrow().get_preview_count(), n);
     }
 }
+
+// ------------------------------------------------------------------------
+// S-018 review: tests that pin what the earlier ones left loose.
+
+#[test]
+fn ac24_several_files_share_a_format_code_only_when_all_agree() {
+    i_slint_backend_testing::init_no_event_loop();
+    let s = Scratch::new("shared-code");
+    let (hive, _log) = preview_hive(Lang::En, &s, 1.0);
+    let same = [s.file("a.png"), s.file("b.png"), s.file("c.png")];
+    hive.present_files("3 images", &same, cells(), None)
+        .unwrap();
+    assert_eq!(
+        hive.inner.ui.borrow().get_preview_code(),
+        "PNG",
+        "three PNG files show their shared code"
+    );
+    hive.close();
+    let mixed = [s.file("d.png"), s.file("e.pdf")];
+    hive.present_files("2 files", &mixed, cells(), None)
+        .unwrap();
+    assert_eq!(
+        hive.inner.ui.borrow().get_preview_code(),
+        "",
+        "a PNG and a PDF share no code"
+    );
+    hive.close();
+    let three = [s.file("f.png"), s.file("g.png"), s.file("h.pdf")];
+    hive.present_files("3 files", &three, cells(), None)
+        .unwrap();
+    assert_eq!(hive.inner.ui.borrow().get_preview_code(), "");
+}
+
+/// The handed thumbnail's longer side is exactly the floor of the physical
+/// inscribed square side (the source is larger, so `fit` reaches it).
+fn assert_exact_side(hive: &Hive, what: &str) -> u32 {
+    let ((w, h), _) = preview_sizes(hive);
+    let side = physical_side(hive);
+    assert_eq!(
+        w.max(h),
+        side.floor() as u32,
+        "{what}: long side of {w}x{h} against physical side {side:.2} (hex-r {})",
+        hive.inner.ui.borrow().get_hex_r()
+    );
+    w.max(h)
+}
+
+#[test]
+fn ac24_thumbnail_long_side_is_the_floor_of_the_physical_side_at_scales_1_and_2() {
+    i_slint_backend_testing::init_no_event_loop();
+    let s = Scratch::new("exact-side");
+    let photo = s.file("photo.png");
+    thumb_of(&s, &photo, Size::Large, 256, 128);
+
+    let (hive, _log) = preview_hive(Lang::En, &s, 1.0);
+    hive.present_files("1 image", std::slice::from_ref(&photo), cells(), None)
+        .unwrap();
+    assert_eq!(assert_exact_side(&hive, "scale 1"), 52);
+    drop(hive);
+
+    let (hive, _log) = preview_hive(Lang::En, &s, 2.0);
+    assert_eq!(hive.inner.ui.borrow().window().scale_factor(), 2.0);
+    hive.present_files("1 image", std::slice::from_ref(&photo), cells(), None)
+        .unwrap();
+    let long = assert_exact_side(&hive, "scale 2");
+    assert!(long >= 104, "scale 2 doubles the side: {long}");
+}
+
+#[test]
+fn ac11_window_path_records_its_report_size() {
+    i_slint_backend_testing::init_no_event_loop();
+    let (hive, _log) = wired(Lang::En);
+    WINDOW_REPORT.with(|c| c.set(None));
+    hive.present("3 images", cells(), None).unwrap();
+    assert!(
+        !hive.inner.on_layer.get(),
+        "the headless hive is on the window path"
+    );
+    let ui = hive.inner.ui.borrow();
+    assert_eq!(
+        WINDOW_REPORT.with(Cell::get),
+        Some((ui.get_win_w(), ui.get_win_h())),
+        "the window path owes a surface line for the hive's size"
+    );
+}

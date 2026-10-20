@@ -240,4 +240,33 @@ mod tests {
             ("ROT", "Rotate 90°", "rotate")
         );
     }
+
+    /// S-018 AC15: the theme setting writes the variable the UI crate reads,
+    /// and `auto` puts back the value the daemon started with. One test, so
+    /// no other test in this binary touches the variable meanwhile.
+    #[test]
+    fn ac15_theme_sets_the_colour_scheme_and_auto_restores_the_inherited_value() {
+        const VAR: &str = "SBARHIVE_COLOR_SCHEME";
+        let original = std::env::var_os(VAR);
+        // SAFETY: only this test reads or writes this variable in this
+        // binary, and it does so from one thread.
+        unsafe { std::env::set_var(VAR, "inherited-by-test") };
+        let now = || std::env::var(VAR).ok();
+        apply_theme(Theme::Light);
+        assert_eq!(now().as_deref(), Some("light"));
+        apply_theme(Theme::Dark);
+        assert_eq!(now().as_deref(), Some("dark"));
+        apply_theme(Theme::Auto);
+        assert_eq!(now().as_deref(), Some("inherited-by-test"));
+        apply_theme(Theme::Light);
+        apply_theme(Theme::Auto);
+        assert_eq!(now().as_deref(), Some("inherited-by-test"));
+        // SAFETY: as above.
+        unsafe {
+            match original {
+                Some(v) => std::env::set_var(VAR, v),
+                None => std::env::remove_var(VAR),
+            }
+        }
+    }
 }

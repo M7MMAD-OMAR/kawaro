@@ -135,4 +135,143 @@ mod tests {
         assert_eq!(px[1].a, 0);
         let _ = std::fs::remove_dir_all(&dir);
     }
+
+    /// A private directory for one test, so parallel tests never share files.
+    fn scratch(test: &str) -> std::path::PathBuf {
+        let dir = Path::new(env!("OUT_DIR")).join(format!("s018-mutants-{test}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    /// Encodes an 8 bit `w` x `h` PNG of `color` (no tRNS chunk) into bytes.
+    fn encode(w: u32, h: u32, color: png::ColorType, data: &[u8]) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        let mut e = png::Encoder::new(&mut bytes, w, h);
+        e.set_color(color);
+        e.set_depth(png::BitDepth::Eight);
+        let mut wr = e.write_header().unwrap();
+        wr.write_image_data(data).unwrap();
+        drop(wr);
+        bytes
+    }
+
+    fn crc32(data: &[u8]) -> u32 {
+        let mut crc = 0xFFFF_FFFFu32;
+        for &b in data {
+            crc ^= u32::from(b);
+            for _ in 0..8 {
+                crc = if crc & 1 != 0 {
+                    (crc >> 1) ^ 0xEDB8_8320
+                } else {
+                    crc >> 1
+                };
+            }
+        }
+        !crc
+    }
+
+    fn rgba(buf: &SharedPixelBuffer<Rgba8Pixel>, x: u32, y: u32) -> [u8; 4] {
+        let p = buf.as_slice()[(y * buf.width() + x) as usize];
+        [p.r, p.g, p.b, p.a]
+    }
+
+    #[test]
+    fn ac24_fit_rounds_half_up_to_the_nearest_pixel() {
+        // 59 * 52 / 100 = 30.68: rounded, not truncated.
+        assert_eq!(fit(100, 59, 52), (52, 31));
+        assert_eq!(fit(59, 100, 52), (31, 52));
+    }
+
+    #[test]
+    fn ac24_interlaced_png_gives_none() {
+        let dir = scratch("interlaced");
+        let plain = encode(1, 1, png::ColorType::Rgba, &[10, 20, 30, 255]);
+        // IHDR data runs from byte 16 to 29; its interlace method is byte 28
+        // and its CRC (over type and data, bytes 12 to 29) follows at 29.
+        assert_eq!(&plain[12..16], b"IHDR");
+        assert_eq!(plain[28], 0);
+        let mut laced = plain.clone();
+        laced[28] = 1;
+        let crc = crc32(&laced[12..29]);
+        laced[29..33].copy_from_slice(&crc.to_be_bytes());
+        // For one pixel the Adam7 pass 1 data is the plain data, so the file
+        // is valid and differs only in the interlace flag.
+        let (p, i) = (dir.join("plain.png"), dir.join("interlaced.png"));
+        std::fs::write(&p, &plain).unwrap();
+        std::fs::write(&i, &laced).unwrap();
+        let reader = png::Decoder::new(std::fs::File::open(&i).unwrap())
+            .read_info()
+            .unwrap();
+        assert!(reader.info().interlaced, "the fixture is interlaced");
+        assert!(decode_fit(&p, 52).is_some(), "the plain twin decodes");
+        assert!(decode_fit(&i, 52).is_none(), "interlaced is refused");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ac24_zero_target_size_gives_none() {
+        let dir = scratch("zero-max");
+        let p = dir.join("one.png");
+        std::fs::write(&p, encode(2, 2, png::ColorType::Rgba, &[200; 16])).unwrap();
+        assert!(decode_fit(&p, 2).is_some(), "the file itself decodes");
+        assert!(decode_fit(&p, 0).is_none(), "a zero size gives no buffer");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ac24_grey_without_alpha_becomes_opaque_grey() {
+        let dir = scratch("grey");
+        let p = dir.join("grey.png");
+        // 4 x 2, left half 200, right half 60.
+        let row = [200, 200, 60, 60];
+        std::fs::write(
+            &p,
+            encode(4, 2, png::ColorType::Grayscale, &[row, row].concat()),
+        )
+        .unwrap();
+        let buf = decode_fit(&p, 2).unwrap();
+        assert_eq!((buf.width(), buf.height()), (2, 1));
+        assert_eq!(rgba(&buf, 0, 0), [200, 200, 200, 255]);
+        assert_eq!(rgba(&buf, 1, 0), [60, 60, 60, 255]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ac24_rgb_without_alpha_keeps_each_channel_opaque() {
+        let dir = scratch("rgb");
+        let p = dir.join("rgb.png");
+        // 4 x 2, left half (210, 120, 30), right half (15, 90, 240).
+        let row = [210, 120, 30, 210, 120, 30, 15, 90, 240, 15, 90, 240];
+        std::fs::write(&p, encode(4, 2, png::ColorType::Rgb, &[row, row].concat())).unwrap();
+        let buf = decode_fit(&p, 2).unwrap();
+        assert_eq!((buf.width(), buf.height()), (2, 1));
+        assert_eq!(rgba(&buf, 0, 0), [210, 120, 30, 255]);
+        assert_eq!(rgba(&buf, 1, 0), [15, 90, 240, 255]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn ac24_last_output_row_is_written_in_place() {
+        let dir = scratch("rows");
+        let p = dir.join("rows.png");
+        // 4 x 4 RGBA: top half A, bottom half B, so a 2 x 2 output has A on
+        // row 0 and B on row 1.
+        let a = [250, 10, 10, 255];
+        let b = [10, 10, 250, 255];
+        let mut data = Vec::new();
+        for y in 0..4 {
+            for _ in 0..4 {
+                data.extend_from_slice(if y < 2 { &a } else { &b });
+            }
+        }
+        std::fs::write(&p, encode(4, 4, png::ColorType::Rgba, &data)).unwrap();
+        let buf = decode_fit(&p, 2).unwrap();
+        assert_eq!((buf.width(), buf.height()), (2, 2));
+        for x in 0..2 {
+            assert_eq!(rgba(&buf, x, 0), a, "row 0, column {x}");
+            assert_eq!(rgba(&buf, x, 1), b, "row 1, column {x}");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }
