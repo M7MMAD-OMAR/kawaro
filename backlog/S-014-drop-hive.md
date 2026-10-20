@@ -197,3 +197,4 @@
   - المرشحتان للاعتماد بالعين: `tests/drop/out/drop-en-light-waiting.png` و`tests/drop/out/drop-en-light-over.png`. لم أنشئ `tests/drop/snapshots/`.
   - لم يُشغَّل: `cargo mutants` وe2e (بطلب المدير). النص العربي في المركز يغطيه اختبار الوحدة لا لقطة.
   - الحالة: الرأس يغطي القصص الست، فتركته «معتمدة» كما فعل منفّذ S-014b، وأسجّل هنا أن S-014c جاهزة للمراجعة.
+- 2026-10-21، المدير: الشفافية في لقطة الانتظار كانت من حركة فتح KWin (تأثير scale، 200 ms)، لا من الخلية. أوقفها المدير في kwinrc الخاص بـ `tests/drop/kwin.sh` (`[Plugins] scaleEnabled=false`) لتكون اللقطة ثابتة. اللقطتان `drop-en-light-waiting.png` (المركز وحده «Drop files here»، معتم بلون surface-3 تماماً) و`drop-en-light-over.png` (WEBP مُبرزة وتسميتها في المركز) فُحصتا بالعين ومعتمدتان بالتفويض. التشغيل التالي: `RESULT PASS`. حركة KWin على سطح الطبقة لمستخدمي KDE تُراجع مع S-017.

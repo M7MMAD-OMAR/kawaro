@@ -46,7 +46,9 @@ inner() {
   local log="$OUT_LOG"
   : >"$log-cli.log"
   mkdir -p "$XDG_CONFIG_HOME"
-  printf '[Windows]\nFocusStealingPreventionLevel=%s\n' "$LEVEL" >"$XDG_CONFIG_HOME/kwinrc"
+  # KWin's scale effect fades new surfaces in over 200 ms; the snapshots
+  # must show the hive as drawn, not a frame of that fade.
+  printf '[Windows]\nFocusStealingPreventionLevel=%s\n\n[Plugins]\nscaleEnabled=false\n' "$LEVEL" >"$XDG_CONFIG_HOME/kwinrc"
   # Lets shot.py (python3) use org.kde.KWin.ScreenShot2 in this private KWin
   # only, as tests/overlay/kwin.sh does.
   mkdir -p "$XDG_DATA_HOME/applications"
