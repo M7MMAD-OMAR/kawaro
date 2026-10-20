@@ -300,17 +300,15 @@ impl Inner {
     }
 
     /// Feeds a drag or clock event to the mode machine and acts on the result.
+    /// A repeated `Running` or `Hidden` is harmless: `choose` and `dismiss`
+    /// do nothing once the hive is closed, and only a new show reopens it.
     fn drag(&self, event: dnd::Event) {
-        let (before, after) = {
-            let mut m = self.machine.borrow_mut();
-            let before = m.state();
-            (before, m.handle(event, Instant::now()))
-        };
-        match after {
+        let state = self.machine.borrow_mut().handle(event, Instant::now());
+        match state {
             dnd::State::Over(i) => self.ui.borrow().set_highlight(i as i32),
             dnd::State::Waiting => self.ui.borrow().set_highlight(-1),
-            dnd::State::Running(i) if before != after => self.choose(i as i32),
-            dnd::State::Hidden if before != after => self.dismiss(),
+            dnd::State::Running(i) => self.choose(i as i32),
+            dnd::State::Hidden => self.dismiss(),
             _ => {}
         }
     }

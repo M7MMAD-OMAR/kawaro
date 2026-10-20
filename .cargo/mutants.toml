@@ -1,4 +1,18 @@
 # cargo-mutants configuration.
 # Code compiled only on other platforms cannot be tested by a Linux run, so
 # its mutants would always be reported as missed.
-exclude_globs = ["crates/engines/src/office/non_unix.rs"]
+#
+# The drop receiver (S-014b) runs only on a live Wayland connection: every
+# function in receiver.rs takes or dispatches Wayland objects, and the winit
+# hooks below run only inside a winit event loop on a compositor. They are
+# covered by tests/drop/kwin.sh and tests/drop/gnome.sh (AC5 to AC7), not by
+# unit tests; the main-thread side (on_note, Inner::drag) stays mutated.
+exclude_globs = [
+  "crates/engines/src/office/non_unix.rs",
+  "crates/ui/src/receiver.rs",
+]
+exclude_re = [
+  "<impl CustomApplicationHandler for FocusWatcher>::window_event",
+  "in attach_receiver$",
+  "replace attach_receiver with",
+]
