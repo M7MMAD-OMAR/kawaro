@@ -50,6 +50,14 @@ pub fn no_actions(lang: Lang) -> &'static str {
     }
 }
 
+/// Centre text of a drop-mode hive while it waits for the drag (S-014c AC10).
+pub fn drop_waiting(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "أفلت الملف هنا",
+        Lang::En => "Drop files here",
+    }
+}
+
 pub fn done(lang: Lang, ok: usize) -> String {
     match lang {
         Lang::Ar => format!("اكتمل: {}", ar_count(ok, "ملف", "ملفان", "ملفات", "ملفاً")),

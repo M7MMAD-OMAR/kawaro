@@ -73,6 +73,9 @@ pub fn build(
             let mut st = lock(&state);
             let lang = st.lang;
             let actions = st.matching(&files);
+            if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+                eprintln!("{}", drop_cells_line(&actions));
+            }
             if actions.is_empty() {
                 st.pending = None;
                 return (text::no_actions(lang).to_string(), Vec::new());
@@ -142,6 +145,17 @@ pub fn reload(state: &Shared, queue: &Arc<Queue>) {
     }
 }
 
+/// The `drop cells: ID ID ...` line for the cells of a drag at enter
+/// (S-014c AC8), nothing after the colon when no action matches.
+fn drop_cells_line(actions: &[ActionDef]) -> String {
+    let mut line = String::from("drop cells:");
+    for a in actions {
+        line.push(' ');
+        line.push_str(&a.id);
+    }
+    line
+}
+
 pub fn cell(a: &ActionDef, lang: Lang) -> HiveCell {
     HiveCell {
         id: a.id.clone(),
@@ -182,11 +196,11 @@ pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token:
 }
 
 /// Shows the hive that waits for a dragged file (`sbarhive drop`).
-pub fn present_drop(token: Option<String>) {
+pub fn present_drop(centre: &'static str, token: Option<String>) {
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
-                && let Err(e) = hive.present_drop("", token)
+                && let Err(e) = hive.present_drop(centre, token)
             {
                 eprintln!("sbarhived: cannot show the drop hive: {e}");
             }
@@ -219,6 +233,21 @@ pub fn quit() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// S-014c AC8: the ids in cell order, one space apart, and nothing
+    /// after the colon when no action matches.
+    #[test]
+    fn drop_cells_line_lists_the_ids_in_order() {
+        let reg = sbarhive_core::Registry::builtin();
+        let a = reg.get("image.rotate-90").unwrap().clone();
+        let mut b = a.clone();
+        b.id = "x.second".into();
+        assert_eq!(drop_cells_line(&[]), "drop cells:");
+        assert_eq!(
+            drop_cells_line(&[a, b]),
+            "drop cells: image.rotate-90 x.second"
+        );
+    }
 
     #[test]
     fn cell_carries_the_action_fields_in_the_chosen_language() {
