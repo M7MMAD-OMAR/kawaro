@@ -74,13 +74,22 @@ Rules from the spike (ADR 0001): software renderer, embedded IBM Plex Sans
 Arabic, colours and sizes generated from `design/tokens.json` at build time,
 theme follows the system colour scheme, Arabic mirrors the layout.
 
+## Settings
+
+`~/.config/sbarhive/config.toml`, model in `crates/core/src/config.rs`:
+language, theme, output place (beside the original, or a subfolder whose
+name the daemon puts in `OutputSpec.dir`), quality preset (shifts the
+`quality` parameter by -15, 0 or +10, clamped to 1..100), notify, open the
+folder when done. The daemon reads it at start and on `reload`; the settings
+window (v0.2, S-011) writes it.
+
 ## Daemon behaviour
 
 - `open`: match actions; none gives a notification, otherwise show the hive.
   Choosing submits a job and closes the hive at once.
 - Progress never takes focus: tray icon tooltip and status while jobs run, one
   desktop notification when a job ends (counts, first error, "Open folder").
-- Tray menu: Cancel all, About, Quit. Settings arrive in v0.2.
+- Tray menu: Cancel all, Settings (v0.2), Quit.
 - Started by the systemd user unit `sbarhive.service`
   (`WantedBy=graphical-session.target`), or on demand by the CLI.
 
