@@ -336,7 +336,7 @@
       PASS AC15: no protocol error in the daemon log
       RESULT FAIL (2)
       ```
-      البوابة تعمل اليوم على مسار الطبقة (16 استدعاء في سجل `portal.py`، والظهورات الخمسة الأولى تتبع القيمة و`SettingChanged` والإعداد)، خلافاً لخطر S-018b رقم 1. أما المتغيّر فتتجاهله الخدمة على مسار الطبقة: الظهوران 6 و7 يتبعان البوابة لا `SBARHIVE_COLOR_SCHEME`، وهذا يخالف AC3 «`SBARHIVE_COLOR_SCHEME` يسبق البوابة».
+      البوابة تعمل اليوم على مسار الطبقة (16 استدعاء في سجل `portal.py`، والظهورات الخمسة الأولى تتبع القيمة و`SettingChanged` والإعداد)، خلافاً لخطر S-018b رقم 1. أما المتغيّر فتتجاهله الخدمة على مسار الطبقة: الظهوران 6 و7 يتبعان البوابة لا `SBARHIVE_COLOR_SCHEME`، وهذا يخالف AC3 «`SBARHIVE_COLOR_SCHEME` يسبق البوابة». والإعادة حقيقية لا عطل في الأداة: في `out/kwin-scheme-daemon.log` ثلاث دفعات اتصال (`wl_display#1.get_registry` في السطور 1 و889 و1365)، كلٌّ قبل `get_layer_surface` ظهورها (1295 للظهور 6، و1771 للظهور 7)، وفي سجل `portal.py` يقرأ `color-scheme` بـ `ReadOne` مستدعٍ جديد بعد كل إعادة (`:1.11` ثم `:1.19` ثم `:1.23`)، و`out/kwin-scheme-cli.log` فارغ.
     - `nice -n 19 tests/overlay/kwin.sh` (الافتراضي): RESULT FAIL (1)، و69 PASS (الـ 68 السابقة كلها ناجحة مع حركة المؤشر الجديدة، وفحص الوصول في AC16).
       ```
       INFO AC16 show 1: catcher wl_surface#15, hive wl_surface#18, pointer enters on the catcher 2 on the hive 1, followed by set_shape(serial, 1) 0
