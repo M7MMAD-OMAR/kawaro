@@ -53,6 +53,7 @@
 | cli وdaemon | `sbarhive drop` ورسالة IPC له، يربطه المستخدم باختصار مخصص في نظامه |
 | البوابة | تسجيل الاختصار عبر GlobalShortcuts بـ ashpd، يغيّره المستخدم من إعدادات GNOME وKDE، ورمز التفعيل في GNOME |
 | التوثيق | ربط الاختصار في GNOME وKDE وسطر `bind` في Hyprland |
+| التوزيع | مستودع COPR لـ Fedora ومستودع APT موقّع لـ Ubuntu وDebian، فيصير التثبيت والتحديث بأمر `dnf` أو `apt` عادي، والحزم موقّعة بمفتاح OpenPGP (اليوم تحذّر dnf: «skipped OpenPGP checks»). القصة: S-016 |
 
 القصة: `backlog/S-014-drop-hive.md` (مقسّمة إلى S-014a حتى S-014f).
 
