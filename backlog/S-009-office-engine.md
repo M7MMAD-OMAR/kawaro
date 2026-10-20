@@ -38,3 +38,10 @@
 - 2026-10-19، tester: كُتبت الاختبارات على هيكل يعيد `UnsupportedOp`. التشغيل `cargo test -p sbarhive-engines --no-fail-fast -- office pdf` فشل: 12 من 12 في `office_engine` و1 من 2 في `office_actions` (الاختبار الناجح يفحص ملف TOML وحده).
 - 2026-10-19، implementer: فشلت ثلاثة اختبارات بعد التنفيذ لأن crate zip بلا ميزات لا يقرأ الأرشيفات المضغوطة بـ deflate التي يكتبها LibreOffice. أُضيفت ميزة `deflate-flate2` في dev-dependencies فقط، دون تعديل الاختبارات. النتيجة: 12 من 12 و2 من 2 و7 وحدات.
 - 2026-10-19، reviewer: `cargo fmt --all --check` نظيف. `cargo clippy -p sbarhive-engines --all-targets -- -D warnings` يفشل على شيفرة مسارات أخرى فقط: `dead_code` في `crates/core/src/queue.rs` (placeholder) و`default_constructed_unit_structs` في سطر `image::ImageEngine::default()` في `lib.rs`؛ مع `-A dead_code -A clippy::default_constructed_unit_structs` نظيف. نتيجة cargo mutants أدناه.
+
+
+### Release review 2026-10-20
+
+- 2026-10-20، مراجع الإصدار (HEAD 71576ee، سياق جديد): **REWORK**. مدخل المراجع أعلاه يعد بنتيجة cargo mutants «أدناه» ولا نتيجة، و`office.rs` غير مشمول في `scripts/release-gates.sh:41-43`. شغّلتُ `cargo mutants -f crates/engines/src/office.rs -f crates/engines/src/pdf.rs` على نسخة نظيفة: ثلاث طفرات ناجية في هذا الملف:
+  1. `crates/engines/src/office.rs:299` (`is_executable` إلى true وإلى false) و`crates/engines/src/office.rs:408` (`kill_group` إلى `()`). الدالتان تحت `#[cfg(not(unix))]` فلا تُبنيان على لينكس ولا يمكن لأي اختبار هنا قتلهما. الإصلاح (commit واحد): استثناؤهما من cargo mutants (`#[mutants::skip]` أو `exclude_re` في `.cargo/mutants.toml`)، وإضافة `office.rs` و`pdf.rs` إلى قائمة الطفرات في بوابات الإصدار.
+  - ما نجح: office_engine 12 وoffice_actions 2 ناجحة، وe2e يحوّل نصاً إلى PDF.

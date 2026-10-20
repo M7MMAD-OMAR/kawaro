@@ -1,5 +1,5 @@
 # S-004 بناء محرك الصور لكل عمليات جدول المواصفات
-الحالة: مراجعة
+الحالة: منتهية
 
 ## القصة
 بصفتي مستخدماً يحدد صوراً في مدير الملفات، أريد تحويلها وتعديلها (صيغة، حجم، تدوير، قلب، رمادي، ضغط، إزالة البيانات الوصفية، دمج في PDF) محلياً،
@@ -69,3 +69,8 @@
 - 2026-10-19 reviewer: `cargo mutants -f crates/engines/src/image.rs -f 'crates/engines/src/image/*.rs' --test-package sbarhive-engines --timeout 120 -j 4`: 130 طفرة، 114 مقتولة، 12 غير قابلة للبناء، 4 ناجية: (1) `==` إلى `!=` في اختيار الجودة الافتراضية في `run_single`، و(2 إلى 4) حساب الحشو الأفقي `(side - w) / 2` في `ico`، لأن اختبارات ICO كلها كانت بمصادر عريضة حشوها الأفقي صفر. أُضيف اختباران: `default_quality_is_90_and_75_for_compress` و`ico_pads_tall_sources_left_and_right`. إعادة التشغيل على الدالتين: 13 طفرة، 13 مقتولة. النتيجة: لا طفرات ناجية.
 - 2026-10-19 reviewer: `cargo fmt --all --check` و`cargo test -p sbarhive-engines --release` ينجحان. الحالة: مراجعة.
 - 2026-10-20، المراجع المستقل (إصدار v0.1.0): **PASS**. بـ `--release`: وحدة engines 44، image_formats 20، image_ops 22، image_pdf 6، image_fixtures 1 ناجح و1 متجاهل (`regenerate`). كل AC من 1 إلى 16 له اختبار ناجح (AC14 في `three_images_make_three_pages` يتحقق من 3 قيم وسيطة على الأقل). e2e يحوّل PNG إلى WebP ويدمج صورتين في PDF بنجاح. رخص التبعيات (image وwebp وpdf-writer وminiz_oxide) مسجلة في `docs/engines.md` ومتوافقة. لم تُعَد الطفرات على `image.rs` (آخر جولة: صفر ناجية). لم تُعدَّل الحالة لأن صلاحية هذه المراجعة محصورة في السجل وCHANGELOG.md.
+
+
+### Release review 2026-10-20
+
+- 2026-10-20، مراجع الإصدار (HEAD 71576ee، سياق جديد): **PASS**. image_formats 20 وimage_ops 22 وimage_pdf 6 ناجحة، وe2e يحوّل PNG إلى WebP ويدمج صورتين في PDF (`target/release-gates/e2e.log`). CHANGELOG فيه سطر القصة. الحالة: منتهية.

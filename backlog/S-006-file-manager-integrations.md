@@ -1,5 +1,5 @@
 # S-006 إضافة «صبار هايف» إلى قوائم مديري الملفات واختصار Hyprland
-الحالة: مراجعة
+الحالة: منتهية
 
 ## القصة
 بصفتي مستخدماً على لينكس، أريد عنصراً واحداً باسم SbarHive في قائمة النقر اليمين في Dolphin وNautilus وNemo وThunar، واختصاراً في Hyprland،
@@ -45,3 +45,8 @@
 - 2026-10-19 (بعد التنفيذ): `bash tests/integrations/run_all.sh` أخضر: test_static 43 فحصاً، test_merge_uca 30، test_hyprland 4، test_nautilus بـ gi الحقيقي (Nautilus 4.1 على Fedora 44) وبـ gi البديل (مسار 4.0). shellcheck وdesktop-file-validate وappstreamcli نظيفة. الحالة: مراجعة.
 - ملاحظة للمراجع: لم يُختبر ظهور العنصر حياً داخل Dolphin وNautilus وNemo وThunar، ولا التركيز برمز التفعيل؛ ذلك ضمن S-001 AC6.
 - 2026-10-20، المراجع المستقل (إصدار v0.1.0): **PASS**. `bash tests/integrations/run_all.sh`: ALL PASS (test_static 43، test_merge_uca 30، test_hyprland 4، test_nautilus بـ gi الحقيقي وبالبديل). لا شرطة طويلة ولا متوسطة في المستودع كله (بحث بالبايتات خارج target و.git). ظهور العنصر حياً في مديري الملفات والتركيز يبقيان ضمن S-001 AC6 المفتوح. لم تُعدَّل الحالة لأن صلاحية هذه المراجعة محصورة في السجل وCHANGELOG.md.
+
+
+### Release review 2026-10-20
+
+- 2026-10-20، مراجع الإصدار (HEAD 71576ee، سياق جديد): **PASS**. بوابة integrations خرجت بـ 0 في تقرير البوابات، ولا شرطة طويلة ولا متوسطة في المستودع (بحث عن U+2014 وU+2013 خارج target و.git وvendor و.claude). حد مقبول: لا اختبار في Nautilus أو Dolphin حقيقيين على GNOME أو KDE (يحتاج آلة افتراضية). الحالة: منتهية.
