@@ -80,8 +80,8 @@ check "AC20: docs/architecture.md gives the screen reader rule" 'grep -qiE "scre
 
 # A Hyprland layer rule that turns off the animation of the "sbarhive"
 # namespace (noanim or no_anim, any Hyprland syntax), in each language, with
-# the "not verified" mark within 5 lines of it. Arabic is matched with its
-# diacritics removed.
+# the "not verified" mark within 5 lines of it, the Arabic and the English
+# rule on different lines. Arabic is matched with its diacritics removed.
 rules=$(python3 -I - "$ROOT/README.md" "$ROOT/integrations/linux/hyprland/README.md" <<'PY'
 import re, sys
 strip = lambda s: re.sub("[ً-ْ]", "", s)
@@ -100,13 +100,16 @@ for path in sys.argv[1:]:
                 found["ar"].append(f"{path.split('/')[-3:]}:{i + 1}")
             if en.search(near):
                 found["en"].append(f"{path.split('/')[-3:]}:{i + 1}")
-print(f"ar {len(found['ar'])} en {len(found['en'])} {found}")
+# One rule per language: an Arabic and an English rule on different lines.
+two = any(a != e for a in found["ar"] for e in found["en"])
+print(f"ar {len(found['ar'])} en {len(found['en'])} {'two' if two else 'one'} {found}")
 PY
 )
 echo "INFO Hyprland layer rule: $rules"
-read -r _ nar _ nen _ <<<"$rules"
+read -r _ nar _ nen lines _ <<<"$rules"
 check "AC20: Arabic user docs give a Hyprland layerrule turning off sbarhive's animation, marked «لم يُتحقق منها»" '[ "${nar:-0}" -ge 1 ]'
 check "AC20: English user docs give the same layerrule, marked not verified" '[ "${nen:-0}" -ge 1 ]'
+check "AC20: the Arabic and the English rule are two lines (one per language)" '[ "${lines:-}" = two ]'
 
 README="$HERE/README.md"
 check "AC20: tests/overlay/README.md exists" '[ -s "$README" ]'
