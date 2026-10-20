@@ -16,6 +16,7 @@ for a in "$@"; do
 done
 [ ${#CASES[@]} -eq 0 ] && CASES=(notoken token)
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$ROOT/tests/drop/kwin-input/target/release/kwin-input" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${FOCUS_OUT:-$HERE/out}"
 mkdir -p "$OUT"
 export BIN HERE ROOT OUT LEVEL

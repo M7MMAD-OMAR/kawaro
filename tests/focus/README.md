@@ -13,6 +13,7 @@ profile or its dconf. Screenshots are of the private compositor only.
 
 ```
 cargo build --release
+cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml   # KWin only, for the warm-up Esc
 tests/focus/gnome.sh notoken token bogus            # Mutter, focus-new-windows=smart (default)
 tests/focus/gnome.sh strict notoken token bogus     # Mutter, focus-new-windows=strict
 tests/focus/kwin.sh notoken token bogus level=1     # KWin, focus stealing prevention Low (default)
