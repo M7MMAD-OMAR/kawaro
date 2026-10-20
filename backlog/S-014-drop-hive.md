@@ -142,3 +142,41 @@
   - بعد حذف الحارسين أُعيد بناء الإصدار وتشغيل `kwin.sh` و`gnome.sh smart` و`tests/e2e/run.sh`: كلها ناجحة. `cargo test -p sbarhive-ui` 72 ناجحاً، وclippy وfmt نظيفان.
   - لم يُشغَّل: Hyprland (خارج النطاق)، و`server.rs` في الخدمة بلا اختبارات وحدة.
 - 2026-10-20، المدير: تجربة حية من محمد على Hyprland 0.56 بالضغطة Alt أثناء سحب صورة من Nautilus: ظهرت خلية الإفلات وأُبرزت الخلية تحت الملف. خطر «أول data device فقط» في Hyprland لم يظهر في هذه التجربة. لم يُتحقق بعد من تنفيذ الإجراء بعد الإفلات على Hyprland.
+- 2026-10-21، المختبِر (S-014c فقط، AC8 وAC9 وAC10)، بعد انتهاء S-018 (القرار 7 فيها): كُتبت الاختبارات من المعايير وجدول الحالات، وشُغّل كل سكربت مرة في مؤلِّف مخفي خاص (`nice -n 19`، `-j 2`)، وفشلت قبل التنفيذ.
+  - النطاق: صفوف AC8 وAC9 وAC10 فقط. الدخول والخروج والمهلة (AC3) تغطيها `drop_tests.rs` و`drop_hive_tests.rs` منذ S-014a وS-014b، فاختبار جديد لها ينجح قبل التنفيذ. Esc أثناء السحب هو AC11 (S-014d)، وعلى مسار الطبقة لوحة المفاتيح 0 في وضع الإفلات (S-018 AC13)، فلا يصل Esc إلى الخلية بل يلغي السحب عند المصدر. لم يُضف له اختبار هنا.
+  - الملفات: `tests/drop/lib.sh` (خطافا `on_shown` و`on_over` في `cycle`، و`action_ids`، و`enter_cells_checks`)، `tests/drop/kwin.sh` (الظهور الخامس بملف PDF، ولقطات ScreenShot2، و`shot_checks`، وحذف مجلدي mktemp عند الخروج)، `tests/drop/gnome.sh` (الظهور الخامس، `SBARHIVE_DEBUG_FOCUS=1`، وحذف مجلدي mktemp)، `tests/drop/pixels.py` (قص وعدّ ألوان الرموز ومقارنة لقطتين، مكتبة Python القياسية فقط)، `tests/drop/source.py` (أيقونة سحب شفافة من بكسل واحد، فلا تغطي اللقطة الخلية)، `tests/fixtures/docs/one-page.pdf` (صفحة واحدة مكتوبة يدوياً، 500 بايت تقريباً)، `crates/daemon/src/text.rs` (اختبار `ac10_drop_waiting_text_in_both_languages`)، و`tests/drop/README.md`.
+  - العقد الذي تثبّته الاختبارات (لا يُعدَّل):
+    - `text::drop_waiting(lang: Lang) -> &'static str` في `crates/daemon/src/text.rs`: نص المركز في وضع الانتظار. غير فارغ وبلا مسافات طرفية في اللغتين، العربي بحروف عربية بلا حروف لاتينية، الإنكليزي ASCII بكلمات، مختلفان، ولا يساويان `no_actions` ولا `idle`، وبلا شرطة طويلة. الصياغة للمنفِّذ.
+    - الخدمة تمرّر هذا النص إلى `Hive::present_drop(centre, token)` (اليوم تمرّر نصاً فارغاً). فحص الربط في `kwin.sh`: حبر `text-primary` في وسط المركز (72 × 48 حول مركز الخلية، 15 بكسلاً أو أكثر بتسامح 40) في لقطة قبل `enter`.
+    - سطر في stderr الخدمة عند كل `enter` لسحب في خلية الإفلات، بعد معرفة خلايا الملفات وقبل أي إفلات، مع `SBARHIVE_DEBUG_FOCUS=1` على الأقل: `drop cells: ID ID ...` بمعرّفات الخلايا بترتيبها، بينها مسافة واحدة، ولا شيء بعد النقطتين إن لم يطابق إجراء. كل سطر كهذا في الظهور يساوي `sbarhive actions --json` لملف الظهور.
+    - اللقطتان المرجعيتان `tests/drop/snapshots/drop-en-light-waiting.png` و`tests/drop/snapshots/drop-en-light-over.png` (صندوق الخلية من لقطة KWin بمقياس 1، فاتح، تقليل الحركة، بالإنكليزية) يعتمدهما محمد. المرشحتان تُكتبان دائماً في `tests/drop/out/`. لا ينشئ المختبِر المرجع ولا المنفِّذ دون اعتماد.
+  - مخرجات الفشل:
+    ```
+    $ cargo test -p sbarhive-daemon ac10
+    error[E0425]: cannot find function `drop_waiting` in this scope
+       --> crates/daemon/src/text.rs:221:14
+    error[E0425]: cannot find function `drop_waiting` in this scope
+       --> crates/daemon/src/text.rs:221:38
+    error: could not compile `sbarhive-daemon` (bin "sbarhived" test) due to 2 previous errors
+
+    $ tests/drop/kwin.sh level=1
+    FAIL AC8 show 1: the daemon reports the cells built at enter
+    FAIL AC8 show 1: every enter's cells equal sbarhive actions for the dragged file
+    (ومثلهما للظهورات 2 إلى 5)
+    PASS AC8: the PNG and PDF action lists are non-empty and differ
+    INFO AC10 show 1: 0 text-primary pixels in the centre before the drag enters
+    FAIL AC10 show 1: the waiting hive's centre shows text (text-primary ink) before enter
+    FAIL AC10: no approved reference tests/drop/snapshots/drop-en-light-waiting.png (candidate: tests/drop/out/drop-en-light-waiting.png, needs the owner's approval)
+    INFO AC9 show 1: accent pixels under the drag 2697; across the centre accent 0, surface-2 2779
+    FAIL AC9: no approved reference tests/drop/snapshots/drop-en-light-over.png (candidate: tests/drop/out/drop-en-light-over.png, needs the owner's approval)
+    RESULT FAIL (13)
+
+    $ tests/drop/gnome.sh smart
+    FAIL AC8 show 1 .. show 5 (السطران نفساهما لكل ظهور)
+    RESULT FAIL (10)
+    ```
+  - كل فحوص S-014b وS-018d (AC5 وAC6 وAC7 وAC13 وAC14) ناجحة في التشغيلين، ومنها الظهور الخامس الجديد، فأيقونة السحب الشفافة لم تغيّر شيئاً منها.
+  - ما ينجح قبل التنفيذ ولماذا: فحصا بكسلات الإبراز في AC9 (الخلية تحت السحب `accent`، والمقابلة لها `surface-2` بلا `accent`) ينجحان، لأن S-014b أضافت الإبراز (`Note::Motion` إلى `highlight`) وجرّبه محمد حياً على Hyprland. لم يُلوَ الاختبار ليفشل: يبقيان حارسين، والجزء الجديد الفاشل من AC9 هو اللقطة المعتمدة. كذلك فحص «القائمتان مختلفتان» في AC8 يتحقق من البيئة لا من التنفيذ. واختبار وحدة لتسمية المركز الوصفية في وضع الانتظار (`find_by_accessible_label` بعد `present_drop(نص)`) نجح قبل التنفيذ، لأن الواجهة تسمّي المركز بنصه أصلاً، فحُذف. الفجوة في الخدمة لا في الواجهة، ويغطيها فحص الحبر في المركز.
+  - حدود: تقليل الحركة لا يُختبر بالزمن (لقطة بعد 80 ms غير مستقرة). السكربت يشغّل الخدمة بـ `SBARHIVE_REDUCED_MOTION=1`، فاللقطة المعتمدة هي الحالة النهائية بلا حركة. لقطات AC9 وAC10 على KWin وحده: المساران يرسمان المكوّن نفسه (S-018 AC7)، وGNOME يفحص AC8 فقط. النص العربي في المركز يغطيه اختبار الوحدة لا لقطة.
+  - ملاحظة: ما دامت `drop_waiting` غائبة لا تُبنى اختبارات وحدة `sbarhive-daemon` كلها. هذا متوقَّع.
+  - أُصلح في أثناء العمل: `tests/overlay/shot.py` يلتقط عند استدعاء D-Bus لكنه لا يكتب الملف إلا بعد انتظار 5 ثوانٍ لخيط القراءة، وقد يعلق عند الخروج، فاصطدم في التشغيل الأول بمهلة العشر ثوانٍ. صار يُشغَّل في الخلفية بـ `timeout 10` ويُنتظر 1.5 ثانية والخلية ثابتة، وتُفحص البكسلات بعد الظهورات. أُعيد تشغيل `kwin.sh` لهذا السبب (التشغيلان الأولان كانا بسكربت معطوب).

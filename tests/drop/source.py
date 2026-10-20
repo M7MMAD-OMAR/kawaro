@@ -8,6 +8,9 @@ start of every drag, so one window serves several drags. When a drag ends
 with deleted=True (the target took a move), the file is deleted, as a file
 manager would, so a move shows up in the sha256 check.
 
+The drag icon is one transparent pixel (S-014c), so the screenshots of the
+hive under the drag (tests/drop/kwin.sh, AC9) show the hive only.
+
 Prints: shown, drag-begin PATH, drag-end deleted=BOOL, drag-cancel REASON.
 Usage: source.py NEXT"""
 import os
@@ -17,13 +20,15 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
-from gi.repository import Gdk, Gio, Gtk  # noqa: E402
+from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
 NEXT = sys.argv[1]
 current = {"path": None}
 
 
-def prepare(_src, _x, _y):
+def prepare(src, _x, _y):
+    blank = Gdk.MemoryTexture.new(1, 1, Gdk.MemoryFormat.R8G8B8A8, GLib.Bytes.new(b"\0\0\0\0"), 4)
+    src.set_icon(blank, 0, 0)
     with open(NEXT) as f:
         path = f.read().strip()
     current["path"] = path

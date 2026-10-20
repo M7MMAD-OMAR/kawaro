@@ -4,7 +4,12 @@
 # the file is dropped: show 1 on the WEBP cell, show 2 on a transparent
 # corner, show 3 on the WEBP cell with Shift held, show 4 on the centre cell.
 # The daemon runs with WAYLAND_DEBUG=1 so the trace shows a wl_data_device
-# per new surface. Runs in a private headless gnome-shell with a throwaway
+# per new surface. S-014c (AC8): show 5 drags a PDF and drops it on a
+# corner; every show's cells at enter must equal `sbarhive actions` for its
+# file (the daemon runs with SBARHIVE_DEBUG_FOCUS=1 for its diagnostic lines).
+# The AC9 and AC10 screenshots are taken on KWin only (tests/drop/kwin.sh):
+# both paths draw the same Slint component (S-018 AC7).
+# Runs in a private headless gnome-shell with a throwaway
 # HOME, XDG dirs, runtime dir and session bus. Never touches the live
 # desktop or profile.
 # Usage: tests/drop/gnome.sh [smart|strict] [target/release]
@@ -76,12 +81,13 @@ inner() {
   W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   local i
   for i in one two three four; do cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo $i.png"; done
+  cp "$ROOT/tests/fixtures/docs/one-page.pdf" "$W/report five.pdf"
   NEXT="$XDG_RUNTIME_DIR/next"; printf '%s\n' "$W/photo one.png" >"$NEXT"
   DLOG="$log-daemon.log"; SLOG="$log-source.log"
 
   # English layout, so the WEBP cell is top right of the centre. No warm-up
   # show: the first drop-mode show is part of AC5.
-  SBARHIVE_LANG=en WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  SBARHIVE_LANG=en SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
 
@@ -93,7 +99,9 @@ inner() {
   cycle 2 "$W/photo two.png" corner 0
   cycle 3 "$W/photo three.png" webp 1
   cycle 4 "$W/photo four.png" centre 0
+  cycle 5 "$W/report five.pdf" corner 0
   protocol_checks
+  enter_cells_checks
   summary
 
   echo quit >&3; exec 3>&-
@@ -107,11 +115,13 @@ export -f inner
 
 echo "== gnome $POLICY"
 SANDBOX="$(mktemp -d)"
+RUNDIR="$(mktemp -d)"
+trap 'rm -rf "$SANDBOX" "$RUNDIR"' EXIT
 # Environment set BEFORE dbus-run-session, so nothing the private bus
 # activates (portals, dconf) can reach the live desktop or the real profile.
 env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
   HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
   XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
-  XDG_RUNTIME_DIR="$(mktemp -d)" WAYLAND_DISPLAY=wayland-sbh-drop-gnome \
+  XDG_RUNTIME_DIR="$RUNDIR" WAYLAND_DISPLAY=wayland-sbh-drop-gnome \
   dbus-run-session -- bash -c inner 2>"$OUT/gnome-$POLICY-bus.log" | tee "$OUT/gnome-$POLICY.txt"
 grep -q '^RESULT PASS' "$OUT/gnome-$POLICY.txt"

@@ -211,4 +211,44 @@ mod tests {
         assert_eq!(selection(Lang::En, 4, Some(MediaKind::Video)), "4 videos");
         assert_eq!(selection(Lang::En, 2, None), "2 files");
     }
+
+    // S-014c AC10: the centre text of a drop-mode hive while it waits for the
+    // drag (`sbarhive drop`, before enter). The wording is the implementer's;
+    // the test pins that both languages exist and are distinct.
+    #[test]
+    fn ac10_drop_waiting_text_in_both_languages() {
+        let (ar, en): (&'static str, &'static str) =
+            (drop_waiting(Lang::Ar), drop_waiting(Lang::En));
+        for t in [ar, en] {
+            assert!(!t.trim().is_empty(), "empty waiting text");
+            assert_eq!(t, t.trim(), "no padding: {t:?}");
+            assert!(
+                !t.contains('\u{2014}') && !t.contains('\u{2013}'),
+                "no long dash: {t:?}"
+            );
+        }
+        assert!(
+            ar.chars().any(|c| ('\u{0621}'..='\u{064A}').contains(&c)),
+            "Arabic letters in {ar:?}"
+        );
+        assert!(
+            !ar.chars().any(|c| c.is_ascii_alphabetic()),
+            "no Latin letters in the Arabic text {ar:?}"
+        );
+        assert!(
+            en.is_ascii() && en.chars().any(|c| c.is_ascii_alphabetic()),
+            "English text is ASCII words: {en:?}"
+        );
+        assert_ne!(ar, en);
+        // Not a string the hive already shows for something else.
+        for other in [
+            no_actions(Lang::Ar),
+            no_actions(Lang::En),
+            idle(Lang::Ar),
+            idle(Lang::En),
+        ] {
+            assert_ne!(ar, other);
+            assert_ne!(en, other);
+        }
+    }
 }

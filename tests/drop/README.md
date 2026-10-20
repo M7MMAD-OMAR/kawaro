@@ -61,6 +61,34 @@ The WEBP cell is located from the shipped layout rule (`crates/ui/src/layout.rs`
 `geometry.rs`, `design/tokens.json`): first cell of ring 1, top right of the
 centre in the English layout.
 
+## S-014c: waiting for the drop (AC8, AC9, AC10)
+
+Both scripts add a fifth show: `tests/fixtures/docs/one-page.pdf` (a one page
+PDF written by hand) dragged in and dropped on a corner. Both run the daemon
+with `SBARHIVE_DEBUG_FOCUS=1`.
+
+- AC8: the daemon prints one stderr line per enter of a drag into a drop-mode
+  hive, once the cells for the entered files are known and before any drop:
+  `drop cells: ID ID ...` (cell ids in cell order, one space apart). In every
+  show each such line must equal `sbarhive actions --json FILE` for that
+  show's file, run in the same sandbox, and there must be at least one. The
+  PNG and PDF lists must be non-empty and differ.
+- AC9, AC10 (KWin only; the window path draws the same component, S-018 AC7):
+  the daemon runs with `SBARHIVE_COLOR_SCHEME=light` and
+  `SBARHIVE_REDUCED_MOTION=1`. In show 1, a ScreenShot2 shot is taken while
+  the hive waits (before enter) and one while the drag is over the WEBP cell
+  (`tests/overlay/shot.py`, started in the background because it writes its
+  PNG only after 5 s). `pixels.py` checks the centre shows text-primary ink
+  before enter (the waiting text), the WEBP cell is `color.light.accent` and
+  the ring 1 cell across the centre is `surface-2` with no accent. The hive's
+  box of each shot is written to `out/drop-en-light-waiting.png` and
+  `out/drop-en-light-over.png` and compared (0.1 % of pixels or less, 8
+  levels) with `snapshots/drop-en-light-waiting.png` and
+  `snapshots/drop-en-light-over.png`. A missing reference is a FAIL: the owner
+  approves a candidate from `out/` and it is copied to `snapshots/`.
+- `source.py` uses a one pixel transparent drag icon, so the shots show the
+  hive only.
+
 ## Input
 
 - KWin: `kwin-input/`, a small client of `org_kde_kwin_fake_input` (copied
