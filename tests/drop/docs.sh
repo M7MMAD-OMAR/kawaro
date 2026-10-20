@@ -11,8 +11,8 @@
 #     and names Super+Z, the default the owner chose.
 #   - integrations/linux/hyprland/README.md, where Hyprland users look, gives
 #     the same two bind lines in its Arabic and its English section.
-#   - every program a documented bind line runs is `sbarhive` or a file the
-#     repository ships (a helper the docs name must exist); no /home/ paths.
+#   - every program a documented bind line runs is `sbarhive` or a helper
+#     shipped in integrations/ or scripts/ (it must exist); no /home/ paths.
 #   - no em dash or en dash in those files.
 # A section is the text between two headings (any level); its language is
 # Arabic when its prose (not code) has more Arabic than Latin letters, else
@@ -139,7 +139,9 @@ for p in sorted(out):
     print(p.replace("$HOME", "~"))
 ')
 echo "INFO programs the documented binds run: $(tr '\n' ' ' <<<"${progs:-none}")"
-shipped=$(git -C "$ROOT" ls-files | awk -F/ '{print $NF}' | sort -u)
+# A helper a bind runs is installed from integrations/ or scripts/, so only
+# those count: a same-named file elsewhere in the tree is no proof.
+shipped=$(git -C "$ROOT" ls-files integrations scripts | awk -F/ '{print $NF}' | sort -u)
 missing=""
 while IFS= read -r p; do
   [ -z "$p" ] && continue
@@ -148,7 +150,7 @@ while IFS= read -r p; do
   grep -qxF "$b" <<<"$shipped" || missing="$missing $p"
 done <<<"$progs"
 check "AC12: the documented binds run programs that exist (a bind was found)" '[ -n "$progs" ]'
-check "AC12: every program a documented bind runs is sbarhive or a file the repository ships" '[ -n "$progs" ] && [ -z "$missing" ]'
+check "AC12: every program a documented bind runs is sbarhive or a helper shipped in integrations/ or scripts/" '[ -n "$progs" ] && [ -z "$missing" ]'
 echo "INFO not shipped:${missing:- none}"
 # shellcheck disable=SC2086
 check "AC12: no /home/ path in the docs" '! grep -n "/home/" $DOCS "$HYPR"'

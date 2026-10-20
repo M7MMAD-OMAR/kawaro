@@ -109,11 +109,7 @@ inner() {
   sleep 4
 
   if [ "$MODE" = shortcut ]; then
-    SHORTCUT_MARKS="$XDG_RUNTIME_DIR/shortcut-marks"
-    SHORTCUT_WRAP="$XDG_RUNTIME_DIR/sbh-drop"
-    printf '#!/bin/sh\ndate -u +%%T.%%6N >>"%s"\nexec "%s" drop >>"%s" 2>&1\n' \
-      "$SHORTCUT_MARKS" "$BIN/sbarhive" "$log-cli.log" >"$SHORTCUT_WRAP"
-    chmod +x "$SHORTCUT_WRAP"
+    make_shortcut_wrap
     local grab
     grab=$(shell_eval "const Meta = imports.gi.Meta; const Shell = imports.gi.Shell; const GLib = imports.gi.GLib;
       const a = global.display.grab_accelerator('<Super>z', Meta.KeyBindingFlags.NONE);
@@ -133,7 +129,6 @@ inner() {
     HIVE_DESTROY_RE='-> xdg_toplevel[#@][0-9]+\.destroy\('
     ESC_NO_KEYBOARD=0
     shortcut_shows
-    summary
   else
   cycle 1 "$W/photo one.png" webp 0
   cycle 2 "$W/photo two.png" corner 0
@@ -142,8 +137,8 @@ inner() {
   cycle 5 "$W/report five.pdf" corner 0
   protocol_checks
   enter_cells_checks
-  summary
   fi
+  summary
 
   echo quit >&3; exec 3>&-
   "$BIN/sbarhive" quit >/dev/null 2>&1

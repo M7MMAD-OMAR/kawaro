@@ -52,6 +52,24 @@ print(round(s * math.sqrt(3) / 2), round(-1.5 * s))
 PY
 }
 
+# Press on the source and drag past GTK's threshold.
+drag_past_threshold() {
+  local i
+  ptr_move 150 150; sleep 0.2; ptr_down; sleep 0.2
+  for i in 1 2 3 4 5 6; do ptr_move $((150 + i * 10)) $((150 + i * 5)); sleep 0.05; done
+  sleep 1
+}
+
+# Enter the hive at GX GY GW GH at its transparent corner (KWin sends enter
+# only after motion), then move over the WEBP cell, where it stays.
+move_to_webp() { # move_to_webp GX GY GW GH
+  local dx dy; read -r dx dy <<<"$(webp_offset)"
+  local wx=$(($1 + $3 / 2 + dx)) wy=$(($2 + $4 / 2 + dy))
+  ptr_move $(($1 + 4)) $(($2 + 4)); sleep 0.2
+  ptr_move $((($1 + 4 + wx) / 2)) $((($2 + 4 + wy) / 2)); sleep 0.2
+  ptr_move "$wx" "$wy"; sleep 0.4
+}
+
 # Deadlines in wall time: hive_geo itself can take half a second.
 deadline() { echo $(( ${EPOCHREALTIME/./} / 1000 + $1 * 1000 )); }
 now_ms() { echo $(( ${EPOCHREALTIME/./} / 1000 )); }
@@ -98,10 +116,7 @@ cycle() { # cycle N FILE TARGET SHIFT
   local sha_before; sha_before=$(sha256sum "$file" | cut -d' ' -f1)
   local before; before=$(find "$W" -type f | sort)
 
-  # Press on the source and drag past GTK's threshold.
-  ptr_move 150 150; sleep 0.2; ptr_down; sleep 0.2
-  for i in 1 2 3 4 5 6; do ptr_move $((150 + i * 10)) $((150 + i * 5)); sleep 0.05; done
-  sleep 1
+  drag_past_threshold
   "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
   # Poll instead of a fixed sleep: the hive closes 10 s after showing
   # without an enter (AC3), and the first show can be slow (ADR 0001, 8).
@@ -122,13 +137,9 @@ cycle() { # cycle N FILE TARGET SHIFT
     corner) tx=$((gx + 4)); ty=$((gy + 4)) ;;
     centre) tx=$cx; ty=$cy ;;
   esac
-  # Enter at the transparent corner (KWin sends enter only after motion),
-  # then over the WEBP cell, so a refusal on the corner or centre is a real
-  # switch from accepted to declined, then to the target.
-  local wx=$((cx + dx)) wy=$((cy + dy))
-  ptr_move $((gx + 4)) $((gy + 4)); sleep 0.2
-  ptr_move $(((gx + 4 + wx) / 2)) $(((gy + 4 + wy) / 2)); sleep 0.2
-  ptr_move "$wx" "$wy"; sleep 0.4
+  # A refusal on the corner or centre is then a real switch from accepted
+  # to declined, then to the target.
+  move_to_webp "$gx" "$gy" "$gw" "$gh"
   on_over "$n" "$gx" "$gy" "$gw" "$gh"
   [ "$target" != webp ] && { ptr_move "$tx" "$ty"; sleep 0.4; }
   [ "$shift" = 1 ] && { shift_down; sleep 0.2; }
@@ -241,16 +252,23 @@ enter_cells_checks() {
 # ESC_NO_KEYBOARD=1 when the hive is a layer that takes no keyboard in drop
 # mode (S-018 AC13), so Esc must never reach the daemon there.
 
+# Writes the wrapper the caller binds Super+Z to: it appends one UTC time
+# line to $SHORTCUT_MARKS and execs `sbarhive drop`.
+make_shortcut_wrap() {
+  SHORTCUT_MARKS="$XDG_RUNTIME_DIR/shortcut-marks"
+  SHORTCUT_WRAP="$XDG_RUNTIME_DIR/sbh-drop"
+  printf '#!/bin/sh\ndate -u +%%T.%%6N >>"%s"\nexec "%s" drop >>"%s" 2>&1\n' \
+    "$SHORTCUT_MARKS" "$BIN/sbarhive" "$OUT_LOG-cli.log" >"$SHORTCUT_WRAP"
+  chmod +x "$SHORTCUT_WRAP"
+}
+
 # Seconds of the day of a "[HH:MM:SS.ffffff]" trace stamp or "HH:MM:SS.ffffff".
 tod() { awk -F: '{gsub(/[][]/, ""); printf "%.6f\n", $1 * 3600 + $2 * 60 + $3}' <<<"$1"; }
 marks_count() { if [ -f "$SHORTCUT_MARKS" ]; then grep -c . "$SHORTCUT_MARKS"; else echo 0; fi; }
 
 # Press on the source and drag past GTK's threshold; checks the drag is on.
 start_drag() { # start_drag N SMARK
-  local i
-  ptr_move 150 150; sleep 0.2; ptr_down; sleep 0.2
-  for i in 1 2 3 4 5 6; do ptr_move $((150 + i * 10)) $((150 + i * 5)); sleep 0.05; done
-  sleep 1
+  drag_past_threshold
   local src; src=$(tail -n +$(($2 + 1)) "$SLOG")
   check "AC11 $1: the drag is under way before the shortcut (drag-begin, no drag-end or drag-cancel yet)" \
     'grep -q "drag-begin" <<<"$src" && ! grep -qE "drag-end|drag-cancel" <<<"$src"'
@@ -280,12 +298,8 @@ shortcut_drop() { # shortcut_drop N FILE
   start_drag "$n" "$smark"
   shortcut_show "$n"
   [ -n "$GEO" ] || { ptr_up; sleep 1; wait_gone 12; return; }
-  local gx gy gw gh dx dy; read -r gx gy gw gh <<<"$GEO"
-  read -r dx dy <<<"$(webp_offset)"
-  local wx=$((gx + gw / 2 + dx)) wy=$((gy + gh / 2 + dy))
-  ptr_move $((gx + 4)) $((gy + 4)); sleep 0.2
-  ptr_move $(((gx + 4 + wx) / 2)) $(((gy + 4 + wy) / 2)); sleep 0.2
-  ptr_move "$wx" "$wy"; sleep 0.4
+  # shellcheck disable=SC2086
+  move_to_webp $GEO
   ptr_up; sleep 0.3
   check "AC11 $n: $(basename "$base").webp written next to the original within 5 s" 'wait_file "$base.webp" 5'
   check "AC11 $n: output is image/webp" '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
@@ -313,13 +327,9 @@ shortcut_esc() { # shortcut_esc N FILE over|before
   start_drag "$n" "$smark"
   shortcut_show "$n"
   [ -n "$GEO" ] || { ptr_up; sleep 1; wait_gone 12; return; }
-  local gx gy gw gh dx dy; read -r gx gy gw gh <<<"$GEO"
   if [ "$where" = over ]; then
-    read -r dx dy <<<"$(webp_offset)"
-    local wx=$((gx + gw / 2 + dx)) wy=$((gy + gh / 2 + dy))
-    ptr_move $((gx + 4)) $((gy + 4)); sleep 0.2
-    ptr_move $(((gx + 4 + wx) / 2)) $(((gy + 4 + wy) / 2)); sleep 0.2
-    ptr_move "$wx" "$wy"; sleep 0.6
+    # shellcheck disable=SC2086
+    move_to_webp $GEO; sleep 0.2
   fi
   dmark=$(wc -l <"$DLOG")
   local t_esc; t_esc=$(date -u +%T.%6N)
@@ -358,7 +368,9 @@ shortcut_esc() { # shortcut_esc N FILE over|before
     check "AC11 $n: Esc never reaches the daemon (no wl_keyboard enter or key in drop mode)" \
       '! grep -qE "^\[[0-9:.]+\] wl_keyboard[#@][0-9]+\.(enter|key)\(" <<<"$(tail -n +$((DSHOW + 1)) "$DLOG")"'
   fi
-  sleep 5
+  # The drag is cancelled and the hive gone: nothing is left that could
+  # start a conversion, so one second covers a late write.
+  sleep 1
   check "AC11 $n: no file written" '[ "$(find "$W" -type f | sort)" = "$before" ]'
   wait_gone 5 || true
   sleep 1

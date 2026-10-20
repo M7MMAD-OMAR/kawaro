@@ -65,12 +65,8 @@ inner() {
   printf '[Desktop Entry]\nType=Application\nName=sbh shot\nExec=%s\nNoDisplay=true\nX-KDE-DBUS-Restricted-Interfaces=org.kde.KWin.ScreenShot2\n' \
     "$(readlink -f "$(command -v python3)")" >"$XDG_DATA_HOME/applications/sbh-shot.desktop"
   # S-014d AC11: a KDE custom command shortcut, as the docs describe it.
-  SHORTCUT_MARKS="$XDG_RUNTIME_DIR/shortcut-marks"
-  SHORTCUT_WRAP="$XDG_RUNTIME_DIR/sbh-drop"
   if [ "$MODE" = shortcut ]; then
-    printf '#!/bin/sh\ndate -u +%%T.%%6N >>"%s"\nexec "%s" drop >>"%s" 2>&1\n' \
-      "$SHORTCUT_MARKS" "$BIN/sbarhive" "$log-cli.log" >"$SHORTCUT_WRAP"
-    chmod +x "$SHORTCUT_WRAP"
+    make_shortcut_wrap
     printf '[Desktop Entry]\nExec=%s\nName=SbarHive drop\nNoDisplay=true\nStartupNotify=false\nType=Application\nX-KDE-GlobalAccel-CommandShortcut=true\n' \
       "$SHORTCUT_WRAP" >"$XDG_DATA_HOME/applications/net.local.sbarhive-drop.desktop"
     printf '[services][net.local.sbarhive-drop.desktop]\n_launch=Meta+Z\n' >"$XDG_CONFIG_HOME/kglobalshortcutsrc"
@@ -217,7 +213,6 @@ inner() {
       --method org.kde.KGlobalAccel.allComponents 2>&1)
     check "AC11 setup: kglobalacceld lists the custom command shortcut component" 'grep -q sbarhive_drop <<<"$comps"'
     shortcut_shows
-    summary
   else
   cycle 1 "$W/photo one.png" webp 0
   cycle 2 "$W/photo two.png" corner 0
@@ -233,8 +228,8 @@ inner() {
   for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
     layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1
   done
-  summary
   fi
+  summary
 
   exec 3>&-
   "$BIN/sbarhive" quit >/dev/null 2>&1

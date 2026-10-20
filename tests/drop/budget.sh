@@ -45,9 +45,10 @@ check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS
   warm=$(grep -c '^warm ' "$log-result.txt" 2>/dev/null)
   dropl=$(grep -E '^(first|warm) ' "$log-result.txt" 2>/dev/null | grep -cw 'mode=drop')
   median=$(sed -n 's/^warm first_frame_ms median \([0-9.]*\) n .*/\1/p' "$log.txt" | head -1)
-  layer=$(cat "$log-daemon.log" "$log-result.txt" 2>/dev/null | grep -cE '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$')
-  window=$(cat "$log-daemon.log" "$log-result.txt" 2>/dev/null | grep -c '^hive surface: window')
-  focus=$(cat "$log-daemon.log" "$log-result.txt" 2>/dev/null | grep -c '^hive focus: true')
+  both=$(cat "$log-daemon.log" "$log-result.txt" 2>/dev/null)
+  layer=$(grep -cE '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$both")
+  window=$(grep -c '^hive surface: window' <<<"$both")
+  focus=$(grep -c '^hive focus: true' <<<"$both")
   echo "INFO drop: shows ${shows:-0} (warm ${warm:-0}), mode=drop lines ${dropl:-0}, hive surface layer ${layer:-0} window ${window:-0}, hive focus: true ${focus:-0}, median ${median:-none} ms"
   check "AC12: measure.sh ran all $((RUNS + 1)) daemon shows" '[ "${warm:-0}" -eq "$RUNS" ] && [ "${shows:-0}" -eq $((RUNS + 1)) ]'
   check "AC12: every show line says mode=drop (hive_bench show --drop)" '[ "${shows:-0}" -gt 0 ] && [ "${dropl:-0}" -eq "${shows:-x}" ]'
