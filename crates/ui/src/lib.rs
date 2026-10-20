@@ -45,9 +45,11 @@ pub struct HiveCell {
     pub ring: u8,
 }
 
-/// Activation token for the next window creation, consumed by the winit
-/// attributes hook. Slint recreates the winit window on every `show()` on
-/// Wayland, so the hook runs once per `present`.
+/// Activation token for the next window adapter, consumed by the winit
+/// attributes hook. Slint runs the hook only when a component creates its
+/// window adapter, not when it recreates the winit window on `show()` after a
+/// `hide()` (those attributes are rebuilt without the hook). So `present`
+/// builds a fresh hive component whenever it has a token (S-013).
 static PENDING_TOKEN: Mutex<Option<String>> = Mutex::new(None);
 
 thread_local! {
@@ -101,6 +103,10 @@ impl CustomApplicationHandler for FocusWatcher {
     ) -> EventResult {
         match event {
             winit::event::WindowEvent::Focused(f) if is_hive_window(slint_window) => {
+                // Observation hook for tests/focus: logs the hive's focus changes.
+                if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+                    eprintln!("hive focus: {f}");
+                }
                 focus_changed(*f)
             }
             winit::event::WindowEvent::RedrawRequested => {
@@ -146,7 +152,10 @@ type ChooseFn = Rc<dyn Fn(String)>;
 type DismissFn = Rc<dyn Fn()>;
 
 struct Inner {
-    ui: HiveWindow,
+    /// Replaced by a fresh component when `present` gets a token.
+    ui: RefCell<HiveWindow>,
+    /// Number of components built so far (tests check the rebuild).
+    builds: Cell<u32>,
     rtl: bool,
     reduced_motion: bool,
     plan: RefCell<Option<Plan>>,
@@ -158,7 +167,7 @@ struct Inner {
 
 impl Inner {
     fn visible(&self) -> bool {
-        self.ui.window().is_visible()
+        self.ui.borrow().window().is_visible()
     }
 
     fn close(&self) {
@@ -166,8 +175,9 @@ impl Inner {
         // reported as a dismissal.
         WAS_FOCUSED.with(|c| c.set(false));
         self.opener.stop();
-        self.ui.hide().ok();
-        self.ui.set_highlight(-1);
+        let ui = self.ui.borrow();
+        ui.hide().ok();
+        ui.set_highlight(-1);
     }
 
     fn choose(&self, index: i32) {
@@ -200,25 +210,18 @@ impl Inner {
     }
 }
 
-/// The hive popup. One per process; `present` reuses its window.
+/// The hive popup. One per process; `present` reuses its window unless it
+/// has an activation token.
 pub struct Hive {
     inner: Rc<Inner>,
 }
 
 impl Hive {
     pub fn new(lang: Lang) -> Result<Self, slint::PlatformError> {
-        let ui = HiveWindow::new()?;
-        let tokens = ui.global::<Tokens>();
-        match std::env::var("SBARHIVE_COLOR_SCHEME").as_deref() {
-            Ok("light") => tokens.set_dark(false),
-            Ok("dark") => tokens.set_dark(true),
-            _ => {}
-        }
         let reduced_motion = motion::detect();
-        tokens.set_reduced_motion(reduced_motion);
-
         let inner = Rc::new(Inner {
-            ui,
+            ui: RefCell::new(build_window(reduced_motion)?),
+            builds: Cell::new(1),
             rtl: lang.rtl(),
             reduced_motion,
             plan: RefCell::new(None),
@@ -226,37 +229,7 @@ impl Hive {
             on_dismiss: RefCell::new(None),
             opener: slint::Timer::default(),
         });
-        let ui = &inner.ui;
-        HIVE_WINDOW.with(|c| c.set(window_key(ui.window())));
-
-        let w = Rc::downgrade(&inner);
-        ui.on_pick(move |x, y| {
-            w.upgrade()
-                .and_then(|i| i.plan.borrow().as_ref().map(|p| p.pick(x, y)))
-                .unwrap_or(-1)
-        });
-        let w = Rc::downgrade(&inner);
-        ui.on_navigate(move |current, code| {
-            let Some(i) = w.upgrade() else { return -1 };
-            let count = i.ui.get_cells().row_count();
-            match Nav::from_code(code) {
-                Some(nav) => layout::step(current, nav, count, i.rtl),
-                None => current,
-            }
-        });
-        let w = Rc::downgrade(&inner);
-        ui.on_choose(move |index| {
-            if let Some(i) = w.upgrade() {
-                i.choose(index);
-            }
-        });
-        let w = Rc::downgrade(&inner);
-        ui.on_dismiss(move || dismiss_weak(&w));
-        let w = Rc::downgrade(&inner);
-        ui.window().on_close_requested(move || {
-            dismiss_weak(&w);
-            slint::CloseRequestResponse::HideWindow
-        });
+        wire(&inner);
         let w = Rc::downgrade(&inner);
         ON_FOCUS_LOST.with(|h| *h.borrow_mut() = Some(Rc::new(move || dismiss_weak(&w))));
 
@@ -275,7 +248,26 @@ impl Hive {
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
-        let ui = &inner.ui;
+        if inner.visible() {
+            // Hide first so the old surface goes away before the new one.
+            inner.close();
+        }
+        if token.is_some() {
+            // Only a new window adapter runs the attributes hook, which hands
+            // the token to winit (see PENDING_TOKEN).
+            if let Ok(mut t) = PENDING_TOKEN.lock() {
+                *t = token;
+            }
+            let fresh = build_window(inner.reduced_motion);
+            if let Ok(mut t) = PENDING_TOKEN.lock() {
+                // Never leak a token into another window (the settings window).
+                t.take();
+            }
+            *inner.ui.borrow_mut() = fresh?;
+            inner.builds.set(inner.builds.get() + 1);
+            wire(inner);
+        }
+        let ui = inner.ui.borrow();
         let plan = layout::plan(cells, inner.rtl);
         let data: Vec<CellData> = plan
             .cells
@@ -297,15 +289,8 @@ impl Hive {
         ui.set_centre_label(centre.into());
         *inner.plan.borrow_mut() = Some(plan);
 
-        if inner.visible() {
-            // Hide first so the new surface picks up the new token.
-            inner.close();
-        }
         ui.set_highlight(-1);
         WAS_FOCUSED.with(|c| c.set(false));
-        if let Ok(mut t) = PENDING_TOKEN.lock() {
-            *t = token;
-        }
         if inner.reduced_motion {
             ui.set_opened(true);
             ui.show()
@@ -317,7 +302,7 @@ impl Hive {
                 .opener
                 .start(slint::TimerMode::SingleShot, Duration::ZERO, move || {
                     if let Some(i) = w.upgrade() {
-                        i.ui.set_opened(true);
+                        i.ui.borrow().set_opened(true);
                     }
                 });
             Ok(())
@@ -344,7 +329,7 @@ impl Hive {
     /// Snapshot hook: highlights a cell as if hovered (-1 for none).
     #[doc(hidden)]
     pub fn set_highlight(&self, index: i32) {
-        self.inner.ui.set_highlight(index);
+        self.inner.ui.borrow().set_highlight(index);
     }
 
     /// Snapshot hook: renders the current window content.
@@ -352,8 +337,58 @@ impl Hive {
     pub fn take_snapshot(
         &self,
     ) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, slint::PlatformError> {
-        self.inner.ui.window().take_snapshot()
+        self.inner.ui.borrow().window().take_snapshot()
     }
+}
+
+/// A new hive component with the theme overrides applied. Creating it
+/// creates its window adapter, which runs the attributes hook.
+fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError> {
+    let ui = HiveWindow::new()?;
+    let tokens = ui.global::<Tokens>();
+    match std::env::var("SBARHIVE_COLOR_SCHEME").as_deref() {
+        Ok("light") => tokens.set_dark(false),
+        Ok("dark") => tokens.set_dark(true),
+        _ => {}
+    }
+    tokens.set_reduced_motion(reduced_motion);
+    Ok(ui)
+}
+
+/// Connects the current component's callbacks to `inner` and marks its
+/// window as the hive's for the focus watcher.
+fn wire(inner: &Rc<Inner>) {
+    let ui = inner.ui.borrow();
+    HIVE_WINDOW.with(|c| c.set(window_key(ui.window())));
+
+    let w = Rc::downgrade(inner);
+    ui.on_pick(move |x, y| {
+        w.upgrade()
+            .and_then(|i| i.plan.borrow().as_ref().map(|p| p.pick(x, y)))
+            .unwrap_or(-1)
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_navigate(move |current, code| {
+        let Some(i) = w.upgrade() else { return -1 };
+        let count = i.ui.borrow().get_cells().row_count();
+        match Nav::from_code(code) {
+            Some(nav) => layout::step(current, nav, count, i.rtl),
+            None => current,
+        }
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_choose(move |index| {
+        if let Some(i) = w.upgrade() {
+            i.choose(index);
+        }
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_dismiss(move || dismiss_weak(&w));
+    let w = Rc::downgrade(inner);
+    ui.window().on_close_requested(move || {
+        dismiss_weak(&w);
+        slint::CloseRequestResponse::HideWindow
+    });
 }
 
 fn dismiss_weak(w: &Weak<Inner>) {

@@ -62,7 +62,9 @@ impl Hive {
     pub fn new(lang: Lang) -> Result<Self, slint::PlatformError>;
     /// Lays out up to 6 cells in ring 1 and 12 in ring 2 (overflow from ring 1
     /// moves to ring 2, beyond 18 is dropped), sets the centre text, and shows
-    /// the window centred, activating it with `token` when given.
+    /// the window centred, activating it with `token` when given. A token
+    /// builds a fresh window component, because Slint hands it to winit only
+    /// when a window adapter is created (S-013).
     pub fn present(&self, centre: &str, cells: Vec<HiveCell>, token: Option<String>) -> Result<(), slint::PlatformError>;
     pub fn close(&self);
     pub fn on_choose(&self, f: impl Fn(String) + 'static);   // action id, hive already closed
