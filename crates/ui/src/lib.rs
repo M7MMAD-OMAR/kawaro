@@ -1,4 +1,5 @@
-//! SbarHive interface: the hexagonal hive popup. Contract in
+//! SbarHive interface: the hexagonal hive popup and the settings window
+//! ([`SettingsWindow`], docs/adr/0002-settings-components.md). Contract in
 //! docs/architecture.md ("UI contract"); spike results in
 //! docs/adr/0001-ui-toolkit.md.
 //!
@@ -15,11 +16,13 @@
 mod geometry;
 mod layout;
 mod motion;
+mod settings;
 mod tokens {
     include!(concat!(env!("OUT_DIR"), "/tokens.rs"));
 }
 
 pub use sbarhive_core::i18n::Lang;
+pub use settings::SettingsWindow;
 
 use layout::{Nav, Plan};
 use slint::winit_030::{CustomApplicationHandler, EventResult, winit};

@@ -1,10 +1,14 @@
 //! Generates the design tokens from `design/tokens.json` and compiles the UI.
 //!
-//! Two files land in OUT_DIR:
+//! Generated files in OUT_DIR:
 //! - `tokens.slint`: the exported global `Tokens`, the only .slint file that
 //!   may hold raw colours, lengths and durations (scripts/design-lint.sh
 //!   skips it by name).
 //! - `tokens.rs`: the same numbers as Rust constants, for the hex geometry.
+//! - `material-tokens.slint`: the token colours under Material 3 role names
+//!   (`MATERIAL_ROLES`), for the settings window.
+//! - `settings_ui.rs`: the compiled settings window, included by
+//!   src/settings.rs in its own module.
 //!
 //! Colours pick light or dark from `Palette.color-scheme`, so the theme follows
 //! the system. Durations collapse to zero when `Tokens.reduced-motion` is set.
@@ -40,19 +44,153 @@ fn main() {
     std::fs::write(out.join("tokens.slint"), slint_tokens(&t)).unwrap();
     std::fs::write(out.join("tokens.rs"), rust_tokens(&t)).unwrap();
 
-    let config = slint_build::CompilerConfiguration::new()
-        .with_style("fluent".into())
-        .with_include_paths(vec![out.clone()])
-        .embed_resources(slint_build::EmbedResourcesKind::EmbedFiles)
-        // Element debug info lets the behaviour test find cells by their
-        // accessible label in every profile (`cargo test --release` too).
-        // It only adds element names and ids to the generated code.
-        .with_debug_info(true);
-    slint_build::compile_with_config(manifest.join("ui/hive.slint"), config)
+    // The settings window is compiled first, into its own Rust file that
+    // src/settings.rs includes in a separate module. The hive goes last:
+    // `include_modules!()` picks up the last `compile_with_config` output.
+    let material = manifest.join("material");
+    let schemes = std::fs::read_to_string(material.join("ui/styling/material_schemes.slint"))
+        .expect("read material/ui/styling/material_schemes.slint");
+    check_material_roles(&schemes);
+    std::fs::write(out.join("material-tokens.slint"), material_tokens(&t)).unwrap();
+    let settings_config = ui_config(&out).with_library_paths(std::collections::HashMap::from([(
+        "material".to_string(),
+        material.join("material.slint"),
+    )]));
+    let deps = slint_build::compile_with_output_path(
+        manifest.join("ui/settings.slint"),
+        out.join("settings_ui.rs"),
+        settings_config,
+    )
+    .expect("compile ui/settings.slint");
+    for dep in deps {
+        println!("cargo:rerun-if-changed={}", dep.display());
+    }
+
+    slint_build::compile_with_config(manifest.join("ui/hive.slint"), ui_config(&out))
         .expect("compile ui/hive.slint");
     rerun_dir(&manifest.join("ui"));
     rerun_dir(&manifest.join("components"));
     rerun_dir(&manifest.join("fonts"));
+    rerun_dir(&material);
+}
+
+fn ui_config(out: &Path) -> slint_build::CompilerConfiguration {
+    slint_build::CompilerConfiguration::new()
+        .with_style("fluent".into())
+        .with_include_paths(vec![out.to_path_buf()])
+        .embed_resources(slint_build::EmbedResourcesKind::EmbedFiles)
+        // Element debug info lets the behaviour tests find elements by their
+        // accessible label in every profile (`cargo test --release` too).
+        // It only adds element names and ids to the generated code.
+        .with_debug_info(true)
+}
+
+/// Material 3 colour roles and the token each one takes, as (role, light,
+/// dark). A token name starting with `~` is read from the other scheme: the
+/// inverse roles show the opposite theme. Every role of `MaterialScheme` must
+/// be listed; the build fails otherwise (see `check_material_roles`), so no
+/// role can fall back to an unset colour.
+const MATERIAL_ROLES: [(&str, &str); 49] = [
+    ("primary", "accent"),
+    ("surfaceTint", "accent"),
+    ("onPrimary", "accent-ink"),
+    // The switch handle when on and the like: a surface on the accent track.
+    ("primaryContainer", "surface-0"),
+    ("onPrimaryContainer", "text-primary"),
+    ("secondary", "text-secondary"),
+    ("onSecondary", "surface-0"),
+    // Selected segment.
+    ("secondaryContainer", "surface-3"),
+    ("onSecondaryContainer", "text-primary"),
+    ("tertiary", "accent"),
+    ("onTertiary", "accent-ink"),
+    ("tertiaryContainer", "surface-2"),
+    ("onTertiaryContainer", "text-primary"),
+    ("error", "danger"),
+    ("onError", "surface-0"),
+    ("errorContainer", "surface-2"),
+    ("onErrorContainer", "danger"),
+    ("background", "surface-0"),
+    ("onBackground", "text-primary"),
+    ("surface", "surface-0"),
+    ("onSurface", "text-primary"),
+    ("surfaceVariant", "surface-2"),
+    ("onSurfaceVariant", "text-secondary"),
+    // Outlines of controls need contrast, so the secondary text tone; the
+    // softer border token is the variant.
+    ("outline", "text-secondary"),
+    ("outlineVariant", "border"),
+    // Shadows are removed from the library; scrim dims behind modals only.
+    ("shadow", "text-primary"),
+    ("scrim", "text-primary"),
+    ("inverseSurface", "~surface-1"),
+    ("inverseOnSurface", "~text-primary"),
+    ("inversePrimary", "~accent"),
+    ("primaryFixed", "accent"),
+    ("onPrimaryFixed", "accent-ink"),
+    ("primaryFixedDim", "accent"),
+    ("onPrimaryFixedVariant", "accent-ink"),
+    ("secondaryFixed", "surface-2"),
+    ("onSecondaryFixed", "text-primary"),
+    ("secondaryFixedDim", "surface-3"),
+    ("onSecondaryFixedVariant", "text-secondary"),
+    ("tertiaryFixed", "accent"),
+    ("onTertiaryFixed", "accent-ink"),
+    ("tertiaryFixedDim", "accent"),
+    ("onTertiaryFixedVariant", "accent-ink"),
+    ("surfaceDim", "surface-1"),
+    ("surfaceBright", "surface-0"),
+    ("surfaceContainerLowest", "surface-0"),
+    ("surfaceContainerLow", "surface-1"),
+    ("surfaceContainer", "surface-1"),
+    ("surfaceContainerHigh", "surface-2"),
+    ("surfaceContainerHighest", "surface-3"),
+];
+
+/// Fails the build when the vendored `MaterialScheme` and `MATERIAL_ROLES`
+/// disagree, for example after a library update.
+fn check_material_roles(schemes_slint: &str) {
+    let body = schemes_slint
+        .split("export struct MaterialScheme {")
+        .nth(1)
+        .and_then(|s| s.split('}').next())
+        .expect("MaterialScheme struct in material_schemes.slint");
+    let mut fields: Vec<&str> = body
+        .split(',')
+        .filter_map(|f| f.split(':').next())
+        .map(str::trim)
+        .filter(|f| !f.is_empty())
+        .collect();
+    let mut ours: Vec<&str> = MATERIAL_ROLES.iter().map(|(r, _)| *r).collect();
+    fields.sort_unstable();
+    ours.sort_unstable();
+    assert_eq!(
+        fields, ours,
+        "MATERIAL_ROLES in build.rs must list every MaterialScheme field"
+    );
+}
+
+fn material_tokens(t: &Value) -> String {
+    let mut s = String::new();
+    s.push_str("// Generated by crates/ui/build.rs from design/tokens.json. Do not edit.\n");
+    s.push_str("import { MaterialSchemes } from \"@material\";\n\n");
+    s.push_str("// Token colours under Material 3 role names, assigned once to\n");
+    s.push_str("// MaterialPalette.schemes by the settings window.\n");
+    s.push_str("export global SbarMaterial {\n");
+    s.push_str("    out property <MaterialSchemes> schemes: {\n");
+    for (scheme, other) in [("light", "dark"), ("dark", "light")] {
+        writeln!(s, "        {scheme}: {{").unwrap();
+        for (role, token) in MATERIAL_ROLES {
+            let value = match token.strip_prefix('~') {
+                Some(key) => text(t, &["color", other, key]),
+                None => text(t, &["color", scheme, token]),
+            };
+            writeln!(s, "            {role}: {value},").unwrap();
+        }
+        s.push_str("        },\n");
+    }
+    s.push_str("    };\n}\n");
+    s
 }
 
 fn rerun_dir(dir: &Path) {
