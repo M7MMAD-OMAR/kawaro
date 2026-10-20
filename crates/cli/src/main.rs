@@ -44,6 +44,13 @@ enum Cmd {
         from_clipboard: bool,
         files: Vec<PathBuf>,
     },
+    /// Show the hive waiting for files dragged onto it, for a keyboard
+    /// shortcut pressed while dragging (starts the daemon when needed).
+    Drop {
+        /// xdg-activation token or startup id from the caller.
+        #[arg(long)]
+        token: Option<String>,
+    },
     /// Convert in this process, without the daemon.
     Convert {
         /// Target extension, for example webp.
@@ -95,6 +102,7 @@ fn main() -> ExitCode {
             from_clipboard,
             files,
         } => open(token, from_clipboard, files),
+        Cmd::Drop { token } => drop_hive(token),
         Cmd::Convert { to, quality, files } => convert(&to, quality, &files),
         Cmd::Run {
             action,
@@ -150,6 +158,12 @@ fn open(token: Option<String>, from_clipboard: bool, mut files: Vec<PathBuf>) ->
     let token = resolve_token(token, &|k| std::env::var(k).ok());
     client::ensure_daemon()?;
     client::request(&Request::Open { files, token }).map(|_| ())
+}
+
+fn drop_hive(token: Option<String>) -> Res<()> {
+    let token = resolve_token(token, &|k| std::env::var(k).ok());
+    client::ensure_daemon()?;
+    client::request(&Request::Drop { token }).map(|_| ())
 }
 
 /// `--token` first, then the variables launchers set: Wayland's

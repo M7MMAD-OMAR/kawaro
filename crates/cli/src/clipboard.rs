@@ -43,35 +43,8 @@ pub fn read_files_with(wayland: bool, run: Runner) -> Result<Vec<PathBuf>, Strin
     }
 }
 
-/// RFC 2483: one URI per line, `#` lines are comments. Only local `file:` URIs count.
-pub fn parse_uri_list(text: &str) -> Vec<PathBuf> {
-    text.lines()
-        .map(str::trim)
-        // Blank and `#` comment lines never start with `file://`, so this drops them too.
-        .filter_map(|l| l.strip_prefix("file://"))
-        // Drop an optional host part: file://localhost/x or file:///x.
-        .filter_map(|rest| rest.find('/').map(|i| &rest[i..]))
-        .filter_map(percent_decode)
-        .map(PathBuf::from)
-        .collect()
-}
-
-fn percent_decode(s: &str) -> Option<String> {
-    let b = s.as_bytes();
-    let mut out = Vec::with_capacity(b.len());
-    let mut i = 0;
-    while i < b.len() {
-        if b[i] == b'%' {
-            let hex = std::str::from_utf8(b.get(i + 1..i + 3)?).ok()?;
-            out.push(u8::from_str_radix(hex, 16).ok()?);
-            i += 3;
-        } else {
-            out.push(b[i]);
-            i += 1;
-        }
-    }
-    String::from_utf8(out).ok()
-}
+/// Shared with drag and drop, see `sbarhive_core::uri_list`.
+pub use sbarhive_core::uri_list::parse as parse_uri_list;
 
 #[cfg(test)]
 mod tests {

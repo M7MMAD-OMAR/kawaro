@@ -27,6 +27,12 @@ pub enum Request {
         #[serde(default)]
         token: Option<String>,
     },
+    /// Show the hive waiting for files dragged onto it (S-014). The files
+    /// come with the drop, so the request carries only the activation token.
+    Drop {
+        #[serde(default)]
+        token: Option<String>,
+    },
     /// Run an action without showing the hive.
     Run {
         action: String,

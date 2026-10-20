@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Added
+- Drop groundwork (S-014a): `sbarhive drop [--token T]` asks the service for a hive that waits for dragged files (accepted and logged until S-014b), with a shared `text/uri-list` parser, drop point cell picking and the drop hive state machine.
+
 ## [0.2.2] - 2026-10-20
 
 ### Added

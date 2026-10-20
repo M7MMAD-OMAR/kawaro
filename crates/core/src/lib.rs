@@ -14,6 +14,7 @@ pub mod output;
 mod output_impl;
 pub mod queue;
 mod queue_impl;
+pub mod uri_list;
 
 pub use action::{ActionDef, OutputMode, Registry};
 pub use engine::{CancelToken, Engine, EngineError, Progress, Task};

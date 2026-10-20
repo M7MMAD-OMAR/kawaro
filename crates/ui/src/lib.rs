@@ -13,6 +13,9 @@
 //! - `SBARHIVE_REDUCED_MOTION=1|0` forces reduced motion on or off (otherwise
 //!   KDE or GNOME settings, see the `motion` module).
 
+// Wired to the Wayland drop receiver in S-014b; only its tests use it until then.
+#[cfg_attr(not(test), allow(dead_code))]
+mod dnd;
 mod geometry;
 mod icons;
 mod layout;
