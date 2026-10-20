@@ -89,6 +89,11 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
             queue.cancel_all();
             reply(&mut stream, &Response::Ok);
         }
+        Request::Settings => {
+            let config = lock(state).config.clone();
+            ui::open_settings(config);
+            reply(&mut stream, &Response::Ok);
+        }
         Request::Reload => {
             lock(state).reload();
             reply(&mut stream, &Response::Ok);

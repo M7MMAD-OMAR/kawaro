@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Added
+- SbarHive shows in app launchers (search «sbar» or «صبار»); opening it starts the service and opens the settings. New command `sbarhive settings`.
+
 ## [0.2.1] - 2026-10-20
 
 ### Added

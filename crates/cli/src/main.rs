@@ -72,6 +72,9 @@ enum Cmd {
         #[arg(required = true)]
         files: Vec<PathBuf>,
     },
+    /// Open the settings window (starts the daemon when needed). This is
+    /// what the app launcher entry runs.
+    Settings,
     /// Report which engines and helper tools this system has.
     Doctor,
     /// Start the daemon in the foreground.
@@ -99,6 +102,9 @@ fn main() -> ExitCode {
             files,
         } => run(&action, wait, &files),
         Cmd::Actions { json, files } => actions(json, &files),
+        Cmd::Settings => client::ensure_daemon()
+            .and_then(|()| client::request(&Request::Settings))
+            .map(|_| ()),
         Cmd::Doctor => {
             doctor();
             Ok(())
