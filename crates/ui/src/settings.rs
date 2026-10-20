@@ -133,7 +133,7 @@ fn strings(lang: Lang) -> Strings {
         },
         Lang::En => Strings {
             text: SettingsText {
-                title: "SbarHive Settings".into(),
+                title: "SbarHive".into(),
                 language: "Language".into(),
                 theme: "Theme".into(),
                 output: "Where results go".into(),
@@ -541,7 +541,7 @@ mod tests {
             }
         }
         assert_eq!(strings(Lang::Ar).text.title, "إعدادات صبار هايف");
-        assert_eq!(strings(Lang::En).text.title, "SbarHive Settings");
+        assert_eq!(strings(Lang::En).text.title, "SbarHive");
     }
 
     mod window {
@@ -596,6 +596,22 @@ mod tests {
         #[test]
         fn settings_window_behaviour() {
             i_slint_backend_testing::init_no_event_loop();
+            // The hive stays up and untouched while the settings window
+            // opens, saves and closes in the same process.
+            let hive = crate::Hive::new(Lang::En).unwrap();
+            let hive_calls = Rc::new(std::cell::Cell::new(0));
+            let h = hive_calls.clone();
+            hive.on_choose(move |_| h.set(h.get() + 1));
+            let h = hive_calls.clone();
+            hive.on_dismiss(move || h.set(h.get() + 1));
+            let cell = crate::HiveCell {
+                id: "a".into(),
+                code: "A".into(),
+                label: "a".into(),
+                ring: 1,
+            };
+            hive.present("1", vec![cell], None).unwrap();
+
             let (win, saved) = wired(Lang::En);
             let start = Config {
                 quality: Quality::Max,
@@ -606,7 +622,7 @@ mod tests {
             win.open(&start).unwrap();
             assert!(win.inner.visible());
             assert_eq!(win.inner.state(), FormState::from_config(&start, false));
-            assert_eq!(win.inner.ui.borrow().get_text().title, "SbarHive Settings");
+            assert_eq!(win.inner.ui.borrow().get_text().title, "SbarHive");
             let folder = find(&win, "Folder name", AccessibleRole::TextInput);
             assert_eq!(
                 folder.accessible_enabled(),
@@ -628,17 +644,45 @@ mod tests {
             assert!(!win.inner.visible());
             assert!(saved.borrow().is_empty());
 
-            // Esc, even from the text field, closes without saving.
+            // Esc closes without saving, also while typing in the text field.
             win.open(&start).unwrap();
-            find(&win, "Folder name", AccessibleRole::TextInput);
-            win.inner
-                .ui
-                .borrow()
-                .window()
-                .dispatch_event(WindowEvent::WindowActiveChanged(true));
+            key(&win, Key::Escape);
+            assert!(!win.inner.visible());
+            let sub = Config {
+                output: OutputPlace::Subfolder,
+                ..start.clone()
+            };
+            win.open(&sub).unwrap();
+            let folder = find(&win, "Folder name", AccessibleRole::TextInput);
+            click(&win, &folder);
+            {
+                let ui = win.inner.ui.borrow();
+                let text: SharedString = "x".into();
+                ui.window()
+                    .dispatch_event(WindowEvent::KeyPressed { text: text.clone() });
+                ui.window()
+                    .dispatch_event(WindowEvent::KeyReleased { text });
+            }
+            assert_eq!(
+                folder.accessible_value().as_deref(),
+                Some("SbarHivex"),
+                "focus is in the field"
+            );
             key(&win, Key::Escape);
             assert!(!win.inner.visible());
             assert!(saved.borrow().is_empty());
+
+            // Keyboard: Tab reaches the language options, Space picks one.
+            win.open(&start).unwrap();
+            key(&win, Key::Tab);
+            key(&win, Key::Tab);
+            key(&win, Key::Space);
+            assert_eq!(
+                win.inner.ui.borrow().get_language(),
+                1,
+                "العربية by keyboard"
+            );
+            win.close();
 
             // Change every field through the controls, then Save.
             win.open(&start).unwrap();
@@ -696,6 +740,9 @@ mod tests {
             assert!(!win.inner.visible());
             assert_eq!(saved.borrow().len(), 1);
             drop(win);
+            assert!(hive.inner.visible(), "the hive is still up");
+            assert_eq!(hive_calls.get(), 0, "no hive callback fired");
+            hive.close();
 
             // Arabic: lists mirrored, Save on the left of Cancel.
             let (ar, saved) = wired(Lang::Ar);
