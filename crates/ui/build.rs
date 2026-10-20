@@ -45,8 +45,9 @@ fn main() {
         .with_include_paths(vec![out.clone()])
         .embed_resources(slint_build::EmbedResourcesKind::EmbedFiles)
         // Element debug info lets the behaviour test find cells by their
-        // accessible label. Dev profile only; release builds stay lean.
-        .with_debug_info(std::env::var("PROFILE").as_deref() == Ok("debug"));
+        // accessible label in every profile (`cargo test --release` too).
+        // It only adds element names and ids to the generated code.
+        .with_debug_info(true);
     slint_build::compile_with_config(manifest.join("ui/hive.slint"), config)
         .expect("compile ui/hive.slint");
     rerun_dir(&manifest.join("ui"));

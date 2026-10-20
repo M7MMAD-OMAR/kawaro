@@ -11,7 +11,11 @@
 //!   18 cells show.
 //! - A ring-2 cell never moves inwards to fill a short ring 1: ring 1 is for
 //!   the common actions and an empty slot there reads better than a rare
-//!   action in it.
+//!   action in it. Exception: when every cell fits in ring 1 (6 or fewer in
+//!   total), all of them go there, ring-1 cells first, so the hive is one
+//!   compact ring instead of a lopsided two-ring window.
+//! - A ring that is the only ring and is not full spreads its cells evenly
+//!   over the six slots, so three actions sit at alternating slots.
 //! - Each ring fills its slots from the top-right cell clockwise (LTR), or
 //!   from the top-left cell counterclockwise (Arabic), see `geometry::ring`.
 
@@ -40,6 +44,10 @@ pub struct Plan {
 /// Splits cells into ring 1 and ring 2 following the slot rules above.
 pub fn assign(cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
     let (mut ring1, ring2): (Vec<_>, Vec<_>) = cells.into_iter().partition(|c| c.ring <= 1);
+    if ring1.len() + ring2.len() <= RING1 {
+        ring1.extend(ring2);
+        return (ring1, Vec::new());
+    }
     let mut outer: Vec<HiveCell> = if ring1.len() > RING1 {
         ring1.split_off(RING1)
     } else {
@@ -63,7 +71,14 @@ pub fn plan(cells: Vec<HiveCell>, rtl: bool) -> Plan {
         rtl,
         origin: (width / 2.0, height / 2.0),
     };
-    let slots = ring(1)
+    let inner = ring(1);
+    let n = ring1.len();
+    let ring1_slots: Vec<Axial> = if rings == 1 && n > 0 && n < RING1 {
+        (0..n).map(|i| inner[i * RING1 / n]).collect()
+    } else {
+        inner
+    };
+    let slots = ring1_slots
         .into_iter()
         .zip(ring1)
         .chain(ring(2).into_iter().zip(ring2));
@@ -164,16 +179,20 @@ mod tests {
 
     #[test]
     fn ring_one_and_two_keep_their_order() {
-        let (r1, r2) = assign(vec![cell("webp", 1), cell("gray", 2), cell("png", 1)]);
+        let mut cells = vec![cell("webp", 1), cell("gray", 2), cell("png", 1)];
+        cells.extend(many("x", 5, 2));
+        let (r1, r2) = assign(cells);
         assert_eq!(ids(&r1), ["webp", "png"]);
-        assert_eq!(ids(&r2), ["gray"]);
+        assert_eq!(ids(&r2), ["gray", "x0", "x1", "x2", "x3", "x4"]);
     }
 
     #[test]
     fn ring_zero_counts_as_ring_one_and_above_two_as_ring_two() {
-        let (r1, r2) = assign(vec![cell("a", 0), cell("b", 3), cell("c", 255)]);
+        let mut cells = vec![cell("a", 0), cell("b", 3), cell("c", 255)];
+        cells.extend(many("x", 4, 2));
+        let (r1, r2) = assign(cells);
         assert_eq!(ids(&r1), ["a"]);
-        assert_eq!(ids(&r2), ["b", "c"]);
+        assert_eq!(ids(&r2), ["b", "c", "x0", "x1", "x2", "x3"]);
     }
 
     #[test]
@@ -207,17 +226,56 @@ mod tests {
     }
 
     #[test]
+    fn six_or_fewer_cells_all_go_to_ring_one() {
+        let (r1, r2) = assign(vec![cell("gray", 2), cell("webp", 1), cell("png", 1)]);
+        assert_eq!(ids(&r1), ["webp", "png", "gray"]);
+        assert!(r2.is_empty());
+        let mut six = many("a", 4, 1);
+        six.extend(many("b", 2, 2));
+        let (r1, r2) = assign(six);
+        assert_eq!(r1.len(), 6);
+        assert!(r2.is_empty());
+        let mut seven = many("a", 4, 1);
+        seven.extend(many("b", 3, 2));
+        let (r1, r2) = assign(seven);
+        assert_eq!((r1.len(), r2.len()), (4, 3));
+    }
+
+    #[test]
+    fn a_partial_single_ring_spreads_evenly() {
+        let r1 = ring(1);
+        let slots = |n: usize| -> Vec<Axial> {
+            plan(many("a", n, 1), false)
+                .cells
+                .iter()
+                .map(|c| c.axial)
+                .collect()
+        };
+        assert_eq!(slots(1), [r1[0]]);
+        assert_eq!(slots(2), [r1[0], r1[3]]);
+        assert_eq!(slots(3), [r1[0], r1[2], r1[4]]);
+        assert_eq!(slots(4), [r1[0], r1[1], r1[3], r1[4]]);
+        assert_eq!(slots(6), r1);
+        // With a second ring the inner ring keeps consecutive slots.
+        let mut cells = many("a", 2, 1);
+        cells.extend(many("b", 5, 2));
+        let p = plan(cells, false);
+        assert_eq!(p.cells[0].axial, r1[0]);
+        assert_eq!(p.cells[1].axial, r1[1]);
+    }
+
+    #[test]
     fn plan_puts_cells_on_ring_slots_in_order() {
         let mut cells = many("a", 3, 1);
-        cells.extend(many("b", 2, 2));
+        cells.extend(many("b", 4, 2));
         let p = plan(cells, false);
         let slots: Vec<Axial> = p.cells.iter().map(|c| c.axial).collect();
         let r1 = ring(1);
         let r2 = ring(2);
-        assert_eq!(slots, [r1[0], r1[1], r1[2], r2[0], r2[1]]);
+        assert_eq!(slots, [r1[0], r1[1], r1[2], r2[0], r2[1], r2[2], r2[3]]);
         assert_eq!(
             ids(&p.cells.iter().map(|c| c.cell.clone()).collect::<Vec<_>>()),
-            ["a0", "a1", "a2", "b0", "b1"]
+            ["a0", "a1", "a2", "b0", "b1", "b2", "b3"]
         );
         for c in &p.cells {
             assert_eq!((c.x, c.y), p.layout.center(c.axial));
@@ -227,7 +285,9 @@ mod tests {
     #[test]
     fn plan_centres_the_hive_in_a_window_sized_for_the_rings_used() {
         let one = plan(many("a", 3, 1), false);
-        let two = plan(vec![cell("a", 1), cell("b", 2)], false);
+        let mut seven = many("a", 1, 1);
+        seven.extend(many("b", 6, 2));
+        let two = plan(seven, false);
         let empty = plan(Vec::new(), false);
         assert!(one.width < two.width && one.height < two.height);
         assert_eq!((empty.width, empty.height), (one.width, one.height));
@@ -266,8 +326,8 @@ mod tests {
         let (ox, oy) = p.layout.origin;
         assert_eq!(p.pick(ox, oy), -1, "centre");
         assert_eq!(p.pick(0.0, 0.0), -1, "corner");
-        // Empty ring-1 slot (third slot is unused).
-        let (ex, ey) = p.layout.center(ring(1)[2]);
+        // Empty ring-1 slot: three cells spread over slots 0, 2 and 4.
+        let (ex, ey) = p.layout.center(ring(1)[1]);
         assert_eq!(p.pick(ex, ey), -1, "empty slot");
     }
 
