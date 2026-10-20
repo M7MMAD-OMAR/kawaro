@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- Overlay colour scheme and cursor (S-018e): `SBARHIVE_COLOR_SCHEME` given to the service now decides the overlay colours ahead of the portal when `theme = "auto"`, and the overlay asks for the default arrow cursor (`wp_cursor_shape_v1`) on every pointer enter.
 - Drop on the hive overlay (S-018d): `sbarhive drop` on the layer-shell overlay takes dragged files again, its drop receiver now bound on the overlay's connection to the hive surface, with clicks and drags outside the hive passing through.
 - Hive overlay input and focus (S-018c): the activation token is sent once the overlay is mapped, `SBARHIVE_DEBUG_FOCUS` prints one `hive surface: layer|window X Y W H` line per show, and while a screen reader runs (`org.a11y.Status.ScreenReaderEnabled`) the next show is a window, back to the overlay when it stops.
 - Hive overlay (S-018b): on compositors that offer wlr-layer-shell (checked on headless KWin) every hive show is a full-output overlay with the hive centred in it, no window frame or tiling, closed with Esc; GNOME and `SBARHIVE_SURFACE=window` keep the window, `SBARHIVE_SURFACE=layer|window` forces the choice.

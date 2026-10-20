@@ -47,6 +47,10 @@ use wayland_client::protocol::{
     wl_surface::{self, WlSurface},
 };
 use wayland_client::{Connection, Dispatch, EventQueue, Proxy, QueueHandle, WEnum, delegate_noop};
+use wayland_protocols::wp::cursor_shape::v1::client::{
+    wp_cursor_shape_device_v1::{Shape, WpCursorShapeDeviceV1},
+    wp_cursor_shape_manager_v1::WpCursorShapeManagerV1,
+};
 use wayland_protocols::wp::fractional_scale::v1::client::{
     wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
     wp_fractional_scale_v1::{self, WpFractionalScaleV1},
@@ -95,7 +99,10 @@ struct Wl {
     single_pixel: WpSinglePixelBufferManagerV1,
     fractional: Option<WpFractionalScaleManagerV1>,
     activation: Option<XdgActivationV1>,
+    cursor_shape: Option<WpCursorShapeManagerV1>,
     pointer: Option<WlPointer>,
+    /// Sets the default arrow on each enter (S-018 AC16).
+    cursor: Option<WpCursorShapeDeviceV1>,
     keyboard: Option<WlKeyboard>,
     catcher: Option<WlSurface>,
     hive: Option<WlSurface>,
@@ -185,6 +192,10 @@ pub(crate) fn wanted() -> bool {
 
 fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
     let _seat: WlSeat = globals.bind(qh, 1..=7, ()).ok()?;
+    let shapes = GLOBALS.with(|g| {
+        let g = g.borrow();
+        overlay::wants_cursor_shape(&g.iter().map(String::as_str).collect::<Vec<_>>())
+    });
     Some(Wl {
         qh: qh.clone(),
         compositor: globals.bind(qh, 4..=6, ()).ok()?,
@@ -195,7 +206,9 @@ fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
         single_pixel: globals.bind(qh, 1..=1, ()).ok()?,
         fractional: globals.bind(qh, 1..=1, ()).ok(),
         activation: globals.bind(qh, 1..=1, ()).ok(),
+        cursor_shape: shapes.then(|| globals.bind(qh, 1..=1, ()).ok()).flatten(),
         pointer: None,
+        cursor: None,
         keyboard: None,
         catcher: None,
         hive: None,
@@ -722,6 +735,8 @@ delegate_noop!(Wl: ignore WpViewport);
 delegate_noop!(Wl: ignore WpFractionalScaleManagerV1);
 delegate_noop!(Wl: ignore WpSinglePixelBufferManagerV1);
 delegate_noop!(Wl: ignore XdgActivationV1);
+delegate_noop!(Wl: ignore WpCursorShapeManagerV1);
+delegate_noop!(Wl: ignore WpCursorShapeDeviceV1);
 
 impl Dispatch<WlBuffer, ()> for Wl {
     fn event(
@@ -825,7 +840,12 @@ impl Dispatch<WlSeat, ()> for Wl {
         } = e
         {
             if c.contains(wl_seat::Capability::Pointer) && s.pointer.is_none() {
-                s.pointer = Some(seat.get_pointer(qh, ()));
+                let pointer = seat.get_pointer(qh, ());
+                s.cursor = s
+                    .cursor_shape
+                    .as_ref()
+                    .map(|m| m.get_pointer(&pointer, qh, ()));
+                s.pointer = Some(pointer);
             }
             if c.contains(wl_seat::Capability::Keyboard) && s.keyboard.is_none() {
                 s.keyboard = Some(seat.get_keyboard(qh, ()));
@@ -845,11 +865,16 @@ impl Dispatch<WlPointer, ()> for Wl {
     ) {
         match e {
             wl_pointer::Event::Enter {
+                serial,
                 surface,
                 surface_x,
                 surface_y,
-                ..
             } => {
+                let ours =
+                    s.catcher.as_ref() == Some(&surface) || s.hive.as_ref() == Some(&surface);
+                if let (true, Some(c)) = (ours, &s.cursor) {
+                    c.set_shape(serial, Shape::Default);
+                }
                 s.pointer_on_hive = s.hive.as_ref() == Some(&surface);
                 if s.pointer_on_hive {
                     s.events.push(Ev::Motion(surface_x, surface_y));

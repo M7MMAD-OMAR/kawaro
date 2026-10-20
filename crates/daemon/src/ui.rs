@@ -10,7 +10,7 @@ use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
 use sbarhive_ui::{Hive, HiveCell, SettingsWindow};
 use std::cell::RefCell;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 thread_local! {
     static HIVE: RefCell<Option<Hive>> = const { RefCell::new(None) };
@@ -21,12 +21,17 @@ thread_local! {
 }
 
 /// The colour scheme override the UI crate reads when a window is created.
+/// `theme = "auto"` keeps the `SBARHIVE_COLOR_SCHEME` the daemon started
+/// with, so it still decides ahead of the portal (S-018 AC15).
 fn apply_theme(theme: Theme) {
+    static INHERITED: OnceLock<Option<String>> = OnceLock::new();
+    let inherited = INHERITED.get_or_init(|| std::env::var("SBARHIVE_COLOR_SCHEME").ok());
     // Only the main thread reads or writes this variable, before creating windows.
-    match theme {
-        Theme::Auto => unsafe { std::env::remove_var("SBARHIVE_COLOR_SCHEME") },
-        Theme::Light => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "light") },
-        Theme::Dark => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "dark") },
+    match (theme, inherited) {
+        (Theme::Auto, Some(v)) => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", v) },
+        (Theme::Auto, None) => unsafe { std::env::remove_var("SBARHIVE_COLOR_SCHEME") },
+        (Theme::Light, _) => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "light") },
+        (Theme::Dark, _) => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "dark") },
     }
 }
 
