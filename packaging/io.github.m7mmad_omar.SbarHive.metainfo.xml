@@ -38,9 +38,14 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.1.0" date="2026-10-19">
+    <release version="0.2.0" date="2026-10-20">
       <description>
-        <p>First development release.</p>
+        <p>Video, audio, documents and PDF through FFmpeg, LibreOffice and Ghostscript, a settings window, and focus that works under strict focus policies in GNOME and KDE.</p>
+      </description>
+    </release>
+    <release version="0.1.0" date="2026-10-20">
+      <description>
+        <p>First release: the hive, image conversion, the background service and command line, and file manager integrations.</p>
       </description>
     </release>
   </releases>
