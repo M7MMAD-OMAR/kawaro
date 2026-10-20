@@ -7,3 +7,5 @@ spikes/*/out/*.txt
 .claude/worktrees/
 mutants.out*/
 tests/focus/out/
+tests/drop/out/
+tests/drop/kwin-input/target/

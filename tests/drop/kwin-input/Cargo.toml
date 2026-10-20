@@ -1,0 +1,14 @@
+[package]
+name = "kwin-input"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+# Test tool only, outside the workspace on purpose: keeps
+# wayland-protocols-plasma out of the workspace Cargo.lock.
+[workspace]
+
+[dependencies]
+wayland-client = "0.31"
+wayland-protocols-plasma = { version = "0.3", features = ["client"] }

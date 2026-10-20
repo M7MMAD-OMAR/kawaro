@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""GTK 4 drag source standing in for a file manager (from the drop spike):
+a maximized window whose whole area drags one file as text/uri-list,
+offering copy and move like Dolphin and Nautilus do.
+
+The file to drag is read from NEXT (a text file holding one path) at the
+start of every drag, so one window serves several drags. When a drag ends
+with deleted=True (the target took a move), the file is deleted, as a file
+manager would, so a move shows up in the sha256 check.
+
+Prints: shown, drag-begin PATH, drag-end deleted=BOOL, drag-cancel REASON.
+Usage: source.py NEXT"""
+import os
+import sys
+
+import gi
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gdk", "4.0")
+from gi.repository import Gdk, Gio, Gtk  # noqa: E402
+
+NEXT = sys.argv[1]
+current = {"path": None}
+
+
+def prepare(_src, _x, _y):
+    with open(NEXT) as f:
+        path = f.read().strip()
+    current["path"] = path
+    files = Gdk.FileList.new_from_list([Gio.File.new_for_path(path)])
+    return Gdk.ContentProvider.new_for_value(files)
+
+
+def drag_end(_src, _drag, deleted):
+    print(f"source: drag-end deleted={deleted}", flush=True)
+    if deleted and current["path"] and os.path.exists(current["path"]):
+        os.unlink(current["path"])
+        print(f"source: deleted {current['path']}", flush=True)
+
+
+def on_activate(app):
+    win = Gtk.ApplicationWindow(application=app, title="drag-source")
+    win.set_default_size(1200, 760)
+    label = Gtk.Label(label="drag me")
+    label.set_hexpand(True)
+    label.set_vexpand(True)
+    src = Gtk.DragSource(actions=Gdk.DragAction.COPY | Gdk.DragAction.MOVE)
+    src.connect("prepare", prepare)
+    src.connect("drag-begin", lambda *_: print(f"source: drag-begin {current['path']}", flush=True))
+    src.connect("drag-end", drag_end)
+    src.connect("drag-cancel", lambda s, d, r: print(f"source: drag-cancel {r}", flush=True) or False)
+    label.add_controller(src)
+    win.set_child(label)
+    win.maximize()
+    win.present()
+    print("source: shown", flush=True)
+
+
+app = Gtk.Application(application_id="dev.sbarhive.DropTestSource", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app.connect("activate", on_activate)
+app.run([])
