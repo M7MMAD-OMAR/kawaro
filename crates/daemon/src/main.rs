@@ -12,7 +12,6 @@ mod ui;
 use sbarhive_core::config::Config;
 use sbarhive_core::ipc::{Request, Response, socket_path};
 use sbarhive_core::queue::Queue;
-use state::lock;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::process::ExitCode;
@@ -63,39 +62,17 @@ fn main() -> ExitCode {
         eprintln!("sbarhived: no display: {e}");
         return ExitCode::FAILURE;
     }
-    let hive = match sbarhive_ui::Hive::new(lang) {
-        Ok(h) => h,
-        Err(e) => {
-            eprintln!("sbarhived: cannot create the hive: {e}");
-            return ExitCode::FAILURE;
-        }
-    };
-
     let engines = sbarhive_engines::all();
     let (ev_tx, ev_rx) = mpsc::channel();
     let queue = Arc::new(Queue::new(engines.clone(), workers(), ev_tx));
     let state: state::Shared = Arc::new(Mutex::new(state::State::new(config, &engines)));
 
-    {
-        let (state, queue) = (state.clone(), queue.clone());
-        hive.on_choose(move |id| {
-            let mut st = lock(&state);
-            let files = st.pending.take().unwrap_or_default();
-            match st.registry.get(&id).cloned() {
-                Some(action) if !files.is_empty() => {
-                    jobs::submit(&mut st, &queue, action, files);
-                }
-                _ => eprintln!("sbarhived: nothing to run for `{id}`"),
-            }
-        });
+    if let Err(e) = ui::build(lang, &state, &queue) {
+        eprintln!("sbarhived: cannot create the windows: {e}");
+        return ExitCode::FAILURE;
     }
-    {
-        let state = state.clone();
-        hive.on_dismiss(move || lock(&state).pending = None);
-    }
-    ui::install(hive);
 
-    let tray = tray::start(lang, queue.clone());
+    let tray = tray::start(lang, queue.clone(), state.clone());
     {
         let state = state.clone();
         std::thread::spawn(move || jobs::pump(ev_rx, state, tray));

@@ -85,6 +85,13 @@ pub fn cancel_all(lang: Lang) -> &'static str {
     }
 }
 
+pub fn settings(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "الإعدادات",
+        Lang::En => "Settings",
+    }
+}
+
 pub fn quit(lang: Lang) -> &'static str {
     match lang {
         Lang::Ar => "إنهاء صبار هايف",

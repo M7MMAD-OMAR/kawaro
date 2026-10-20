@@ -1,6 +1,7 @@
 //! Tray icon (StatusNotifierItem). Shows progress in the tooltip while jobs
 //! run; the menu cancels jobs or quits. Missing tray support is not an error.
 
+use crate::state::{Shared, lock};
 use crate::text;
 use ksni::blocking::{Handle, TrayMethods};
 use ksni::menu::{MenuItem, StandardItem};
@@ -11,6 +12,7 @@ use std::sync::Arc;
 pub struct SbarTray {
     lang: Lang,
     queue: Arc<Queue>,
+    state: Shared,
     active: Vec<(String, f32)>,
 }
 
@@ -67,6 +69,16 @@ impl ksni::Tray for SbarTray {
                 ..Default::default()
             }
             .into(),
+            StandardItem {
+                label: text::settings(self.lang).into(),
+                icon_name: "preferences-system".into(),
+                activate: Box::new(|t: &mut Self| {
+                    let config = lock(&t.state).config.clone();
+                    crate::ui::open_settings(config);
+                }),
+                ..Default::default()
+            }
+            .into(),
             MenuItem::Separator,
             StandardItem {
                 label: text::quit(self.lang).into(),
@@ -79,10 +91,11 @@ impl ksni::Tray for SbarTray {
     }
 }
 
-pub fn start(lang: Lang, queue: Arc<Queue>) -> TrayHandle {
+pub fn start(lang: Lang, queue: Arc<Queue>, state: Shared) -> TrayHandle {
     match (SbarTray {
         lang,
         queue,
+        state,
         active: vec![],
     })
     .spawn()
