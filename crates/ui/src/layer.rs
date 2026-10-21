@@ -76,6 +76,8 @@ thread_local! {
     static OWNER: RefCell<Weak<LayerAdapter>> = const { RefCell::new(Weak::new()) };
     /// The next show waits for a dragged file (S-014): no keyboard, no input.
     static DROP_MODE: Cell<bool> = const { Cell::new(false) };
+    /// The surface choice and reason last printed (S-019 AC2).
+    static LAST_CHOICE: RefCell<Option<(Surface, String)>> = const { RefCell::new(None) };
 }
 
 /// Whether the next show is a drop show.
@@ -147,8 +149,11 @@ pub(crate) fn start() -> bool {
         .collect();
     GLOBALS.with(|g| *g.borrow_mut() = names);
     // The overlay is possible here; a screen reader only makes some shows
-    // windows, decided at every build (S-018 AC12).
-    if decide(true, false) != Surface::Layer {
+    // windows, decided at every build (S-018 AC12). When it is not, no build
+    // decides again, so this decision prints its choice line.
+    let (surface, reason) = choice(false, false);
+    if surface != Surface::Layer {
+        report_choice(surface, reason);
         return false;
     }
     crate::a11y::watch();
@@ -175,24 +180,40 @@ pub(crate) fn start() -> bool {
     true
 }
 
-/// The surface decision for the advertised globals; `log` prints its note.
-fn decide(log: bool, screen_reader: bool) -> Surface {
+/// The surface decision for the advertised globals, `SBARHIVE_SURFACE`,
+/// `hive_surface` in config.toml (read again at every build) and the
+/// screen reader state (S-019 AC1).
+fn choice(flag: bool, reader: bool) -> (Surface, String) {
     let forced = std::env::var("SBARHIVE_SURFACE").ok();
-    let (surface, note) = GLOBALS.with(|g| {
+    let config = sbarhive_core::config::Config::load().0.hive_surface;
+    GLOBALS.with(|g| {
         let g = g.borrow();
         let names: Vec<&str> = g.iter().map(String::as_str).collect();
-        overlay::choose_surface(&names, screen_reader, true, forced.as_deref())
+        overlay::surface_choice(&names, true, flag, reader, config, forced.as_deref())
+    })
+}
+
+/// Prints the `hive surface choice:` line when the choice or its reason
+/// differs from the last one printed (S-019 AC2), with no environment
+/// variable.
+fn report_choice(surface: Surface, reason: String) {
+    LAST_CHOICE.with(|last| {
+        let mut last = last.borrow_mut();
+        if last.as_ref() != Some(&(surface, reason.clone())) {
+            eprintln!("{}", overlay::choice_line(surface, &reason));
+            *last = Some((surface, reason));
+        }
     });
-    if let (true, Some(n)) = (log, note) {
-        eprintln!("sbarhive: {n}");
-    }
-    surface
 }
 
 /// The next hive build goes on the overlay (decided again at every build).
 pub(crate) fn wanted() -> bool {
-    SHARED.with(|s| s.borrow().is_some())
-        && decide(false, crate::a11y::screen_reader()) == Surface::Layer
+    if SHARED.with(|s| s.borrow().is_none()) {
+        return false;
+    }
+    let (surface, reason) = choice(crate::a11y::screen_reader(), crate::a11y::reader());
+    report_choice(surface, reason);
+    surface == Surface::Layer
 }
 
 fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {

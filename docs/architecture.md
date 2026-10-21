@@ -124,11 +124,19 @@ Choice rule:
    `wl_subcompositor`, `wp_viewporter` and `wp_single_pixel_buffer` (the
    `wp_single_pixel_buffer_manager_v1` global); otherwise a window, with a
    log line naming what is missing.
-3. With no override, the layer path needs Wayland, those four globals and no
-   screen reader. A running screen reader (`ScreenReaderEnabled` on
-   `org.a11y.Status`, watched on the session bus) makes the next show a
-   window, since the overlay has no accessibility tree; when it stops, the
-   next show is a layer again.
+3. `hive_surface = "window"` in config.toml gives the window path, and
+   `hive_surface = "layer"` the layer path when Wayland and those four
+   globals are there. Absent means `auto`.
+4. With `auto`, the layer path needs Wayland, those four globals and no
+   running screen reader. A reader runs when `ScreenReaderEnabled` on
+   `org.a11y.Status` is set and `org.gnome.Orca.Service` has an owner on the
+   session bus, both watched there (S-019a): the flag alone is often left
+   over from a GNOME setting. A running reader makes the next show a window,
+   since the overlay has no accessibility tree; when it stops, the next show
+   is a layer again.
+
+Every change of the choice prints one `hive surface choice: KIND, REASON`
+line, with no environment variable.
 
 On Hyprland a layer rule for the `sbarhive` namespace can turn off its
 animation; see `integrations/linux/hyprland/README.md`.

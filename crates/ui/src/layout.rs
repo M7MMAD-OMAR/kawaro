@@ -102,6 +102,116 @@ pub fn plan_rings(cells: Vec<HiveCell>, rtl: bool, min_rings: i32) -> Plan {
     }
 }
 
+/// The outermost ring the hive at an anchor may use (S-019 decision 5).
+// S-019c and S-019d wire `plan_at` into the show path; until then only the
+// tests call it.
+#[cfg_attr(not(test), allow(dead_code))]
+pub const MAX_RINGS: i32 = 4;
+
+/// The hive with its centre at `anchor` on a `screen` sized output (S-019
+/// AC3), and where it sits there at scale `scale120`/120. Without an anchor
+/// it is [`plan_rings`] centred by [`place`](crate::overlay::place).
+///
+/// The anchor is clamped so the centre cell plus `PAD` is on screen. A slot
+/// is used only when its hexagon plus `PAD` is on screen too. Ring-1 cells
+/// take the accepted ring-1 slots; the rest, ring-1 overflow first, fill the
+/// accepted slots of rings 2 to [`MAX_RINGS`] in spiral order. The surface
+/// is the bounding box of the centre and every accepted slot of the rings
+/// it sizes for.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn plan_at(
+    cells: Vec<HiveCell>,
+    rtl: bool,
+    min_rings: i32,
+    screen: (u32, u32),
+    anchor: Option<(f32, f32)>,
+    scale120: u32,
+) -> (Plan, crate::overlay::Placement) {
+    let Some(anchor) = anchor else {
+        let plan = plan_rings(cells, rtl, min_rings);
+        let size = (plan.width.ceil() as u32, plan.height.ceil() as u32);
+        let placement = crate::overlay::place(screen, size, scale120);
+        return (plan, placement);
+    };
+    const EPS: f32 = 0.01;
+    let radius = HEX_SIZE_MD / 3f32.sqrt();
+    // The same half width `Layout::extent` uses, so a hive with every slot
+    // accepted has the size of `plan_rings`.
+    let (mx, my) = (radius * 3f32.sqrt() / 2.0 + PAD, radius + PAD);
+    let (w, h) = (screen.0 as f32, screen.1 as f32);
+    let centre = (anchor.0.max(mx).min(w - mx), anchor.1.max(my).min(h - my));
+    let offsets = Layout {
+        radius,
+        gap: HEX_GAP,
+        rtl,
+        origin: (0.0, 0.0),
+    };
+    let fits = |a: &Axial| {
+        let (x, y) = offsets.center(*a);
+        let (x, y) = (centre.0 + x, centre.1 + y);
+        // The centre of every slot ranges where the clamped anchor may.
+        (mx - EPS..=(w - mx) + EPS).contains(&x) && (my - EPS..=(h - my) + EPS).contains(&y)
+    };
+    let accepted: Vec<Vec<Axial>> = (1..=MAX_RINGS)
+        .map(|k| ring(k).into_iter().filter(fits).collect())
+        .collect();
+
+    let (ring1, ring2) = assign(cells);
+    let inner = &accepted[0];
+    let n1 = ring1.len().min(inner.len());
+    let mut ring1 = ring1;
+    let mut outer = ring1.split_off(n1);
+    outer.extend(ring2);
+    let outer_slots: Vec<(i32, Axial)> = (2..=MAX_RINGS)
+        .zip(&accepted[1..])
+        .flat_map(|(k, v)| v.iter().map(move |a| (k, *a)))
+        .collect();
+    outer.truncate(outer_slots.len());
+    let used = outer.len().checked_sub(1).map_or(1, |i| outer_slots[i].0);
+    let rings = used.max(min_rings);
+    // A lone ring spreads its cells; with every slot filled this is the
+    // slots in order, and with no cell it is empty.
+    let ring1_slots: Vec<Axial> = if rings == 1 {
+        (0..n1).map(|i| inner[i * inner.len() / n1]).collect()
+    } else {
+        inner.clone()
+    };
+
+    let mut b = (0f32, 0f32, 0f32, 0f32);
+    for a in accepted.iter().take(rings as usize).flatten() {
+        let (x, y) = offsets.center(*a);
+        b = (b.0.min(x), b.1.min(y), b.2.max(x), b.3.max(y));
+    }
+    let (width, height) = (b.2 - b.0 + 2.0 * mx, b.3 - b.1 + 2.0 * my);
+    let layout = Layout {
+        origin: (mx - b.0, my - b.1),
+        ..offsets
+    };
+    let slots = ring1_slots
+        .into_iter()
+        .zip(ring1)
+        .chain(outer_slots.into_iter().map(|(_, a)| a).zip(outer));
+    let cells = slots
+        .map(|(axial, cell)| {
+            let (x, y) = layout.center(axial);
+            Placed { cell, axial, x, y }
+        })
+        .collect();
+    let size = (width.ceil() as u32, height.ceil() as u32);
+    let placement = crate::overlay::Placement {
+        x: (centre.0 - layout.origin.0).round() as i32,
+        y: (centre.1 - layout.origin.1).round() as i32,
+        ..crate::overlay::place(screen, size, scale120)
+    };
+    let plan = Plan {
+        cells,
+        width,
+        height,
+        layout,
+    };
+    (plan, placement)
+}
+
 impl Plan {
     /// Index into `cells` of the action under the point, or -1 for the
     /// centre, a gap, an empty slot or the transparent corners.

@@ -6,6 +6,7 @@
 //!
 //! The maths follows `spikes/overlay/src/overlay.rs`.
 
+use sbarhive_core::config::HiveSurface;
 use slint::platform::Key;
 
 /// Globals the layer path needs, all at once: the overlay itself, the hive
@@ -39,6 +40,8 @@ pub fn choose_surface(
         .into_iter()
         .filter(|r| !globals.contains(r))
         .collect();
+    // A forced layer without the globals falls through to the window with
+    // what is missing.
     match forced {
         Some("window") => (Surface::Window, None),
         Some("layer") if missing.is_empty() => (Surface::Layer, None),
@@ -52,6 +55,70 @@ pub fn choose_surface(
         _ if missing.is_empty() && !screen_reader && wayland => (Surface::Layer, None),
         _ => (Surface::Window, None),
     }
+}
+
+/// A screen reader runs (S-019 AC1): the `ScreenReaderEnabled` flag and a
+/// reader owning `org.gnome.Orca.Service` together, with `hive_surface` at
+/// `auto`. The flag alone is often left over from a GNOME setting.
+pub fn screen_reader_running(flag: bool, reader: bool, config: HiveSurface) -> bool {
+    flag && reader && config == HiveSurface::Auto
+}
+
+/// The hive surface and the reason for it (S-019 AC1, AC2). `forced` is the
+/// raw `SBARHIVE_SURFACE` and beats everything as in [`choose_surface`];
+/// then `hive_surface` from config.toml; then the screen reader rule.
+pub fn surface_choice(
+    globals: &[&str],
+    wayland: bool,
+    flag: bool,
+    reader: bool,
+    config: HiveSurface,
+    forced: Option<&str>,
+) -> (Surface, String) {
+    let missing: Vec<&str> = REQUIRED
+        .into_iter()
+        .filter(|r| !globals.contains(r))
+        .collect();
+    let lacking = || format!("missing {}", missing.join(", "));
+    let window = |why: &str| (Surface::Window, why.to_string());
+    let layer = |why: &str| (Surface::Layer, why.to_string());
+    // A forced layer without the globals falls through to the window with
+    // what is missing.
+    match forced {
+        Some("window") => return window("SBARHIVE_SURFACE window"),
+        Some("layer") if missing.is_empty() => return layer("SBARHIVE_SURFACE layer"),
+        _ => {}
+    }
+    if config == HiveSurface::Window {
+        return window("config window");
+    }
+    if !wayland {
+        return window("not a Wayland session");
+    }
+    if !missing.is_empty() {
+        return window(&lacking());
+    }
+    if config == HiveSurface::Layer {
+        return layer("config layer");
+    }
+    if screen_reader_running(flag, reader, config) {
+        return window("screen reader running");
+    }
+    if flag {
+        return layer("screen reader flag set, no reader running");
+    }
+    layer("no screen reader")
+}
+
+/// The line printed on every change of the choice, with no environment
+/// variable: `hive surface choice: KIND, REASON`. Not `hive surface: `,
+/// which stays the S-018 AC11 geometry line.
+pub fn choice_line(surface: Surface, reason: &str) -> String {
+    let kind = match surface {
+        Surface::Layer => "layer",
+        Surface::Window => "window",
+    };
+    format!("hive surface choice: {kind}, {reason}")
 }
 
 /// The hive on the overlay, in logical pixels except `buffer`.

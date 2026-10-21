@@ -12,9 +12,9 @@
 //! are the only place that knows the order.
 
 use crate::Lang;
-use sbarhive_core::config::{Config, LangSetting, OutputPlace, Quality, Theme};
+use sbarhive_core::config::{Config, HiveSurface, LangSetting, OutputPlace, Quality, Theme};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
 mod generated {
@@ -98,6 +98,7 @@ impl FormState {
             },
             open_folder_when_done: self.open_folder,
             notify: self.notify,
+            hive_surface: HiveSurface::Auto,
         }
     }
 }
@@ -172,6 +173,9 @@ struct Inner {
     strings: Strings,
     ui: RefCell<SettingsUi>,
     on_save: RefCell<Option<SaveFn>>,
+    /// `hive_surface` has no control here (S-019 decision 4): a save keeps
+    /// the value the window was opened with.
+    hive_surface: Cell<HiveSurface>,
 }
 
 impl Inner {
@@ -231,7 +235,10 @@ impl Inner {
         if !self.visible() {
             return;
         }
-        let config = self.state().to_config(self.rtl);
+        let config = Config {
+            hive_surface: self.hive_surface.get(),
+            ..self.state().to_config(self.rtl)
+        };
         let f = self.on_save.borrow().clone();
         if let Some(f) = f {
             f(config);
@@ -266,6 +273,7 @@ impl SettingsWindow {
             strings: strings(lang),
             ui: RefCell::new(ui),
             on_save: RefCell::new(None),
+            hive_surface: Cell::new(HiveSurface::Auto),
         });
         let ui = inner.new_ui()?;
         *inner.ui.borrow_mut() = ui;
@@ -284,6 +292,7 @@ impl SettingsWindow {
             ui.global::<Palette>().set_color_scheme(scheme);
         }
         *inner.ui.borrow_mut() = ui;
+        inner.hive_surface.set(config.hive_surface);
         inner.set_state(&FormState::from_config(config, inner.rtl));
         inner.ui.borrow().show()
     }

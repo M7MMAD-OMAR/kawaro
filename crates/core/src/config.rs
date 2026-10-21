@@ -47,6 +47,17 @@ pub enum Quality {
     Max,
 }
 
+/// Where the hive is drawn (S-019a): `auto` follows the compositor and the
+/// screen reader rule, `layer` and `window` override both.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum HiveSurface {
+    #[default]
+    Auto,
+    Layer,
+    Window,
+}
+
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct Config {
@@ -59,6 +70,9 @@ pub struct Config {
     pub open_folder_when_done: bool,
     /// Desktop notification when a job ends.
     pub notify: bool,
+    /// Spelled with an underscore in the file, as S-019 AC1 writes it.
+    #[serde(rename = "hive_surface")]
+    pub hive_surface: HiveSurface,
 }
 
 impl Default for Config {
@@ -71,6 +85,7 @@ impl Default for Config {
             quality: Quality::Balanced,
             open_folder_when_done: false,
             notify: true,
+            hive_surface: HiveSurface::Auto,
         }
     }
 }
