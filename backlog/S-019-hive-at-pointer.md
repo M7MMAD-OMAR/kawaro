@@ -675,3 +675,25 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
     - ui (`dnd.rs` و`lib.rs` و`settings.rs`): 16 طفرة، 15 مُلتقطة وواحدة غير صالحة، بلا ناجية.
     - daemon: لا طفرات بعد الاستثناء (`server.rs` يأخذ الرمز بـ `if let`، فلا ذراع تُحذف).
 - لم يُشغَّل: `tests/drop/docs.sh` (يبقى فاشلاً حتى S-014d بقرار المدير)، و`tests/overlay/kwin.sh` بأوضاعه الأخرى، و`tests/focus/*`، و`snapshots.sh`. لا عمليات باقية من تشغيلاتي، ولم يُلمس سطح محمد الحي.
+
+### المختبِر: اختبار القرار 14 (2026-10-21)
+
+- كُتب من القرار 14 وعقد المنفِّذ في سجله وحدهما، دون قراءة `hold.rs`. أربعة اختبارات في `crates/core/tests/hold_gate.rs` بالساعة المحقونة (23 فيه الآن):
+  - `decision14_hive_closed_resets_a_shown_gate_so_the_next_press_starts_a_timer`: ظهور عند 400، ثم `hive_closed()` دون ترك، فلا مؤقّت، وترك متأخر لا يعطي `Release`، وضغطة عند 1000 تبدأ مؤقّتاً واحداً، والظهور عند 1400 لا 1399 بموضعها، وتركها يعطي `Release`.
+  - `decision14_hive_closed_without_a_release_then_press_while_key_held`: بعد الإغلاق، ضغطتان بتكرار المفتاح تعطيان مؤقّتاً واحداً وظهوراً عند 400 من الأولى، والترك يغلقه.
+  - `decision14_hive_closed_while_a_timer_runs_does_nothing`: الإغلاق أثناء المؤقّت لا يلغيه ولا يغيّر موعده ولا موضع الضغطة الأولى.
+  - `decision14_hive_closed_when_idle_does_nothing`: لا مؤقّت ولا ظهور، والبوابة بعده كالجديدة.
+- لا يمكن إثبات الفشل قبل التنفيذ، لأن الدالة نُفّذت قبل الاختبار بقرار المدير. البديل: الطفرة. كل أمر داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، دون مؤلِّف.
+- `cargo mutants --in-place --file crates/core/src/hold.rs` (`timeout 1800`؛ الأمر المطلوب بـ `-j 1` رفضه cargo mutants: `the argument '--in-place' cannot be used with '--jobs <JOBS>'`، و`--in-place` تسلسلي أصلاً): `23 mutants tested in 43s: 18 caught, 5 unviable`، بلا ناجية. الطفرة الناجية سابقاً `hold.rs:102:9 replace Gate::hive_closed with ()` صارت مُلتقطة، وفشلها:
+  ```
+  test decision14_hive_closed_resets_a_shown_gate_so_the_next_press_starts_a_timer ... FAILED
+  test decision14_hive_closed_without_a_release_then_press_while_key_held ... FAILED
+  panicked at crates/core/tests/hold_gate.rs:581:5:
+    left: Some(Release)
+   right: None
+  panicked at crates/core/tests/hold_gate.rs:627:5:
+    left: []
+   right: [400]
+  test result: FAILED. 21 passed; 2 failed
+  ```
+- `cargo test -p sbarhive-core`: كله نجح. `cargo clippy -p sbarhive-core --all-targets -- -D warnings` و`cargo fmt --all --check` نظيفان. الشيفرة في `crates/core/src` لم تُلمس (`git status` بعد الطفرات: ملف الاختبار وحده).

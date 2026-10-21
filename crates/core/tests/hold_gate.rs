@@ -560,3 +560,114 @@ fn ac21_a_press_from_one_source_and_the_release_from_the_other() {
     assert_eq!(g.live_timers(), 0);
     assert_eq!(g.tick(ms(t0, 2000)), None);
 }
+
+// Manager decision 14 (a lost release): the daemon calls
+// `Gate::hive_closed(&mut self)` whenever the hive closes for any reason
+// (drop, the 10 s timeout, Esc, a click). Contract from the implementer log:
+// a shown gate goes back to idle, so the next press starts a fresh threshold
+// timer; while a threshold timer runs it does nothing (that timer belongs to
+// a newer press); when idle it does nothing.
+
+#[test]
+fn decision14_hive_closed_resets_a_shown_gate_so_the_next_press_starts_a_timer() {
+    let t0 = Instant::now();
+    let mut g = gate(400);
+    g.signal(hold(), t0);
+    assert_eq!(g.tick(ms(t0, 400)), Some(Effect::Show { at: None }));
+    // The hive closes (the timeout, say) while the key stays up and its
+    // release was lost: no release reached the gate.
+    g.hive_closed();
+    assert_eq!(g.live_timers(), 0, "closing starts no timer");
+    assert_eq!(
+        g.signal(Signal::Release, ms(t0, 450)),
+        None,
+        "a late release after the close has no hive to close"
+    );
+    // The next press is not ignored: a fresh timer from this press.
+    assert_eq!(
+        g.signal(
+            Signal::Hold {
+                at: Some((10.0, 20.0))
+            },
+            ms(t0, 1000)
+        ),
+        None
+    );
+    assert_eq!(g.live_timers(), 1, "the next press starts a timer");
+    assert_eq!(g.tick(ms(t0, 1399)), None, "not before its own threshold");
+    assert_eq!(
+        g.tick(ms(t0, 1400)),
+        Some(Effect::Show {
+            at: Some((10.0, 20.0))
+        }),
+        "one show 400 ms after the new press, at its position"
+    );
+    assert_eq!(
+        g.signal(Signal::Release, ms(t0, 1500)),
+        Some(Effect::Release),
+        "the new hive closes on its release"
+    );
+}
+
+#[test]
+fn decision14_hive_closed_without_a_release_then_press_while_key_held() {
+    // Same lost release, key repeat: the press after the close and the ones
+    // that follow it keep one timer from the first of them.
+    let t0 = Instant::now();
+    let mut g = gate(400);
+    g.signal(hold(), t0);
+    assert!(g.tick(ms(t0, 400)).is_some());
+    g.hive_closed();
+    let t = run_with(
+        &mut g,
+        &[Step::Hold(0), Step::Hold(30), Step::Release(700)],
+        1000,
+        &direct,
+    );
+    assert_eq!(t.shows(), [400]);
+    assert_eq!(t.releases(), [700]);
+    assert_eq!(t.timers_after, [(0, 1), (30, 1), (700, 0)]);
+}
+
+#[test]
+fn decision14_hive_closed_while_a_timer_runs_does_nothing() {
+    // The timer belongs to a press newer than the closed hive: closing must
+    // not swallow it.
+    let t0 = Instant::now();
+    let mut g = gate(400);
+    g.signal(
+        Signal::Hold {
+            at: Some((1198.0, 1800.0)),
+        },
+        t0,
+    );
+    assert_eq!(g.tick(ms(t0, 100)), None);
+    g.hive_closed();
+    assert_eq!(g.live_timers(), 1, "the timer still runs");
+    assert_eq!(g.tick(ms(t0, 399)), None, "and keeps its deadline");
+    assert_eq!(
+        g.tick(ms(t0, 400)),
+        Some(Effect::Show {
+            at: Some((1198.0, 1800.0))
+        }),
+        "one show at the first press's threshold and position"
+    );
+    assert_eq!(
+        g.signal(Signal::Release, ms(t0, 600)),
+        Some(Effect::Release)
+    );
+}
+
+#[test]
+fn decision14_hive_closed_when_idle_does_nothing() {
+    let t0 = Instant::now();
+    let mut g = gate(400);
+    g.hive_closed();
+    g.hive_closed();
+    assert_eq!(g.live_timers(), 0);
+    assert_eq!(g.tick(ms(t0, 1000)), None, "no show from a close");
+    // The gate still behaves as new.
+    let t = run_with(&mut g, &[Step::Hold(0), Step::Release(500)], 600, &direct);
+    assert_eq!(t.shows(), [400]);
+    assert_eq!(t.releases(), [500]);
+}
