@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# S-019e and S-019f docs (backlog/S-019-hive-at-pointer.md, AC16, AC22 and
-# AC23, amended 2026-10-21). No compositor; a static check for the reviewer,
-# who still reads the text. A section is the text between two headings (any
-# level); it is Arabic when its prose (not code) has more Arabic than Latin
-# letters, else English.
+# S-019e docs (backlog/S-019-hive-at-pointer.md, AC22 and AC23, amended
+# 2026-10-21). No compositor; a static check for the reviewer, who still
+# reads the text (and AC16, which names no words to look for). A section is
+# the text between two headings (any level); it is Arabic when its prose
+# (not code) has more Arabic than Latin letters, else English. Arabic is
+# compared without harakat, with أ إ آ read as ا, and with Arabic-Indic
+# digits read as 0 to 9.
 #   AC22  integrations/linux/hyprland/README.md, in an Arabic and in an
 #         English section each: a hyprlang press bind that runs
 #         `sbarhive drop --hold` with the non consuming flag n (bindn...), a
@@ -16,10 +18,9 @@
 #   AC23  README.md: its Arabic and its English settings section each name
 #         `hold_ms` with 400, 100 and 2000; docs/architecture.md names
 #         `hold_ms` and `drop --hold`; docs/adr/0003-drop-hive.md names
-#         `hold_ms` and 150; CHANGELOG.md has a line that names `--hold`
-#         or `hold_ms` with Arabic in it and one with English.
-#   AC16  docs/architecture.md names Orca (the reader rule), `plan_at` (the
-#         adaptive shape) and `hive anchor` (the anchor and its wait).
+#         `hold_ms` and 150; CHANGELOG.md has one line that names `--hold`
+#         or `hold_ms` in English and in Arabic (one line per story, as the
+#         file's other entries are written).
 #   No em dash or en dash in any of these files.
 # Usage: tests/drop/hold_docs.sh
 # shellcheck disable=SC2016,SC2034
@@ -41,7 +42,9 @@ sections() {
 import re, sys
 AR = re.compile(r"[؀-ۿ]")
 LAT = re.compile(r"[A-Za-z]")
-text = open(sys.argv[1], encoding="utf-8").read()
+DIAC = re.compile(r"[\u064b-\u0652\u0670]")
+HAMZA = str.maketrans("أإآ" + "٠١٢٣٤٥٦٧٨٩" + "۰۱۲۳۴۵۶۷۸۹", "ااا" + "0123456789" * 2)
+text = DIAC.sub("", open(sys.argv[1], encoding="utf-8").read()).translate(HAMZA)
 parts = re.split(r"(?m)^#{1,6} .*$", text)
 heads = re.findall(r"(?m)^#{1,6} .*$", text)
 KEYS = {
@@ -50,9 +53,9 @@ KEYS = {
     "press-lua": re.compile(r"hl\.bind\(.{0,300}?\bdrop --hold\b", re.S),
     "release-lua": re.compile(r"hl\.bind\(.{0,300}?\bdrop --release\b", re.S),
     "ignore_mods": re.compile(r"ignore_mods"),
-    "unverified": re.compile(r"not verified|unverified|assumed|مفترض|مُفترَض|غير متحقق", re.I),
+    "unverified": re.compile(r"not verified|unverified|assumed|مفترض|غير متحقق", re.I),
     "hold_ms": re.compile(r"hold_ms"),
-    "range": re.compile(r"(?s)(?=.*\b400\b)(?=.*\b100\b)(?=.*\b2000\b)"),
+    "range": re.compile(r"(?s)(?=.*(?<!\d)400(?!\d))(?=.*(?<!\d)100(?!\d))(?=.*(?<!\d)2000(?!\d))"),
 }
 for i, body in enumerate(parts):
     head = heads[i - 1] if i > 0 else ""
@@ -91,11 +94,9 @@ for lang in ar en; do
 done
 check "S-019 AC23: docs/architecture.md names hold_ms and drop --hold" 'grep -q "hold_ms" "$ARCH" && grep -q -- "drop --hold" "$ARCH"'
 check "S-019 AC20/AC23: ADR 0003 names hold_ms and the 150 ms budget" 'grep -q "hold_ms" "$ADR" && grep -q "150" "$ADR"'
-check "S-019 AC23: CHANGELOG.md has an Arabic and an English line for the long press (--hold or hold_ms)" \
-  'grep -E -- "--hold|hold_ms" "$LOG" | grep -qP "[\x{0600}-\x{06FF}]" && grep -E -- "--hold|hold_ms" "$LOG" | grep -qvP "[\x{0600}-\x{06FF}]"'
-check "S-019 AC16: docs/architecture.md names Orca, plan_at and hive anchor" \
-  'grep -q "Orca" "$ARCH" && grep -q "plan_at" "$ARCH" && grep -q "hive anchor" "$ARCH"'
-check "S-019 AC16/AC22/AC23: no em dash or en dash in these files" \
+check "S-019 AC23: CHANGELOG.md has a line for the long press (--hold or hold_ms) in English and in Arabic" \
+  'grep -E -- "--hold|hold_ms" "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
+check "S-019 AC22/AC23: no em dash or en dash in these files" \
   '! grep -nP "\x{2014}|\x{2013}" "$HYPR" "$README" "$ARCH" "$ADR" "$LOG"'
 if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 [ "$FAILS" -eq 0 ]

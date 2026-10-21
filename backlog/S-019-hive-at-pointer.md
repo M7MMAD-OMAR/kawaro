@@ -539,7 +539,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - `tests/drop/budget.sh 20 1 hold` و`crates/ui/tests/measure.sh` (`HOLD=1`، AC20): كل سطر `mode=hold hold_ms=400`، و`press_to_frame_ms` ناقص `first_frame_ms` بين 400 و450 ms في كل ظهور (فلا ينجح ظهور فوري)، وسطر طبقة لكل ظهور دون تركيز، ووسيط الزمن من انقضاء العتبة أقل من 150 ms، والوسيط من الضغط معلومة.
 - `tests/overlay/kwin.sh outputs` (فجوة التغطية الثانية، وضع جديد): `kwin_wayland --virtual --output-count 2` (الخيار من `--help`؛ جرّبته مرة: Virtual-0 عند 0,0 وVirtual-1 عند 1280,0، كلاهما 1280x800، وVirtual-1 هو الأعلى أولوية). ثلاثة ظهورات: `open` والمؤشر يرتجّ عند (1580، 200) العامة، و`open` عند (300، 200) على Virtual-0 للمقارنة، و`drop --at 1580,200`. المخرج يُعرف من لقطة `CaptureWorkspace` (خيار `workspace` جديد في `shot.py`) مقابل لقطة قبلها، لا من أثر الخدمة: الصندوق داخل المخرج ويحوي النقطة، والمرساة (300، 200) بإحداثيات المخرج، والسطح من `anchor.py`، و`set_position` واحد لـ `--at`. أُضيف إلى `tests/overlay/run.sh`.
 - `tests/hyprland/repro.sh --quasimode`: «key release hides» صار فحصين حقيقيين (ضغطة وترك بعد الظهور، وضغطة عابرة عند 150 ms)، وأُضيف فحص S-019f (سطر `hive preview: icon image` بعد أول دخول في سحب «cell»، ولا شيء قبله). فحصا «same output» صارا سطري INFO يشيران إلى `kwin.sh outputs`، وحُذف إنشاء SBH-2 (بقيت قاعدته في إعداد Lua بتعليق محدَّث كي لا تتغير تسمية المخرج الأول). المجموع 13 و20 مع `--quasimode` كما كان. فحصا S-019a (القارئ) وS-019b (الشكل) ما زالا `false` ثابتاً: خارج هذه المهمة.
-- `tests/drop/hold_docs.sh` (جديد، AC16 وAC22 وAC23، بلا مؤلِّف): أسطر الربط بصيغتي hyprlang (الضغط بالعلم `n`، والترك بالعلمين `r` و`i`) وLua في قسم عربي وقسم إنكليزي من README Hyprland، مع `ignore_mods` وعبارة «مفترض» أو «not verified»؛ و`hold_ms` مع 400 و100 و2000 في قسمي الإعداد من README.md؛ و`hold_ms` و`drop --hold` في architecture.md، و`hold_ms` و150 في ADR 0003، وسطر CHANGELOG بالعربية وآخر بالإنكليزية، وOrca و`plan_at` و`hive anchor` في architecture.md (AC16)؛ ولا شرطة طويلة. جرّبت المطابِق على README عيّنة في المسودة فنجحت فحوص AC22 الستة. يبقى المراجع قارئ النص.
+- `tests/drop/hold_docs.sh` (جديد، AC22 وAC23، بلا مؤلِّف): أسطر الربط بصيغتي hyprlang (الضغط بالعلم `n`، والترك بالعلمين `r` و`i`) وLua في قسم عربي وقسم إنكليزي من README Hyprland، مع `ignore_mods` وعبارة «مفترض» أو «not verified»؛ و`hold_ms` مع 400 و100 و2000 في قسمي الإعداد من README.md؛ و`hold_ms` و`drop --hold` في architecture.md، و`hold_ms` و150 في ADR 0003، وسطر واحد في CHANGELOG يذكر `--hold` أو `hold_ms` بالإنكليزية والعربية معاً كبقية أسطره؛ ولا شرطة طويلة. العربية تُقارن دون حركات، وبالهمزات ألفاً، وبالأرقام الهندية أرقاماً لاتينية، كما في `docs.sh`. AC16 لا يسمّي كلمات تُبحث، فيبقى للمراجع وحده. جرّبت المطابِق على ملفات عيّنة في المسودة (بحركات وأرقام هندية) فنجحت فحوصه الإيجابية العشرة. يبقى المراجع قارئ النص.
 - `tests/drop/README.md` و`tests/overlay/README.md`: الأوضاع الجديدة.
 
 #### مخرجات الفشل على `f3d1f58` (تشغيل واحد لكل سكربت)
@@ -618,7 +618,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   INFO quasimode drop preview: first enter at segment line 74, preview lines before it 0, first after it: none
   FAIL quasimode: drop preview after enter (S-019 AC14, AC15): "hive preview: icon image" after the drag's first enter, none before it
   ```
-- `tests/drop/hold_docs.sh`: `RESULT FAIL (12)`، كل فحوص النص، ونجح فحص الشرطة الطويلة وحده.
+- `tests/drop/hold_docs.sh`: `RESULT FAIL (11)`، كل فحوص النص، ونجح فحص الشرطة الطويلة وحده.
 
 #### حرّاس تنجح قبل التنفيذ عمداً
 
@@ -630,6 +630,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 #### للمدير
 
 - الترك الضائع (القرار 11، خطر مقبول): البوابة بحدثيها فقط لا تعرف أن الخلية أُغلقت بالمهلة والمفتاح مرفوع، فتبقى «ظاهرة بلا ترك» حتى ترك تالٍ، فتُهمل الضغطة الأولى بعد ذلك ثم تعمل الثانية. لم أفرض حدثاً ثالثاً (يخالف «حدثان فقط» في AC17)، ولا اختبار له. إن أراد المدير خلاف ذلك فهو معيار جديد.
+- غير مغطّى: القرار 11 يقول إن `drop --hold` يشغّل الخدمة إن لم تعمل. لا اختبار له، لأن العميل يفضّل `sbarhived` المجاور له (`target/debug`) على `PATH`، فلا يستطيع الاختبار أن يضع خدمة وهمية بنظافة.
 - `tests/drop/docs.sh` (S-014d AC12) يفشل على `f3d1f58` قبل تعديلاتي (`RESULT FAIL (16)`: لا أسطر ربط `sbarhive drop` في README Hyprland ولا في `docs/`). لم أعدّله، وفحوص S-019 في سكربت مستقل `hold_docs.sh` كي لا تختلط بفشل قائم.
 - بوابات على ملفات الاختبار: `cargo fmt --all --check` نظيف، و`cargo clippy -p sbarhive-cli --tests -- -D warnings` بلا تحذير (core وui لا تُبنى أهداف اختبارها حتى التنفيذ)، و`shellcheck -S warning` نظيف على السكربتات المعدّلة، و`bash -n` لكلها، ولا شرطة طويلة في الفرق.
 - لم يُشغَّل (قيد الحمل، والتعديل فيها تهيئة أو لا يمسها): `tests/overlay/kwin.sh` بأوضاعه الأخرى (`shot.py` دون الوسيط الجديد يبقى `CaptureActiveScreen`)، و`tests/drop/kwin.sh shortcut` و`gnome.sh shortcut`، و`tests/drop/budget.sh` دون `hold` (المسار القديم لم يتغير سوى `-u HOLD`)، و`tests/e2e/run.sh` و`tests/focus/*`.
