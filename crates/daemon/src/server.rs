@@ -43,9 +43,10 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
     // The held drop key (S-019e): the gate on the event loop decides when
     // the hive shows, so the client returns at once.
     if let Some(signal) = sbarhive_core::hold::from_request(&req) {
-        let token = match req {
-            Request::Drop { token, .. } => token,
-            _ => None,
+        let token = if let Request::Drop { token, .. } = req {
+            token
+        } else {
+            None
         };
         ui::hold_signal(signal, token, Instant::now(), state.clone());
         return reply(&mut stream, &Response::Ok);

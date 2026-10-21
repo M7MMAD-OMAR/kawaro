@@ -54,4 +54,15 @@ exclude_re = [
   "replace handle with \\(\\)",
   "replace build -> Result",
   "replace present with \\(\\)",
+  # The long press gate's daemon side (S-019e): it posts to the Slint event
+  # loop, ticks a slint::Timer and shows the live hive, so no unit test can
+  # run it. The gate itself is pure and mutated in crates/core/src/hold.rs;
+  # this glue is covered by tests/drop/kwin.sh level=1 (held, tap,
+  # hold-over, lone release, hold_ms), tests/drop/budget.sh 20 1 hold and
+  # tests/hyprland/repro.sh --json --quasimode.
+  "in hold_signal$",
+  "replace hold_signal with",
+  "in gate_tick$",
+  "replace gate_tick with",
+  "replace gate_hive_closed with",
 ]

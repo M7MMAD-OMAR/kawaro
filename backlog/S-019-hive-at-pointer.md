@@ -1,5 +1,5 @@
 # S-019 الخلية عند المؤشر وموضع السحب بشكل يتكيّف مع الحواف، وإمساك المفتاح للإفلات
-الحالة: مسودة
+الحالة: مراجعة
 
 من استخدام محمد الحي على Hyprland (2026-10-21):
 - السحب مع Alt أظهر الخلية في منتصف الشاشة بعيداً عن الملف.
@@ -641,3 +641,37 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - **بدء الخدمة من `drop --hold`:** فجوة مقبولة بلا اختبار، لأن CLI يفضّل `target/debug/sbarhived`. يُذكر في README أن الخدمة تُشغَّل بـ `exec-once`.
 - **أسطر السجل المتداخلة:** ليست من هذه الميزة. إن أفشلت فحصاً في التشغيل النهائي يُعاد ذلك السكربت مرة واحدة، ويُسجَّل.
 - **`tests/drop/docs.sh`:** يبقى فاشلاً حتى تنفيذ S-014d (التوثيق)، وهو التالي بعد S-019.
+
+### المنفِّذ (S-019e وS-019f، AC11 إلى AC23، والقرار 14)
+
+- 2026-10-21، المنفِّذ: الحالة **مراجعة** لـ S-019e وS-019f، فرأس الملف «مراجعة» لأن القصص الفرعية الست نُفّذت. لم يُعدَّل أي اختبار ولم يُحذف.
+- الشيفرة:
+  - `crates/core/src/hold.rs` (جديد): البوابة بعقد المختبِر حرفياً. ثلاث حالات: خاملة، ومؤقّت (موعده وموضع الضغطة الأولى)، وظاهرة. `hold_ms` يُستدعى فقط عند انتقال الخاملة إلى المؤقّت. لا دالة عامة غير العقد سوى دالة القرار 14.
+  - **القرار 14، العقد للمختبِر:** `Gate::hive_closed(&mut self)`. من «ظاهرة» إلى «خاملة»، فالضغطة التالية تبدأ مؤقّتاً. وفي «مؤقّت» لا تفعل شيئاً، لأن المؤقّت لضغطة أحدث من الخلية التي أُغلقت، وإلغاؤه يبتلع تلك الضغطة. وفي «خاملة» لا شيء. الخدمة تستدعيها من `on_dismiss` و`on_choose` (الإفلات على خلية، والمهلة، وEsc، والنقر كلها تمر بأحدهما)، و`hive_bench` يستدعيها مع `ctl hide`.
+  - `crates/core/src/config.rs`: `hold_ms: u16` بالاسم `hold_ms`، ومُفكِّك يقبل عدداً صحيحاً من 100 إلى 2000 ويرفض غيره، فيعود الملف كله إلى الافتراضيات مع تحذير واحد كبقية المفاتيح. الثوابت `HOLD_MS_DEFAULT` و`HOLD_MS_MIN` و`HOLD_MS_MAX`.
+  - `crates/core/src/ipc.rs`: `hold` بـ `#[serde(default)]`، و`DropRelease`.
+  - `crates/cli/src/main.rs`: `--hold` و`--release` مع `conflicts_with` (رمز 2 من clap). `--release` يسأل الخدمة بـ ping ولا يشغّلها، ويخرج بـ 0 دونها.
+  - `crates/daemon/src/server.rs` و`ui.rs`: الطلب يتحول إلى إشارة بـ `hold::from_request` ويُرسل إلى خيط الحلقة مع لحظة وصوله، والرد فوري. البوابة في `thread_local` على خيط الحلقة. `hold_ms` يُقرأ من `Config::load()` عند كل ضغطة تبدأ مؤقّتاً، دون طباعة تحذير في كل ضغطة. مؤقّت Slint كل 5 ms ما دام المؤقّت حياً، فيظهر `present_drop_hold` بنص الانتظار، ويُفرَّغ `pending` كما في الإفلات العادي. `Effect::Release` يصل `Hive::key_released` بعد انتهاء استعارة البوابة، لأن الإغلاق يستدعي البوابة ثانية. رمز التفعيل رمز الضغطة الأولى.
+  - `crates/ui/src/dnd.rs`: `Show { drop, hold }` و`Release`. في ظهور `hold` يعطي `Leave` بعد الدخول `Waiting` (القرار 3)، و`Release` في الانتظار أو فوق خلية يعطي `Hidden`. وما سوى ذلك كما كان.
+  - `crates/ui/src/lib.rs`: `present_drop_hold` و`key_released`. و`drop_files` يستدعي `set_preview` بعد `apply` بالملفات المسحوبة (S-019f، على المسارين). وسطر `hive preview:` يُكتب بنداء كتابة واحد مع سطره الجديد.
+  - `crates/ui/src/settings.rs`: `hold_ms` في `Cell` كـ `hive_surface`.
+  - `crates/ui/examples/hive_bench.rs`: `show --drop` (`mode=drop`) و`show --drop --hold` عبر البوابة بعتبة 400.
+  - `.cargo/mutants.toml`: استثناء `hold_signal` و`gate_tick` و`gate_hive_closed` في الخدمة (حلقة Slint وخلية حية)، كاستثناءات «Daemon glue» القائمة. البوابة نفسها تحت الطفرات.
+- التوثيق: README Hyprland (قسمان عربي وإنكليزي، hyprlang وLua، `ignore_mods`، «مفترضة»، و`exec-once` للخدمة كما طلب المدير)، وقسما الإعداد في README.md، و`docs/architecture.md` (المرساة والانتظار، والشكل المتكيّف، ومرحلة الماسك، وإمساك المفتاح، والمعاينة: AC16 وAC23)، وتعديل ADR 0003 بنص AC20 (وفيه أن حفظ الترك 300 ms أُلغي)، وسطر واحد في CHANGELOG.md لـ S-019e وS-019f.
+  - مفتاح Lua `release = true` في ربط الترك مفترض من اسمه، لم أجد له مثالاً في إعداد محمد. والمفتاحان `non_consuming` و`ignore_mods` منسوخان من `~/.config/hypr/custom/keybinds.lua`، الذي قرأته ولم أعدّله.
+- **اقتراح لنص CLAUDE.md (AC20، للمدير أو لمحمد، لم أعدّله):** «تظهر الخلية خلال أقل من 150 ملي ثانية من الاستدعاء. و"الاستدعاء" في مسار الضغط المطوّل (`sbarhive drop --hold`) هو انقضاء العتبة `hold_ms`، لا الضغط».
+- إصلاح جانبي: في أول تشغيل لـ `tests/drop/kwin.sh level=1` فشل فحص واحد (`AC8 show 5`)، لأن سطر أثر libwayland وقع بين نص `drop cells:` وسطره الجديد (`eprintln!` يكتب النص والسطر الجديد بنداءين). صار سطرا `drop cells:` و`hive preview:` نداء كتابة واحداً، فنجح التشغيل الثاني كله.
+- البوابات (كلها داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، على بناء إصدار بعد آخر تغيير في الشيفرة):
+  - `cargo fmt --all --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test --all`: 542 نجحت و0 فشل (فيها `hold_gate` 19، و`config_hold` 5، و`ipc_drop` 9، و`cli` 31، و`ui` 123)؛ `scripts/design-lint.sh` نظيف؛ `tests/drop/hold_docs.sh`: `RESULT PASS`.
+  - `tests/drop/kwin.sh level=1`: `RESULT PASS` (308 PASS). الممسوك: أول سطح بعد 404.2 ms من الضغط، والترك يهدمه بعد 2.1 ms. والضغطة العابرة (208 ms): صفر أسطح. والمرور مع الخروج: بقيت، والترك هدمها بعد 3.0 ms، ولا ملف جديد. والترك المنفرد: صفر أسطح. و`hold_ms = 1000`: أول سطح بعد 1003.2 ms. والظهور 13: `hive preview: thumb 52 52` و1201 بكسل بلون السماء. والظهور 12: أول دخول بعد 119.8 ms من أول إطار، و`set_position` (444، 219) ثم (204، 319).
+  - `tests/drop/gnome.sh smart`: `RESULT PASS` (72 PASS) من التشغيل الأول، دون تداخل.
+  - `tests/drop/budget.sh 20 1 hold`: `RESULT PASS`. 21 ظهوراً كلها `mode=hold hold_ms=400` وطبقة دون تركيز. الوسيط من انقضاء العتبة 51.2 ms (الأقصى 51.9)، والوسيط من الضغط 451.4 ms.
+  - `tests/overlay/kwin.sh`: الافتراضي `RESULT PASS` (104)، و`drop` (36)، و`anchor` (37)، و`outputs` (12).
+  - `tests/hyprland/repro.sh --json`: `{"total": 13, "failed": 0, "skipped": 0}`. ومع `--quasimode`: `{"total": 20, "failed": 2, "skipped": 0}`، والفاشلان هما الثابتان لـ S-019a وS-019b. نجحت فحوص ترك المفتاح (الطبقة لا عند 300 ms ونعم عند 1000، وتختفي خلال 500 ms)، والضغطة العابرة، و`hive preview: icon image` بعد أول دخول.
+  - `tests/e2e/run.sh`: نجح، والذاكرة 37 و38 و37 MB.
+  - `cargo mutants --in-place --in-diff` (الفرق من `f2bb421`، `timeout 3600`، ملفاً ملفاً داخل النطاق):
+    - core (`hold.rs` و`config.rs` و`ipc.rs`): 25 طفرة، 19 مُلتقطة، و5 غير صالحة، وواحدة ناجية: `hold.rs:102:9 replace Gate::hive_closed with ()`. هي دالة القرار 14، واختبارها للمختبِر كما قرر المدير، فلم أكتبه.
+    - cli (`main.rs`): 9، واحدة مُلتقطة و8 غير صالحة.
+    - ui (`dnd.rs` و`lib.rs` و`settings.rs`): 16 طفرة، 15 مُلتقطة وواحدة غير صالحة، بلا ناجية.
+    - daemon: لا طفرات بعد الاستثناء (`server.rs` يأخذ الرمز بـ `if let`، فلا ذراع تُحذف).
+- لم يُشغَّل: `tests/drop/docs.sh` (يبقى فاشلاً حتى S-014d بقرار المدير)، و`tests/overlay/kwin.sh` بأوضاعه الأخرى، و`tests/focus/*`، و`snapshots.sh`. لا عمليات باقية من تشغيلاتي، ولم يُلمس سطح محمد الحي.
