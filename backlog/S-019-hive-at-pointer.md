@@ -697,3 +697,43 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   test result: FAILED. 21 passed; 2 failed
   ```
 - `cargo test -p sbarhive-core`: كله نجح. `cargo clippy -p sbarhive-core --all-targets -- -D warnings` و`cargo fmt --all --check` نظيفان. الشيفرة في `crates/core/src` لم تُلمس (`git status` بعد الطفرات: ملف الاختبار وحده).
+
+### المراجع (2026-10-22، HEAD `6990d26`، سياق جديد)
+
+- **REWORK** (المحاولة الأولى من اثنتين). كل البوابات الوظيفية التي شُغّلت ناجحة، والشيفرة تطابق المعايير والقرارات 1 إلى 14. الأسباب: شرط المدير الإضافي في `repro.sh --quasimode` غير مستوفى، وبوابة الطفرات غير مثبتة لشيفرة S-019a إلى S-019d، وADR 0004 يناقض القرار 12.
+- التشغيل: كل أمر مرة واحدة داخل `systemd-run --user --scope --quiet -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200% nice -n 19 env CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants` (قاعدة الحمل). لم يُلمس سطح محمد الحي (`Hyprland` 13248 و`sbarhived` 15227)، ولا عمليات باقية.
+- ما نجح:
+  - `cargo fmt --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test --all` كله ناجح بلا فشل (فيه `hold_gate` 23، و`cli` 31، و`ui` 123)؛ `cargo build --release` ناجح؛ `scripts/design-lint.sh` نظيف؛ لا U+2013 ولا U+2014 في `git diff 3957651..HEAD`.
+  - `tests/hyprland/repro.sh --json`: `{"total": 13, "failed": 0, "skipped": 0}`، ومنه S-020 AC4 وفحص القرار 12 (بوابة no-freeze).
+  - `tests/hyprland/repro.sh --json --quasimode`: `{"total": 20, "failed": 2, "skipped": 0}`. نجحت فحوص ترك المفتاح (لا طبقة عند 300 ms، وطبقة قبل 1000 ms، وتختفي خلال 500 ms)، والضغطة العابرة (صفر أسطح)، والمعاينة بعد أول دخول، و«near pointer» (`open` عند 300.75 201، و`drop --at` عند 500 300 مع `set_position` واحد). الفاشلان هما الثابتان `false` لـ S-019a وS-019b.
+  - `tests/drop/kwin.sh level=1`: `RESULT PASS` (308). الممسوك: أول سطح بعد 412.8 ms من الضغط، والترك يهدمه بعد 2.8 ms. الضغطة العابرة: صفر أسطح. الظهور 12: `none` ثم `400 500`، و`set_position` (444، 219) ثم (204، 319). الظهور 13: `thumb 52 52` و1201 بكسل بلون السماء.
+  - `tests/overlay/kwin.sh anchor`: `RESULT PASS` (37)، واللقطة `hive-en-dark-corner.png` تختلف عن المرجع في 0 من بكسلاتها. `tests/overlay/kwin.sh outputs`: `RESULT PASS`، والمرساة (300، 200) بإحداثيات Virtual-1 للنقطة العامة (1580، 200).
+  - `tests/drop/budget.sh 20 1 hold`: `RESULT PASS`، والوسيط من انقضاء العتبة 51.6 ms (الأقصى 52.1)، ومن الضغط 452.0 ms، ودون تركيز.
+  - `tests/e2e/run.sh`: الجلستان ناجحتان؛ 20 سطر `hive anchor: 640 0` و`hive surface: layer 366 0 548 294`، والذاكرة 37 MB (الحد 40).
+- اللقطات: فتحت `tests/overlay/snapshots/hive-en-dark-corner.png` (18 خلية، المرساة (0، 0)، بلا ظل ولا تدرج) و`tests/drop/out/drop-en-light-thumb.png` (الصورة المزروعة في المركز بدل «1 image»). الأولى اعتمدها المدير بتفويض من محمد (القرار 12)، لا محمد مباشرةً. الثانية مخرج فحص لا مرجع.
+- قراءة الفرق:
+  - no-freeze: في الإفلات دون `--at` يأخذ الماسك المنطقة الكاملة من أول `configure` حتى أول موضع، أو حتى 300 ms من أول إطار (`MOVE_WINDOW`)، أي 350 ms على الأكثر من `configure`. هذا يطابق القرار 12 لأنه يقيس من أول إطار، وقِيس 300.4 ms على Hyprland. لوحة المفاتيح `None` دائماً في الإفلات. وفي الظهور العادي `Exclusive` تُطلب في `decide` مع أول إطار، لا عند الإنشاء، وتزول مع هدم السطح.
+  - البوابة (`hold.rs`) صافية وتطابق العقد. القرار 14 موصول في `on_dismiss` و`on_choose`، والترك اللاحق بعده لا أثر له.
+  - `Lua release = true`: مؤكَّد أنه حقل في `HL.BindOptions` في `/usr/share/hypr/stubs/hl.meta.lua` (Hyprland 0.56.2)، ومعه `non_consuming` و`ignore_mods`. وإعداد محمد يستعمله فعلاً في `~/.config/hypr/hyprland/keybinds.lua:20` مع `ignore_mods`. السلوك نفسه يبقى غير متحقق منه، كما يقول README.
+  - CLAUDE.md: سطر الميزانية (AC20) وسطرا القرار 8 وقاعدة الحمل مطابقة لما اعتمده المدير. CHANGELOG.md: ثلاثة أسطر، سطر لكل زوج من القصص الفرعية، بالإنكليزية مع جملة عربية.
+- الأسباب (كل بند commit واحد):
+  1. **المختبِر: `tests/hyprland/repro.sh --quasimode` ما زال فيه فحصان `false` ثابتان لـ S-019a (القارئ) وS-019b (الشكل المتكيّف).** شرط المدير الإضافي يقول: «كل قصة فرعية تضيف فحصها إلى ذلك السكربت، ولا يُطلب من محمد أي تجربة قبل أن ينجح». وأول بند في قائمة محمد الحية (`hive surface: layer` مع إعداد GNOME الباقي) هو بالضبط فحص S-019a. المطلوب فحصان حقيقيان:
+     - القارئ: بوابة a11y وهمية في الجلسة المتداخلة (`ScreenReaderEnabled=true`) دون مالك لـ `org.gnome.Orca.Service` تعطي `get_layer_surface` والسبب `screen reader flag set, no reader running`، ثم `a11y.py orca` تعطي `get_xdg_surface`. الأوامر `orca` و`noorca` موجودة في `tests/overlay/a11y.py`.
+     - الشكل: مرساة قرب زاوية المخرج 960x540، وسطر `hive surface` وعدد `hive cells` يساويان `tests/overlay/anchor.py` بفرق 1 px، والصندوق داخل المخرج.
+     - النتيجة المطلوبة: `{"total": 20, "failed": 0}`.
+  2. **المنفِّذ أو المختبِر: بوابة الطفرات غير مثبتة لشيفرة S-019a إلى S-019d.** في السجل تشغيل واحد فقط فحص طفرات فعلاً، وهو `--in-diff` من `f2bb421` (أسطر S-019e وS-019f)، ومعه إعادة `hold.rs`. وما بقي:
+     - `crates/ui/src/overlay.rs` (`screen_reader_running` و`surface_choice` و`choice_line`): تحت الطفرات بالقرار 7، وكتب المدير عند إغلاق S-019a وS-019b أنها «تُفحص مع S-019c»، ولم تُفحص (تشغيل S-019c وS-019d: «لم تُفحص أي طفرة»).
+     - `crates/ui/src/layout.rs`: الناجية `153:70` أُثبتت بطفرة يدوية وحدها، ولم يُعَد تشغيل الأداة على `plan_at`.
+     - `crates/cli/src/main.rs` (`parse_at`، من `fcb5a18`): خارج فرق `f2bb421`، فلم تُفحص.
+     - المطلوب: `cargo mutants --in-place --file` لكل ملف من الثلاثة، داخل النطاق المحدود، ومخرج الخلاصة في السجل، بلا ناجية (أو استثناء بسبب مكتوب لطفرة مكافئة).
+  3. **المنفِّذ: `docs/adr/0004-hive-overlay.md`، بند «مرحلة الماسك في الإفلات» في تعديل S-019** ما زال يقول: «دون موضع خلال 50 ms تظهر الخلية في المنتصف ثم تنتقل مرة واحدة عند أول حركة»، بلا حدّ. والمطلوب نص القرار 12: الانتقال فقط عند موضع خلال 300 ms من أول إطار، وبعدها تصير منطقة الماسك مستطيل الخلية في المنتصف ولا انتقال. وهذا قاعدة no-freeze نفسها، و`docs/architecture.md` يكتبها صحيحة.
+- ملاحظات لا تمنع:
+  - منخفضة: `.cargo/mutants.toml` يستثني `in hold_signal$` و`in gate_tick$` كاملتين، فيخرج من الطفرات شرط بدء المؤقّت `before == 0 && gate.live_timers() == 1` وهو منطق لا لصق. السابقة في الملف («Daemon glue») تبرره، وتغطيه دورات `kwin.sh` (held وtap). الأنظف لاحقاً: أن تعيد البوابة نفسها «بدأ مؤقّت» فيُفحص في `hold.rs`.
+  - منخفضة: صار سطرا `drop cells:` و`hive preview:` نداء كتابة واحداً، لكن `hive anchor:` و`hive cells:` و`hive surface choice:` ما زالت `eprintln!`، فتتعرض للتداخل نفسه مع أثر libwayland.
+  - منخفضة: README Hyprland يصف `release = true` بأنه «مفترض». يمكن أن يقول إن أسماء الخيارات مطابقة لـ stubs 0.56.2، والسلوك وحده غير متحقق منه.
+  - معلومة: `--at` عبر مخرجين بمقياسين مختلفين غير مختبر (المخرجان في `outputs` بمقياس 1، وe2e بمقياس 1.5 على مخرج واحد).
+  - معلومة: الظهور الفوري والمؤشر ساكن يحمل الآن انتظار المرساة (50 ms)، فأول إطار نحو 52 ms بدل 3.1 ms. ما زال تحت 150 ms.
+  - معلومة: `hold_ms` خارج المدى يعيد الملف كله إلى الافتراضيات مع تحذير، كبقية المفاتيح (نص AC18). `drop --release` يقبل `--at` و`--token` ويتجاهلهما.
+  - معلومة: Hyprland 0.56 فيه خيار ربط `long_press` في `HL.BindOptions`، يستحق نظرة في قصة البوابة اللاحقة.
+- لم يُشغَّل (خارج قائمة المدير لهذه المراجعة): `tests/overlay/kwin.sh` بأوضاعه الأخرى (a11y وdrop وwindow و1.5 وغيرها)، و`gnome.sh`، و`tests/drop/gnome.sh smart`، و`measure.sh`، و`snapshots.sh`، و`tests/focus/*`، و`tests/integrations/run_all.sh`، و`hold_docs.sh`. فلا يُفهم من هذه المراجعة أنها ناجحة.
+- الحالة تبقى «مراجعة» حتى تُغلق البنود الثلاثة. لا سطر جديد في CHANGELOG.md.
