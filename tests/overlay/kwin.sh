@@ -20,9 +20,15 @@
 #                    xdg_activation_v1.activate(T<n>, <catcher>) and closes
 #                    with Esc; a fourth show without a token sends none.
 #   a11y             AC12: a fake org.a11y.Bus (a11y.py) on the private bus
-#                    with ScreenReaderEnabled=true makes the next show an
-#                    xdg_surface; after PropertiesChanged to false the next
-#                    show is a layer again.
+#                    with ScreenReaderEnabled=true and a registered reader
+#                    (a11y.py owns org.gnome.Orca.Service) makes the next
+#                    show an xdg_surface; after PropertiesChanged to false
+#                    the next show is a layer again. S-019a AC2, between the
+#                    two: the reader leaves the bus with the flag still true,
+#                    and two shows are layers; the reader comes back, and two
+#                    shows are windows. The daemon runs without
+#                    SBARHIVE_DEBUG_FOCUS here, and each change prints one
+#                    "hive surface choice: KIND ... REASON" line.
 #   drop             AC13 (S-018d): three `sbarhive drop` shows with no drag,
 #                    each closed by the 10 s timeout (no keyboard, so no Esc).
 #                    The catcher takes no keyboard and its input region is
@@ -107,10 +113,11 @@ inner() {
   local a11y="" a11yf="$XDG_RUNTIME_DIR/a11y.fifo"
   if [ "$MODE" = a11y ]; then
     mkfifo "$a11yf"
-    python3 -I -W ignore::DeprecationWarning "$HERE/a11y.py" "$a11yf" true >"$log-a11y.log" 2>&1 &
+    python3 -I -W ignore::DeprecationWarning "$HERE/a11y.py" "$a11yf" true orca >"$log-a11y.log" 2>&1 &
     a11y=$!
     exec 4>"$a11yf"
     timeout 10 gdbus wait --session org.a11y.Bus || echo "INFO fake org.a11y.Bus did not appear"
+    timeout 10 gdbus wait --session org.gnome.Orca.Service || echo "INFO fake org.gnome.Orca.Service did not appear"
   fi
 
   # AC15: the fake portal owns org.freedesktop.portal.Desktop before KWin and
@@ -165,7 +172,10 @@ JSON
   local DLOG="$log-daemon.log"
   local env=()
   [ "$MODE" = window ] && env=(SBARHIVE_SURFACE=window)
-  env "${env[@]}" SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  # S-019a AC2: the surface choice line needs no environment variable.
+  local dbg=(SBARHIVE_DEBUG_FOCUS=1)
+  [ "$MODE" = a11y ] && dbg=()
+  env -u SBARHIVE_DEBUG_FOCUS "${env[@]}" "${dbg[@]}" WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
   local d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
 
@@ -594,26 +604,58 @@ PY
     ;;
 
   a11y)
+    open_esc() { "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5; esc; sleep 1.5; }
+    # Each segment starts before its bus change, so a choice line printed
+    # when the change arrives (not at the next show) falls inside it.
     begin reader-on
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
-    sleep 1.5; esc; sleep 1.5
-    echo off >&4; sleep 1.5
+    open_esc
+    begin flag-only
+    echo noorca >&4; sleep 1.5
+    open_esc
+    open_esc
+    begin reader-again
+    echo orca >&4; sleep 1.5
+    open_esc
+    open_esc
     begin reader-off
+    echo off >&4; sleep 1.5
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
     sleep 1.5; esc; sleep 1
     finish
-    local on off upto
-    on=$(seg_of 0); off=$(seg_of 1); upto=$(head -n "${marks[1]}" "$DLOG")
+    local on flag again off upto
+    on=$(seg_of 0); flag=$(seg_of 1); again=$(seg_of 2); off=$(seg_of 3); upto=$(head -n "${marks[1]}" "$DLOG")
+    choice_lines() { grep -E '^hive surface choice: ' <<<"$1"; }
+    nchoice() { choice_lines "$1" | grep -c .; }
     # Who asked is not checked: KWin itself reads the same properties.
     echo "INFO a11y: $(tr '\n' ' ' <"$log-a11y.log")"
     echo "INFO reader on: get_layer_surface $(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$on"), get_xdg_surface up to its end $(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$upto")"
+    echo "INFO flag only: get_layer_surface $(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$flag"), get_xdg_surface $(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$flag")"
+    echo "INFO reader again: get_layer_surface $(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$again"), get_xdg_surface $(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$again")"
     echo "INFO reader off: get_layer_surface $(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$off"), get_xdg_surface $(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$off")"
+    echo "INFO choice lines: $(grep -E '^hive surface choice: ' "$DLOG" | tr '\n' '|')"
     check "AC12 ScreenReaderEnabled=true: the next show is an xdg_surface (window)" \
       '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$upto")" -ge 1 ]'
     check "AC12 ScreenReaderEnabled=true: no get_layer_surface" '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$on")" -eq 0 ]'
     check "AC12 PropertiesChanged to false: the next show is a layer again" \
       '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$off")" -eq 1 ]'
     check "AC12 PropertiesChanged to false: no get_xdg_surface for that show" '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$off")" -eq 0 ]'
+    # S-019a AC2.
+    check "S-019 AC2 flag and reader: the last choice line by the first show is window, screen reader running" \
+      'choice_lines "$upto" | tail -1 | grep -qE "^hive surface choice: window\b.*screen reader running"'
+    check "S-019 AC2 flag and reader: at most one choice line in that show" '[ "$(nchoice "$on")" -le 1 ]'
+    check "S-019 AC2 flag set, no reader: both shows are layers (get_layer_surface 2)" \
+      '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$flag")" -eq 2 ]'
+    check "S-019 AC2 flag set, no reader: no get_xdg_surface" '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$flag")" -eq 0 ]'
+    check "S-019 AC2 flag set, no reader: exactly one choice line for two shows, layer, screen reader flag set, no reader running" \
+      '[ "$(nchoice "$flag")" -eq 1 ] && choice_lines "$flag" | grep -qE "^hive surface choice: layer\b.*screen reader flag set, no reader running"'
+    check "S-019 AC2 reader back on the bus: the next show is not a layer (get_layer_surface 0)" \
+      '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$again")" -eq 0 ]'
+    check "S-019 AC2 reader back on the bus: the shows are xdg_surfaces" \
+      '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$again")" -ge 1 ]'
+    check "S-019 AC2 reader back on the bus: exactly one choice line for two shows, window, screen reader running" \
+      '[ "$(nchoice "$again")" -eq 1 ] && choice_lines "$again" | grep -qE "^hive surface choice: window\b.*screen reader running"'
+    check "S-019 AC2 flag off: exactly one choice line, layer" \
+      '[ "$(nchoice "$off")" -eq 1 ] && choice_lines "$off" | grep -qE "^hive surface choice: layer\b"'
     check "AC12: no protocol error in the daemon log" 'no_protocol_error'
     ;;
 

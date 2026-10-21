@@ -8,8 +8,10 @@ Owns org.a11y.Bus and serves /org/a11y/bus with:
 through org.freedesktop.DBus.Properties (Get, GetAll, Set), and emits
 org.freedesktop.DBus.Properties.PropertiesChanged on /org/a11y/bus when a
 value changes. Commands from the control file, one per line: "on", "off",
-"quit". Logs every call it gets.
-Usage: a11y.py CONTROL_FIFO true|false"""
+"quit", and for S-019a (a screen reader that really runs) "orca" and
+"noorca", which own and release org.gnome.Orca.Service on the same private
+bus, as Orca does when it starts. Logs every call it gets.
+Usage: a11y.py CONTROL_FIFO true|false [orca]"""
 import sys
 import threading
 
@@ -33,8 +35,10 @@ XML = """
 """
 
 state = {"IsEnabled": sys.argv[2] == "true", "ScreenReaderEnabled": sys.argv[2] == "true"}
+ORCA = "org.gnome.Orca.Service"
 loop = GLib.MainLoop()
 conn = None
+orca = {"id": 0}
 
 
 def log(m):
@@ -77,9 +81,25 @@ def command(line):
         v = line == "on"
         set_state("ScreenReaderEnabled", v)
         set_state("IsEnabled", v)
+    elif line == "orca":
+        own_orca()
+    elif line == "noorca":
+        if orca["id"]:
+            Gio.bus_unown_name(orca["id"])
+            orca["id"] = 0
+            log(f"released {ORCA}")
     elif line == "quit":
         loop.quit()
     return False
+
+
+def own_orca():
+    if not orca["id"]:
+        orca["id"] = Gio.bus_own_name_on_connection(
+            conn, ORCA, Gio.BusNameOwnerFlags.NONE,
+            lambda _c, name: log(f"owned {name}"),
+            lambda _c, name: log(f"lost {name}"),
+        )
 
 
 def control():
@@ -95,6 +115,8 @@ def on_bus(c, _name):
     node = Gio.DBusNodeInfo.new_for_xml(XML)
     for iface in node.interfaces:
         c.register_object(PATH, iface, on_call, on_get, on_set)
+    if len(sys.argv) > 3 and sys.argv[3] == "orca":
+        own_orca()
 
 
 def on_name(_c, name):

@@ -808,6 +808,8 @@ fn dismiss_weak(w: &Weak<Inner>) {
     }
 }
 
+#[cfg(test)]
+mod anchor_tests;
 #[cfg(all(test, target_os = "linux"))]
 mod drop_hive_tests;
 #[cfg(test)]

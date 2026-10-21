@@ -311,6 +311,7 @@ impl SettingsWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sbarhive_core::config::HiveSurface;
     use slint::language::ColorScheme;
 
     fn every_config() -> Vec<Config> {
@@ -328,6 +329,7 @@ mod tests {
                                 quality,
                                 open_folder_when_done: open,
                                 notify,
+                                hive_surface: HiveSurface::Auto,
                             });
                         }
                     }
@@ -384,6 +386,7 @@ mod tests {
             quality: Quality::Max,
             open_folder_when_done: true,
             notify: false,
+            hive_surface: HiveSurface::Auto,
         };
         let s = FormState::from_config(&c, false);
         assert_eq!(
@@ -593,6 +596,30 @@ mod tests {
             (win, saved)
         }
 
+        /// S-019a (backlog/S-019-hive-at-pointer.md, AC1, manager decision
+        /// 4): `hive_surface` has no control in the settings window, so a
+        /// save from the window keeps the value it was opened with instead
+        /// of writing the default back to config.toml.
+        #[test]
+        fn ac1_s019_save_keeps_hive_surface() {
+            i_slint_backend_testing::init_no_event_loop();
+            for value in [HiveSurface::Window, HiveSurface::Layer, HiveSurface::Auto] {
+                for lang in [Lang::En, Lang::Ar] {
+                    let (win, saved) = wired(lang);
+                    let start = Config {
+                        hive_surface: value,
+                        quality: Quality::Max,
+                        ..Config::default()
+                    };
+                    win.open(&start).unwrap();
+                    let save = if lang == Lang::En { "Save" } else { "حفظ" };
+                    click(&win, &find(&win, save, AccessibleRole::Button));
+                    assert_eq!(*saved.borrow(), [start.clone()], "{value:?} {lang:?}");
+                    win.close();
+                }
+            }
+        }
+
         #[test]
         fn settings_window_behaviour() {
             i_slint_backend_testing::init_no_event_loop();
@@ -716,6 +743,7 @@ mod tests {
                     quality: Quality::Light,
                     open_folder_when_done: true,
                     notify: false,
+                    hive_surface: HiveSurface::Auto,
                 }]
             );
 

@@ -15,8 +15,10 @@
 #                      client (keys.py maps), tear down; exit 0 on success.
 #   --json             the checks; human lines go to stderr and stdout gets
 #                      exactly one line: {"total": N, "failed": F, "skipped": S}.
-#   --json --quasimode adds the S-019 checks (key release hides, hive near the
-#                      pointer, same output as the pointer, adaptive shape);
+#   --json --quasimode adds the S-019 checks (a screen reader flag without a
+#                      running reader keeps the layer, key release hides, hive
+#                      near the pointer, same output as the pointer, adaptive
+#                      shape);
 #                      not implemented yet, so each counts as failed.
 # Checks (layer or window): surface shown, keyboard focus received, show
 # latency under 150 ms, Esc closes, click outside closes, input reaches the
@@ -411,7 +413,7 @@ for c in json.load(sys.stdin):
   check "Esc mid-drag: the hive closes and a new drag begins" '[ "$CLOSED" = yes ] && [ "$AFTER" = yes ]'
 
   if [ "$QUASI" = 1 ]; then
-    for c in "key release hides" "hive near pointer" "same output as pointer" "adaptive shape"; do
+    for c in "screen reader flag without a reader keeps the layer" "key release hides" "hive near pointer" "same output as pointer" "adaptive shape"; do
       check "quasimode: $c (S-019, not implemented)" 'false'
     done
   fi

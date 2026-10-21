@@ -167,3 +167,53 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 8. **التعديلات على ADR 0004 وADR 0003 وCLAUDE.md:** تُعدَّل ضمن S-019a.
 
 **شرط إضافي:** لا تبدأ S-019 قبل قبول نقطة التحقق no-freeze. المطلوب أن الخلية على مسار الطبقة لا تحتجز لوحة المفاتيح ولا الإدخال على Hyprland، وأن ذلك مثبت بـ `tests/hyprland/repro.sh`. كل قصة فرعية تضيف فحصها إلى ذلك السكربت، ولا يُطلب من محمد أي تجربة قبل أن ينجح.
+
+### المختبِر (S-019a وS-019b فقط، AC1 إلى AC4)
+
+- 2026-10-21، المختبِر: كُتبت الاختبارات من المعايير وقرارات المدير وملاحظة S-020 فقط، وفشلت كلها قبل التنفيذ. قبل التثبيت تحققت أن الاختبارات قابلة للنجاح بشيفرة مؤقتة في `config.rs` و`overlay.rs` و`layout.rs` و`settings.rs` تتبع المعايير: نجحت كلها، ثم أُعيدت الملفات الأربعة كما كانت بـ `git checkout`، فلا شيفرة تنفيذ في هذا الالتزام.
+- العقد (يثبّته الاختبار، فلا يُعدَّل):
+  - `sbarhive_core::config::HiveSurface { Auto, Layer, Window }`، والافتراضي `Auto`، والحقل `Config::hive_surface`. المفتاح في الملف `hive_surface` بشرطة سفلية كما في AC1، مع أن بقية مفاتيح `Config` بصيغة kebab (`output-folder`)، فيحتاج الحقل `#[serde(rename = "hive_surface")]` أو ما يعادله. تنبيه للمراجع: هذا تعارض في الأسلوب لا في المعيار، والاختبار يتبع نص المعيار. القيمة المجهولة ملف معطوب: الافتراضيات مع تحذير، كبقية المفاتيح.
+  - `overlay::screen_reader_running(flag, reader, config) -> bool`، و`overlay::surface_choice(globals, wayland, flag, reader, config, forced) -> (Surface, String)` يعيد السبب قيمةً لا طباعةً، و`overlay::choice_line(surface, reason) -> String`. في `overlay.rs` لأن `a11y.rs` و`layer.rs` خارج فحص الطفرات. الأسباب الأربعة بنصها الحرفي من AC2، وما لم يحدده المعيار (العودة إلى الطبقة بلا علم مثلاً) يكفي فيه سبب غير فارغ. `choose_surface` باقية كما هي.
+  - `layout::MAX_RINGS = 4`، و`layout::plan_at(cells, rtl, min_rings, screen, anchor: Option<(f32, f32)>, scale120) -> (Plan, overlay::Placement)`. المعامل السادس إضافة على الاسم المقترح في AC3، لأن AC4 يطلب المخزن بالمقياس 180. `Placement::x, y` زاوية السطح الفرعي، والمركز على الشاشة `(x, y) + plan.layout.origin`، و`destination` يساوي `ceil(width) × ceil(height)`، و`buffer` يساوي `ceil(destination × scale120 / 120)`. القبول على الحدود شامل بسماح 0.01 px.
+  - نافذة الإعدادات لا تملك عنصراً لـ `hive_surface` (القرار 4)، فالحفظ منها يحفظ القيمة التي فُتحت بها ولا يعيدها إلى `auto`. اليوم `FormState::to_config` يبني `Config` من الصفر، فسيُفقد المفتاح دون هذا الشرط.
+- الملفات:
+  - `crates/core/tests/config_surface.rs` (7 اختبارات، AC1).
+  - `crates/ui/tests/surface_choice.rs` (19 اختباراً، AC1 وAC2، بكل تركيبات العلم والاسم و`hive_surface` و`SBARHIVE_SURFACE` على عوامّ KWin وGNOME).
+  - `crates/ui/src/anchor_tests.rs` (15 اختباراً، AC3 وAC4، داخل الحزمة لأن `layout` خاصة). فيه مرجع مستقل للقواعد، يُقارن بـ `Layout::extent` حيث تُقبل الخانات كلها. المصفوفة: 10 مراسٍ × 18 و12 و6 و3 خلايا × الاتجاهين × `min_rings` 1 و2 × المقياسين 120 و180.
+  - `crates/ui/src/settings.rs`: اختبار جديد `ac1_s019_save_keeps_hive_surface`، وأُضيف `hive_surface: HiveSurface::Auto` إلى ثلاثة أمثلة حرفية لـ `Config` في الاختبارات القائمة، والتأكيدات كما هي. وفي `lib.rs` سطر `mod anchor_tests`.
+  - `tests/overlay/a11y.py`: أمرا `orca` و`noorca` ووسيط ثالث `orca`، يملك بها السكربت `org.gnome.Orca.Service` على الناقل الخاص ويتركه.
+  - `tests/overlay/kwin.sh a11y` (تعديل التهيئة المذكور أعلاه: البوابة تقدّم قارئاً مسجّلاً). الخدمة تعمل في هذا الوضع دون `SBARHIVE_DEBUG_FOCUS`. الترتيب: علم وقارئ وظهور واحد (فحوص S-018 AC12 كما هي)، ثم يغادر القارئ ويبقى العلم مع ظهورين، ثم يعود القارئ مع ظهورين، ثم يُطفأ العلم مع ظهور واحد. كل مقطع يبدأ قبل تغيير الناقل، فيقع فيه سطر الاختيار سواء طُبع عند وصول التغيير أو عند الظهور التالي. والظهوران في المقطع الواحد يكشفان سطراً يُطبع مع كل ظهور بدل كل تغيير.
+  - `tests/hyprland/repro.sh --quasimode`: فحص باسم S-019a يُحسب فاشلاً كبقية فحوص S-019 (شرط المدير الإضافي). لم يُشغَّل Hyprland المتداخل هنا.
+- مخرجات الفشل (`nice -n 19`، `CARGO_BUILD_JOBS=2`، على `3957651`):
+  - `cargo test -p sbarhive-core --test config_surface`:
+    ```
+    error[E0432]: unresolved import `sbarhive_core::config::HiveSurface`
+    error[E0609]: no field `hive_surface` on type `Config` (5 مرات)
+    error[E0560]: struct `Config` has no field named `hive_surface`
+    error: could not compile `sbarhive-core` (test "config_surface") due to 7 previous errors
+    ```
+  - `cargo test -p sbarhive-ui --test surface_choice`:
+    ```
+    error[E0432]: unresolved import `sbarhive_core::config::HiveSurface`
+    error[E0432]: unresolved imports `sbarhive_ui::overlay::choice_line`, `sbarhive_ui::overlay::screen_reader_running`, `sbarhive_ui::overlay::surface_choice`
+    error: could not compile `sbarhive-ui` (test "surface_choice") due to 2 previous errors
+    ```
+  - `cargo test -p sbarhive-ui --lib` (لا يُبنى هدف اختبارات المكتبة كله حتى التنفيذ، كما في S-018h):
+    ```
+    error[E0432]: unresolved imports `crate::layout::MAX_RINGS`, `crate::layout::plan_at`
+    error[E0432]: unresolved import `sbarhive_core::config::HiveSurface`
+    error[E0560]: struct `sbarhive_core::config::Config` has no field named `hive_surface` (4 مرات)
+    error: could not compile `sbarhive-ui` (lib test) due to 6 previous errors
+    ```
+  - `tests/overlay/kwin.sh a11y` على بناء الإصدار الحالي (`target/release`، مبني بعد `7b7f295`، آخر تغيير في `crates/`)، مرة واحدة، `RESULT FAIL (6)`:
+    ```
+    INFO flag only: get_layer_surface 0, get_xdg_surface 2
+    INFO choice lines:
+    FAIL S-019 AC2 flag and reader: the last choice line by the first show is window, screen reader running
+    FAIL S-019 AC2 flag set, no reader: both shows are layers (get_layer_surface 2)
+    FAIL S-019 AC2 flag set, no reader: no get_xdg_surface
+    FAIL S-019 AC2 flag set, no reader: exactly one choice line for two shows, layer, screen reader flag set, no reader running
+    FAIL S-019 AC2 reader back on the bus: exactly one choice line for two shows, window, screen reader running
+    FAIL S-019 AC2 flag off: exactly one choice line, layer
+    ```
+    نجحت فحوص S-018 AC12 الأربعة كما هي، ونجح فحصا «عودة القارئ: لا طبقة، وسطح xdg» لأن العلم وحده يفرض النافذة اليوم. هما حارسا انحدار لا اختباران خاطئان. ونجح «سطر واحد على الأكثر في الظهور الأول» لأنه لا سطر اليوم، ويكمّله الفحص الفاشل قبله.
