@@ -218,6 +218,15 @@ LUA
   ptr_down() { echo "down" >&3; }
   ptr_up() { echo "up" >&3; }
   click() { move "$1" "$2"; echo "sleep 150" >&3; echo "down" >&3; echo "sleep 40" >&3; echo "up" >&3; }
+  # S-019c and S-019d setup: the hive is anchored at the pointer, so the
+  # shows below start with the pointer in the middle of the output, where
+  # the hive is where these checks expect it (centred).
+  local hcx hcy
+  read -r hcx hcy < <(hyprctl monitors -j | python3 -I -c 'import json,sys
+m = json.load(sys.stdin)[0]
+print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
+  : "${hcx:=480}" "${hcy:=270}"
+  centre_ptr() { move "$hcx" "$hcy"; sleep 0.3; }
   # Focus the other client with a click on it, then measure from there.
   # keys.py now and then maps but never takes input (seen 2 runs in ~15);
   # a fresh one always has, so restart it rather than fail the input checks.
@@ -286,9 +295,11 @@ LUA
     echo "${out[*]}"
   }
 
-  # geo: the shown hive's x y w h in Hyprland logical pixels.
+  # geo: the shown hive's x y w h in Hyprland logical pixels (the last
+  # surface line: a drop-mode move to the first position prints another,
+  # S-019 AC8).
   geo() {
-    if [ "$SURFACE" = layer ]; then after "$MARK" | grep -m1 '^hive surface:' | cut -d' ' -f4-
+    if [ "$SURFACE" = layer ]; then after "$MARK" | grep '^hive surface:' | tail -1 | cut -d' ' -f4-
     else
       local i; for i in $(seq 20); do
         hyprctl clients -j 2>/dev/null | python3 -I -c 'import json,sys
@@ -317,6 +328,7 @@ for c in json.load(sys.stdin):
   }
 
   # Show 1: open, then Esc.
+  centre_ptr
   show "$BIN/sbarhive" open "$W/photo.png"
   check "surface shown ($SURFACE)" 'after "$MARK" | grep -q "^hive surface: $SURFACE"'
   check "show latency under 150 ms (${LAT:-none} ms)" '[ -n "$LAT" ] && [ "$LAT" -lt 150 ]'
@@ -336,6 +348,7 @@ for c in json.load(sys.stdin):
   start_daemon 1
 
   # Show 2: open, then a click far from the centre (on the catcher, inside the smallest logical output).
+  centre_ptr
   show "$BIN/sbarhive" open "$W/photo.png"
   sleep 0.5
   click 40 40
@@ -353,8 +366,11 @@ for c in json.load(sys.stdin):
   # (exactly one click) and the hive stays until the 10 s drop timeout.
   local dclicks=none dstay=no dgone=none
   if "$BIN/sbarhive" ping >/dev/null 2>&1; then
+    centre_ptr
     local dt0; dt0=$(now_us)
     show "$BIN/sbarhive" drop
+    # S-019d setup: the click at (40, 40) comes after the anchor line.
+    local k; for k in $(seq 20); do after "$MARK" | grep -qE '^hive anchor: ' && break; sleep 0.1; done
     sleep 0.5
     k0=$(wc -l <"$KLOG")
     key 30; sleep 0.5
@@ -404,6 +420,12 @@ for c in json.load(sys.stdin):
     else show "$BIN/sbarhive" drop; fi
     local gx gy gw gh cdrag="" cur=""
     read -r gx gy gw gh < <(geo)
+    if [ -n "${gw:-}" ]; then
+      # S-019d setup: the first drag position moves a centred drop hive
+      # once; at its centre that move changes nothing. Then read it again.
+      move $((gx + gw / 2)) $((gy + gh / 2)); sleep 0.5
+      read -r gx gy gw gh < <(geo)
+    fi
     if [ -n "${gw:-}" ]; then
       # Corner, midpoint, then the WEBP cell (lib.sh, through ptr_move).
       move_to_webp "$gx" "$gy" "$gw" "$gh"
