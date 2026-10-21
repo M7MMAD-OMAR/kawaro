@@ -614,7 +614,7 @@ mod tests {
                     win.open(&start).unwrap();
                     let save = if lang == Lang::En { "Save" } else { "حفظ" };
                     click(&win, &find(&win, save, AccessibleRole::Button));
-                    assert_eq!(*saved.borrow(), [start.clone()], "{value:?} {lang:?}");
+                    assert_eq!(*saved.borrow(), [start], "{value:?} {lang:?}");
                     win.close();
                 }
             }
