@@ -4,7 +4,8 @@
 #   docs.sh                      AC19, AC20 (no compositor)
 #   kwin.sh                      layer mode (the default), then every other
 #                                mode: window input token a11y drop scheme 1.5
-#                                anchor (S-019c)
+#                                anchor (S-019c), outputs (S-019 AC5 and
+#                                decision 1 on two outputs)
 #   gnome.sh                     the window path on a headless GNOME Shell
 #   focus.sh                     AC10, every level and case
 #   budget.sh                    AC18 budgets (measure.sh 20 60, twice)
@@ -31,7 +32,7 @@ step() { # step NAME SCRIPT [ARGS...]
 
 step docs "$HERE/docs.sh"
 step kwin-layer "$HERE/kwin.sh"
-for mode in window input token a11y drop scheme 1.5 anchor; do
+for mode in window input token a11y drop scheme 1.5 anchor outputs; do
   step "kwin-$mode" "$HERE/kwin.sh" "$mode"
 done
 step gnome "$HERE/gnome.sh"

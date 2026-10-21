@@ -30,18 +30,26 @@
 #                        cursorpos)"`, as the owner's binding would run it
 #                        (manager decision 1): anchored there at once, one
 #                        wl_subsurface.set_position;
-#                      same output as pointer: a second output
-#                        (`hyprctl output create wayland SBH-2`, 1280x720 at
-#                        scale 1, right of the first at (960, 0), waited
-#                        for up to 10 s in hyprctl monitors -j), the
-#                        pointer moved onto it with hl.dsp.cursor.move({ x,
-#                        y }): `sbarhive open` puts the layer
-#                        on SBH-2 (hyprctl layers -j) with the anchor at the
-#                        pointer in SBH-2's own coordinates, and
-#                        `sbarhive drop --at "$(hyprctl cursorpos)"` (global
-#                        coordinates) gives the same local anchor on SBH-2.
-#                      The others are not implemented yet and count as
-#                      failed.
+#                      key release hides (S-019e, AC11 to AC13 on
+#                        Hyprland): `sbarhive drop --hold` with the pointer
+#                        still exits 0 within 200 ms, no layer is listed at
+#                        300 ms, one is by 1000 ms, then `sbarhive drop
+#                        --release` exits 0 within 200 ms and the layer is
+#                        gone within 500 ms; and a tap (the release 150 ms
+#                        after the press) shows nothing for 1000 ms (no
+#                        layer listed, no get_layer_surface in the trace),
+#                        both commands exiting 0 within 200 ms;
+#                      drop preview after enter (S-019f, AC14, AC15): in
+#                        the "cell" drag above, the daemon prints
+#                        "hive preview: icon image" after the drag's first
+#                        wl_data_device.enter and no preview line before it.
+#                      Same output as the pointer is INFO here: nested
+#                        Hyprland gave no reliable second output (`hyprctl
+#                        output create` listed none within 10 s), so those
+#                        two checks run in tests/overlay/kwin.sh outputs
+#                        (a private KWin with two virtual outputs).
+#                      The screen reader and adaptive shape checks (S-019a,
+#                      S-019b) are still placeholders that count as failed.
 # Checks (layer or window): surface shown, keyboard focus received, show
 # latency under 150 ms, Esc closes, click outside closes, input reaches the
 # other client after close, a click outside a drop show passes through;
@@ -146,10 +154,10 @@ inner() {
   # one, but integrations/linux/hyprland/README.md does not recommend it, and
   # it keeps the window path's hive open on a click outside by construction.
   cat >"$XDG_CONFIG_HOME/hypr/sbh.lua" <<LUA
--- S-019 quasimode: the second output, made later with
--- hyprctl output create wayland SBH-2 (a second window in the outer KWin;
--- a headless output gets no mode in this nested setup). Its rule comes
--- first and the first output's names it, as measured on Hyprland 0.56.2.
+-- S-019d: a rule for a second output SBH-2, no longer created (the same
+-- output checks moved to tests/overlay/kwin.sh outputs); kept so that the
+-- first output's rule, which names WAYLAND-1, stays as measured on
+-- Hyprland 0.56.2.
 hl.monitor({ output = "SBH-2", mode = "1280x720", position = "960x0", scale = "1" })
 hl.monitor({ output = "WAYLAND-1", mode = "1280x720", position = "0x0", scale = "$HYPR_SCALE" })
 hl.config({
@@ -479,6 +487,8 @@ for c in json.load(sys.stdin):
     say "INFO drag $c: under way $dragging; drop hive ${gw:+at $gx $gy $gw $gh} in ${LAT:-none} ms; enter at ${enter:-none} (surface-local); cursor over WEBP at ${cur:-?}; motion events $MOTIONS; sbarhived ${cdrag:-?}% CPU; file written $WROTE; hive gone $CLOSED; source: $(sed -n "$((s0 + 1)),$((s1))p" "$SLOG" | grep -oE 'drag-(end|cancel).*' | tr '\n' ' ')"
   }
   drag_case cell
+  # S-019f: this show's trace, for the quasimode preview check.
+  local CELL_SEG; CELL_SEG=$(sed -n "$((MARK + 1)),\$p" "$DLOG")
   check "drop mid-drag: the hive gets drag motion events" '[ "$MOTIONS" -gt 0 ]'
   check "drop mid-drag: released over the WEBP cell writes the file" '[ "$WROTE" = yes ]'
   check "drop mid-drag: a new drag begins afterwards (input not stuck)" '[ "$AFTER" = yes ]'
@@ -488,9 +498,52 @@ for c in json.load(sys.stdin):
   check "Esc mid-drag: the hive closes and a new drag begins" '[ "$CLOSED" = yes ] && [ "$AFTER" = yes ]'
 
   if [ "$QUASI" = 1 ]; then
-    for c in "screen reader flag without a reader keeps the layer" "key release hides" "adaptive shape"; do
+    for c in "screen reader flag without a reader keeps the layer" "adaptive shape"; do
       check "quasimode: $c (S-019, not implemented)" 'false'
     done
+
+    # Key release hides (S-019e): the press, the threshold, the release.
+    gone_within 120 || true
+    reset_hive "the drag cases"
+    centre_ptr
+    local hm hrc hms rrc rms pre300=no post=no hgone=no t0 t1
+    hm=$(wc -l <"$DLOG"); t0=$(now_us)
+    "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1; hrc=$?; hms=$(( ($(now_us) - t0) / 1000 ))
+    while [ $(( ($(now_us) - t0) / 1000 )) -lt 300 ]; do sleep 0.02; done
+    shown && pre300=yes
+    while [ $(( ($(now_us) - t0) / 1000 )) -lt 1000 ]; do shown && { post=yes; break; }; sleep 0.05; done
+    sleep 0.3
+    t1=$(now_us)
+    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; rrc=$?; rms=$(( ($(now_us) - t1) / 1000 ))
+    gone_within 5 && hgone=yes
+    say "INFO quasimode key release: press exit $hrc in $hms ms, layer at 300 ms $pre300, layer by 1000 ms $post, release exit $rrc in $rms ms, gone within 500 ms $hgone, get_layer_surface $(sed -n "$((hm + 1)),\$p" "$DLOG" | grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(')"
+    reset_hive "the hold show"
+    check "quasimode: key release hides (S-019 AC11 to AC13): \`drop --hold\` exits 0 within 200 ms, no layer at 300 ms, one by 1000 ms, and \`drop --release\` (exit 0 within 200 ms) removes it within 500 ms" \
+      '[ "$hrc" = 0 ] && [ "$hms" -le 200 ] && [ "$pre300" = no ] && [ "$post" = yes ] && [ "$rrc" = 0 ] && [ "$rms" -le 200 ] && [ "$hgone" = yes ]'
+    # A tap: the release 150 ms after the press.
+    local tseen=no tgls
+    hm=$(wc -l <"$DLOG"); t0=$(now_us)
+    "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1; hrc=$?; hms=$(( ($(now_us) - t0) / 1000 ))
+    while [ $(( ($(now_us) - t0) / 1000 )) -lt 150 ]; do sleep 0.01; done
+    t1=$(now_us)
+    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; rrc=$?; rms=$(( ($(now_us) - t1) / 1000 ))
+    while [ $(( ($(now_us) - t0) / 1000 )) -lt 1000 ]; do shown && tseen=yes; sleep 0.05; done
+    tgls=$(sed -n "$((hm + 1)),\$p" "$DLOG" | grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(|-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\(')
+    say "INFO quasimode tap: press exit $hrc in $hms ms, release exit $rrc in $rms ms, a layer listed within 1000 ms $tseen, new surfaces in the trace $tgls"
+    reset_hive "the tap"
+    check "quasimode: a tap shows nothing (S-019 AC13): press and release 150 ms apart (both exit 0 within 200 ms), no layer and no new surface for 1000 ms" \
+      '[ "$hrc" = 0 ] && [ "$hms" -le 200 ] && [ "$rrc" = 0 ] && [ "$rms" -le 200 ] && [ "$tseen" = no ] && [ "$tgls" -eq 0 ]'
+
+    # Drop preview after enter (S-019f), in the "cell" drag's trace.
+    local pe1 ppre=0 ppost=""
+    pe1=$(grep -nE '^\[[0-9:.]+\] wl_data_device[#@][0-9]+\.enter\(' <<<"$CELL_SEG" | head -1 | cut -d: -f1)
+    if [ -n "$pe1" ]; then
+      ppre=$(head -n "$pe1" <<<"$CELL_SEG" | grep -cE '^hive preview: ')
+      ppost=$(tail -n +"$pe1" <<<"$CELL_SEG" | grep -m1 -E '^hive preview: ')
+    fi
+    say "INFO quasimode drop preview: first enter at segment line ${pe1:-none}, preview lines before it $ppre, first after it: ${ppost:-none}"
+    check "quasimode: drop preview after enter (S-019 AC14, AC15): \"hive preview: icon image\" after the drag's first enter, none before it" \
+      '[ -n "$pe1" ] && [ "$ppre" -eq 0 ] && [ "$ppost" = "hive preview: icon image" ]'
     local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
     # near A B TOL: |A - B| <= TOL, for decimals.
     near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
@@ -553,74 +606,12 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
     check "quasimode: hive near pointer (S-019 decision 1): a still drag and \`sbarhive drop --at \"\$(hyprctl cursorpos)\"\` anchor at the cursor (1 px) at once, with one set_position" \
       '[ "$(grep -cE "^hive anchor: " <<<"$dseg")" -eq 1 ] && near "$dax" "${cur%,*}" 1 && near "$day" "${cur#*,}" 1 && [ "$dsets" -eq 1 ] && placed "$dseg" "$lw" "$lh"'
 
-    # Same output as pointer: a second output right of the first.
-    local made; made=$(hyprctl output create wayland SBH-2 2>&1)
-    # Up to 10 s for SBH-2 to show in hyprctl monitors with a mode (width
-    # above 0): under the load limits it took longer than 1.5 s.
-    local mon2="" m2x="" m2y="" m2w="" m2h="" t2
-    for t2 in $(seq 100); do
-      mon2=$(hyprctl monitors -j 2>/dev/null | python3 -I -c 'import json,sys
-for m in json.load(sys.stdin):
-    if m["name"] == "SBH-2" and m["width"] > 0:
-        print(m["x"], m["y"], round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
-      [ -n "$mon2" ] && break
-      sleep 0.1
-    done
-    say "INFO quasimode same output: SBH-2 ${mon2:+listed after about $((t2 / 10)).$((t2 % 10)) s}${mon2:-not listed within 10 s}"
-    read -r m2x m2y m2w m2h <<<"$mon2"
-    # The pointer onto SBH-2 at (300, 200) of its own coordinates.
-    local gx="" gy="" warp="" tries
-    if [ -n "$m2h" ]; then
-      gx=$((m2x + 300)); gy=$((m2y + 200))
-      warp() { hyprctl dispatch "hl.dsp.cursor.move({ x = $1, y = $2 })" >/dev/null 2>&1; }
-      for tries in 1 2 3; do
-        warp "$gx" "$gy"; sleep 0.3
-        warp=$(hyprctl cursorpos | tr -d ' ')
-        [ "$warp" = "$gx,$gy" ] && break
-      done
-    fi
-    say "INFO quasimode same output: output create: ${made:-no reply}; SBH-2 at ${mon2:-none} (x y w h, logical); cursor after hl.dsp.cursor.move to ${gx:-?},${gy:-?}: ${warp:-none}"
-    # on_output: the monitor whose layer list has the sbarhive namespace.
-    on_output() {
-      hyprctl layers -j 2>/dev/null | python3 -I -c 'import json,sys
-d = json.load(sys.stdin)
-print(" ".join(sorted(m for m, v in d.items() if "sbarhive" in json.dumps(v))))'
-    }
-    local oseg="" olay="" oax="" oay=""
-    if [ -n "$gx" ]; then
-      MARK=$(wc -l <"$DLOG")
-      # 1 px motion on SBH-2 while the hive shows (no outer KWin window there).
-      ( for ((i = 0; i < 30; i++)); do warp $((gx + i % 2)) $((gy + i % 2)); sleep 0.01; done ) &
-      local jp=$!
-      show "$BIN/sbarhive" open "$W/photo.png"
-      sleep 0.5
-      olay=$(on_output)
-      wait "$jp" 2>/dev/null
-      sleep 0.5
-      oseg=$(after "$MARK")
-      read -r oax oay <<<"$(anchor_of "$oseg")"
-      key 1; gone_within 30 || true
-      reset_hive "the SBH-2 show"
-    fi
-    say "INFO quasimode same output (open): layer on ${olay:-none}, $(grep -m1 -E '^hive anchor: ' <<<"$oseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$oseg" || echo 'no surface line')"
-    check "quasimode: same output as pointer (S-019 AC5): \`sbarhive open\` with the pointer on SBH-2 puts the layer there, anchored at the pointer in SBH-2 coordinates (1 px)" \
-      '[ "$olay" = SBH-2 ] && near "$oax" 300 1 && near "$oay" 200 1 && placed "$oseg" "$m2w" "$m2h"'
-    local aseg="" alay="" aax="" aay="" acur=""
-    if [ -n "$gx" ]; then
-      warp "$gx" "$gy"; sleep 0.3
-      acur=$(hyprctl cursorpos | tr -d ' ')
-      MARK=$(wc -l <"$DLOG")
-      show "$BIN/sbarhive" drop --at "$(hyprctl cursorpos)"
-      sleep 0.5
-      alay=$(on_output)
-      aseg=$(after "$MARK")
-      read -r aax aay <<<"$(anchor_of "$aseg")"
-      gone_within 130 || true
-      reset_hive "the SBH-2 drop --at show"
-    fi
-    say "INFO quasimode same output (drop --at): cursorpos ${acur:-none}, layer on ${alay:-none}, $(grep -m1 -E '^hive anchor: ' <<<"$aseg" || echo 'no anchor line')"
-    check "quasimode: same output as pointer (S-019 decision 1): \`sbarhive drop --at\` with global coordinates on SBH-2 puts the layer there, anchored at the same point in SBH-2 coordinates (1 px)" \
-      '[ "$alay" = SBH-2 ] && [ -n "$acur" ] && near "$aax" "$(awk -v a="${acur%,*}" -v b="$m2x" "BEGIN { print a - b }")" 1 && near "$aay" "$(awk -v a="${acur#*,}" -v b="$m2y" "BEGIN { print a - b }")" 1'
+    # Same output as the pointer (S-019 AC5, decision 1): nested Hyprland
+    # made no reliable second output (`hyprctl output create wayland SBH-2`
+    # answered ok, but SBH-2 was not listed with a mode within 10 s), so the
+    # two checks moved to a private KWin with two virtual outputs.
+    say "INFO quasimode: same output as pointer (S-019 AC5): \`sbarhive open\` on the second output is checked by tests/overlay/kwin.sh outputs"
+    say "INFO quasimode: same output as pointer (S-019 decision 1): \`sbarhive drop --at\` with global coordinates on the second output is checked by tests/overlay/kwin.sh outputs"
   fi
 
   finish

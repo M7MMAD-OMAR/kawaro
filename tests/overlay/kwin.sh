@@ -92,7 +92,30 @@
 # The layer mode also checks S-019 AC5 (one "hive anchor" line before the
 # "hive surface" line of every show) and the window mode S-019 AC7 (no
 # "hive anchor" line).
-# Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop|scheme|1.5|anchor] [target/release]
+#   outputs          S-019 AC5 and decision 1 on two outputs (moved here
+#                    from tests/hyprland/repro.sh --quasimode, where nested
+#                    Hyprland makes no reliable second output): a private
+#                    KWin with `--virtual --output-count 2`, 1280x800 each
+#                    (Virtual-0 at (0, 0), Virtual-1 at (1280, 0), read back
+#                    with kscreen-doctor). Three shows, each found on its
+#                    output by a CaptureWorkspace shot (shot.py workspace)
+#                    against one taken before, so the check does not trust
+#                    the daemon's trace for the output:
+#                      open on Virtual-1: `sbarhive open` while a 1 px
+#                        pointer jitter runs at global (1580, 200), that is
+#                        (300, 200) on Virtual-1;
+#                      open on Virtual-0: the same at global (300, 200), the
+#                        same output-local point on the other output;
+#                      drop --at on Virtual-1: the pointer still at
+#                        (1580, 200) and `sbarhive drop --at 1580,200`
+#                        (global logical coordinates, decision 1).
+#                    Each: the screenshot box lies inside that output and
+#                    contains the global point; one "hive anchor" line
+#                    within 1 px of (300, 200), output-local; the
+#                    "hive surface" line equal to the AC3 placement for it
+#                    on 1280x800 (anchor.py); and for --at exactly one
+#                    wl_subsurface.set_position (anchored at once).
+# Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop|scheme|1.5|anchor|outputs] [target/release]
 # Conditions go to check() in single quotes and are expanded by eval.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -101,7 +124,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in window|input|token|a11y|drop|scheme|1.5|anchor) MODE=$a ;; *) BIN="$a" ;; esac
+  case "$a" in window|input|token|a11y|drop|scheme|1.5|anchor|outputs) MODE=$a ;; *) BIN="$a" ;; esac
 done
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
@@ -122,7 +145,7 @@ inner() {
   if [ "$MODE" = input ]; then
     # AC9: keyboard exclusivity under focus follows mouse, level Low.
     printf '[Windows]\nFocusPolicy=FocusFollowsMouse\nFocusStealingPreventionLevel=1\n' >"$XDG_CONFIG_HOME/kwinrc"
-  elif [ "$MODE" = anchor ]; then
+  elif [ "$MODE" = anchor ] || [ "$MODE" = outputs ]; then
     # The pointer at (0, 0) would light the top left screen edge (bound to
     # the Overview effect by default) in the corner screenshot: no edge
     # action here.
@@ -191,15 +214,17 @@ JSON
 
   # KWIN_WAYLAND_NO_PERMISSION_CHECKS lets the test's own input client and
   # shot.py use fake input and ScreenShot2 in this private compositor only.
+  local nout=()
+  [ "$MODE" = outputs ] && nout=(--output-count 2)
   KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
-    kwin_wayland --virtual --no-lockscreen --socket "$WAYLAND_DISPLAY" --width "$kw" --height "$kh" >"$log-kwin.log" 2>&1 &
+    kwin_wayland --virtual --no-lockscreen "${nout[@]}" --socket "$WAYLAND_DISPLAY" --width "$kw" --height "$kh" >"$log-kwin.log" 2>&1 &
   local kwin=$!
   for _ in $(seq 150); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
   [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "kwin did not start"; tail "$log-kwin.log"; kill $kwin $a11y $portal 2>/dev/null; return 1; }
   sleep 2
   local outputs=""
-  if [ "$MODE" = 1.5 ]; then
-    outputs=$(KSCREEN_BACKEND=KWayland timeout 10 kscreen-doctor -o 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'Geometry|Scale' | tr -s ' \t\n' ' ')
+  if [ "$MODE" = 1.5 ] || [ "$MODE" = outputs ]; then
+    outputs=$(KSCREEN_BACKEND=KWayland timeout 10 kscreen-doctor -o 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | grep -E 'Output|Geometry|Scale' | tr -s ' \t\n' ' ')
     echo "INFO kscreen-doctor: $outputs"
   fi
 
@@ -938,6 +963,74 @@ PY
     check "S-019 AC5/AC6: no protocol error in the daemon log" 'no_protocol_error'
     ;;
 
+  outputs)
+    # S-019 AC5 and decision 1 on the output under the pointer or at --at.
+    near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
+    check "S-019 outputs setup: kscreen-doctor lists Virtual-0 at 0,0 and Virtual-1 at 1280,0, both 1280x800" \
+      'grep -qE "Virtual-0 [^ ]+ Geometry: 0,0 1280x800" <<<"$outputs" && grep -qE "Virtual-1 [^ ]+ Geometry: 1280,0 1280x800" <<<"$outputs"'
+    local nact
+    nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    shot_ws() { timeout 10 python3 "$HERE/shot.py" "$1" workspace >/dev/null 2>>"$log-shot.err"; }
+    echo "move 200 200" >&3; sleep 0.5
+    shot_ws "$log-before.png"
+    local gxs=() gys=() kinds=()
+    oshow() { # oshow NAME KIND GX GY
+      kinds+=("$2"); gxs+=("$3"); gys+=("$4")
+      if [ "$2" = at ]; then
+        echo "move $3 $4" >&3; sleep 1
+        begin "$1"
+        "$BIN/sbarhive" drop --at "$3,$4" >>"$log-cli.log" 2>&1
+      else
+        begin "$1"
+        jitter "$3" "$4" 600
+        "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+      fi
+      sleep 1.5
+      shot_ws "$log-$1.png"
+      if [ "$2" = at ]; then
+        # A drop show with no drag closes by its 10 s timeout.
+        local i; for i in $(seq 120); do [ "$(layer_destroys "$(between "${marks[-1]}" "$(lines "$DLOG")")")" -ge 1 ] && break; sleep 0.1; done
+      else
+        esc
+      fi
+      sleep 1
+    }
+    oshow open-v1 open 1580 200
+    oshow open-v0 open 300 200
+    oshow at-v1 at 1580 200
+    finish
+    local i
+    for ((i = 0; i < ${#names[@]}; i++)); do
+      local name=${names[i]} kind=${kinds[i]} gx=${gxs[i]} gy=${gys[i]} seg al sl ax="" ay="" sx="" sy="" sw="" sh=""
+      local ox=0; [ "$gx" -ge 1280 ] && ox=1280
+      local out=Virtual-0; [ "$ox" = 1280 ] && out=Virtual-1
+      seg=$(seg_of "$i")
+      al=$(grep -E '^hive anchor: ' <<<"$seg")
+      sl=$(surface_lines "$seg" | tail -1)
+      read -r _ _ ax ay <<<"$(grep -vE '^hive anchor: none$' <<<"$al" | head -1)"
+      read -r _ _ _ sx sy sw sh <<<"$sl"
+      local sets; sets=$(grep -cE -- "${R}wl_subsurface[#@][0-9]+\.set_position\(" <<<"$seg")
+      local box="none" bx by bw bh
+      [ -s "$log-before.png" ] && [ -s "$log-$name.png" ] && box=$(python3 -I "$HERE/boxdiff.py" "$log-before.png" "$log-$name.png" 8 2>&1)
+      read -r bx by bw bh <<<"$box"
+      local orc="" ok_box=no mr ocx ocy ocn obx oby obw obh
+      [ -n "$ay" ] && orc=$(python3 -I "$HERE/anchor.py" "$ROOT/design/tokens.json" 1280 800 "$ax" "$ay" "$nact")
+      while read -r mr ocx ocy ocn obx oby obw obh; do
+        [ -z "${obh:-}" ] && continue
+        near "$sx" "$obx" 1 && near "$sy" "$oby" 1 && near "$sw" "$obw" 1 && near "$sh" "$obh" 1 && ok_box=yes
+      done <<<"$orc"
+      echo "INFO S-019 outputs $name: global ($gx, $gy) on $out; ${al:-no anchor line}; ${sl:-no surface line}; set_position x$sets; workspace screenshot box $box"
+      check "S-019 AC5 outputs $name: the hive is drawn on $out, around the global point ($gx, $gy) (workspace screenshot box inside $out and containing it)" \
+        '[ -n "${bh:-}" ] && [ "$bx" -ge "$ox" ] && [ $((bx + bw)) -le $((ox + 1280)) ] && [ "$by" -ge 0 ] && [ $((by + bh)) -le 800 ] && [ "$bx" -le "$gx" ] && [ $((bx + bw)) -ge "$gx" ] && [ "$by" -le "$gy" ] && [ $((by + bh)) -ge "$gy" ]'
+      check "S-019 AC5 outputs $name: one \"hive anchor\" line within 1 px of ($((gx - ox)), $gy) in $out's own coordinates" \
+        '[ "$(grep -c . <<<"$al")" -eq 1 ] && near "$ax" $((gx - ox)) 1 && near "$ay" "$gy" 1'
+      check "S-019 AC5 outputs $name: the \"hive surface\" line is the AC3 placement for that anchor on 1280x800 (1 px)" '[ "$ok_box" = yes ]'
+      if [ "$kind" = at ]; then
+        check "S-019 decision 1 outputs $name: \`drop --at\` with global coordinates anchors at once (exactly one wl_subsurface.set_position)" '[ "$sets" -eq 1 ]'
+      fi
+    done
+    check "S-019 outputs: no protocol error in the daemon log" 'no_protocol_error'
+    ;;
   scheme)
     # AC15. The sample is a 3 x 3 patch in the centre cell above the square a
     # preview will take (S-018 AC24): 0.72 of the cell radius above the

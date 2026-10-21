@@ -14,22 +14,85 @@
 # compositor's spawn) is not in this number; tests/drop/*.sh shortcut cover
 # that the key runs it (AC11). No WAYLAND_DEBUG: it would slow the frames.
 # measure.sh's output folder is copied to tests/drop/out/ and removed.
-# Usage: tests/drop/budget.sh [runs] [idle_seconds]   (defaults 20 1)
+# S-019e AC20, mode "hold": the 150 ms budget of the long press path is
+# timed from the end of the threshold, not from the press. measure.sh runs
+# with DROP=1 HOLD=1 (hive_bench "show --drop --hold", the gate in
+# sbarhive_core::hold with its default 400 ms), on the layer path, and:
+#   - all RUNS + 1 shows ran, every line says mode=hold and hold_ms=400;
+#   - in every line press_to_frame_ms is first_frame_ms plus the threshold:
+#     B - A between 400 and 450 ms (the clock starts at the threshold's end,
+#     neither at the press nor late; an instant show cannot pass);
+#   - one "hive surface: layer" line per show, no "hive focus: true";
+#   - the median warm first_frame_ms is under 150 ms; the median
+#     press_to_frame_ms is printed as INFO (the threshold plus that median).
+# Usage: tests/drop/budget.sh [runs] [idle_seconds] [hold]   (defaults 20 1)
 # shellcheck disable=SC2016
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 RUNS="${1:-20}"
 IDLE="${2:-1}"
+HOLDM="${3:-}"
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
 FAILS=0
 check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
 
+if [ "$HOLDM" = hold ]; then
+{
+  log="$OUT/budget-hold"
+  echo "== measure.sh $RUNS $IDLE (DROP=1 HOLD=1)"
+  env -u SBARHIVE_SURFACE -u SHOW_TOKEN -u PREVIEW DROP=1 HOLD=1 SBARHIVE_DEBUG_FOCUS=1 \
+    CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}" \
+    nice -n 19 "$ROOT/crates/ui/tests/measure.sh" "$RUNS" "$IDLE" >"$log.txt" 2>&1
+  raw=$(sed -n 's/^raw output: //p' "$log.txt")
+  dir=$(dirname "${raw:-/nonexistent/x}")
+  if [ -n "$raw" ] && [ -d "$dir" ] && [ "$dir" != / ]; then
+    cp "$dir/daemon.log" "$log-daemon.log" 2>/dev/null
+    cp "$dir/result.txt" "$log-result.txt" 2>/dev/null
+    case "$dir" in /tmp/tmp.*) rm -rf "$dir" ;; esac
+  fi
+  grep -E '^(== summary|first show|warm first|warm press)' "$log.txt" | sed 's/^/INFO /'
+  lines=$(grep -E '^(first|warm) ' "$log-result.txt" 2>/dev/null)
+  shows=$(grep -c . <<<"$lines")
+  warm=$(grep -c '^warm ' <<<"$lines")
+  holdl=$(grep -w 'mode=hold' <<<"$lines" | grep -cw 'hold_ms=400')
+  # Lines where B - A is the threshold (400 to 450 ms).
+  span=$(python3 -I -c '
+import re, sys
+ok = 0
+for line in sys.stdin:
+    a = re.search(r"\bfirst_frame_ms=([0-9.]+)", line)
+    b = re.search(r"\bpress_to_frame_ms=([0-9.]+)", line)
+    if a and b and 400 <= float(b.group(1)) - float(a.group(1)) <= 450:
+        ok += 1
+print(ok)' <<<"$lines")
+  median=$(sed -n 's/^warm first_frame_ms median \([0-9.]*\) n .*/\1/p' "$log.txt" | head -1)
+  total=$(sed -n 's/^warm press_to_frame_ms median \([0-9.]*\) n .*/\1/p' "$log.txt" | head -1)
+  both=$(cat "$log-daemon.log" "$log-result.txt" 2>/dev/null)
+  layer=$(grep -cE '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$both")
+  window=$(grep -c '^hive surface: window' <<<"$both")
+  focus=$(grep -c '^hive focus: true' <<<"$both")
+  echo "INFO hold: shows ${shows:-0} (warm ${warm:-0}), mode=hold hold_ms=400 lines ${holdl:-0}, threshold span lines ${span:-0}, hive surface layer ${layer:-0} window ${window:-0}, hive focus: true ${focus:-0}, median from the threshold ${median:-none} ms, median from the press ${total:-none} ms"
+  check "S-019 AC20: measure.sh ran all $((RUNS + 1)) hold shows" '[ "${warm:-0}" -eq "$RUNS" ] && [ "${shows:-0}" -eq $((RUNS + 1)) ]'
+  check "S-019 AC20: every show line says mode=hold and hold_ms=400 (hive_bench show --drop --hold)" '[ "${shows:-0}" -gt 0 ] && [ "${holdl:-0}" -eq "${shows:-x}" ]'
+  check "S-019 AC20: in every show the time from the press is the threshold plus the time from its end (press_to_frame_ms - first_frame_ms 400 to 450)" \
+    '[ "${shows:-0}" -gt 0 ] && [ "${span:-0}" -eq "${shows:-x}" ]'
+  check "S-019 AC20: every show was a layer surface (one \"hive surface: layer\" line per show, no window line)" \
+    '[ "${shows:-0}" -gt 0 ] && [ "${layer:-0}" -eq "${shows:-x}" ] && [ "${window:-0}" -eq 0 ]'
+  check "S-019 AC20: no show took the keyboard (drop mode)" '[ "${shows:-0}" -gt 0 ] && [ "${focus:-0}" -eq 0 ]'
+  check "S-019 AC20: median warm first frame of hold shows, from the end of the threshold, under 150 ms" \
+    '[ -n "$median" ] && python3 -I -c "import sys; sys.exit(not float(sys.argv[1]) < 150)" "$median"'
+  if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
+} | tee "$OUT/budget-hold-summary.txt"
+grep -q '^RESULT PASS' "$OUT/budget-hold-summary.txt"
+exit $?
+fi
+
 {
   log="$OUT/budget-drop"
   echo "== measure.sh $RUNS $IDLE (DROP=1)"
-  env -u SBARHIVE_SURFACE -u SHOW_TOKEN -u PREVIEW DROP=1 SBARHIVE_DEBUG_FOCUS=1 \
+  env -u SBARHIVE_SURFACE -u SHOW_TOKEN -u PREVIEW -u HOLD DROP=1 SBARHIVE_DEBUG_FOCUS=1 \
     CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}" \
     nice -n 19 "$ROOT/crates/ui/tests/measure.sh" "$RUNS" "$IDLE" >"$log.txt" 2>&1
   raw=$(sed -n 's/^raw output: //p' "$log.txt")

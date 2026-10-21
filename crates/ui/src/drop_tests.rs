@@ -11,6 +11,12 @@
 //! - `pub struct Machine` with `new() -> Machine` (Hidden), `state() -> State`
 //!   and `handle(&mut self, event: Event, now: Instant) -> State`. The clock
 //!   is injected through `now`; the machine never reads the time itself.
+//!
+//! S-019e (backlog/S-019-hive-at-pointer.md, AC12 as amended 2026-10-21, and
+//! the manager's decision 3): `Event::Show` gains `hold: bool` (a drop show
+//! made by `sbarhive drop --hold` after its threshold, AC17) and a new
+//! `Event::Release` (the key of that show was released). The S-014 literals
+//! above take `hold: false`; their assertions are unchanged.
 
 use crate::HiveCell;
 use crate::dnd::{self, Event, Machine, State};
@@ -132,7 +138,7 @@ fn shown(drop: bool) -> (Machine, Instant) {
     let t0 = Instant::now();
     let mut m = Machine::new();
     assert_eq!(m.state(), State::Hidden);
-    let s = m.handle(Event::Show { drop }, t0);
+    let s = m.handle(Event::Show { drop, hold: false }, t0);
     assert_eq!(s, if drop { State::Waiting } else { State::Normal });
     assert_eq!(m.state(), s);
     (m, t0)
@@ -245,7 +251,13 @@ fn ac3_a_second_drop_show_restarts_the_timeout() {
     // Closed by Esc, then shown again at 9.5 s: its 10 s count from 9.5 s.
     assert_eq!(m.handle(Event::Escape, at(t0, 9.2)), State::Hidden);
     assert_eq!(
-        m.handle(Event::Show { drop: true }, at(t0, 9.5)),
+        m.handle(
+            Event::Show {
+                drop: true,
+                hold: false
+            },
+            at(t0, 9.5)
+        ),
         State::Waiting
     );
     assert_eq!(m.handle(Event::Tick, at(t0, 19.4)), State::Waiting);
@@ -282,5 +294,129 @@ fn ac3_focus_loss_still_closes_the_normal_hive() {
 #[test]
 fn ac3_escape_closes_the_normal_hive() {
     let (mut m, t0) = shown(false);
+    assert_eq!(m.handle(Event::Escape, at(t0, 0.5)), State::Hidden);
+}
+
+// S-019e, AC12 and the manager's decision 3: the key release in a hold show.
+
+fn shown_hold() -> (Machine, Instant) {
+    let t0 = Instant::now();
+    let mut m = Machine::new();
+    let s = m.handle(
+        Event::Show {
+            drop: true,
+            hold: true,
+        },
+        t0,
+    );
+    assert_eq!(s, State::Waiting);
+    (m, t0)
+}
+
+#[test]
+fn ac12_release_hides_a_waiting_hold_show() {
+    let (mut m, t0) = shown_hold();
+    assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Hidden);
+    let (mut m, t0) = shown_hold();
+    assert_eq!(m.handle(Event::Enter, at(t0, 0.3)), State::Waiting);
+    assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Hidden);
+}
+
+#[test]
+fn ac12_release_over_a_cell_hides_and_runs_nothing() {
+    let (mut m, t0) = shown_hold();
+    m.handle(Event::Enter, at(t0, 0.3));
+    assert_eq!(
+        m.handle(Event::Motion(Some(2)), at(t0, 0.4)),
+        State::Over(2)
+    );
+    assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Hidden);
+    // A drop that arrives after it changes nothing (no Running).
+    assert_eq!(m.handle(Event::Drop, at(t0, 0.6)), State::Hidden);
+}
+
+#[test]
+fn ac12_release_after_the_drop_has_no_effect() {
+    let (mut m, t0) = shown_hold();
+    m.handle(Event::Enter, at(t0, 0.3));
+    m.handle(Event::Motion(Some(1)), at(t0, 0.4));
+    assert_eq!(m.handle(Event::Drop, at(t0, 0.5)), State::Running(1));
+    assert_eq!(m.handle(Event::Release, at(t0, 0.6)), State::Running(1));
+}
+
+#[test]
+fn ac12_a_show_without_hold_ignores_release() {
+    // The plain drop (a key press binding, `SUPER+Z`) and the normal hive.
+    let (mut m, t0) = shown(true);
+    assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Waiting);
+    m.handle(Event::Enter, at(t0, 0.6));
+    m.handle(Event::Motion(Some(3)), at(t0, 0.7));
+    assert_eq!(m.handle(Event::Release, at(t0, 0.8)), State::Over(3));
+    let (mut m, t0) = shown(false);
+    assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Normal);
+}
+
+#[test]
+fn ac12_the_machine_keeps_no_earlier_release() {
+    // The 300 ms buffer of decision 3 is gone (amendment of 2026-10-21): a
+    // release while hidden is forgotten, the next hold show waits.
+    let t0 = Instant::now();
+    let mut m = Machine::new();
+    assert_eq!(m.handle(Event::Release, t0), State::Hidden);
+    let s = m.handle(
+        Event::Show {
+            drop: true,
+            hold: true,
+        },
+        at(t0, 0.05),
+    );
+    assert_eq!(s, State::Waiting);
+    assert_eq!(m.handle(Event::Tick, at(t0, 0.1)), State::Waiting);
+    assert_eq!(m.handle(Event::Tick, at(t0, 0.5)), State::Waiting);
+}
+
+#[test]
+fn ac12_the_10_s_enter_timeout_stays_in_a_hold_show_from_the_show() {
+    let (mut m, t0) = shown_hold();
+    assert_eq!(m.handle(Event::Tick, at(t0, 9.9)), State::Waiting);
+    assert_eq!(m.handle(Event::Tick, at(t0, 10.1)), State::Hidden);
+}
+
+#[test]
+fn ac12_decision3_leaving_a_hold_show_keeps_it_while_the_key_is_held() {
+    // Manager decision 3: the drag leaving the hive does not close it while
+    // the key is held; the drop or the key release closes it.
+    let (mut m, t0) = shown_hold();
+    m.handle(Event::Enter, at(t0, 0.3));
+    m.handle(Event::Motion(Some(0)), at(t0, 0.4));
+    assert_eq!(m.handle(Event::Leave, at(t0, 0.5)), State::Waiting);
+    // No enter timeout after the first enter, even out of the hive.
+    assert_eq!(m.handle(Event::Tick, at(t0, 12.0)), State::Waiting);
+    // Back in and dropped on a cell: it runs.
+    assert_eq!(m.handle(Event::Enter, at(t0, 12.5)), State::Waiting);
+    assert_eq!(
+        m.handle(Event::Motion(Some(4)), at(t0, 12.6)),
+        State::Over(4)
+    );
+    assert_eq!(m.handle(Event::Drop, at(t0, 12.7)), State::Running(4));
+    // Left, then the key released: closed.
+    let (mut m, t0) = shown_hold();
+    m.handle(Event::Enter, at(t0, 0.3));
+    assert_eq!(m.handle(Event::Leave, at(t0, 0.5)), State::Waiting);
+    assert_eq!(m.handle(Event::Release, at(t0, 0.9)), State::Hidden);
+}
+
+#[test]
+fn ac12_decision3_leave_still_closes_a_show_without_hold() {
+    let (mut m, t0) = entered();
+    assert_eq!(m.handle(Event::Leave, at(t0, 2.0)), State::Hidden);
+}
+
+#[test]
+fn ac12_a_cancelled_drag_and_escape_still_close_a_hold_show() {
+    let (mut m, t0) = shown_hold();
+    m.handle(Event::Enter, at(t0, 0.3));
+    assert_eq!(m.handle(Event::Cancel, at(t0, 0.5)), State::Hidden);
+    let (mut m, t0) = shown_hold();
     assert_eq!(m.handle(Event::Escape, at(t0, 0.5)), State::Hidden);
 }

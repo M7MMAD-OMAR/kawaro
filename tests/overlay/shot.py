@@ -2,13 +2,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Screenshot of the private KWin's output through org.kde.KWin.ScreenShot2
 (allowed with KWIN_WAYLAND_NO_PERMISSION_CHECKS=1, private compositor only).
-Copied from spikes/overlay/shot.py (S-018b). Usage: shot.py OUT.png"""
+Copied from spikes/overlay/shot.py (S-018b). Usage: shot.py OUT.png [workspace]
+With "workspace" (S-019, tests/overlay/kwin.sh outputs) the shot is the
+whole workspace, every output at its logical position, through
+CaptureWorkspace; without it, the active screen as before."""
 import os, struct, sys, zlib, threading
 import gi
 gi.require_version("Gio", "2.0")
 from gi.repository import Gio, GLib
 
 out = sys.argv[1]
+method = "CaptureWorkspace" if sys.argv[2:3] == ["workspace"] else "CaptureActiveScreen"
 bus = Gio.bus_get_sync(Gio.BusType.SESSION)
 r, w = os.pipe()
 fds = Gio.UnixFDList.new()
@@ -24,7 +28,7 @@ def reader():
 t = threading.Thread(target=reader); t.start()
 res, _ = bus.call_with_unix_fd_list_sync(
     "org.kde.KWin", "/org/kde/KWin/ScreenShot2", "org.kde.KWin.ScreenShot2",
-    "CaptureActiveScreen", GLib.Variant("(a{sv}h)", ({"native-resolution": GLib.Variant("b", True)}, idx)),
+    method, GLib.Variant("(a{sv}h)", ({"native-resolution": GLib.Variant("b", True)}, idx)),
     GLib.VariantType("(a{sv})"), Gio.DBusCallFlags.NONE, 10000, fds, None)
 fds.close(idx) if hasattr(fds, "close") else None
 t.join(5)

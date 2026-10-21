@@ -26,12 +26,33 @@
 # centre (inside the rectangle, so the drag enters there), and reads the
 # geometry again before going on.
 
+#   on_centre N X Y W H  the drag is over the centre cell after entering
+#                        (S-019 AC15: the preview in the centre), for the
+#                        shows whose TARGET is centre
+#
+# S-019f (AC14, AC15): every show also records what its centre must show
+# after enter (PREVIEW_WANT, from preview_want), and preview_checks, after
+# protocol_checks, reads the daemon's "hive preview: ..." lines per show.
+# A show whose file is $THUMBED (set by the caller, with a thumbnail seeded
+# in the sandbox's XDG_CACHE_HOME) wants "thumb W H".
+
 FAILS=0
 ANCHOR_SETTLE=${ANCHOR_SETTLE:-0}
 MARKS=()
 EXPECT=()
+PREVIEW_WANT=()
+THUMBED=${THUMBED:-}
 on_shown() { :; }
 on_over() { :; }
+on_centre() { :; }
+
+# preview_want FILE: what the drop hive's centre shows for FILE after enter
+# (S-018 AC24 rules): "thumb" for the seeded thumbnail, else the kind icon,
+# "icon pdf" for a PDF and "icon image" for a PNG.
+preview_want() {
+  if [ -n "$THUMBED" ] && [ "$1" = "$THUMBED" ]; then echo thumb
+  else case "$1" in *.pdf) echo "icon pdf" ;; *) echo "icon image" ;; esac; fi
+}
 
 # AC8: the cell ids `sbarhive actions --json FILE` gives, space separated, in
 # order. Run in the same sandbox environment as the daemon.
@@ -132,6 +153,7 @@ cycle() { # cycle N FILE TARGET SHIFT
   printf '%s\n' "$file" >"$NEXT"
   MARKS+=("$(wc -l <"$DLOG")")
   EXPECT+=("$(action_ids "$file")")
+  PREVIEW_WANT+=("$(preview_want "$file")")
   smark=$(wc -l <"$SLOG")
   local sha_before; sha_before=$(sha256sum "$file" | cut -d' ' -f1)
   local before; before=$(find "$W" -type f | sort)
@@ -165,6 +187,7 @@ cycle() { # cycle N FILE TARGET SHIFT
   move_to_webp "$gx" "$gy" "$gw" "$gh"
   on_over "$n" "$gx" "$gy" "$gw" "$gh"
   [ "$target" != webp ] && { ptr_move "$tx" "$ty"; sleep 0.4; }
+  [ "$target" = centre ] && on_centre "$n" "$gx" "$gy" "$gw" "$gh"
   [ "$shift" = 1 ] && { shift_down; sleep 0.2; }
   ptr_up; sleep 0.3
   [ "$shift" = 1 ] && shift_up
@@ -264,6 +287,43 @@ enter_cells_checks() {
   local e; for e in "${EXPECT[@]}"; do [ "$e" != "$first" ] && { other=$e; break; }; done
   check "AC8: the PNG and PDF action lists are non-empty and differ" \
     '[ -n "$first" ] && [ -n "$other" ] && [ "$first" != "$other" ]'
+}
+
+# S-019f AC15, after protocol_checks (which closes MARKS). The daemon runs
+# with SBARHIVE_DEBUG_FOCUS=1 and prints one "hive preview: thumb W H" or
+# "hive preview: icon NAME" line per preview it draws (S-018h). In a drop
+# show the preview comes with the enter (AC14), so per show:
+#   - no "hive preview" line before the first wl_data_device.enter (before
+#     enter: the waiting text and no preview, S-014c AC10);
+#   - one "hive preview" line per enter: as many as "drop cells:" lines
+#     (one per enter, S-014 AC8), and at least one;
+#   - every one is PREVIEW_WANT's: "icon image" for a PNG, "icon pdf" for
+#     the PDF, "thumb W H" with W and H 1 to 128 for $THUMBED.
+preview_checks() {
+  local i
+  for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
+    local seg want lines n cells e1 early bad
+    seg=$(sed -n "$((MARKS[i] + 1)),$((MARKS[i + 1]))p" "$DLOG")
+    want=${PREVIEW_WANT[i]:-?}
+    lines=$(grep -E '^hive preview: ' <<<"$seg")
+    n=$(grep -c . <<<"$lines")
+    cells=$(grep -cE '^drop cells:' <<<"$seg")
+    e1=$(grep -nE '^\[[0-9:.]+\] wl_data_device[#@][0-9]+\.enter\(' <<<"$seg" | head -1 | cut -d: -f1)
+    early=0
+    [ -n "$e1" ] && early=$(head -n "$e1" <<<"$seg" | grep -cE '^hive preview: ')
+    [ -z "$e1" ] && early=$n
+    if [ "$want" = thumb ]; then
+      bad=$(grep -vE '^hive preview: thumb ([1-9][0-9]?|1[01][0-9]|12[0-8]) ([1-9][0-9]?|1[01][0-9]|12[0-8])$' <<<"$lines" | grep -c .)
+    else
+      bad=$(grep -vxF "hive preview: $want" <<<"$lines" | grep -c .)
+    fi
+    echo "INFO S-019 AC15 show $((i + 1)): want \"$want\"; preview lines $n ($(head -1 <<<"$lines")), drop cells lines $cells, before the first enter $early"
+    check "S-019 AC14 show $((i + 1)): no preview before the drag enters (no \"hive preview\" line before the first enter)" \
+      '[ -n "$e1" ] && [ "$early" -eq 0 ]'
+    check "S-019 AC15 show $((i + 1)): one \"hive preview\" line per enter (as many as \"drop cells\" lines, at least one)" \
+      '[ "$n" -ge 1 ] && [ "$n" -eq "$cells" ]'
+    check "S-019 AC15 show $((i + 1)): every \"hive preview\" line is \"$want\"" '[ "$n" -ge 1 ] && [ "$bad" -eq 0 ]'
+  done
 }
 
 # S-014d AC11: the shortcut pressed mid-drag. The caller (shortcut mode of

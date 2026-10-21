@@ -113,7 +113,7 @@ mod tests {
     fn shown(drop: bool) -> (Machine, Instant) {
         let t0 = Instant::now();
         let mut m = Machine::default();
-        m.handle(Event::Show { drop }, t0);
+        m.handle(Event::Show { drop, hold: false }, t0);
         (m, t0)
     }
 
@@ -157,14 +157,29 @@ mod tests {
         for e in [Event::Enter, Event::Escape, Event::Tick, Event::Drop] {
             assert_eq!(m.handle(e, t0), State::Hidden, "{e:?}");
         }
-        m.handle(Event::Show { drop: true }, t0);
+        m.handle(
+            Event::Show {
+                drop: true,
+                hold: false,
+            },
+            t0,
+        );
         m.handle(Event::Enter, t0);
         m.handle(Event::Motion(Some(3)), t0);
         assert_eq!(m.handle(Event::Drop, t0), State::Running(3));
         for e in [Event::Leave, Event::Escape, Event::Cancel, Event::FocusLost] {
             assert_eq!(m.handle(e, t0), State::Running(3), "{e:?}");
         }
-        assert_eq!(m.handle(Event::Show { drop: false }, t0), State::Normal);
+        assert_eq!(
+            m.handle(
+                Event::Show {
+                    drop: false,
+                    hold: false,
+                },
+                t0
+            ),
+            State::Normal
+        );
     }
 
     #[test]

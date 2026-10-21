@@ -20,6 +20,8 @@ tests/drop/kwin.sh shortcut    # S-014d AC11: Super+Z mid-drag, Esc
 tests/drop/gnome.sh shortcut
 tests/drop/budget.sh           # S-014d AC12: drop-mode first frame, 20 shows
 tests/drop/docs.sh             # S-014d AC12: binding docs, no compositor
+tests/drop/budget.sh 20 1 hold # S-019e AC20: hold-mode first frame from the threshold
+tests/drop/hold_docs.sh        # S-019 AC16, AC22, AC23: docs, no compositor
 ```
 
 Each prints `PASS`/`FAIL` lines, ends with `RESULT PASS` or `RESULT FAIL (n)`,
@@ -156,6 +158,33 @@ On KWin no `wl_keyboard` enter or key may reach the daemon in those shows.
 is a layer surface that takes no keyboard (no `hive focus: true`), and the
 median warm first frame is under 150 ms. `docs.sh` checks the GNOME, KDE and
 Hyprland binding sections in `docs/`, in Arabic and in English.
+
+## S-019e and S-019f: the long press and the preview
+
+`kwin.sh` (level=1) adds, after the S-019d shows: show 12, where the drag
+moves about 100 ms after the first frame, inside the 300 ms window of
+manager decision 12 (one move to the drag, `set_position` twice, the
+catcher region the hive rectangle after it); show 13, a PNG with a
+thumbnail seeded in the sandbox cache held over the centre cell (200 or
+more pixels of the thumbnail's sky colour in the centre, `pixels.py
+rgbcount`); `preview_checks` (lib.sh) on every show: one
+`hive preview: ...` line per enter and none before it, `icon image` for a
+PNG, `icon pdf` for the PDF, `thumb W H` for the seeded one. Then the long
+press cycles, outside the per-show marks: `sbarhive drop --hold` held (no
+surface at 350 ms, one by 550 ms; the release closes it within 500 ms), a
+tap (release at 200 ms: no surface within 1000 ms), a drag over the WEBP
+cell that leaves and comes back while the key is held (decision 3: it
+stays), then the release (destroyed within 500 ms, no file), a release
+with no press (exit 0, nothing shown), and `hold_ms = 1000` written to the
+sandbox config with the daemon running (the next press shows after 950 ms).
+Every command there must exit 0 within 200 ms, or the negative checks
+would pass on a rejected option. `gnome.sh` adds show 6 (the seeded
+thumbnail, `thumb W H`) and `preview_checks`.
+
+`budget.sh 20 1 hold` runs `measure.sh` with `DROP=1 HOLD=1`: every show
+line says `mode=hold hold_ms=400`, `press_to_frame_ms` is `first_frame_ms`
+plus 400 to 450 ms, and the median `first_frame_ms` (from the end of the
+threshold) is under 150 ms.
 
 ## Input
 

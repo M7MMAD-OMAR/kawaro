@@ -50,6 +50,46 @@
 #           `sbarhive drop --at 400,500`: anchored at once, one
 #           set_position at (204, 319), no "hive anchor: none", and the drop
 #           on the WEBP cell writes the file.
+#   late    (coverage of decision 12, accepted by the manager) the drag
+#           stands still, `sbarhive drop`, and the drag moves to P =
+#           (400, 500) about 100 ms after the first frame, inside the
+#           300 ms window: "hive anchor: none", then one move to the drag
+#           position, "hive anchor" within 1 px of P, exactly two
+#           wl_subsurface.set_position, (444, 219) then (204, 319), the
+#           catcher region the hive rectangle after that first position
+#           (layer.sh mode 0), and the drop on the WEBP cell writes the
+#           file. The first enter on the catcher must fall after the first
+#           frame and within 300 ms of it, or the show did not test the
+#           window (a setup FAIL).
+# S-019f (AC14, AC15): show 13 drags thumbed.png, whose thumbnail (the
+# "photo" picture of tests/overlay/thumbs.py, sky 70 130 200) is seeded in
+# the sandbox's XDG_CACHE_HOME, and holds it over the centre cell: a shot
+# then has 200 or more sky pixels in the 48 x 48 box around the hive's
+# centre (no format code or count is drawn over a thumbnail of one file).
+# Every show's "hive preview" lines are checked by preview_checks (lib.sh):
+# "icon image" for the PNGs, "icon pdf" for show 5, "thumb W H" for 13.
+# S-019e (AC11 to AC13, AC17 to AC19, amended 2026-10-21), after those
+# shows and their checks, with `sbarhive drop --hold` (the press) and
+# `sbarhive drop --release` (the release); each command must exit 0 within
+# 200 ms, or the cycle's other checks cannot pass (they would pass for a
+# rejected option). Times are from a UTC stamp taken just before the press
+# to the daemon trace's stamps:
+#   hold-over    a drag, the press, the hive shows (default threshold
+#                400 ms), the drag enters it and goes over the WEBP cell,
+#                leaves the hive (decision 3: it stays while the key is
+#                held), comes back over WEBP, then the release: the layer
+#                surface is destroyed within 500 ms of it, and the drop
+#                after it writes no file;
+#   tap          the press, the release 200 ms after it: no
+#                get_layer_surface and no get_xdg_surface within 1000 ms;
+#   held         the press with no release: no surface by 350 ms, exactly
+#                one get_layer_surface, after 350 ms and by 550 ms; then the
+#                release closes the waiting hive within 500 ms;
+#   lone release `sbarhive drop --release` with no press (AC19): exit 0, no
+#                surface within 1000 ms;
+#   hold_ms      `hold_ms = 1000` written to the sandbox's config.toml with
+#                the daemon running (AC18): the next press shows after
+#                950 ms and by 1150 ms, then the file is removed.
 # Every show is also checked by tests/drop/layer.sh (S-019 AC8, AC9).
 # Daemon lines (SBARHIVE_DEBUG_FOCUS): "hive anchor: X Y" or
 # "hive anchor: none" before each placement's "hive surface: layer X Y W H";
@@ -78,6 +118,9 @@ inner() {
   unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
   # shellcheck source=lib.sh
   source "$HERE/lib.sh"
+  # trace_ms and the other trace helpers, used during the shows (S-019).
+  # shellcheck source=layer.sh
+  source "$HERE/layer.sh"
   OUT_LOG="$OUT/$TAG"
   local log="$OUT_LOG"
   : >"$log-cli.log"
@@ -150,6 +193,12 @@ inner() {
   local i
   for i in one two three four; do cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo $i.png"; done
   cp "$ROOT/tests/fixtures/docs/one-page.pdf" "$W/report five.pdf"
+  # S-019 AC15: a PNG with a thumbnail in the sandbox cache (no spaces in
+  # its path: thumbs.py writes the plain file:// URI).
+  THUMBED="$W/thumbed.png"
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$THUMBED"
+  python3 -I "$ROOT/tests/overlay/thumbs.py" "$THUMBED" "$XDG_CACHE_HOME" large 128 128 photo >"$log-thumb.log" 2>&1 \
+    || echo "INFO S-019 AC15: thumbs.py failed: $(cat "$log-thumb.log")"
   NEXT="$XDG_RUNTIME_DIR/next"; printf '%s\n' "$W/photo one.png" >"$NEXT"
   DLOG="$log-daemon.log"; SLOG="$log-source.log"
 
@@ -203,6 +252,12 @@ inner() {
     [ "$1" = 1 ] || return 0
     shoot over "$2" "$3" "$4" "$5"
   }
+  local geo13=""
+  on_centre() {
+    [ "$1" = 13 ] || return 0
+    geo13="$2 $3 $4 $5"
+    shoot thumb "$2" "$3" "$4" "$5"
+  }
   shot_checks() {
     local p; for p in "${SHOTS[@]}"; do wait "$p"; done
     local gx gy gw gh; read -r gx gy gw gh <<<"${geo1:-0 0 0 0}"
@@ -244,6 +299,21 @@ inner() {
     snap_check AC9 over
   }
 
+  # S-019 AC15: show 13's shot over the centre cell has the seeded
+  # thumbnail's sky (70 130 200) in the 48 x 48 box around the hive centre.
+  thumb_checks() {
+    local gx gy gw gh sky=""
+    read -r gx gy gw gh <<<"${geo13:-0 0 0 0}"
+    local t="$OUT_LOG-shot-thumb.png"
+    if [ -s "$t" ] && [ "$gw" -gt 0 ]; then
+      sky=$(python3 -I "$px" rgbcount "$t" $((gx + gw / 2 - 24)) $((gy + gh / 2 - 24)) 48 48 4682c8 8)
+      python3 -I "$px" crop "$t" "$gx" "$gy" "$gw" "$gh" "$OUT/drop-en-light-thumb.png"
+    fi
+    echo "INFO S-019 AC15 show 13: hive ${geo13:-not over the centre}, sky pixels in the centre box ${sky:-none} (crop: $OUT/drop-en-light-thumb.png)"
+    check "S-019 AC15 show 13: over the centre cell after enter, 200 or more pixels of the seeded thumbnail's colour in the centre" \
+      '[ "${sky:-0}" -ge 200 ]'
+  }
+
   # anchor_cycle N KIND X Y: one S-019 AC10 show with the drag held at P.
   near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
   AC10_WROTE=0
@@ -255,6 +325,7 @@ inner() {
     printf '%s\n' "$file" >"$NEXT"
     MARKS+=("$(wc -l <"$DLOG")")
     EXPECT+=("$(action_ids "$file")")
+    PREVIEW_WANT+=("$(preview_want "$file")")
     local m0=${MARKS[-1]} smark; smark=$(wc -l <"$SLOG")
     drag_past_threshold
     case "$kind" in
@@ -271,6 +342,14 @@ inner() {
       at)
         ptr_move "$x" "$y"; sleep 0.5
         "$BIN/sbarhive" drop --at "$x,$y" >>"$OUT_LOG-cli.log" 2>&1
+        ;;
+      late)
+        # Queued on the input client as soon as the command returns, so no
+        # polling delay: the first frame comes some 60 to 80 ms after it
+        # (50 ms anchor wait, KWin), the move LATE_MS after it.
+        "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+        echo "sleep ${LATE_MS:-170}" >&3
+        jitter "$x" "$y" 600
         ;;
     esac
     sleep 0.8
@@ -291,6 +370,25 @@ inner() {
           '[ "$(grep -c . <<<"$al")" -eq 1 ] && near "$ax" "$x" 1 && near "$ay" "$y" 1'
         check "S-019 AC5/AC10 show $n ($kind): exactly one wl_subsurface.set_position (no move after the first frame)" '[ "$nset" -eq 1 ]'
         ;;
+      late)
+        # Decision 12 coverage: the first position inside the 300 ms window
+        # moves the centred hive once, to the drag (AC8).
+        local cat child fr en dte=none
+        cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+        child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+        if [ -n "$cat" ] && [ -n "$child" ]; then
+          fr=$(grep -E -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" | head -1)
+          en=$(grep -E -- "^\[[0-9:.]+\] (wl_pointer|wl_data_device)[#@][0-9]+\.enter\([0-9]+, ${cat}, " <<<"$seg" | head -1)
+          [ -n "$fr" ] && [ -n "$en" ] && dte=$(awk -v a="$(trace_ms "$fr")" -v b="$(trace_ms "$en")" 'BEGIN { printf "%.1f\n", b - a }')
+        fi
+        echo "INFO S-019 show $n (late): the first enter on the catcher ${dte} ms after the first frame (LATE_MS ${LATE_MS:-170})"
+        check "S-019 decision 12 show $n (late) setup: the drag's first position on the catcher comes after the first frame and within its 300 ms window" \
+          'awk -v d="$dte" "BEGIN { exit !(d != \"none\" && d + 0 > 0 && d + 0 < 300) }"'
+        check "S-019 AC8 show $n (late): \"hive anchor: none\" first, then one \"hive anchor\" line within 1 px of ($x, $y)" \
+          '[ "$(grep -c . <<<"$al")" -eq 2 ] && [ "$(head -1 <<<"$al")" = "hive anchor: none" ] && near "$ax" "$x" 1 && near "$ay" "$y" 1'
+        check "S-019 AC8 show $n (late): exactly two wl_subsurface.set_position, the middle (444, 219) then (204, 319) within 1 px (one move, then none)" \
+          '[ "$nset" -eq 2 ] && grep -qE "set_position\(444, 219\)" <<<"$(head -1 <<<"$sets")" && near "$lx" 204 1 && near "$ly" 319 1'
+        ;;
       still)
         # Manager decision 12: no position within 300 ms, so the hive stays
         # in the middle; the later drag motion at P does not move it.
@@ -300,7 +398,7 @@ inner() {
           '[ "$nset" -eq 1 ] && grep -qE "set_position\(444, 219\)" <<<"$sets"'
         ;;
     esac
-    if [ "$x $y" = "400 500" ] && [ "$kind" != still ]; then
+    if [ "$x $y" = "400 500" ] && [ "$kind" != still ] && [ "$kind" != late ]; then
       check "S-019 AC10 show $n ($kind): the hive ends at (204, 319) within 1 px" 'near "$lx" 204 1 && near "$ly" 319 1'
     fi
     if [ -n "$geo" ] && [ "$x $y" = "400 500" ]; then
@@ -316,12 +414,152 @@ inner() {
         '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
       [ "$kind" = still ] && check "S-019 decision 12 show $n (still): the drag moved into the centred hive and dropped on its WEBP cell writes $(basename "$base").webp within 5 s" \
         '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
+      [ "$kind" = late ] && check "S-019 decision 12 show $n (late): dropped on the WEBP cell of the moved hive, $(basename "$base").webp is written within 5 s" \
+        '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
     else
       # Released over the centre cell: refused, no file.
       ptr_up; sleep 0.3
     fi
     wait_gone 5 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
     sleep 1
+  }
+
+  # S-019e: the long press (AC11 to AC13, AC17 to AC19). Not in MARKS: two
+  # of these cycles show no hive at all.
+  # cli_ms CMD...: runs `sbarhive CMD...`, sets CLI_RC and CLI_MS.
+  cli_ms() {
+    local t0; t0=$(now_ms)
+    "$BIN/sbarhive" "$@" >>"$OUT_LOG-cli.log" 2>&1
+    CLI_RC=$?
+    CLI_MS=$(( $(now_ms) - t0 ))
+  }
+  # ms_after STAMP LINE: ms from a "HH:MM:SS.ffffff" UTC stamp to a trace line.
+  ms_after() { awk -v a="$(tod "$1")" -v b="$(tod "$(grep -oE '^\[[0-9:.]+\]' <<<"$2")")" 'BEGIN { if (b == "") { print "none"; exit } d = b - a; if (d < -43200) d += 86400; printf "%.1f\n", d * 1000 }'; }
+  GLS_RE='-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\('
+  XDG_RE='-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\('
+  DESTROY_RE='-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\('
+  # press: the press, with its stamp in T_PRESS and the trace mark in M_PRESS.
+  press() {
+    M_PRESS=$(wc -l <"$DLOG"); T_PRESS=$(date -u +%T.%6N)
+    cli_ms drop --hold
+    P_RC=$CLI_RC; P_MS=$CLI_MS
+  }
+  release() {
+    M_REL=$(wc -l <"$DLOG"); T_REL=$(date -u +%T.%6N)
+    cli_ms drop --release
+    R_RC=$CLI_RC; R_MS=$CLI_MS
+  }
+  # surfaces_by MARK STAMP MS: get_layer_surface and get_xdg_surface after
+  # MARK whose trace stamp is at most MS after STAMP: "LAYERS XDGS FIRST",
+  # FIRST the ms of the first get_layer_surface (or none).
+  surfaces_by() {
+    local seg; seg=$(tail -n +$(($1 + 1)) "$DLOG")
+    local l x first="none" line d
+    l=0; x=0
+    while IFS= read -r line; do
+      [ -z "$line" ] && continue
+      d=$(ms_after "$2" "$line")
+      awk -v d="$d" -v m="$3" 'BEGIN { exit !(d != "none" && d + 0 <= m) }' || continue
+      if grep -qE -- "$GLS_RE" <<<"$line"; then l=$((l + 1)); [ "$first" = none ] && first=$d; else x=$((x + 1)); fi
+    done < <(grep -E -- "$GLS_RE|$XDG_RE" <<<"$seg")
+    echo "$l $x $first"
+  }
+  # destroyed_after MARK STAMP: ms from STAMP to the first layer destroy after MARK.
+  destroyed_after() {
+    local line; line=$(tail -n +$(($1 + 1)) "$DLOG" | grep -m1 -E -- "$DESTROY_RE")
+    [ -n "$line" ] && ms_after "$2" "$line" || echo none
+  }
+  in_ms() { awk -v d="$1" -v lo="$2" -v hi="$3" 'BEGIN { exit !(d != "none" && d + 0 > lo && d + 0 <= hi) }'; }
+  cli_ok() { [ "$1" = 0 ] && [ "$2" -le 200 ]; }
+
+  hold_cycles() {
+    local l x first d before
+    # held: the press with no release.
+    echo "== S-019e held: \`sbarhive drop --hold\`, no release"
+    press; sleep 1.2
+    read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 350)"
+    local l350=$l x350=$x
+    read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1150)"
+    echo "INFO S-019e held: press exit $P_RC in $P_MS ms; surfaces by 350 ms: layer $l350 xdg $x350; by 1150 ms: layer $l xdg $x, the first ${first} ms after the press"
+    check "S-019 AC11 held: \`sbarhive drop --hold\` exits 0 within 200 ms (the threshold is the daemon's)" 'cli_ok "$P_RC" "$P_MS"'
+    check "S-019 AC13 held: no surface at 350 ms from the press, then exactly one get_layer_surface, after 350 ms and by 550 ms" \
+      'cli_ok "$P_RC" "$P_MS" && [ "$l350" -eq 0 ] && [ "$x350" -eq 0 ] && [ "$l" -eq 1 ] && [ "$x" -eq 0 ] && in_ms "$first" 350 550'
+    release; sleep 0.8
+    d=$(destroyed_after "$M_REL" "$T_REL")
+    echo "INFO S-019e held: release exit $R_RC in $R_MS ms, layer destroyed ${d} ms after it"
+    check "S-019 AC12 held: the release closes the waiting hold show within 500 ms (zwlr_layer_surface_v1.destroy)" \
+      'cli_ok "$R_RC" "$R_MS" && [ "$l" -eq 1 ] && in_ms "$d" -1 500'
+    wait_gone 12 || true; sleep 0.5
+
+    # tap: the release 200 ms after the press.
+    echo "== S-019e tap: press, release at 200 ms"
+    press
+    sleep "$(awk -v m="$P_MS" 'BEGIN { s = (200 - m) / 1000; if (s < 0) s = 0; printf "%.3f\n", s }')"
+    release
+    sleep 1
+    read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1000)"
+    echo "INFO S-019e tap: press exit $P_RC in $P_MS ms, release exit $R_RC in $R_MS ms, $(awk -v a="$(tod "$T_PRESS")" -v b="$(tod "$T_REL")" 'BEGIN { printf "%.0f", (b - a) * 1000 }') ms apart; surfaces within 1000 ms: layer $l xdg $x"
+    check "S-019 AC13 tap: press and release 200 ms apart, both exit 0 within 200 ms, and no get_layer_surface or get_xdg_surface within 1000 ms of the press" \
+      'cli_ok "$P_RC" "$P_MS" && cli_ok "$R_RC" "$R_MS" && [ "$l" -eq 0 ] && [ "$x" -eq 0 ]'
+    wait_gone 12 || true
+
+    # hold-over: a drag, the press, the hive, over WEBP, out and back, release.
+    echo "== S-019e hold-over: drag, press, over WEBP, leave, back, release, drop"
+    local file="$W/held over.png" geo
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$file"
+    printf '%s\n' "$file" >"$NEXT"
+    before=$(find "$W" -type f | sort)
+    drag_past_threshold
+    press
+    geo=$(wait_geo 3) || true
+    local stayed=no
+    if [ -n "$geo" ]; then
+      # shellcheck disable=SC2086
+      geo=$(settle_at_centre $geo)
+      # shellcheck disable=SC2086
+      move_to_webp $geo
+      # Decision 3: out of the hive (the catcher's region is the hive
+      # rectangle now), the key still held: it stays.
+      ptr_move 1200 760; sleep 0.6
+      [ -n "$(hive_geo)" ] && stayed=yes
+      # shellcheck disable=SC2086
+      move_to_webp $geo
+    fi
+    release; sleep 0.7
+    d=$(destroyed_after "$M_REL" "$T_REL")
+    ptr_up; sleep 3
+    local after; after=$(find "$W" -type f | sort)
+    echo "INFO S-019e hold-over: press exit $P_RC in $P_MS ms, hive ${geo:-not shown}, stayed after the leave $stayed, release exit $R_RC in $R_MS ms, layer destroyed ${d} ms after it, new files: $(comm -13 <(echo "$before") <(echo "$after") | tr '\n' ' ')"
+    check "S-019 AC13 hold-over: shown after the press (exit 0 within 200 ms), then over the WEBP cell" 'cli_ok "$P_RC" "$P_MS" && [ -n "$geo" ]'
+    check "S-019 decision 3 hold-over: the drag leaving the hive does not close it while the key is held" '[ "$stayed" = yes ]'
+    check "S-019 AC13 hold-over: the release over the WEBP cell destroys the layer surface within 500 ms" \
+      'cli_ok "$R_RC" "$R_MS" && in_ms "$d" -1 500'
+    check "S-019 AC13 hold-over: the drop after the release writes no file" '[ -n "$geo" ] && [ "$after" = "$before" ]'
+    wait_gone 12 || true; sleep 0.5
+
+    # lone release (AC19): no press before.
+    echo "== S-019e lone release"
+    M_PRESS=$(wc -l <"$DLOG"); T_PRESS=$(date -u +%T.%6N)
+    release; sleep 1
+    read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1000)"
+    echo "INFO S-019e lone release: exit $R_RC in $R_MS ms, surfaces within 1000 ms: layer $l xdg $x"
+    check "S-019 AC19 lone release: \`sbarhive drop --release\` with no press exits 0 within 200 ms, no surface" \
+      'cli_ok "$R_RC" "$R_MS" && [ "$l" -eq 0 ] && [ "$x" -eq 0 ]'
+
+    # hold_ms changed in config.toml with the daemon running (AC18).
+    echo "== S-019e hold_ms = 1000 in config.toml"
+    mkdir -p "$XDG_CONFIG_HOME/sbarhive"
+    printf 'hold_ms = 1000\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    sleep 1
+    press; sleep 1.6
+    read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1500)"
+    local l950; read -r l950 _ _ <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 950)"
+    release; sleep 0.8
+    rm -f "$XDG_CONFIG_HOME/sbarhive/config.toml"
+    echo "INFO S-019e hold_ms 1000: press exit $P_RC in $P_MS ms; surfaces by 950 ms: layer $l950; by 1500 ms: layer $l xdg $x, the first ${first} ms after the press"
+    check "S-019 AC18 hold_ms: hold_ms = 1000 written with the daemon running applies at the next press (one get_layer_surface after 950 ms and by 1150 ms)" \
+      'cli_ok "$P_RC" "$P_MS" && [ "$l950" -eq 0 ] && [ "$l" -eq 1 ] && [ "$x" -eq 0 ] && in_ms "$first" 950 1150'
+    wait_gone 12 || true
   }
 
   if [ "$MODE" = shortcut ]; then
@@ -343,7 +581,7 @@ inner() {
   # S-019 AC10 and decision 1.
   # layer.sh mode per show (decision 12): 1 to 5 and 10 still, 6 to 9 at
   # the first position (0), 11 --at (1).
-  local MODES=(still still still still still 0 0 0 0 still 1)
+  local MODES=(still still still still still 0 0 0 0 still 1 0 still)
   anchor_cycle 6 jitter 400 500
   anchor_cycle 7 jitter 400 500
   anchor_cycle 8 jitter 400 500
@@ -351,15 +589,22 @@ inner() {
   anchor_cycle 10 still 400 500
   anchor_cycle 11 at 400 500
   check "S-019 AC10: 3 of 3 drags held at (400, 500), the hive at (204, 319), dropped on the WEBP cell wrote the file" '[ "$AC10_WROTE" -eq 3 ]'
+  # Decision 12 coverage: a real move inside the 300 ms window.
+  anchor_cycle 12 late 400 500
+  # S-019 AC15: the seeded thumbnail, held over the centre cell, refused.
+  cycle 13 "$THUMBED" centre 0
   protocol_checks
   enter_cells_checks
+  preview_checks
   shot_checks
+  thumb_checks
   # S-018d (AC13, AC14): the layer path's drop checks, per show.
   # shellcheck source=layer.sh
   source "$HERE/layer.sh"
   for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
     layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1 "${MODES[i]:-0}"
   done
+  hold_cycles
   fi
   summary
 

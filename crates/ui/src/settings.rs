@@ -339,6 +339,7 @@ mod tests {
                                 open_folder_when_done: open,
                                 notify,
                                 hive_surface: HiveSurface::Auto,
+                                hold_ms: 400,
                             });
                         }
                     }
@@ -396,6 +397,7 @@ mod tests {
             open_folder_when_done: true,
             notify: false,
             hive_surface: HiveSurface::Auto,
+            hold_ms: 400,
         };
         let s = FormState::from_config(&c, false);
         assert_eq!(
@@ -629,6 +631,41 @@ mod tests {
             }
         }
 
+        /// S-019e AC18: `hold_ms` has no control in the settings window
+        /// either, so a save keeps the value the window was opened with and
+        /// does not put it back to 400.
+        #[test]
+        fn ac18_s019e_save_keeps_hold_ms() {
+            i_slint_backend_testing::init_no_event_loop();
+            for text in ["hold_ms = 100\n", "hold_ms = 1500\n", "hold_ms = 2000\n"] {
+                let dir = std::env::temp_dir()
+                    .join(format!("sbarhive-s019e-settings-{}", std::process::id()));
+                std::fs::create_dir_all(&dir).unwrap();
+                let p = dir.join("config.toml");
+                std::fs::write(&p, text).unwrap();
+                let (loaded, warn) = Config::load_from(&p);
+                let _ = std::fs::remove_dir_all(&dir);
+                assert!(warn.is_none(), "{text}: {warn:?}");
+                assert_ne!(
+                    loaded,
+                    Config::default(),
+                    "{text}: a value that is not the default"
+                );
+                for lang in [Lang::En, Lang::Ar] {
+                    let (win, saved) = wired(lang);
+                    let start = Config {
+                        quality: Quality::Max,
+                        ..loaded.clone()
+                    };
+                    win.open(&start).unwrap();
+                    let save = if lang == Lang::En { "Save" } else { "حفظ" };
+                    click(&win, &find(&win, save, AccessibleRole::Button));
+                    assert_eq!(*saved.borrow(), [start], "{text} {lang:?}");
+                    win.close();
+                }
+            }
+        }
+
         #[test]
         fn settings_window_behaviour() {
             i_slint_backend_testing::init_no_event_loop();
@@ -753,6 +790,7 @@ mod tests {
                     open_folder_when_done: true,
                     notify: false,
                     hive_surface: HiveSurface::Auto,
+                    hold_ms: 400,
                 }]
             );
 

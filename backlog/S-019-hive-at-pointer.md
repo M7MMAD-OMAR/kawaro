@@ -500,3 +500,136 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - `tests/overlay/kwin.sh drop` و`tests/overlay/kwin.sh anchor`: `RESULT PASS` كلاهما (اللقطة المعتمدة موجودة الآن).
   - `tests/e2e/run.sh`: الجلستان ناجحتان، و20 سطر `hive anchor: 640 0` و20 سطر `hive surface: layer 366 0 548 294`، والذاكرة 38 MB بعد معاينات S-018 AC27.
   - `cargo mutants`: لم يُشغَّل، لأن الملف الوحيد المتغير في الشيفرة (`layer.rs`) مستثنى في `.cargo/mutants.toml`، فلا طفرة في الفرق.
+
+### المختبِر (S-019e وS-019f، AC11 إلى AC23 بتعديل 2026-10-21، والقرارات 9 و10 و11، وفجوتا التغطية)
+
+- 2026-10-21، المختبِر: كُتبت الاختبارات من المعايير المعدّلة وقرارات المدير وحدها. كل أمر cargo وكل سكربت وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`، وعلى بناء إصدار أُعيد عند `f3d1f58`. لا عمليات باقية ولا مجلدات مؤقتة من تشغيلاتي (`Hyprland` و`sbarhived` العاملان على الجهاز هما سطح محمد الحي، لم يُلمسا).
+- ما قرأته من الشيفرة، للتواقيع فقط: التواقيع العامة في `lib.rs` و`dnd.rs` (`Event` و`State` و`Machine`)، و`Request` في `ipc.rs`، و`Config` في `config.rs`، و`daemon_binary` في `cli/src/client.rs` (لمعرفة أين يبحث العميل عن الخدمة)، وسطر `Request::Drop` في `daemon/src/server.rs`. وعند التحقق المؤقت أدناه رأيت جسم `Machine::handle` و`FormState::to_config` و`Inner::save`.
+- تحقق قابلية النجاح: كتبت في `core` شيفرة مؤقتة تتبع العقد (`hold.rs`، و`hold_ms` بمدى، و`hold` و`DropRelease`)، فنجحت `hold_gate` (19) و`config_hold` (5) و`ipc_drop` (9) و`config_surface` (7). ثم وضعت في `ui` بدائل لا تنفّذ السلوك (حقل `hold` يُتجاهل، و`present_drop_hold` تساوي `present_drop_at`، و`key_released` فارغة، و`hold_ms: 400` في `to_config`): بُني هدف الاختبار، ونجح 117 وفشل 6، كلها اختبارات الميزة (AC12 ثلاثة في `drop_tests` وواحد في `drop_hive_tests`، وAC14، وAC18 في `settings`). ثم أُعيدت الملفات كلها (`git checkout` و`rm hold.rs` ونسخ محفوظة لملفي الاختبار المعدّلين)، فلا شيفرة تنفيذ في هذا الالتزام.
+
+#### العقد (يثبّته الاختبار، فلا يُعدَّل)
+
+- البوابة صافية في `sbarhive_core::hold` (لا في الخدمة نفسها): الخدمة تستعملها (AC17: في الخدمة لا في الواجهة)، و`hive_bench` يستعملها لقياس AC20 بأداة `measure.sh`، والبوابة اللاحقة لـ GlobalShortcuts تستعملها (AC21)، والطفرات تشملها، واختبارها ملف تكامل لا يمس شيفرة الخدمة.
+  - `Signal { Hold { at: Option<(f64, f64)> }, Release }`، و`Effect { Show { at }, Release }`.
+  - `Gate::new(hold_ms: FnMut() -> u64)`: تُستدعى عند كل ضغطة تبدأ مؤقّتاً (AC18، يُقرأ `config.toml` عندها).
+  - `Gate::signal(s, now) -> Option<Effect>` دالة الدخول الوحيدة، لا تعيد `Show` أبداً. `Gate::tick(now) -> Option<Effect>` يعيد `Show` مرة واحدة عند `hold_ms` من الضغطة الأولى. `Gate::live_timers() -> usize`.
+  - `Effect::Release` يُمرَّر إلى خلية أظهرتها البوابة ولم يُترك مفتاحها بعد؛ الترك قبل العتبة يلغي المؤقّت دون أثر.
+  - `hold::from_request(&Request)`: `Drop { hold: true, at }` هو `Hold { at }`، و`DropRelease` هو `Release`، والإفلات العادي `None`. `hold::from_portal(&str)`: `"Activated"` و`"Deactivated"`.
+- IPC: `Request::Drop` يكسب `hold: bool` مع `#[serde(default)]`، و`Request::DropRelease` صيغته `{"cmd":"drop-release"}`. أُضيف `hold: false` إلى الأمثلة الحرفية الأربعة في `ipc_drop.rs`، والتأكيدات كما هي.
+- `Config::hold_ms` نوع عدد صحيح بلا إشارة (يقبله `u64::from`)، والمفتاح `hold_ms` بشرطة سفلية كـ `hive_surface`. خارج المدى أو من غير نوع العدد الصحيح: 400 مع تحذير؛ هل تبقى بقية المفاتيح لم يحدده المعيار فلم يُختبر. أُضيف `hold_ms: 400` إلى ثلاثة أمثلة حرفية في اختبارات `settings.rs`.
+- آلة الوضع: `Event::Show { drop, hold }` و`Event::Release`. أُضيف `hold: false` إلى الأمثلة الحرفية في `drop_tests.rs` (اثنان) وفي وحدة اختبار `dnd.rs` (ثلاثة)، والتأكيدات كما هي. القرار 3 للمدير ما زال ملزماً: في ظهور `hold` خروج السحب بعد دخوله لا يغلق الخلية؛ يغلقها الإفلات أو الترك أو مهلة 10 ثوانٍ قبل الدخول. وفي ظهور دون `hold` يغلقها الخروج كما في S-014.
+- الخلية: `Hive::present_drop_hold(centre, token, at)` و`Hive::key_released()`.
+- AC20: `hive_bench show --drop --hold` يمرّ بالبوابة (400 ms) ويطبع `mode=hold hold_ms=400 first_frame_ms=A press_to_frame_ms=B`، حيث A من انقضاء العتبة و B من الطلب. `measure.sh` يأخذ `HOLD=1`.
+- AC14 وAC15: سطر `hive preview: ...` (S-018h) يُطبع مع كل دخول في ظهور الإفلات، ولا يُطبع قبله.
+
+#### الملفات
+
+- `crates/core/tests/hold_gate.rs` (19 اختباراً، AC17 وAC18 وAC19 وAC21): 399 ms صفر و400 ms واحد، والعتبة من `hold_ms`، وموضع الضغطة الأولى (القرار 9)، وكل حالة حدّية في AC19 بقيمها، وقراءة `hold_ms` عند كل ضغطة من ملف `config.toml` حقيقي يتغير بين ضغطتين، وتطابق مصدري IPC والبوابة في حالات AC19 الست.
+- `crates/core/tests/config_hold.rs` (5، AC18 والقرار 10): الغياب، و100 و2000 وما بينهما، و99 و0 و2001 و60000 و-5 و`"400"` و400.0 و`true` تعطي 400 مع تحذير، والحفظ بالمفتاح نفسه.
+- `crates/core/tests/ipc_drop.rs` (3 جديدة، AC11).
+- `crates/cli/tests/cli.rs` (7 جديدة، AC11 وAC19): `--hold` بطلب واحد خلال 200 ms ولو كان `hold_ms = 2000` في الإعداد، و`--release` خلال 200 ms، و`--release` دون خدمة يخرج بـ 0 ولا يظهر مقبس خلال ثانية، والخياران معاً رمز 2 دون طلب (بعد التأكد أن كلاً منهما وحده مقبول)، و`--hold` مع `--at` و`--token`.
+- `crates/ui/src/drop_tests.rs` (9، AC12 والقرار 3) و`crates/ui/src/drop_hive_tests.rs` (`ac12_s019e_key_release_closes_a_hold_show_once`، و`ac14_s019f_the_drop_hive_previews_the_dragged_files_after_enter` بذاكرة صور مصغّرة خاصة) و`crates/ui/src/settings.rs` (`ac18_s019e_save_keeps_hold_ms`).
+- `tests/drop/kwin.sh level=1`:
+  - الظهور 12 (فجوة التغطية الأولى، القرار 12): السحب ساكن، ثم `sbarhive drop`، ثم حركة السحب إلى (400، 500) بعد نحو 100 ms من أول إطار، مصفوفة على عميل الإدخال فور عودة الأمر (`LATE_MS` = 170 من عودته). يشترط الفحص أن يقع أول دخول على الماسك بعد أول إطار وخلال 300 ms منه، وإلا ففشل تهيئة. ثم `hive anchor: none` يليه سطر عند (400، 500)، و`set_position` مرتين بالضبط (444، 219) ثم (204، 319)، ومنطقة الماسك مستطيل الخلية بعد الموضع (`layer.sh` الوضع 0)، والإفلات على WEBP يكتب الملف.
+  - الظهور 13 (AC15): `thumbed.png` بصورة مصغّرة مزروعة (`thumbs.py`، الصورة `photo`، سماؤها 70 130 200) فوق الخلية المركزية: 200 بكسل أو أكثر بلون السماء في مربع 48 × 48 حول المركز (`pixels.py rgbcount`، جديد). تحققت أن لا لون في الرموز قريب منه.
+  - `preview_checks` في `lib.sh` لكل ظهور: لا سطر `hive preview` قبل أول دخول، وسطر لكل دخول (بعدد أسطر `drop cells`)، و`icon image` للـ PNG و`icon pdf` للظهور 5 و`thumb W H` للمزروعة.
+  - دورات الضغط المطوّل بعد فحوص الظهورات وخارج `MARKS` (اثنتان منها بلا خلية): ممسوك (صفر عند 350 ms، وواحد بعد 350 وحتى 550 ms، ثم الترك يغلق خلال 500 ms)، وضغطة عابرة (الترك عند 200 ms: صفر `get_layer_surface` وصفر `get_xdg_surface` خلال 1000 ms)، وسحب فوق WEBP يخرج ويعود والمفتاح ممسوك (القرار 3: تبقى) ثم الترك (تُهدم خلال 500 ms، والإفلات بعده لا يكتب ملفاً)، وترك دون ضغطة (AC19)، و`hold_ms = 1000` يُكتب في إعداد الصندوق والخدمة تعمل (AC18: الظهور بعد 950 وحتى 1150 ms). كل فحص سلبي فيها مشروط بخروج الأمر بـ 0 خلال 200 ms، وإلا لنجح لخيار مرفوض.
+  - `layer.sh` يُحمَّل في أول السكربت أيضاً (`trace_ms` للظهور 12).
+- `tests/drop/gnome.sh smart`: الظهور 6 بالصورة المزروعة على المركز، و`preview_checks`.
+- `tests/drop/budget.sh 20 1 hold` و`crates/ui/tests/measure.sh` (`HOLD=1`، AC20): كل سطر `mode=hold hold_ms=400`، و`press_to_frame_ms` ناقص `first_frame_ms` بين 400 و450 ms في كل ظهور (فلا ينجح ظهور فوري)، وسطر طبقة لكل ظهور دون تركيز، ووسيط الزمن من انقضاء العتبة أقل من 150 ms، والوسيط من الضغط معلومة.
+- `tests/overlay/kwin.sh outputs` (فجوة التغطية الثانية، وضع جديد): `kwin_wayland --virtual --output-count 2` (الخيار من `--help`؛ جرّبته مرة: Virtual-0 عند 0,0 وVirtual-1 عند 1280,0، كلاهما 1280x800، وVirtual-1 هو الأعلى أولوية). ثلاثة ظهورات: `open` والمؤشر يرتجّ عند (1580، 200) العامة، و`open` عند (300، 200) على Virtual-0 للمقارنة، و`drop --at 1580,200`. المخرج يُعرف من لقطة `CaptureWorkspace` (خيار `workspace` جديد في `shot.py`) مقابل لقطة قبلها، لا من أثر الخدمة: الصندوق داخل المخرج ويحوي النقطة، والمرساة (300، 200) بإحداثيات المخرج، والسطح من `anchor.py`، و`set_position` واحد لـ `--at`. أُضيف إلى `tests/overlay/run.sh`.
+- `tests/hyprland/repro.sh --quasimode`: «key release hides» صار فحصين حقيقيين (ضغطة وترك بعد الظهور، وضغطة عابرة عند 150 ms)، وأُضيف فحص S-019f (سطر `hive preview: icon image` بعد أول دخول في سحب «cell»، ولا شيء قبله). فحصا «same output» صارا سطري INFO يشيران إلى `kwin.sh outputs`، وحُذف إنشاء SBH-2 (بقيت قاعدته في إعداد Lua بتعليق محدَّث كي لا تتغير تسمية المخرج الأول). المجموع 13 و20 مع `--quasimode` كما كان. فحصا S-019a (القارئ) وS-019b (الشكل) ما زالا `false` ثابتاً: خارج هذه المهمة.
+- `tests/drop/hold_docs.sh` (جديد، AC16 وAC22 وAC23، بلا مؤلِّف): أسطر الربط بصيغتي hyprlang (الضغط بالعلم `n`، والترك بالعلمين `r` و`i`) وLua في قسم عربي وقسم إنكليزي من README Hyprland، مع `ignore_mods` وعبارة «مفترض» أو «not verified»؛ و`hold_ms` مع 400 و100 و2000 في قسمي الإعداد من README.md؛ و`hold_ms` و`drop --hold` في architecture.md، و`hold_ms` و150 في ADR 0003، وسطر CHANGELOG بالعربية وآخر بالإنكليزية، وOrca و`plan_at` و`hive anchor` في architecture.md (AC16)؛ ولا شرطة طويلة. جرّبت المطابِق على README عيّنة في المسودة فنجحت فحوص AC22 الستة. يبقى المراجع قارئ النص.
+- `tests/drop/README.md` و`tests/overlay/README.md`: الأوضاع الجديدة.
+
+#### مخرجات الفشل على `f3d1f58` (تشغيل واحد لكل سكربت)
+
+- `cargo test -p sbarhive-core --test hold_gate`:
+  ```
+  error[E0432]: unresolved import `sbarhive_core::hold`
+  error[E0559]: variant `sbarhive_core::ipc::Request::Drop` has no field named `hold`
+  error[E0599]: no variant, associated function, or constant named `DropRelease` found for enum `sbarhive_core::ipc::Request` in the current scope (3 مرات)
+  error[E0609]: no field `hold_ms` on type `Config`
+  error: could not compile `sbarhive-core` (test "hold_gate") due to 6 previous errors
+  ```
+- `cargo test -p sbarhive-core --test config_hold`:
+  ```
+  error[E0609]: no field `hold_ms` on type `Config` (مرتان، ومرة على `&Config`)
+  error: could not compile `sbarhive-core` (test "config_hold") due to 3 previous errors
+  ```
+- `cargo test -p sbarhive-core --test ipc_drop`:
+  ```
+  error[E0559]: variant `sbarhive_core::ipc::Request::Drop` has no field named `hold` (7 مرات)
+  error[E0599]: no variant, associated function, or constant named `DropRelease` found for enum `sbarhive_core::ipc::Request` in the current scope (مرتان)
+  error: could not compile `sbarhive-core` (test "ipc_drop") due to 9 previous errors
+  ```
+- `cargo test -p sbarhive-ui --lib` (لا يُبنى هدف اختبارات المكتبة كله حتى التنفيذ، كما في S-019a):
+  ```
+  error[E0559]: variant `dnd::Event::Show` has no field named `hold` (7 مرات)
+  error[E0560]: struct `sbarhive_core::config::Config` has no field named `hold_ms` (3 مرات)
+  error[E0599]: no method named `key_released` found for struct `Hive` in the current scope (7 مرات)
+  error[E0599]: no method named `present_drop_hold` found for struct `Hive` in the current scope (4 مرات)
+  error[E0599]: no variant, associated function, or constant named `Release` found for enum `dnd::Event` in the current scope (9 مرات)
+  error: could not compile `sbarhive-ui` (lib test) due to 30 previous errors
+  ```
+- `cargo test -p sbarhive-cli --test cli`: 24 نجحت و7 فشلت، كلها `ac11_s019e_*` و`ac19_s019e_*`:
+  ```
+  assertion `left == right` failed: error: unexpected argument '--release' found
+  drop failed: error: unexpected argument '--hold' found
+  ```
+- `tests/drop/kwin.sh level=1`: `RESULT FAIL (37)`، و271 نجحت. نجحت الظهورات القديمة كلها ولقطتاها المعتمدتان:
+  ```
+  INFO S-019 AC15 show 1: want "icon image"; preview lines 0 (), drop cells lines 1, before the first enter 0
+  FAIL S-019 AC15 show 1: one "hive preview" line per enter (as many as "drop cells" lines, at least one)
+  FAIL S-019 AC15 show 1: every "hive preview" line is "icon image"
+  (الفشلان نفساهما للظهورات 2 إلى 13، و"icon pdf" للظهور 5 و"thumb" للظهور 13)
+  INFO S-019 AC15 show 13: hive 444 219 393 362, sky pixels in the centre box 0
+  FAIL S-019 AC15 show 13: over the centre cell after enter, 200 or more pixels of the seeded thumbnail's colour in the centre
+  FAIL S-019 AC11 held: `sbarhive drop --hold` exits 0 within 200 ms (the threshold is the daemon's)
+  FAIL S-019 AC13 held: no surface at 350 ms from the press, then exactly one get_layer_surface, after 350 ms and by 550 ms
+  FAIL S-019 AC12 held: the release closes the waiting hold show within 500 ms (zwlr_layer_surface_v1.destroy)
+  INFO S-019e tap: press exit 2 in 2 ms, release exit 2 in 2 ms, 207 ms apart; surfaces within 1000 ms: layer 0 xdg 0
+  FAIL S-019 AC13 tap: press and release 200 ms apart, both exit 0 within 200 ms, and no get_layer_surface or get_xdg_surface within 1000 ms of the press
+  FAIL S-019 AC13 hold-over: shown after the press (exit 0 within 200 ms), then over the WEBP cell
+  FAIL S-019 decision 3 hold-over: the drag leaving the hive does not close it while the key is held
+  FAIL S-019 AC13 hold-over: the release over the WEBP cell destroys the layer surface within 500 ms
+  FAIL S-019 AC13 hold-over: the drop after the release writes no file
+  FAIL S-019 AC19 lone release: `sbarhive drop --release` with no press exits 0 within 200 ms, no surface
+  FAIL S-019 AC18 hold_ms: hold_ms = 1000 written with the daemon running applies at the next press (one get_layer_surface after 950 ms and by 1150 ms)
+  ```
+  لقطة الظهور 13 (`tests/drop/out/drop-en-light-thumb.png`) تُظهر في المركز «1 image» بدل الصورة: عَرَض محمد نفسه.
+- `tests/drop/gnome.sh smart`: `RESULT FAIL (13)`، و59 نجحت: فشلا AC15 للظهورات 1 إلى 6 كما في KWin (`preview lines 0`)، وفشل واحد عَرَضي: `FAIL AC8 show 6`، لأن سطر `drop cells:` من الخدمة اختلط في السجل بسطر أثر Wayland من خيط آخر (`... image.to-bmp[13:57:59.231122] wl_data_offer#4278190080.action(1)`). هذا تداخل كتابة قائم في stderr الخدمة لا يخص الميزة، وقد يصيب `preview_checks` أيضاً؛ للمدير إن تكرر.
+- `tests/drop/budget.sh 20 1 hold`: `RESULT FAIL (3)`:
+  ```
+  INFO hold: shows 21 (warm 20), mode=hold hold_ms=400 lines 0, threshold span lines 0, hive surface layer 21 window 0, hive focus: true 21, median from the threshold 53.5 ms, median from the press none ms
+  FAIL S-019 AC20: every show line says mode=hold and hold_ms=400 (hive_bench show --drop --hold)
+  FAIL S-019 AC20: in every show the time from the press is the threshold plus the time from its end (press_to_frame_ms - first_frame_ms 400 to 450)
+  FAIL S-019 AC20: no show took the keyboard (drop mode)
+  ```
+  اليوم يجعل `show --drop --hold` الظهور عادياً يأخذ التركيز، فلا ينجح «الوسيط أقل من 150 ms» وحده بشيء.
+- `tests/hyprland/repro.sh --json --quasimode`: `{"total": 20, "failed": 5, "skipped": 0}`، والفحوص الثلاثة عشر الأساسية كلها PASS:
+  ```
+  FAIL quasimode: screen reader flag without a reader keeps the layer (S-019, not implemented)
+  FAIL quasimode: adaptive shape (S-019, not implemented)
+  INFO quasimode key release: press exit 2 in 1 ms, layer at 300 ms no, layer by 1000 ms no, release exit 2 in 1 ms, gone within 500 ms yes, get_layer_surface 0
+  FAIL quasimode: key release hides (S-019 AC11 to AC13): ...
+  INFO quasimode tap: press exit 2 in 1 ms, release exit 2 in 2 ms, a layer listed within 1000 ms no, new surfaces in the trace 0
+  FAIL quasimode: a tap shows nothing (S-019 AC13): ...
+  INFO quasimode drop preview: first enter at segment line 74, preview lines before it 0, first after it: none
+  FAIL quasimode: drop preview after enter (S-019 AC14, AC15): "hive preview: icon image" after the drag's first enter, none before it
+  ```
+- `tests/drop/hold_docs.sh`: `RESULT FAIL (12)`، كل فحوص النص، ونجح فحص الشرطة الطويلة وحده.
+
+#### حرّاس تنجح قبل التنفيذ عمداً
+
+- فجوة التغطية الأولى (الظهور 12 في `tests/drop/kwin.sh`) سلوك قائم منذ `f3d1f58`، فنجحت فحوصه الخمسة: أول دخول بعد 119.9 ms من أول إطار، و`hive anchor: none` ثم `400 500`، و`set_position` (444، 219) ثم (204، 319)، والتحويل بعد 120.0 ms، و`held 12.webp` مكتوب. لم ألوِه ليفشل.
+- فجوة التغطية الثانية (`tests/overlay/kwin.sh outputs`) كذلك: `RESULT PASS` على `f3d1f58` بفحوصه الاثني عشر. صندوق `open` على Virtual-1 هو `1388 23 384 353` وعلى Virtual-0 `108 23 384 353`، و`drop --at 1580,200` صندوقه `1544 158 72 83` (المركز وحده قبل الدخول)، والمرساة `300 200` في الثلاثة، فالفحص يميّز المخرجين فعلاً.
+- `ac14`: «قبل الدخول العدد 0 ونص الانتظار» و`preview_checks` «لا معاينة قبل أول دخول» ينجحان اليوم لأنه لا معاينة أصلاً؛ تكمّلهما في الاختبار نفسه فحوص ما بعد الدخول الفاشلة.
+- `ac12` في `drop_tests.rs`: «الظهور دون hold يتجاهل الترك» و«لا حفظ لترك سابق» و«المهلة باقية» و«الخروج يغلق دون hold» و«الإلغاء وEsc يغلقان ظهور hold» و«الترك بعد الإفلات بلا أثر» نجحت مع البدائل الفارغة؛ على `f3d1f58` لا تُبنى.
+
+#### للمدير
+
+- الترك الضائع (القرار 11، خطر مقبول): البوابة بحدثيها فقط لا تعرف أن الخلية أُغلقت بالمهلة والمفتاح مرفوع، فتبقى «ظاهرة بلا ترك» حتى ترك تالٍ، فتُهمل الضغطة الأولى بعد ذلك ثم تعمل الثانية. لم أفرض حدثاً ثالثاً (يخالف «حدثان فقط» في AC17)، ولا اختبار له. إن أراد المدير خلاف ذلك فهو معيار جديد.
+- `tests/drop/docs.sh` (S-014d AC12) يفشل على `f3d1f58` قبل تعديلاتي (`RESULT FAIL (16)`: لا أسطر ربط `sbarhive drop` في README Hyprland ولا في `docs/`). لم أعدّله، وفحوص S-019 في سكربت مستقل `hold_docs.sh` كي لا تختلط بفشل قائم.
+- بوابات على ملفات الاختبار: `cargo fmt --all --check` نظيف، و`cargo clippy -p sbarhive-cli --tests -- -D warnings` بلا تحذير (core وui لا تُبنى أهداف اختبارها حتى التنفيذ)، و`shellcheck -S warning` نظيف على السكربتات المعدّلة، و`bash -n` لكلها، ولا شرطة طويلة في الفرق.
+- لم يُشغَّل (قيد الحمل، والتعديل فيها تهيئة أو لا يمسها): `tests/overlay/kwin.sh` بأوضاعه الأخرى (`shot.py` دون الوسيط الجديد يبقى `CaptureActiveScreen`)، و`tests/drop/kwin.sh shortcut` و`gnome.sh shortcut`، و`tests/drop/budget.sh` دون `hold` (المسار القديم لم يتغير سوى `-u HOLD`)، و`tests/e2e/run.sh` و`tests/focus/*`.

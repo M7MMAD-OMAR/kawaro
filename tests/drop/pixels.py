@@ -9,6 +9,9 @@ Standard library only.
   pixels.py count SHOT X Y W H TOKENS SCHEME NAME [TOLERANCE]
       prints how many pixels of the box are within TOLERANCE levels (default
       8) per channel of color.SCHEME.NAME in design/tokens.json.
+  pixels.py rgbcount SHOT X Y W H RRGGBB [TOLERANCE]
+      the same count for a literal colour (S-019 AC15: the seeded
+      thumbnail's colour, which is no design token).
   pixels.py diff A B [TOLERANCE]
       prints the fraction of pixels that differ by more than TOLERANCE levels
       (default 8) in any channel; exits 1 when the sizes differ.
@@ -70,11 +73,15 @@ def main():
         _w, _h, rows = load(a[0])
         x, y, w, h = map(int, a[1:5])
         save(a[5], w, h, box(rows, x, y, w, h))
-    elif cmd == "count":
+    elif cmd in ("count", "rgbcount"):
         _w, _h, rows = load(a[0])
         x, y, w, h = map(int, a[1:5])
-        want = rgb(json.load(open(a[5]))["color"][a[6]][a[7]])
-        tol = int(a[8]) if len(a) > 8 else 8
+        if cmd == "count":
+            want = rgb(json.load(open(a[5]))["color"][a[6]][a[7]])
+            tol = int(a[8]) if len(a) > 8 else 8
+        else:
+            want = rgb(a[5])
+            tol = int(a[6]) if len(a) > 6 else 8
         n = 0
         for r in box(rows, x, y, w, h):
             for i in range(0, len(r), 4):

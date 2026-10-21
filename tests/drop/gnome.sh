@@ -23,6 +23,12 @@
 # cell, then Esc is pressed mid-drag over the hive and before the hive
 # (tests/drop/lib.sh, shortcut_shows). The five S-014b and S-014c shows are
 # not run in this mode.
+# S-019f (AC14, AC15): show 6 drags thumbed.png, whose thumbnail is seeded
+# in the sandbox's XDG_CACHE_HOME (tests/overlay/thumbs.py), onto the
+# centre cell; every show's "hive preview" lines are checked by
+# preview_checks (lib.sh): "icon image" for the PNGs, "icon pdf" for show 5,
+# "thumb W H" for show 6, one per enter and none before it. The pixels of
+# the preview are checked on KWin only (tests/drop/kwin.sh, show 13).
 # Usage: tests/drop/gnome.sh [smart|strict] [shortcut] [target/release]
 #   Mutter focus-new-windows, default smart
 set -u
@@ -95,6 +101,10 @@ inner() {
   local i
   for i in one two three four; do cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo $i.png"; done
   cp "$ROOT/tests/fixtures/docs/one-page.pdf" "$W/report five.pdf"
+  THUMBED="$W/thumbed.png"
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$THUMBED"
+  python3 -I "$ROOT/tests/overlay/thumbs.py" "$THUMBED" "$XDG_CACHE_HOME" large 128 128 photo >"$log-thumb.log" 2>&1 \
+    || echo "INFO S-019 AC15: thumbs.py failed: $(cat "$log-thumb.log")"
   NEXT="$XDG_RUNTIME_DIR/next"; printf '%s\n' "$W/photo one.png" >"$NEXT"
   DLOG="$log-daemon.log"; SLOG="$log-source.log"
 
@@ -135,8 +145,10 @@ inner() {
   cycle 3 "$W/photo three.png" webp 1
   cycle 4 "$W/photo four.png" centre 0
   cycle 5 "$W/report five.pdf" corner 0
+  cycle 6 "$THUMBED" centre 0
   protocol_checks
   enter_cells_checks
+  preview_checks
   fi
   summary
 

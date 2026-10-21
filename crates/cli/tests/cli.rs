@@ -546,3 +546,137 @@ fn ac8_s019_decision1_drop_at_rejects_a_malformed_position_without_a_request() {
         );
     }
 }
+
+// S-019e (backlog/S-019-hive-at-pointer.md, AC11 and AC19, amended
+// 2026-10-21): `sbarhive drop --hold` is the press of a held key and
+// `sbarhive drop --release` its release. The threshold timer is in the
+// daemon (AC17): the client sends one request and returns at once. The JSON
+// forms are fixed in crates/core/tests/ipc_drop.rs: `"hold": true` on a
+// drop, and `{"cmd":"drop-release"}`.
+
+/// Runs `sbarhive drop ARGS` against a fake daemon and returns the requests
+/// it saw, the output and the wall time of the command.
+fn drop_timed(env: &Env, args: &[&str]) -> (Vec<serde_json::Value>, Output, std::time::Duration) {
+    let seen = raw_daemon(env);
+    let mut all = vec!["drop"];
+    all.extend_from_slice(args);
+    let t0 = std::time::Instant::now();
+    let o = env.run(&all);
+    let took = t0.elapsed();
+    let seen = seen.lock().unwrap().clone();
+    (seen, o, took)
+}
+
+fn hold_flag(v: &serde_json::Value) -> bool {
+    v.get("hold").and_then(|h| h.as_bool()).unwrap_or(false)
+}
+
+#[test]
+fn ac11_s019e_drop_hold_sends_one_press_and_returns_within_200_ms() {
+    let env = Env::new(None);
+    // A long threshold in the private config: the client must not wait for
+    // it (the timer is the daemon's).
+    std::fs::create_dir_all(env.root().join(".config/sbarhive")).unwrap();
+    std::fs::write(
+        env.root().join(".config/sbarhive/config.toml"),
+        "hold_ms = 2000\n",
+    )
+    .unwrap();
+    let (seen, o, took) = drop_timed(&env, &["--hold"]);
+    assert_eq!(o.status.code(), Some(0), "{}", stderr(&o));
+    assert!(
+        took < std::time::Duration::from_millis(200),
+        "drop --hold returned after {took:?}"
+    );
+    assert_eq!(seen.len(), 1, "one request: {seen:?}");
+    assert_eq!(seen[0]["cmd"], "drop", "{}", seen[0]);
+    assert!(hold_flag(&seen[0]), "\"hold\": true: {}", seen[0]);
+}
+
+#[test]
+fn ac11_s019e_plain_drop_stays_an_immediate_show() {
+    // `sbarhive drop` without --hold keeps the S-014 request (no hold), for
+    // a binding that runs it on a plain key press; --hold is the other one.
+    let v = drop_request(&[], &[]);
+    assert!(!hold_flag(&v), "no hold on a plain drop: {v}");
+    let v = drop_request(&["--hold"], &[]);
+    assert!(hold_flag(&v), "hold with --hold: {v}");
+}
+
+#[test]
+fn ac11_s019e_drop_hold_goes_with_at_and_the_token() {
+    let v = drop_request(&["--hold", "--at", "1198, 1800", "--token", "T"], &[]);
+    assert!(hold_flag(&v), "{v}");
+    assert_eq!(at(&v), Some((1198.0, 1800.0)), "{v}");
+    assert_eq!(token(&v), Some("T"), "{v}");
+}
+
+#[test]
+fn ac11_s019e_drop_release_sends_drop_release_and_returns_within_200_ms() {
+    let env = Env::new(None);
+    let (seen, o, took) = drop_timed(&env, &["--release"]);
+    assert_eq!(o.status.code(), Some(0), "{}", stderr(&o));
+    assert!(
+        took < std::time::Duration::from_millis(200),
+        "drop --release returned after {took:?}"
+    );
+    assert_eq!(seen, [serde_json::json!({"cmd": "drop-release"})]);
+}
+
+#[test]
+fn ac11_s019e_drop_release_without_a_daemon_starts_none_and_exits_0() {
+    // No socket in the private runtime dir: the release of a key whose
+    // press never reached a daemon. The client must not start one (AC11).
+    let env = Env::new(None);
+    let sock = env.root().join("sbarhive.sock");
+    let t0 = std::time::Instant::now();
+    let o = env.run(&["drop", "--release"]);
+    let took = t0.elapsed();
+    assert_eq!(o.status.code(), Some(0), "{}", stderr(&o));
+    assert!(
+        took < std::time::Duration::from_millis(200),
+        "drop --release returned after {took:?}"
+    );
+    // A daemon started in the background would bind its socket here.
+    std::thread::sleep(std::time::Duration::from_millis(1000));
+    assert!(
+        !sock.exists(),
+        "drop --release started a daemon (socket {})",
+        sock.display()
+    );
+}
+
+#[test]
+fn ac19_s019e_drop_release_without_a_press_exits_0() {
+    // The daemon got no press before: the client still exits 0 (AC19).
+    let env = Env::new(None);
+    let (seen, o, _) = drop_timed(&env, &["--release"]);
+    assert_eq!(o.status.code(), Some(0), "{}", stderr(&o));
+    assert_eq!(seen.len(), 1, "{seen:?}");
+}
+
+#[test]
+fn ac11_s019e_hold_and_release_together_are_a_usage_error() {
+    let env = Env::new(None);
+    let seen = raw_daemon(&env);
+    // Each option alone is accepted, so the rejections below are about the
+    // pair, not an unknown option.
+    for one in ["--hold", "--release"] {
+        let o = env.run(&["drop", one]);
+        assert_eq!(o.status.code(), Some(0), "{one}: {}", stderr(&o));
+    }
+    let before = seen.lock().unwrap().len();
+    assert_eq!(before, 2, "{:?}", seen.lock().unwrap());
+    for args in [
+        ["drop", "--hold", "--release"],
+        ["drop", "--release", "--hold"],
+    ] {
+        let o = env.run(&args);
+        assert_eq!(o.status.code(), Some(2), "{args:?}: {}", stderr(&o));
+    }
+    assert_eq!(
+        seen.lock().unwrap().len(),
+        before,
+        "nothing sent for the pair"
+    );
+}

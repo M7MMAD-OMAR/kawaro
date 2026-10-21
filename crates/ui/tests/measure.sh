@@ -11,6 +11,16 @@
 #   DROP=1    every show is a drop-mode show (S-014 AC12): hive_bench gets
 #             "show --drop", which presents the hive the way `sbarhive drop`
 #             does (Hive::present_drop), and prints "mode=drop" in its line.
+#   HOLD=1    S-019e AC20: every show is a drop show in hold mode, the way
+#             the daemon makes one after the long press threshold:
+#             hive_bench gets "show --drop --hold"; its daemon passes the
+#             request through the long press gate (sbarhive_core::hold,
+#             threshold 400 ms) and shows the hive when the gate's timer
+#             gives the show. The show line then carries "mode=hold",
+#             "hold_ms=400", "first_frame_ms=A" timed from the threshold's
+#             end (the gate's show) to the first frame, and
+#             "press_to_frame_ms=B" from the request to the first frame
+#             (B is the threshold plus A).
 #   PREVIEW=1 every show presents one selected file whose only thumbnail is a
 #             1024 px "xx-large" one (S-018 AC27): the file and the thumbnail
 #             are made in this script's sandbox (tests/overlay/thumbs.py), and
@@ -58,7 +68,8 @@ inner() {
   for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/sbarhive-ui-bench.sock" ] && break; sleep 0.1; done
   sleep 1
   local tok=(); [ -n "${SHOW_TOKEN:-}" ] && tok=(--token "$SHOW_TOKEN")
-  [ -n "${DROP:-}" ] && tok+=(--drop)
+  [ -n "${DROP:-}${HOLD:-}" ] && tok+=(--drop)
+  [ -n "${HOLD:-}" ] && tok+=(--hold)
   echo "first $("$BIN" show "${tok[@]}" 2>&1 | tr '\n' ' ')"
   "$BIN" ctl hide; sleep 0.5
   for i in $(seq "$RUNS"); do
@@ -74,7 +85,7 @@ inner() {
 }
 
 export -f inner
-export BIN OUT RUNS IDLE CPUS SHOW_TOKEN PREVIEW DROP ROOT
+export BIN OUT RUNS IDLE CPUS SHOW_TOKEN PREVIEW DROP HOLD ROOT
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"
@@ -94,5 +105,6 @@ echo "cold exec_to_frame_ms median $(grep '^cold ' "$OUT/result.txt" | grep -o '
 echo "first show after daemon start: $(grep '^first ' "$OUT/result.txt" | cut -d' ' -f2-)"
 echo "warm first_frame_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o 'first_frame_ms=[0-9.]*' | cut -d= -f2 | median)"
 echo "warm first_frame_ms max $(grep '^warm ' "$OUT/result.txt" | grep -o 'first_frame_ms=[0-9.]*' | cut -d= -f2 | sort -n | tail -1)"
+[ -n "${HOLD:-}" ] && echo "warm press_to_frame_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o 'press_to_frame_ms=[0-9.]*' | cut -d= -f2 | median)"
 grep '^rss_kb' "$OUT/result.txt"
 echo "raw output: $OUT/result.txt"
