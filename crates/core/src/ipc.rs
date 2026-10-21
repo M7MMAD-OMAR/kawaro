@@ -32,6 +32,10 @@ pub enum Request {
     Drop {
         #[serde(default)]
         token: Option<String>,
+        /// The pointer position in global logical coordinates, as
+        /// `hyprctl cursorpos` prints it (S-019 decision 1): `"at": [X, Y]`.
+        #[serde(default)]
+        at: Option<(f64, f64)>,
     },
     /// Run an action without showing the hive.
     Run {

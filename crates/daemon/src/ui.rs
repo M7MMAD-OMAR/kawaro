@@ -195,12 +195,13 @@ pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token:
     });
 }
 
-/// Shows the hive that waits for a dragged file (`sbarhive drop`).
-pub fn present_drop(centre: &'static str, token: Option<String>) {
+/// Shows the hive that waits for a dragged file (`sbarhive drop`), at the
+/// pointer position `at` when the caller knows it.
+pub fn present_drop(centre: &'static str, token: Option<String>, at: Option<(f64, f64)>) {
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
-                && let Err(e) = hive.present_drop(centre, token)
+                && let Err(e) = hive.present_drop_at(centre, token, at)
             {
                 eprintln!("sbarhived: cannot show the drop hive: {e}");
             }

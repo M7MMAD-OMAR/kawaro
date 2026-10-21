@@ -15,6 +15,14 @@
 //! the original. It reads the dragged files when the drag enters, so the
 //! cells can be built before the drop. Picking is `dnd::pick`; everything
 //! else goes to the main thread as a [`Note`].
+//!
+//! On the layer path a drop show starts in an anchor phase (S-019 AC8, AC9):
+//! the catcher takes the drag with its default region until the first
+//! position. Then the receiver holds the offer, reads and accepts nothing,
+//! and sends only [`Note::Position`]. Once the hive is placed there, the
+//! main thread calls [`replay`], and the held enter runs after the new
+//! input region is on the wire (a `wl_display.sync` on this queue), since
+//! the compositor sends no second enter to the same surface.
 
 use crate::dnd;
 use crate::layout::Plan;
@@ -23,10 +31,11 @@ use rustix::pipe::{PipeFlags, pipe_with};
 use std::io::Read;
 use std::os::fd::AsFd;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use wayland_client::globals::{GlobalListContents, registry_queue_init};
+use wayland_client::protocol::wl_callback::{self, WlCallback};
 use wayland_client::protocol::wl_data_device::{self, WlDataDevice};
 use wayland_client::protocol::wl_data_device_manager::{self, DndAction, WlDataDeviceManager};
 use wayland_client::protocol::wl_data_offer::{self, WlDataOffer};
@@ -50,6 +59,9 @@ pub enum Note {
     Leave,
     /// Dropped; the last `Motion` says on which cell, `None` when refused.
     Drop,
+    /// A drag position on the drop surface in the anchor phase, in its
+    /// coordinates; never reaches the mode machine.
+    Position(f64, f64),
 }
 
 /// Called on the main thread for each note.
@@ -73,6 +85,8 @@ static PLAN: Mutex<Option<Plan>> = Mutex::new(None);
 /// the layer path receives on the catcher (S-020), the window path on the
 /// hive itself (0, 0).
 static OFFSET: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
+/// The anchor phase of a layer drop show: enters are held, not handled.
+static ANCHORING: AtomicBool = AtomicBool::new(false);
 
 /// Binds a new data device for the drop surface `surface` on `display` (raw
 /// `wl_display` and `wl_surface` pointers, from winit or the layer
@@ -104,8 +118,25 @@ pub fn attach(display: usize, surface: usize, sink: Sink) {
     let _ = s.conn.flush();
 }
 
+/// Starts or ends the anchor phase (layer path, S-019 AC8).
+pub fn set_anchoring(on: bool) {
+    ANCHORING.store(on, Ordering::SeqCst);
+}
+
+/// Handles the enter held in the anchor phase, after the requests sent so
+/// far (the hive's input region) reach the compositor.
+pub fn replay() {
+    for s in lock(&RECEIVERS).iter().filter_map(|(_, s)| s.as_ref()) {
+        if s.target.load(Ordering::SeqCst) != 0 {
+            s.conn.display().sync(&s.qh, ());
+            let _ = s.conn.flush();
+        }
+    }
+}
+
 /// Stops receiving: releases the data devices and forgets the surface.
 pub fn detach() {
+    ANCHORING.store(false, Ordering::SeqCst);
     for s in lock(&RECEIVERS).iter().filter_map(|(_, s)| s.as_ref()) {
         s.target.store(0, Ordering::SeqCst);
         release(s);
@@ -175,6 +206,7 @@ fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
         hover: None,
         accepted: false,
         action: false,
+        held: None,
     };
     let spawned = std::thread::Builder::new()
         .name("sbarhive-drop".into())
@@ -203,6 +235,9 @@ struct Receiver {
     accepted: bool,
     /// The compositor chose a (copy) action for the current offer.
     action: bool,
+    /// An enter in the anchor phase, at the latest position: handled by
+    /// [`replay`].
+    held: Option<(f64, f64)>,
 }
 
 impl Receiver {
@@ -246,6 +281,7 @@ impl Receiver {
         self.hover = None;
         self.accepted = false;
         self.action = false;
+        self.held = None;
     }
 
     fn enter(&mut self, x: f64, y: f64) {
@@ -363,6 +399,25 @@ impl Dispatch<WlDataDeviceManager, ()> for Receiver {
     }
 }
 
+impl Dispatch<WlCallback, ()> for Receiver {
+    fn event(
+        s: &mut Self,
+        _: &WlCallback,
+        e: wl_callback::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_callback::Event::Done { .. } = e
+            && s.on_us
+            && !ANCHORING.load(Ordering::SeqCst)
+            && let Some((x, y)) = s.held.take()
+        {
+            s.enter(x, y);
+        }
+    }
+}
+
 impl Dispatch<WlDataOffer, ()> for Receiver {
     fn event(
         s: &mut Self,
@@ -429,15 +484,32 @@ impl Dispatch<WlDataDevice, ()> for Receiver {
                 }
                 s.on_us = true;
                 s.serial = serial;
-                s.enter(x, y);
+                if ANCHORING.load(Ordering::SeqCst) {
+                    s.held = Some((x, y));
+                    s.note(Note::Position(x, y));
+                } else {
+                    s.enter(x, y);
+                }
             }
-            wl_data_device::Event::Motion { x, y, .. } if s.on_us => s.hover_at(x, y),
+            wl_data_device::Event::Motion { x, y, .. } if s.on_us => {
+                if s.held.is_some() {
+                    s.held = Some((x, y));
+                    if ANCHORING.load(Ordering::SeqCst) {
+                        s.note(Note::Position(x, y));
+                    }
+                } else {
+                    s.hover_at(x, y);
+                }
+            }
             wl_data_device::Event::Leave => {
-                if s.on_us {
+                if s.on_us && s.held.is_none() {
                     s.note(Note::Leave);
                 }
                 s.clear();
             }
+            // A drop in the anchor phase is refused; the machine never saw
+            // the drag.
+            wl_data_device::Event::Drop if s.on_us && s.held.is_some() => s.clear(),
             wl_data_device::Event::Drop if s.on_us => s.drop_here(),
             _ => {}
         }

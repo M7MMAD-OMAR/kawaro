@@ -59,7 +59,9 @@ pub fn assign(cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
 }
 
 /// Lays out the cells for a window, using the token sizes. The window holds
-/// one ring when ring 2 is empty, two otherwise.
+/// one ring when ring 2 is empty, two otherwise. The hive shows go through
+/// [`plan_rings`] with one ring, which is this; the tests use it.
+#[cfg_attr(not(test), allow(dead_code))]
 pub fn plan(cells: Vec<HiveCell>, rtl: bool) -> Plan {
     plan_rings(cells, rtl, 1)
 }
@@ -103,9 +105,6 @@ pub fn plan_rings(cells: Vec<HiveCell>, rtl: bool, min_rings: i32) -> Plan {
 }
 
 /// The outermost ring the hive at an anchor may use (S-019 decision 5).
-// S-019c and S-019d wire `plan_at` into the show path; until then only the
-// tests call it.
-#[cfg_attr(not(test), allow(dead_code))]
 pub const MAX_RINGS: i32 = 4;
 
 /// The hive with its centre at `anchor` on a `screen` sized output (S-019
@@ -118,7 +117,6 @@ pub const MAX_RINGS: i32 = 4;
 /// accepted slots of rings 2 to [`MAX_RINGS`] in spiral order. The surface
 /// is the bounding box of the centre and every accepted slot of the rings
 /// it sizes for.
-#[cfg_attr(not(test), allow(dead_code))]
 pub fn plan_at(
     cells: Vec<HiveCell>,
     rtl: bool,

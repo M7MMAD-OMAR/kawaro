@@ -50,6 +50,10 @@ enum Cmd {
         /// xdg-activation token or startup id from the caller.
         #[arg(long)]
         token: Option<String>,
+        /// The pointer position "X,Y" in global logical coordinates, for
+        /// example from `hyprctl cursorpos`.
+        #[arg(long, value_parser = parse_at, allow_hyphen_values = true)]
+        at: Option<(f64, f64)>,
     },
     /// Convert in this process, without the daemon.
     Convert {
@@ -102,7 +106,7 @@ fn main() -> ExitCode {
             from_clipboard,
             files,
         } => open(token, from_clipboard, files),
-        Cmd::Drop { token } => drop_hive(token),
+        Cmd::Drop { token, at } => drop_hive(token, at),
         Cmd::Convert { to, quality, files } => convert(&to, quality, &files),
         Cmd::Run {
             action,
@@ -160,10 +164,22 @@ fn open(token: Option<String>, from_clipboard: bool, mut files: Vec<PathBuf>) ->
     client::request(&Request::Open { files, token }).map(|_| ())
 }
 
-fn drop_hive(token: Option<String>) -> Res<()> {
+fn drop_hive(token: Option<String>, at: Option<(f64, f64)>) -> Res<()> {
     let token = resolve_token(token, &|k| std::env::var(k).ok());
     client::ensure_daemon()?;
-    client::request(&Request::Drop { token }).map(|_| ())
+    client::request(&Request::Drop { token, at }).map(|_| ())
+}
+
+/// `X,Y` with optional spaces after the comma, as `hyprctl cursorpos`
+/// prints it.
+fn parse_at(s: &str) -> Result<(f64, f64), String> {
+    let bad = || format!("expected X,Y (two numbers), got {s:?}");
+    let (x, y) = s.split_once(',').ok_or_else(bad)?;
+    let num = |v: &str| v.trim().parse::<f64>().ok().filter(|n| n.is_finite());
+    match (num(x), num(y)) {
+        (Some(x), Some(y)) => Ok((x, y)),
+        _ => Err(bad()),
+    }
 }
 
 /// `--token` first, then the variables launchers set: Wayland's

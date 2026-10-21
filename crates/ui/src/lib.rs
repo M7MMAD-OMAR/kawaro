@@ -92,6 +92,18 @@ thread_local! {
     /// The window path still owes this show's `hive surface` line, for a
     /// window of this logical size (S-018 AC11).
     static WINDOW_REPORT: Cell<Option<(f32, f32)>> = const { Cell::new(None) };
+    /// The hive of the last show, which the layer path lays out again at
+    /// the pointer (S-019c, S-019d).
+    static SHOWN: RefCell<Weak<Inner>> = const { RefCell::new(Weak::new()) };
+}
+
+/// Lays out the shown hive with `plan` (the layer path's plan at the
+/// pointer), keeping its texts and preview.
+#[cfg(target_os = "linux")]
+fn set_shown_plan(plan: Plan) {
+    if let Some(inner) = SHOWN.with(|h| h.borrow().upgrade()) {
+        inner.set_plan(plan);
+    }
 }
 
 /// Prints `hive surface: KIND X Y W H` in logical screen pixels when
@@ -298,6 +310,8 @@ fn on_note(note: receiver::Note) {
         receiver::Note::Motion(cell) => dnd::Event::Motion(cell),
         receiver::Note::Leave => dnd::Event::Leave,
         receiver::Note::Drop => dnd::Event::Drop,
+        // The anchor phase on the layer path (S-019 AC9): never the machine.
+        receiver::Note::Position(x, y) => return layer::position(x, y),
     };
     inner.drag(event);
 }
@@ -362,6 +376,14 @@ impl Inner {
 
     /// Shows `plan` in the window and keeps it for picking.
     fn apply(&self, centre: &str, plan: Plan) {
+        self.set_plan(plan);
+        let ui = self.ui.borrow();
+        ui.set_centre_text(centre.into());
+        ui.set_centre_label(centre.into());
+    }
+
+    /// The cells, size and centre of `plan`, without touching the texts.
+    fn set_plan(&self, plan: Plan) {
         let ui = self.ui.borrow();
         let data: Vec<CellData> = plan
             .cells
@@ -384,8 +406,6 @@ impl Inner {
         ui.set_centre_y(plan.layout.origin.1);
         ui.set_win_w(plan.width);
         ui.set_win_h(plan.height);
-        ui.set_centre_text(centre.into());
-        ui.set_centre_label(centre.into());
         ui.set_rtl(self.rtl);
         #[cfg(target_os = "linux")]
         receiver::set_plan(Some(plan.clone()));
@@ -451,7 +471,14 @@ impl Inner {
         }
         let f = self.on_drop_files.borrow().clone();
         let (centre, cells) = f.map(|f| f(files)).unwrap_or_default();
-        self.apply(&centre, layout::plan_rings(cells, self.rtl, 2));
+        // On the layer path the hive keeps the place and box it took at the
+        // pointer (S-019d).
+        #[cfg(target_os = "linux")]
+        let plan = layer::replan(&cells);
+        #[cfg(not(target_os = "linux"))]
+        let plan = None;
+        let plan = plan.unwrap_or_else(|| layout::plan_rings(cells, self.rtl, 2));
+        self.apply(&centre, plan);
     }
 
     /// Feeds a drag or clock event to the mode machine and acts on the result.
@@ -558,8 +585,7 @@ impl Hive {
         cells: Vec<HiveCell>,
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
-        let plan = layout::plan(cells, self.inner.rtl);
-        self.show(centre, plan, token, false, &[])
+        self.show(centre, cells, 1, token, None, &[])
     }
 
     /// [`Hive::present`] with the selected `files` in the centre cell
@@ -575,8 +601,7 @@ impl Hive {
         cells: Vec<HiveCell>,
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
-        let plan = layout::plan(cells, self.inner.rtl);
-        self.show(centre, plan, token, false, files)
+        self.show(centre, cells, 1, token, None, files)
     }
 
     /// Where [`Hive::present_files`] looks for thumbnails (the freedesktop
@@ -599,19 +624,36 @@ impl Hive {
         centre: &str,
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
-        let plan = layout::plan_rings(Vec::new(), self.inner.rtl, 2);
-        self.show(centre, plan, token, true, &[])
+        self.present_drop_at(centre, token, None)
     }
 
+    /// [`Hive::present_drop`] with the pointer position `at` in global
+    /// logical coordinates (`sbarhive drop --at`, S-019 decision 1). The
+    /// layer path places the hive there at once instead of waiting for the
+    /// first drag position; the window path ignores it.
+    pub fn present_drop_at(
+        &self,
+        centre: &str,
+        token: Option<String>,
+        at: Option<(f64, f64)>,
+    ) -> Result<(), slint::PlatformError> {
+        self.show(centre, Vec::new(), 2, token, Some(at), &[])
+    }
+
+    /// Shows `cells` in a hive of at least `min_rings` rings; `drop` is
+    /// `Some(at)` for a drop show. On the layer path the hive is laid out
+    /// again at the pointer once its position is known (S-019c, S-019d).
     fn show(
         &self,
         centre: &str,
-        plan: Plan,
+        cells: Vec<HiveCell>,
+        min_rings: i32,
         token: Option<String>,
-        drop: bool,
+        drop: Option<Option<(f64, f64)>>,
         files: &[PathBuf],
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
+        let plan = layout::plan_rings(cells.clone(), inner.rtl, min_rings);
         if inner.visible() {
             // Hide first so the old surface goes away before the new one.
             inner.close();
@@ -639,12 +681,22 @@ impl Hive {
         inner.set_preview(centre, files);
         #[cfg(not(unix))]
         let _ = files;
+        let (at, drop) = (drop.flatten(), drop.is_some());
         inner
             .machine
             .borrow_mut()
             .handle(dnd::Event::Show { drop }, Instant::now());
         #[cfg(target_os = "linux")]
-        layer::set_drop_mode(drop);
+        layer::set_show(layer::ShowRequest {
+            cells,
+            rtl: inner.rtl,
+            min_rings,
+            drop,
+            at,
+        });
+        #[cfg(not(target_os = "linux"))]
+        let _ = (cells, at);
+        SHOWN.with(|h| *h.borrow_mut() = Rc::downgrade(inner));
         if drop {
             DROP_HIVE.with(|h| *h.borrow_mut() = Rc::downgrade(inner));
             ATTACH_PENDING.with(|c| c.set(true));

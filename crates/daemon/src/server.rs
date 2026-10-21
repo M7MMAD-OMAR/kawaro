@@ -61,14 +61,14 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
             ui::present(centre, files, cells, token);
             reply(&mut stream, &Response::Ok);
         }
-        Request::Drop { token } => {
+        Request::Drop { token, at } => {
             // The files come with the drag, when it enters the hive.
             let lang = {
                 let mut st = lock(state);
                 st.pending = None;
                 st.lang
             };
-            ui::present_drop(text::drop_waiting(lang), token);
+            ui::present_drop(text::drop_waiting(lang), token, at);
             reply(&mut stream, &Response::Ok);
         }
         Request::Run {

@@ -5,12 +5,22 @@
 //! Per show (`set_visible(true)`), destroyed again on hide:
 //! - catcher: a layer surface on the overlay layer anchored to all edges,
 //!   exclusive zone -1, keyboard exclusive (none in drop mode). Its buffer is
-//!   one transparent pixel stretched by wp_viewporter; a click on it, outside
-//!   the hive, asks to close. In drop mode its input region is empty until
-//!   the first configure, then the hive rectangle, so it takes the drag
-//!   (S-020: Hyprland sends no drag motion to a layer surface's subsurface).
-//! - hive: a subsurface of the catcher, centred by [`overlay::place`],
-//!   holding the Slint frame in a wl_shm buffer; no input in drop mode.
+//!   one transparent pixel stretched by wp_viewporter, attached at the first
+//!   configure so the pointer can enter it; a click on it, outside the hive,
+//!   asks to close (never in drop mode). In drop mode its input region is
+//!   its default one until the first position, then the hive rectangle, so
+//!   it takes the drag (S-020: Hyprland sends no drag motion to a layer
+//!   surface's subsurface; S-019 AC8).
+//! - hive: a subsurface of the catcher, placed by [`layout::plan_at`] at
+//!   the anchor, holding the Slint frame in a wl_shm buffer; no input in
+//!   drop mode.
+//!
+//! The anchor (S-019 AC5, AC8) is the first pointer enter or motion on the
+//! catcher, or drag position in drop mode, waited for at most
+//! [`ANCHOR_WAIT`] from the first configure; without one the hive is
+//! centred. A drop show centred so moves once, at its first position. With
+//! `sbarhive drop --at X,Y` the output holding that point (xdg-output) is
+//! chosen and the hive placed before the first commit.
 //!
 //! One wayland-client connection for the process, read on a thread; its
 //! events are dispatched on the Slint thread and go to the adapter that is
@@ -18,6 +28,8 @@
 //! A drop-mode show also binds the drop receiver (`receiver.rs`) on this
 //! connection's display, to the catcher, offset by the hive position (S-020).
 
+use crate::HiveCell;
+use crate::layout::{self, Plan};
 use crate::overlay::{self, Surface};
 use rustix::event::{PollFd, PollFlags, poll};
 use slint::platform::software_renderer::{
@@ -38,6 +50,7 @@ use wayland_client::protocol::{
     wl_callback::{self, WlCallback},
     wl_compositor::WlCompositor,
     wl_keyboard::{self, WlKeyboard},
+    wl_output::{self, WlOutput},
     wl_pointer::{self, WlPointer},
     wl_region::WlRegion,
     wl_registry::WlRegistry,
@@ -62,6 +75,10 @@ use wayland_protocols::wp::viewporter::client::{
     wp_viewport::WpViewport, wp_viewporter::WpViewporter,
 };
 use wayland_protocols::xdg::activation::v1::client::xdg_activation_v1::XdgActivationV1;
+use wayland_protocols::xdg::xdg_output::zv1::client::{
+    zxdg_output_manager_v1::ZxdgOutputManagerV1,
+    zxdg_output_v1::{self, ZxdgOutputV1},
+};
 use wayland_protocols_wlr::layer_shell::v1::client::{
     zwlr_layer_shell_v1::{Layer, ZwlrLayerShellV1},
     zwlr_layer_surface_v1::{self, Anchor, KeyboardInteractivity, ZwlrLayerSurfaceV1},
@@ -74,15 +91,94 @@ thread_local! {
     static GLOBALS: RefCell<Vec<String>> = const { RefCell::new(Vec::new()) };
     /// The adapter whose surfaces are mapped; it gets the events.
     static OWNER: RefCell<Weak<LayerAdapter>> = const { RefCell::new(Weak::new()) };
-    /// The next show waits for a dragged file (S-014): no keyboard, no input.
-    static DROP_MODE: Cell<bool> = const { Cell::new(false) };
+    /// What the next show lays out, and whether it waits for a drag.
+    static SHOW: RefCell<ShowRequest> = RefCell::new(ShowRequest::default());
     /// The surface choice and reason last printed (S-019 AC2).
     static LAST_CHOICE: RefCell<Option<(Surface, String)>> = const { RefCell::new(None) };
 }
 
-/// Whether the next show is a drop show.
-pub(crate) fn set_drop_mode(on: bool) {
-    DROP_MODE.with(|d| d.set(on));
+/// How long a show waits for the pointer before it centres the hive
+/// (S-019 AC5, AC8).
+const ANCHOR_WAIT: Duration = Duration::from_millis(50);
+
+/// The cells of the next show and its kind, so the hive can be laid out
+/// again at the pointer (S-019c, S-019d).
+#[derive(Default)]
+pub(crate) struct ShowRequest {
+    pub cells: Vec<HiveCell>,
+    pub rtl: bool,
+    pub min_rings: i32,
+    /// A drop show (S-014): no keyboard, the catcher takes the drag.
+    pub drop: bool,
+    /// `sbarhive drop --at X,Y`, global logical coordinates.
+    pub at: Option<(f64, f64)>,
+}
+
+pub(crate) fn set_show(r: ShowRequest) {
+    SHOW.with(|s| *s.borrow_mut() = r);
+}
+
+/// A position from the drop receiver in the anchor phase (catcher
+/// coordinates).
+pub(crate) fn position(x: f64, y: f64) {
+    if let Some(a) = OWNER.with(|o| o.borrow().upgrade()) {
+        a.handle(Ev::Position(x, y));
+    }
+}
+
+/// The drop hive's plan for `cells` at the place and in the box it took at
+/// the pointer; `None` off the layer path or before it is placed.
+pub(crate) fn replan(cells: &[HiveCell]) -> Option<Plan> {
+    let a = OWNER.with(|o| o.borrow().upgrade())?;
+    if !a.decided.get() {
+        return None;
+    }
+    let rtl = SHOW.with(|s| s.borrow().rtl);
+    let (plan, _) = layout::plan_at(
+        cells.to_vec(),
+        rtl,
+        a.rings.get(),
+        a.screen.get(),
+        a.anchor.get(),
+        a.scale120.get(),
+    );
+    Some(plan)
+}
+
+/// The rings a drop hive at `anchor` sizes for: those 18 cells would use,
+/// at least 2. Its cells come only with the drag, so the box is fixed for
+/// the most a drag can bring and does not move or grow at enter (S-019d,
+/// implementer decision).
+fn drop_rings(rtl: bool, screen: (u32, u32), anchor: Option<(f32, f32)>) -> i32 {
+    let cells = (0..18)
+        .map(|i| HiveCell {
+            id: String::new(),
+            code: String::new(),
+            label: String::new(),
+            icon: String::new(),
+            ring: if i < 6 { 1 } else { 2 },
+        })
+        .collect();
+    let (plan, _) = layout::plan_at(cells, rtl, 2, screen, anchor, 120);
+    plan.cells
+        .iter()
+        .map(|c| {
+            c.axial
+                .q
+                .abs()
+                .max(c.axial.r.abs())
+                .max((c.axial.q + c.axial.r).abs())
+        })
+        .fold(2, i32::max)
+}
+
+/// An output with its place in the global logical space (xdg-output).
+struct Output {
+    name: u32,
+    wl: WlOutput,
+    xdg: Option<ZxdgOutputV1>,
+    origin: (i32, i32),
+    size: (i32, i32),
 }
 
 struct Shared {
@@ -104,6 +200,8 @@ struct Wl {
     fractional: Option<WpFractionalScaleManagerV1>,
     activation: Option<XdgActivationV1>,
     cursor_shape: Option<WpCursorShapeManagerV1>,
+    xdg_outputs: Option<ZxdgOutputManagerV1>,
+    outputs: Vec<Output>,
     pointer: Option<WlPointer>,
     /// Sets the default arrow on each enter (S-018 AC16).
     cursor: Option<WpCursorShapeDeviceV1>,
@@ -111,6 +209,7 @@ struct Wl {
     catcher: Option<WlSurface>,
     hive: Option<WlSurface>,
     pointer_on_hive: bool,
+    pointer_on_catcher: bool,
     shift: bool,
     events: Vec<Ev>,
     /// Buffers of the shown hive the compositor has not released yet,
@@ -125,9 +224,17 @@ enum Ev {
     Scale(u32),
     FrameDone,
     Motion(f64, f64),
+    /// The pointer or a drag on the catcher, in its coordinates.
+    Position(f64, f64),
     Leave,
-    Button { pressed: bool, on_hive: bool },
-    Key { code: u32, pressed: bool },
+    Button {
+        pressed: bool,
+        on_hive: bool,
+    },
+    Key {
+        code: u32,
+        pressed: bool,
+    },
     Focus(bool),
     Shift(bool),
 }
@@ -222,7 +329,23 @@ fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
         let g = g.borrow();
         overlay::wants_cursor_shape(&g.iter().map(String::as_str).collect::<Vec<_>>())
     });
+    let xdg_outputs: Option<ZxdgOutputManagerV1> = globals.bind(qh, 1..=3, ()).ok();
+    let mut outputs = Vec::new();
+    for g in globals.contents().clone_list() {
+        if g.interface == "wl_output" {
+            outputs.push(new_output(
+                globals.registry(),
+                g.name,
+                g.version,
+                xdg_outputs.as_ref(),
+                qh,
+            ));
+        }
+    }
     Some(Wl {
+        xdg_outputs,
+        outputs,
+        pointer_on_catcher: false,
         qh: qh.clone(),
         compositor: globals.bind(qh, 4..=6, ()).ok()?,
         subcompositor: globals.bind(qh, 1..=1, ()).ok()?,
@@ -242,6 +365,43 @@ fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
         shift: false,
         events: Vec::new(),
         buffers: Vec::new(),
+    })
+}
+
+fn new_output(
+    registry: &WlRegistry,
+    name: u32,
+    version: u32,
+    manager: Option<&ZxdgOutputManagerV1>,
+    qh: &QueueHandle<Wl>,
+) -> Output {
+    let wl: WlOutput = registry.bind(name, version.min(4), qh, ());
+    let xdg = manager.map(|m| m.get_xdg_output(&wl, qh, name));
+    Output {
+        name,
+        wl,
+        xdg,
+        origin: (0, 0),
+        size: (0, 0),
+    }
+}
+
+/// An output with its logical origin and size.
+type Target = (WlOutput, (i32, i32), (u32, u32));
+
+/// The output holding the global point `at`: the output, its origin and its
+/// logical size.
+fn output_at(at: (f64, f64)) -> Option<Target> {
+    SHARED.with(|s| {
+        let s = s.borrow();
+        s.as_ref()?.wl.outputs.iter().find_map(|o| {
+            let (x, y) = (at.0 - f64::from(o.origin.0), at.1 - f64::from(o.origin.1));
+            let inside = o.size.0 > 0
+                && o.size.1 > 0
+                && (0.0..f64::from(o.size.0)).contains(&x)
+                && (0.0..f64::from(o.size.1)).contains(&y);
+            inside.then(|| (o.wl.clone(), o.origin, (o.size.0 as u32, o.size.1 as u32)))
+        })
     })
 }
 
@@ -364,8 +524,24 @@ pub(crate) struct LayerAdapter {
     /// The token of the shown catcher, sent with its first frame: KWin
     /// ignores an activation of a layer surface that is not mapped yet.
     activation: RefCell<Option<String>>,
-    /// The `hive surface` line of this show was printed (S-018 AC11).
+    /// The `hive surface` line of this placement was printed (S-018 AC11).
     reported: Cell<bool>,
+    /// The hive of this show is placed (anchored or centred).
+    decided: Cell<bool>,
+    /// A drop show centred without a position: it moves once, at the first.
+    may_move: Cell<bool>,
+    /// The drop show's catcher takes only the hive rectangle (S-020 AC1).
+    switched: Cell<bool>,
+    /// The anchor the hive was placed at, the output size and the rings
+    /// its box is sized for.
+    anchor: Cell<Option<(f32, f32)>>,
+    screen: Cell<(u32, u32)>,
+    rings: Cell<i32>,
+    /// Subsurface position from the plan, and the last one sent.
+    pos: Cell<Option<(i32, i32)>>,
+    sent: Cell<Option<(i32, i32)>>,
+    /// Ends the wait for the anchor.
+    timer: slint::Timer,
 }
 
 impl LayerAdapter {
@@ -385,11 +561,106 @@ impl LayerAdapter {
             token: RefCell::new(token),
             activation: RefCell::new(None),
             reported: Cell::new(false),
+            decided: Cell::new(false),
+            may_move: Cell::new(false),
+            switched: Cell::new(false),
+            anchor: Cell::new(None),
+            screen: Cell::new((0, 0)),
+            rings: Cell::new(1),
+            pos: Cell::new(None),
+            sent: Cell::new(None),
+            timer: slint::Timer::default(),
         })
     }
 
     fn placement(&self, screen: (u32, u32)) -> overlay::Placement {
-        overlay::place(screen, self.logical.get(), self.scale120.get())
+        let p = overlay::place(screen, self.logical.get(), self.scale120.get());
+        match self.pos.get() {
+            Some((x, y)) => overlay::Placement { x, y, ..p },
+            None => p,
+        }
+    }
+
+    /// Places the hive at `anchor` (or centred) on the configured output.
+    fn decide(&self, anchor: Option<(f32, f32)>) {
+        let Some(screen) = self.surfaces.borrow().as_ref().and_then(|s| s.configured) else {
+            return;
+        };
+        let drop_mode = SHOW.with(|r| r.borrow().drop);
+        self.timer.stop();
+        self.decided.set(true);
+        self.may_move.set(drop_mode && anchor.is_none());
+        self.plan_for(anchor, screen);
+        if drop_mode && anchor.is_some() {
+            self.switched.set(true);
+        }
+        if !drop_mode && let Some(s) = self.surfaces.borrow().as_ref() {
+            s.layer
+                .set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
+        }
+        self.place();
+        if let Some(s) = self.surfaces.borrow().as_ref() {
+            s.catcher.commit();
+        }
+        self.render();
+        if self.switched.get() {
+            // The hive rectangle is on the wire; now the held drag enter.
+            flush();
+            crate::receiver::set_anchoring(false);
+            crate::receiver::replay();
+        }
+    }
+
+    /// Lays the shown hive out at `anchor` on a `screen` sized output with
+    /// `plan_at`, prints the anchor and cells lines, and takes its size and
+    /// position.
+    fn plan_for(&self, anchor: Option<(f32, f32)>, screen: (u32, u32)) {
+        if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+            match anchor {
+                Some((x, y)) => eprintln!("hive anchor: {x} {y}"),
+                None => eprintln!("hive anchor: none"),
+            }
+        }
+        let (plan, p) = SHOW.with(|r| {
+            let r = r.borrow();
+            let rings = if r.drop && anchor.is_some() {
+                drop_rings(r.rtl, screen, anchor)
+            } else {
+                r.min_rings
+            };
+            self.rings.set(rings);
+            layout::plan_at(
+                r.cells.clone(),
+                r.rtl,
+                rings,
+                screen,
+                anchor,
+                self.scale120.get(),
+            )
+        });
+        if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+            let (cx, cy) = plan.layout.origin;
+            eprintln!("hive cells: {} {cx} {cy}", plan.cells.len());
+        }
+        self.anchor.set(anchor);
+        self.screen.set(screen);
+        self.pos.set(Some((p.x, p.y)));
+        self.reported.set(false);
+        let (w, h) = (plan.width, plan.height);
+        crate::set_shown_plan(plan);
+        self.set_logical(w, h);
+    }
+
+    /// Gives the catcher its stretched transparent pixel.
+    fn attach_pixel(&self, s: &Surfaces, sh: &mut Shared, (w, h): (u32, u32)) {
+        let pixel = sh
+            .wl
+            .single_pixel
+            .create_u32_rgba_buffer(0, 0, 0, 0, &sh.wl.qh, ());
+        s.catcher_vp.set_destination(w as i32, h as i32);
+        s.catcher.attach(Some(&pixel), 0, 0);
+        s.catcher.damage_buffer(0, 0, i32::MAX, i32::MAX);
+        sh.wl.buffers.push(pixel);
     }
 
     fn handle(&self, e: Ev) {
@@ -399,11 +670,26 @@ impl LayerAdapter {
         };
         match e {
             Ev::Configured(w, h) => {
-                if let Some(s) = self.surfaces.borrow_mut().as_mut() {
-                    s.configured = Some((w, h));
+                let first = match self.surfaces.borrow_mut().as_mut() {
+                    Some(s) => s.configured.replace((w, h)).is_none(),
+                    None => return,
+                };
+                if !self.decided.get() && first {
+                    self.wait_for_anchor((w, h));
+                    return;
                 }
                 self.place();
                 self.render();
+            }
+            Ev::Position(x, y) => {
+                let configured = self
+                    .surfaces
+                    .borrow()
+                    .as_ref()
+                    .is_some_and(|s| s.configured.is_some());
+                if configured && (!self.decided.get() || self.may_move.replace(false)) {
+                    self.decide(Some((x as f32, y as f32)));
+                }
             }
             Ev::Closed => self.window.dispatch_event(WindowEvent::CloseRequested),
             Ev::Scale(s) => {
@@ -441,11 +727,15 @@ impl LayerAdapter {
                     WindowEvent::PointerReleased { position, button }
                 });
             }
-            // A click on the catcher, outside the hive.
+            // A click on the catcher, outside the hive; in drop mode the
+            // catcher may cover the hive, and a click never closes it
+            // (S-019 AC8).
             Ev::Button {
                 pressed: true,
                 on_hive: false,
-            } => self.window.dispatch_event(WindowEvent::CloseRequested),
+            } if !self.surfaces.borrow().as_ref().is_some_and(|s| s.drop_mode) => {
+                self.window.dispatch_event(WindowEvent::CloseRequested)
+            }
             Ev::Button { .. } => {}
             Ev::Key { code, pressed } => {
                 if let Some(k) = overlay::key_for_evdev(code) {
@@ -475,11 +765,60 @@ impl LayerAdapter {
         });
     }
 
+    /// Maps the catcher (a transparent pixel) so the pointer can enter it,
+    /// and waits at most [`ANCHOR_WAIT`] for the anchor; `--at` places the
+    /// hive at once.
+    fn wait_for_anchor(&self, screen: (u32, u32)) {
+        let at = SHOW.with(|r| r.borrow().at);
+        if let Some((x, y)) = at {
+            // No output geometry at map: the point as output coordinates.
+            self.decide(Some((x as f32, y as f32)));
+            return;
+        }
+        {
+            let surfaces = self.surfaces.borrow();
+            let Some(s) = surfaces.as_ref() else { return };
+            SHARED.with(|sh| {
+                if let Some(sh) = sh.borrow_mut().as_mut() {
+                    self.attach_pixel(s, sh, screen);
+                }
+            });
+            s.catcher.commit();
+        }
+        flush();
+        let me = self.me.clone();
+        self.timer
+            .start(slint::TimerMode::SingleShot, ANCHOR_WAIT, move || {
+                if let Some(a) = me.upgrade()
+                    && !a.decided.get()
+                {
+                    a.decide(None);
+                }
+            });
+    }
+
     /// Creates the catcher layer surface and the hive subsurface.
     fn map(&self) {
-        let drop_mode = DROP_MODE.with(Cell::get);
+        let (drop_mode, at) = SHOW.with(|r| {
+            let r = r.borrow();
+            (r.drop, r.at)
+        });
         *self.activation.borrow_mut() = self.token.borrow_mut().take();
         self.reported.set(false);
+        self.decided.set(false);
+        self.may_move.set(false);
+        self.switched.set(false);
+        self.anchor.set(None);
+        self.pos.set(None);
+        self.sent.set(None);
+        // `--at`: the output holding the point, and the point on it.
+        let target = at.and_then(output_at);
+        if let (Some((_, origin, _)), Some((x, y))) = (&target, at) {
+            SHOW.with(|r| {
+                r.borrow_mut().at = Some((x - f64::from(origin.0), y - f64::from(origin.1)));
+            });
+        }
+        crate::receiver::set_anchoring(drop_mode && at.is_none());
         let made = SHARED.with(|s| {
             let mut s = s.borrow_mut();
             let wl = &mut s.as_mut()?.wl;
@@ -487,7 +826,7 @@ impl LayerAdapter {
             let catcher = wl.compositor.create_surface(qh, ());
             let layer = wl.layer_shell.get_layer_surface(
                 &catcher,
-                None,
+                target.as_ref().map(|t| &t.0),
                 Layer::Overlay,
                 "sbarhive".into(),
                 qh,
@@ -496,16 +835,10 @@ impl LayerAdapter {
             layer.set_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right);
             layer.set_size(0, 0);
             layer.set_exclusive_zone(-1);
-            layer.set_keyboard_interactivity(if drop_mode {
-                KeyboardInteractivity::None
-            } else {
-                KeyboardInteractivity::Exclusive
-            });
+            // A normal show takes the keyboard with its first frame (in
+            // `decide`), not while the catcher waits for the pointer.
             if drop_mode {
-                // Drags and clicks pass through outside the hive.
-                let r: WlRegion = wl.compositor.create_region(qh, ());
-                catcher.set_input_region(Some(&r));
-                r.destroy();
+                layer.set_keyboard_interactivity(KeyboardInteractivity::None);
             }
             let catcher_vp = wl.viewporter.get_viewport(&catcher, qh, ());
             let hive = wl.compositor.create_surface(qh, ());
@@ -521,7 +854,6 @@ impl LayerAdapter {
                 .fractional
                 .as_ref()
                 .map(|f| f.get_fractional_scale(&hive, qh, ()));
-            catcher.commit();
             let ids = (
                 s.as_ref()?.conn.backend().display_ptr() as usize,
                 catcher.id().as_ptr() as usize,
@@ -530,6 +862,7 @@ impl LayerAdapter {
             wl.catcher = Some(catcher.clone());
             wl.hive = Some(hive.clone());
             wl.pointer_on_hive = false;
+            wl.pointer_on_catcher = false;
             Some((
                 ids,
                 Surfaces {
@@ -548,6 +881,17 @@ impl LayerAdapter {
         if let Some(((display, catcher), surfaces)) = made {
             *self.surfaces.borrow_mut() = Some(surfaces);
             OWNER.with(|o| *o.borrow_mut() = self.me.clone());
+            // `--at` on a known output: placed, and in drop mode the catcher
+            // takes only the hive, before its first commit (S-019 AC8).
+            if let (Some((_, _, size)), Some(local)) = (target, SHOW.with(|r| r.borrow().at)) {
+                self.decided.set(true);
+                self.plan_for(Some((local.0 as f32, local.1 as f32)), size);
+                self.switched.set(drop_mode);
+                self.set_region();
+            }
+            if let Some(s) = self.surfaces.borrow().as_ref() {
+                s.catcher.commit();
+            }
             if drop_mode {
                 // The receiver's data device lives on this connection, the
                 // only one the compositor names the catcher to.
@@ -562,6 +906,7 @@ impl LayerAdapter {
     fn unmap(&self) {
         // A show closed before its first frame keeps no token for the next.
         self.activation.borrow_mut().take();
+        self.timer.stop();
         let Some(s) = self.surfaces.borrow_mut().take() else {
             return;
         };
@@ -580,6 +925,7 @@ impl LayerAdapter {
                 sh.wl.catcher = None;
                 sh.wl.hive = None;
                 sh.wl.pointer_on_hive = false;
+                sh.wl.pointer_on_catcher = false;
                 // The surfaces are gone, so no buffer is in use any more:
                 // free them now rather than on a later release.
                 for b in sh.wl.buffers.drain(..) {
@@ -597,40 +943,60 @@ impl LayerAdapter {
         flush();
     }
 
-    /// Gives the catcher its stretched transparent pixel and centres the hive;
-    /// in drop mode the catcher's input region follows the hive.
+    /// Gives the catcher its stretched transparent pixel and puts the hive
+    /// where it was placed; in drop mode, once switched, the catcher's input
+    /// region follows the hive.
     fn place(&self) {
+        if !self.decided.get() {
+            return;
+        }
         let surfaces = self.surfaces.borrow();
         let Some(s) = surfaces.as_ref() else { return };
         let Some((w, h)) = s.configured else { return };
         let p = self.placement((w, h));
         SHARED.with(|sh| {
-            let mut sh = sh.borrow_mut();
-            let Some(sh) = sh.as_mut() else { return };
-            let pixel = sh
-                .wl
-                .single_pixel
-                .create_u32_rgba_buffer(0, 0, 0, 0, &sh.wl.qh, ());
-            s.catcher_vp.set_destination(w as i32, h as i32);
-            s.catcher.attach(Some(&pixel), 0, 0);
-            s.catcher.damage_buffer(0, 0, i32::MAX, i32::MAX);
-            sh.wl.buffers.push(pixel);
-            if s.drop_mode {
-                let (dw, dh) = p.destination;
-                let r: WlRegion = sh.wl.compositor.create_region(&sh.wl.qh, ());
-                r.add(p.x, p.y, dw as i32, dh as i32);
-                s.catcher.set_input_region(Some(&r));
-                r.destroy();
-                // The drag arrives in catcher coordinates.
-                crate::receiver::set_offset(f64::from(p.x), f64::from(p.y));
+            if let Some(sh) = sh.borrow_mut().as_mut() {
+                self.attach_pixel(s, sh, (w, h));
             }
         });
-        s.sub.set_position(p.x, p.y);
+        drop(surfaces);
+        self.set_region();
+        if self.sent.replace(Some((p.x, p.y))) != Some((p.x, p.y))
+            && let Some(s) = self.surfaces.borrow().as_ref()
+        {
+            s.sub.set_position(p.x, p.y);
+        }
+    }
+
+    /// In a switched drop show, the catcher takes the hive rectangle only
+    /// and the receiver picks relative to it (S-020 AC1).
+    fn set_region(&self) {
+        if !self.switched.get() {
+            return;
+        }
+        let surfaces = self.surfaces.borrow();
+        let Some(s) = surfaces.as_ref() else { return };
+        let screen = s.configured.unwrap_or(self.screen.get());
+        let p = self.placement(screen);
+        SHARED.with(|sh| {
+            let mut sh = sh.borrow_mut();
+            let Some(sh) = sh.as_mut() else { return };
+            let (dw, dh) = p.destination;
+            let r: WlRegion = sh.wl.compositor.create_region(&sh.wl.qh, ());
+            r.add(p.x, p.y, dw as i32, dh as i32);
+            s.catcher.set_input_region(Some(&r));
+            r.destroy();
+            // The drag arrives in catcher coordinates.
+            crate::receiver::set_offset(f64::from(p.x), f64::from(p.y));
+        });
     }
 
     /// Draws the Slint window into a new shm buffer on the hive subsurface.
     fn render(&self) {
         self.render_scheduled.set(false);
+        if !self.decided.get() {
+            return;
+        }
         if self.waiting_frame.get() {
             self.redraw_wanted.set(true);
             return;
@@ -766,13 +1132,69 @@ fn shm_buffer(shm: &WlShm, qh: &QueueHandle<Wl>, w: u32, h: u32, bytes: &[u8]) -
 
 impl Dispatch<WlRegistry, GlobalListContents> for Wl {
     fn event(
-        _: &mut Self,
-        _: &WlRegistry,
-        _: <WlRegistry as Proxy>::Event,
+        s: &mut Self,
+        registry: &WlRegistry,
+        e: <WlRegistry as Proxy>::Event,
         _: &GlobalListContents,
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        // Outputs come and go after start (`--at` picks among them).
+        use wayland_client::protocol::wl_registry::Event;
+        match e {
+            Event::Global {
+                name,
+                interface,
+                version,
+            } if interface == "wl_output" => {
+                let o = new_output(registry, name, version, s.xdg_outputs.as_ref(), qh);
+                s.outputs.push(o);
+            }
+            Event::GlobalRemove { name } => {
+                if let Some(i) = s.outputs.iter().position(|o| o.name == name) {
+                    let o = s.outputs.remove(i);
+                    if let Some(x) = o.xdg {
+                        x.destroy();
+                    }
+                    if o.wl.version() >= 3 {
+                        o.wl.release();
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Dispatch<WlOutput, ()> for Wl {
+    fn event(
+        _: &mut Self,
+        _: &WlOutput,
+        _: wl_output::Event,
+        _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+    }
+}
+
+impl Dispatch<ZxdgOutputV1, u32> for Wl {
+    fn event(
+        s: &mut Self,
+        _: &ZxdgOutputV1,
+        e: zxdg_output_v1::Event,
+        name: &u32,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        let Some(o) = s.outputs.iter_mut().find(|o| o.name == *name) else {
+            return;
+        };
+        match e {
+            zxdg_output_v1::Event::LogicalPosition { x, y } => o.origin = (x, y),
+            zxdg_output_v1::Event::LogicalSize { width, height } => o.size = (width, height),
+            _ => {}
+        }
     }
 }
 
@@ -790,6 +1212,7 @@ delegate_noop!(Wl: ignore WpSinglePixelBufferManagerV1);
 delegate_noop!(Wl: ignore XdgActivationV1);
 delegate_noop!(Wl: ignore WpCursorShapeManagerV1);
 delegate_noop!(Wl: ignore WpCursorShapeDeviceV1);
+delegate_noop!(Wl: ignore ZxdgOutputManagerV1);
 
 impl Dispatch<WlBuffer, ()> for Wl {
     fn event(
@@ -930,8 +1353,12 @@ impl Dispatch<WlPointer, ()> for Wl {
                     c.set_shape(serial, Shape::Default);
                 }
                 s.pointer_on_hive = s.hive.as_ref() == Some(&surface);
+                s.pointer_on_catcher = s.catcher.as_ref() == Some(&surface);
                 if s.pointer_on_hive {
                     s.events.push(Ev::Motion(surface_x, surface_y));
+                }
+                if s.pointer_on_catcher {
+                    s.events.push(Ev::Position(surface_x, surface_y));
                 }
             }
             wl_pointer::Event::Leave { surface, .. } => {
@@ -939,12 +1366,20 @@ impl Dispatch<WlPointer, ()> for Wl {
                     s.pointer_on_hive = false;
                     s.events.push(Ev::Leave);
                 }
+                if s.catcher.as_ref() == Some(&surface) {
+                    s.pointer_on_catcher = false;
+                }
             }
             wl_pointer::Event::Motion {
                 surface_x,
                 surface_y,
                 ..
             } if s.pointer_on_hive => s.events.push(Ev::Motion(surface_x, surface_y)),
+            wl_pointer::Event::Motion {
+                surface_x,
+                surface_y,
+                ..
+            } if s.pointer_on_catcher => s.events.push(Ev::Position(surface_x, surface_y)),
             // BTN_LEFT
             wl_pointer::Event::Button {
                 button: 0x110,
