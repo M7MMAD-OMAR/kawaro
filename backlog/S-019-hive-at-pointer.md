@@ -486,3 +486,17 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
     ```
 - **فحصا «same output» ما زالا يفشلان بانتظار 10 s:** `hyprctl output create wayland SBH-2` أجاب `ok`، وفي سجل Hyprland `Output SBH-2: initialized` وحده، ولم يظهر SBH-2 بنمط (عرض أكبر من 0) في `hyprctl monitors -j` خلال 10 ثوانٍ. الانتظار الطويل يستبعد البطء سبباً. الفحصان لم يبلغا الشيفرة، فلا يقولان شيئاً عنها؛ والمخرج الثاني من تهيئة الاختبار نفسه، وقد عمل في نسخة `--selftest` سابقة، فهو غير موثوق في هذا التركيب المتداخل. القرار للمدير: إصلاح التهيئة (مثلاً مخرج ثانٍ في KWin الخارجي)، أو قبولهما معلّقين.
 - **فجوة تغطية للمدير:** الظهور 10 كان الاختبار الوحيد لمسار AC8 «في المنتصف ثم انتقال واحد عند أول موضع»، وصار الآن يختبر «لا انتقال». لا شيء آخر يختبر انتقالاً حقيقياً داخل نافذة الـ 300 ms: ظهورات overlay ترسو قبل أول إطار، وحركة المركز في repro.sh لا تعدّ `set_position`. لم أُضف اختباراً لأنه خارج هذه المهمة، ولأنه سينجح على `fcb5a18` أصلاً.
+
+### المنفِّذ: القرار 12 (2026-10-21)
+
+- الحالة: **مراجعة** لـ S-019c وS-019d. لم يُعدَّل أي اختبار. رأس الملف يبقى «مسودة» لأن S-019e وS-019f لم تبدأ.
+- الشيفرة: `crates/ui/src/layer.rs` وحده (خارج الطفرات). الثابت `MOVE_WINDOW` = 300 ms. ظهور الإفلات الذي توسّط دون موضع (`decide(None)`) يبدأ مؤقّت الأداة نفسه بعد أول إطار؛ عند انقضائه دون موضع (`keep_centred`) يُطفأ `may_move`، وتصير منطقة الماسك مستطيل الخلية، ويُلتزم الماسك، وتنتهي مرحلة المرساة في المستقبِل (`set_anchoring(false)` و`replay`، كذيل `decide` المنقول إلى `release_held`). موضع قبل انقضائه يمر بـ `decide(Some)` كما كان، و`decide` يوقف المؤقّت. `unmap` يوقفه أيضاً. وحُدّث سطر CHANGELOG.md.
+- لا قرار زمني صافٍ في `overlay.rs` أو `layout.rs`: القرار مؤقّت واحد على حالة المحوّل، ولا اختبار وحدة قائم يغطيه، فبقي في `layer.rs`، وتغطيه `tests/drop/kwin.sh` و`tests/hyprland/repro.sh`.
+- البوابات (كلها داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، بعد `cargo build --release`):
+  - `cargo fmt --all --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test -p sbarhive-ui -p sbarhive-daemon`: 204 نجحت و0 فشل؛ `scripts/design-lint.sh` نظيف.
+  - `tests/drop/kwin.sh level=1`: `RESULT PASS` (219 PASS). التحويل في الظهورات 1 إلى 5 و10 بعد 299.5 إلى 300.6 ms من أول إطار، دون `enter` قبله، والمنطقة 444 219 393 362 هي الأخيرة؛ الظهور 10: `hive anchor: none` وحده و`set_position` واحد (444، 219)، والإفلات على خلية WEBP كتب الملف.
+  - `tests/hyprland/repro.sh --json`: `{"total": 13, "failed": 0, "skipped": 0}`. S-020 AC4 نجح، وفحص القرار 12: التحويل بعد 300.4 ms، المنطقة 284 89 393 362، و`set_position` واحد.
+  - `tests/hyprland/repro.sh --json --quasimode`: `{"total": 20, "failed": 5, "skipped": 0}`: الثلاثة الثابتة لـ S-019e/f وفحصا «same output» (SBH-2 لا يظهر، المسألة المعلّقة لدى المدير).
+  - `tests/overlay/kwin.sh drop` و`tests/overlay/kwin.sh anchor`: `RESULT PASS` كلاهما (اللقطة المعتمدة موجودة الآن).
+  - `tests/e2e/run.sh`: الجلستان ناجحتان، و20 سطر `hive anchor: 640 0` و20 سطر `hive surface: layer 366 0 548 294`، والذاكرة 38 MB بعد معاينات S-018 AC27.
+  - `cargo mutants`: لم يُشغَّل، لأن الملف الوحيد المتغير في الشيفرة (`layer.rs`) مستثنى في `.cargo/mutants.toml`، فلا طفرة في الفرق.

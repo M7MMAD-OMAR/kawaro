@@ -8,7 +8,8 @@
 //!   one transparent pixel stretched by wp_viewporter, attached at the first
 //!   configure so the pointer can enter it; a click on it, outside the hive,
 //!   asks to close (never in drop mode). In drop mode its input region is
-//!   its default one until the first position, then the hive rectangle, so
+//!   its default one until the first position (or [`MOVE_WINDOW`] after the
+//!   first frame), then the hive rectangle, so
 //!   it takes the drag (S-020: Hyprland sends no drag motion to a layer
 //!   surface's subsurface; S-019 AC8).
 //! - hive: a subsurface of the catcher, placed by [`layout::plan_at`] at
@@ -18,7 +19,9 @@
 //! The anchor (S-019 AC5, AC8) is the first pointer enter or motion on the
 //! catcher, or drag position in drop mode, waited for at most
 //! [`ANCHOR_WAIT`] from the first configure; without one the hive is
-//! centred. A drop show centred so moves once, at its first position. With
+//! centred. A drop show centred so moves once, at its first position within
+//! [`MOVE_WINDOW`] of its first frame; after that its catcher takes the hive
+//! rectangle and the hive stays centred (manager decision 12). With
 //! `sbarhive drop --at X,Y` the output holding that point (xdg-output) is
 //! chosen and the hive placed before the first commit.
 //!
@@ -100,6 +103,11 @@ thread_local! {
 /// How long a show waits for the pointer before it centres the hive
 /// (S-019 AC5, AC8).
 const ANCHOR_WAIT: Duration = Duration::from_millis(50);
+
+/// How long a centred drop show's catcher keeps its full input region
+/// after the first frame, waiting for a position; then it takes the hive
+/// rectangle and the hive stays centred (S-019 manager decision 12).
+const MOVE_WINDOW: Duration = Duration::from_millis(300);
 
 /// The cells of the next show and its kind, so the hive can be laid out
 /// again at the pointer (S-019c, S-019d).
@@ -604,11 +612,40 @@ impl LayerAdapter {
         }
         self.render();
         if self.switched.get() {
-            // The hive rectangle is on the wire; now the held drag enter.
-            flush();
-            crate::receiver::set_anchoring(false);
-            crate::receiver::replay();
+            self.release_held();
+        } else if self.may_move.get() {
+            // Centred without a position: the full region lasts at most
+            // MOVE_WINDOW from this first frame, so a still pointer is never
+            // held (S-020 AC4).
+            let me = self.me.clone();
+            self.timer
+                .start(slint::TimerMode::SingleShot, MOVE_WINDOW, move || {
+                    if let Some(a) = me.upgrade() {
+                        a.keep_centred();
+                    }
+                });
         }
+    }
+
+    /// Ends the move window of a centred drop show: no move any more, and
+    /// the catcher takes only the hive rectangle.
+    fn keep_centred(&self) {
+        if !self.may_move.replace(false) {
+            return;
+        }
+        self.switched.set(true);
+        self.set_region();
+        if let Some(s) = self.surfaces.borrow().as_ref() {
+            s.catcher.commit();
+        }
+        self.release_held();
+    }
+
+    /// The hive rectangle is on the wire; now the held drag enter.
+    fn release_held(&self) {
+        flush();
+        crate::receiver::set_anchoring(false);
+        crate::receiver::replay();
     }
 
     /// Lays the shown hive out at `anchor` on a `screen` sized output with
