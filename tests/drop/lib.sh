@@ -18,8 +18,15 @@
 #   on_shown N X Y W H   the hive is mapped at X Y W H, the drag has not
 #                        entered it yet (AC10: the waiting text)
 #   on_over N X Y W H    the drag is over the first cell (AC9: highlight)
+# and set ANCHOR_SETTLE=1 (S-019d, layer path): a drop-mode hive shown with
+# the drag standing still sits in the middle and moves once, to the first
+# drag position (S-019 AC8, decision 1). Each show then first moves the
+# drag to the hive's centre, where that one move changes nothing (the
+# centred hive is plan_at at the middle, S-019 AC4), and reads the
+# geometry again before going on.
 
 FAILS=0
+ANCHOR_SETTLE=${ANCHOR_SETTLE:-0}
 MARKS=()
 EXPECT=()
 on_shown() { :; }
@@ -68,6 +75,17 @@ move_to_webp() { # move_to_webp GX GY GW GH
   ptr_move $(($1 + 4)) $(($2 + 4)); sleep 0.2
   ptr_move $((($1 + 4 + wx) / 2)) $((($2 + 4 + wy) / 2)); sleep 0.2
   ptr_move "$wx" "$wy"; sleep 0.4
+}
+
+# settle_at_centre GX GY GW GH: with ANCHOR_SETTLE=1, the first drag
+# position is the hive's centre; prints the geometry after it ("X Y W H").
+settle_at_centre() {
+  if [ "$ANCHOR_SETTLE" = 1 ]; then
+    ptr_move $(($1 + $3 / 2)) $(($2 + $4 / 2)); sleep 0.5
+    hive_geo
+  else
+    echo "$1 $2 $3 $4"
+  fi
 }
 
 # Deadlines in wall time: hive_geo itself can take half a second.
@@ -130,6 +148,9 @@ cycle() { # cycle N FILE TARGET SHIFT
   local gx gy gw gh; read -r gx gy gw gh <<<"$geo"
   echo "INFO show $n: hive at $gx $gy ${gw}x$gh"
   on_shown "$n" "$gx" "$gy" "$gw" "$gh"
+  local settled; settled=$(settle_at_centre "$gx" "$gy" "$gw" "$gh")
+  [ -n "$settled" ] && [ "$settled" != "$gx $gy $gw $gh" ] && echo "INFO show $n: hive moved to $settled at the first drag position"
+  [ -n "$settled" ] && read -r gx gy gw gh <<<"$settled"
   local cx=$((gx + gw / 2)) cy=$((gy + gh / 2)) dx dy tx ty
   read -r dx dy <<<"$(webp_offset)"
   case "$target" in
@@ -233,9 +254,12 @@ enter_cells_checks() {
     check "AC8 show $((i + 1)): every enter's cells equal sbarhive actions for the dragged file" \
       '[ -n "$want" ] && [ -n "$lines" ] && [ -z "$(grep -vxF "drop cells: $want" <<<"$lines")" ]'
   done
-  # The PNG of show 1 and the PDF of the last show: two different, non-empty
-  # lists, so cells kept from an earlier drag cannot pass.
+  # The PNG of show 1 and the PDF of a later show (the last one, or the
+  # first that differs when PNG shows follow it, as in tests/drop/kwin.sh):
+  # two different, non-empty lists, so cells kept from an earlier drag
+  # cannot pass.
   first=${EXPECT[0]}; other=${EXPECT[${#EXPECT[@]} - 1]}
+  local e; for e in "${EXPECT[@]}"; do [ "$e" != "$first" ] && { other=$e; break; }; done
   check "AC8: the PNG and PDF action lists are non-empty and differ" \
     '[ -n "$first" ] && [ -n "$other" ] && [ "$first" != "$other" ]'
 }
@@ -299,6 +323,8 @@ shortcut_drop() { # shortcut_drop N FILE
   shortcut_show "$n"
   [ -n "$GEO" ] || { ptr_up; sleep 1; wait_gone 12; return; }
   # shellcheck disable=SC2086
+  GEO=$(settle_at_centre $GEO)
+  # shellcheck disable=SC2086
   move_to_webp $GEO
   ptr_up; sleep 0.3
   check "AC11 $n: $(basename "$base").webp written next to the original within 5 s" 'wait_file "$base.webp" 5'
@@ -328,6 +354,8 @@ shortcut_esc() { # shortcut_esc N FILE over|before
   shortcut_show "$n"
   [ -n "$GEO" ] || { ptr_up; sleep 1; wait_gone 12; return; }
   if [ "$where" = over ]; then
+    # shellcheck disable=SC2086
+    GEO=$(settle_at_centre $GEO)
     # shellcheck disable=SC2086
     move_to_webp $GEO; sleep 0.2
   fi

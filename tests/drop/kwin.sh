@@ -28,6 +28,26 @@
 # mid-drag and drop on the WEBP cell, then Esc is pressed mid-drag over the
 # hive and before the hive (tests/drop/lib.sh, shortcut_shows). The five
 # S-014b and S-014c shows are not run in this mode.
+# S-019d (backlog/S-019-hive-at-pointer.md, AC8 to AC10 and the manager's
+# decision 1): every show first moves the drag to the hive's centre
+# (ANCHOR_SETTLE, tests/drop/lib.sh), and four kinds of shows follow the
+# five above, with the drag held at P:
+#   jitter  a 1 px drag motion around P every 10 ms for 600 ms, started
+#           before `sbarhive drop`: P = (400, 500) three times, each dropped
+#           on the WEBP cell (the layout there is plan_rings, so the cell is
+#           where it is today relative to the hive), and P = (100, 700),
+#           released over the centre cell;
+#   still   the drag stands still for 1 s after `sbarhive drop`, then the
+#           jitter at (400, 500): "hive anchor: none" first, then one move
+#           to (204, 319), and exactly two wl_subsurface.set_position;
+#   at      the drag stands still at (400, 500) and the command is
+#           `sbarhive drop --at 400,500`: anchored at once, one
+#           set_position at (204, 319), no "hive anchor: none", and the drop
+#           on the WEBP cell writes the file.
+# Every show is also checked by tests/drop/layer.sh (S-019 AC8, AC9).
+# Daemon lines (SBARHIVE_DEBUG_FOCUS): "hive anchor: X Y" or
+# "hive anchor: none" before each placement's "hive surface: layer X Y W H";
+# the drop-mode move to the first position prints both again.
 # Usage: tests/drop/kwin.sh [level=N] [shortcut] [target/release]
 #   level: focus stealing prevention 0..4, default 1 (Low)
 set -u
@@ -84,16 +104,18 @@ inner() {
 
   # S-018d: on KWin the hive is a layer surface (S-018 AC4), and the layer
   # window KWin lists is the full screen catcher, not the hive. The hive's
-  # rectangle comes from the daemon's "hive surface: layer X Y W H" line
-  # (S-018 AC11, printed once per show with SBARHIVE_DEBUG_FOCUS), and the
-  # hive is shown while there are more such lines than layer surface
+  # rectangle comes from the daemon's last "hive surface: layer X Y W H"
+  # line after the last get_layer_surface (S-018 AC11; a drop-mode move to
+  # the first position prints another, S-019 AC8), and the hive is shown
+  # while there are more get_layer_surface requests than layer surface
   # destroys in the trace.
   hive_geo() {
-    local shown gone
-    shown=$(grep -cE '^hive surface: layer ' "$DLOG")
+    local shown gone gl
+    shown=$(grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$DLOG")
     gone=$(grep -cE -- '-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\(' "$DLOG")
     [ "$shown" -gt "$gone" ] || return 0
-    grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' "$DLOG" | tail -1 | cut -d' ' -f4-
+    gl=$(grep -nE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$DLOG" | tail -1 | cut -d: -f1)
+    tail -n +"$gl" "$DLOG" | grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' | tail -1 | cut -d' ' -f4-
   }
 
   local f="$XDG_RUNTIME_DIR/in"; mkfifo "$f"
@@ -104,6 +126,19 @@ inner() {
   ptr_up() { echo "up" >&3; }
   shift_down() { echo "keydown 42" >&3; }
   shift_up() { echo "keyup 42" >&3; }
+  # S-019d: the first drag position moves a centred drop hive once.
+  ANCHOR_SETTLE=1
+  # jitter X Y MS: 1 px drag motion around (X, Y) every 10 ms for MS ms,
+  # queued on the input client, so it runs while the caller goes on.
+  jitter() {
+    local i dx=1 dy=1
+    [ "$1" -ge 1279 ] && dx=-1
+    [ "$2" -ge 799 ] && dy=-1
+    for ((i = 0; i < $3 / 10; i++)); do
+      if ((i % 2)); then echo "move $(($1 + dx)) $(($2 + dy))"; else echo "move $1 $2"; fi
+      echo "sleep 10"
+    done >&3
+  }
 
   W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   local i
@@ -203,6 +238,83 @@ inner() {
     snap_check AC9 over
   }
 
+  # anchor_cycle N KIND X Y: one S-019 AC10 show with the drag held at P.
+  near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
+  AC10_WROTE=0
+  anchor_cycle() {
+    local n=$1 kind=$2 x=$3 y=$4
+    local file="$W/held $n.png" base="$W/held $n"
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$file"
+    echo "== show $n: $(basename "$file"), drag held at ($x, $y), $kind"
+    printf '%s\n' "$file" >"$NEXT"
+    MARKS+=("$(wc -l <"$DLOG")")
+    EXPECT+=("$(action_ids "$file")")
+    local m0=${MARKS[-1]} smark; smark=$(wc -l <"$SLOG")
+    drag_past_threshold
+    case "$kind" in
+      jitter)
+        # The motion starts before the command and lasts 600 ms (AC10).
+        jitter "$x" "$y" 600
+        "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+        ;;
+      still)
+        "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+        sleep 1
+        jitter "$x" "$y" 600
+        ;;
+      at)
+        ptr_move "$x" "$y"; sleep 0.5
+        AT_SHOW=$n
+        "$BIN/sbarhive" drop --at "$x,$y" >>"$OUT_LOG-cli.log" 2>&1
+        ;;
+    esac
+    sleep 0.8
+    local geo=""
+    geo=$(wait_geo 8) || true
+    local seg al sets nset
+    seg=$(sed -n "$((m0 + 1)),\$p" "$DLOG")
+    al=$(grep -E '^hive anchor: ' <<<"$seg")
+    sets=$(grep -E -- '-> wl_subsurface[#@][0-9]+\.set_position\(' <<<"$seg")
+    nset=$(grep -c . <<<"$sets")
+    local ax ay lx ly
+    read -r _ _ ax ay <<<"$(grep -vE '^hive anchor: none$' <<<"$al" | head -1)"
+    read -r lx ly < <(tail -1 <<<"$sets" | sed -nE 's/.*set_position\((-?[0-9]+), (-?[0-9]+)\).*/\1 \2/p') || true
+    echo "INFO S-019 show $n ($kind at $x $y): hive ${geo:-not shown}; anchor lines: $(tr '\n' '|' <<<"$al"); set_position x$nset: $(sed -E 's/.*set_position//' <<<"$sets" | tr '\n' ' ')"
+    case "$kind" in
+      jitter | at)
+        check "S-019 AC10 show $n ($kind): one \"hive anchor\" line, within 1 px of ($x, $y), and no \"hive anchor: none\"" \
+          '[ "$(grep -c . <<<"$al")" -eq 1 ] && near "$ax" "$x" 1 && near "$ay" "$y" 1'
+        check "S-019 AC5/AC10 show $n ($kind): exactly one wl_subsurface.set_position (no move after the first frame)" '[ "$nset" -eq 1 ]'
+        ;;
+      still)
+        check "S-019 AC10 show $n (still): \"hive anchor: none\" first, then a \"hive anchor\" line within 1 px of ($x, $y)" \
+          '[ "$(head -1 <<<"$al")" = "hive anchor: none" ] && [ "$(grep -c . <<<"$al")" -eq 2 ] && near "$ax" "$x" 1 && near "$ay" "$y" 1'
+        check "S-019 AC10 show $n (still): exactly two wl_subsurface.set_position, the first in the middle (444, 219)" \
+          '[ "$nset" -eq 2 ] && grep -qE "set_position\(444, 219\)" <<<"$(head -1 <<<"$sets")"'
+        ;;
+    esac
+    if [ "$x $y" = "400 500" ]; then
+      check "S-019 AC10 show $n ($kind): the hive ends at (204, 319) within 1 px" 'near "$lx" 204 1 && near "$ly" 319 1'
+    fi
+    if [ -n "$geo" ] && [ "$x $y" = "400 500" ]; then
+      # shellcheck disable=SC2086
+      move_to_webp $geo
+      ptr_up; sleep 0.3
+      if wait_file "$base.webp" 5 && [ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]; then
+        # Counted only for a hive anchored at P: (204, 319).
+        [ "$kind" = jitter ] && near "$lx" 204 1 && near "$ly" 319 1 && AC10_WROTE=$((AC10_WROTE + 1))
+        echo "INFO S-019 show $n: $(basename "$base").webp written"
+      fi
+      [ "$kind" = at ] && check "S-019 decision 1 show $n (--at): dropped on the WEBP cell, $(basename "$base").webp is written within 5 s" \
+        '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
+    else
+      # Released over the centre cell: refused, no file.
+      ptr_up; sleep 0.3
+    fi
+    wait_gone 5 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
+    sleep 1
+  }
+
   if [ "$MODE" = shortcut ]; then
     # Meta (125) + Z (44) and Esc (1), evdev codes, through fake_input.
     press_shortcut() { echo "keydown 125" >&3; echo "keydown 44" >&3; echo "sleep 50" >&3; echo "keyup 44" >&3; echo "keyup 125" >&3; }
@@ -219,6 +331,15 @@ inner() {
   cycle 3 "$W/photo three.png" webp 1
   cycle 4 "$W/photo four.png" centre 0
   cycle 5 "$W/report five.pdf" corner 0
+  # S-019 AC10 and decision 1.
+  local AT_SHOW=""
+  anchor_cycle 6 jitter 400 500
+  anchor_cycle 7 jitter 400 500
+  anchor_cycle 8 jitter 400 500
+  anchor_cycle 9 jitter 100 700
+  anchor_cycle 10 still 400 500
+  anchor_cycle 11 at 400 500
+  check "S-019 AC10: 3 of 3 drags held at (400, 500), the hive at (204, 319), dropped on the WEBP cell wrote the file" '[ "$AC10_WROTE" -eq 3 ]'
   protocol_checks
   enter_cells_checks
   shot_checks
@@ -226,7 +347,7 @@ inner() {
   # shellcheck source=layer.sh
   source "$HERE/layer.sh"
   for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
-    layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1
+    layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1 "$([ "$((i + 1))" = "$AT_SHOW" ] && echo 1 || echo 0)"
   done
   fi
   summary

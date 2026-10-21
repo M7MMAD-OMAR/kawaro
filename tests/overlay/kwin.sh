@@ -46,6 +46,23 @@
 #                    dark. theme = "light" or "dark" in config.toml, and then
 #                    SBARHIVE_COLOR_SCHEME (daemon restarted with it), win
 #                    over the portal. Every show is a layer.
+#   anchor           S-019c (S-019 AC5, AC6): `sbarhive open` while a 1 px
+#                    pointer jitter around P (every 10 ms for 600 ms) runs,
+#                    started before the command, for P = (400, 500),
+#                    (100, 700), (1200, 80) and (0, 0); then a show with the
+#                    pointer still at (400, 500). photo.png has 18 actions
+#                    here (15 built-in and three user ones), English, dark.
+#                    Each show: one "hive anchor: X Y" line within 1 px of P
+#                    before its "hive surface:" line, the surface line equal
+#                    to the AC3 placement for that anchor (tests/overlay/
+#                    anchor.py), one "hive cells: N CX CY" line with N the
+#                    AC4 count and the centre at the clamped anchor, exactly
+#                    one wl_subsurface.set_position (the hive does not follow
+#                    the pointer), the first frame within 50 ms of the first
+#                    configure plus one frame, and the screenshot box inside
+#                    the surface rectangle. The (0, 0) crop is the candidate
+#                    hive-en-dark-corner.png, compared with
+#                    tests/overlay/snapshots/ (the owner approves it).
 #   1.5              AC17 (S-018e): a reference show at scale 1, then a
 #                    second private KWin at scale 1.5 (1920x1200 physical,
 #                    1280x800 logical; the scale is seeded in
@@ -62,7 +79,20 @@
 # wl_shm_pool of the show is left.
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
-# Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop|scheme|1.5] [target/release]
+# S-019c setup (backlog/S-019-hive-at-pointer.md, test setup changes): the
+# pointer is moved to the middle of the output, (640, 400) logical, before
+# every show of the other modes, so the hive anchored at the pointer stays
+# where their checks expect it. The 1.5 mode uses (640, 400) too: fake input
+# moves the pointer in KWin's logical coordinates, and 1920x1200 at scale 1.5
+# is 1280x800 logical (the story names (960, 600), the physical middle).
+# S-019d: in drop mode the click at (100, 700) waits for the show's
+# "hive anchor" line, and show 2 presses and releases with no motion right
+# after `sbarhive drop`, during or just after the anchor phase (S-019 AC8: a
+# click there does not close the hive).
+# The layer mode also checks S-019 AC5 (one "hive anchor" line before the
+# "hive surface" line of every show) and the window mode S-019 AC7 (no
+# "hive anchor" line).
+# Usage: tests/overlay/kwin.sh [window|input|token|a11y|drop|scheme|1.5|anchor] [target/release]
 # Conditions go to check() in single quotes and are expanded by eval.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -71,7 +101,7 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 MODE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in window|input|token|a11y|drop|scheme|1.5) MODE=$a ;; *) BIN="$a" ;; esac
+  case "$a" in window|input|token|a11y|drop|scheme|1.5|anchor) MODE=$a ;; *) BIN="$a" ;; esac
 done
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
@@ -92,6 +122,11 @@ inner() {
   if [ "$MODE" = input ]; then
     # AC9: keyboard exclusivity under focus follows mouse, level Low.
     printf '[Windows]\nFocusPolicy=FocusFollowsMouse\nFocusStealingPreventionLevel=1\n' >"$XDG_CONFIG_HOME/kwinrc"
+  elif [ "$MODE" = anchor ]; then
+    # The pointer at (0, 0) would light the top left screen edge (bound to
+    # the Overview effect by default) in the corner screenshot: no edge
+    # action here.
+    printf '[Windows]\nFocusStealingPreventionLevel=1\n\n[Effect-overview]\nBorderActivate=9\n\n[ElectricBorders]\nTopLeft=None\nTop=None\nTopRight=None\nRight=None\nBottomRight=None\nBottom=None\nBottomLeft=None\nLeft=None\n' >"$XDG_CONFIG_HOME/kwinrc"
   else
     printf '[Windows]\nFocusStealingPreventionLevel=1\n' >"$XDG_CONFIG_HOME/kwinrc"
   fi
@@ -99,6 +134,16 @@ inner() {
   # The scheme mode follows the system (AC15) until it changes the theme.
   if [ "$MODE" = scheme ]; then
     printf 'language = "en"\ntheme = "auto"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  elif [ "$MODE" = anchor ]; then
+    printf 'language = "en"\ntheme = "dark"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    # S-019 AC6 asks for 18 cells: a PNG gets 15 built-in image actions, and
+    # three more ring 1 user actions make 18.
+    mkdir -p "$XDG_CONFIG_HOME/sbarhive/actions"
+    local xa
+    for xa in xa xb xc; do
+      printf '[[action]]\nid = "extra.%s"\nengine = "image"\nop = "convert"\nring = 1\norder = 900\naccepts = ["image"]\noutput = { mode = "per-file", ext = "webp" }\ncode = { ar = "%s", en = "%s" }\nlabel = { ar = "%s", en = "%s" }\nicon = "image"\n\n' \
+        "$xa" "${xa^^}" "${xa^^}" "${xa^^}" "${xa^^}"
+    done >"$XDG_CONFIG_HOME/sbarhive/actions/extra.toml"
   else
     printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   fi
@@ -186,6 +231,20 @@ JSON
   esc() { key 1; }
   click() { echo "move $1 $2" >&3; echo "sleep 150" >&3; echo "down" >&3; echo "sleep 40" >&3; echo "up" >&3; }
   lines() { wc -l <"$1"; }
+  # S-019c setup: the pointer in the middle of the output before a show, so
+  # the hive anchored at it is the centred hive the checks expect.
+  centre_ptr() { echo "move 640 400" >&3; sleep 0.3; }
+  # jitter X Y MS: 1 px pointer motion around (X, Y) every 10 ms for MS ms,
+  # queued on the input client, so it runs while the caller goes on.
+  jitter() {
+    local i dx=1 dy=1
+    [ "$1" -ge 1279 ] && dx=-1
+    [ "$2" -ge 799 ] && dy=-1
+    for ((i = 0; i < $3 / 10; i++)); do
+      if ((i % 2)); then echo "move $(($1 + dx)) $(($2 + dy))"; else echo "move $1 $2"; fi
+      echo "sleep 10"
+    done >&3
+  }
 
   # Deadlines in wall time.
   now_ms() { echo $(( ${EPOCHREALTIME/./} / 1000 )); }
@@ -240,6 +299,7 @@ PY
     shot "$log-before.png"
     show() { # show NAME COMMAND...: one show, closed with Esc
       local name=$1; shift
+      centre_ptr
       begin "$name"
       "$@" >>"$log-cli.log" 2>&1
       sleep 1.5
@@ -267,6 +327,7 @@ PY
     if [ "$MODE" = window ]; then
       # AC9 window path guard: a click on the GTK window takes the focus from
       # the hive, and focus loss still closes it there (S-001 AC4, S-014 AC3).
+      centre_ptr
       begin focusloss
       "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
       sleep 1.5
@@ -335,7 +396,17 @@ PY
         check "AC11 show $n ($name): one \"hive focus: true\" per wl_keyboard.enter and one false per leave" \
           '[ "$ft" -eq "$ke" ] && [ "$ff" -eq "$kl" ]'
         [ "$name" != drop ] && check "AC11 show $n ($name): the hive got the keyboard (hive focus: true)" '[ "$ft" -ge 1 ]'
+        # S-019 AC5: one anchor line per show, before its surface line. The
+        # pointer sits still at (640, 400) here, so its value is INFO (AC6).
+        local al aln sln
+        al=$(grep -E '^hive anchor: ' <<<"$seg")
+        aln=$(grep -nE '^hive anchor: ' <<<"$seg" | head -1 | cut -d: -f1)
+        sln=$(grep -nE '^hive surface: ' <<<"$seg" | head -1 | cut -d: -f1)
+        echo "INFO S-019 show $n ($name): anchor line(s) with the pointer still at (640, 400): ${al:-none}"
+        check "S-019 AC5 show $n ($name): exactly one \"hive anchor: X Y\" or \"hive anchor: none\" line, before the \"hive surface\" line" \
+          '[ "$(grep -c . <<<"$al")" -eq 1 ] && grep -qE "^hive anchor: (none|-?[0-9.]+ -?[0-9.]+)$" <<<"$al" && [ -n "$sln" ] && [ "$aln" -lt "$sln" ]'
       else
+        check "S-019 AC7 show $n ($name): the window path prints no \"hive anchor\" line" '! grep -qE "^hive anchor" <<<"$seg"'
         check "AC6 show $n ($name): no get_layer_surface with SBARHIVE_SURFACE=window" '[ "$gl" -eq 0 ]'
         # The first show can reuse the toplevel winit made when the daemon
         # started (tests/drop/lib.sh), so search up to the end of this show.
@@ -467,6 +538,7 @@ PY
     local outside_before roam_before
 
     # 1. AC8: a click on the ring-1 cell right of the centre chooses it.
+    centre_ptr
     begin cell
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     click $((640 + RIGHT_DX)) 400
@@ -475,6 +547,7 @@ PY
     local cell_other=no; [ -e "$W/photo.$first_ext" ] && cell_other=yes
 
     # 2. AC8: a click at (100, 700) lands on the catcher, not the GTK window.
+    centre_ptr
     begin outside
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     outside_before=$(nfiles)
@@ -482,6 +555,7 @@ PY
     local outside_files; outside_files=$(nfiles)
 
     # 3. AC9: pointer over the GTK window, Right then Enter.
+    centre_ptr
     begin keys
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     echo "move 100 700" >&3; sleep 0.5
@@ -490,6 +564,7 @@ PY
     sleep 0.5
 
     # 4. AC9: the pointer roams over 5 points (no click), then Esc.
+    centre_ptr
     begin roam
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     roam_before=$(nfiles)
@@ -501,6 +576,7 @@ PY
     local roam_files; roam_files=$(nfiles)
 
     # 5. AC9: opening the settings while the hive is shown does not close it.
+    centre_ptr
     begin settings
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     local s1; s1=$(lines "$DLOG")
@@ -570,10 +646,12 @@ PY
   token)
     local n
     for n in 1 2 3; do
+      centre_ptr
       begin "token$n"
       "$BIN/sbarhive" open --token "sbh-token-$n" "$W/photo.png" >>"$log-cli.log" 2>&1
       sleep 1.5; esc; sleep 1
     done
+    centre_ptr
     begin plain
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
     sleep 1.5; esc; sleep 1
@@ -604,7 +682,7 @@ PY
     ;;
 
   a11y)
-    open_esc() { "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5; esc; sleep 1.5; }
+    open_esc() { centre_ptr; "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5; esc; sleep 1.5; }
     # Each segment starts before its bus change, so a choice line printed
     # when the change arrives (not at the next show) falls inside it.
     begin reader-on
@@ -619,6 +697,7 @@ PY
     open_esc
     begin reader-off
     echo off >&4; sleep 1.5
+    centre_ptr
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
     sleep 1.5; esc; sleep 1
     finish
@@ -664,8 +743,23 @@ PY
     source "$ROOT/tests/drop/layer.sh"
     local n
     for n in 1 2 3; do
+      centre_ptr
       begin "drop$n"
       "$BIN/sbarhive" drop >>"$log-cli.log" 2>&1
+      # S-019 AC8: a press and release with no motion as soon as the catcher
+      # exists, on it during (or, as KWin sends the pointer enter on map,
+      # just after) the anchor phase, must not close the hive.
+      if [ "$n" = 2 ]; then
+        local k2; for k2 in $(seq 200); do
+          between "${marks[-1]}" '$' | grep -qE -- "${R}zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" && break; sleep 0.01
+        done
+        # 20 ms for KWin to configure and map the catcher.
+        echo "sleep 20" >&3; echo "down" >&3; echo "sleep 40" >&3; echo "up" >&3
+      fi
+      # S-019d setup: the click below waits for this show's anchor line.
+      local k; for k in $(seq 30); do
+        between "${marks[-1]}" '$' | grep -qE '^hive anchor: ' && break; sleep 0.1
+      done
       sleep 1.5
       # AC13: in drop mode a click outside the hive passes to the window below.
       [ "$n" = 1 ] && click 100 700
@@ -676,6 +770,30 @@ PY
     local i
     for ((i = 0; i < 3; i++)); do
       layer_drop_show $((i + 1)) "${marks[i]}" "${marks[i + 1]}" 0
+    done
+    # S-019 AC8: the press with no motion in show 2 did not close the hive.
+    local s2 g2 d2 t2=none
+    s2=$(seg_of 1)
+    g2=$(grep -E -- "${R}zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" <<<"$s2" | head -1)
+    d2=$(grep -E -- "${R}zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" <<<"$s2" | head -1)
+    [ -n "$g2" ] && [ -n "$d2" ] && t2=$(( $(ts_ms "$d2") - $(ts_ms "$g2") ))
+    local c2 b2 r2
+    c2=$(catcher_of "$s2")
+    b2=$(grep -nE -- '^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.button\(' <<<"$s2" | head -1 | cut -d: -f1)
+    r2=$(grep -nE -- "${R}${c2:-none}\.set_input_region\(wl_region" <<<"$s2" | head -1 | cut -d: -f1)
+    echo "INFO S-019 drop2: press with no motion at segment line ${b2:-none}, the catcher's first input region at line ${r2:-none}, layer destroys $(layer_destroys "$s2"), shown for ${t2} ms, anchor line: $(grep -E '^hive anchor: ' <<<"$s2" | tr '\n' ' ')"
+    check "S-019 AC8 drop2: a click on the catcher right after \`sbarhive drop\` (no motion) reaches it and does not close the hive (one destroy, by the 10 s timeout)" \
+      '[ -n "$b2" ] && [ "$(layer_destroys "$s2")" -eq 1 ] && [ "$t2" != none ] && [ "$t2" -ge 9000 ]'
+    # anchor_first SEG: the first "hive anchor" line comes before the first
+    # "hive surface" line.
+    anchor_first() {
+      local a b
+      a=$(grep -nE '^hive anchor: ' <<<"$1" | head -1 | cut -d: -f1)
+      b=$(grep -nE '^hive surface: ' <<<"$1" | head -1 | cut -d: -f1)
+      [ -n "$a" ] && [ -n "$b" ] && [ "$a" -lt "$b" ]
+    }
+    for ((i = 0; i < 3; i++)); do
+      check "S-019 AC5 drop$((i + 1)): a \"hive anchor\" line before the first \"hive surface\" line" 'anchor_first "$(seg_of "$i")"'
     done
     local seg cat gls dls dt=none pe pb ke
     seg=$(seg_of 0); cat=$(catcher_of "$seg")
@@ -688,19 +806,136 @@ PY
     read -r _ _ _ hx hy hw hh <<<"$(grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$seg" | head -1)"
     pe=$(evcount "wl_pointer[#@][0-9]+\.enter\([0-9]+, ${cat:-none}," "$seg")
     local pe_out
-    pe_out=$(grep -E -- "^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.enter\([0-9]+, ${cat:-none}, " <<<"$seg" \
+    # S-019 decision 2: the catcher takes the pointer in the anchor phase,
+    # so only enters after the show's "hive anchor" line count here.
+    pe_out=$(sed -n '/^hive anchor: /,$p' <<<"$seg" | grep -E -- "^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.enter\([0-9]+, ${cat:-none}, " \
       | sed -nE 's/.*enter\([0-9]+, wl_surface[#@][0-9]+, (-?[0-9.]+), (-?[0-9.]+)\).*/\1 \2/p' \
       | awk -v X="${hx:-0}" -v Y="${hy:-0}" -v W="${hw:-0}" -v H="${hh:-0}" '!($1 >= X && $1 <= X + W && $2 >= Y && $2 <= Y + H) { n++ } END { print n + 0 }')
     pb=$(evcount 'wl_pointer[#@][0-9]+\.button\(' "$seg")
     ke=$(evcount 'wl_keyboard[#@][0-9]+\.enter\(' "$seg")
     echo "INFO drop1: GTK clicks $(clicks_of 0), layer destroys $(layer_destroys "$seg"), shown for ${dt} ms, pointer enter on the catcher $pe (outside the hive ${hx:-?} ${hy:-?} ${hw:-?} ${hh:-?}: $pe_out), pointer buttons $pb, keyboard enter $ke"
     check "AC13 drop mode: the click at (100, 700) reaches the GTK window (one click)" '[ "$(clicks_of 0)" -eq 1 ]'
-    check "S-020 AC13 drop mode: no pointer enter on the catcher outside the hive rectangle, and no wl_pointer.button for the click at (100, 700)" \
-      '[ -n "$cat" ] && [ -n "$hh" ] && [ "$pe_out" -eq 0 ] && [ "$pb" -eq 0 ]'
+    check "S-020 AC13 drop mode: after the \"hive anchor\" line no pointer enter on the catcher outside the hive rectangle, and no wl_pointer.button for the click at (100, 700)" \
+      '[ -n "$cat" ] && [ -n "$hh" ] && grep -qE "^hive anchor: " <<<"$seg" && [ "$pe_out" -eq 0 ] && [ "$pb" -eq 0 ]'
     check "AC13 drop mode: the catcher gets no keyboard (no wl_keyboard.enter)" '[ "$ke" -eq 0 ]'
     check "AC13 drop mode: the hive stays after the click (closed once, by the 10 s timeout, not by the click)" \
       '[ "$(layer_destroys "$seg")" -eq 1 ] && [ "$dt" != none ] && [ "$dt" -ge 9000 ]'
     check "AC13: no protocol error in the daemon log" 'no_protocol_error'
+    ;;
+
+  anchor)
+    # S-019c (S-019 AC5, AC6). The before shot has no hive; the pointer is
+    # at (200, 200) and not drawn in ScreenShot2 shots.
+    shot "$log-before.png"
+    local nact
+    nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    echo "INFO anchor: photo.png has $nact actions (15 built-in and 3 user ones expected)"
+    check "S-019 AC6 setup: photo.png has 18 actions, so the hive shows 18 cells" '[ "$nact" -eq 18 ]'
+    local px=() py=()
+    ashow() { # ashow NAME X Y [still]
+      px+=("$2"); py+=("$3")
+      if [ "${4:-}" = still ]; then
+        echo "move $2 $3" >&3; sleep 1
+        begin "$1"
+      else
+        begin "$1"
+        # The motion starts before the command and lasts 600 ms (AC6).
+        jitter "$2" "$3" 600
+      fi
+      "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+      sleep 1.5
+      shot "$log-$1.png"
+      esc; sleep 1
+    }
+    ashow p400-500 400 500
+    ashow p100-700 100 700
+    ashow p1200-80 1200 80
+    ashow corner 0 0
+    ashow still 400 500 still
+    finish
+    # near A B TOL: |A - B| <= TOL, for decimals.
+    near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
+    local i nshow=${#names[@]}
+    for ((i = 0; i < nshow; i++)); do
+      local name=${names[i]} x=${px[i]} y=${py[i]} seg al aln sln sl cl
+      seg=$(seg_of "$i")
+      al=$(grep -E '^hive anchor: ' <<<"$seg")
+      aln=$(grep -nE '^hive anchor: ' <<<"$seg" | head -1 | cut -d: -f1)
+      sln=$(grep -nE '^hive surface: ' <<<"$seg" | head -1 | cut -d: -f1)
+      sl=$(surface_lines "$seg" | head -1)
+      cl=$(grep -E '^hive cells: ' <<<"$seg")
+      local ax="" ay="" kind="" sx="" sy="" sw="" sh="" cn="" ccx="" ccy=""
+      read -r _ _ ax ay <<<"$(head -1 <<<"$al")"
+      read -r _ _ kind sx sy sw sh <<<"$sl"
+      read -r _ _ cn ccx ccy <<<"$(head -1 <<<"$cl")"
+      local sets cfg first dtf=none
+      sets=$(grep -E -- "${R}wl_subsurface[#@][0-9]+\.set_position\(" <<<"$seg")
+      cfg=$(grep -E '^\[[0-9:.]+\] zwlr_layer_surface_v1[#@][0-9]+\.configure\(' <<<"$seg" | head -1)
+      first=$(head -1 <<<"$sets")
+      [ -n "$cfg" ] && [ -n "$first" ] && dtf=$(( $(ts_ms "$first") - $(ts_ms "$cfg") ))
+      echo "INFO S-019 $name (P = $x $y): ${al:-no anchor line}; ${sl:-no surface line}; ${cl:-no cells line}; set_position x$(grep -c . <<<"$sets") ($(sed -E 's/.*set_position//' <<<"$sets" | tr '\n' ' ')), first $dtf ms after the first configure"
+      if [ "$name" = still ]; then
+        # AC6: with the pointer still, KWin may or may not send an enter.
+        echo "INFO S-019 AC6 still pointer at (400, 500): ${al:-no hive anchor line}"
+        check "S-019 AC5 $name: exactly one \"hive anchor\" line, before the \"hive surface\" line" \
+          '[ "$(grep -c . <<<"$al")" -eq 1 ] && [ -n "$sln" ] && [ "$aln" -lt "$sln" ]'
+        continue
+      fi
+      # The AC3 placement and AC4 count for the printed anchor.
+      local orc=""
+      [ -n "$ay" ] && [ "$ax" != none ] && orc=$(python3 -I "$HERE/anchor.py" "$ROOT/design/tokens.json" 1280 800 "$ax" "$ay" 18)
+      echo "INFO S-019 $name: AC3/AC4 oracle (min_rings cx cy count x y w h): $(tr '\n' '|' <<<"$orc")"
+      local ok_box=no ok_cells=no mr ocx ocy ocn obx oby obw obh
+      while read -r mr ocx ocy ocn obx oby obw obh; do
+        [ -z "${obh:-}" ] && continue
+        near "$sx" "$obx" 1 && near "$sy" "$oby" 1 && near "$sw" "$obw" 1 && near "$sh" "$obh" 1 && ok_box=yes
+        [ "$cn" = "$ocn" ] && [ -n "$ccy" ] && near "$(awk -v a="$sx" -v b="$ccx" 'BEGIN { print a + b }')" "$ocx" 1 \
+          && near "$(awk -v a="$sy" -v b="$ccy" 'BEGIN { print a + b }')" "$ocy" 1 && ok_cells=yes
+      done <<<"$orc"
+      check "S-019 AC6 $name: exactly one \"hive anchor: X Y\" line, within 1 px of P = ($x, $y)" \
+        '[ "$(grep -c . <<<"$al")" -eq 1 ] && near "$ax" "$x" 1 && near "$ay" "$y" 1'
+      check "S-019 AC5 $name: the \"hive anchor\" line comes before the \"hive surface\" line" '[ -n "$aln" ] && [ -n "$sln" ] && [ "$aln" -lt "$sln" ]'
+      check "S-019 AC5 $name: exactly one \"hive surface: layer X Y W H\" line, equal to plan_at for the printed anchor (1 px)" \
+        '[ "$(surface_lines "$seg" | grep -c .)" -eq 1 ] && [ "$kind" = layer ] && [ "$ok_box" = yes ]'
+      check "S-019 AC5/AC6 $name: one \"hive cells: N CX CY\" line, N the AC4 count, the centre cell at the clamped anchor (1 px)" \
+        '[ "$(grep -c . <<<"$cl")" -eq 1 ] && [ "$ok_cells" = yes ]'
+      check "S-019 AC6 $name: the hive rectangle lies inside the 1280x800 screen" \
+        '[ -n "$sh" ] && [ "$sx" -ge 0 ] && [ "$sy" -ge 0 ] && [ $((sx + sw)) -le 1280 ] && [ $((sy + sh)) -le 800 ]'
+      check "S-019 AC5 $name: exactly one wl_subsurface.set_position, at X Y (the hive does not follow the pointer)" \
+        '[ "$(grep -c . <<<"$sets")" -eq 1 ] && grep -qE "set_position\($sx, $sy\)" <<<"$sets"'
+      # AC5: the wait for an anchor is 50 ms at most from the first
+      # configure; 16 ms more for drawing one frame.
+      check "S-019 AC5 $name: the hive is placed within 66 ms of the catcher's first configure" \
+        '[ "$dtf" != none ] && [ "$dtf" -le 66 ]'
+      if [ "$name" = p400-500 ]; then
+        check "S-019 AC6 P = (400, 500): the hive is at (204, 319) within 1 px" 'near "$sx" 204 1 && near "$sy" 319 1'
+      fi
+      local box="none" bx by bw bh
+      [ -s "$log-before.png" ] && [ -s "$log-$name.png" ] && box=$(python3 -I "$HERE/boxdiff.py" "$log-before.png" "$log-$name.png" 8 2>&1)
+      read -r bx by bw bh <<<"$box"
+      echo "INFO S-019 $name: screenshot box $box"
+      check "S-019 AC6 $name: the screenshot box lies inside the hive rectangle and the screen" \
+        '[ -n "${bh:-}" ] && [ -n "$sh" ] && [ "$bx" -ge "$sx" ] && [ "$by" -ge "$sy" ] && [ $((bx + bw)) -le $((sx + sw)) ] && [ $((by + bh)) -le $((sy + sh)) ] && [ $((bx + bw)) -le 1280 ] && [ $((by + bh)) -le 800 ]'
+    done
+    # AC6: the new reference, approved by the owner. The candidate is the
+    # corner show's hive rectangle, cropped from its screenshot.
+    local cseg csx csy csw csh cref="$HERE/snapshots/hive-en-dark-corner.png" ccand="$OUT/hive-en-dark-corner.png"
+    cseg=$(seg_of 3)
+    read -r _ _ _ csx csy csw csh <<<"$(surface_lines "$cseg" | head -1)"
+    rm -f "$ccand"
+    [ -n "${csh:-}" ] && [ -s "$log-corner.png" ] && python3 -I "$ROOT/tests/drop/pixels.py" crop "$log-corner.png" "$csx" "$csy" "$csw" "$csh" "$ccand"
+    if [ ! -s "$ccand" ]; then
+      check "S-019 AC6: hive-en-dark-corner.png candidate written" 'false'
+    elif [ ! -f "$cref" ]; then
+      echo "INFO S-019 AC6: candidate $ccand, no approved reference yet"
+      check "S-019 AC6: hive-en-dark-corner.png has an approved reference in tests/overlay/snapshots/ (needs the owner's approval)" 'false'
+    else
+      local cd; cd=$(python3 -I "$ROOT/tests/drop/pixels.py" diff "$ccand" "$cref")
+      echo "INFO S-019 AC6: hive-en-dark-corner.png differs from the reference in $cd of its pixels"
+      check "S-019 AC6: hive-en-dark-corner.png matches the approved reference (0.1 % or less)" \
+        'python3 -I -c "import sys; sys.exit(0 if float(sys.argv[1]) <= 0.001 else 1)" "$cd" 2>/dev/null'
+    fi
+    check "S-019 AC5/AC6: no protocol error in the daemon log" 'no_protocol_error'
     ;;
 
   scheme)
@@ -724,6 +959,7 @@ PY
     }
     local want=()
     sshow() { # sshow NAME EXPECTED: one show, a screenshot, closed with Esc
+      centre_ptr
       begin "$1"; want+=("$2")
       "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
       sleep 1.5
@@ -767,6 +1003,7 @@ PY
     ;;
 
   1.5)
+    centre_ptr
     shot "$log-before.png"
     begin "scale-${PHASE}"
     "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1

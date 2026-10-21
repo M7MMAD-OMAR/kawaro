@@ -18,8 +18,29 @@
 #   --json --quasimode adds the S-019 checks (a screen reader flag without a
 #                      running reader keeps the layer, key release hides, hive
 #                      near the pointer, same output as the pointer, adaptive
-#                      shape);
-#                      not implemented yet, so each counts as failed.
+#                      shape). Real checks so far (S-019c, S-019d):
+#                      hive near pointer: `sbarhive open` while a 1 px
+#                        pointer jitter around P = (300, 200) runs (every
+#                        10 ms for 600 ms, from before the command): a
+#                        "hive anchor" line within 1 px of P and the
+#                        "hive surface" line equal to the AC3 placement for
+#                        it (tests/overlay/anchor.py, 1 px) on the 960x540
+#                        logical output; then a drag held still at
+#                        (500, 300) and `sbarhive drop --at "$(hyprctl
+#                        cursorpos)"`, as the owner's binding would run it
+#                        (manager decision 1): anchored there at once, one
+#                        wl_subsurface.set_position;
+#                      same output as pointer: a second output
+#                        (`hyprctl output create wayland SBH-2`, 1280x720 at
+#                        scale 1, right of the first at (960, 0)), the
+#                        pointer moved onto it with hl.dsp.cursor.move({ x,
+#                        y }): `sbarhive open` puts the layer
+#                        on SBH-2 (hyprctl layers -j) with the anchor at the
+#                        pointer in SBH-2's own coordinates, and
+#                        `sbarhive drop --at "$(hyprctl cursorpos)"` (global
+#                        coordinates) gives the same local anchor on SBH-2.
+#                      The others are not implemented yet and count as
+#                      failed.
 # Checks (layer or window): surface shown, keyboard focus received, show
 # latency under 150 ms, Esc closes, click outside closes, input reaches the
 # other client after close, a click outside a drop show passes through;
@@ -112,7 +133,12 @@ inner() {
   # one, but integrations/linux/hyprland/README.md does not recommend it, and
   # it keeps the window path's hive open on a click outside by construction.
   cat >"$XDG_CONFIG_HOME/hypr/sbh.lua" <<LUA
-hl.monitor({ output = "", mode = "1280x720", position = "0x0", scale = "$HYPR_SCALE" })
+-- S-019 quasimode: the second output, made later with
+-- hyprctl output create wayland SBH-2 (a second window in the outer KWin;
+-- a headless output gets no mode in this nested setup). Its rule comes
+-- first and the first output's names it, as measured on Hyprland 0.56.2.
+hl.monitor({ output = "SBH-2", mode = "1280x720", position = "960x0", scale = "1" })
+hl.monitor({ output = "WAYLAND-1", mode = "1280x720", position = "0x0", scale = "$HYPR_SCALE" })
 hl.config({
   misc = { disable_hyprland_logo = true, disable_splash_rendering = true, disable_autoreload = true },
   animations = { enabled = false },
@@ -413,9 +439,133 @@ for c in json.load(sys.stdin):
   check "Esc mid-drag: the hive closes and a new drag begins" '[ "$CLOSED" = yes ] && [ "$AFTER" = yes ]'
 
   if [ "$QUASI" = 1 ]; then
-    for c in "screen reader flag without a reader keeps the layer" "key release hides" "hive near pointer" "same output as pointer" "adaptive shape"; do
+    for c in "screen reader flag without a reader keeps the layer" "key release hides" "adaptive shape"; do
       check "quasimode: $c (S-019, not implemented)" 'false'
     done
+    local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    # near A B TOL: |A - B| <= TOL, for decimals.
+    near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
+    # The output size in logical pixels (960x540 at 1.333333).
+    local lw lh
+    read -r lw lh < <(hyprctl monitors -j | python3 -I -c 'import json,sys
+m = json.load(sys.stdin)[0]
+print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
+    # placed SEG W H: "ok" when the segment's anchor line is a position and
+    # its surface line equals the AC3 placement for it within 1 px.
+    placed() {
+      local ax ay sx sy sw sh mr ox oy ow oh
+      read -r _ _ ax ay <<<"$(grep -m1 -E '^hive anchor: ' <<<"$1")"
+      read -r _ _ _ sx sy sw sh <<<"$(grep -m1 -E '^hive surface: layer ' <<<"$1")"
+      [ -n "${ay:-}" ] && [ -n "${sh:-}" ] || return 1
+      while read -r mr _ _ _ ox oy ow oh; do
+        near "$sx" "$ox" 1 && near "$sy" "$oy" 1 && near "$sw" "$ow" 1 && near "$sh" "$oh" 1 && return 0
+      done < <(python3 -I "$ROOT/tests/overlay/anchor.py" "$ROOT/design/tokens.json" "$2" "$3" "$ax" "$ay" "$nact")
+      return 1
+    }
+    anchor_of() { grep -m1 -E '^hive anchor: ' <<<"$1" | cut -d' ' -f3-; }
+
+    # Hive near pointer, 1: `sbarhive open` while the pointer moves 1 px
+    # around P (Hyprland logical pixels).
+    gone_within 120 || true
+    local i px=300 py=200
+    move "$px" "$py"; sleep 0.5
+    MARK=$(wc -l <"$DLOG")
+    for ((i = 0; i < 60; i++)); do
+      if ((i % 2)); then move $((px + 1)) $((py + 1)); else move "$px" "$py"; fi
+      echo "sleep 10" >&3
+    done
+    show "$BIN/sbarhive" open "$W/photo.png"
+    sleep 1
+    local nseg; nseg=$(after "$MARK")
+    local nax nay; read -r nax nay <<<"$(anchor_of "$nseg")"
+    say "INFO quasimode near pointer (open): P ($px, $py), output ${lw}x${lh}, $(grep -m1 -E '^hive anchor: ' <<<"$nseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$nseg" || echo 'no surface line')"
+    key 1; gone_within 30 || true
+    reset_hive "the near pointer show"
+    check "quasimode: hive near pointer (S-019 AC5, AC6): \`sbarhive open\` with the pointer moving at ($px, $py) is anchored within 1 px of it and placed by plan_at for that anchor" \
+      'near "$nax" "$px" 1 && near "$nay" "$py" 1 && placed "$nseg" "$lw" "$lh"'
+
+    # Hive near pointer, 2: decision 1, a drag held still and
+    # `sbarhive drop --at "$(hyprctl cursorpos)"` (no wait, no move).
+    local s0; s0=$(wc -l <"$SLOG")
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$W/held.png"
+    printf '%s\n' "$W/held.png" >"$NEXT"
+    begin_drag
+    move 500 300; sleep 0.5
+    local cur; cur=$(hyprctl cursorpos | tr -d ' ')
+    show "$BIN/sbarhive" drop --at "$(hyprctl cursorpos)"
+    sleep 1
+    local dseg; dseg=$(after "$MARK")
+    local dax day; read -r dax day <<<"$(anchor_of "$dseg")"
+    local dsets; dsets=$(sed -n "$((MARK + 1)),\$p" "$DLOG" | grep -cE -- '-> wl_subsurface[#@][0-9]+\.set_position\(')
+    say "INFO quasimode near pointer (drop --at): cursorpos $cur, $(grep -E '^hive anchor: ' <<<"$dseg" | tr '\n' ' ' || true)$(grep -m1 -E '^hive surface: ' <<<"$dseg" || echo 'no surface line'), set_position x$dsets"
+    echo "up" >&3
+    gone_within 130 || true
+    reset_hive "the drop --at show"
+    check "quasimode: hive near pointer (S-019 decision 1): a still drag and \`sbarhive drop --at \"\$(hyprctl cursorpos)\"\` anchor at the cursor (1 px) at once, with one set_position" \
+      '[ "$(grep -cE "^hive anchor: " <<<"$dseg")" -eq 1 ] && near "$dax" "${cur%,*}" 1 && near "$day" "${cur#*,}" 1 && [ "$dsets" -eq 1 ] && placed "$dseg" "$lw" "$lh"'
+
+    # Same output as pointer: a second output right of the first.
+    local made; made=$(hyprctl output create wayland SBH-2 2>&1)
+    sleep 1.5
+    local mon2 m2x="" m2y="" m2w="" m2h=""
+    mon2=$(hyprctl monitors -j 2>/dev/null | python3 -I -c 'import json,sys
+for m in json.load(sys.stdin):
+    if m["name"] == "SBH-2":
+        print(m["x"], m["y"], round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
+    read -r m2x m2y m2w m2h <<<"$mon2"
+    # The pointer onto SBH-2 at (300, 200) of its own coordinates.
+    local gx="" gy="" warp="" tries
+    if [ -n "$m2h" ]; then
+      gx=$((m2x + 300)); gy=$((m2y + 200))
+      warp() { hyprctl dispatch "hl.dsp.cursor.move({ x = $1, y = $2 })" >/dev/null 2>&1; }
+      for tries in 1 2 3; do
+        warp "$gx" "$gy"; sleep 0.3
+        warp=$(hyprctl cursorpos | tr -d ' ')
+        [ "$warp" = "$gx,$gy" ] && break
+      done
+    fi
+    say "INFO quasimode same output: output create: ${made:-no reply}; SBH-2 at ${mon2:-none} (x y w h, logical); cursor after hl.dsp.cursor.move to ${gx:-?},${gy:-?}: ${warp:-none}"
+    # on_output: the monitor whose layer list has the sbarhive namespace.
+    on_output() {
+      hyprctl layers -j 2>/dev/null | python3 -I -c 'import json,sys
+d = json.load(sys.stdin)
+print(" ".join(sorted(m for m, v in d.items() if "sbarhive" in json.dumps(v))))'
+    }
+    local oseg="" olay="" oax="" oay=""
+    if [ -n "$gx" ]; then
+      MARK=$(wc -l <"$DLOG")
+      # 1 px motion on SBH-2 while the hive shows (no outer KWin window there).
+      ( for ((i = 0; i < 30; i++)); do warp $((gx + i % 2)) $((gy + i % 2)); sleep 0.01; done ) &
+      local jp=$!
+      show "$BIN/sbarhive" open "$W/photo.png"
+      sleep 0.5
+      olay=$(on_output)
+      wait "$jp" 2>/dev/null
+      sleep 0.5
+      oseg=$(after "$MARK")
+      read -r oax oay <<<"$(anchor_of "$oseg")"
+      key 1; gone_within 30 || true
+      reset_hive "the SBH-2 show"
+    fi
+    say "INFO quasimode same output (open): layer on ${olay:-none}, $(grep -m1 -E '^hive anchor: ' <<<"$oseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$oseg" || echo 'no surface line')"
+    check "quasimode: same output as pointer (S-019 AC5): \`sbarhive open\` with the pointer on SBH-2 puts the layer there, anchored at the pointer in SBH-2 coordinates (1 px)" \
+      '[ "$olay" = SBH-2 ] && near "$oax" 300 1 && near "$oay" 200 1 && placed "$oseg" "$m2w" "$m2h"'
+    local aseg="" alay="" aax="" aay="" acur=""
+    if [ -n "$gx" ]; then
+      warp "$gx" "$gy"; sleep 0.3
+      acur=$(hyprctl cursorpos | tr -d ' ')
+      MARK=$(wc -l <"$DLOG")
+      show "$BIN/sbarhive" drop --at "$(hyprctl cursorpos)"
+      sleep 0.5
+      alay=$(on_output)
+      aseg=$(after "$MARK")
+      read -r aax aay <<<"$(anchor_of "$aseg")"
+      gone_within 130 || true
+      reset_hive "the SBH-2 drop --at show"
+    fi
+    say "INFO quasimode same output (drop --at): cursorpos ${acur:-none}, layer on ${alay:-none}, $(grep -m1 -E '^hive anchor: ' <<<"$aseg" || echo 'no anchor line')"
+    check "quasimode: same output as pointer (S-019 decision 1): \`sbarhive drop --at\` with global coordinates on SBH-2 puts the layer there, anchored at the same point in SBH-2 coordinates (1 px)" \
+      '[ "$alay" = SBH-2 ] && [ -n "$acur" ] && near "$aax" "$(awk -v a="${acur%,*}" -v b="$m2x" "BEGIN { print a - b }")" 1 && near "$aay" "$(awk -v a="${acur#*,}" -v b="$m2y" "BEGIN { print a - b }")" 1'
   fi
 
   finish

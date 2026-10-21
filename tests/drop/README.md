@@ -49,21 +49,37 @@ destroys the surface on hide), `set_actions` offers copy only, and `accept`
 names `text/uri-list` only.
 
 On KWin the hive is a layer surface (S-018): `kwin.sh` reads the hive's
-rectangle from the daemon's `hive surface: layer X Y W H` line (the daemon
-runs with `SBARHIVE_DEBUG_FOCUS=1`), counts it shown while there are more of
-those lines than `zwlr_layer_surface_v1.destroy` requests, and takes the
-show's new surface from `get_layer_surface`. It then runs the checks in
-`layer.sh` (S-018d AC13, revised by S-020 AC1 and AC2) for each show:
-keyboard interactivity 0; an empty input region on the catcher before its
-first commit, then, after the first configure and before the first hive
-frame, a region of exactly the hive rectangle; an empty input region on the
-hive subsurface; one `get_data_device` after `get_layer_surface` with every
+rectangle from the daemon's last `hive surface: layer X Y W H` line after
+the show's `get_layer_surface` (the daemon runs with
+`SBARHIVE_DEBUG_FOCUS=1`), counts it shown while there are more
+`get_layer_surface` than `zwlr_layer_surface_v1.destroy` requests, and takes
+the show's new surface from `get_layer_surface`. Each show first moves the
+drag to the hive's centre (S-019d: the first drag position moves a centred
+drop hive once, and there that move changes nothing). It then runs the
+checks in `layer.sh` (S-018d AC13, revised by S-020 AC1 and AC2 and by S-019
+AC8 and AC9) for each show: keyboard interactivity 0; the catcher's default
+input region until the first position (the first pointer or drag enter on
+it), then a region of exactly the hive rectangle; with
+`sbarhive drop --at X,Y` that rectangle before the catcher's first commit;
+no typed `accept`, no `receive` and no `drop cells:` line before the switch,
+and one `drop cells:` line per show; an empty input region on the hive
+subsurface; one `get_data_device` after `get_layer_surface` with every
 earlier data device released first; and the drag's first `enter` on this
 show's data device naming the catcher, at a point inside the hive rectangle. GNOME stays on the window
 path (`get_xdg_surface`). `tests/overlay/kwin.sh drop` runs the same
-`layer.sh` checks without a drag, plus a click at (100, 700) that must reach
-the window below while the hive stays, with no pointer enter on the catcher
-outside the hive and no button.
+`layer.sh` checks without a drag, plus a click at (100, 700), after the
+show's `hive anchor` line, that must reach the window below while the hive
+stays, with no pointer enter on the catcher outside the hive after that line
+and no button; and in its second show a press with no motion on the catcher
+that must not close the hive.
+
+S-019d adds six shows to `kwin.sh` with the drag held at P (S-019 AC10 and
+the manager's decision 1): a 1 px drag motion around (400, 500) from before
+`sbarhive drop` (three shows, each anchored there and dropped on the WEBP
+cell, the hive at (204, 319)); the same around (100, 700); a drag standing
+still for 1 s and then moving to (400, 500) (`hive anchor: none`, then one
+move, two `set_position`); and `sbarhive drop --at 400,500` with the drag
+still (anchored at once, one `set_position`, the file written).
 
 The WEBP cell is located from the shipped layout rule (`crates/ui/src/layout.rs`,
 `geometry.rs`, `design/tokens.json`): first cell of ring 1, top right of the

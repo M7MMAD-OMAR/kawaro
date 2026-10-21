@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # End-to-end test of the built binaries inside a private headless KWin with a
 # throwaway HOME and session bus. Never touches the live desktop or profile.
+# S-019c (backlog/S-019-hive-at-pointer.md, AC7): a second private KWin at
+# 1920x1200, scale 1.5 (1280x800 logical, seeded in kwinoutputconfig.json as
+# tests/overlay/kwin.sh 1.5 does), shows the largest hive 20 times: the
+# pointer at the middle of the top edge, (640, 0) logical, and photo.png with
+# 18 actions (15 built-in, three user ones). Each show closes with Esc; then
+# the daemon's RSS must be 40 MB or less. Every show must be anchored there:
+# a "hive anchor" line within 1 px of (640, 0), and a "hive surface" line
+# equal to the AC3 placement for it (tests/overlay/anchor.py, 1 px).
 # Usage: tests/e2e/run.sh [target/release]
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -171,12 +179,103 @@ inner() {
 }
 export -f inner
 
+# S-019 AC7: memory after 20 shows of the largest anchored hive.
+rss_inner() {
+  set -u
+  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP
+  local fail=0
+  check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; fail=1; fi; }
+  mkdir -p "$XDG_CONFIG_HOME/sbarhive/actions"
+  cat >"$XDG_CONFIG_HOME/kwinoutputconfig.json" <<'JSON'
+[{"name": "outputs", "data": [{"connectorName": "Virtual-0", "mode": {"width": 1920, "height": 1200, "refreshRate": 60000}, "scale": 1.5, "transform": "Normal"}]},
+ {"name": "setups", "data": [{"lidClosed": false, "outputs": [{"enabled": true, "outputIndex": 0, "position": {"x": 0, "y": 0}, "priority": 0}]}]}]
+JSON
+  printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  local xa
+  for xa in xa xb xc; do
+    printf '[[action]]\nid = "extra.%s"\nengine = "image"\nop = "convert"\nring = 1\norder = 900\naccepts = ["image"]\noutput = { mode = "per-file", ext = "webp" }\ncode = { ar = "%s", en = "%s" }\nlabel = { ar = "%s", en = "%s" }\nicon = "image"\n\n' \
+      "$xa" "${xa^^}" "${xa^^}" "${xa^^}" "${xa^^}"
+  done >"$XDG_CONFIG_HOME/sbarhive/actions/extra.toml"
+  kwin_wayland --virtual --socket "$WAYLAND_DISPLAY" --width 1920 --height 1200 >"$SANDBOX/kwin-rss.log" 2>&1 &
+  local kwin=$!
+  for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
+  sleep 2
+  local W="$SANDBOX/work-rss"; mkdir -p "$W"
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo.png"
+  local log="$SANDBOX/daemon-rss.log"
+  SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$log" 2>&1 &
+  local d=$!
+  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+  check "S-019 AC7 setup: photo.png has 18 actions" '[ "$nact" -eq 18 ]'
+  local inf="$XDG_RUNTIME_DIR/in-rss"; mkfifo "$inf"
+  "$INPUT" <"$inf" >"$SANDBOX/input-rss.log" 2>&1 &
+  local ip=$!
+  exec 3>"$inf"
+  sleep 0.5
+  # The middle of the top edge, logical coordinates.
+  echo "move 640 0" >&3; sleep 0.5
+  layers() { grep -cE "^hive surface: layer " "$log"; }
+  closes() { grep -cE -- "-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" "$log"; }
+  local l0 c0 shows=0 i
+  l0=$(layers); c0=$(closes)
+  for i in $(seq 20); do
+    "$BIN/sbarhive" open "$W/photo.png" || break
+    for _ in $(seq 30); do [ "$(layers)" -ge $((l0 + i)) ] && break; sleep 0.1; done
+    sleep 0.3
+    echo "keydown 1" >&3; echo "sleep 40" >&3; echo "keyup 1" >&3
+    for _ in $(seq 30); do [ "$(closes)" -ge $((c0 + i)) ] && break; sleep 0.1; done
+    [ "$(closes)" -ge $((c0 + i)) ] && shows=$i
+  done
+  exec 3>&-
+  local anchors surfaces orc
+  anchors=$(grep -E '^hive anchor: ' "$log")
+  surfaces=$(grep -E '^hive surface: layer ' "$log")
+  orc=$(python3 -I "$ROOT/tests/overlay/anchor.py" "$ROOT/design/tokens.json" 1280 800 640 0 18)
+  echo "INFO S-019 AC7: $shows shows closed; anchor lines: $(sort <<<"$anchors" | uniq -c | tr '\n' ';'); surface lines: $(sort <<<"$surfaces" | uniq -c | tr '\n' ';'); oracle for (640, 0): $(tr '\n' '|' <<<"$orc")"
+  check "S-019 AC7: 20 shows of 18 cells with the pointer at (640, 0) on 1280x800 at scale 1.5, each closed by Esc" '[ "$shows" -eq 20 ]'
+  check "S-019 AC7: every show is anchored at the pointer (20 \"hive anchor\" lines within 1 px of (640, 0))" \
+    '[ "$(grep -c . <<<"$anchors")" -eq 20 ] && awk '"'"'{ dx = $3 - 640; dy = $4; if (dx < 0) dx = -dx; if (dy < 0) dy = -dy; if ($3 == "none" || dx > 1 || dy > 1) bad = 1 } END { exit bad }'"'"' <<<"$anchors"'
+  # The box for the anchor (640, 0): the same for min_rings 1 and 2 here.
+  local ox oy ow oh; read -r _ _ _ _ ox oy ow oh <<<"$(head -1 <<<"$orc")"
+  check "S-019 AC7: every show is the largest box, plan_at for (640, 0) ($ox $oy $ow $oh, 1 px)" \
+    '[ "$(grep -c . <<<"$surfaces")" -eq 20 ] && awk -v X="$ox" -v Y="$oy" -v W="$ow" -v H="$oh" '"'"'function a(v) { return v < 0 ? -v : v } { if (a($4 - X) > 1 || a($5 - Y) > 1 || a($6 - W) > 1 || a($7 - H) > 1) bad = 1 } END { exit bad }'"'"' <<<"$surfaces"'
+  sleep 2
+  local rss; rss=$(awk '/^VmRSS:/ {print int($2 / 1024)}' "/proc/$d/status")
+  echo "INFO S-019 AC7: memory after 20 shows of the largest hive at scale 1.5: ${rss} MB"
+  check "S-019 AC7: memory after 20 shows of the largest hive within 40 MB" '[ -n "$rss" ] && [ "$rss" -le 40 ]'
+  "$BIN/sbarhive" quit >/dev/null 2>&1
+  for _ in $(seq 30); do kill -0 $d 2>/dev/null || break; sleep 0.1; done
+  kill $d $ip 2>/dev/null
+  kill $kwin 2>/dev/null
+  timeout 5 tail --pid=$kwin -f /dev/null || kill -9 $kwin
+  [ $fail -eq 0 ] && echo "e2e S-019 AC7: all passed" || { echo "e2e S-019 AC7: failures, logs in $SANDBOX"; tail -20 "$log"; }
+  return $fail
+}
+export -f rss_inner
+
 # Environment set BEFORE dbus-run-session, so nothing the private bus
 # activates (a desktop portal, for one) can reach the live desktop.
+RUN1="$(mktemp -d)"
 env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
   -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION \
 HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
 XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
-XDG_RUNTIME_DIR="$(mktemp -d)" WAYLAND_DISPLAY=wayland-sbh-e2e \
+XDG_RUNTIME_DIR="$RUN1" WAYLAND_DISPLAY=wayland-sbh-e2e \
 KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
   dbus-run-session -- bash -c inner
+rc1=$?
+# The S-019 AC7 session: its own config dir and runtime dir in the sandbox.
+RUN2="$(mktemp -d)"
+mkdir -p "$SANDBOX/rss/.config" "$SANDBOX/rss/.local/share" "$SANDBOX/rss/.cache" "$SANDBOX/rss/.local/state"
+env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
+  -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION \
+HOME="$SANDBOX/rss" XDG_CONFIG_HOME="$SANDBOX/rss/.config" XDG_DATA_HOME="$SANDBOX/rss/.local/share" \
+XDG_CACHE_HOME="$SANDBOX/rss/.cache" XDG_STATE_HOME="$SANDBOX/rss/.local/state" \
+XDG_RUNTIME_DIR="$RUN2" WAYLAND_DISPLAY=wayland-sbh-e2e-rss \
+KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
+  dbus-run-session -- bash -c rss_inner
+rc2=$?
+# The private bus's FUSE mounts (gvfs, doc) can outlive it for a moment.
+rm -rf "$RUN1" "$RUN2" 2>/dev/null || { sleep 1; rm -rf "$RUN1" "$RUN2"; }
+[ "$rc1" -eq 0 ] && [ "$rc2" -eq 0 ]

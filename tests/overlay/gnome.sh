@@ -6,6 +6,7 @@
 # The daemon runs with WAYLAND_DEBUG=1 and shows the hive three times (no
 # token, a token, drop mode); each open show is closed with Esc through
 # Mutter's RemoteDesktop API (tests/drop/input_gnome.py).
+# S-019 AC7: the window path prints no "hive anchor" line.
 # Runs in a private headless gnome-shell with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
 # Usage: tests/overlay/gnome.sh [target/release]
@@ -109,6 +110,9 @@ inner() {
     check "AC11 show $n ($name): W H equal the SbarHive frame within 1 px, X Y on the 1280x800 screen" \
       '[ "${kind:-}" = window ] && [ -n "${gh:-}" ] && [ $((sw - gw)) -ge -1 ] && [ $((sw - gw)) -le 1 ] && [ $((sh - gh)) -ge -1 ] && [ $((sh - gh)) -le 1 ] && [ "$sx" -ge 0 ] && [ "$sy" -ge 0 ] && [ $((sx + sw)) -le 1280 ] && [ $((sy + sh)) -le 800 ]'
   done
+  # S-019 AC7 (S-019c): the window path has no anchor; the hive stays
+  # where it is today. A guard: it holds before and after S-019c.
+  check "S-019 AC7: the window path prints no \"hive anchor\" line" '! grep -qE "^hive anchor" "$DLOG"'
   check "AC6: no get_layer_surface in the whole trace" \
     '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$(cat "$DLOG")")" -eq 0 ]'
   check "AC6: no protocol error in the daemon log" '! grep -qE "wl_display[#@]1\.error\(|[Pp]rotocol error" "$DLOG"'

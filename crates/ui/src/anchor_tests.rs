@@ -553,3 +553,60 @@ fn ac4_corner_shows_every_cell_it_can() {
     assert_eq!(plan.cells.len(), e.slots.len());
     assert!(plan.cells.iter().any(|p| hex_distance(p.axial) == 4));
 }
+
+#[test]
+fn ac3_anchor_above_the_bottom_edge_keeps_only_slots_within_h_minus_my() {
+    // Surviving mutant layout.rs:153:70 (`+` to `*` in the y upper bound of
+    // the slot filter). A slot is kept only when its centre lies within
+    // `(h - my) + EPS`, with `my = r + PAD`. At the bottom edge itself the
+    // next row is far below that bound, so the AC4 anchors cannot tell
+    // `(h - my) + EPS` from a bound a little under `h`. Anchored 70 to 110 px
+    // above the bottom, the centre is not clamped and the row below it
+    // (1.5 spacings lower) has its centre between `h - my` and `h`: its
+    // hexagon leaves the screen, so those slots must be dropped.
+    let (w, h) = (SCREEN.0 as f32, SCREEN.1 as f32);
+    let my = radius() + PAD;
+    let spacing = radius() + HEX_GAP / 3f32.sqrt();
+    for y in [690.0, 700.0, 710.0, 720.0, 730.0] {
+        for x in [100.0, 640.0, 1200.0] {
+            let anchor = (x, y);
+            // The case is the one the mutant gets wrong: the anchor needs no
+            // clamp, and the row below lies between the bound and the edge.
+            let below = y + 1.5 * spacing;
+            assert!(
+                y <= h - my && below > h - my + EPS && below < h,
+                "case {anchor:?}"
+            );
+            for n in [18, 12] {
+                for rtl in [false, true] {
+                    for min_rings in [1, 2] {
+                        check_case(n, rtl, min_rings, anchor, 120);
+                    }
+                    let (plan, pl) = plan_at(cells(n), rtl, 1, SCREEN, Some(anchor), 120);
+                    for p in &plan.cells {
+                        let sy = pl.y as f32 + p.y;
+                        assert!(
+                            sy <= h - my + 0.5 + EPS,
+                            "{n} cells, rtl {rtl}, anchor {anchor:?}: slot centre y {sy} past h - my = {}",
+                            h - my
+                        );
+                    }
+                    // The kept rows stop at the anchor's row and the one
+                    // above it reaches no further than the oracle's slots.
+                    let e = expect(cells(n), rtl, 1, anchor);
+                    assert!(
+                        e.slots
+                            .iter()
+                            .all(|(_, a)| e.centre.1 + offset(*a, rtl).1 <= h - my + EPS),
+                        "oracle {anchor:?}"
+                    );
+                    assert!(
+                        plan.cells.len() <= e.slots.len()
+                            && pl.x as f32 + plan.width <= w + 0.5 + EPS,
+                        "{n} cells, rtl {rtl}, anchor {anchor:?}"
+                    );
+                }
+            }
+        }
+    }
+}

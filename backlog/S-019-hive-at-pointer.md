@@ -311,3 +311,97 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - `cargo mutants` على `layout.rs`: 60 طفرة، 58 مُلتقطة، وواحدة غير صالحة، وواحدة ناجية: `layout.rs:153:70` (استبدال `+` بـ `*` في `plan_at`، حدّ y الأعلى للخانات). **فجوة معروفة**: يكتب المختبِر حالة حدّية تلتقطها مع اختبارات S-019c، ويُعاد فحص هذه الطفرة وحدها. `overlay.rs` لم تُفحص طفراته بعد، وتُفحص مع S-019c بالقيود نفسها.
 - CLAUDE.md عُدّل بنص القرار 8 كما اقترحه المنفِّذ، مع قاعدة الحمل.
 - قرارات المخطِّط 9 و10 و11: تُعتمد المقترحات الثلاثة كما كُتبت (موضع الضغط الأول، ومدى 100 إلى 2000 دون صفر، وقبول خطر الخدمة الباردة).
+
+### المختبِر (S-019c وS-019d، AC5 إلى AC10، وقرار المدير 1، وملاحظة S-020)
+
+- 2026-10-21، المختبِر: كُتبت الاختبارات من المعايير وقرارات المدير وملاحظة S-020 فقط، دون قراءة شيفرة التنفيذ (عدا سطر الطفرة في `layout.rs:153` لتحديدها). شُغّل كل أمر cargo وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`، وعلى بناء الإصدار الحالي (`a8da7d8`). لا عمليات باقية ولا مجلدات مؤقتة.
+- العقد (يثبّته الاختبار، فلا يُعدَّل):
+  - `Request::Drop` يكسب الحقل `at`، وصيغته في JSON `"at": [X, Y]` (عددان)، وغيابه أو `null` يعني لا موضع، مع `#[serde(default)]`. عُدّلت الأمثلة الحرفية الثلاثة في `ipc_drop.rs` بإضافة `at: None`، والتأكيدات كما هي.
+  - `sbarhive drop --at X,Y` يقبل `400,500` و`"1198, 1800"` (مخرج `hyprctl cursorpos` كما هو) والكسور والسالب (`--at=-1280.5,300.25`)، ويجتمع مع `--token`. القيمة المعطوبة (`400`، `400,500,600`، `x,500`، `400;500`، الفارغة) رمز خروج 2، ورسالة تذكر `--at`، ولا طلب يُرسَل.
+  - الإحداثيات عامة منطقية (القرار 1): على مخرج ثانٍ تُطرح منه زاويته، فيكون `hive anchor` بإحداثيات المخرج نفسه (فحص Hyprland أدناه).
+  - أسطر التشخيص مع `SBARHIVE_DEBUG_FOCUS`: `hive anchor: X Y` أو `hive anchor: none` قبل كل `hive surface: layer X Y W H`، و`hive cells: N CX CY`. والانتقال الوحيد في وضع الإفلات (AC8) يطبع زوجاً ثانياً (`hive anchor` ثم `hive surface`) بالقيم الجديدة، فتقرأ الاختبارات الهندسة من آخر سطر `hive surface` بعد آخر `get_layer_surface`. هذا تفسير المختبِر لـ AC5 («كل ظهور سطر واحد») مع AC10 («`none` أولاً ثم انتقال»).
+  - المرساة المطبوعة موضع المؤشر الخام (غير المحصور)، والحصر يظهر في `hive cells` (`X + CX`، `Y + CY` عند المرساة المحصورة).
+  - «الموضع الأول» في وضع الإفلات هو أول `wl_pointer.enter` أو `wl_data_device.enter` يسمّي الماسك. قبله لا `set_input_region(wl_region)` على الماسك، وبعده آخر منطقة على الماسك هي مستطيل الخلية الأخير (قراءة S-020 AC1 للمنطقة «الفارغة» في AC8). ومع `--at` المستطيل قبل أول commit للماسك. هذا يحل محل فحصي S-020 AC1 القديمين في `layer.sh` (منطقة فارغة قبل أول commit، ثم المستطيل قبل أول إطار)، لأن القرار 2 يعكسهما.
+- الملفات:
+  - `crates/ui/src/anchor_tests.rs`: `ac3_anchor_above_the_bottom_edge_keeps_only_slots_within_h_minus_my`. **الطفرة كما سُجّلت (`(h - my) * EPS`) تلتقطها الاختبارات القائمة**: طبّقتها يدوياً فسقط 9 اختبارات. العمود 70 يطابق الطفرة نفسها على نسخة السطر دون الأقواس (`h - my + EPS` إلى `h - my * EPS`، أي حدّ أعلى `h - 0.46`)، وهذه لا تلتقطها مراسي AC4 لأن الصف التالي عند الحافة السفلى نفسها أبعد من `h`. الاختبار الجديد يضع المرساة 70 إلى 110 px فوق الحافة، فيقع مركز الصف التالي بين `h - my` و`h`. طبّقت هذه الطفرة يدوياً: فشل الاختبار الجديد وحده (15 نجحت، 1 فشل)، ثم أُعيد الملف بـ `git checkout`؛ وعلى الشيفرة الصحيحة ينجح (16 من 16). هو حارس حدّ لا اختبار ميزة، فنجاحه قبل التنفيذ مقصود.
+  - `crates/core/tests/ipc_drop.rs` (4 اختبارات جديدة) و`crates/cli/tests/cli.rs` (5 اختبارات جديدة)، للقرار 1.
+  - `tests/overlay/anchor.py` (جديد): مرجع AC3 وAC4 للسكربتات من الرموز وحدها (المرساة المحصورة، والعدد، والصندوق للحلقات الدنيا 1 و2). يعطي (444، 219) و(204، 319) كما في AC4، والعرض بحساب f64 قد يقل 1 px عن سقف f32 (392 مقابل 393)، فالمقارنة بسماح 1 px.
+  - `tests/overlay/kwin.sh anchor` (جديد، AC5 وAC6): رجّة 1 px كل 10 ms مدة 600 ms تبدأ قبل `sbarhive open` عند (400، 500) و(100، 700) و(1200، 80) و(0، 0)، ثم ظهور والمؤشر ساكن (INFO). لـ photo.png هنا 18 إجراءً (15 مدمجة وثلاثة للمستخدم في `actions/extra.toml` الخاص بالصندوق)، بالإنكليزية والداكن. حافة KWin العليا اليسرى مربوطة افتراضياً بتأثير Overview فرسمت توهجاً في لقطة الزاوية، فعُطّلت حواف الشاشة في هذا الوضع (`[Effect-overview] BorderActivate=9` و`[ElectricBorders]`). المرشّح `tests/overlay/out/hive-en-dark-corner.png`، والمرجع المعتمد في `tests/overlay/snapshots/hive-en-dark-corner.png` غير موجود: فشل حتى يعتمده محمد.
+  - `tests/overlay/kwin.sh` بقية الأوضاع (تعديل التهيئة): `move 640 400` قبل كل ظهور في كل الأوضاع. **وفي وضع 1.5 أيضاً (640، 400) لا (960، 600)**: حقن KWin بإحداثيات منطقية، و1920x1200 بمقياس 1.5 يساوي 1280x800 منطقياً، فـ (960، 600) هو المنتصف الفيزيائي. وفي وضع الطبقة فحص S-019 AC5 (سطر `hive anchor` واحد قبل `hive surface` في كل ظهور)، وفي وضع النافذة فحص AC7 (لا سطر `hive anchor`). وفي وضع drop: النقرة (100، 700) بعد سطر `hive anchor` (التهيئة المذكورة)، و«بعد سطر hive anchor» في فحص kwin.sh:643 القديم (تأكيد القرار 2)، وفي الظهور 2 ضغطة دون حركة على الماسك فور وجوده (AC8). KWin يرسل `wl_pointer.enter` للسطح الجديد بعد 3 إلى 8 ms من `configure` (من الأثر)، فلا يمكن إيقاع النقرة داخل مرحلة المرساة بثبات؛ الفحص يشترط أن تصل الضغطة إلى الماسك (`wl_pointer.button` في الأثر) وأن تبقى الخلية حتى المهلة.
+  - `tests/overlay/gnome.sh`: حارس AC7 (لا سطر `hive anchor` على مسار النافذة).
+  - `tests/drop/layer.sh` (AC8 وAC9، بمعامل خامس `AT`)، و`tests/drop/lib.sh` (`ANCHOR_SETTLE`: حركة تهيئة إلى مركز الخلية قبل بقية الحركة، لأن دورات lib.sh القائمة **تتحرك** بعد `sbarhive drop`، إلى زاوية الخلية في `move_to_webp`، فتنقلها لولا التهيئة؛ وفي المنتصف لا يغيّر الانتقال شيئاً. وفي `enter_cells_checks` تُقارن قائمة PNG بأول قائمة تختلف عنها لا بالأخيرة، لأن دورات PNG صارت بعد PDF).
+  - `tests/drop/kwin.sh level=1` (AC10 والقرار 1): `hive_geo` يعدّ `get_layer_surface` مقابل `destroy` ويأخذ آخر سطر سطح، وست دورات: رجّة عند (400، 500) ثلاث مرات مع الإفلات على WEBP (العدّ 3 من 3 لا يحسب إلا خلية عند (204، 319))، ورجّة عند (100، 700) والإفلات على المركز، وسحب ساكن 1 ثانية ثم (400، 500)، و`drop --at 400,500` والسحب ساكن.
+  - `tests/e2e/run.sh` (AC7): جلسة KWin ثانية 1920x1200 بمقياس 1.5، والمؤشر عند (640، 0)، و20 ظهوراً بـ 18 خلية، ثم RSS بحد 40 MB. ويُشترط أن تكون الظهورات مرسوّة فعلاً (20 سطر `hive anchor` عند (640، 0)، والصندوق 366 0 548 294 من المرجع)، وإلا لنجح الفحص قبل التنفيذ.
+  - `tests/hyprland/repro.sh --quasimode`: «hive near pointer» و«same output as pointer» صارا فحصين حقيقيين بأربعة فحوص (وصفها في رأس السكربت). المخرج الثاني: `hyprctl output create headless` لا يأخذ نمطاً في Hyprland المتداخل (عرض 0)، فاستُعمل `hyprctl output create wayland SBH-2` بقاعدة `hl.monitor` خاصة به قبل قاعدة المخرج الأول، وصارت قاعدة الأول باسم `WAYLAND-1` بدل الاسم الفارغ؛ و`hl.dsp.cursor.move({ x = X, y = Y })` ينقل المؤشر إليه (تجربتان قصيرتان بـ `--selftest` في نسخة مؤقتة من السكربت، حُذفت). الفحوص الثلاثة الباقية (القارئ، والترك، والشكل) ما زالت `false`.
+  - `tests/overlay/run.sh` و`tests/overlay/README.md` و`tests/drop/README.md`: الوضع الجديد والفحوص.
+- مخرجات الفشل:
+  - `cargo test -p sbarhive-core --test ipc_drop`:
+    ```
+    error[E0559]: variant `sbarhive_core::ipc::Request::Drop` has no field named `at` (4 مرات)
+    error: could not compile `sbarhive-core` (test "ipc_drop") due to 4 previous errors
+    ```
+  - `cargo test -p sbarhive-cli --test cli`: 19 نجحت و5 فشلت، كلها `ac8_s019_decision1_*`:
+    ```
+    drop failed: error: unexpected argument '--at' found
+    Usage: sbarhive drop [OPTIONS]
+    ```
+  - `cargo test -p sbarhive-ui --lib anchor_tests`: 16 من 16 (الحارس الجديد ينجح على الشيفرة الصحيحة كما يجب، ويفشل مع الطفرة كما أعلاه).
+  - `tests/overlay/kwin.sh anchor`، `RESULT FAIL (19)` (التشغيل الثاني بعد تعطيل الحواف؛ الأول `FAIL (20)` بفحص صندوق الزاوية بسبب التوهج):
+    ```
+    INFO S-019 p400-500 (P = 400 500): no anchor line; hive surface: layer 444 219 393 362; no cells line; set_position x1 ((444, 219) )
+    FAIL S-019 AC6 p400-500: exactly one "hive anchor: X Y" line, within 1 px of P = (400, 500)
+    FAIL S-019 AC5 p400-500: the "hive anchor" line comes before the "hive surface" line
+    FAIL S-019 AC5 p400-500: exactly one "hive surface: layer X Y W H" line, equal to plan_at for the printed anchor (1 px)
+    FAIL S-019 AC5/AC6 p400-500: one "hive cells: N CX CY" line, N the AC4 count, the centre cell at the clamped anchor (1 px)
+    FAIL S-019 AC6 P = (400, 500): the hive is at (204, 319) within 1 px
+    (الأربعة الأولى نفسها عند (100، 700) و(1200، 80) و(0، 0))
+    FAIL S-019 AC5 still: exactly one "hive anchor" line, before the "hive surface" line
+    FAIL S-019 AC6: hive-en-dark-corner.png has an approved reference in tests/overlay/snapshots/ (needs the owner's approval)
+    ```
+    تنجح اليوم فحوص «داخل الشاشة» و«set_position واحد» و«خلال 66 ms» و«صندوق اللقطة داخل المستطيل»، لأن الخلية في المنتصف لا تتحرك: حرّاس يكمّلهم الفحص الفاشل في الظهور نفسه.
+  - `tests/overlay/kwin.sh drop`، `RESULT FAIL (13)`:
+    ```
+    FAIL S-019 AC8 show 1: the catcher keeps its default input region until the first position (an enter on it, and no set_input_region(wl_region) before it)
+    FAIL S-019 AC8 show 1: after the first position the catcher's last input region is one add equal to the hive rectangle (S-020 AC1)
+    FAIL S-019 AC9 show 1: before the switch to the hive rectangle no wl_data_offer.accept with a type, no receive, no "drop cells" line
+    (الثلاثة نفسها للظهورين 2 و3)
+    FAIL S-019 AC5 drop1: a "hive anchor" line before the first "hive surface" line (و drop2 وdrop3)
+    FAIL S-020 AC13 drop mode: after the "hive anchor" line no pointer enter on the catcher outside the hive rectangle, and no wl_pointer.button for the click at (100, 700)
+    ```
+    في ذلك التشغيل وصلت ضغطة الظهور 2 قبل وجود الماسك فلم تصله، فنجح فحصها فارغاً؛ عُدّل بعده لينتظر `get_layer_surface` ثم 20 ms، ويشترط وصول الضغطة. لم يُعَد تشغيل الوضع بعد هذا التعديل.
+  - `tests/drop/kwin.sh level=1`، `RESULT FAIL (64)`، ملخّص:
+    ```
+    11 x FAIL S-019 AC9 show N: before the switch to the hive rectangle no wl_data_offer.accept with a type, no receive, no "drop cells" line
+    10 x FAIL S-019 AC8 show N: the catcher keeps its default input region until the first position ...
+    10 x FAIL S-019 AC8 show N: after the first position the catcher's last input region is one add equal to the hive rectangle (S-020 AC1)
+     3 x FAIL S-019 AC10 show N (jitter): one "hive anchor" line, within 1 px of (400, 500), and no "hive anchor: none"
+     3 x FAIL S-019 AC10 show N (jitter): the hive ends at (204, 319) within 1 px
+    FAIL S-019 AC10 show 10 (still): "hive anchor: none" first, then a "hive anchor" line within 1 px of (400, 500)
+    FAIL S-019 AC10 show 10 (still): exactly two wl_subsurface.set_position, the first in the middle (444, 219)
+    FAIL S-019 AC10 show 11 (at): one "hive anchor" line, within 1 px of (400, 500), and no "hive anchor: none"
+    FAIL AC6 show 9: receiver got enter on its data device   (المستطيل في المنتصف، والسحب عند (100، 700) خارجه)
+    FAIL AC13 show 11: exactly one get_layer_surface (drop mode is a layer)   (`--at` مرفوض، فلا ظهور)
+    ```
+    وفي هذا التشغيل نجح «3 من 3» لأنه كان يعدّ الملفات وحدها، وفشل «قائمتا PNG وPDF مختلفتان» لأن آخر دورة صارت PNG. صُحّح الاثنان بعده (الأول يشترط الخلية عند (204، 319)، والثاني يقارن بأول قائمة مختلفة)، ولم يُعَد التشغيل. نجحت الدورات الخمس القديمة ولقطتاها المعتمدتان مع حركة التهيئة.
+  - `tests/e2e/run.sh`: الجلسة الأولى كلها PASS، والثانية:
+    ```
+    INFO S-019 AC7: 20 shows closed; anchor lines: 1 ;; surface lines: 20 hive surface: layer 444 219 393 362
+    FAIL S-019 AC7: every show is anchored at the pointer (20 "hive anchor" lines within 1 px of (640, 0))
+    FAIL S-019 AC7: every show is the largest box, plan_at for (640, 0) (366 0 548 294, 1 px)
+    INFO S-019 AC7: memory after 20 shows of the largest hive at scale 1.5: 36 MB
+    ```
+  - `tests/hyprland/repro.sh --json --quasimode` (شُغّل مرتين: الأولى كشفت أن المخرج headless بعرض 0، والثانية بعد الإصلاح): `{"total": 19, "failed": 7, "skipped": 0}`، والفحوص الاثنا عشر الأساسية كلها PASS:
+    ```
+    INFO quasimode near pointer (open): P (300, 200), output 960x540, no anchor line, hive surface: layer 284 89 393 362
+    FAIL quasimode: hive near pointer (S-019 AC5, AC6): `sbarhive open` with the pointer moving at (300, 200) is anchored within 1 px of it and placed by plan_at for that anchor
+    INFO quasimode near pointer (drop --at): cursorpos 500,300, no surface line, set_position x0
+    FAIL quasimode: hive near pointer (S-019 decision 1): a still drag and `sbarhive drop --at "$(hyprctl cursorpos)"` anchor at the cursor (1 px) at once, with one set_position
+    INFO quasimode same output: output create: ok; SBH-2 at 960 0 1280 720 (x y w h, logical); cursor after hl.dsp.cursor.move to 1260,200: 1260,200
+    INFO quasimode same output (open): layer on SBH-2, no anchor line, hive surface: layer 444 179 393 362
+    FAIL quasimode: same output as pointer (S-019 AC5): `sbarhive open` with the pointer on SBH-2 puts the layer there, anchored at the pointer in SBH-2 coordinates (1 px)
+    FAIL quasimode: same output as pointer (S-019 decision 1): `sbarhive drop --at` with global coordinates on SBH-2 puts the layer there, anchored at the same point in SBH-2 coordinates (1 px)
+    FAIL quasimode: screen reader flag without a reader keeps the layer / key release hides / adaptive shape (S-019, not implemented)
+    ```
+- بوابات على ملفات الاختبار: `cargo fmt --all --check` نظيف، و`cargo clippy -p sbarhive-cli -p sbarhive-ui --all-targets -- -D warnings` بلا تحذير (core لا يُبنى هدف `ipc_drop` فيه حتى التنفيذ)، و`scripts/design-lint.sh` نظيف، و`bash -n` لكل سكربت معدّل.
+- لم يُشغَّل (قيد الحمل، وكل تعديل فيها تهيئة أو حارس): `tests/overlay/kwin.sh` بأوضاع layer وwindow وinput وtoken وa11y وscheme و1.5، و`tests/overlay/gnome.sh`، و`tests/drop/gnome.sh`، و`kwin.sh shortcut`، و`measure.sh`، و`budget.sh`، و`tests/focus/*`. الأخيرة لم تُعدَّل، وقد تتأثر بالمرساة إن كانت تفترض الخلية في المنتصف والمؤشر في مكان آخر؛ على المنفِّذ والمراجع تشغيلها.
+- حرّاس تنجح قبل التنفيذ عمداً (لا اختبارات ميزة): AC7 على مسار النافذة (`kwin.sh window` و`gnome.sh`: لا سطر `hive anchor`)، وفحص ضغطة الظهور 2 في drop إن لم يكن الماسك يغلق بالضغط اليوم، و«سطر `drop cells` واحد لكل ظهور» في دورات السحب، وحارس الطفرة.

@@ -480,3 +480,69 @@ fn ac4_drop_skips_an_empty_environment_token_like_open() {
     );
     assert_eq!(token(&v), Some("x11"));
 }
+
+// S-019d, manager decision 1 (backlog/S-019-hive-at-pointer.md):
+// `sbarhive drop --at X,Y` passes the pointer position in global logical
+// coordinates, as `hyprctl cursorpos` prints it ("1198, 1800"), so a still
+// hand needs no wait. The request carries it as `"at": [X, Y]`
+// (crates/core/tests/ipc_drop.rs).
+
+fn at(v: &serde_json::Value) -> Option<(f64, f64)> {
+    let a = v.get("at")?.as_array()?;
+    assert_eq!(a.len(), 2, "{v}");
+    Some((a[0].as_f64()?, a[1].as_f64()?))
+}
+
+#[test]
+fn ac8_s019_decision1_drop_at_sends_the_position_and_plain_drop_none() {
+    let v = drop_request(&["--at", "400,500"], &[]);
+    assert_eq!(at(&v), Some((400.0, 500.0)), "{v}");
+    let v = drop_request(&[], &[]);
+    assert!(v.get("at").is_none_or(|a| a.is_null()), "{v}");
+}
+
+#[test]
+fn ac8_s019_decision1_drop_at_takes_hyprctl_cursorpos_output_as_printed() {
+    // `hyprctl cursorpos` prints "X, Y" with a space after the comma.
+    let v = drop_request(&["--at", "1198, 1800"], &[]);
+    assert_eq!(at(&v), Some((1198.0, 1800.0)), "{v}");
+}
+
+#[test]
+fn ac8_s019_decision1_drop_at_keeps_fractions_and_negative_coordinates() {
+    let v = drop_request(&["--at=-1280.5,300.25"], &[]);
+    assert_eq!(at(&v), Some((-1280.5, 300.25)), "{v}");
+}
+
+#[test]
+fn ac8_s019_decision1_drop_at_goes_with_the_token() {
+    let v = drop_request(
+        &["--token", "flag", "--at", "10,20"],
+        &[("XDG_ACTIVATION_TOKEN", "xdg")],
+    );
+    assert_eq!(token(&v), Some("flag"));
+    assert_eq!(at(&v), Some((10.0, 20.0)), "{v}");
+}
+
+#[test]
+fn ac8_s019_decision1_drop_at_rejects_a_malformed_position_without_a_request() {
+    // The option exists and takes a good position (so the rejections below
+    // are about the value, not an unknown option).
+    let v = drop_request(&["--at", "1,2"], &[]);
+    assert_eq!(at(&v), Some((1.0, 2.0)), "{v}");
+    for bad in ["400", "400,500,600", "x,500", "400;500", ""] {
+        let env = Env::new(None);
+        let seen = raw_daemon(&env);
+        let o = env.cmd(&["drop", "--at", bad]).output().unwrap();
+        assert_eq!(o.status.code(), Some(2), "--at {bad:?}: {}", stderr(&o));
+        assert!(
+            stderr(&o).contains("--at"),
+            "--at {bad:?}: the error names the option: {}",
+            stderr(&o)
+        );
+        assert!(
+            seen.lock().unwrap().is_empty(),
+            "--at {bad:?}: nothing sent"
+        );
+    }
+}
