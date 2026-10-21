@@ -7,6 +7,7 @@ use sbarhive_core::queue::Queue;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::Arc;
+use std::time::Instant;
 
 pub fn serve(listener: UnixListener, state: Shared, queue: Arc<Queue>) {
     for stream in listener.incoming().flatten() {
@@ -39,6 +40,16 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
         Ok(r) => r,
         Err(e) => return error(&mut stream, format!("bad request: {e}")),
     };
+    // The held drop key (S-019e): the gate on the event loop decides when
+    // the hive shows, so the client returns at once.
+    if let Some(signal) = sbarhive_core::hold::from_request(&req) {
+        let token = match req {
+            Request::Drop { token, .. } => token,
+            _ => None,
+        };
+        ui::hold_signal(signal, token, Instant::now(), state.clone());
+        return reply(&mut stream, &Response::Ok);
+    }
     match req {
         Request::Ping => reply(&mut stream, &Response::Ok),
         Request::Open { files, token } => {
@@ -61,7 +72,7 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
             ui::present(centre, files, cells, token);
             reply(&mut stream, &Response::Ok);
         }
-        Request::Drop { token, at } => {
+        Request::Drop { token, at, .. } => {
             // The files come with the drag, when it enters the hive.
             let lang = {
                 let mut st = lock(state);
@@ -108,6 +119,8 @@ fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
             lock(state).reload();
             reply(&mut stream, &Response::Ok);
         }
+        // Taken by the gate above.
+        Request::DropRelease => reply(&mut stream, &Response::Ok),
         Request::Quit => {
             reply(&mut stream, &Response::Ok);
             ui::quit();

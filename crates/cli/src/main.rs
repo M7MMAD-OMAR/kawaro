@@ -54,6 +54,14 @@ enum Cmd {
         /// example from `hyprctl cursorpos`.
         #[arg(long, value_parser = parse_at, allow_hyphen_values = true)]
         at: Option<(f64, f64)>,
+        /// The press of a held key: the daemon shows the hive once the key
+        /// has been held for `hold_ms` (config.toml, 400 ms by default).
+        #[arg(long, conflicts_with = "release")]
+        hold: bool,
+        /// The release of that key: closes a hive shown by `--hold`, or
+        /// cancels it before it shows. Never starts the daemon.
+        #[arg(long)]
+        release: bool,
     },
     /// Convert in this process, without the daemon.
     Convert {
@@ -106,7 +114,10 @@ fn main() -> ExitCode {
             from_clipboard,
             files,
         } => open(token, from_clipboard, files),
-        Cmd::Drop { token, at } => drop_hive(token, at),
+        Cmd::Drop { release: true, .. } => drop_release(),
+        Cmd::Drop {
+            token, at, hold, ..
+        } => drop_hive(token, at, hold),
         Cmd::Convert { to, quality, files } => convert(&to, quality, &files),
         Cmd::Run {
             action,
@@ -164,10 +175,19 @@ fn open(token: Option<String>, from_clipboard: bool, mut files: Vec<PathBuf>) ->
     client::request(&Request::Open { files, token }).map(|_| ())
 }
 
-fn drop_hive(token: Option<String>, at: Option<(f64, f64)>) -> Res<()> {
+fn drop_hive(token: Option<String>, at: Option<(f64, f64)>, hold: bool) -> Res<()> {
     let token = resolve_token(token, &|k| std::env::var(k).ok());
     client::ensure_daemon()?;
-    client::request(&Request::Drop { token, at }).map(|_| ())
+    client::request(&Request::Drop { token, at, hold }).map(|_| ())
+}
+
+/// A key release whose press reached no daemon has nothing to close, so a
+/// daemon that does not answer is not an error here.
+fn drop_release() -> Res<()> {
+    if client::daemon_up() {
+        client::request(&Request::DropRelease)?;
+    }
+    Ok(())
 }
 
 /// `X,Y` with optional spaces after the comma, as `hyprctl cursorpos`

@@ -36,7 +36,13 @@ pub enum Request {
         /// `hyprctl cursorpos` prints it (S-019 decision 1): `"at": [X, Y]`.
         #[serde(default)]
         at: Option<(f64, f64)>,
+        /// The press of a held key (`sbarhive drop --hold`, S-019e): the
+        /// daemon's long press gate shows the hive after `hold_ms`.
+        #[serde(default)]
+        hold: bool,
     },
+    /// The release of that key (`sbarhive drop --release`).
+    DropRelease,
     /// Run an action without showing the hive.
     Run {
         action: String,

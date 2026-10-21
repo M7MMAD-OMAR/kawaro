@@ -73,6 +73,32 @@ pub struct Config {
     /// Spelled with an underscore in the file, as S-019 AC1 writes it.
     #[serde(rename = "hive_surface")]
     pub hive_surface: HiveSurface,
+    /// The long press threshold of `sbarhive drop --hold` in milliseconds
+    /// (S-019e AC18), [`HOLD_MS_MIN`] to [`HOLD_MS_MAX`]. Spelled with an
+    /// underscore, as `hive_surface` is.
+    #[serde(rename = "hold_ms", deserialize_with = "hold_ms_in_range")]
+    pub hold_ms: u16,
+}
+
+/// The default long press threshold.
+pub const HOLD_MS_DEFAULT: u16 = 400;
+/// The shortest accepted threshold: below it a press is a tap.
+pub const HOLD_MS_MIN: u16 = 100;
+/// The longest accepted threshold.
+pub const HOLD_MS_MAX: u16 = 2000;
+
+/// `hold_ms` as a whole number in range; anything else is an error, so the
+/// file falls back to the defaults with a warning, as for every other key.
+fn hold_ms_in_range<'de, D: serde::Deserializer<'de>>(d: D) -> Result<u16, D::Error> {
+    let v = i64::deserialize(d)?;
+    u16::try_from(v)
+        .ok()
+        .filter(|v| (HOLD_MS_MIN..=HOLD_MS_MAX).contains(v))
+        .ok_or_else(|| {
+            serde::de::Error::custom(format!(
+                "hold_ms = {v}: expected {HOLD_MS_MIN} to {HOLD_MS_MAX} milliseconds"
+            ))
+        })
 }
 
 impl Default for Config {
@@ -86,6 +112,7 @@ impl Default for Config {
             open_folder_when_done: false,
             notify: true,
             hive_surface: HiveSurface::Auto,
+            hold_ms: HOLD_MS_DEFAULT,
         }
     }
 }

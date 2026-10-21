@@ -141,6 +141,78 @@ line, with no environment variable.
 On Hyprland a layer rule for the `sbarhive` namespace can turn off its
 animation; see `integrations/linux/hyprland/README.md`.
 
+### Hive at the pointer (S-019, ADR 0004)
+
+On the layer path the hive opens at an anchor instead of the output centre:
+
+- **Anchor and wait.** The anchor is the first `wl_pointer.enter` or
+  `motion` on the catcher or the hive before the first frame, waited for at
+  most 50 ms from the catcher's first `configure`; with none the hive is
+  centred. `sbarhive drop --at X,Y` (global logical coordinates, for
+  example `$(hyprctl cursorpos)`) gives the anchor at once, on the output
+  that holds the point. After the first frame the centre does not follow
+  the pointer. With `SBARHIVE_DEBUG_FOCUS` every show prints
+  `hive anchor: X Y` or `hive anchor: none`, then `hive cells: N CX CY`.
+- **Adaptive shape.** `layout::plan_at` (pure, `crates/ui/src/layout.rs`)
+  clamps the anchor so the centre cell stays on screen, then fills the slots
+  of rings 1 to `MAX_RINGS` (4) in spiral order that fit on screen, ring 1
+  cells first and their overflow ahead of ring 2 cells; the hive surface is
+  the box around the centre and every accepted slot. Without an anchor it
+  is `plan_rings` and `place` as before. Near a corner fewer than 18 cells
+  may show.
+- **Catcher phase of a drop show.** A drop show without `--at` takes its
+  anchor from the drag: the catcher takes the input over the whole output
+  until the first position (`wl_data_device.enter` or `motion`, or
+  `wl_pointer` with no drag). This anchor phase never reaches the mode
+  machine: no enter, leave or drop, and no offer is accepted. With no
+  position within 50 ms the hive shows centred; a first position within
+  300 ms of the first frame moves it once under the drag, after that it
+  stays centred (manager decision 12). Then the catcher's region becomes
+  the hive rectangle, so a still pointer is never held, and the keyboard is
+  never taken.
+- **Window path.** GNOME and a running screen reader keep the window,
+  centred by the compositor, with no anchor line.
+
+### Holding the drop key (S-019e, ADR 0003)
+
+`sbarhive drop --hold` is the press of a held key and
+`sbarhive drop --release` its release; both send one request and return at
+once. The daemon feeds them to the long press gate (`sbarhive_core::hold`,
+pure, with an injected clock), on the event loop thread:
+
+- A press starts a timer of `hold_ms` (config.toml, 100 to 2000, default
+  400), read from the file at every press so a change applies at the next
+  one. Repeated presses keep the first press's timer and its `--at`
+  position. The timer is ticked every 5 ms while it runs.
+- When the timer ends with the key still held the gate shows the drop hive
+  once, in hold mode (`Hive::present_drop_hold`); neither the press nor the
+  release shows it. A release before the end cancels the timer, so a tap
+  shows nothing.
+- A release after the show closes a waiting hold hive, or one with the drag
+  over a cell, and runs nothing (`Hive::key_released`); after a drop it does
+  nothing. In a hold show the drag leaving the hive does not close it
+  (manager decision 3), and the 10 s enter timeout still counts from the
+  show.
+- Whenever the hive closes for any reason (a drop, the timeout, Esc, a
+  click), the daemon calls `Gate::hive_closed`, so a lost release never
+  swallows the next press (manager decision 14).
+- `Request::Drop` carries `hold`, false by default, and the release is
+  `Request::DropRelease` (`{"cmd":"drop-release"}`). `--release` never
+  starts the daemon; `sbarhive drop` without `--hold` stays the immediate
+  show of S-014. A GlobalShortcuts portal (a later story) maps `Activated`
+  and `Deactivated` to the same two gate inputs (`hold::from_portal`).
+- Budget: on the hold path the 150 ms budget to the first frame is timed
+  from the end of the threshold (`hive_bench show --drop --hold`,
+  `tests/drop/budget.sh 20 1 hold`); the threshold is a user setting, not a
+  response time. The immediate paths keep the request to first frame
+  budget.
+
+After a drag enters a drop hive (either kind) its centre shows the dragged
+files by the S-018h rules (S-019f): one file's cached thumbnail or the kind
+icon with the format code, the count for several; before enter the waiting
+text and no preview. With `SBARHIVE_DEBUG_FOCUS` every enter prints one
+`hive preview: thumb W H` or `hive preview: icon KIND` line.
+
 ## Settings
 
 `~/.config/sbarhive/config.toml`, model in `crates/core/src/config.rs`:
@@ -172,6 +244,7 @@ sbarhive open [--token T] [--from-clipboard] [--] FILES...
 sbarhive convert --to EXT [--quality N] FILES...      # in-process, no daemon
 sbarhive run ACTION_ID [--wait] FILES...
 sbarhive actions FILES...                             # id, ring, code, label
+sbarhive drop [--token T] [--at X,Y] [--hold | --release]
 sbarhive daemon                                       # exec sbarhived
 sbarhive ping | quit
 ```

@@ -43,6 +43,34 @@ hl.layer_rule({ match = { namespace = "^sbarhive$" }, no_anim = true })
 layerrule = no_anim on, match:namespace ^sbarhive$
 ```
 
+### إمساك المفتاح للإفلات
+
+أثناء سحب ملف، أمسك المفتاح: تظهر الخلية بعد ضغط مطوّل (400 ملي ثانية افتراضياً، المفتاح `hold_ms` في `config.toml`)، وتبقى ما دمت ممسكاً به، وتختفي حين تتركه. الضغطة العابرة لا تُظهر شيئاً. يحتاج ذلك ربطين: ربط الضغط يشغّل `sbarhive drop --hold`، وربط الترك يشغّل `sbarhive drop --release`. المؤقّت في الخدمة لا في السكربت، فيعود الأمران فوراً.
+
+الخدمة لا تبدأ مع ربط الترك، وإن بدأت مع ربط الضغط فقد يضيع ترك سريع. لذلك شغّلها مع الجلسة: `exec-once = ~/.local/bin/sbarhived`.
+
+بصيغة hyprlang (الملف `hyprland.conf`). هذه الأسطر مفترضة، لم يجرّبها أحد بعد على Hyprland حقيقي:
+
+```
+bindn = SUPER, Z, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
+```
+
+بصيغة Lua (الملف `hyprland.lua`)، مفترضة كذلك:
+
+```
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+    { non_consuming = true, description = "SbarHive: hold to drop" })
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+    { release = true, ignore_mods = true, description = "SbarHive: release to close" })
+```
+
+ملاحظات، كلها غير متحقق منها:
+- ربط الترك لا يصل إن تركت المُعدِّل قبل المفتاح الأساسي (تترك Super قبل Z مثلاً)، لذلك يحتاج تجاهل المُعدِّلات: العلم `i` مع `r` في hyprlang، و`ignore_mods` في Lua.
+- ربط الضغط على Alt وحده أو أي مُعدِّل يجب أن يكون غير مستهلِك (العلم `n` في hyprlang، و`non_consuming` في Lua)، حتى تبقى تركيبات مثل Alt+Tab سليمة.
+- الموضع `--at` يُقرأ عند الضغطة الأولى، فتظهر الخلية حيث كان المؤشر لحظة الضغط.
+- `sbarhive drop` دون `--hold` يبقى ظهوراً فورياً لربط ضغطة عادية.
+
 ## English
 
 `scripts/install.sh` installs `~/.local/bin/sbarhive-open-selection` when it finds `hyprctl`. It never edits `hyprland.conf`; add a bind yourself.
@@ -85,3 +113,31 @@ hyprlang form (Hyprland 0.53 and 0.54, `hyprland.conf`), not verified:
 ```
 layerrule = no_anim on, match:namespace ^sbarhive$
 ```
+
+### Hold a key to drop
+
+While dragging a file, hold the key: the hive shows after a long press (400 ms by default, `hold_ms` in `config.toml`), stays while you hold the key and closes when you let it go. A short tap shows nothing. That takes two binds: the press runs `sbarhive drop --hold` and the release runs `sbarhive drop --release`. The timer is in the daemon, not in the bind, so both commands return at once.
+
+The release bind never starts the daemon, and a daemon started by the press may miss a quick release, so start it with the session: `exec-once = ~/.local/bin/sbarhived`.
+
+hyprlang form (`hyprland.conf`). These lines are assumed, not verified yet on a real Hyprland session:
+
+```
+bindn = SUPER, Z, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
+```
+
+Lua form (`hyprland.lua`), assumed as well:
+
+```
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+    { non_consuming = true, description = "SbarHive: hold to drop" })
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+    { release = true, ignore_mods = true, description = "SbarHive: release to close" })
+```
+
+Notes, none of them verified:
+- The release bind does not fire when the modifier is let go before the main key (Super before Z, say), so it needs to ignore modifiers: the flag `i` with `r` in hyprlang, `ignore_mods` in Lua.
+- A press bind on Alt alone, or any modifier, must be non consuming (the flag `n` in hyprlang, `non_consuming` in Lua), so combinations such as Alt+Tab keep working.
+- `--at` is read at the first press, so the hive shows where the pointer was when the key went down.
+- `sbarhive drop` without `--hold` stays an immediate show, for a plain key press bind.

@@ -55,6 +55,8 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 افتح الإعدادات من أيقونة صبار هايف في شريط النظام، أو عدّل `~/.config/sbarhive/config.toml` مباشرة: اللغة، والمظهر، ومكان الناتج (بجانب الأصل أو في مجلد فرعي)، ومستوى الجودة. ويمكن إضافة إجراءات خاصة بك بملفات TOML في `~/.config/sbarhive/actions/`.
 
+المفتاح `hold_ms` مدة الضغط المطوّل بالملي ثانية قبل أن تظهر الخلية مع `sbarhive drop --hold`: الافتراضي 400، والمقبول من 100 إلى 2000، وأي قيمة غير ذلك تعيد الافتراضي مع تحذير في السجل. يُقرأ عند كل ضغطة، فيسري تعديله دون إعادة تشغيل الخدمة. نافذة الإعدادات لا تعرضه، فعدّله في الملف.
+
 ## المساهمة
 
 اقرأ `CONTRIBUTING.md` و`docs/architecture.md` قبل أي تعديل. للإبلاغ عن ثغرة أمنية راجع `SECURITY.md`، وسجل التغييرات في `CHANGELOG.md`. إضافة صيغة جديدة تعني ملف TOML في `actions/` ومحوّلا صغيرا في `crates/engines/`.
@@ -142,6 +144,12 @@ selected files directly; see `integrations/linux/hyprland/README.md`.
 Open Settings from the SbarHive tray icon, or edit `~/.config/sbarhive/config.toml`, which holds the language, theme, output place
 (next to the original or in a subfolder) and quality preset. Your own actions
 go in `~/.config/sbarhive/actions/*.toml`.
+
+`hold_ms` is the long press, in milliseconds, before `sbarhive drop --hold`
+shows the hive: 400 by default, accepted from 100 to 2000; any other value
+falls back to the default with a warning in the log. It is read at every
+press, so a change applies without restarting the daemon. The settings
+window does not show it; edit the file.
 
 ## Contributing
 

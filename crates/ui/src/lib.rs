@@ -151,7 +151,10 @@ fn report_window(w: &winit::window::Window) {
 #[cfg(unix)]
 fn debug_preview(what: &str) {
     if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-        eprintln!("hive preview: {what}");
+        // One write with its newline, so the libwayland trace on the same
+        // stderr cannot land inside the line.
+        use std::io::Write;
+        let _ = std::io::stderr().write_all(format!("hive preview: {what}\n").as_bytes());
     }
 }
 
@@ -470,6 +473,8 @@ impl Inner {
             return;
         }
         let f = self.on_drop_files.borrow().clone();
+        #[cfg(unix)]
+        let dragged = files.clone();
         let (centre, cells) = f.map(|f| f(files)).unwrap_or_default();
         // On the layer path the hive keeps the place and box it took at the
         // pointer (S-019d).
@@ -479,6 +484,9 @@ impl Inner {
         let plan = None;
         let plan = plan.unwrap_or_else(|| layout::plan_rings(cells, self.rtl, 2));
         self.apply(&centre, plan);
+        // The dragged files in the centre, by the S-018h rules (S-019f).
+        #[cfg(unix)]
+        self.set_preview(&centre, &dragged);
     }
 
     /// Feeds a drag or clock event to the mode machine and acts on the result.
@@ -585,7 +593,7 @@ impl Hive {
         cells: Vec<HiveCell>,
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
-        self.show(centre, cells, 1, token, None, &[])
+        self.show(centre, cells, 1, token, None, false, &[])
     }
 
     /// [`Hive::present`] with the selected `files` in the centre cell
@@ -601,7 +609,7 @@ impl Hive {
         cells: Vec<HiveCell>,
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
-        self.show(centre, cells, 1, token, None, files)
+        self.show(centre, cells, 1, token, None, false, files)
     }
 
     /// Where [`Hive::present_files`] looks for thumbnails (the freedesktop
@@ -637,12 +645,34 @@ impl Hive {
         token: Option<String>,
         at: Option<(f64, f64)>,
     ) -> Result<(), slint::PlatformError> {
-        self.show(centre, Vec::new(), 2, token, Some(at), &[])
+        self.show(centre, Vec::new(), 2, token, Some(at), false, &[])
+    }
+
+    /// [`Hive::present_drop_at`] for a held key (`sbarhive drop --hold`,
+    /// S-019e), shown when the daemon's long press gate has passed its
+    /// threshold. [`Hive::key_released`] closes it, and the drag leaving
+    /// it does not (manager decision 3).
+    pub fn present_drop_hold(
+        &self,
+        centre: &str,
+        token: Option<String>,
+        at: Option<(f64, f64)>,
+    ) -> Result<(), slint::PlatformError> {
+        self.show(centre, Vec::new(), 2, token, Some(at), true, &[])
+    }
+
+    /// The held key of [`Hive::present_drop_hold`] was released: a hold
+    /// show waiting or over a cell closes with [`Hive::on_dismiss`] and runs
+    /// nothing. Any other show ignores it.
+    pub fn key_released(&self) {
+        self.inner.drag(dnd::Event::Release);
     }
 
     /// Shows `cells` in a hive of at least `min_rings` rings; `drop` is
-    /// `Some(at)` for a drop show. On the layer path the hive is laid out
-    /// again at the pointer once its position is known (S-019c, S-019d).
+    /// `Some(at)` for a drop show, and `hold` a drop show of a held key. On
+    /// the layer path the hive is laid out again at the pointer once its
+    /// position is known (S-019c, S-019d).
+    #[allow(clippy::too_many_arguments)]
     fn show(
         &self,
         centre: &str,
@@ -650,6 +680,7 @@ impl Hive {
         min_rings: i32,
         token: Option<String>,
         drop: Option<Option<(f64, f64)>>,
+        hold: bool,
         files: &[PathBuf],
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
@@ -685,7 +716,7 @@ impl Hive {
         inner
             .machine
             .borrow_mut()
-            .handle(dnd::Event::Show { drop }, Instant::now());
+            .handle(dnd::Event::Show { drop, hold }, Instant::now());
         #[cfg(target_os = "linux")]
         layer::set_show(layer::ShowRequest {
             cells,

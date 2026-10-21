@@ -6,12 +6,14 @@ use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
 use sbarhive_core::ActionDef;
 use sbarhive_core::config::{Config, Theme};
+use sbarhive_core::hold::{Effect, Gate, Signal};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
 use sbarhive_ui::{Hive, HiveCell, SettingsWindow, thumb};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
+use std::time::{Duration, Instant};
 
 thread_local! {
     static HIVE: RefCell<Option<Hive>> = const { RefCell::new(None) };
@@ -19,7 +21,17 @@ thread_local! {
     /// What the settings window needs when it is first opened. Creating it
     /// lazily avoids an empty unmapped toplevel for a window rarely opened.
     static SETTINGS_ARGS: RefCell<Option<(Lang, Shared, Arc<Queue>)>> = const { RefCell::new(None) };
+    /// The long press gate of `sbarhive drop --hold` (S-019e AC17), on the
+    /// event loop thread like the hive it shows.
+    static GATE: RefCell<Option<Gate>> = const { RefCell::new(None) };
+    /// The activation token of the press that started the gate's timer.
+    static HOLD_TOKEN: RefCell<Option<String>> = const { RefCell::new(None) };
+    /// Ticks the gate while its threshold timer runs.
+    static GATE_TIMER: slint::Timer = slint::Timer::default();
 }
+
+/// How often the gate's timer is checked while it runs.
+const GATE_TICK: Duration = Duration::from_millis(5);
 
 /// The colour scheme override the UI crate reads when a window is created.
 /// `theme = "auto"` keeps the `SBARHIVE_COLOR_SCHEME` the daemon started
@@ -59,11 +71,16 @@ pub fn build(
                 }
                 _ => eprintln!("sbarhived: nothing to run for `{id}`"),
             }
+            drop(st);
+            gate_hive_closed();
         });
     }
     {
         let state = state.clone();
-        hive.on_dismiss(move || lock(&state).pending = None);
+        hive.on_dismiss(move || {
+            lock(&state).pending = None;
+            gate_hive_closed();
+        });
     }
     {
         // A drag entered the drop hive: its files wait for the chosen cell,
@@ -74,7 +91,11 @@ pub fn build(
             let lang = st.lang;
             let actions = st.matching(&files);
             if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-                eprintln!("{}", drop_cells_line(&actions));
+                // One write with its newline, so the libwayland trace on the
+                // same stderr cannot land inside the line.
+                use std::io::Write;
+                let line = format!("{}\n", drop_cells_line(&actions));
+                let _ = std::io::stderr().write_all(line.as_bytes());
             }
             if actions.is_empty() {
                 st.pending = None;
@@ -206,6 +227,78 @@ pub fn present_drop(centre: &'static str, token: Option<String>, at: Option<(f64
                 eprintln!("sbarhived: cannot show the drop hive: {e}");
             }
         })
+    });
+}
+
+/// A press or release of the held drop key, received at `now` (S-019e):
+/// fed to the long press gate on the event loop thread. The gate shows the
+/// drop hive from its timer, and passes a release on to the hive it showed.
+pub fn hold_signal(signal: Signal, token: Option<String>, now: Instant, state: Shared) {
+    let _ = slint::invoke_from_event_loop(move || {
+        let (effect, started) = GATE.with(|g| {
+            let mut g = g.borrow_mut();
+            // hold_ms is read from config.toml at every press (AC18).
+            let gate = g.get_or_insert_with(|| Gate::new(|| u64::from(Config::load().0.hold_ms)));
+            let before = gate.live_timers();
+            let effect = gate.signal(signal, now);
+            (effect, before == 0 && gate.live_timers() == 1)
+        });
+        if started {
+            HOLD_TOKEN.with(|t| *t.borrow_mut() = token);
+            GATE_TIMER.with(|t| {
+                t.start(slint::TimerMode::Repeated, GATE_TICK, move || {
+                    gate_tick(&state)
+                })
+            });
+        }
+        // The gate's borrow is over: the release may close the hive, whose
+        // dismiss callback calls the gate again.
+        if effect == Some(Effect::Release) {
+            HIVE.with(|h| {
+                if let Some(hive) = h.borrow().as_ref() {
+                    hive.key_released();
+                }
+            });
+        }
+    });
+}
+
+/// The gate's timer: shows the drop hive in hold mode once the threshold
+/// has passed with the key still held, and stops when no timer runs.
+fn gate_tick(state: &Shared) {
+    let (effect, live) = GATE.with(|g| match g.borrow_mut().as_mut() {
+        Some(gate) => (gate.tick(Instant::now()), gate.live_timers()),
+        None => (None, 0),
+    });
+    if live == 0 {
+        GATE_TIMER.with(|t| t.stop());
+    }
+    if let Some(Effect::Show { at }) = effect {
+        // The files come with the drag, when it enters the hive.
+        let lang = {
+            let mut st = lock(state);
+            st.pending = None;
+            st.lang
+        };
+        let token = HOLD_TOKEN.with(|t| t.borrow_mut().take());
+        HIVE.with(|h| {
+            if let Some(hive) = h.borrow().as_ref()
+                && let Err(e) = hive.present_drop_hold(text::drop_waiting(lang), token, at)
+            {
+                eprintln!("sbarhived: cannot show the drop hive: {e}");
+            }
+        });
+    }
+}
+
+/// Manager decision 14: the hive closed (a drop on a cell, the 10 s
+/// timeout, Esc, a click), so the gate forgets the hive it showed and the
+/// next press is never ignored.
+fn gate_hive_closed() {
+    GATE.with(|g| {
+        if let Some(gate) = g.borrow_mut().as_mut() {
+            gate.hive_closed();
+        }
     });
 }
 

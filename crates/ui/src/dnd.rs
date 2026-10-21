@@ -31,6 +31,9 @@ pub enum State {
 pub enum Event {
     Show {
         drop: bool,
+        /// A drop show made by a held key (`sbarhive drop --hold`, S-019e):
+        /// the key release closes it, and the drag leaving does not.
+        hold: bool,
     },
     /// The drag entered the hive surface.
     Enter,
@@ -46,6 +49,8 @@ pub enum Event {
     ClickOutside,
     /// Periodic clock tick, for the enter timeout.
     Tick,
+    /// The held key of a hold show was released.
+    Release,
 }
 
 #[derive(Debug)]
@@ -53,6 +58,7 @@ pub struct Machine {
     state: State,
     shown_at: Option<Instant>,
     entered: bool,
+    hold: bool,
 }
 
 impl Default for Machine {
@@ -67,6 +73,7 @@ impl Machine {
             state: State::Hidden,
             shown_at: None,
             entered: false,
+            hold: false,
         }
     }
 
@@ -78,9 +85,10 @@ impl Machine {
     pub fn handle(&mut self, event: Event, now: Instant) -> State {
         use State::*;
         self.state = match (self.state, event) {
-            (_, Event::Show { drop }) => {
+            (_, Event::Show { drop, hold }) => {
                 self.shown_at = Some(now);
                 self.entered = false;
+                self.hold = hold;
                 if drop { Waiting } else { Normal }
             }
             (Normal, Event::Escape | Event::FocusLost | Event::ClickOutside) => Hidden,
@@ -90,7 +98,16 @@ impl Machine {
             }
             (Waiting | Over(_), Event::Motion(Some(i))) => Over(i),
             (Waiting | Over(_), Event::Motion(None)) => Waiting,
-            (Waiting | Over(_), Event::Leave) if self.entered => Hidden,
+            // A hold show stays while its key is held (manager decision 3),
+            // with no cell under the drag.
+            (Waiting | Over(_), Event::Leave) if self.entered => {
+                if self.hold {
+                    Waiting
+                } else {
+                    Hidden
+                }
+            }
+            (Waiting | Over(_), Event::Release) if self.hold => Hidden,
             (Over(i), Event::Drop) => Running(i),
             (Waiting, Event::Drop) => Hidden,
             (Waiting | Over(_), Event::Cancel | Event::Escape) => Hidden,

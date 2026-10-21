@@ -3,7 +3,7 @@
 //! compositor), never on a live desktop.
 //!
 //!     hive_bench daemon [--lang ar|en] [--file PATH]   waits on $XDG_RUNTIME_DIR/sbarhive-ui-bench.sock
-//!     hive_bench show [--token T]        asks for the hive, prints first_frame_ms
+//!     hive_bench show [--token T] [--drop [--hold]]   asks for the hive, prints first_frame_ms
 //!     hive_bench ctl hide|quit
 //!     hive_bench run [--lang ar|en] [--file PATH]      cold start, prints first_frame_epoch_ms
 //!
@@ -13,9 +13,17 @@
 //! `first_frame_ms` is measured inside the daemon from the moment the request
 //! line arrives to the first frame presented after `present`, with the full
 //! 18-cell hive (1 + 6 + 12 = 19 hexagons, as AC1 asks).
+//!
+//! `--drop` shows the empty drop hive (`Hive::present_drop`, S-014 AC12) and
+//! prints `mode=drop`. `--drop --hold` passes the request through the long
+//! press gate (`sbarhive_core::hold`, 400 ms) as the daemon does, shows the
+//! hive with `Hive::present_drop_hold` when the gate's timer gives the show,
+//! and prints `mode=hold hold_ms=400`, with `first_frame_ms` timed from the
+//! threshold's end and `press_to_frame_ms` from the request (S-019e AC20).
 
 mod common;
 
+use sbarhive_core::hold::{Effect, Gate, Signal};
 use sbarhive_ui::{Hive, HiveCell, Lang};
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Write};
@@ -68,6 +76,52 @@ fn present(
     }
 }
 
+/// The long press threshold of the hold shows (the default `hold_ms`).
+const HOLD_MS: u64 = 400;
+
+thread_local! {
+    static HIVE: RefCell<Option<Rc<Hive>>> = const { RefCell::new(None) };
+    static FILES: RefCell<Vec<PathBuf>> = const { RefCell::new(Vec::new()) };
+    static GATE: RefCell<Gate> = RefCell::new(Gate::new(|| HOLD_MS));
+    static GATE_TIMER: slint::Timer = slint::Timer::default();
+}
+
+/// A hold show: the press goes through the gate at `received`; its timer
+/// shows the hive in hold mode and reports both times after the first frame.
+fn hold_show(hive: Rc<Hive>, token: Option<String>, received: Instant, stream: UnixStream) {
+    GATE.with(|g| g.borrow_mut().signal(Signal::Hold { at: None }, received));
+    let pending = RefCell::new(Some((hive, token, stream)));
+    GATE_TIMER.with(|t| {
+        t.start(
+            slint::TimerMode::Repeated,
+            Duration::from_millis(1),
+            move || {
+                let Some(Effect::Show { at }) = GATE.with(|g| g.borrow_mut().tick(Instant::now()))
+                else {
+                    return;
+                };
+                GATE_TIMER.with(|t| t.stop());
+                let Some((hive, token, mut stream)) = pending.borrow_mut().take() else {
+                    return;
+                };
+                let threshold = Instant::now();
+                sbarhive_ui::after_next_frame(move || {
+                    let ms = threshold.elapsed().as_secs_f64() * 1000.0;
+                    let total = received.elapsed().as_secs_f64() * 1000.0;
+                    writeln!(
+                        stream,
+                        "mode=hold hold_ms={HOLD_MS} first_frame_ms={ms:.1} press_to_frame_ms={total:.1}"
+                    )
+                    .ok();
+                });
+                if let Err(e) = hive.present_drop_hold("", token, at) {
+                    eprintln!("present failed: {e}");
+                }
+            },
+        )
+    });
+}
+
 fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     sbarhive_ui::init()?;
     let hive = Rc::new(Hive::new(lang)?);
@@ -79,10 +133,6 @@ fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Err
     let listener = UnixListener::bind(&path)?;
     eprintln!("listening on {}", path.display());
 
-    thread_local! {
-        static HIVE: RefCell<Option<Rc<Hive>>> = const { RefCell::new(None) };
-        static FILES: RefCell<Vec<PathBuf>> = const { RefCell::new(Vec::new()) };
-    }
     HIVE.with(|h| *h.borrow_mut() = Some(hive));
     FILES.with(|f| *f.borrow_mut() = files);
 
@@ -103,18 +153,29 @@ fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Err
                         hive.close();
                         slint::quit_event_loop().ok();
                     }
-                    "hide" => hive.close(),
+                    "hide" => {
+                        hive.close();
+                        // The hive closed: the gate forgets it (decision 14).
+                        GATE.with(|g| g.borrow_mut().hive_closed());
+                    }
                     _ => {
-                        let token = line
-                            .strip_prefix("show ")
-                            .filter(|t| *t != "-")
-                            .map(str::to_owned);
+                        let mut words = line.strip_prefix("show ").unwrap_or("-").split(' ');
+                        let token = words.next().filter(|t| *t != "-").map(str::to_owned);
+                        let mode = words.next().unwrap_or("normal");
+                        if mode == "hold" {
+                            return hold_show(hive, token, received, stream);
+                        }
+                        let tag = if mode == "drop" { "mode=drop " } else { "" };
                         let mut stream = stream;
                         sbarhive_ui::after_next_frame(move || {
                             let ms = received.elapsed().as_secs_f64() * 1000.0;
-                            writeln!(stream, "first_frame_ms={ms:.1}").ok();
+                            writeln!(stream, "{tag}first_frame_ms={ms:.1}").ok();
                         });
-                        let shown = FILES.with(|f| present(&hive, &f.borrow(), token));
+                        let shown = if mode == "drop" {
+                            hive.present_drop("", token)
+                        } else {
+                            FILES.with(|f| present(&hive, &f.borrow(), token))
+                        };
                         if let Err(e) = shown {
                             eprintln!("present failed: {e}");
                         }
@@ -129,10 +190,10 @@ fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Err
     Ok(())
 }
 
-fn show(token: Option<String>) -> Result<(), Box<dyn std::error::Error>> {
+fn show(token: Option<String>, mode: &str) -> Result<(), Box<dyn std::error::Error>> {
     let t0 = Instant::now();
     let mut s = UnixStream::connect(socket_path())?;
-    writeln!(s, "show {}", token.as_deref().unwrap_or("-"))?;
+    writeln!(s, "show {} {mode}", token.as_deref().unwrap_or("-"))?;
     s.set_read_timeout(Some(Duration::from_secs(10)))?;
     let mut line = String::new();
     BufReader::new(s).read_line(&mut line)?;
@@ -175,7 +236,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .unwrap_or(Lang::En);
     match args.first().map(String::as_str) {
         Some("daemon") => daemon(lang, common::files_from_args(&args)),
-        Some("show") => show(arg_after(&args, "--token")),
+        Some("show") => {
+            let has = |f: &str| args.iter().any(|a| a == f);
+            let mode = match (has("--drop"), has("--hold")) {
+                (true, true) => "hold",
+                (true, false) => "drop",
+                _ => "normal",
+            };
+            show(arg_after(&args, "--token"), mode)
+        }
         Some("ctl") => ctl(args.get(1).map(String::as_str).unwrap_or("hide")),
         Some("run") => cold(lang, common::files_from_args(&args)),
         _ => Err("usage: hive_bench daemon|show|ctl|run".into()),
