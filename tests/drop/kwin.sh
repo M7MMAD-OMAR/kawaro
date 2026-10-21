@@ -29,17 +29,23 @@
 # hive and before the hive (tests/drop/lib.sh, shortcut_shows). The five
 # S-014b and S-014c shows are not run in this mode.
 # S-019d (backlog/S-019-hive-at-pointer.md, AC8 to AC10 and the manager's
-# decision 1): every show first moves the drag to the hive's centre
-# (ANCHOR_SETTLE, tests/drop/lib.sh), and four kinds of shows follow the
-# five above, with the drag held at P:
+# decision 1, and decision 12 of 2026-10-21): in the five shows above the
+# drag stands still for at least 400 ms after the hive is mapped, then moves
+# to the hive's centre (ANCHOR_SETTLE, tests/drop/lib.sh), so they take the
+# decision 12 path (layer.sh mode "still"). Three kinds of shows follow, with
+# the drag held at P:
 #   jitter  a 1 px drag motion around P every 10 ms for 600 ms, started
 #           before `sbarhive drop`: P = (400, 500) three times, each dropped
 #           on the WEBP cell (the layout there is plan_rings, so the cell is
 #           where it is today relative to the hive), and P = (100, 700),
 #           released over the centre cell;
 #   still   the drag stands still for 1 s after `sbarhive drop`, then the
-#           jitter at (400, 500): "hive anchor: none" first, then one move
-#           to (204, 319), and exactly two wl_subsurface.set_position;
+#           jitter at (400, 500), outside the centred hive (decision 12):
+#           one anchor line, "hive anchor: none", one
+#           wl_subsurface.set_position, in the middle (444, 219), the
+#           catcher region the hive rectangle within 400 ms of the first
+#           frame (layer.sh), and the drop on that centred hive's WEBP cell
+#           writes the file; positioning a still hand is --at only;
 #   at      the drag stands still at (400, 500) and the command is
 #           `sbarhive drop --at 400,500`: anchored at once, one
 #           set_position at (204, 319), no "hive anchor: none", and the drop
@@ -264,7 +270,6 @@ inner() {
         ;;
       at)
         ptr_move "$x" "$y"; sleep 0.5
-        AT_SHOW=$n
         "$BIN/sbarhive" drop --at "$x,$y" >>"$OUT_LOG-cli.log" 2>&1
         ;;
     esac
@@ -287,13 +292,15 @@ inner() {
         check "S-019 AC5/AC10 show $n ($kind): exactly one wl_subsurface.set_position (no move after the first frame)" '[ "$nset" -eq 1 ]'
         ;;
       still)
-        check "S-019 AC10 show $n (still): \"hive anchor: none\" first, then a \"hive anchor\" line within 1 px of ($x, $y)" \
-          '[ "$(head -1 <<<"$al")" = "hive anchor: none" ] && [ "$(grep -c . <<<"$al")" -eq 2 ] && near "$ax" "$x" 1 && near "$ay" "$y" 1'
-        check "S-019 AC10 show $n (still): exactly two wl_subsurface.set_position, the first in the middle (444, 219)" \
-          '[ "$nset" -eq 2 ] && grep -qE "set_position\(444, 219\)" <<<"$(head -1 <<<"$sets")"'
+        # Manager decision 12: no position within 300 ms, so the hive stays
+        # in the middle; the later drag motion at P does not move it.
+        check "S-019 AC10 show $n (still, decision 12): exactly one anchor line, \"hive anchor: none\" (no move to ($x, $y))" \
+          '[ "$al" = "hive anchor: none" ]'
+        check "S-019 AC10 show $n (still, decision 12): exactly one wl_subsurface.set_position, in the middle (444, 219)" \
+          '[ "$nset" -eq 1 ] && grep -qE "set_position\(444, 219\)" <<<"$sets"'
         ;;
     esac
-    if [ "$x $y" = "400 500" ]; then
+    if [ "$x $y" = "400 500" ] && [ "$kind" != still ]; then
       check "S-019 AC10 show $n ($kind): the hive ends at (204, 319) within 1 px" 'near "$lx" 204 1 && near "$ly" 319 1'
     fi
     if [ -n "$geo" ] && [ "$x $y" = "400 500" ]; then
@@ -306,6 +313,8 @@ inner() {
         echo "INFO S-019 show $n: $(basename "$base").webp written"
       fi
       [ "$kind" = at ] && check "S-019 decision 1 show $n (--at): dropped on the WEBP cell, $(basename "$base").webp is written within 5 s" \
+        '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
+      [ "$kind" = still ] && check "S-019 decision 12 show $n (still): the drag moved into the centred hive and dropped on its WEBP cell writes $(basename "$base").webp within 5 s" \
         '[ "$(file --mime-type -b "$base.webp" 2>/dev/null)" = image/webp ]'
     else
       # Released over the centre cell: refused, no file.
@@ -332,7 +341,9 @@ inner() {
   cycle 4 "$W/photo four.png" centre 0
   cycle 5 "$W/report five.pdf" corner 0
   # S-019 AC10 and decision 1.
-  local AT_SHOW=""
+  # layer.sh mode per show (decision 12): 1 to 5 and 10 still, 6 to 9 at
+  # the first position (0), 11 --at (1).
+  local MODES=(still still still still still 0 0 0 0 still 1)
   anchor_cycle 6 jitter 400 500
   anchor_cycle 7 jitter 400 500
   anchor_cycle 8 jitter 400 500
@@ -347,7 +358,7 @@ inner() {
   # shellcheck source=layer.sh
   source "$HERE/layer.sh"
   for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
-    layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1 "$([ "$((i + 1))" = "$AT_SHOW" ] && echo 1 || echo 0)"
+    layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1 "${MODES[i]:-0}"
   done
   fi
   summary

@@ -439,3 +439,49 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - **اللقطة `hive-en-dark-corner.png`:** اعتمدها المدير بتفويض من محمد (المرساة (0، 0)، 18 خلية، الصندوق 0 0 393 362).
 - **الطفرات:** تُشغَّل بـ `--in-place` داخل النطاق المحدود، لأن نسخ الشجرة إلى /tmp (6.4 GB) استهلك الساعة كلها.
 - **فحصا «same output» في repro.sh:** المخرج SBH-2 لم يظهر خلال 1.5 s تحت حد المعالج؛ يمدّ المختبِر الانتظار إلى أن يظهر في `hyprctl monitors` (حتى 10 s) قبل الحكم.
+
+### المختبِر: تعديل الاختبارات للقرار 12 (2026-10-21)
+
+- كُتبت التعديلات من القرار 12 وحده، دون قراءة شيفرة التنفيذ. كل أمر cargo وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`. الشيفرة في `crates/` مطابقة لـ `fcb5a18` (`git diff fcb5a18 087e3ba -- crates` فارغ)، وأُعيد بناء `sbarhived` للإصدار قبل التشغيل لأن الثنائي كان أقدم من الالتزام. لا عمليات باقية ولا مجلدات مؤقتة من التشغيلين.
+- العقد الذي تثبّته الاختبارات:
+  - «أول إطار» هو أول `attach(wl_buffer)` على سطح الخلية الفرعي، و«التحويل» أول `set_input_region(wl_region)` على الماسك، والزمن من طوابع أثر `WAYLAND_DEBUG` (`[HH:MM:SS.ffffff]`). الحد 400 ms، أي 300 ms من القرار مع 100 ms للحمل.
+  - دون موضع ودون `--at`: التحويل بعد أول إطار وخلال 400 ms منه، بإضافة واحدة تساوي آخر سطر `hive surface`، وهو آخر منطقة على الماسك أيضاً (لا انتقال بعده)، ولا `enter` على الماسك قبله.
+  - مع موضع أول (الرجّة): التحويل كما كان عند الموضع، ويُضاف أنه لا يتأخر أكثر من 400 ms عن أول إطار (قد يسبقه).
+- الملفات:
+  - `tests/drop/layer.sh`: `region_of` نُقلت إلى المستوى الأعلى، ودوال جديدة `trace_ms` و`still_region` و`within_ms`، ووضع خامس `still` لـ `layer_drop_show`. الوضع `0` بقي كما هو مع فحص الـ 400 ms فقط (يستعمله `tests/overlay/kwin.sh drop` أيضاً، ولم يُعَد تشغيله: KWin يرسل `wl_pointer.enter` للماسك بعد 3 إلى 8 ms، فالفحص الجديد فيه يخص زمن التحويل وحده).
+  - `tests/drop/lib.sh`: `settle_at_centre` ينتظر 400 ms قبل حركة التهيئة، فتأخذ الدورات 1 إلى 5 مسار القرار 12 دائماً (كانت تقع على جانبي 300 ms حسب زمن `wait_geo`، والدورة 1 بعده دائماً بسبب لقطة الانتظار).
+  - `tests/drop/kwin.sh`: الوضع لكل ظهور (`still` للظهورات 1 إلى 5 و10، و`0` للرجّة 6 إلى 9، و`1` لـ `--at` في 11). AC10 «still»: سطر مرساة واحد هو `hive anchor: none`، و`set_position` واحد في المنتصف (444، 219)؛ لم يعد فحص «تنتهي عند (204، 319)» يشمله، والرجّة عند (400، 500) بعد ثانية خارج المستطيل المتوسط فتختبر «لا انتقال»؛ وفحص جديد أن الإفلات على خلية WEBP للخلية المتوسطة يكتب الملف.
+  - `tests/hyprland/repro.sh`: S-020 AC4 لا ينتظر سطر `hive anchor` بل 400 ms بعد أول سطر `hive surface` (يطبع آخر سطر)، ثم النقرة كما كانت. وفحص جديد على الظهور نفسه (مؤشر ساكن دون `--at`) بـ `still_region` من أثر الخدمة مباشرة: منطقة الماسك مستطيل الخلية خلال 400 ms من أول إطار، وهي آخر منطقة، و`set_position` واحد. لا يُشترط غياب `enter` هنا. وفحصا «same output» ينتظران حتى 10 s ظهور SBH-2 في `hyprctl monitors -j` بعرض أكبر من 0. المجموع 13 فحصاً، و20 مع `--quasimode`.
+  - `tests/drop/README.md`: الوصف الجديد.
+- مخرجات الفشل على الشيفرة الحالية (`fcb5a18`)، تشغيل واحد لكل سكربت:
+  - `tests/drop/kwin.sh level=1`: `RESULT FAIL (14)`، و205 نجحت. فشل كل ما ينبغي، ونجحت الرجّة و`--at` (دليل أن القراءة الجديدة للأثر صحيحة: التحويل في 6 إلى 9 قبل أول إطار بـ 0.4 إلى 0.7 ms):
+    ```
+    INFO S-019 show 10 (still at 400 500): hive 204 319 393 362; anchor lines: hive anchor: none|hive anchor: 400 500|; set_position x2: (444, 219) (204, 319)
+    FAIL S-019 AC10 show 10 (still, decision 12): exactly one anchor line, "hive anchor: none" (no move to (400, 500))
+    FAIL S-019 AC10 show 10 (still, decision 12): exactly one wl_subsurface.set_position, in the middle (444, 219)
+    PASS S-019 decision 12 show 10 (still): the drag moved into the centred hive and dropped on its WEBP cell writes held 10.webp within 5 s
+    INFO S-019 show 1 (still, decision 12): the catcher's first wl_region 1964.4 ms after the first frame, enters on the catcher before it 1, that region (adds, last add) 1 444 219 393 362, last catcher region 1 444 219 393 362, hive rect 444 219 393 362
+    FAIL S-019 decision 12 show 1 (still): no position, so the catcher's first input region is the hive rectangle (one add, the last "hive surface" line) within 400 ms of the first frame
+    FAIL S-019 decision 12 show 1 (still): no enter on the catcher before that switch, and it stays the catcher's last region (no move afterwards)
+    (والفشلان نفساهما للظهورات 2 إلى 5، بتحويل بعد 463.8 و465.7 و468.1 و468.3 ms، أي عند حركة التهيئة)
+    INFO S-019 show 10 (still, decision 12): the catcher's first wl_region 950.3 ms after the first frame, enters on the catcher before it 1, that region (adds, last add) 1 204 319 393 362, last catcher region 1 204 319 393 362, hive rect 204 319 393 362
+    FAIL S-019 decision 12 show 10 (still): no position, so the catcher's first input region is the hive rectangle (one add, the last "hive surface" line) within 400 ms of the first frame
+    FAIL S-019 decision 12 show 10 (still): no enter on the catcher before that switch, and it stays the catcher's last region (no move afterwards)
+    PASS S-019 decision 12 show 6: the switch at the first position comes at most 400 ms after the first frame
+    (ومثله 7 و8 و9)
+    ```
+  - `tests/hyprland/repro.sh --json --quasimode`: `{"total": 20, "failed": 7, "skipped": 0}`:
+    ```
+    INFO drop: last hive surface line 400 ms after the first: hive surface: layer 284 89 393 362
+    INFO drop click at (40, 40): keys.py clicks 0, hive shown after the click yes, hive gone 10028 ms after `sbarhive drop`
+    FAIL S-020 AC4 drop show: a click at (40, 40) outside the hive reaches keys.py once and the hive stays until the timeout
+    INFO drop show, still pointer, no --at (decision 12): catcher's first wl_region 3445.5 ms after the first frame, that region (adds, last add) 1 0 0 393 362, last catcher region 1 0 0 393 362, last hive surface 0 0 393 362, enters on the catcher before the region 1, set_position x2
+    FAIL S-019 decision 12 drop show, still pointer, no --at: the catcher's input region is the hive rectangle (one add, the last "hive surface" line) within 400 ms of the first frame, and the hive never moves (one set_position)
+    FAIL quasimode: screen reader flag without a reader keeps the layer (S-019, not implemented)
+    FAIL quasimode: key release hides (S-019, not implemented)
+    FAIL quasimode: adaptive shape (S-019, not implemented)
+    INFO quasimode same output: SBH-2 not listed within 10 s
+    FAIL quasimode: same output as pointer (S-019 AC5): ...
+    FAIL quasimode: same output as pointer (S-019 decision 1): ...
+    ```
+- **فحصا «same output» ما زالا يفشلان بانتظار 10 s، وهذه نتيجة بيئة لا خطأ في الاختبار ولا في الشيفرة:** `hyprctl output create wayland SBH-2` أجاب `ok`، وفي سجل Hyprland `Output SBH-2: initialized` وحده، ولم يظهر المخرج في `hyprctl monitors -j` خلال 10 ثوانٍ، فلم يبلغ الفحصان الشيفرة. الأرجح أن KWin الخارجي لا يرسل configure لنافذة المخرج الثانية في هذا التركيب. القرار للمدير: إصلاح التركيب (مثلاً مخرج ثانٍ في KWin الخارجي)، أو قبولهما معلّقين.

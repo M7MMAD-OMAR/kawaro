@@ -32,7 +32,8 @@
 #                        wl_subsurface.set_position;
 #                      same output as pointer: a second output
 #                        (`hyprctl output create wayland SBH-2`, 1280x720 at
-#                        scale 1, right of the first at (960, 0)), the
+#                        scale 1, right of the first at (960, 0), waited
+#                        for up to 10 s in hyprctl monitors -j), the
 #                        pointer moved onto it with hl.dsp.cursor.move({ x,
 #                        y }): `sbarhive open` puts the layer
 #                        on SBH-2 (hyprctl layers -j) with the anchor at the
@@ -50,7 +51,16 @@
 # writes the file, the drop timeout and Esc mid-drag both end with the hive
 # gone and pointer input working. In a drop show with no drag (S-020 AC4) a
 # click at (40, 40), outside the hive, reaches keys.py once and the hive
-# stays until the drop timeout. Exit 0 only when none failed.
+# stays until the drop timeout; the click comes after the last "hive
+# surface" line or 400 ms, whichever is later. In that show the pointer
+# stands still and there is no --at, and Hyprland sends no enter to a new
+# layer under a still pointer, so (S-019 manager decision 12) the catcher's
+# first input region is the hive rectangle (one add, the last "hive
+# surface" line) within 400 ms of the first frame (the hive subsurface's
+# first attach), by the daemon's WAYLAND_DEBUG trace timestamps
+# (still_region, tests/drop/layer.sh), and the hive never moves (one
+# wl_subsurface.set_position). 13 checks, 20 with --quasimode.
+# Exit 0 only when none failed.
 # On Hyprland 0.56.2 the layer path gets no drag motion: Hyprland makes no
 # view for a subsurface of a layer surface, so its drag motion listener finds
 # none for the hive subsurface and sends nothing (src/protocols/core/
@@ -102,6 +112,9 @@ inner() {
   # that TOTAL counts every check.
   # shellcheck source-path=SCRIPTDIR source=../drop/lib.sh
   source "$ROOT/tests/drop/lib.sh"
+  # still_region and within_ms (S-019 decision 12).
+  # shellcheck source-path=SCRIPTDIR source=../drop/layer.sh
+  source "$ROOT/tests/drop/layer.sh"
   # Human lines go to stdout here; the caller sends them to stderr in --json.
   say() { echo "$*"; }
   check() { TOTAL=$((TOTAL + 1)); if eval "$2"; then say "PASS $1"; else say "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
@@ -364,13 +377,17 @@ for c in json.load(sys.stdin):
   # Drop mode with no drag (informative numbers), then S-020 AC4: a click
   # at (40, 40), outside the hive rectangle, passes through to keys.py
   # (exactly one click) and the hive stays until the 10 s drop timeout.
-  local dclicks=none dstay=no dgone=none
+  local dclicks=none dstay=no dgone=none dseg=""
   if "$BIN/sbarhive" ping >/dev/null 2>&1; then
     centre_ptr
     local dt0; dt0=$(now_us)
     show "$BIN/sbarhive" drop
-    # S-019d setup: the click at (40, 40) comes after the anchor line.
-    local k; for k in $(seq 20); do after "$MARK" | grep -qE '^hive anchor: ' && break; sleep 0.1; done
+    # S-019 decision 12: the full region phase lasts at most 300 ms from
+    # the first frame, so the click at (40, 40) waits for the last "hive
+    # surface" line or 400 ms: show returns at the first one, and none may
+    # follow after 300 ms. No wait for a "hive anchor" line.
+    sleep 0.4
+    say "INFO drop: last hive surface line 400 ms after the first: $(after "$MARK" | grep '^hive surface:' | tail -1)"
     sleep 0.5
     k0=$(wc -l <"$KLOG")
     key 30; sleep 0.5
@@ -381,11 +398,21 @@ for c in json.load(sys.stdin):
     dclicks=$(sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -c '^keys: click$')
     [ "$dpre" = yes ] && shown && dstay=yes
     local i; for i in $(seq 150); do shown || { dgone=$(( ($(now_us) - dt0) / 1000 )); break; }; sleep 0.1; done
+    dseg=$(sed -n "$((MARK + 1)),\$p" "$DLOG")
     reset_hive "the drop show"
   fi
   say "INFO drop click at (40, 40): keys.py clicks ${dclicks}, hive shown after the click ${dstay}, hive gone ${dgone} ms after \`sbarhive drop\`"
   check "S-020 AC4 drop show: a click at (40, 40) outside the hive reaches keys.py once and the hive stays until the timeout" \
     '[ "$dclicks" = 1 ] && [ "$dstay" = yes ] && [ "$dgone" != none ] && [ "$dgone" -ge 9000 ]'
+  # S-019 decision 12, the same show (the trace lines, not after()).
+  local sdt=none sent sfirst=none slast sreg=none ssw dsets=0
+  if [ -n "$dseg" ]; then
+    IFS='|' read -r sdt sent sfirst slast sreg ssw <<<"$(still_region "$dseg")"
+    dsets=$(grep -cE -- '-> wl_subsurface[#@][0-9]+\.set_position\(' <<<"$dseg")
+  fi
+  say "INFO drop show, still pointer, no --at (decision 12): catcher's first wl_region ${sdt} ms after the first frame, that region (adds, last add) ${sfirst}, last catcher region ${slast:-none}, last hive surface ${sreg}, enters on the catcher before the region ${sent:-?}, set_position x$dsets"
+  check "S-019 decision 12 drop show, still pointer, no --at: the catcher's input region is the hive rectangle (one add, the last \"hive surface\" line) within 400 ms of the first frame, and the hive never moves (one set_position)" \
+    '[ "$sreg" != none ] && [ "$sfirst" = "1 $sreg" ] && [ "$slast" = "1 $sreg" ] && within_ms "$sdt" 400 && [ "$dsets" -eq 1 ]'
 
   # Drop mode mid-drag, as the owner's Super+Z and Alt-hold bindings do: a
   # GTK drag source (tests/drop/source.py) drags a PNG and `sbarhive drop`
@@ -528,12 +555,18 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
 
     # Same output as pointer: a second output right of the first.
     local made; made=$(hyprctl output create wayland SBH-2 2>&1)
-    sleep 1.5
-    local mon2 m2x="" m2y="" m2w="" m2h=""
-    mon2=$(hyprctl monitors -j 2>/dev/null | python3 -I -c 'import json,sys
+    # Up to 10 s for SBH-2 to show in hyprctl monitors with a mode (width
+    # above 0): under the load limits it took longer than 1.5 s.
+    local mon2="" m2x="" m2y="" m2w="" m2h="" t2
+    for t2 in $(seq 100); do
+      mon2=$(hyprctl monitors -j 2>/dev/null | python3 -I -c 'import json,sys
 for m in json.load(sys.stdin):
-    if m["name"] == "SBH-2":
+    if m["name"] == "SBH-2" and m["width"] > 0:
         print(m["x"], m["y"], round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
+      [ -n "$mon2" ] && break
+      sleep 0.1
+    done
+    say "INFO quasimode same output: SBH-2 ${mon2:+listed after about $((t2 / 10)).$((t2 % 10)) s}${mon2:-not listed within 10 s}"
     read -r m2x m2y m2w m2h <<<"$mon2"
     # The pointer onto SBH-2 at (300, 200) of its own coordinates.
     local gx="" gy="" warp="" tries

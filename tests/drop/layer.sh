@@ -18,7 +18,18 @@
 #     "hive surface: layer X Y W H" line (S-020 AC1: the hive rectangle).
 #     With AT=1 (`sbarhive drop --at X,Y`, decision 1) the position is
 #     known from the start: the last set_input_region on the catcher before
-#     its first commit is already that rectangle;
+#     its first commit is already that rectangle.
+#     With AT=still (manager decision 12: no position, the drag or pointer
+#     stands still, no --at), the full region lasts at most 300 ms from the
+#     first frame: no enter on the catcher before its first
+#     set_input_region(wl_region), that region is exactly one add equal to
+#     the show's last "hive surface" rectangle (the centred hive, which
+#     never moves afterwards), it is also the catcher's last region, and it
+#     comes after the first frame (the hive subsurface's first
+#     attach(wl_buffer)) and at most 400 ms after it, by the trace's
+#     timestamps (still_region below). With AT=0 the same 400 ms bound
+#     holds for the switch: a first position later than that is past the
+#     phase;
 #   - S-019 AC9: from the start of the show to the switch to the hive
 #     rectangle, no wl_data_offer.accept with a type, no
 #     wl_data_offer.receive and no "drop cells:" line (the anchor phase
@@ -37,6 +48,61 @@
 # Requests print as "-> interface#id.request(...)" (wayland-rs) or with "@"
 # (libwayland); events print without the arrow.
 
+# region_of SEGLINE: for the set_input_region at line SEGLINE of $seg (the
+# caller's local), prints "ADDS ARGS": the number of wl_region#R.add
+# between R's create_region and it, and the arguments of the last such add
+# ("-" if none). Prints "none" if R has no create_region before it.
+region_of() {
+  local l=$1 r c
+  r=$(sed -n "${l}p" <<<"$seg" | grep -oE 'wl_region[#@][0-9]+' | head -1)
+  c=$(head -n "$l" <<<"$seg" | grep -nE -- "-> wl_compositor[#@][0-9]+\.create_region\(new id ${r}\)" | tail -1 | cut -d: -f1)
+  [ -n "$r" ] && [ -n "$c" ] || { echo none; return; }
+  local a; a=$(sed -n "${c},${l}p" <<<"$seg" | grep -E -- "-> ${r}\.add\(")
+  echo "$(grep -c . <<<"$a") $(tail -1 <<<"$a" | sed -nE 's/.*\.add\(([^)]*)\).*/\1/p' | tr -d ',' | grep . || echo -)"
+}
+
+# trace_ms LINE: the "[HH:MM:SS.ffffff]" timestamp of a trace line, in ms.
+trace_ms() {
+  sed -nE 's/^\[([0-9]+):([0-9]+):([0-9]+\.[0-9]+)\].*/\1 \2 \3/p' <<<"$1" |
+    awk '{ printf "%.3f\n", ($1 * 3600 + $2 * 60 + $3) * 1000 }'
+}
+
+# still_region SEG (manager decision 12), for one drop show's trace. Prints
+#   DT|ENTERS|FIRST|LAST|RECT|SW
+# DT: ms from the first frame (the hive subsurface's first
+# attach(wl_buffer)) to the catcher's first set_input_region(wl_region),
+# negative if the region comes first, "none" if either is missing;
+# ENTERS: wl_pointer or wl_data_device enters naming the catcher before
+# that region; FIRST and LAST: region_of for that first region and for the
+# catcher's last set_input_region in the show ("nil" for a nil region);
+# RECT: X Y W H of the show's last "hive surface: layer" line; SW: the
+# segment line of that first region.
+still_region() {
+  local seg=$1 cat child fr="" sw="" dt=none ent=0 first=none last=none rect l
+  cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  rect=$(grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$seg" | tail -1 | cut -d' ' -f4-)
+  if [ -n "$cat" ] && [ -n "$child" ]; then
+    fr=$(grep -nE -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" | head -1)
+    sw=$(grep -nE -- "-> ${cat}\.set_input_region\(wl_region" <<<"$seg" | head -1)
+    if [ -n "$fr" ] && [ -n "$sw" ]; then
+      dt=$(awk -v a="$(trace_ms "${fr#*:}")" -v b="$(trace_ms "${sw#*:}")" 'BEGIN { if (a == "" || b == "") print "none"; else printf "%.1f\n", b - a }')
+    fi
+    if [ -n "$sw" ]; then
+      ent=$(head -n "${sw%%:*}" <<<"$seg" | grep -cE -- "^\[[0-9:.]+\] (wl_pointer|wl_data_device)[#@][0-9]+\.enter\([0-9]+, ${cat}, ")
+      first=$(region_of "${sw%%:*}")
+    fi
+    l=$(grep -nE -- "-> ${cat}\.set_input_region\(" <<<"$seg" | tail -1 | cut -d: -f1)
+    if [ -n "$l" ]; then
+      if sed -n "${l}p" <<<"$seg" | grep -qE 'set_input_region\(wl_region'; then last=$(region_of "$l"); else last=nil; fi
+    fi
+  fi
+  echo "$dt|$ent|$first|$last|${rect:-none}|${sw%%:*}"
+}
+
+# within_ms DT MAX: DT is a number and 0 <= DT <= MAX.
+within_ms() { awk -v d="$1" -v m="$2" 'BEGIN { exit !(d != "none" && d != "" && d + 0 >= 0 && d + 0 <= m) }'; }
+
 layer_drop_show() {
   local n=$1 from=$2 to=$3 enter=$4 at=${5:-0}
   local seg; seg=$(sed -n "$((from + 1)),${to}p" "$DLOG")
@@ -54,19 +120,6 @@ layer_drop_show() {
   # after a drop-mode move to the first position (S-019 AC8).
   local hx="" hy="" hw="" hh=""
   read -r _ _ _ hx hy hw hh < <(grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$seg" | tail -1) || true
-
-  # region_of SEGLINE: for the set_input_region at line SEGLINE of $seg,
-  # prints "ADDS ARGS": the number of wl_region#R.add between R's
-  # create_region and it, and the arguments of the last such add ("-" if
-  # none). Prints "none" if R has no create_region before it.
-  region_of() {
-    local l=$1 r c
-    r=$(sed -n "${l}p" <<<"$seg" | grep -oE 'wl_region[#@][0-9]+' | head -1)
-    c=$(head -n "$l" <<<"$seg" | grep -nE -- "-> wl_compositor[#@][0-9]+\.create_region\(new id ${r}\)" | tail -1 | cut -d: -f1)
-    [ -n "$r" ] && [ -n "$c" ] || { echo none; return; }
-    local a; a=$(sed -n "${c},${l}p" <<<"$seg" | grep -E -- "-> ${r}\.add\(")
-    echo "$(grep -c . <<<"$a") $(tail -1 <<<"$a" | sed -nE 's/.*\.add\(([^)]*)\).*/\1/p' | tr -d ',' | grep . || echo -)"
-  }
 
   # a) S-019 AC8: the first position, the first pointer or drag enter
   # naming the catcher; before it no region on the catcher.
@@ -91,6 +144,15 @@ layer_drop_show() {
     fi
   fi
   [ "$at" = 1 ] && sw=$last
+  # Manager decision 12: the full region phase ends at most 300 ms after
+  # the first frame (the 400 ms bound leaves 100 ms for a loaded machine).
+  local sdt=none sent=0 sfirst=none slast=none srect=none pdt=none fr
+  if [ "$at" = still ]; then
+    IFS='|' read -r sdt sent sfirst slast srect sw <<<"$(still_region "$seg")"
+  elif [ "$at" = 0 ] && [ -n "$sw" ] && [ -n "$child" ]; then
+    fr=$(grep -E -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" | head -1)
+    [ -n "$fr" ] && pdt=$(awk -v a="$(trace_ms "$fr")" -v b="$(trace_ms "$(sed -n "${sw}p" <<<"$seg")")" 'BEGIN { if (a == "" || b == "") print "none"; else printf "%.1f\n", b - a }')
+  fi
   # S-019 AC9: nothing of the drop machinery before the switch.
   local pre_acc=0 pre_rcv=0 pre_cells=0 ncells
   if [ -n "$sw" ]; then
@@ -140,11 +202,20 @@ layer_drop_show() {
   if [ "$at" = 1 ]; then
     check "S-019 AC8 show $n (--at): before its first commit the catcher's input region is already the hive rectangle (one add)" \
       '[ -n "$hh" ] && [ "$last_reg" = "1 $hx $hy $hw $hh" ]'
+  elif [ "$at" = still ]; then
+    echo "INFO S-019 show $n (still, decision 12): the catcher's first wl_region ${sdt} ms after the first frame, enters on the catcher before it $sent, that region (adds, last add) $sfirst, last catcher region $slast, hive rect $srect"
+    check "S-019 decision 12 show $n (still): no position, so the catcher's first input region is the hive rectangle (one add, the last \"hive surface\" line) within 400 ms of the first frame" \
+      '[ "$srect" != none ] && [ "$sfirst" = "1 $srect" ] && within_ms "$sdt" 400'
+    check "S-019 decision 12 show $n (still): no enter on the catcher before that switch, and it stays the catcher's last region (no move afterwards)" \
+      '[ "$sent" -eq 0 ] && [ "$slast" = "1 $srect" ]'
   else
     check "S-019 AC8 show $n: the catcher keeps its default input region until the first position (an enter on it, and no set_input_region(wl_region) before it)" \
       '[ -n "$fp" ] && [ "$early" -eq 0 ]'
     check "S-019 AC8 show $n: after the first position the catcher's last input region is one add equal to the hive rectangle (S-020 AC1)" \
       '[ -n "$hh" ] && [ -n "$sw" ] && [ -n "$last" ] && [ "$last" -ge "$sw" ] && [ "$last_reg" = "1 $hx $hy $hw $hh" ]'
+    echo "INFO S-019 show $n: switch to the hive rectangle ${pdt} ms after the first frame (negative: before it)"
+    check "S-019 decision 12 show $n: the switch at the first position comes at most 400 ms after the first frame" \
+      'awk -v d="$pdt" "BEGIN { exit !(d != \"none\" && d + 0 <= 400) }"'
   fi
   check "S-019 AC9 show $n: before the switch to the hive rectangle no wl_data_offer.accept with a type, no receive, no \"drop cells\" line" \
     '[ -n "$sw" ] && [ "$pre_acc" -eq 0 ] && [ "$pre_rcv" -eq 0 ] && [ "$pre_cells" -eq 0 ]'

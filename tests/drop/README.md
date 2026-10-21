@@ -53,14 +53,20 @@ rectangle from the daemon's last `hive surface: layer X Y W H` line after
 the show's `get_layer_surface` (the daemon runs with
 `SBARHIVE_DEBUG_FOCUS=1`), counts it shown while there are more
 `get_layer_surface` than `zwlr_layer_surface_v1.destroy` requests, and takes
-the show's new surface from `get_layer_surface`. Each show first moves the
-drag to the hive's centre (S-019d: the first drag position moves a centred
-drop hive once, and there that move changes nothing). It then runs the
+the show's new surface from `get_layer_surface`. In each show the drag
+stands still for at least 400 ms after the hive is mapped, then moves to the
+hive's centre: with no position within 300 ms of the first frame the catcher
+takes only the centred hive rectangle and the hive never moves (S-019,
+manager decision 12), and the drag enters it there. It then runs the
 checks in `layer.sh` (S-018d AC13, revised by S-020 AC1 and AC2 and by S-019
 AC8 and AC9) for each show: keyboard interactivity 0; the catcher's default
 input region until the first position (the first pointer or drag enter on
 it), then a region of exactly the hive rectangle; with
 `sbarhive drop --at X,Y` that rectangle before the catcher's first commit;
+with no position (the drag standing still, no `--at`, decision 12) that
+rectangle as the catcher's first region, with no enter on it before, at most
+400 ms after the first frame by the trace timestamps, and as its last region;
+after a first position, the switch at most 400 ms after the first frame;
 no typed `accept`, no `receive` and no `drop cells:` line before the switch,
 and one `drop cells:` line per show; an empty input region on the hive
 subsurface; one `get_data_device` after `get_layer_surface` with every
@@ -77,8 +83,10 @@ S-019d adds six shows to `kwin.sh` with the drag held at P (S-019 AC10 and
 the manager's decision 1): a 1 px drag motion around (400, 500) from before
 `sbarhive drop` (three shows, each anchored there and dropped on the WEBP
 cell, the hive at (204, 319)); the same around (100, 700); a drag standing
-still for 1 s and then moving to (400, 500) (`hive anchor: none`, then one
-move, two `set_position`); and `sbarhive drop --at 400,500` with the drag
+still for 1 s and then moving to (400, 500), outside the centred hive
+(decision 12: `hive anchor: none` only, one `set_position` in the middle,
+and the drop on that hive's WEBP cell writes the file; a still hand is placed
+by `--at` only); and `sbarhive drop --at 400,500` with the drag
 still (anchored at once, one `set_position`, the file written).
 
 The WEBP cell is located from the shipped layout rule (`crates/ui/src/layout.rs`,
