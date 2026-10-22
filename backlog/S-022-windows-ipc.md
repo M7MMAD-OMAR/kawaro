@@ -1,5 +1,5 @@
 # S-022 نقل IPC خلف واجهة واحدة، ثم named pipe على ويندوز
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: منتهية (PASS من المراجع 2026-10-22)؛ S-022b: لم تبدأ
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: منتهية (PASS من المراجع 2026-10-22)؛ S-022b: كُتبت الاختبارات وتفشل كما يجب (المختبِر 2026-10-22)، تنتظر المنفِّذ
 
 يبني على ADR 0005 القسم 2. للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -139,3 +139,60 @@ error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 pre
   - الانحرافات مقبولة: (1) `replace serve with ()` في `exclude_re` على سابقة `handle`، ولم يُعِد المراجع تشغيل `tests/e2e/run.sh`، فالقبول على السابقة وعلى سجل المنفِّذ. (2) `flush -> Ok(())` مكافئة: `flush` لمقبس Unix في std يعيد `Ok(())` (مصدر std غير مثبت محلياً للاقتباس منه). (3) `endpoint()` و`server_pid()` و`Display` في بذرة ويندوز لا تستطيع إعادة `Unsupported` بتوقيعات AC1، فالاسم الفارغ و`None` مفروضان؛ وكل دالة تعيد `io::Result` تعيد `Unsupported`. (4) `handle()` يقرأ عبر `try_clone` لأن `Read` غير مطبّق على `&Stream`؛ السلوك على لينكس كما كان، وفشل النسخ يغلق الاتصال بلا رد.
   - ملاحظات صغيرة لما بعد: `crates/daemon/src/main.rs:84` ما زال يحذف `socket_path()` مباشرة لا عبر النقل (لـ S-022b أو S-027). و`flush` في `exclude_re` يطابق أي `<impl Write for Stream>` في المستودع، اليوم لا يوجد غير `unix.rs` و`windows.rs` المستثنى.
   - لا سطر CHANGELOG جديد من المراجع: السطر الواحد للقصة كلها أضافته S-022a، وS-022b تعدّله.
+- 2026-10-22، المختبِر (S-022b): كُتبت اختبارات AC8 إلى AC14 في ملفات جديدة حتى لا يكسر استيراد غير محلول اختبارات S-022a الأربعة عشر في `transport.rs`. العقد الذي ثبّته المختبِر في رأس `crates/core/tests/transport_plan.rs` و`deadline.rs` (لا يُعدَّل)، وكله `pub` في `sbarhive_core::transport` على كل المنصات:
+  - `dacl_sddl(&str) -> String`.
+  - `enum BindOutcome { Listen, AlreadyRunning, Failed(io::Error) }` و`bind_result(Option<u32>) -> BindOutcome`: `None` استماع، و`Some(5)` `AlreadyRunning`، وغيره `Failed` برمزه في `raw_os_error()`.
+  - `enum ConnectStep { Connected, Wait(Duration), Fail(io::Error) }` و`connect_plan(open_error: Option<u32>, elapsed: Duration) -> ConnectStep`، خطوة واحدة من حلقة الاتصال والزمن مُدخَل لا نوم حقيقي: `None` اتصال، و`Some(2)` `NotFound` في أي زمن دون انتظار، و`Some(231)` قبل 2000 ms `Wait(2000 ms - elapsed)` وهي مهلة `WaitNamedPipeW`، وعند 2000 ms أو بعدها `TimedOut` (الحد: 2000 نفسها مهلة منتهية)، وأي رمز آخر `Fail` برمزه.
+  - `verify_owner<S>(server_sid: &str, client_sid: &str, stream: S) -> io::Result<S>`: يعيد المجرى إن تطابق SID، وإلا `PermissionDenied` ويُسقط المجرى دون كتابة. هذا شكل «نتيجة التحقق من المالك» في AC11، وعدّاد الكتابة 0 وعدّاد الإسقاط 1 في الاختبار.
+  - `open_mode(bool) -> u32` و`pipe_mode() -> u32`.
+  - `pub mod deadline` و`read_with_deadline<T, R, C>(timeout: Duration, read: R, cancel: C) -> io::Result<T>` حيث `R: FnOnce() -> io::Result<T>` على الخيط المستدعي و`C: FnOnce() + Send + 'static` يملكه المراقب. إن انقضت المهلة يُستدعى `cancel` مرة واحدة والنتيجة `TimedOut` أياً كان ما أعادته القراءة الملغاة؛ وإن عادت القراءة أولاً فنتيجتها كما هي ولا يُستدعى `cancel` ولو بعد حين؛ وعند العودة لا مراقب حي (عدّاد الخيوط: `Arc` داخل `cancel` يعود `strong_count` إلى 1).
+  - الملفات والاختبارات:
+    - `crates/core/tests/transport_plan.rs`: `ac8_dacl_sddl_is_the_exact_literal`، `ac8_dacl_sddl_grants_no_one_else`، `ac8_dacl_sddl_embeds_the_given_sid` (أطول SID، حتى لا تنجو قيمة ثابتة من `M`)، `ac9_bind_result_none_listens`، `ac9_bind_result_access_denied_is_already_running`، `ac9_bind_result_other_codes_fail_with_the_same_code` (2 و231 و1 و87 و`0xFFFFFFF0`)، `ac11_connect_plan_no_error_is_connected`، `ac11_connect_plan_file_not_found_is_not_found_at_once`، `ac11_connect_plan_pipe_busy_waits_for_the_rest_of_2000_ms` (0 و1 و750 و1999 ms)، `ac11_connect_plan_pipe_busy_times_out_at_2000_ms` (2000 و2001 و10000)، `ac11_connect_plan_other_codes_fail_with_the_same_code`، `ac11_another_users_server_is_permission_denied_and_gets_no_byte`، `ac11_own_server_hands_the_stream_back_for_writing` (يقتل طفرة «ارفض دائماً»)، `ac12_open_mode_first_instance_is_duplex_and_first_pipe_instance`، `ac12_open_mode_later_instances_are_duplex_only`، `ac12_pipe_mode_is_byte_wait_and_rejects_remote_clients`.
+    - `crates/core/tests/deadline.rs`: `ac10_blocked_read_times_out_between_180_and_1000_ms_with_one_cancel` (القراءة الوهمية تحجب بـ `recv_timeout` 3 s حتى لا تعلّق طفرة لا تلغي `M`، وتعيد بعد الإلغاء خطأً ليس `TimedOut` فيثبت الاختبار التحويل)، `ac10_read_done_within_50_ms_returns_its_data_and_never_cancels` (تعود قبل 150 ms ولا يُستدعى `cancel` حتى 400 ms بعد العودة)، `ac10_a_read_error_before_the_deadline_is_returned_as_is`.
+    - `crates/core/tests/transport_seed.rs` (عدّله المختبِر): حُذف فحص `ErrorKind::Unsupported` لأن S-022b تستبدل البذرة بالأنبوب الحقيقي ولا يحق للمنفِّذ تعديل الاختبار، وبقي فحص `exclude_globs` ومنع `todo!` باسم `ac7_windows_transport_is_excluded_from_mutants_and_has_no_todo`. وأُضيفت فحوص نص `windows.rs` التي تطلبها AC8 وAC10 وAC12: `ac8_windows_builds_the_descriptor_from_dacl_sddl`، `ac10_windows_cancels_the_read_with_cancel_io_ex`، `ac9_ac11_ac12_windows_uses_the_pure_decisions` (يستدعي `open_mode(` و`pipe_mode(` و`bind_result(` و`connect_plan(` و`verify_owner(` و`WaitNamedPipeW`)، `ac12_windows_asserts_every_flag_against_windows_sys_at_compile_time` (`const _: () = assert!` وأسماء الثوابت التسعة)، `ac12_windows_checks_the_owner_and_names_the_endpoint_from_the_token`، و`ac10_deadline_rs_is_mutated_on_linux` (الملف موجود وليس في `exclude_globs`).
+    - `crates/core/tests/transport_deps.rs`: `ac13_cargo_lock_keeps_671_packages`، `ac13_core_depends_on_windows_sys_0_61_2_in_the_lock` (مدخل `sbarhive-core` في `Cargo.lock` يسرد `"windows-sys 0.61.2"`)، `ac13_core_declares_windows_sys_for_windows_only` (في `[target.'cfg(windows)'.dependencies]` من `crates/core/Cargo.toml` بإصدار 0.61، ولا في غيره)، `ac14_engines_md_records_windows_sys_and_its_license` (الاسم والإصدار و`MIT OR Apache-2.0` في حدود ثمانية أسطر).
+  - ينجح قبل التنفيذ عن قصد: `ac13_cargo_lock_keeps_671_packages` (حارس تراجع، `windows-sys 0.61.2` موجود في القفل أصلاً)، و`ac7_windows_transport_is_excluded_from_mutants_and_has_no_todo` (حارس من S-022a).
+  - للمراجع لا للاختبار: `X` و`cargo tree` على لينكس، و`W` بـ `-p sbarhive-engines`، ونص `SECURITY.md` بالعربية والإنكليزية و`docs/architecture.md`، وأن كل `CreateNamedPipeW` يأخذ الواصف (فحص النص يثبت الوجود لا كل استدعاء)، وتعديل سطر CHANGELOG نفسه.
+  - تحقق من منطق الاختبارات: نسخة مؤقتة خارج المستودع (crate في مجلد الجلسة المؤقت، حُذفت ولا تُدمج) بتطبيق مختصر للعقد نجحت فيها اختبارات `transport_plan.rs` الستة عشر و`deadline.rs` الثلاثة، و`cargo clippy --tests -D warnings` نظيف عليها وعلى `transport_seed` و`transport_deps` هنا. `cargo fmt --check` نظيف، واختبارات S-022a في `transport.rs` باقية 14 ناجحة.
+  - غموض: (1) AC11 يسمي `connect_plan(results)` بالجمع؛ ثُبّت خطوة واحدة بالزمن مُدخلاً حتى لا ينام الاختبار 2 s تحت `M`، والحلقة نفسها في `windows.rs`. (2) حالة «انتظر ثم أعد» حين يعيد `WaitNamedPipeW` نجاحاً مبكراً ثم يبقى الأنبوب مشغولاً: الزمن المنقضي يُقاس بالساعة في الحلقة، فلم يُختبر خارج الدالة. (3) رموز غير 2 و231 في الاتصال لم يحددها AC11؛ ثبّتها المختبِر كما AC9: الرمز نفسه في `raw_os_error()`.
+  - مخرجات الفشل (`cargo test -j 2 -p sbarhive-core` داخل النطاق):
+```
+$ cargo test -j 2 -p sbarhive-core --test transport_plan
+error[E0432]: unresolved imports `sbarhive_core::transport::BindOutcome`, `sbarhive_core::transport::ConnectStep`, `sbarhive_core::transport::bind_result`, `sbarhive_core::transport::connect_plan`, `sbarhive_core::transport::dacl_sddl`, `sbarhive_core::transport::open_mode`, `sbarhive_core::transport::pipe_mode`, `sbarhive_core::transport::verify_owner`
+error: could not compile `sbarhive-core` (test "transport_plan") due to 1 previous error
+
+$ cargo test -j 2 -p sbarhive-core --test deadline
+error[E0432]: unresolved import `sbarhive_core::transport::deadline`
+  --> crates/core/tests/deadline.rs:18:31
+   |
+18 | use sbarhive_core::transport::deadline::read_with_deadline;
+   |                               ^^^^^^^^ could not find `deadline` in `transport`
+error: could not compile `sbarhive-core` (test "deadline") due to 1 previous error
+
+$ cargo test -j 2 -p sbarhive-core --test transport_seed
+test ac7_windows_transport_is_excluded_from_mutants_and_has_no_todo ... ok
+---- ac10_deadline_rs_is_mutated_on_linux ----
+.../crates/core/src/transport/deadline.rs must exist
+---- ac10_windows_cancels_the_read_with_cancel_io_ex ----
+windows.rs lacks ["read_with_deadline(", "CancelIoEx"]: the read timeout must cancel the pipe read (AC10)
+---- ac12_windows_asserts_every_flag_against_windows_sys_at_compile_time ----
+compile time asserts are required (AC12)
+---- ac12_windows_checks_the_owner_and_names_the_endpoint_from_the_token ----
+windows.rs lacks ["GetNamedPipeServerProcessId", "ProcessIdToSessionId", "GetTokenInformation", "TokenUser", "pipe_name("]: owner check and endpoint come from the process token (AC12)
+---- ac8_windows_builds_the_descriptor_from_dacl_sddl ----
+windows.rs lacks ["dacl_sddl(", "ConvertStringSecurityDescriptorToSecurityDescriptorW", "CreateNamedPipeW"]: the pipe must be created with the DACL from dacl_sddl (AC8)
+---- ac9_ac11_ac12_windows_uses_the_pure_decisions ----
+windows.rs lacks ["open_mode(", "pipe_mode(", "bind_result(", "connect_plan(", "verify_owner(", "WaitNamedPipeW"]: windows.rs must call the tested pure functions (AC9, AC11, AC12)
+test result: FAILED. 1 passed; 6 failed
+
+$ cargo test -j 2 -p sbarhive-core --test transport_deps
+test ac13_cargo_lock_keeps_671_packages ... ok
+---- ac13_core_declares_windows_sys_for_windows_only ----
+crates/core/Cargo.toml needs [target.'cfg(windows)'.dependencies]
+---- ac14_engines_md_records_windows_sys_and_its_license ----
+docs/engines.md must record windows-sys 0.61.2 (MIT OR Apache-2.0)
+---- ac13_core_depends_on_windows_sys_0_61_2_in_the_lock ----
+sbarhive-core must use windows-sys 0.61.2:
+name = "sbarhive-core" ... dependencies = [ "serde", "serde_json", "tempfile", "thiserror 2.0.21", "toml 0.8.23" ]
+test result: FAILED. 1 passed; 3 failed
+```
