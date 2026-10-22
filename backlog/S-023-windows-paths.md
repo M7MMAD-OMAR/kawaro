@@ -1,5 +1,5 @@
 # S-023 مسارات الإعدادات والإجراءات والسجل على ويندوز، وتسمية الناتج دون استبدال
-الحالة: مراجعة (المنفِّذ 2026-10-22)، على فرع windows/0.6.0 بطلب محمد؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: منتهية (PASS من المراجع 2026-10-22)، على فرع windows/0.6.0 بطلب محمد؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسم 4، وعلى S-022b (اعتماد windows-sys في core). للإصدار 0.6.0. لا يلمس `crates/ui`. يوم عمل واحد أو أقل، فلا تقسيم.
 
@@ -122,3 +122,16 @@ test result: ok. 1 passed; 0 failed
     - `X`: serde وserde_json وthiserror وtoml وwindows-sys كما بعد S-022b. `Cargo.lock` لم يتغير، و`[[package]]` 671.
     - `scripts/design-lint.sh` نظيف. `tests/e2e/run.sh`: كله ناجح. `git diff --stat main...HEAD -- crates/ui` فارغ.
     - ملاحظة: `--jobs 1` مرفوض مع `--in-place`، فشغّلت `--in-place` وهو تسلسلي بطبعه. وتداخل تشغيلان (بناء e2e والجولة الأخيرة) مع بناء من جلسة أخرى رغم الفحص بـ `pgrep`، ولم يفشل شيء.
+- 2026-10-22، المراجع: **PASS**. كل البوابات أعيد تشغيلها داخل النطاق (`MemoryMax=6G`، `-j 2`) من شجرة `windows/0.6.0` على `6e010dd`:
+  - `cargo fmt --check` نظيف. `cargo clippy -j 2 --workspace --all-targets -- -D warnings` بلا تحذير. `cargo test -j 2 --all`: 642 ناجحاً، 0 فاشلاً، 1 متجاهل، في 43 ثنائياً؛ اختبارات القصة الأربعة والثلاثون بالاسم ناجحة، ومعها `ac9_*` الأربعة في `output_impl.rs` والخمسة في `tests/output.rs` و`ac13_cargo_lock_keeps_671_packages`.
+  - `W` (بعد `touch` لإجبار إعادة الفحص، `CARGO_TARGET_DIR` المنفصل): `cargo clippy` و`cargo check` للهدف `x86_64-pc-windows-gnu` لـ core وengines `--lib` بلا تحذير.
+  - `X`: serde وserde_json وthiserror وtoml و`windows-sys v0.61.2` كما بعد S-022b. `Cargo.lock` بلا تغيير، و`[[package]]` 671.
+  - `M`: `cargo mutants --jobs 1 --in-diff` على `git diff 8a27c8e..HEAD -- crates` بـ `CARGO_BUILD_JOBS=2`، في نسخة لا `--in-place`: 24 طفرة، 23 مكتشفة، 1 غير قابلة للبناء (`move_error_kind` بـ `Default::default()`)، 0 مهلة، **0 ناجية**. `load_registry` في `state.rs:42` مكتشفة.
+  - `scripts/design-lint.sh` clean. لا شرطة طويلة في `git diff 15d7523..HEAD` (الضابط الموجب يعطي 1). `git diff --stat main...HEAD -- crates/ui` فارغ. `git diff 8a27c8e..HEAD -- 'crates/*/tests/*'` فارغ (الضابط على `15d7523..8a27c8e` يسرد الملفات الثلاثة)، وفرقا الاختبارات المضمّنة في `output_impl.rs` و`config.rs` من سجل المختبِر فارغان (الثاني يطابق 43 سطراً فعلاً). `grep -rn 'fn user_actions_dir' crates/` يعطي 0. `tests/e2e/run.sh`: 37 PASS، 0 FAIL، ومنه «edited settings apply without reload».
+  - المعايير على الشيفرة: AC1 وAC2 في `paths.rs` صافيتان والمعاملات `&dyn Fn`، والفارغ على ويندوز يرجع إلى المجلد المعروف كما ينص AC1 حرفياً (ليس انحرافاً). AC3: التوقيعات كما هي. AC4: `state.rs` و`cli/src/main.rs` و`watch.rs` على `Config::actions_dir()` بقرار المدير. AC5: `paths/windows.rs` يحرر بـ `CoTaskMemFree` بعد كل استدعاء، نجاحاً وفشلاً ومؤشراً فارغاً (مسموح)، ويقرأ النص قبل التحرير، ويفحص `hr >= 0` و`!raw.is_null()`. AC6: `finalize_with` لا يفحص ولا يستدعي `rename`؛ `AlreadyExists` ينتقل للرقم التالي، وغيره يعود والمؤقت باقٍ، والنجاح ينقل المؤقت فلا يبقى؛ لا مسار يلمس غير المؤقت والأسماء المرشحة، فالأصل لا يُمس. AC7: `place_no_replace` على لينكس هو حرفياً الفحص ثم `rename` السابق، فسلوك لينكس لم يتغير، والسباق القائم موثّق؛ وعلى ويندوز `MoveFileExW` بأعلام 0 فلا استبدال أبداً. AC9: README بالعربية والإنكليزية، وarchitecture.md، وسطر CHANGELOG واحد من المنفِّذ، فلا سطر جديد من المراجع (سطر واحد للقصة).
+  - الانحرافات مقبولة: `exclude_re` الجديد `replace run with \(\)$` يطابق في الشجرة كلها (`--list --no-config`) سطراً واحداً، `watch.rs:41`، و`run` حلقة لا تنتهي يغطيها e2e بإعادة تحميل `config.toml` دون `reload` (تفشل لو صارت `run` فارغة)، على سابقة `serve`. `log_dir()` على ويندوز وحده: AC2 يطلب `log_dir_with` وحدها وهي `pub`، فلا تحذير على لينكس.
+  - ملاحظات غير حاجبة، لـ S-034:
+    - منخفضة، `crates/core/src/output_impl/windows.rs:19-21`: `wide()` يمرر المسار خاماً إلى `MoveFileExW`، و`std::fs` على ويندوز يضيف بادئة `\\?\` للمسارات الطويلة (من معرفة تطبيق std؛ rust-src غير مثبت محلياً فلم يُتحقق). سؤال: مسار فوق 260 حرفاً على FAT قد ينجح بالربط ويفشل بالوضع `Other` مع بقاء المؤقت. لا خطر على الأصل.
+    - منخفضة، `output_impl/windows.rs:30-35` مع `output_impl.rs:136-140`: إن كان الاسم المرشح مجلداً يعيد `MoveFileExW` غالباً 5، فيتوقف `finalize_with` بـ `PermissionDenied` بدل الانتقال للرقم التالي كما على لينكس. حالة نادرة على FAT وحده.
+    - معلومة، `output_impl/windows.rs:34`: الخطأ المغلَّف بـ `io::Error::new(kind, os)` يعيد `raw_os_error() == None`؛ الرمز باقٍ في النص فقط.
+    - معلومة، `.cargo/mutants.toml`: سطر تعليق `exclude_re` الجديد أطول من جيرانه.
