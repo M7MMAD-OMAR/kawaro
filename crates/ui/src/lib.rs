@@ -638,8 +638,10 @@ impl Hive {
     /// `sbarhive drop`). When the drag enters, [`Hive::on_drop_files`] gives
     /// the cells; a drop on a cell runs [`Hive::on_choose`], a drop elsewhere,
     /// a `leave`, or 10 s without the drag closes it with
-    /// [`Hive::on_dismiss`]. Focus loss does not close it. On Wayland a drop
-    /// receiver is bound to each new hive surface; elsewhere nothing is
+    /// [`Hive::on_dismiss`]. Focus loss does not close it. On the layer path
+    /// it probes first (S-021): a pointer enter with no drag, files with no
+    /// action, or 10 s with no event close it the same way. On Wayland a
+    /// drop receiver is bound to each new hive surface; elsewhere nothing is
     /// received yet.
     pub fn present_drop(
         &self,
@@ -676,7 +678,7 @@ impl Hive {
     }
 
     /// The held key of [`Hive::present_drop_hold`] was released: a hold
-    /// show waiting or over a cell closes with [`Hive::on_dismiss`] and runs
+    /// show probing, waiting or over a cell closes with [`Hive::on_dismiss`] and runs
     /// nothing. Any other show ignores it.
     pub fn key_released(&self) {
         self.inner.drag(dnd::Event::Release);
