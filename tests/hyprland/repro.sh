@@ -68,22 +68,46 @@
 #                        surface choice: window ... screen reader running".
 # Checks (layer or window): surface shown, keyboard focus received, show
 # latency under 150 ms, Esc closes, click outside closes, input reaches the
-# other client after close, a click outside a drop show passes through;
-# then drop mode mid-drag, as the owner's Super+Z
+# other client after close. Then S-021 (backlog/S-021-drop-only-on-drag.md),
+# the drop shows with no drag, keys.py under the hive; each one's probe line
+# and hive buffers are checked by probe_checks (tests/drop/layer.sh: exactly
+# one "hive reveal: N" or "hive probe: hidden (R)" line, and no attach on the
+# hive subsurface before the reveal or in a hidden show):
+#   AC5 (b), replacing S-020 AC4: the pointer still at (40, 40), outside the
+#     centred hive, and `sbarhive drop`: a click there after the switch to
+#     the hive rectangle reaches keys.py once and the catcher stays bound;
+#     the pointer then moves into the rectangle: "hidden (pointer)". The same
+#     show keeps S-019 decision 12 with the S-021 AC4 reference: the
+#     catcher's first input region is the hive rectangle (one add, the last
+#     "hive surface" line, also its last region) within 400 ms of the
+#     catcher's ready commit (its first commit after the first configure),
+#     by the daemon's WAYLAND_DEBUG trace timestamps (still_region);
+#   AC5 (a): `drop --at` the cursor, the pointer still inside the hive, then
+#     a 5 px move: "hidden (pointer)", the layer destroyed within 500 ms of
+#     the catcher's wl_pointer.enter, a click after the move reaches keys.py
+#     once;
+#   AC9 (1): `drop --hold --at` the cursor, the layer bound, a 5 px move:
+#     "hidden (pointer)", and `drop --release` after that hide exits 0
+#     within 200 ms and binds no surface for 1000 ms;
+#   AC5 (c) and AC9 (2): `drop --hold`, the layer bound, the pointer still,
+#     `drop --release` (exit 0 within 200 ms): gone within 500 ms,
+#     "hidden (release)".
+# Then drop mode mid-drag, as the owner's Super+Z
 # and Alt-hold bindings run it (a GTK source from tests/drop/source.py drags
-# a PNG): the hive gets wl_data_device.motion, a release over the WEBP cell
+# a PNG): AC9 (3), on the same daemon, a PNG drag and `drop --hold`, the drag
+# moved into the hive: "hive reveal: N", and no protocol error in the daemon
+# log; the hive gets wl_data_device.motion, a release over the WEBP cell
 # writes the file, the drop timeout and Esc mid-drag both end with the hive
-# gone and pointer input working. In a drop show with no drag (S-020 AC4) a
-# click at (40, 40), outside the hive, reaches keys.py once and the hive
-# stays until the drop timeout; the click comes after the last "hive
-# surface" line or 400 ms, whichever is later. In that show the pointer
-# stands still and there is no --at, and Hyprland sends no enter to a new
-# layer under a still pointer, so (S-019 manager decision 12) the catcher's
-# first input region is the hive rectangle (one add, the last "hive
-# surface" line) within 400 ms of the first frame (the hive subsurface's
-# first attach), by the daemon's WAYLAND_DEBUG trace timestamps
-# (still_region, tests/drop/layer.sh), and the hive never moves (one
-# wl_subsurface.set_position). 13 checks, 20 with --quasimode.
+# gone and pointer input working. S-021 AC7 on the "cell" drag: "hive
+# reveal: N" with N the lines of `sbarhive actions` for the PNG, and the
+# hive's first attach after the drag's first wl_data_device.enter on the
+# catcher; the timeout and Esc drags each print one "hive reveal" line
+# (AC3). S-021 AC6: a drag of notes.unknownext (no action) moved into the
+# hive gives an empty "drop cells:" line, then "hidden (no-actions)", no
+# wl_data_offer.accept with a type, no new file, and a new drag begins
+# afterwards; a drag of a plain string (source.py "text:", no
+# text/uri-list) gives "hidden (no-uri-list)" and no wl_data_offer.receive.
+# 39 checks, 46 with --quasimode.
 # Exit 0 only when none failed.
 # On Hyprland 0.56.2 the layer path gets no drag motion: Hyprland makes no
 # view for a subsurface of a layer surface, so its drag motion listener finds
@@ -413,45 +437,114 @@ for c in json.load(sys.stdin):
   key 30; sleep 0.5
   check "input reaches another client after close" '[ "$(sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -c "^keys: key")" -ge 1 ]'
 
-  # Drop mode with no drag (informative numbers), then S-020 AC4: a click
-  # at (40, 40), outside the hive rectangle, passes through to keys.py
-  # (exactly one click) and the hive stays until the 10 s drop timeout.
-  local dclicks=none dstay=no dgone=none dseg=""
+  # S-021: the drop shows with no drag (AC5 (a), (b), (c)) and the first
+  # half of the AC9 cycle, while keys.py is the client under the hive.
+  # seg_from MARK: the daemon log after MARK, the trace included.
+  seg_from() { sed -n "$(($1 + 1)),\$p" "$DLOG"; }
+  # enter_to_gone SEG: ms from the first wl_pointer.enter on the catcher to
+  # the layer surface's destroy, by the trace's stamps ("none" if either is
+  # missing).
+  enter_to_gone() {
+    local cat e g
+    cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$1" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+    [ -n "$cat" ] && e=$(grep -m1 -E -- "^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.enter\([0-9]+, ${cat}, " <<<"$1")
+    g=$(grep -m1 -E -- '-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\(' <<<"$1")
+    [ -n "${e:-}" ] && [ -n "$g" ] || { echo none; return; }
+    awk -v a="$(trace_ms "$e")" -v b="$(trace_ms "$g")" 'BEGIN { printf "%.1f\n", b - a }'
+  }
+  # new_surfaces SEG: get_layer_surface and get_xdg_surface requests in SEG.
+  new_surfaces() { grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(|-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' <<<"$1"; }
+  # wait_shown MS: until the layer (or window) is listed, at most MS ms.
+  wait_shown() { local t0; t0=$(now_us); while [ $(( ($(now_us) - t0) / 1000 )) -lt "$1" ]; do shown && return 0; sleep 0.05; done; shown; }
+
+  # AC5 (b), replacing S-020 AC4: the pointer still at (40, 40), outside
+  # the rectangle of the centred hive, and `sbarhive drop` (no --at). A
+  # click there after the switch to the hive rectangle (S-019 decision 12:
+  # 300 ms from the position, so after the last "hive surface" line or
+  # 400 ms) reaches keys.py once and leaves the catcher bound; then the
+  # pointer moves into the rectangle: "hive probe: hidden (pointer)".
+  local bclicks=none bstay=no bseg=""
   if "$BIN/sbarhive" ping >/dev/null 2>&1; then
-    centre_ptr
-    local dt0; dt0=$(now_us)
+    move 40 40; sleep 0.3
     show "$BIN/sbarhive" drop
-    # S-019 decision 12: the full region phase lasts at most 300 ms from
-    # the first frame, so the click at (40, 40) waits for the last "hive
-    # surface" line or 400 ms: show returns at the first one, and none may
-    # follow after 300 ms. No wait for a "hive anchor" line.
-    sleep 0.4
-    say "INFO drop: last hive surface line 400 ms after the first: $(after "$MARK" | grep '^hive surface:' | tail -1)"
-    sleep 0.5
+    sleep 0.9
     k0=$(wc -l <"$KLOG")
-    key 30; sleep 0.5
-    say "INFO drop: surface $(after "$MARK" | grep -m1 '^hive surface:' | cut -d' ' -f3 || true) in ${LAT:-none} ms, focus lines $(after "$MARK" | grep -c '^hive focus'), key reached other client: $( [ "$(wc -l <"$KLOG")" -gt "$k0" ] && echo yes || echo no ), sbarhived $(cpu_pct 2 "$d")% CPU"
-    k0=$(wc -l <"$KLOG")
-    local dpre=no; shown && dpre=yes
     click 40 40; sleep 0.6
-    dclicks=$(sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -c '^keys: click$')
-    [ "$dpre" = yes ] && shown && dstay=yes
-    local i; for i in $(seq 150); do shown || { dgone=$(( ($(now_us) - dt0) / 1000 )); break; }; sleep 0.1; done
-    dseg=$(sed -n "$((MARK + 1)),\$p" "$DLOG")
-    reset_hive "the drop show"
+    bclicks=$(sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -c '^keys: click$')
+    shown && bstay=yes
+    local i; for i in 1 2 3 4 5 6 7 8; do move $((40 + i * (hcx - 40) / 8)) $((40 + i * (hcy - 40) / 8)); sleep 0.05; done
+    sleep 0.8
+    bseg=$(seg_from "$MARK")
+    reset_hive "the drop show (b)"
   fi
-  say "INFO drop click at (40, 40): keys.py clicks ${dclicks}, hive shown after the click ${dstay}, hive gone ${dgone} ms after \`sbarhive drop\`"
-  check "S-020 AC4 drop show: a click at (40, 40) outside the hive reaches keys.py once and the hive stays until the timeout" \
-    '[ "$dclicks" = 1 ] && [ "$dstay" = yes ] && [ "$dgone" != none ] && [ "$dgone" -ge 9000 ]'
-  # S-019 decision 12, the same show (the trace lines, not after()).
-  local sdt=none sent sfirst=none slast sreg=none ssw dsets=0
-  if [ -n "$dseg" ]; then
-    IFS='|' read -r sdt sent sfirst slast sreg ssw <<<"$(still_region "$dseg")"
-    dsets=$(grep -cE -- '-> wl_subsurface[#@][0-9]+\.set_position\(' <<<"$dseg")
-  fi
-  say "INFO drop show, still pointer, no --at (decision 12): catcher's first wl_region ${sdt} ms after the first frame, that region (adds, last add) ${sfirst}, last catcher region ${slast:-none}, last hive surface ${sreg}, enters on the catcher before the region ${sent:-?}, set_position x$dsets"
-  check "S-019 decision 12 drop show, still pointer, no --at: the catcher's input region is the hive rectangle (one add, the last \"hive surface\" line) within 400 ms of the first frame, and the hive never moves (one set_position)" \
-    '[ "$sreg" != none ] && [ "$sfirst" = "1 $sreg" ] && [ "$slast" = "1 $sreg" ] && within_ms "$sdt" 400 && [ "$dsets" -eq 1 ]'
+  say "INFO S-021 AC5 (b): keys.py clicks at (40, 40) ${bclicks}, catcher still bound after the click ${bstay}"
+  check "S-021 AC5 (b) drop show, pointer at (40, 40) outside the hive: a click there reaches keys.py once and the catcher stays bound" \
+    '[ "$bclicks" = 1 ] && [ "$bstay" = yes ]'
+  probe_checks "AC5 (b) pointer into the rectangle" "$bseg" pointer
+  # S-019 decision 12, the same show (the trace lines, not after()), with
+  # the S-021 AC4 reference: the catcher's ready commit (its first commit
+  # after the first configure), as no hive is drawn in a show with no drag.
+  local sdt=none sent sfirst=none slast sreg=none ssw
+  [ -n "$bseg" ] && IFS='|' read -r sdt sent sfirst slast sreg ssw <<<"$(still_region "$bseg")"
+  say "INFO drop show, still pointer, no --at (decision 12): catcher's first wl_region ${sdt} ms after the catcher's ready commit, that region (adds, last add) ${sfirst}, last catcher region ${slast:-none}, last hive surface ${sreg}, enters on the catcher before the region ${sent:-?}"
+  check "S-019 decision 12, S-021 AC4 drop show, still pointer, no --at: the catcher's input region is the hive rectangle (one add, the last \"hive surface\" line, also its last region) within 400 ms of the catcher's ready commit (first commit after the first configure)" \
+    '[ "$sreg" != none ] && [ "$sfirst" = "1 $sreg" ] && [ "$slast" = "1 $sreg" ] && within_ms "$sdt" 400'
+
+  # AC5 (a): `drop --at` the cursor, the pointer still inside the hive
+  # rectangle; a 5 px move brings Hyprland's wl_pointer.enter (S-021 P1):
+  # "hidden (pointer)", the layer destroyed within 500 ms of that enter by
+  # the trace's stamps, and a click after the move reaches keys.py once.
+  local aclicks=none agone=none aseg=""
+  centre_ptr
+  show "$BIN/sbarhive" drop --at "$(hyprctl cursorpos)"
+  sleep 0.5
+  move $((hcx + 5)) "$hcy"; sleep 0.6
+  k0=$(wc -l <"$KLOG")
+  click $((hcx + 5)) "$hcy"; sleep 0.6
+  aclicks=$(sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -c '^keys: click$')
+  aseg=$(seg_from "$MARK")
+  agone=$(enter_to_gone "$aseg")
+  reset_hive "the drop --at show (a)"
+  say "INFO S-021 AC5 (a): layer destroyed ${agone} ms after the catcher's wl_pointer.enter, keys.py clicks after the move ${aclicks}"
+  check "S-021 AC5 (a) \`drop --at\` the cursor, then a 5 px move: the layer is destroyed within 500 ms of the catcher's wl_pointer.enter and a click after the move reaches keys.py once" \
+    'within_ms "$agone" 500 && [ "$aclicks" = 1 ]'
+  probe_checks "AC5 (a) drop --at, 5 px move" "$aseg" pointer
+
+  # AC9, first half of the cycle, on one daemon: (1) `drop --hold --at` the
+  # cursor as the owner's binding runs it, the layer bound, a 5 px move:
+  # "hidden (pointer)"; then `drop --release` after that hide exits 0
+  # within 200 ms and binds nothing for 1000 ms; (2) AC5 (c): `drop --hold`,
+  # the layer bound, the pointer still, `drop --release`: "hidden (release)".
+  local m91 m92 m93 h1seen=no r1rc r1ms r1new=none t0 seg91="" seg93="" h2seen=no r2rc r2ms h2gone=no
+  centre_ptr
+  m91=$(wc -l <"$DLOG")
+  "$BIN/sbarhive" drop --hold --at "$(hyprctl cursorpos)" >>"$log-cli.log" 2>&1
+  wait_shown 1500 && h1seen=yes
+  sleep 0.3
+  move $((hcx + 5)) "$hcy"; sleep 0.6
+  seg91=$(seg_from "$m91")
+  m92=$(wc -l <"$DLOG"); t0=$(now_us)
+  "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; r1rc=$?; r1ms=$(( ($(now_us) - t0) / 1000 ))
+  sleep 1
+  r1new=$(new_surfaces "$(seg_from "$m92")")
+  reset_hive "the AC9 hold (1)"
+  centre_ptr
+  m93=$(wc -l <"$DLOG")
+  "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1
+  wait_shown 1500 && h2seen=yes
+  sleep 0.3
+  t0=$(now_us)
+  "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; r2rc=$?; r2ms=$(( ($(now_us) - t0) / 1000 ))
+  gone_within 5 && h2gone=yes
+  seg93=$(seg_from "$m93")
+  reset_hive "the AC9 hold (2)"
+  say "INFO S-021 AC9 (1): layer bound $h1seen, probe line $(grep -E '^hive (reveal|probe):' <<<"$seg91" | tr '\n' ' '); release after the hide: exit $r1rc in $r1ms ms, new surfaces in 1000 ms $r1new; (2) AC5 (c): layer bound $h2seen, release exit $r2rc in $r2ms ms, gone within 500 ms $h2gone, probe line $(grep -E '^hive (reveal|probe):' <<<"$seg93" | tr '\n' ' ')"
+  probe_checks "AC9 (1) drop --hold --at, 5 px move" "$seg91" pointer
+  check "S-021 AC9 (1): \`drop --release\` after that hide exits 0 within 200 ms and binds no new surface for 1000 ms" \
+    '[ "$h1seen" = yes ] && [ "$r1rc" = 0 ] && [ "$r1ms" -le 200 ] && [ "$r1new" = 0 ]'
+  check "S-021 AC5 (c): \`drop --hold\` with the pointer still, the layer bound, then \`drop --release\` (exit 0 within 200 ms) removes it within 500 ms" \
+    '[ "$h2seen" = yes ] && [ "$r2rc" = 0 ] && [ "$r2ms" -le 200 ] && [ "$h2gone" = yes ]'
+  probe_checks "AC5 (c) and AC9 (2) drop --hold, release" "$seg93" release
 
   # Drop mode mid-drag, as the owner's Super+Z and Alt-hold bindings do: a
   # GTK drag source (tests/drop/source.py) drags a PNG and `sbarhive drop`
@@ -470,6 +563,35 @@ for c in json.load(sys.stdin):
   sleep 2
   # begin_drag: press on the source and pass GTK's threshold (lib.sh).
   begin_drag() { drag_past_threshold; }
+  # S-021 AC9 (3), the end of the cycle on the same daemon: a PNG drag, then
+  # `drop --hold` with the hand still; the drag moves into the centred hive
+  # (Hyprland sends wl_data_device.enter with the first motion, S-021 P3):
+  # "hive reveal: N". Then the drag leaves the hive (it stays while the key
+  # is held, S-019 decision 3), the button is let go over the source, and
+  # `drop --release` closes it. (Releasing the key with the drag still over
+  # the hive left the next show's enter unread on 2026-10-22, see the S-021
+  # review log; that order is not part of AC9.)
+  local m94 seg94="" h3seen=no
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/cycle.png"
+  printf '%s\n' "$W/cycle.png" >"$NEXT"
+  begin_drag
+  m94=$(wc -l <"$DLOG")
+  "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1
+  wait_shown 1500 && h3seen=yes
+  sleep 0.5
+  for i in 1 2 3 4 5 6; do move $((210 + i * (hcx - 210) / 6)) $((180 + i * (hcy - 180) / 6)); sleep 0.05; done
+  sleep 0.8
+  move 60 60; sleep 0.3; echo "up" >&3; sleep 0.5
+  "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1
+  sleep 0.5
+  seg94=$(seg_from "$m94")
+  gone_within 30 || true
+  reset_hive "the AC9 hold (3)"
+  say "INFO S-021 AC9 (3): layer bound $h3seen, probe line $(grep -E '^hive (reveal|probe):' <<<"$seg94" | tr '\n' ' ')"
+  probe_checks "AC9 (3) PNG drag, drop --hold" "$seg94" reveal
+  check "S-021 AC9: no protocol error in the daemon log after the cycle (hidden (pointer), hidden (release), then a reveal)" \
+    '! grep -qE "wl_display[#@]1\.error\(|[Pp]rotocol error" "$DLOG"'
+
   # drag_case CASE: sets MOTIONS (wl_data_device.motion events the hive got),
   # WROTE, CLOSED and AFTER (a new drag began afterwards).
   local MOTIONS WROTE CLOSED AFTER
@@ -524,9 +646,73 @@ for c in json.load(sys.stdin):
   check "drop mid-drag: released over the WEBP cell writes the file" '[ "$WROTE" = yes ]'
   check "drop mid-drag: a new drag begins afterwards (input not stuck)" '[ "$AFTER" = yes ]'
   drag_case timeout
+  local TIMEOUT_SEG; TIMEOUT_SEG=$(sed -n "$((MARK + 1)),\$p" "$DLOG")
   check "drop timeout mid-drag: the hive closes and a new drag begins" '[ "$CLOSED" = yes ] && [ "$AFTER" = yes ]'
   drag_case esc
+  local ESC_SEG; ESC_SEG=$(sed -n "$((MARK + 1)),\$p" "$DLOG")
   check "Esc mid-drag: the hive closes and a new drag begins" '[ "$CLOSED" = yes ] && [ "$AFTER" = yes ]'
+
+  # S-021 AC7, the "cell" drag: one "hive reveal: N" line with N the lines
+  # of `sbarhive actions` for the PNG, the hive drawn only after the drag's
+  # first enter on the catcher; the WEBP write is the check above.
+  local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+  probe_checks "AC7 cell drag" "$CELL_SEG" reveal
+  local cn; IFS='|' read -r _ _ _ cn _ <<<"$PROBE"
+  say "INFO S-021 AC7 cell: hive reveal N $cn, sbarhive actions lines $nact"
+  check "S-021 AC7 cell drag: \"hive reveal: N\" with N the number of \`sbarhive actions\` lines for the PNG ($nact)" \
+    '[ "$cn" != none ] && [ "$nact" -ge 1 ] && [ "$cn" -eq "$nact" ]'
+  # AC3 for the timeout and Esc drags: each revealed, one probe line.
+  local tall trev eall erev
+  IFS='|' read -r tall trev _ <<<"$(probe_show "$TIMEOUT_SEG")"
+  IFS='|' read -r eall erev _ <<<"$(probe_show "$ESC_SEG")"
+  say "INFO S-021 AC3 timeout drag: probe lines $tall (reveal $trev); Esc drag: probe lines $eall (reveal $erev)"
+  check "S-021 AC3 timeout and Esc drags: each prints exactly one probe line, \"hive reveal: N\"" \
+    '[ "$tall" -eq 1 ] && [ "$trev" -eq 1 ] && [ "$eall" -eq 1 ] && [ "$erev" -eq 1 ]'
+
+  # S-021 AC6: a drag the hive has nothing for. no_drop KIND sets NSEG (the
+  # show's trace), NNEW (files new in the work folder) and NAFTER (a new drag
+  # began afterwards). KIND file drags notes.unknownext (no action), text a
+  # plain string (source.py "text:", no text/uri-list). The drag stands
+  # still at `sbarhive drop`, then moves into the centred hive's rectangle.
+  local NSEG NNEW NAFTER
+  no_drop() {
+    local before s1 i
+    if [ "$1" = file ]; then
+      printf 'x\n' >"$W/notes.unknownext"
+      printf '%s\n' "$W/notes.unknownext" >"$NEXT"
+    else
+      printf 'text:%s\n' "sbarhive drop text" >"$NEXT"
+    fi
+    before=$(find "$W" -type f | sort)
+    begin_drag
+    show "$BIN/sbarhive" drop
+    sleep 0.5
+    for i in 1 2 3 4 5 6; do move $((210 + i * (hcx - 210) / 6)) $((180 + i * (hcy - 180) / 6)); sleep 0.05; done
+    sleep 0.8
+    echo "up" >&3; sleep 1.5
+    NSEG=$(seg_from "$MARK")
+    NNEW=$(comm -13 <(echo "$before") <(find "$W" -type f | sort) | grep -c .)
+    gone_within 130 || true
+    s1=$(wc -l <"$SLOG")
+    begin_drag; echo "up" >&3; sleep 0.5
+    NAFTER=no; sed -n "$((s1 + 1)),\$p" "$SLOG" | grep -q drag-begin && NAFTER=yes
+    gone_within 130 || true
+    reset_hive "the $1 drag"
+  }
+  no_drop file
+  local fcl facc
+  fcl=$(grep -E '^drop cells:' <<<"$NSEG" | tr '\n' '|')
+  facc=$(grep -cE -- '-> wl_data_offer[#@][0-9]+\.accept\([0-9]+, "' <<<"$NSEG")
+  say "INFO S-021 AC6 notes.unknownext: drop cells lines ${fcl:-none}, accept with a type $facc, new files $NNEW, a new drag afterwards $NAFTER"
+  check "S-021 AC6 notes.unknownext: an empty \"drop cells:\" line before the hide, no wl_data_offer.accept with a type, no new file, and a new drag begins afterwards" \
+    '[ "$fcl" = "drop cells:|" ] && [ "$(grep -nE "^drop cells: ?$" <<<"$NSEG" | head -1 | cut -d: -f1)" -lt "$(grep -nE "^hive probe: " <<<"$NSEG" | head -1 | cut -d: -f1)" ] && [ "$facc" -eq 0 ] && [ "$NNEW" -eq 0 ] && [ "$NAFTER" = yes ]'
+  probe_checks "AC6 notes.unknownext drag" "$NSEG" no-actions
+  no_drop text
+  local trcv; trcv=$(grep -cE -- '-> wl_data_offer[#@][0-9]+\.receive\(' <<<"$NSEG")
+  say "INFO S-021 AC6 text drag: offers $(grep -oE 'wl_data_offer[#@][0-9]+\.offer\("[^"]*"' <<<"$NSEG" | sed 's/.*offer(//' | sort -u | tr '\n' ' '), receive $trcv, new files $NNEW, a new drag afterwards $NAFTER"
+  check "S-021 AC6 text drag (no text/uri-list): no wl_data_offer.receive, and the drag entered the catcher" \
+    '[ "$trcv" -eq 0 ] && grep -qE "^\[[0-9:.]+\] wl_data_device[#@][0-9]+\.enter\(" <<<"$NSEG"'
+  probe_checks "AC6 text drag" "$NSEG" no-uri-list
 
   if [ "$QUASI" = 1 ]; then
     # Key release hides (S-019e): the press, the threshold, the release.

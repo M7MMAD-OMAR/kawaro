@@ -9,11 +9,25 @@
 # with WAYLAND_DEBUG=1 so the trace shows a wl_data_device per new surface.
 # S-014c (AC8, AC9, AC10): show 5 drags a PDF and drops it on a corner; every
 # show's cells at enter must equal `sbarhive actions` for its file. In show 1
-# ScreenShot2 shots are taken while the hive waits for the drag (the centre
-# must show the waiting text) and while the drag is over the WEBP cell (it
-# must be highlighted with color.light.accent, a cell across the centre not),
-# and the hive's box of each is compared with the owner approved references
-# in tests/drop/snapshots/ (drop-en-light-waiting.png, drop-en-light-over.png).
+# ScreenShot2 shots are taken before the drag enters the hive and while the
+# drag is over the WEBP cell (it must be highlighted with color.light.accent,
+# a cell across the centre not), and the over box is compared with the owner
+# approved reference tests/drop/snapshots/drop-en-light-over.png.
+# S-021 (backlog/S-021-drop-only-on-drag.md): before the drag enters, the
+# hive is not drawn on the layer path (AC4: no text-primary, surface-2 or
+# surface-3 pixel in its box, against a shot of the source window alone);
+# shows 1 to 5 each print one "hive reveal: N" line, N the number of their
+# file's actions, with no attach on the hive before it and the first one
+# after the drag's first enter (AC3, AC4, AC7, tests/drop/layer.sh
+# probe_checks); a drag of notes.unknownext (no action) gives an empty "drop
+# cells:" line, "hidden (no-actions)", nothing drawn, no accept with a type,
+# no new file, and a new drag after it (AC6); the late show's 300 ms window
+# and the decision 12 bounds count from the catcher's ready commit (its
+# first commit after the first configure). Last, the waiting hive on the
+# window path (question 4): a daemon with SBARHIVE_SURFACE=window, a PNG
+# drag, the waiting text in the centre, no probe line, and its crop
+# compared with drop-en-light-waiting.png (retaken there; the owner
+# approves the candidate).
 # Candidates are always written to the output folder; a missing reference is
 # a FAIL until the owner approves one and it is copied there. The daemon runs
 # light (SBARHIVE_COLOR_SCHEME) with reduced motion (SBARHIVE_REDUCED_MOTION),
@@ -84,7 +98,10 @@
 #                get_layer_surface and no get_xdg_surface within 1000 ms;
 #   held         the press with no release: no surface by 350 ms, exactly
 #                one get_layer_surface, after 350 ms and by 550 ms; then the
-#                release closes the waiting hive within 500 ms;
+#                release closes the waiting hive within 500 ms ("hidden
+#                (release)"); since S-021 the press is `drop --hold --at
+#                640,400` with the pointer at (100, 700), outside the hive,
+#                or KWin's pointer enter at the bind would hide it first;
 #   lone release `sbarhive drop --release` with no press (AC19): exit 0, no
 #                surface within 1000 ms;
 #   hold_ms      `hold_ms = 1000` written to the sandbox's config.toml with
@@ -262,28 +279,28 @@ inner() {
     local p; for p in "${SHOTS[@]}"; do wait "$p"; done
     local gx gy gw gh; read -r gx gy gw gh <<<"${geo1:-0 0 0 0}"
     local cx=$((gx + gw / 2)) cy=$((gy + gh / 2)) dx dy ink hot cold cold2 n
-    for n in waiting over; do
-      [ -s "$OUT_LOG-shot-$n.png" ] && [ "$gw" -gt 0 ] &&
-        python3 -I "$px" crop "$OUT_LOG-shot-$n.png" "$gx" "$gy" "$gw" "$gh" "$OUT/drop-en-light-$n.png"
-    done
+    [ -s "$OUT_LOG-shot-over.png" ] && [ "$gw" -gt 0 ] &&
+      python3 -I "$px" crop "$OUT_LOG-shot-over.png" "$gx" "$gy" "$gw" "$gh" "$OUT/drop-en-light-over.png"
     read -r dx dy <<<"$(webp_offset)"
-    # AC10: the waiting text, in the centre hexagon's middle (72 x 48 around
-    # the hive's centre), before the drag enters. Guard first: the cells
-    # arrive on enter, so a shot taken before it has no surface-2 or accent
-    # in the WEBP cell's box. A late shot would show the selection text that
-    # enter sets, and must not pass as the waiting text.
-    local w="$OUT_LOG-shot-waiting.png" early="" late2="" late3=""
-    if [ -s "$w" ]; then
-      late2=$(count "$w" $((cx + dx - 28)) $((cy + dy - 28)) 56 56 surface-2)
-      late3=$(count "$w" $((cx + dx - 28)) $((cy + dy - 28)) 56 56 accent)
-      [ "${late2:-1}" -le 10 ] && [ "${late3:-1}" -le 10 ] && early=1
-    fi
-    echo "INFO AC10 show 1: WEBP box in the waiting shot: surface-2 ${late2:-none}, accent ${late3:-none}"
-    check "AC10 show 1: the waiting shot was taken before enter (no cells yet)" '[ "$early" = 1 ]'
-    [ "$early" = 1 ] && ink=$(count "$w" $((cx - 36)) $((cy - 24)) 72 48 text-primary 40)
-    echo "INFO AC10 show 1: ${ink:-no} text-primary pixels in the centre before the drag enters"
-    check "AC10 show 1: the waiting hive's centre shows text (text-primary ink) before enter" '[ "${ink:-0}" -ge 15 ]'
-    snap_check AC10 waiting
+    # S-021 AC4, replacing S-014 AC10 on the layer path: before the drag
+    # enters, the hive is not drawn, so the hive's box in the waiting shot
+    # has no text-primary, surface-2 or surface-3 pixel (default tolerance,
+    # 8 levels). Setup guard: the same box in a shot of the source window
+    # taken before show 1 has none either, so the check cannot fail for the
+    # source's own pixels. The waiting text and its reference snapshot are
+    # checked on the window path (window_waiting below, S-021 question 4).
+    local w="$OUT_LOG-shot-waiting.png" b="$OUT_LOG-shot-before.png" tok wn bn wsum="" bsum="" wbad=0 bbad=0
+    for tok in text-primary surface-2 surface-3; do
+      wn=none; bn=none
+      [ -s "$w" ] && [ "$gw" -gt 0 ] && wn=$(count "$w" "$gx" "$gy" "$gw" "$gh" "$tok")
+      [ -s "$b" ] && [ "$gw" -gt 0 ] && bn=$(count "$b" "$gx" "$gy" "$gw" "$gh" "$tok")
+      wsum+="$tok $wn, "; bsum+="$tok $bn, "
+      [ "$wn" = 0 ] || wbad=$((wbad + 1))
+      [ "$bn" = 0 ] || bbad=$((bbad + 1))
+    done
+    echo "INFO S-021 AC4 show 1: hive box ${geo1:-none}; waiting shot: ${wsum%, }; source shot before show 1: ${bsum%, }"
+    check "S-021 AC4 show 1 setup: the hive's box in the source window shot before show 1 has no text-primary, surface-2 or surface-3 pixel" '[ "$bbad" -eq 0 ]'
+    check "S-021 AC4 show 1: before the drag enters the hive is not drawn (no text-primary, surface-2 or surface-3 pixel in its box)" '[ "$wbad" -eq 0 ]'
     # AC9: 56 x 56 boxes around the WEBP cell (under the drag) and around the
     # ring 1 cell across the centre from it, axial (-1, 1).
     local o="$OUT_LOG-shot-over.png"
@@ -373,16 +390,19 @@ inner() {
       late)
         # Decision 12 coverage: the first position inside the 300 ms window
         # moves the centred hive once, to the drag (AC8).
-        local cat child fr en dte=none
+        # S-021 AC4: the 300 ms window counts from the position, not from
+        # the first frame (no hive is drawn before the drag enters), so the
+        # reference is the catcher's ready commit (catcher_ready, layer.sh).
+        local cat fr="" en dte=none
         cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
-        child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
-        if [ -n "$cat" ] && [ -n "$child" ]; then
-          fr=$(grep -E -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" | head -1)
+        if [ -n "$cat" ]; then
+          fr=$(catcher_ready "$seg")
+          [ -n "$fr" ] && fr=$(sed -n "${fr}p" <<<"$seg")
           en=$(grep -E -- "^\[[0-9:.]+\] (wl_pointer|wl_data_device)[#@][0-9]+\.enter\([0-9]+, ${cat}, " <<<"$seg" | head -1)
           [ -n "$fr" ] && [ -n "$en" ] && dte=$(awk -v a="$(trace_ms "$fr")" -v b="$(trace_ms "$en")" 'BEGIN { printf "%.1f\n", b - a }')
         fi
-        echo "INFO S-019 show $n (late): the first enter on the catcher ${dte} ms after the first frame (LATE_MS ${LATE_MS:-170})"
-        check "S-019 decision 12 show $n (late) setup: the drag's first position on the catcher comes after the first frame and within its 300 ms window" \
+        echo "INFO S-019 show $n (late): the first enter on the catcher ${dte} ms after the catcher's ready commit (LATE_MS ${LATE_MS:-170})"
+        check "S-019 decision 12, S-021 AC4 show $n (late) setup: the drag's first position on the catcher comes after the catcher's ready commit (first commit after the first configure) and within its 300 ms window" \
           'awk -v d="$dte" "BEGIN { exit !(d != \"none\" && d + 0 > 0 && d + 0 < 300) }"'
         check "S-019 AC8 show $n (late): \"hive anchor: none\" first, then one \"hive anchor\" line within 1 px of ($x, $y)" \
           '[ "$(grep -c . <<<"$al")" -eq 2 ] && [ "$(head -1 <<<"$al")" = "hive anchor: none" ] && near "$ax" "$x" 1 && near "$ay" "$y" 1'
@@ -475,8 +495,18 @@ inner() {
   hold_cycles() {
     local l x first d before
     # held: the press with no release.
-    echo "== S-019e held: \`sbarhive drop --hold\`, no release"
-    press; sleep 1.2
+    # S-021 (decision 6): KWin sends wl_pointer.enter to a catcher bound
+    # under a still pointer inside its input region, which now hides it at
+    # once ("hidden (pointer)"). The held show is therefore `drop --hold
+    # --at 640,400` with the pointer at (100, 700), outside the hive
+    # rectangle that --at gives the catcher from its first commit, the setup
+    # the story gives tests/overlay/kwin.sh drop for its 10 s show.
+    echo "== S-019e held: \`sbarhive drop --hold --at 640,400\`, pointer at (100, 700), no release"
+    ptr_move 100 700; sleep 0.5
+    M_PRESS=$(wc -l <"$DLOG"); T_PRESS=$(date -u +%T.%6N)
+    cli_ms drop --hold --at 640,400
+    P_RC=$CLI_RC; P_MS=$CLI_MS
+    sleep 1.2
     read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 350)"
     local l350=$l x350=$x
     read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1150)"
@@ -489,6 +519,7 @@ inner() {
     echo "INFO S-019e held: release exit $R_RC in $R_MS ms, layer destroyed ${d} ms after it"
     check "S-019 AC12 held: the release closes the waiting hold show within 500 ms (zwlr_layer_surface_v1.destroy)" \
       'cli_ok "$R_RC" "$R_MS" && [ "$l" -eq 1 ] && in_ms "$d" -1 500'
+    probe_checks "S-019e held, released" "$(tail -n +$((M_PRESS + 1)) "$DLOG")" release
     wait_gone 12 || true; sleep 0.5
 
     # tap: the release 200 ms after the press.
@@ -562,6 +593,103 @@ inner() {
     wait_gone 12 || true
   }
 
+  # S-021 AC6: a drag of notes.unknownext (`sbarhive actions` gives
+  # nothing), `sbarhive drop` with the drag still, then the drag moves into
+  # the centred hive. Not in MARKS: protocol_checks and enter_cells_checks
+  # expect a drop with actions. An empty "drop cells:" line, then "hive
+  # probe: hidden (no-actions)", no attach on the hive (probe_checks), no
+  # wl_data_offer.accept with a type, no new file, and a new drag begins.
+  no_action_cycle() {
+    local file="$W/notes.unknownext" m0 smark s1 before seg acc cl after=no
+    echo "== S-021 AC6: notes.unknownext, no action"
+    printf 'x\n' >"$file"
+    printf '%s\n' "$file" >"$NEXT"
+    before=$(find "$W" -type f | sort)
+    m0=$(wc -l <"$DLOG"); smark=$(wc -l <"$SLOG")
+    drag_past_threshold
+    "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+    wait_geo 8 >/dev/null || true
+    sleep 0.4
+    ptr_move 400 300; sleep 0.1; ptr_move 600 380; sleep 0.1; ptr_move 640 400; sleep 0.8
+    ptr_up; sleep 1.5
+    wait_gone 12 || true
+    seg=$(sed -n "$((m0 + 1)),\$p" "$DLOG")
+    cl=$(grep -E '^drop cells:' <<<"$seg" | tr '\n' '|')
+    acc=$(grep -cE -- '-> wl_data_offer[#@][0-9]+\.accept\([0-9]+, "' <<<"$seg")
+    local nnew; nnew=$(comm -13 <(echo "$before") <(find "$W" -type f | sort) | grep -c .)
+    s1=$(wc -l <"$SLOG")
+    drag_past_threshold; ptr_up; sleep 0.5
+    sed -n "$((s1 + 1)),\$p" "$SLOG" | grep -q drag-begin && after=yes
+    wait_gone 12 || true; sleep 0.5
+    echo "INFO S-021 AC6 notes.unknownext: drop cells lines ${cl:-none}, accept with a type $acc, new files $nnew, a new drag afterwards $after, source: $(sed -n "$((smark + 1)),${s1}p" "$SLOG" | tr '\n' ' ')"
+    check "S-021 AC6 notes.unknownext: an empty \"drop cells:\" line before the hide, no wl_data_offer.accept with a type, no new file, and a new drag begins afterwards" \
+      '[ "$cl" = "drop cells:|" ] && [ "$(grep -nE "^drop cells: ?$" <<<"$seg" | head -1 | cut -d: -f1)" -lt "$(grep -nE "^hive probe: " <<<"$seg" | head -1 | cut -d: -f1)" ] && [ "$acc" -eq 0 ] && [ "$nnew" -eq 0 ] && [ "$after" = yes ]'
+    probe_checks "AC6 notes.unknownext" "$seg" no-actions
+  }
+
+  # S-021 question 4 (Mohammad, 2026-10-22): the waiting state is no longer
+  # drawn on the layer path, so drop-en-light-waiting.png is retaken on the
+  # window path. A new daemon with SBARHIVE_SURFACE=window (same language,
+  # scheme and reduced motion), a PNG drag held still at (210, 180), then
+  # `sbarhive drop`: the hive window waits for the drag. A shot before the
+  # command and one after the "hive surface: window" line; what the hive
+  # draws is where the two differ (tests/overlay/boxdiff.py, tolerance 8),
+  # inside the rectangle of that line, which is the crop. Checks, as
+  # S-014 AC10 had them on the layer path: the shot comes before the cells
+  # (no surface-2 or accent in the WEBP cell's box), the centre (72 x 48) has
+  # text-primary ink, no "hive probe" or "hive reveal" line on the window
+  # path (S-021 AC10), and the crop matches the owner approved reference.
+  # The reference from the layer path was removed: the candidate in the
+  # output folder needs the owner's approval.
+  window_waiting() {
+    echo "== S-021 window path: the waiting hive (drop-en-light-waiting.png)"
+    "$BIN/sbarhive" quit >/dev/null 2>&1
+    timeout 5 tail --pid="$d" -f /dev/null || kill "$d" 2>/dev/null
+    SBARHIVE_SURFACE=window SBARHIVE_LANG=en SBARHIVE_COLOR_SCHEME=light SBARHIVE_REDUCED_MOTION=1 \
+      SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+    d=$!
+    for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+    local file="$W/window wait.png" m0 seg k box="none" bx by bw bh
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$file"
+    printf '%s\n' "$file" >"$NEXT"
+    drag_past_threshold
+    local wb="$OUT_LOG-shot-window-before.png" ww="$OUT_LOG-shot-window-waiting.png"
+    rm -f "$wb" "$ww" "$OUT/drop-en-light-waiting.png"
+    timeout 10 python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/shot.py" "$wb" >>"$log-shot.log" 2>&1
+    m0=$(wc -l <"$DLOG")
+    "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+    for k in $(seq 80); do sed -n "$((m0 + 1)),\$p" "$DLOG" | grep -qE '^hive surface: window ' && break; sleep 0.1; done
+    sleep 0.5
+    timeout 10 python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/shot.py" "$ww" >>"$log-shot.log" 2>&1
+    seg=$(sed -n "$((m0 + 1)),\$p" "$DLOG")
+    ptr_up; sleep 0.5
+    wait_gone 3 || true
+    [ -s "$wb" ] && [ -s "$ww" ] && box=$(python3 -I "$ROOT/tests/overlay/boxdiff.py" "$wb" "$ww" 8 2>&1)
+    read -r bx by bw bh <<<"$box"
+    local wx="" wy="" wwd="" whh="" inside=no
+    read -r _ _ _ wx wy wwd whh <<<"$(grep -m1 -E '^hive surface: window -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$seg")"
+    [ -n "${bh:-}" ] && [ -n "${whh:-}" ] && [ "$bx" -ge "$wx" ] && [ "$by" -ge "$wy" ] && [ $((bx + bw)) -le $((wx + wwd)) ] && [ $((by + bh)) -le $((wy + whh)) ] && inside=yes
+    local early="" late2="" late3="" ink="" dx dy cx cy
+    if [ -n "${bh:-}" ]; then
+      read -r dx dy <<<"$(webp_offset)"
+      cx=$((bx + bw / 2)); cy=$((by + bh / 2))
+      late2=$(count "$ww" $((cx + dx - 28)) $((cy + dy - 28)) 56 56 surface-2)
+      late3=$(count "$ww" $((cx + dx - 28)) $((cy + dy - 28)) 56 56 accent)
+      [ "${late2:-1}" -le 10 ] && [ "${late3:-1}" -le 10 ] && early=1
+      [ "$early" = 1 ] && ink=$(count "$ww" $((cx - 36)) $((cy - 24)) 72 48 text-primary 40)
+      # The crop is the window's rectangle (as the layer path reference was
+      # the hive's), once the drawn box is known to lie inside it.
+      [ "$inside" = yes ] && python3 -I "$px" crop "$ww" "$wx" "$wy" "$wwd" "$whh" "$OUT/drop-en-light-waiting.png"
+    fi
+    echo "INFO S-021 window path: $(grep -E '^hive surface: ' <<<"$seg" | tr '\n' ' '); screenshot box $box; WEBP box surface-2 ${late2:-none}, accent ${late3:-none}; centre text-primary ${ink:-none}; drop cells lines $(grep -cE '^drop cells:' <<<"$seg")"
+    check "S-021 window path setup: the hive is a window (a \"hive surface: window\" line, no get_layer_surface) and the screenshots differ in one box inside that window's rectangle" \
+      'grep -qE "^hive surface: window " <<<"$seg" && ! grep -qE -- "-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" <<<"$seg" && [ "$inside" = yes ]'
+    check "S-014 AC10 window path: the waiting shot was taken before enter (no cells yet)" '[ "$early" = 1 ]'
+    check "S-014 AC10 window path: the waiting hive's centre shows text (text-primary ink) before enter" '[ "${ink:-0}" -ge 15 ]'
+    check "S-021 AC10 window path: no \"hive probe\" or \"hive reveal\" line" '! grep -qE "^hive (probe|reveal):" <<<"$seg"'
+    snap_check "S-014 AC10 window path" waiting
+  }
+
   if [ "$MODE" = shortcut ]; then
     # Meta (125) + Z (44) and Esc (1), evdev codes, through fake_input.
     press_shortcut() { echo "keydown 125" >&3; echo "keydown 44" >&3; echo "sleep 50" >&3; echo "keyup 44" >&3; echo "keyup 125" >&3; }
@@ -573,6 +701,8 @@ inner() {
     check "AC11 setup: kglobalacceld lists the custom command shortcut component" 'grep -q sbarhive_drop <<<"$comps"'
     shortcut_shows
   else
+  # S-021 AC4 setup: the source window alone, for the waiting shot's guard.
+  timeout 10 python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/shot.py" "$OUT_LOG-shot-before.png" >>"$log-shot.log" 2>&1
   cycle 1 "$W/photo one.png" webp 0
   cycle 2 "$W/photo two.png" corner 0
   cycle 3 "$W/photo three.png" webp 1
@@ -604,7 +734,20 @@ inner() {
   for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
     layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1 "${MODES[i]:-0}"
   done
+  # S-021 AC3, AC4, AC7: shows 1 to 5 each print one "hive reveal: N" line,
+  # N the number of `sbarhive actions` ids for the show's file, draw nothing
+  # before it, and draw only after the drag's first enter on the catcher.
+  # Their drops (WEBP written, refusals) are the AC6 and AC7 checks above.
+  local pn
+  for ((i = 0; i < 5 && i + 1 < ${#MARKS[@]}; i++)); do
+    probe_checks "show $((i + 1))" "$(sed -n "$((MARKS[i] + 1)),$((MARKS[i + 1]))p" "$DLOG")" reveal
+    IFS='|' read -r _ _ _ pn _ <<<"$PROBE"
+    check "S-021 AC7 show $((i + 1)): \"hive reveal: N\" with N the number of \`sbarhive actions\` for its file ($(wc -w <<<"${EXPECT[i]}"))" \
+      '[ "$pn" != none ] && [ -n "${EXPECT[i]}" ] && [ "$pn" -eq "$(wc -w <<<"${EXPECT[i]}")" ]'
+  done
+  no_action_cycle
   hold_cycles
+  window_waiting
   fi
   summary
 

@@ -405,7 +405,9 @@ shortcut_drop() { # shortcut_drop N FILE
 # WHERE=before: Esc before the drag enters the hive. On the layer path
 # nothing reaches the hive (keyboard 0 in drop mode, S-018 AC13), so it may
 # close only by its 10 s timeout (AC3): checked within 12 s, the close delay
-# after Esc is INFO. In both, no file is written.
+# after Esc is INFO; and with ESC_NO_KEYBOARD=1 (the layer path, S-021) the
+# show's one probe line is "hive probe: hidden (cap)". In both, no file is
+# written.
 shortcut_esc() { # shortcut_esc N FILE over|before
   local n="esc $3" file=$2 where=$3 smark dmark
   echo "== AC11 $n: $(basename "$file"), Super+Z mid-drag, Esc $([ "$where" = over ] && echo 'over the WEBP cell' || echo 'before entering the hive')"
@@ -452,6 +454,14 @@ shortcut_esc() { # shortcut_esc N FILE over|before
     check "AC11 $n: the drag never entered the hive before Esc" '[ "$entered" -eq 0 ]'
     check "AC11 $n: the hive closes by its timeout (within 12 s of Esc)" \
       '[ -n "$gone_ms" ] && awk -v d="$gone_ms" "BEGIN{exit !(d >= 0 && d <= 12000)}"'
+    # S-021: on the layer path the catcher was never revealed, so its 10 s
+    # bound prints the one probe line of the show, "hidden (cap)".
+    if [ "${ESC_NO_KEYBOARD:-0}" = 1 ]; then
+      local probe; probe=$(sed -n "$((DSHOW + 1)),\$p" "$DLOG" | grep -E '^hive (reveal|probe):')
+      echo "INFO S-021 AC11 $n: probe lines: $(tr '\n' '|' <<<"$probe")"
+      check "S-021 AC11 $n (layer path): the timeout prints exactly one probe line, \"hive probe: hidden (cap)\"" \
+        '[ "$probe" = "hive probe: hidden (cap)" ]'
+    fi
   fi
   check "AC11 $n: the hive is no longer shown" 'wait_gone 2'
   if [ "${ESC_NO_KEYBOARD:-0}" = 1 ]; then

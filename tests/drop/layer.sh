@@ -21,15 +21,18 @@
 #     its first commit is already that rectangle.
 #     With AT=still (manager decision 12: no position, the drag or pointer
 #     stands still, no --at), the full region lasts at most 300 ms from the
-#     first frame: no enter on the catcher before its first
+#     catcher's ready commit: no enter on the catcher before its first
 #     set_input_region(wl_region), that region is exactly one add equal to
 #     the show's last "hive surface" rectangle (the centred hive, which
 #     never moves afterwards), it is also the catcher's last region, and it
-#     comes after the first frame (the hive subsurface's first
-#     attach(wl_buffer)) and at most 400 ms after it, by the trace's
-#     timestamps (still_region below). With AT=0 the same 400 ms bound
-#     holds for the switch: a first position later than that is past the
-#     phase;
+#     comes after the catcher's ready commit and at most 400 ms after it,
+#     by the trace's timestamps (still_region below). S-021 AC4: the
+#     reference was the first frame (the hive subsurface's first
+#     attach(wl_buffer)); a drop show on the layer path now draws nothing
+#     until the drag enters, so it is the catcher's first commit after its
+#     layer surface's first configure (catcher_ready below). With AT=0 the
+#     same 400 ms bound holds for the switch: a first position later than
+#     that is past the phase;
 #   - S-019 AC9: from the start of the show to the switch to the hive
 #     rectangle, no wl_data_offer.accept with a type, no
 #     wl_data_offer.receive and no "drop cells:" line (the anchor phase
@@ -67,10 +70,27 @@ trace_ms() {
     awk '{ printf "%.3f\n", ($1 * 3600 + $2 * 60 + $3) * 1000 }'
 }
 
+# catcher_ready SEG (S-021 AC4): the line of SEG, the catcher's ready
+# commit: the first commit on the catcher (the wl_surface given to
+# get_layer_surface) after the first configure event of its
+# zwlr_layer_surface_v1. The commit before that configure carries no buffer;
+# the ready commit carries the catcher's one transparent pixel. Prints
+# nothing when there is no such commit.
+catcher_ready() {
+  local seg=$1 gl lsf cat cf
+  gl=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1)
+  lsf=$(grep -oE 'zwlr_layer_surface_v1[#@][0-9]+' <<<"$gl")
+  cat=$(grep -oE 'wl_surface[#@][0-9]+$' <<<"$gl")
+  [ -n "$lsf" ] && [ -n "$cat" ] || return 0
+  cf=$(grep -nE -- "^\[[0-9:.]+\] ${lsf}\.configure\(" <<<"$seg" | head -1 | cut -d: -f1)
+  [ -n "$cf" ] || return 0
+  tail -n +"$cf" <<<"$seg" | grep -nE -- "-> ${cat}\.commit\(" | head -1 | cut -d: -f1 | awk -v c="$cf" 'NF { print $1 + c - 1 }'
+}
+
 # still_region SEG (manager decision 12), for one drop show's trace. Prints
 #   DT|ENTERS|FIRST|LAST|RECT|SW
-# DT: ms from the first frame (the hive subsurface's first
-# attach(wl_buffer)) to the catcher's first set_input_region(wl_region),
+# DT: ms from the catcher's ready commit (catcher_ready, S-021 AC4) to the
+# catcher's first set_input_region(wl_region),
 # negative if the region comes first, "none" if either is missing;
 # ENTERS: wl_pointer or wl_data_device enters naming the catcher before
 # that region; FIRST and LAST: region_of for that first region and for the
@@ -83,7 +103,8 @@ still_region() {
   child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
   rect=$(grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$seg" | tail -1 | cut -d' ' -f4-)
   if [ -n "$cat" ] && [ -n "$child" ]; then
-    fr=$(grep -nE -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" | head -1)
+    fr=$(catcher_ready "$seg")
+    [ -n "$fr" ] && fr="$fr:$(sed -n "${fr}p" <<<"$seg")"
     sw=$(grep -nE -- "-> ${cat}\.set_input_region\(wl_region" <<<"$seg" | head -1)
     if [ -n "$fr" ] && [ -n "$sw" ]; then
       dt=$(awk -v a="$(trace_ms "${fr#*:}")" -v b="$(trace_ms "${sw#*:}")" 'BEGIN { if (a == "" || b == "") print "none"; else printf "%.1f\n", b - a }')
@@ -145,12 +166,14 @@ layer_drop_show() {
   fi
   [ "$at" = 1 ] && sw=$last
   # Manager decision 12: the full region phase ends at most 300 ms after
-  # the first frame (the 400 ms bound leaves 100 ms for a loaded machine).
+  # the catcher's ready commit (S-021 AC4; it was the first frame), and the
+  # 400 ms bound leaves 100 ms for a loaded machine.
   local sdt=none sent=0 sfirst=none slast=none srect=none pdt=none fr
   if [ "$at" = still ]; then
     IFS='|' read -r sdt sent sfirst slast srect sw <<<"$(still_region "$seg")"
   elif [ "$at" = 0 ] && [ -n "$sw" ] && [ -n "$child" ]; then
-    fr=$(grep -E -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" | head -1)
+    fr=$(catcher_ready "$seg")
+    [ -n "$fr" ] && fr=$(sed -n "${fr}p" <<<"$seg")
     [ -n "$fr" ] && pdt=$(awk -v a="$(trace_ms "$fr")" -v b="$(trace_ms "$(sed -n "${sw}p" <<<"$seg")")" 'BEGIN { if (a == "" || b == "") print "none"; else printf "%.1f\n", b - a }')
   fi
   # S-019 AC9: nothing of the drop machinery before the switch.
@@ -203,8 +226,8 @@ layer_drop_show() {
     check "S-019 AC8 show $n (--at): before its first commit the catcher's input region is already the hive rectangle (one add)" \
       '[ -n "$hh" ] && [ "$last_reg" = "1 $hx $hy $hw $hh" ]'
   elif [ "$at" = still ]; then
-    echo "INFO S-019 show $n (still, decision 12): the catcher's first wl_region ${sdt} ms after the first frame, enters on the catcher before it $sent, that region (adds, last add) $sfirst, last catcher region $slast, hive rect $srect"
-    check "S-019 decision 12 show $n (still): no position, so the catcher's first input region is the hive rectangle (one add, the last \"hive surface\" line) within 400 ms of the first frame" \
+    echo "INFO S-019 show $n (still, decision 12): the catcher's first wl_region ${sdt} ms after the catcher's ready commit, enters on the catcher before it $sent, that region (adds, last add) $sfirst, last catcher region $slast, hive rect $srect"
+    check "S-019 decision 12, S-021 AC4 show $n (still): no position, so the catcher's first input region is the hive rectangle (one add, the last \"hive surface\" line) within 400 ms of the catcher's ready commit (first commit after the first configure)" \
       '[ "$srect" != none ] && [ "$sfirst" = "1 $srect" ] && within_ms "$sdt" 400'
     check "S-019 decision 12 show $n (still): no enter on the catcher before that switch, and it stays the catcher's last region (no move afterwards)" \
       '[ "$sent" -eq 0 ] && [ "$slast" = "1 $srect" ]'
@@ -213,8 +236,8 @@ layer_drop_show() {
       '[ -n "$fp" ] && [ "$early" -eq 0 ]'
     check "S-019 AC8 show $n: after the first position the catcher's last input region is one add equal to the hive rectangle (S-020 AC1)" \
       '[ -n "$hh" ] && [ -n "$sw" ] && [ -n "$last" ] && [ "$last" -ge "$sw" ] && [ "$last_reg" = "1 $hx $hy $hw $hh" ]'
-    echo "INFO S-019 show $n: switch to the hive rectangle ${pdt} ms after the first frame (negative: before it)"
-    check "S-019 decision 12 show $n: the switch at the first position comes at most 400 ms after the first frame" \
+    echo "INFO S-019 show $n: switch to the hive rectangle ${pdt} ms after the catcher's ready commit (negative: before it)"
+    check "S-019 decision 12, S-021 AC4 show $n: the switch at the first position comes at most 400 ms after the catcher's ready commit (first commit after the first configure)" \
       'awk -v d="$pdt" "BEGIN { exit !(d != \"none\" && d + 0 <= 400) }"'
   fi
   check "S-019 AC9 show $n: before the switch to the hive rectangle no wl_data_offer.accept with a type, no receive, no \"drop cells\" line" \
@@ -237,5 +260,88 @@ layer_drop_show() {
       '[ -n "$cat" ] && [ "$esurf" = "$cat" ]'
     check "S-020 AC2 show $n: the first enter is inside the hive rectangle [X, X+W] x [Y, Y+H]" \
       '[ -n "$ex" ] && [ -n "$hh" ] && awk -v x="$ex" -v y="$ey" -v X="$hx" -v Y="$hy" -v W="$hw" -v H="$hh" "BEGIN { exit !(x >= X && x <= X + W && y >= Y && y <= Y + H) }"'
+  fi
+}
+
+# S-021 (AC3, AC4, AC7): a drop show on the layer path binds a hidden
+# catcher and draws the hive only once a drag of files with an action has
+# entered it. With SBARHIVE_DEBUG_FOCUS the daemon prints on stderr, in the
+# same stream as the WAYLAND_DEBUG trace, exactly one of these lines per drop
+# show on the layer path (none on the window path, none for a tap that binds
+# nothing):
+#   hive reveal: N       the hive is drawn now; N is the number of ids in
+#                        the "drop cells:" line before it
+#   hive probe: hidden (R)
+#                        the catcher is gone without a drawn hive; R is
+#                        pointer (wl_pointer.enter on the catcher: no drag),
+#                        no-uri-list (the offer has no text/uri-list),
+#                        no-actions (the files have no action), release (the
+#                        key of `drop --hold` let go) or cap (10 s with no
+#                        event, ENTER_TIMEOUT)
+# The lines carry no timestamp, so "before" is the line order of that
+# stream. "Visible" is the first attach(wl_buffer) on the hive subsurface
+# (the wl_surface given to get_subsurface); the catcher still takes its one
+# transparent pixel at bind, and the subsurface, its position and both input
+# regions are made at bind as before S-021: only the hive's buffers wait.
+#
+# probe_show SEG prints
+#   ALL|REVEALS|HIDES|N|R|CELLS|PRE|ATT|CATT|E1|A1|AFTER|CHILD
+# ALL: lines starting "hive reveal:" or "hive probe:" (any form); REVEALS:
+# "hive reveal: N" lines; HIDES: "hive probe: hidden (R)" lines with a
+# reason of the list; N and R: of the first such line; CELLS: ids in the
+# last "drop cells:" line before the reveal line ("none" if there is none);
+# PRE: attach(wl_buffer) on the hive subsurface before the reveal line (in
+# the whole show when there is none); ATT: all of them in the show; CATT:
+# attach(wl_buffer) on the catcher; E1 and A1: segment lines of the first
+# wl_data_device.enter naming the catcher and of the hive's first attach
+# ("none"); AFTER: "hive anchor:" or "hive surface:" lines after the hide
+# line; CHILD: the hive subsurface ("none").
+probe_show() {
+  local seg=$1 cat child all rev hid n="" r="" rl hl cells=none pre att catt e1 a1 after=0
+  cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  all=$(grep -cE '^hive (reveal|probe):' <<<"$seg")
+  rev=$(grep -cE '^hive reveal: [0-9]+$' <<<"$seg")
+  hid=$(grep -cE '^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap)\)$' <<<"$seg")
+  rl=$(grep -nE '^hive reveal: [0-9]+$' <<<"$seg" | head -1)
+  hl=$(grep -nE '^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap)\)$' <<<"$seg" | head -1)
+  [ -n "$rl" ] && n=${rl##* }
+  [ -n "$hl" ] && r=$(sed -nE 's/.*hidden \(([a-z-]+)\)$/\1/p' <<<"$hl")
+  if [ -n "$rl" ]; then
+    local cl; cl=$(head -n "${rl%%:*}" <<<"$seg" | grep -E '^drop cells:' | tail -1)
+    [ -n "$cl" ] && cells=$(sed -E 's/^drop cells: ?//' <<<"$cl" | wc -w)
+  fi
+  local apat="-> no-hive-subsurface\\.attach"; [ -n "$child" ] && apat="-> ${child}\\.attach\\(wl_buffer"
+  att=$(grep -cE -- "$apat" <<<"$seg")
+  if [ -n "$rl" ]; then pre=$(head -n "${rl%%:*}" <<<"$seg" | grep -cE -- "$apat"); else pre=$att; fi
+  catt=0; [ -n "$cat" ] && catt=$(grep -cE -- "-> ${cat}\\.attach\\(wl_buffer" <<<"$seg")
+  e1=none; [ -n "$cat" ] && e1=$(grep -nE -- "^\[[0-9:.]+\] wl_data_device[#@][0-9]+\.enter\([0-9]+, ${cat}, " <<<"$seg" | head -1 | cut -d: -f1)
+  a1=$(grep -nE -- "$apat" <<<"$seg" | head -1 | cut -d: -f1)
+  [ -n "$hl" ] && after=$(tail -n +"${hl%%:*}" <<<"$seg" | grep -cE '^hive (anchor|surface):')
+  echo "$all|$rev|$hid|${n:-none}|${r:-none}|$cells|$pre|$att|$catt|${e1:-none}|${a1:-none}|$after|${child:-none}"
+}
+
+# probe_checks NAME SEG WANT: the S-021 checks of one drop show on the layer
+# path. WANT is "reveal" (a drag of files with an action enters) or the
+# reason of the hide (pointer, no-uri-list, no-actions, release, cap).
+# Sets PROBE (probe_show's fields) for the caller's own checks.
+probe_checks() {
+  local name=$1 seg=$2 want=$3
+  PROBE=$(probe_show "$seg")
+  local all rev hid n r cells pre att catt e1 a1 after child
+  IFS='|' read -r all rev hid n r cells pre att catt e1 a1 after child <<<"$PROBE"
+  echo "INFO S-021 $name: probe lines $all ($(grep -E '^hive (reveal|probe):' <<<"$seg" | tr '\n' '|')), reveal N $n, hide reason $r, ids in the drop cells line before the reveal $cells, hive subsurface $child: attach before the reveal line $pre, in the show $att, first at line $a1; catcher attach $catt; first drag enter on the catcher at line $e1; anchor or surface lines after the hide $after"
+  if [ "$want" = reveal ]; then
+    check "S-021 AC3 $name: exactly one probe line, \"hive reveal: N\" (no \"hive probe:\" line), and N equals the ids of the \"drop cells:\" line before it" \
+      '[ "$all" -eq 1 ] && [ "$rev" -eq 1 ] && [ "$n" != none ] && [ "$cells" != none ] && [ "$n" -eq "$cells" ]'
+    check "S-021 AC4 $name: no attach on the hive subsurface before the \"hive reveal:\" line, at least one after it (visible), and the catcher took its pixel" \
+      '[ "$child" != none ] && [ "$rev" -eq 1 ] && [ "$pre" -eq 0 ] && [ "$att" -ge 1 ] && [ "$catt" -ge 1 ]'
+    check "S-021 AC7 $name: the hive's first attach comes after the first wl_data_device.enter on the catcher" \
+      '[ "$e1" != none ] && [ "$a1" != none ] && [ "$a1" -gt "$e1" ]'
+  else
+    check "S-021 AC3 $name: exactly one probe line, \"hive probe: hidden ($want)\" (no \"hive reveal:\" line), and no \"hive anchor\" or \"hive surface\" line after it" \
+      '[ "$all" -eq 1 ] && [ "$hid" -eq 1 ] && [ "$r" = "$want" ] && [ "$after" -eq 0 ]'
+    check "S-021 AC4 $name: no attach on the hive subsurface in the whole show, and the catcher took its pixel" \
+      '[ "$att" -eq 0 ] && [ "$catt" -ge 1 ]'
   fi
 }

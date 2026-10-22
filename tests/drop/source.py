@@ -11,7 +11,11 @@ manager would, so a move shows up in the sha256 check.
 The drag icon is one transparent pixel (S-014c), so the screenshots of the
 hive under the drag (tests/drop/kwin.sh, AC9) show the hive only.
 
-Prints: shown, drag-begin PATH, drag-end deleted=BOOL, drag-cancel REASON.
+S-021 AC6: a NEXT line "text:WORDS" drags the plain string WORDS instead of a
+file, so the offer has text/plain types and no text/uri-list.
+
+Prints: shown, drag-begin PATH (or text:WORDS), drag-end deleted=BOOL,
+drag-cancel REASON.
 Usage: source.py NEXT"""
 import os
 import sys
@@ -32,13 +36,15 @@ def prepare(src, _x, _y):
     with open(NEXT) as f:
         path = f.read().strip()
     current["path"] = path
+    if path.startswith("text:"):
+        return Gdk.ContentProvider.new_for_value(path[len("text:"):])
     files = Gdk.FileList.new_from_list([Gio.File.new_for_path(path)])
     return Gdk.ContentProvider.new_for_value(files)
 
 
 def drag_end(_src, _drag, deleted):
     print(f"source: drag-end deleted={deleted}", flush=True)
-    if deleted and current["path"] and os.path.exists(current["path"]):
+    if deleted and current["path"] and not current["path"].startswith("text:") and os.path.exists(current["path"]):
         os.unlink(current["path"])
         print(f"source: deleted {current['path']}", flush=True)
 

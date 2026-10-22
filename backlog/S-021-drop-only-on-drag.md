@@ -1,5 +1,5 @@
 # S-021 خلية الإفلات لا تظهر إلا لسحب حقيقي لملفات لها إجراء
-الحالة: معتمدة (2026-10-22)؛ S-021a منتهية (المراجعة 1: PASS)، وS-021b وS-021c لم تبدأ
+الحالة: معتمدة (2026-10-22)؛ S-021a منتهية (المراجعة 1: PASS)، وS-021b اختباراتها مكتوبة وتفشل (تنتظر المنفِّذ)، وS-021c لم تبدأ
 
 بلاغ محمد (2026-10-22، الإصدار 0.3.0 مثبت): دون تحديد ولا سحب، إمساك Alt وتحريك الفأرة يُظهر الخلية. المطلوب: لا تظهر خلية الإفلات إلا أثناء سحب ملف فعلي، ولملفات لها إجراء واحد على الأقل.
 
@@ -163,3 +163,49 @@
   - لا تنطبق على S-021a: اللقطات والميزانية ونصوص الواجهة (لا نص جديد ولا عنصر تفاعلي جديد)، وهي لـ S-021b وS-021c. لم يُضف سطر CHANGELOG.md لأنه من AC11 في S-021c.
   - لا شرطة طويلة في أي ملف متغير. ملاحظة غير حاجبة: سطر التوثيق `crates/ui/src/lib.rs:681` (‏`key_released`) صار 86 عموداً بعد إضافة «probing,» دون إعادة لف، وما حوله يلتف عند 80؛ في المستودع 35 سطر تعليق من 1548 تتجاوز 80، فهو داخل الأسلوب القائم. يمكن لفّه في S-021b.
   - ملاحظة إجرائية: أول تشغيل للطفرات بوضع النسخ بدأ ينسخ `target/` (‏76G) إلى `/tmp` (‏tmpfs) فأُوقف عند 6.3G وحُذفت النسخة، ثم أُعيد التشغيل بـ `--in-place`.
+- 2026-10-22، المختبِر (S-021b: AC3 إلى AC7 وAC10، ونصف AC9 الخاص بـ `repro.sh`): كُتبت الفحوص من المعايير وجدول الحالات وقائمة «تأكيدات تتغير»، دون قراءة شيفرة الميزة. شُغّلت على بناء main ‏(aa84616، `cargo build --release` جديد) داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`، كل مؤلِّف خاص وحده: Hyprland 0.56.2 متداخل، وKWin ‏`--virtual`، وgnome-shell ‏`--headless`، وكلها بـ HOME مؤقت.
+  - الملفات: `tests/drop/layer.sh` (‏`catcher_ready` و`probe_show` و`probe_checks`، والمرجع الجديد في `still_region` و`layer_drop_show`)، و`tests/hyprland/repro.sh`، و`tests/drop/kwin.sh`، و`tests/drop/lib.sh` (‏`shortcut_esc` قبل الدخول)، و`tests/overlay/kwin.sh` (أوضاع `drop` و`outputs` و`layer`)، و`tests/drop/source.py` (وضع `text:`)، و`tests/drop/window_path.sh` (جديد، AC10)، وحذف `tests/drop/snapshots/drop-en-light-waiting.png` (السؤال 4).
+  - العقد الذي تثبّته الفحوص (لا تُعدَّل):
+    - مع `SBARHIVE_DEBUG_FOCUS` تطبع الخدمة على stderr، في المجرى نفسه الذي يحمل أثر `WAYLAND_DEBUG`، سطراً واحداً بالضبط لكل ظهور إفلات على مسار الطبقة: `hive reveal: N` (التعبير `^hive reveal: [0-9]+$`) أو `hive probe: hidden (R)` (التعبير `^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap)\)$`). لا سطر غيرهما يبدأ بـ `hive reveal:` أو `hive probe:`. إغلاق ظهور ظاهر (إفلات، Esc، مغادرة، ترك المفتاح) لا يطبع شيئاً. الضغطة القصيرة التي لا تربط سطحاً لا تطبع شيئاً. مسار النافذة لا يطبع أياً منهما.
+    - السطران بلا طابع زمني، فـ«قبل» تعني ترتيب الأسطر في ذلك المجرى. ‏N يساوي عدد المعرّفات في آخر سطر `drop cells:` قبله. سطر `drop cells:` الفارغ (‏`drop cells:` بلا شيء بعد النقطتين) يسبق `hidden (no-actions)`.
+    - «ظاهر» = أول `-> wl_surface#C.attach(wl_buffer` على السطح الفرعي للخلية، وC هو السطح الأول في `get_subsurface(new id wl_subsurface#S, wl_surface#C, ...)`. سطر `hive reveal:` يأتي قبل أول `attach` كهذا، ويليه واحد على الأقل، وأولها بعد أول `wl_data_device.enter` يسمّي الماسك. في الظهور المخفي صفر `attach` على C.
+    - الرسم المؤجَّل يؤجّل مخازن الخلية وحدها: الماسك وبكسله الشفاف (‏`attach` على الماسك مرة على الأقل)، و`get_subsurface`، و`set_position`، و`set_destination`، ومنطقتا الإدخال تُصنع عند الربط كما اليوم. لذلك يبقى فحص S-020 AC1 (منطقة فارغة للسطح الفرعي) وفحوص AC11 في `tests/overlay/kwin.sh` (الموضع والمقصد) على ظهور لا يُظهَر أبداً، ويُطلب فيه صفر مخزن `wl_shm` غير بكسل الماسك.
+    - ظهور أُخفي قبل الموضع لا يطبع `hive anchor:` ولا `hive surface:`. والقاعدة المفحوصة: إن جاء أول `wl_pointer.enter` على الماسك قبل أي سطر `hive anchor:` فلا سطر مرساة ولا موضع في الظهور كله؛ وفي كل ظهور مخفي لا سطر مرساة ولا موضع بعد سطر الإخفاء.
+    - «جاهزية الماسك» (`catcher_ready`) = أول `commit` على الماسك بعد أول حدث `configure` لـ `zwlr_layer_surface_v1` الخاص به (الـ `commit` قبله بلا مخزن). هو مرجع الـ 400 ms لمنطقة الماسك في القرار 12 (‏`still_region` ووضع `0` في `layer_drop_show`)، ومرجع نافذة الـ 300 ms في حالة late في `tests/drop/kwin.sh`، بدل أول `attach` للخلية.
+    - «الطبقة تُهدم» = `-> zwlr_layer_surface_v1#N.destroy(`. ‏«خلال 500 ms من `wl_pointer.enter`» بطوابع الأثر.
+    - `source.py`: سطر `text:WORDS` في ملف NEXT يسحب النص WORDS (عروض `text/plain` بلا `text/uri-list`).
+  - تأكيدات قائمة تغيّرت (كما في القائمة أعلاه): `repro.sh` (S-020 AC4 صار AC5 (ب)، وفحص القرار 12 على الظهور نفسه بالمرجع الجديد ودون `set_position`، وتعليق الرأس)، و`layer.sh` (المرجع)، و`tests/overlay/kwin.sh drop` (‏drop1 وdrop3 سحب PNG، وdrop2 ‏`hidden (pointer)`، والنقرة في (100، 700) في drop4 ‏`--at 640,400`)، و`outputs at-v1` (سحب PNG ممسوك وحركة 1 px، ولقطة «قبل» مع السحب)، و`tests/drop/kwin.sh` (لقطة ما قبل `enter` بصفر بكسل من الرموز الثلاثة مع حارس من لقطة المصدر وحده، والمرجع في late)، و`lib.sh` (‏`hidden (cap)` على مسار الطبقة فقط، ‏`ESC_NO_KEYBOARD=1`، فلا يتغير `gnome.sh`).
+  - تغييرات إعداد خارج القائمة، تحتاج إقرار محمد (القرار 6 يكسرها بعد التنفيذ الصحيح): (1) ‏`tests/drop/kwin.sh hold_cycles` حالة held: المؤشر في (640، 400) فيُخفي KWin الماسك عند الربط قبل الترك، فصارت `drop --hold --at 640,400` والمؤشر في (100، 700)، والتأكيدات كما هي، مع `hidden (release)`. (2) ‏`tests/overlay/kwin.sh` الوضع الافتراضي، ظهور drop: صار `drop --at 640,400` والمؤشر في (100، 700)، وفحص AC18 «رسم في مخازن wl_shm» صار لهذا الظهور «صفر مخزن wl_shm وبكسل الماسك وحده». الإعداد نفسه الذي اعتمدته القصة لسطري 846 و847.
+  - اللقطة (السؤال 4): حُذف المرجع القديم (أُخذ على مسار الطبقة، ويختلف عن مرشّح مسار النافذة في 0.59 % من بكسلاته). `tests/drop/kwin.sh` يعيد تشغيل الخدمة بـ `SBARHIVE_SURFACE=window` بعد `hold_cycles`، ويلتقط الخلية المنتظرة تحت سحب PNG ساكن، ويقصّها بمستطيل سطر `hive surface: window` (‏393 x 362)، ويفحص نص الانتظار (حبر `text-primary` في المركز) وغياب الخلايا وغياب أسطر S-021، ثم يقارنها بالمرجع. المرشّح في `tests/drop/out/drop-en-light-waiting.png` بعد التشغيل، وفحص المرجع يفشل حتى يعتمده محمد. لم يعتمده المختبِر.
+  - ما ينجح قبل التنفيذ ولماذا: حراس سلوك قائم أو سلوك S-021a لا يُلوَون: نقرات `keys.py` والإخفاء خلال 500 ms (‏AC5 (أ) و(ب) و(ج) وAC9 (1)، الآلة من S-021a)، ومنطقة القرار 12 بالمرجع الجديد (‏350.8 ms، والحد 400)، وغياب `receive` في سحب النص، وكتابة WEBP، والنقرة في (100، 700)، وفحوص مسار النافذة، وAC10 كله. كل فحص S-021 لأسطر السجل أو المخازن يفشل.
+  - ملاحظة لمحمد (خلل خارج المعايير، ظهر في تشغيل أول): ترك المفتاح (`drop --release`) والسحب فوق خلية ظاهرة، ثم سحب جديد: دخول الظهور التالي لا يُقرأ (لا `drop cells:` ولا `accept`، والخدمة تهدم عرض الظهور السابق `wl_data_offer#4278190080` عند `enter` العرض الجديد)، فلا يُكتب WEBP. أثره في `hypr-layer-daemon.log` من أول تشغيل. تجنّبه AC9 (3) بمغادرة الخلية قبل الترك، فهو ليس من AC9.
+  - مخرجات الفشل (بناء main):
+    ```
+    $ tests/hyprland/repro.sh --json
+    {"total": 39, "failed": 22, "skipped": 0}
+    $ tests/hyprland/repro.sh --json --quasimode
+    {"total": 46, "failed": 21, "skipped": 0}
+    FAIL S-021 AC3 AC5 (b) pointer into the rectangle: exactly one probe line, "hive probe: hidden (pointer)" ...
+    FAIL S-021 AC4 AC5 (b) pointer into the rectangle: no attach on the hive subsurface in the whole show, and the catcher took its pixel
+    FAIL S-021 AC3 AC9 (3) PNG drag, drop --hold: exactly one probe line, "hive reveal: N" ...
+    FAIL S-021 AC7 AC7 cell drag: the hive's first attach comes after the first wl_data_device.enter on the catcher
+    FAIL S-021 AC7 cell drag: "hive reveal: N" with N the number of `sbarhive actions` lines for the PNG (15)
+    FAIL S-021 AC6 notes.unknownext: an empty "drop cells:" line before the hide, ...
+    FAIL S-021 AC3 AC6 text drag: exactly one probe line, "hive probe: hidden (no-uri-list)" ...
+    $ tests/drop/kwin.sh level=1
+    RESULT FAIL (27)   (310 PASS)
+    FAIL S-021 AC4 show 1: before the drag enters the hive is not drawn (no text-primary, surface-2 or surface-3 pixel in its box)
+      (INFO: waiting shot text-primary 46, surface-2 24, surface-3 3896; source shot before show 1: 0, 0, 0)
+    FAIL S-021 AC3/AC4/AC7 show 1 to 5 (4 each), AC6 notes.unknownext (3), S-019e held released (2)
+    FAIL S-014 AC10 window path: no approved reference .../drop-en-light-waiting.png (... needs the owner's approval)
+    $ tests/overlay/kwin.sh drop
+    RESULT FAIL (11)   (38 PASS)
+    FAIL S-021 AC3 drop2: hidden before the position, so no "hive anchor" and no "hive surface" line
+      (INFO: first wl_pointer.enter at line 27, anchor lines before it 0, then "hive anchor: 640 400")
+    $ tests/overlay/kwin.sh outputs
+    RESULT FAIL (3)   (12 PASS: the at-v1 box, anchor and placement guards)
+    $ tests/overlay/kwin.sh
+    FAIL S-021 AC4 show 3 (drop): never revealed, so no wl_shm buffer, only the catcher's single pixel buffer
+    RESULT FAIL (1)
+    ```
+  - لم يُشغَّل: `tests/drop/kwin.sh shortcut` (فحص `hidden (cap)` الجديد فيه)، و`tests/drop/kwin.sh level=1` بعد تعديل أخير يقصّ المرشّح بمستطيل النافذة (جُرّب القص على لقطة التشغيل نفسها). AC8 لـ S-021c.

@@ -5,7 +5,9 @@
 # (tests/drop/kwin-input). The trace is cut per show with line marks.
 # Modes (one private compositor each):
 #   layer (default)  five shows: no token, a token, drop mode, after a language
-#                    change, after a theme change; each closed with Esc. AC4,
+#                    change, after a theme change; each closed with Esc (the
+#                    drop show is `drop --at 640,400` with the pointer at
+#                    (100, 700), S-021, and ends at its 10 s bound). AC4,
 #                    AC5 (layer requests per show), AC11 (diagnostic lines
 #                    against the trace and a ScreenShot2 box).
 #   window           the same shows with SBARHIVE_SURFACE=window (AC6, AC11),
@@ -29,15 +31,27 @@
 #                    shows are windows. The daemon runs without
 #                    SBARHIVE_DEBUG_FOCUS here, and each change prints one
 #                    "hive surface choice: KIND ... REASON" line.
-#   drop             AC13 (S-018d): three `sbarhive drop` shows with no drag,
-#                    each closed by the 10 s timeout (no keyboard, so no Esc).
-#                    The catcher takes no keyboard and its input region is
-#                    the hive rectangle (S-020), a click at (100, 700) in
-#                    show 1 reaches the GTK window once, the catcher gets no
-#                    pointer enter outside the hive and no button, and the
-#                    hive stays, and each show requests
-#                    one wl_data_device after get_layer_surface with every
-#                    earlier one released first (tests/drop/layer.sh).
+#   drop             AC13 (S-018d), revised by S-021 (decision 6: KWin
+#                    sends wl_pointer.enter to a catcher bound under a still
+#                    pointer, which hides a drop show with no drag): drop1
+#                    and drop3 are a PNG drag (tests/drop/source.py) held
+#                    still, `sbarhive drop`, then moved into the centred hive
+#                    and released over its centre; drop2 has no drag and a
+#                    press with no motion right after the bind: "hive probe:
+#                    hidden (pointer)", one destroy within 500 ms of the
+#                    catcher's wl_pointer.enter, no attach on the hive, and
+#                    no "hive anchor" or "hive surface" line when that enter
+#                    came before the position (S-021 AC3); drop4, with the
+#                    source gone, is `sbarhive drop --at 640,400` with the
+#                    pointer at (100, 700): the catcher takes no keyboard,
+#                    its input region is the hive rectangle (S-020), the
+#                    click at (100, 700) reaches the GTK window once, the
+#                    catcher gets no pointer enter outside the hive and no
+#                    button, stays until its 10 s bound ("hidden (cap)") and
+#                    draws nothing. Every bound show requests one
+#                    wl_data_device after get_layer_surface with every
+#                    earlier one released first (tests/drop/layer.sh), and
+#                    each prints its one S-021 probe line (probe_checks).
 #   scheme           AC15 (S-018e): a fake org.freedesktop.portal.Desktop
 #                    (portal.py) serves the Settings color-scheme on the
 #                    private bus. With theme = "auto": 1 makes the centre
@@ -76,7 +90,8 @@
 # And AC18 (S-018f): each hide frees that show's buffers (buffers.py): every
 # wl_buffer alive at the show's zwlr_layer_surface_v1.destroy is destroyed by
 # the client then, before the compositor releases it, and no wl_buffer or
-# wl_shm_pool of the show is left.
+# wl_shm_pool of the show is left. The drop show draws no wl_shm buffer at
+# all, only the catcher's single pixel (S-021 AC4: no drag enters it).
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
 # S-019c setup (backlog/S-019-hive-at-pointer.md, test setup changes): the
@@ -106,9 +121,13 @@
 #                        (300, 200) on Virtual-1;
 #                      open on Virtual-0: the same at global (300, 200), the
 #                        same output-local point on the other output;
-#                      drop --at on Virtual-1: the pointer still at
-#                        (1580, 200) and `sbarhive drop --at 1580,200`
-#                        (global logical coordinates, decision 1).
+#                      drop --at on Virtual-1: a PNG drag (source.py)
+#                        held still at (1580, 200) and `sbarhive drop --at
+#                        1580,200` (global logical coordinates, decision 1),
+#                        then a 1 px drag motion there so the drag enters
+#                        and the hive is drawn (S-021); its before shot is
+#                        taken with the drag held, and it prints one
+#                        "hive reveal" line.
 #                    Each: the screenshot box lies inside that output and
 #                    contains the global point; one "hive anchor" line
 #                    within 1 px of (300, 200), output-local; the
@@ -325,6 +344,13 @@ PY
     show() { # show NAME COMMAND...: one show, closed with Esc
       local name=$1; shift
       centre_ptr
+      # S-021 (decision 6): KWin sends wl_pointer.enter to a catcher bound
+      # under a still pointer in its input region, which now hides a drop
+      # show at once. So the drop show is `drop --at 640,400` (the centred
+      # hive, its rectangle the catcher's region from the first commit) with
+      # the pointer at (100, 700), outside it: bound, not drawn, until the
+      # 10 s bound.
+      [ "$name" = drop ] && [ "$MODE" = layer ] && { echo "move 100 700" >&3; sleep 0.3; }
       begin "$name"
       "$@" >>"$log-cli.log" 2>&1
       sleep 1.5
@@ -340,7 +366,8 @@ PY
     }
     show plain "$BIN/sbarhive" open "$W/photo.png"
     show token "$BIN/sbarhive" open --token sbh-test-token "$W/photo.png"
-    show drop "$BIN/sbarhive" drop
+    if [ "$MODE" = layer ]; then show drop "$BIN/sbarhive" drop --at 640,400
+    else show drop "$BIN/sbarhive" drop; fi
     # Drop mode may have no keyboard (S-018d): it closes 10 s after showing
     # without a drag entering it (S-014a AC3).
     sleep 10
@@ -514,7 +541,14 @@ PY
         local n=$((j + 1)) name=${names[j]} shm px ld ah lshm lpx lb lp
         read -r shm px _ ld ah lshm lpx lb lp <<<"$(grep "^SHOW $n " <<<"$ac18" | cut -d' ' -f3- | sed -E 's/[a-z_]+=//g')"
         echo "INFO AC18 show $n ($name): shm buffers ${shm:-?}, single pixel ${px:-?}, layer destroys ${ld:-?}, alive at the hide ${ah:-?}, not freed at the hide shm ${lshm:-?} px ${lpx:-?}, left buffers ${lb:-?} pools ${lp:-?}"
-        check "AC18 show $n ($name): the show drew into wl_shm buffers (the check is not empty)" '[ "${shm:-0}" -ge 1 ]'
+        if [ "$name" = drop ]; then
+          # S-021 AC4: a drop show no drag enters is never drawn, so only
+          # the catcher's single pixel buffer is made (the check is not
+          # empty) and no wl_shm buffer.
+          check "S-021 AC4 show $n ($name): never revealed, so no wl_shm buffer, only the catcher's single pixel buffer" '[ "${shm:-1}" -eq 0 ] && [ "${px:-0}" -ge 1 ]'
+        else
+          check "AC18 show $n ($name): the show drew into wl_shm buffers (the check is not empty)" '[ "${shm:-0}" -ge 1 ]'
+        fi
         check "AC18 show $n ($name): the hide sends zwlr_layer_surface_v1.destroy (exactly one)" '[ "${ld:-0}" -eq 1 ]'
         check "AC18 show $n ($name): every wl_shm buffer alive at the hide gets wl_buffer.destroy at the hide, not after its release" '[ -n "${lshm:-}" ] && [ "$lshm" -eq 0 ]'
         check "AC18 show $n ($name): the catcher's single pixel buffer gets wl_buffer.destroy at the hide, not after its release" '[ -n "${lpx:-}" ] && [ "$lpx" -eq 0 ]'
@@ -766,49 +800,97 @@ PY
   drop)
     # shellcheck source=../drop/layer.sh
     source "$ROOT/tests/drop/layer.sh"
+    # S-021: the drop shows. drop1 and drop3 are a PNG drag held still at
+    # (210, 180) on tests/drop/source.py, `sbarhive drop`, then (after the
+    # catcher's 300 ms full region phase) the drag moves into the centred
+    # hive and is released over its centre cell (refused). drop2 is no drag:
+    # the pointer still in the middle, `sbarhive drop`, and a press and
+    # release with no motion as soon as the catcher exists. drop4, with the
+    # source gone so other.py is under the hive: the pointer at (100, 700),
+    # `sbarhive drop --at 640,400` (the catcher's region is the centred hive
+    # rectangle from its first commit), and a click at (100, 700).
+    local SNEXT="$XDG_RUNTIME_DIR/next" SRC_LOG="$log-source.log" srcp
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$W/held.png"
+    printf '%s\n' "$W/held.png" >"$SNEXT"
+    GTK_A11Y=none python3 "$ROOT/tests/drop/source.py" "$SNEXT" >"$SRC_LOG" 2>&1 &
+    srcp=$!
+    sleep 3
+    # held_drag: press on the source and pass GTK's threshold, then hold.
+    held_drag() {
+      local i
+      echo "move 150 150" >&3; echo "sleep 200" >&3; echo "down" >&3; echo "sleep 200" >&3
+      for i in 1 2 3 4 5 6; do echo "move $((150 + i * 10)) $((150 + i * 5))" >&3; echo "sleep 50" >&3; done
+      sleep 1.6
+    }
+    # wait_anchor: until this show's "hive anchor" line or a probe line.
+    wait_anchor() { local k; for k in $(seq 30); do between "${marks[-1]}" '$' | grep -qE '^hive (anchor|probe):' && break; sleep 0.1; done; }
     local n
     for n in 1 2 3; do
-      centre_ptr
-      begin "drop$n"
-      "$BIN/sbarhive" drop >>"$log-cli.log" 2>&1
-      # S-019 AC8: a press and release with no motion as soon as the catcher
-      # exists, on it during (or, as KWin sends the pointer enter on map,
-      # just after) the anchor phase, must not close the hive.
       if [ "$n" = 2 ]; then
+        centre_ptr
+        begin "drop$n"
+        "$BIN/sbarhive" drop >>"$log-cli.log" 2>&1
+        # S-019 AC8 setup kept: a press and release with no motion as soon
+        # as the catcher exists (20 ms for KWin to configure and map it).
         local k2; for k2 in $(seq 200); do
           between "${marks[-1]}" '$' | grep -qE -- "${R}zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" && break; sleep 0.01
         done
-        # 20 ms for KWin to configure and map the catcher.
         echo "sleep 20" >&3; echo "down" >&3; echo "sleep 40" >&3; echo "up" >&3
+        sleep 2
+      else
+        held_drag
+        begin "drop$n"
+        "$BIN/sbarhive" drop >>"$log-cli.log" 2>&1
+        wait_anchor
+        sleep 0.5
+        echo "move 400 300" >&3; echo "sleep 100" >&3; echo "move 600 380" >&3; echo "sleep 100" >&3; echo "move 640 400" >&3
+        sleep 1
+        echo "up" >&3
+        sleep 1.5
       fi
-      # S-019d setup: the click below waits for this show's anchor line.
-      local k; for k in $(seq 30); do
-        between "${marks[-1]}" '$' | grep -qE '^hive anchor: ' && break; sleep 0.1
-      done
-      sleep 1.5
-      # AC13: in drop mode a click outside the hive passes to the window below.
-      [ "$n" = 1 ] && click 100 700
-      # No drag enters it, so it closes 10 s after showing (S-014a AC3).
-      sleep 11
     done
+    kill "$srcp" 2>/dev/null; sleep 1
+    echo "move 100 700" >&3; sleep 0.5
+    begin drop4
+    "$BIN/sbarhive" drop --at 640,400 >>"$log-cli.log" 2>&1
+    wait_anchor
+    sleep 1.5
+    # AC13: in drop mode a click outside the hive passes to the window below.
+    click 100 700
+    # No drag enters it, so the catcher goes at its 10 s bound (S-021 cap).
+    sleep 11
     finish
     local i
-    for ((i = 0; i < 3; i++)); do
-      layer_drop_show $((i + 1)) "${marks[i]}" "${marks[i + 1]}" 0
+    for i in 0 2; do
+      layer_drop_show $((i + 1)) "${marks[i]}" "${marks[i + 1]}" 1 still
+      probe_checks "drop$((i + 1)) (PNG drag)" "$(seg_of "$i")" reveal
     done
-    # S-019 AC8: the press with no motion in show 2 did not close the hive.
-    local s2 g2 d2 t2=none
+    layer_drop_show 4 "${marks[3]}" "${marks[4]}" 0 1
+    # S-021 decision 6, replacing S-019 AC8 drop2 (a press on the catcher
+    # with no motion did not close the hive): KWin's wl_pointer.enter at the
+    # bind hides it, "hidden (pointer)", one destroy within 500 ms of that
+    # enter, no attach on the hive (probe_checks). Before the position (no
+    # "hive anchor" line before that enter) the show prints neither "hive
+    # anchor" nor "hive surface" (AC3). Whether the press still reached the
+    # catcher is INFO (S-021 question 2: a lost first click is accepted).
+    local s2 c2 e2 g2 b2 t2=none pre2
     s2=$(seg_of 1)
-    g2=$(grep -E -- "${R}zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" <<<"$s2" | head -1)
-    d2=$(grep -E -- "${R}zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" <<<"$s2" | head -1)
-    [ -n "$g2" ] && [ -n "$d2" ] && t2=$(( $(ts_ms "$d2") - $(ts_ms "$g2") ))
-    local c2 b2 r2
     c2=$(catcher_of "$s2")
+    e2=$(grep -nE -- "^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.enter\([0-9]+, ${c2:-none}, " <<<"$s2" | head -1)
+    g2=$(grep -E -- "${R}zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" <<<"$s2" | head -1)
+    [ -n "$e2" ] && [ -n "$g2" ] && t2=$(awk -v a="$(trace_ms "${e2#*:}")" -v b="$(trace_ms "$g2")" 'BEGIN { printf "%.1f\n", b - a }')
     b2=$(grep -nE -- '^\[[0-9:.]+\] wl_pointer[#@][0-9]+\.button\(' <<<"$s2" | head -1 | cut -d: -f1)
-    r2=$(grep -nE -- "${R}${c2:-none}\.set_input_region\(wl_region" <<<"$s2" | head -1 | cut -d: -f1)
-    echo "INFO S-019 drop2: press with no motion at segment line ${b2:-none}, the catcher's first input region at line ${r2:-none}, layer destroys $(layer_destroys "$s2"), shown for ${t2} ms, anchor line: $(grep -E '^hive anchor: ' <<<"$s2" | tr '\n' ' ')"
-    check "S-019 AC8 drop2: a click on the catcher right after \`sbarhive drop\` (no motion) reaches it and does not close the hive (one destroy, by the 10 s timeout)" \
-      '[ -n "$b2" ] && [ "$(layer_destroys "$s2")" -eq 1 ] && [ "$t2" != none ] && [ "$t2" -ge 9000 ]'
+    pre2=none; [ -n "$e2" ] && pre2=$(head -n "${e2%%:*}" <<<"$s2" | grep -cE '^hive anchor: ')
+    echo "INFO S-021 drop2: catcher's first wl_pointer.enter at segment line ${e2%%:*}, hive anchor lines before it ${pre2}, layer destroys $(layer_destroys "$s2"), destroyed ${t2} ms after that enter, wl_pointer.button at line ${b2:-none} (question 2), anchor lines: $(grep -E '^hive anchor: ' <<<"$s2" | tr '\n' ' '), surface lines: $(grep -cE '^hive surface: ' <<<"$s2")"
+    probe_checks "drop2 (no drag)" "$s2" pointer
+    check "S-021 drop2 (decision 6): exactly one layer destroy, within 500 ms of the catcher's wl_pointer.enter" \
+      '[ "$(layer_destroys "$s2")" -eq 1 ] && within_ms "$t2" 500'
+    if [ "$pre2" = 0 ]; then
+      check "S-021 AC3 drop2: hidden before the position, so no \"hive anchor\" and no \"hive surface\" line" \
+        '! grep -qE "^hive (anchor|surface): " <<<"$s2"'
+    else
+      echo "INFO S-021 AC3 drop2: the enter came after the position (${pre2} anchor lines before it); the no-placement rule does not apply"
+    fi
     # anchor_first SEG: the first "hive anchor" line comes before the first
     # "hive surface" line.
     anchor_first() {
@@ -817,11 +899,12 @@ PY
       b=$(grep -nE '^hive surface: ' <<<"$1" | head -1 | cut -d: -f1)
       [ -n "$a" ] && [ -n "$b" ] && [ "$a" -lt "$b" ]
     }
-    for ((i = 0; i < 3; i++)); do
+    for i in 0 2 3; do
       check "S-019 AC5 drop$((i + 1)): a \"hive anchor\" line before the first \"hive surface\" line" 'anchor_first "$(seg_of "$i")"'
     done
+    # AC13 and S-020 AC13 on drop4 (moved from drop1, S-021).
     local seg cat gls dls dt=none pe pb ke
-    seg=$(seg_of 0); cat=$(catcher_of "$seg")
+    seg=$(seg_of 3); cat=$(catcher_of "$seg")
     gls=$(grep -E -- "${R}zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" <<<"$seg" | head -1)
     dls=$(grep -E -- "${R}zwlr_layer_surface_v1[#@][0-9]+\.destroy\(" <<<"$seg" | head -1)
     [ -n "$gls" ] && [ -n "$dls" ] && dt=$(( $(ts_ms "$dls") - $(ts_ms "$gls") ))
@@ -838,13 +921,14 @@ PY
       | awk -v X="${hx:-0}" -v Y="${hy:-0}" -v W="${hw:-0}" -v H="${hh:-0}" '!($1 >= X && $1 <= X + W && $2 >= Y && $2 <= Y + H) { n++ } END { print n + 0 }')
     pb=$(evcount 'wl_pointer[#@][0-9]+\.button\(' "$seg")
     ke=$(evcount 'wl_keyboard[#@][0-9]+\.enter\(' "$seg")
-    echo "INFO drop1: GTK clicks $(clicks_of 0), layer destroys $(layer_destroys "$seg"), shown for ${dt} ms, pointer enter on the catcher $pe (outside the hive ${hx:-?} ${hy:-?} ${hw:-?} ${hh:-?}: $pe_out), pointer buttons $pb, keyboard enter $ke"
-    check "AC13 drop mode: the click at (100, 700) reaches the GTK window (one click)" '[ "$(clicks_of 0)" -eq 1 ]'
-    check "S-020 AC13 drop mode: after the \"hive anchor\" line no pointer enter on the catcher outside the hive rectangle, and no wl_pointer.button for the click at (100, 700)" \
+    echo "INFO drop4: GTK clicks $(clicks_of 3), layer destroys $(layer_destroys "$seg"), shown for ${dt} ms, pointer enter on the catcher $pe (outside the hive ${hx:-?} ${hy:-?} ${hw:-?} ${hh:-?}: $pe_out), pointer buttons $pb, keyboard enter $ke"
+    check "AC13 drop mode (drop4, --at): the click at (100, 700) reaches the GTK window (one click)" '[ "$(clicks_of 3)" -eq 1 ]'
+    check "S-020 AC13 drop mode (drop4): after the \"hive anchor\" line no pointer enter on the catcher outside the hive rectangle, and no wl_pointer.button for the click at (100, 700)" \
       '[ -n "$cat" ] && [ -n "$hh" ] && grep -qE "^hive anchor: " <<<"$seg" && [ "$pe_out" -eq 0 ] && [ "$pb" -eq 0 ]'
-    check "AC13 drop mode: the catcher gets no keyboard (no wl_keyboard.enter)" '[ "$ke" -eq 0 ]'
-    check "AC13 drop mode: the hive stays after the click (closed once, by the 10 s timeout, not by the click)" \
+    check "AC13 drop mode (drop4): the catcher gets no keyboard (no wl_keyboard.enter)" '[ "$ke" -eq 0 ]'
+    check "AC13 drop mode (drop4): the catcher stays after the click (closed once, by the 10 s bound, not by the click)" \
       '[ "$(layer_destroys "$seg")" -eq 1 ] && [ "$dt" != none ] && [ "$dt" -ge 9000 ]'
+    probe_checks "drop4 (--at, pointer outside)" "$seg" cap
     check "AC13: no protocol error in the daemon log" 'no_protocol_error'
     ;;
 
@@ -936,7 +1020,9 @@ PY
         check "S-019 AC6 P = (400, 500): the hive is at (204, 319) within 1 px" 'near "$sx" 204 1 && near "$sy" 319 1'
       fi
       local box="none" bx by bw bh
-      [ -s "$log-before.png" ] && [ -s "$log-$name.png" ] && box=$(python3 -I "$HERE/boxdiff.py" "$log-before.png" "$log-$name.png" 8 2>&1)
+      local before="$log-before.png"
+      [ -s "$log-$name-before.png" ] && before="$log-$name-before.png"
+      [ -s "$before" ] && [ -s "$log-$name.png" ] && box=$(python3 -I "$HERE/boxdiff.py" "$before" "$log-$name.png" 8 2>&1)
       read -r bx by bw bh <<<"$box"
       echo "INFO S-019 $name: screenshot box $box"
       check "S-019 AC6 $name: the screenshot box lies inside the hive rectangle and the screen" \
@@ -965,6 +1051,9 @@ PY
 
   outputs)
     # S-019 AC5 and decision 1 on the output under the pointer or at --at.
+    # shellcheck source=../drop/layer.sh
+    source "$ROOT/tests/drop/layer.sh"
+    local OSRC=""
     near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
     check "S-019 outputs setup: kscreen-doctor lists Virtual-0 at 0,0 and Virtual-1 at 1280,0, both 1280x800" \
       'grep -qE "Virtual-0 [^ ]+ Geometry: 0,0 1280x800" <<<"$outputs" && grep -qE "Virtual-1 [^ ]+ Geometry: 1280,0 1280x800" <<<"$outputs"'
@@ -977,9 +1066,27 @@ PY
     oshow() { # oshow NAME KIND GX GY
       kinds+=("$2"); gxs+=("$3"); gys+=("$4")
       if [ "$2" = at ]; then
-        echo "move $3 $4" >&3; sleep 1
+        # S-021: a drop show with no drag is hidden, never drawn, when the
+        # pointer is inside the hive. So the show is a PNG drag (source.py
+        # on Virtual-0) held still at the point, `sbarhive drop --at`, then
+        # a 1 px drag motion there: the drag enters and the hive is drawn.
+        # The before shot for its box is taken with the drag held, so the
+        # source window is in both shots.
+        local snext="$XDG_RUNTIME_DIR/next" k
+        cp "$ROOT/tests/fixtures/images/alpha.png" "$W/held.png"
+        printf '%s\n' "$W/held.png" >"$snext"
+        GTK_A11Y=none python3 "$ROOT/tests/drop/source.py" "$snext" >"$log-source.log" 2>&1 &
+        OSRC=$!
+        sleep 3
+        echo "move 150 150" >&3; echo "sleep 200" >&3; echo "down" >&3; echo "sleep 200" >&3
+        for k in 1 2 3 4 5 6; do echo "move $((150 + k * 10)) $((150 + k * 5))" >&3; echo "sleep 50" >&3; done
+        echo "move $(( (150 + $3) / 2 )) $(( (180 + $4) / 2 ))" >&3; echo "sleep 100" >&3
+        echo "move $3 $4" >&3; sleep 2.5
+        shot_ws "$log-$1-before.png"
         begin "$1"
         "$BIN/sbarhive" drop --at "$3,$4" >>"$log-cli.log" 2>&1
+        sleep 0.5
+        jitter "$3" "$4" 200
       else
         begin "$1"
         jitter "$3" "$4" 600
@@ -988,8 +1095,10 @@ PY
       sleep 1.5
       shot_ws "$log-$1.png"
       if [ "$2" = at ]; then
-        # A drop show with no drag closes by its 10 s timeout.
+        # Released over the centre cell (refused): the hive closes at once.
+        echo "up" >&3
         local i; for i in $(seq 120); do [ "$(layer_destroys "$(between "${marks[-1]}" "$(lines "$DLOG")")")" -ge 1 ] && break; sleep 0.1; done
+        kill "$OSRC" 2>/dev/null
       else
         esc
       fi
@@ -1011,7 +1120,9 @@ PY
       read -r _ _ _ sx sy sw sh <<<"$sl"
       local sets; sets=$(grep -cE -- "${R}wl_subsurface[#@][0-9]+\.set_position\(" <<<"$seg")
       local box="none" bx by bw bh
-      [ -s "$log-before.png" ] && [ -s "$log-$name.png" ] && box=$(python3 -I "$HERE/boxdiff.py" "$log-before.png" "$log-$name.png" 8 2>&1)
+      local before="$log-before.png"
+      [ -s "$log-$name-before.png" ] && before="$log-$name-before.png"
+      [ -s "$before" ] && [ -s "$log-$name.png" ] && box=$(python3 -I "$HERE/boxdiff.py" "$before" "$log-$name.png" 8 2>&1)
       read -r bx by bw bh <<<"$box"
       local orc="" ok_box=no mr ocx ocy ocn obx oby obw obh
       [ -n "$ay" ] && orc=$(python3 -I "$HERE/anchor.py" "$ROOT/design/tokens.json" 1280 800 "$ax" "$ay" "$nact")
@@ -1027,6 +1138,7 @@ PY
       check "S-019 AC5 outputs $name: the \"hive surface\" line is the AC3 placement for that anchor on 1280x800 (1 px)" '[ "$ok_box" = yes ]'
       if [ "$kind" = at ]; then
         check "S-019 decision 1 outputs $name: \`drop --at\` with global coordinates anchors at once (exactly one wl_subsurface.set_position)" '[ "$sets" -eq 1 ]'
+        probe_checks "outputs $name (PNG drag, --at)" "$seg" reveal
       fi
     done
     check "S-019 outputs: no protocol error in the daemon log" 'no_protocol_error'
