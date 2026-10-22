@@ -276,8 +276,11 @@ layer_drop_show() {
 #                        pointer (wl_pointer.enter on the catcher: no drag),
 #                        no-uri-list (the offer has no text/uri-list),
 #                        no-actions (the files have no action), release (the
-#                        key of `drop --hold` let go) or cap (10 s with no
-#                        event, ENTER_TIMEOUT)
+#                        key of `drop --hold` let go), cap (10 s with no
+#                        event, ENTER_TIMEOUT) or replaced (S-022 AC7: a new
+#                        drop show came while this one was still probing;
+#                        printed while the new show is made, so a check
+#                        across both shows reads it, see repro.sh)
 # The lines carry no timestamp, so "before" is the line order of that
 # stream. "Visible" is the first attach(wl_buffer) on the hive subsurface
 # (the wl_surface given to get_subsurface); the catcher still takes its one
@@ -302,9 +305,9 @@ probe_show() {
   child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
   all=$(grep -cE '^hive (reveal|probe):' <<<"$seg")
   rev=$(grep -cE '^hive reveal: [0-9]+$' <<<"$seg")
-  hid=$(grep -cE '^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap)\)$' <<<"$seg")
+  hid=$(grep -cE '^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap|replaced)\)$' <<<"$seg")
   rl=$(grep -nE '^hive reveal: [0-9]+$' <<<"$seg" | head -1)
-  hl=$(grep -nE '^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap)\)$' <<<"$seg" | head -1)
+  hl=$(grep -nE '^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap|replaced)\)$' <<<"$seg" | head -1)
   [ -n "$rl" ] && n=${rl##* }
   [ -n "$hl" ] && r=$(sed -nE 's/.*hidden \(([a-z-]+)\)$/\1/p' <<<"$hl")
   if [ -n "$rl" ]; then
@@ -323,7 +326,8 @@ probe_show() {
 
 # probe_checks NAME SEG WANT: the S-021 checks of one drop show on the layer
 # path. WANT is "reveal" (a drag of files with an action enters) or the
-# reason of the hide (pointer, no-uri-list, no-actions, release, cap).
+# reason of the hide (pointer, no-uri-list, no-actions, release, cap,
+# replaced).
 # Sets PROBE (probe_show's fields) for the caller's own checks.
 probe_checks() {
   local name=$1 seg=$2 want=$3
@@ -376,4 +380,67 @@ reveal_budget() {
   echo "INFO S-021 AC8 $name: ms from the first wl_data_device.enter on the catcher to the hive's first attach, per revealed show: $* (worst ${worst}, within 0 to 150 ms: $ok of $want)"
   check "S-021 AC8 $name: in every revealed show ($want) the hive's first attach comes at most 150 ms after the first wl_data_device.enter on the catcher, by the daemon's trace timestamps" \
     '[ "$n" -eq "$want" ] && [ "$ok" -eq "$want" ]'
+}
+
+# S-022 (backlog/S-022-drop-followups.md): helpers shared by
+# tests/hyprland/repro.sh and tests/drop/kwin.sh.
+#
+# attach_burst SEG MS (AC4): the attach(wl_buffer) requests on the hive
+# subsurface (the first get_subsurface's wl_surface in SEG) whose trace
+# stamp is at most MS ms after the first one, that one included ("none"
+# when there is none). The opening animation (hive-open, 120 ms) draws a
+# frame per output refresh; with no animation the reveal draws one or two.
+attach_burst() {
+  local seg=$1 ms=$2 child
+  child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  [ -n "$child" ] || { echo none; return; }
+  grep -E -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" |
+    sed -nE 's/^\[([0-9]+):([0-9]+):([0-9]+\.[0-9]+)\].*/\1 \2 \3/p' |
+    awk -v m="$ms" '{ t = ($1 * 3600 + $2 * 60 + $3) * 1000; if (NR == 1) f = t; if (t - f <= m) n++ }
+      END { if (NR == 0) print "none"; else print n }'
+}
+
+# again_checks NAME SEG NACT WEBP (AC1, AC2): the drag after a `drop
+# --release` over a revealed hive. SEG is the new show's trace, NACT the
+# number of `sbarhive actions` lines for its file, WEBP the file its drop on
+# the WEBP cell must write. Its enter is read: exactly one "drop cells:"
+# line, "hive reveal: N" with N = NACT, a wl_data_offer.accept that names a
+# type (not nil), and the WEBP written; plus probe_checks for the show.
+again_checks() {
+  local name=$1 seg=$2 nact=$3 webp=$4 ncl acc rn mime
+  ncl=$(grep -cE '^drop cells:' <<<"$seg")
+  acc=$(grep -cE -- '-> wl_data_offer[#@][0-9]+\.accept\([0-9]+, "' <<<"$seg")
+  rn=$(grep -E '^hive reveal: [0-9]+$' <<<"$seg" | head -1 | grep -oE '[0-9]+$')
+  mime=$(file --mime-type -b "$webp" 2>/dev/null)
+  echo "INFO S-022 $name: drop cells lines $ncl, hive reveal ${rn:-none} (sbarhive actions $nact), accept with a type $acc, $(basename "$webp") ${mime:-not written}"
+  check "S-022 $name: the new drag's enter is read: exactly one \"drop cells:\" line, \"hive reveal: N\" with N the $nact lines of \`sbarhive actions\`, and a wl_data_offer.accept that names a type" \
+    '[ "$ncl" -eq 1 ] && [ -n "$rn" ] && [ "$nact" -ge 1 ] && [ "$rn" -eq "$nact" ] && [ "$acc" -ge 1 ]'
+  check "S-022 $name: dropped on the WEBP cell, $(basename "$webp") is written (image/webp)" '[ "$mime" = image/webp ]'
+  probe_checks "S-022 $name" "$seg" reveal
+}
+
+# replace_checks NAME SEG (AC7): two `drop --at` shows with no drag, the
+# second while the first still probes, then the pointer moves into the
+# second's rectangle. SEG spans both shows (the first one's line is printed
+# while the second is made). Exactly two probe lines in SEG, "hive probe:
+# hidden (replaced)" then "hive probe: hidden (pointer)"; the first comes
+# after the first "hive surface:" line and before the second; two
+# get_layer_surface; no attach(wl_buffer) on any hive subsurface of SEG.
+replace_checks() {
+  local name=$1 seg=$2 lines gls subs c att=0 s1 s2 r1
+  lines=$(grep -E '^hive (reveal|probe):' <<<"$seg")
+  gls=$(grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' <<<"$seg")
+  subs=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | grep -oE 'wl_surface[#@][0-9]+$')
+  for c in $subs; do att=$((att + $(grep -cE -- "-> ${c}\.attach\(wl_buffer" <<<"$seg"))); done
+  s1=$(grep -nE '^hive surface: ' <<<"$seg" | sed -n 1p | cut -d: -f1)
+  s2=$(grep -nE '^hive surface: ' <<<"$seg" | sed -n 2p | cut -d: -f1)
+  r1=$(grep -nE '^hive (reveal|probe):' <<<"$seg" | head -1 | cut -d: -f1)
+  echo "INFO S-022 $name: probe lines $(tr '\n' '|' <<<"$lines"), first at segment line ${r1:-none}, hive surface lines at ${s1:-none} and ${s2:-none} (of $(grep -cE '^hive surface: ' <<<"$seg")), get_layer_surface x$gls, hive subsurfaces $(tr "\n" " " <<<"$subs"), attach on them $att"
+  check "S-022 AC7 $name: exactly two probe lines, \"hive probe: hidden (replaced)\" then \"hive probe: hidden (pointer)\"" \
+    '[ "$lines" = "hive probe: hidden (replaced)
+hive probe: hidden (pointer)" ]'
+  check "S-022 AC7 $name: the \"replaced\" line comes between the two shows' \"hive surface:\" lines, after two get_layer_surface in all" \
+    '[ "$gls" -eq 2 ] && [ -n "$s1" ] && [ -n "$s2" ] && [ -n "$r1" ] && [ "$r1" -gt "$s1" ] && [ "$r1" -lt "$s2" ]'
+  check "S-022 AC7 $name: no attach on either show's hive subsurface (nothing drawn)" \
+    '[ -n "$subs" ] && [ "$att" -eq 0 ]'
 }

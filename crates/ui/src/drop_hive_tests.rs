@@ -636,3 +636,198 @@ fn ac9_s021a_two_hides_without_a_drag_then_a_held_png_drag_reveals() {
     hive.key_released();
     assert_eq!(log.dismissed.get(), 2, "no dismiss after the drop");
 }
+
+// ------------------------------------------------------------------------
+// S-022 (backlog/S-022-drop-followups.md, AC3 and AC8): the opening
+// animation of a probed drop show starts at its reveal, and a new show over
+// a probing one ends it with the reason `replaced` and no dismissal.
+//
+// Contract (written by the tester from the acceptance criteria; do not edit):
+// - `opened` (`HiveWindow::get_opened` and `set_opened`) is the property the
+//   opening animation runs to, and `Inner::opener` the timer that sets it
+//   after the bind, as today. The tests stop `opener` and set `opened` to
+//   false right after putting the show in `Probing`, which is what `show()`
+//   does on the layer path (no `opener` while `Probing`, AC4 checks that
+//   half on a real compositor). From there only the reveal (`Probing` to
+//   `Waiting` in `Inner::drag`) sets it: with motion within one turn of the
+//   event loop (`mock_elapsed_time`), with reduced motion at once. A later
+//   `Waiting` (the drag leaving a cell) does not open it again.
+// - Normal shows and window path drop shows: `opened` true once the bind's
+//   `opener` has run, as today.
+// - `Inner::replace(&self) -> Option<&'static str>`: ends the shown hive
+//   for a new show and gives the reason the replaced show prints. It is
+//   `Some("replaced")` when that show was `Probing` and `None` when it was
+//   `Waiting`, `Over`, `Normal` or already hidden. It never calls
+//   `on_dismiss` (decision 8). `show()` replaces a visible hive through it,
+//   and layer.rs prints `hive probe: hidden (replaced)` for `Some`.
+// - Reduced motion is read once, by `Hive::new`, from
+//   `SBARHIVE_REDUCED_MOTION`, so one test builds both hives with the
+//   variable set, then removes it (the environment is shared by threads).
+
+fn opened(hive: &Hive) -> bool {
+    hive.inner.ui.borrow().get_opened()
+}
+
+/// The layer path's start of a probed show, on the headless platform.
+fn probe_closed(hive: &Hive, hold: bool, since: Instant) {
+    probe_since(hive, hold, since);
+    hive.inner.opener.stop();
+    hive.inner.ui.borrow().set_opened(false);
+}
+
+/// One turn of the event loop: the timers due now run.
+fn turn() {
+    i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(1));
+}
+
+/// A hive built with `SBARHIVE_REDUCED_MOTION` set to `value`, wired as
+/// `probing_hive` is (the platform is installed by the caller, once).
+fn hive_with_motion(value: &str) -> (Hive, Rc<Log>) {
+    // SAFETY: the variable is read by `Hive::new` only, set and removed in
+    // this one test, which builds every hive that depends on it.
+    unsafe { std::env::set_var("SBARHIVE_REDUCED_MOTION", value) };
+    let hive = Hive::new(Lang::En);
+    unsafe { std::env::remove_var("SBARHIVE_REDUCED_MOTION") };
+    let hive = hive.unwrap();
+    let log = Rc::new(Log::default());
+    let l = log.clone();
+    hive.on_choose(move |id| l.chosen.borrow_mut().push(id));
+    let l = log.clone();
+    hive.on_dismiss(move || l.dismissed.set(l.dismissed.get() + 1));
+    hive.on_drop_files(|files| {
+        if !files.is_empty()
+            && files
+                .iter()
+                .all(|f| f.extension().is_some_and(|e| e == "png"))
+        {
+            ("1 image".into(), cells())
+        } else {
+            (NO_ACTIONS.into(), Vec::new())
+        }
+    });
+    (hive, log)
+}
+
+#[test]
+fn ac3_s022_the_opening_animation_starts_at_the_reveal() {
+    i_slint_backend_testing::init_no_event_loop();
+    let (hive, log) = hive_with_motion("0");
+    let (calm, _) = hive_with_motion("1");
+    let png = PathBuf::from("/tmp/a.png");
+    let txt = PathBuf::from("/tmp/notes.unknownext");
+
+    // With motion. The cap's last moment: still probing, still closed.
+    hive.present_drop("", None).unwrap();
+    let since = Instant::now()
+        .checked_sub(Duration::from_secs_f64(9.9))
+        .unwrap();
+    probe_closed(&hive, false, since);
+    hive.inner.drag(dnd::Event::Tick);
+    turn();
+    assert_eq!(state(&hive), dnd::State::Probing, "9.9 s: still probing");
+    assert!(!opened(&hive), "9.9 s: not opened before the reveal");
+    // The reveal opens it within one turn of the loop.
+    on_note(Note::Enter(vec![png.clone()]));
+    assert_eq!(state(&hive), dnd::State::Waiting);
+    turn();
+    assert!(opened(&hive), "the reveal starts the opening animation");
+    // Only the reveal: a later Waiting (over a cell, then off it) does not
+    // open it again.
+    hive.inner.ui.borrow().set_opened(false);
+    on_note(Note::Motion(Some(1)));
+    on_note(Note::Motion(None));
+    assert_eq!(state(&hive), dnd::State::Waiting);
+    turn();
+    assert!(!opened(&hive), "no second opening after the reveal");
+    hive.close();
+
+    // Hidden before a reveal: never opened.
+    hive.present_drop("", None).unwrap();
+    probe_closed(&hive, false, Instant::now());
+    on_note(Note::Enter(vec![txt.clone()]));
+    assert_eq!(state(&hive), dnd::State::Hidden, "rejected");
+    turn();
+    assert!(!opened(&hive), "a rejected show is never opened");
+    hive.present_drop_at("", None, Some((400.0, 500.0)))
+        .unwrap();
+    probe_closed(&hive, false, Instant::now());
+    on_note(Note::PointerEnter);
+    assert_eq!(state(&hive), dnd::State::Hidden, "pointer");
+    turn();
+    assert!(
+        !opened(&hive),
+        "a show hidden by the pointer is never opened"
+    );
+
+    // As today: a normal show and a window path drop show open once the
+    // bind's timer has run.
+    hive.present("3 images", cells(), None).unwrap();
+    turn();
+    assert!(opened(&hive), "a normal show opens after the bind");
+    hive.close();
+    hive.present_drop("", None).unwrap();
+    assert_eq!(state(&hive), dnd::State::Waiting, "the window path waits");
+    turn();
+    assert!(
+        opened(&hive),
+        "a window path drop show opens after the bind"
+    );
+    hive.close();
+
+    // Reduced motion: opened at the reveal itself, no loop turn needed.
+    calm.present_drop_hold("", None, None).unwrap();
+    probe_closed(&calm, true, Instant::now());
+    on_note(Note::Enter(vec![png.clone()]));
+    assert_eq!(state(&calm), dnd::State::Waiting);
+    assert!(opened(&calm), "reduced motion: opened at the reveal");
+    calm.close();
+    assert_eq!(log.dismissed.get(), 2, "the reject and the pointer hide");
+}
+
+#[test]
+fn ac8_s022_a_new_show_over_a_probing_one_is_replaced_without_dismissal() {
+    let (hive, log) = probing_hive();
+    let png = PathBuf::from("/tmp/a.png");
+
+    // Probing: the reason `replaced`, once, and no on_dismiss.
+    hive.present_drop_at("", None, Some((500.0, 300.0)))
+        .unwrap();
+    probe(&hive, false);
+    assert_eq!(hive.inner.replace(), Some("replaced"));
+    assert!(!hive.inner.visible(), "the replaced show is gone");
+    assert_eq!(state(&hive), dnd::State::Hidden);
+    assert_eq!(log.dismissed.get(), 0, "replacing does not dismiss");
+    assert_eq!(hive.inner.replace(), None, "one reason per show");
+    assert_eq!(log.dismissed.get(), 0);
+
+    // The same through a new show: the first is replaced, the second shown.
+    hive.present_drop_hold("", None, None).unwrap();
+    probe(&hive, true);
+    hive.present_drop_hold("", None, None).unwrap();
+    assert!(hive.inner.visible(), "the new show is up");
+    assert_eq!(
+        state(&hive),
+        dnd::State::Waiting,
+        "the new show (window path)"
+    );
+    assert_eq!(log.dismissed.get(), 0, "no dismissal for the replaced show");
+
+    // Waiting, Over and Normal: no reason, and no dismissal either.
+    assert_eq!(hive.inner.replace(), None, "Waiting");
+    hive.present_drop("", None).unwrap();
+    on_note(Note::Enter(vec![png.clone()]));
+    on_note(Note::Motion(Some(0)));
+    assert_eq!(state(&hive), dnd::State::Over(0));
+    assert_eq!(hive.inner.replace(), None, "Over");
+    hive.present_drop("", None).unwrap();
+    probe(&hive, false);
+    on_note(Note::Enter(vec![png.clone()]));
+    assert_eq!(state(&hive), dnd::State::Waiting, "revealed");
+    assert_eq!(hive.inner.replace(), None, "a revealed show");
+    hive.present("3 images", cells(), None).unwrap();
+    assert_eq!(state(&hive), dnd::State::Normal);
+    assert_eq!(hive.inner.replace(), None, "Normal");
+    assert!(!hive.inner.visible());
+    assert_eq!(log.dismissed.get(), 0);
+    assert!(log.chosen.borrow().is_empty());
+}

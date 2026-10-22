@@ -107,9 +107,23 @@
 # wl_data_offer.accept with a type, no new file, and a new drag begins
 # afterwards; a drag of a plain string (source.py "text:", no
 # text/uri-list) gives "hidden (no-uri-list)" and no wl_data_offer.receive.
-# 39 checks, 46 with --quasimode. The S-021 checks run in layer mode only
-# (decision 1: the window path keeps its behaviour and prints no probe
-# line), so window mode runs 11 checks (18 with --quasimode).
+# S-022 (backlog/S-022-drop-followups.md), layer mode, on the same daemon:
+# AC7, the pointer still at (40, 40), `drop --at 500,300` twice 1 s apart,
+# then a move there: "hidden (replaced)" between the two shows' "hive
+# surface:" lines, then "hidden (pointer)", nothing drawn; AC1, a PNG drag,
+# `drop --hold`, the drag over the revealed hive's WEBP cell and `drop
+# --release` there (the layer destroyed within 500 ms, the button let go in
+# place writes no WEBP), then a second PNG drag whose enter is read (one
+# "drop cells:" line, "hive reveal: 15", an accept naming a type, its WEBP
+# written) and no protocol error; AC4, a PNG drag resting at the centre of
+# the revealed hive: 4 or more attach on the hive subsurface in the 200 ms
+# from its first with motion, 1 or 2 on a daemon with
+# SBARHIVE_REDUCED_MOTION=1, a normal show's count as INFO; AC5, the S-021
+# AC8 budget over eight revealed shows (AC9 (3), the two AC1 drags, the two
+# AC4 shows, cell, timeout, Esc).
+# 55 checks, 62 with --quasimode. The S-021 and S-022 checks run in layer
+# mode only (decision 1: the window path keeps its behaviour and prints no
+# probe line), so window mode runs 11 checks (18 with --quasimode).
 # Exit 0 only when none failed.
 # On Hyprland 0.56.2 the layer path gets no drag motion: Hyprland makes no
 # view for a subsurface of a layer surface, so its drag motion listener finds
@@ -326,16 +340,17 @@ print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
   printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   local DLOG="$log-daemon.log"
   : >"$DLOG"
-  # start_daemon [WL]: WL=1 (the default) adds WAYLAND_DEBUG=1. Show 1, the
-  # latency show, runs on a daemon without it, so the trace's writes are not
-  # part of the measured time.
-  local DAEMON_WL=1
+  # start_daemon [WL] [RM]: WL=1 (the default) adds WAYLAND_DEBUG=1. Show 1,
+  # the latency show, runs on a daemon without it, so the trace's writes are
+  # not part of the measured time. RM is SBARHIVE_REDUCED_MOTION, 0 (motion)
+  # by default; S-022 AC4 runs one show on a daemon with RM=1.
+  local DAEMON_WL=1 DAEMON_RM=0
   start_daemon() {
-    DAEMON_WL=${1:-1}
+    DAEMON_WL=${1:-1} DAEMON_RM=${2:-0}
     if [ "$DAEMON_WL" = 1 ]; then
-      SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+      SBARHIVE_REDUCED_MOTION=$DAEMON_RM SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
     else
-      SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+      SBARHIVE_REDUCED_MOTION=$DAEMON_RM SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
     fi
     d=$!
     pids+=("$d")
@@ -352,7 +367,7 @@ print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
     shown || return 0
     say "INFO hive still shown after $1; restarting the daemon"
     stop_daemon
-    start_daemon "$DAEMON_WL"
+    start_daemon "$DAEMON_WL" "$DAEMON_RM"
   }
 
   # Shown: a layer named sbarhive, or the window titled exactly SbarHive.
@@ -550,6 +565,27 @@ for c in json.load(sys.stdin):
     check "S-021 AC5 (c): \`drop --hold\` with the pointer still, the layer bound, then \`drop --release\` (exit 0 within 200 ms) removes it within 500 ms" \
       '[ "$h2seen" = yes ] && [ "$r2rc" = 0 ] && [ "$r2ms" -le 200 ] && [ "$h2gone" = yes ]'
     probe_checks "AC5 (c) and AC9 (2) drop --hold, release" "$seg93" release
+
+    # S-022 AC7 (backlog/S-022-drop-followups.md): a new drop show while the
+    # last one still probes. The pointer still at (40, 40), `drop --at
+    # 500,300` twice 1 s apart (the catcher's region is the hive rectangle
+    # from its first commit, so the still pointer is outside it), then the
+    # pointer moves to (500, 300): exactly two probe lines, "hidden
+    # (replaced)" for the first show, printed between the two shows' "hive
+    # surface:" lines, then "hidden (pointer)", and nothing drawn
+    # (layer.sh replace_checks, over one segment for both shows).
+    local m7 seg7=""
+    move 40 40; sleep 0.3
+    m7=$(wc -l <"$DLOG")
+    "$BIN/sbarhive" drop --at 500,300 >>"$log-cli.log" 2>&1
+    sleep 1
+    "$BIN/sbarhive" drop --at 500,300 >>"$log-cli.log" 2>&1
+    sleep 1
+    for i in 1 2 3 4 5 6 7 8; do move $((40 + i * 460 / 8)) $((40 + i * 260 / 8)); sleep 0.05; done
+    sleep 0.8
+    seg7=$(seg_from "$m7")
+    reset_hive "the S-022 AC7 pair"
+    replace_checks "pointer at (40, 40), drop --at 500,300 twice, then a move there" "$seg7"
   fi
 
   # Drop mode mid-drag, as the owner's Super+Z and Alt-hold bindings do: a
@@ -576,9 +612,8 @@ for c in json.load(sys.stdin):
     # (Hyprland sends wl_data_device.enter with the first motion, S-021 P3):
     # "hive reveal: N". Then the drag leaves the hive (it stays while the key
     # is held, S-019 decision 3), the button is let go over the source, and
-    # `drop --release` closes it. (Releasing the key with the drag still over
-    # the hive left the next show's enter unread on 2026-10-22, see the S-021
-    # review log; that order is not part of AC9.)
+    # `drop --release` closes it. Releasing the key with the drag still over
+    # the hive is S-022 AC1, below.
     local m94 seg94="" h3seen=no
     cp "$ROOT/tests/fixtures/images/alpha.png" "$W/cycle.png"
     printf '%s\n' "$W/cycle.png" >"$NEXT"
@@ -599,6 +634,110 @@ for c in json.load(sys.stdin):
     probe_checks "AC9 (3) PNG drag, drop --hold" "$seg94" reveal
     check "S-021 AC9: no protocol error in the daemon log after the cycle (hidden (pointer), hidden (release), then a reveal)" \
       '! grep -qE "wl_display[#@]1\.error\(|[Pp]rotocol error" "$DLOG"'
+
+    # S-022 AC1: `drop --release` with the drag over a revealed hive, then a
+    # new drag. A PNG drag, `drop --hold`, the drag into the centred hive
+    # ("hive reveal: N") and over its WEBP cell; `drop --release` there: the
+    # layer is destroyed within 500 ms of the release (a UTC stamp before
+    # the command against the trace's stamps), and the button let go in
+    # place writes no WEBP. Then a second PNG drag, `drop --hold` and the
+    # same moves: its enter is read (one "drop cells:" line, "hive reveal:
+    # N", N the 15 actions of a PNG, an accept naming a type), the drop on
+    # WEBP writes the second file, and the daemon log has no protocol error.
+    # On 2026-10-22 (S-021b) the second show's enter went unread.
+    local nact1 m1a m1b mrel t1 g1 gone1=none web1=no seg1a="" seg1b=""
+    nact1=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    # held_over_webp FILE: a drag of FILE, `drop --hold`, into the hive and
+    # over its WEBP cell (MARK is the show's start).
+    held_over_webp() {
+      local gx gy gw gh
+      cp "$ROOT/tests/fixtures/images/alpha.png" "$1"
+      printf '%s\n' "$1" >"$NEXT"
+      begin_drag
+      show "$BIN/sbarhive" drop --hold
+      read -r gx gy gw gh < <(geo)
+      if [ -n "${gw:-}" ]; then
+        sleep 0.5
+        move $((gx + gw / 2)) $((gy + gh / 2)); sleep 0.5
+        read -r gx gy gw gh < <(geo)
+        move_to_webp "$gx" "$gy" "$gw" "$gh"
+      fi
+    }
+    held_over_webp "$W/first.png"
+    m1a=$MARK
+    sleep 0.3
+    mrel=$(wc -l <"$DLOG"); t1=$(date -u +%T.%6N)
+    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1
+    sleep 0.7
+    echo "up" >&3
+    sleep 1.5
+    [ -e "$W/first.webp" ] && web1=yes
+    g1=$(seg_from "$mrel" | grep -m1 -E -- '-> zwlr_layer_surface_v1[#@][0-9]+\.destroy\(' | grep -oE '^\[[0-9:.]+\]')
+    [ -n "$g1" ] && gone1=$(awk -v a="$(tod "$t1")" -v b="$(tod "$g1")" 'BEGIN { d = b - a; if (d < -43200) d += 86400; printf "%.1f\n", d * 1000 }')
+    gone_within 30 || true
+    reset_hive "the S-022 AC1 release over the hive"
+    held_over_webp "$W/second.png"
+    m1b=$MARK
+    echo "up" >&3
+    for i in $(seq 30); do [ -s "$W/second.webp" ] && break; sleep 0.1; done
+    sleep 0.3
+    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1
+    sleep 0.5
+    seg1a=$(sed -n "$((m1a + 1)),${m1b}p" "$DLOG")
+    seg1b=$(seg_from "$m1b")
+    gone_within 30 || true
+    reset_hive "the S-022 AC1 drag after it"
+    say "INFO S-022 AC1: first drag, layer destroyed ${gone1} ms after \`drop --release\`, first.webp written $web1; second drag: $(grep -E '^(drop cells:|hive (reveal|probe):)' <<<"$seg1b" | tr '\n' '|')"
+    probe_checks "S-022 AC1 first drag, drop --hold, over WEBP" "$seg1a" reveal
+    local r1n; IFS='|' read -r _ _ _ r1n _ <<<"$PROBE"
+    check "S-022 AC1 first drag: \"hive reveal: N\" with N the $nact1 lines of \`sbarhive actions\`, then \`drop --release\` over the WEBP cell destroys the layer within 500 ms and the button let go there writes no WEBP" \
+      '[ "$r1n" != none ] && [ "$r1n" -eq "$nact1" ] && within_ms "$gone1" 500 && [ "$web1" = no ]'
+    again_checks "AC1 second drag after the release" "$seg1b" "$nact1" "$W/second.webp"
+    check "S-022 AC1: no protocol error in the daemon log after the two drags" \
+      '! grep -qE "wl_display[#@]1\.error\(|[Pp]rotocol error" "$DLOG"'
+
+    # S-022 AC4: the opening animation starts at the reveal. A PNG drag,
+    # `sbarhive drop` with the drag still, then one move to the centred
+    # hive's centre (no cell lit), where it rests 400 ms. The attach count
+    # on the hive subsurface in the 200 ms from its first one (layer.sh
+    # attach_burst): 4 or more on this daemon (motion), 2 or fewer on one
+    # with SBARHIVE_REDUCED_MOTION=1. A normal show with motion gives the
+    # calibration count (INFO). The daemon is then started again with
+    # motion, as before.
+    local PVSEG seg4m seg4r seg4n b4m b4r b4n
+    centre_rest() {
+      local gx gy gw gh
+      cp "$ROOT/tests/fixtures/images/alpha.png" "$1"
+      printf '%s\n' "$1" >"$NEXT"
+      begin_drag
+      show "$BIN/sbarhive" drop
+      read -r gx gy gw gh < <(geo)
+      sleep 0.6
+      [ -n "${gw:-}" ] && move $((gx + gw / 2)) $((gy + gh / 2))
+      sleep 0.4
+      PVSEG=$(seg_from "$MARK")
+      echo "up" >&3; sleep 0.5
+      gone_within 30 || true
+      reset_hive "the S-022 AC4 show"
+    }
+    centre_rest "$W/motion.png"; seg4m=$PVSEG
+    centre_ptr
+    show "$BIN/sbarhive" open "$W/photo.png"
+    sleep 0.6
+    seg4n=$(seg_from "$MARK")
+    key 1; gone_within 15 || true
+    reset_hive "the S-022 AC4 normal show"
+    stop_daemon
+    start_daemon 1 1
+    centre_rest "$W/calm.png"; seg4r=$PVSEG
+    stop_daemon
+    start_daemon 1 0
+    b4m=$(attach_burst "$seg4m" 200); b4r=$(attach_burst "$seg4r" 200); b4n=$(attach_burst "$seg4n" 200)
+    say "INFO S-022 AC4: hive subsurface attach in the 200 ms from the first: drop reveal with motion $b4m, with SBARHIVE_REDUCED_MOTION=1 $b4r; calibration, a normal show with motion $b4n"
+    check "S-022 AC4: a revealed drop show with motion draws its opening animation: 4 or more attach on the hive subsurface in the 200 ms from its first" \
+      '[ "$b4m" != none ] && [ "$b4m" -ge 4 ]'
+    check "S-022 AC4: with SBARHIVE_REDUCED_MOTION=1 the reveal draws 1 or 2 attach in those 200 ms (no animation)" \
+      '[ "$b4r" != none ] && [ "$b4r" -ge 1 ] && [ "$b4r" -le 2 ]'
   fi
 
   # drag_case CASE: sets MOTIONS (wl_data_device.motion events the hive got),
@@ -679,12 +818,14 @@ for c in json.load(sys.stdin):
     say "INFO S-021 AC3 timeout drag: probe lines $tall (reveal $trev); Esc drag: probe lines $eall (reveal $erev)"
     check "S-021 AC3 timeout and Esc drags: each prints exactly one probe line, \"hive reveal: N\"" \
       '[ "$tall" -eq 1 ] && [ "$trev" -eq 1 ] && [ "$eall" -eq 1 ] && [ "$erev" -eq 1 ]'
-    # S-021 AC8 (the owner's budget, question 1): the four revealed shows
-    # (AC9 (3), cell, timeout, Esc) are visible, the hive's first attach, at
+    # S-021 AC8 (the owner's budget, question 1) and S-022 AC5: the eight
+    # revealed shows (AC9 (3), the two S-022 AC1 drags, the two S-022 AC4
+    # shows, cell, timeout, Esc) are visible, the hive's first attach, at
     # most 150 ms after the drag's first enter on the catcher, by the
     # daemon's trace timestamps.
-    reveal_budget "AC9 (3), cell, timeout and Esc drags" 4 \
-      "$(reveal_ms "${seg94:-}")" "$(reveal_ms "$CELL_SEG")" "$(reveal_ms "$TIMEOUT_SEG")" "$(reveal_ms "$ESC_SEG")"
+    reveal_budget "AC9 (3), S-022 AC1 (two) and AC4 (two), cell, timeout and Esc drags" 8 \
+      "$(reveal_ms "${seg94:-}")" "$(reveal_ms "${seg1a:-}")" "$(reveal_ms "${seg1b:-}")" "$(reveal_ms "${seg4m:-}")" "$(reveal_ms "${seg4r:-}")" \
+      "$(reveal_ms "$CELL_SEG")" "$(reveal_ms "$TIMEOUT_SEG")" "$(reveal_ms "$ESC_SEG")"
 
     # S-021 AC6: a drag the hive has nothing for. no_drop KIND sets NSEG (the
     # show's trace), NNEW (files new in the work folder) and NAFTER (a new drag
@@ -950,6 +1091,7 @@ mkdir -p "$SANDBOX/.config" "$SANDBOX/.local/share" "$SANDBOX/.cache" "$SANDBOX/
 # activates can reach the live desktop or the real profile.
 env -u DISPLAY -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
   -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID -u SBARHIVE_SURFACE \
+  -u SBARHIVE_REDUCED_MOTION \
   HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
   XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" XDG_RUNTIME_DIR="$RUNTIME" \
   GIO_USE_VFS=local GVFS_DISABLE_FUSE=1 \

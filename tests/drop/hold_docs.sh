@@ -41,11 +41,20 @@
 #                 "لا شيء".
 #     docs/architecture.md: one section names the `Probing` state, the
 #     `hive reveal` and `hive probe` lines, a hidden catcher ("hidden" and
-#     "catcher" in one sentence) and all five hide reasons as words:
-#     pointer, no-uri-list, no-actions, release and cap.
-#   S-021 AC11: CHANGELOG.md, under "## [Unreleased]" (up to the next "## ["
-#   heading), one line that names S-021 (or S-021a, b, c) with Arabic and
-#   English text, as the file's other entries are written.
+#     "catcher" in one sentence) and all six hide reasons as words:
+#     pointer, no-uri-list, no-actions, release, cap and replaced (S-022
+#     AC9 added replaced).
+#   S-021 AC11: CHANGELOG.md has one line that names S-021 (or S-021a, b,
+#   c) with Arabic and English text, as the file's other entries are
+#   written; it was under "## [Unreleased]" until the 0.3.1 release.
+#   S-022 AC9 (backlog/S-022-drop-followups.md): that same section of
+#   docs/architecture.md also says the opening animation starts at the
+#   reveal ("open" or "opening", then "animation", and "reveal" within 120
+#   characters either way, line ends included); CHANGELOG.md, under
+#   "## [Unreleased]" (up to the next "## [" heading), has one line that
+#   names S-022 with Arabic and English text.
+#   S-022 AC10: no prose line of tests/drop/README.md is longer than 80
+#   columns (characters); lines inside ``` fences are not counted.
 #   No em dash or en dash in any of these files, nor in tests/drop/README.md.
 # Usage: tests/drop/hold_docs.sh
 # shellcheck disable=SC2016,SC2034
@@ -84,7 +93,8 @@ KEYS = {
     "probing": re.compile(r"\bProbing\b"),
     "reveal-line": re.compile(r"\bhive reveal\b"),
     "probe-line": re.compile(r"\bhive probe\b"),
-    "reasons": re.compile(r"(?s)" + "".join(r"(?=.*(?<![\w-])" + w + r"(?![\w-]))" for w in ("pointer", "no-uri-list", "no-actions", "release", "cap"))),
+    "reasons": re.compile(r"(?s)" + "".join(r"(?=.*(?<![\w-])" + w + r"(?![\w-]))" for w in ("pointer", "no-uri-list", "no-actions", "release", "cap", "replaced"))),
+    "open-at-reveal": re.compile(r"(?is)\bopen(?:ing)?\s+animation\b.{0,120}?\breveal|\breveal.{0,120}?\bopen(?:ing)?\s+animation\b"),
 }
 # S-021 AC12: keys met by one sentence of the prose, every pattern of one
 # list (English patterns ignore case).
@@ -155,10 +165,19 @@ for lang in ar en; do
   check "S-021 AC12: Hyprland README, one $name section says the hive shows only during a drag of files with an action, to start the drag first and then hold the key, and that with no drag or for a file with no action nothing shows" \
     'has "$HYPR" $lang only first nothing'
 done
-check "S-021 AC12: docs/architecture.md, one section describes the probe: the Probing state, the hidden catcher, the \"hive reveal\" and \"hive probe\" lines and the five hide reasons (pointer, no-uri-list, no-actions, release, cap)" \
+check "S-021 AC12, S-022 AC9: docs/architecture.md, one section describes the probe: the Probing state, the hidden catcher, the \"hive reveal\" and \"hive probe\" lines and the six hide reasons (pointer, no-uri-list, no-actions, release, cap, replaced)" \
   'has "$ARCH" en probing hidden-catcher reveal-line probe-line reasons'
-check "S-021 AC11: CHANGELOG.md has a line under [Unreleased] that names S-021 in English and in Arabic" \
-  'awk "/^## \\[Unreleased\\]/ { u = 1; next } /^## \\[/ { u = 0 } u" "$LOG" | grep -E "S-021" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
+check "S-022 AC9: docs/architecture.md, that section also says the opening animation starts at the reveal" \
+  'has "$ARCH" en probing reveal-line probe-line reasons open-at-reveal'
+check "S-021 AC11: CHANGELOG.md has a line that names S-021 in English and in Arabic (released in 0.3.1)" \
+  'grep -E "S-021" "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
+check "S-022 AC9: CHANGELOG.md has a line under [Unreleased] that names S-022 in English and in Arabic" \
+  'awk "/^## \\[Unreleased\\]/ { u = 1; next } /^## \\[/ { u = 0 } u" "$LOG" | grep -E "S-022" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
+# S-022 AC10: prose lines of tests/drop/README.md over 80 columns, outside
+# ``` fences ("LINE:COLUMNS" each).
+long=$(awk '/^```/ { f = !f; next } !f && length($0) > 80 { printf "%d:%d ", NR, length($0) }' "$HERE/README.md")
+echo "INFO S-022 AC10: tests/drop/README.md prose lines over 80 columns: ${long:-none}"
+check "S-022 AC10: no prose line of tests/drop/README.md is longer than 80 columns (outside code fences)" '[ -z "$long" ]'
 check "S-019 AC22/AC23, S-021 AC12: no em dash or en dash in these files" \
   '! grep -nP "\x{2014}|\x{2013}" "$HYPR" "$README" "$ARCH" "$ADR" "$LOG" "$HERE/README.md"'
 if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi

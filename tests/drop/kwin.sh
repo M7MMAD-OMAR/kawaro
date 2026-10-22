@@ -112,6 +112,17 @@
 #                the daemon running (AC18): the next press shows after
 #                950 ms and by 1150 ms, then the file is removed.
 # Every show is also checked by tests/drop/layer.sh (S-019 AC8, AC9).
+# S-022 (backlog/S-022-drop-followups.md): AC2, the hold-over show prints
+# one "hive reveal: N" (N the PNG's actions), and after its release over
+# the WEBP cell a new PNG drag, the press, the WEBP cell and the drop: one
+# "drop cells:" line, "hive reveal: N", an accept naming a type, held
+# again.webp written, no protocol error (layer.sh again_checks); AC5, the
+# S-021 AC8 budget over 15 revealed shows (1 to 13 and these two), checked
+# after hold_cycles; AC6, the over and thumb shots start 300 ms or more
+# after their show's first hive attach (shot_times); AC7, `drop --at
+# 640,400` twice 1 s apart with the pointer at (100, 700), then a move to
+# (640, 400): "hidden (replaced)" then "hidden (pointer)", nothing drawn
+# (layer.sh replace_checks).
 # Daemon lines (SBARHIVE_DEBUG_FOCUS): "hive anchor: X Y" or
 # "hive anchor: none" before each placement's "hive surface: layer X Y W H";
 # the drop-mode move to the first position prints both again.
@@ -245,6 +256,9 @@ inner() {
   shoot() { # shoot NAME X Y W H
     local full="$OUT_LOG-shot-$1.png"
     rm -f "$full" "$OUT/drop-en-light-$1.png"
+    # S-022 AC6: the UTC time just before the shot starts (shot.py captures
+    # at its D-Bus call, a little later), as SHOT_AT_NAME.
+    printf -v "SHOT_AT_$1" '%s' "$(date -u +%T.%6N)"
     timeout 10 python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/shot.py" "$full" >>"$log-shot.log" 2>&1 &
     SHOTS+=("$!")
     sleep 1.5
@@ -333,6 +347,27 @@ inner() {
     echo "INFO S-019 AC15 show 13: hive ${geo13:-not over the centre}, sky pixels in the centre box ${sky:-none} (crop: $OUT/drop-en-light-thumb.png)"
     check "S-019 AC15 show 13: over the centre cell after enter, 200 or more pixels of the seeded thumbnail's colour in the centre" \
       '[ "${sky:-0}" -ge 200 ]'
+  }
+
+  # S-022 AC6: the over shot (show 1) and the thumb shot (show 13) come 300
+  # ms or more after their show's first attach on the hive subsurface (the
+  # reveal, whose opening animation lasts 120 ms), by the trace's stamps
+  # against SHOT_AT_NAME. The waiting shot is before the enter, so not here.
+  # After protocol_checks, which closes MARKS.
+  shot_times() {
+    local name n seg child a at dt ok
+    for name in over thumb; do
+      n=1; [ "$name" = thumb ] && n=13
+      seg=$(sed -n "$((MARKS[n - 1] + 1)),$((MARKS[n]))p" "$DLOG")
+      child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+      a=""; [ -n "$child" ] && a=$(grep -m1 -E -- "-> ${child}\.attach\(wl_buffer" <<<"$seg" | grep -oE '^\[[0-9:.]+\]')
+      at="SHOT_AT_$name"; at=${!at:-}
+      dt=none
+      [ -n "$a" ] && [ -n "$at" ] && dt=$(awk -v a="$(tod "$a")" -v b="$(tod "$at")" 'BEGIN { d = b - a; if (d < -43200) d += 86400; printf "%.1f\n", d * 1000 }')
+      echo "INFO S-022 AC6 show $n: the $name shot starts ${dt} ms after the hive's first attach"
+      check "S-022 AC6 show $n: the $name shot comes 300 ms or more after the show's first attach on the hive subsurface (the opening animation is over)" \
+        'awk -v d="$dt" "BEGIN { exit !(d != \"none\" && d + 0 >= 300) }"'
+    done
   }
 
   # anchor_cycle N KIND X Y: one S-019 AC10 show with the drag held at P.
@@ -547,6 +582,7 @@ inner() {
     before=$(find "$W" -type f | sort)
     drag_past_threshold
     press
+    local ho_mark=$M_PRESS
     geo=$(wait_geo 3) || true
     local stayed=no
     if [ -n "$geo" ]; then
@@ -571,6 +607,41 @@ inner() {
     check "S-019 AC13 hold-over: the release over the WEBP cell destroys the layer surface within 500 ms" \
       'cli_ok "$R_RC" "$R_MS" && in_ms "$d" -1 500'
     check "S-019 AC13 hold-over: the drop after the release writes no file" '[ -n "$geo" ] && [ "$after" = "$before" ]'
+    wait_gone 12 || true; sleep 0.5
+
+    # S-022 AC2: the drag after that release over the hive, as AC1 in
+    # tests/hyprland/repro.sh. The hold-over show above revealed ("hive
+    # reveal: N"); a new PNG drag, the press, the hive, the WEBP cell and the
+    # drop: its enter is read (one "drop cells:" line, "hive reveal: N", an
+    # accept naming a type), held again.webp is written, and no protocol
+    # error. Both shows count for S-021 AC8 (S-022 AC5).
+    HOLD_OVER_SEG=$(sed -n "$((ho_mark + 1)),\$p" "$DLOG")
+    local nact; nact=$(action_ids "$file" | wc -w)
+    probe_checks "S-022 AC2 hold-over" "$HOLD_OVER_SEG" reveal
+    local hrn; IFS='|' read -r _ _ _ hrn _ <<<"$PROBE"
+    check "S-022 AC2 hold-over: \"hive reveal: N\" with N the $nact actions of the PNG" '[ "$hrn" != none ] && [ "$hrn" -eq "$nact" ]'
+    echo "== S-022 AC2: a new PNG drag after the release over the hive"
+    local again="$W/held again.png" ag_mark
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$again"
+    printf '%s\n' "$again" >"$NEXT"
+    drag_past_threshold
+    press
+    ag_mark=$M_PRESS
+    geo=$(wait_geo 3) || true
+    if [ -n "$geo" ]; then
+      # shellcheck disable=SC2086
+      geo=$(settle_at_centre $geo)
+      # shellcheck disable=SC2086
+      move_to_webp $geo
+    fi
+    ptr_up; sleep 0.3
+    wait_file "$W/held again.webp" 5 || true
+    release; sleep 0.5
+    HOLD_AGAIN_SEG=$(sed -n "$((ag_mark + 1)),\$p" "$DLOG")
+    echo "INFO S-022 AC2: the new drag's hive ${geo:-not shown}"
+    again_checks "AC2 the drag after the release" "$HOLD_AGAIN_SEG" "$nact" "$W/held again.webp"
+    check "S-022 AC2: no protocol error in the daemon log after the two drags" \
+      '! grep -qE "wl_display[#@]1\.error\(|[Pp]rotocol error" "$DLOG"'
     wait_gone 12 || true; sleep 0.5
 
     # lone release (AC19): no press before.
@@ -630,6 +701,25 @@ inner() {
     check "S-021 AC6 notes.unknownext: an empty \"drop cells:\" line before the hide, no wl_data_offer.accept with a type, no new file, and a new drag begins afterwards" \
       '[ "$cl" = "drop cells:|" ] && [ "$(grep -nE "^drop cells: ?$" <<<"$seg" | head -1 | cut -d: -f1)" -lt "$(grep -nE "^hive probe: " <<<"$seg" | head -1 | cut -d: -f1)" ] && [ "$acc" -eq 0 ] && [ "$nnew" -eq 0 ] && [ "$after" = yes ]'
     probe_checks "AC6 notes.unknownext" "$seg" no-actions
+  }
+
+  # S-022 AC7: `drop --at 640,400` twice, 1 s apart, with the pointer at
+  # (100, 700), outside the hive rectangle the catcher takes from its first
+  # commit, then the pointer moves to (640, 400): "hidden (replaced)" for
+  # the first show, then "hidden (pointer)" (layer.sh replace_checks).
+  replace_pair() {
+    echo "== S-022 AC7: drop --at 640,400 twice, pointer at (100, 700), then a move there"
+    local m0 seg
+    ptr_move 100 700; sleep 0.5
+    m0=$(wc -l <"$DLOG")
+    "$BIN/sbarhive" drop --at 640,400 >>"$OUT_LOG-cli.log" 2>&1
+    sleep 1
+    "$BIN/sbarhive" drop --at 640,400 >>"$OUT_LOG-cli.log" 2>&1
+    sleep 1
+    ptr_move 400 600; sleep 0.1; ptr_move 600 420; sleep 0.1; ptr_move 640 400; sleep 0.8
+    wait_gone 12 || true; sleep 0.5
+    seg=$(sed -n "$((m0 + 1)),\$p" "$DLOG")
+    replace_checks "pointer at (100, 700), drop --at 640,400 twice, then a move there" "$seg"
   }
 
   # S-021 question 4 (Mohammad, 2026-10-22): the waiting state is no longer
@@ -759,16 +849,21 @@ inner() {
   done
   echo "INFO S-021 AC3 shows 6 to $(( ${#MARKS[@]} - 1 )): shows without exactly one \"hive reveal\" line: ${bad3:-none}"
   check "S-021 AC3 shows 6 to 13: each prints exactly one probe line, \"hive reveal: N\"" '[ "${#MARKS[@]}" -ge 14 ] && [ -z "$bad3" ]'
-  # S-021 AC8 (the owner's budget, question 1): in each of the 13 revealed
-  # shows the hive is visible (its first attach) at most 150 ms after the
-  # drag's first enter on the catcher, by the daemon's trace timestamps.
+  shot_times
+  # S-021 AC8 (the owner's budget, question 1) and S-022 AC5: in each of the
+  # 13 revealed shows, and the two of S-022 AC2 in hold_cycles, the hive is
+  # visible (its first attach) at most 150 ms after the drag's first enter
+  # on the catcher, by the daemon's trace timestamps.
   local rdts=()
   for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
     rdts+=("$(reveal_ms "$(sed -n "$((MARKS[i] + 1)),$((MARKS[i + 1]))p" "$DLOG")")")
   done
-  reveal_budget "shows 1 to 13" 13 "${rdts[@]}"
   no_action_cycle
+  HOLD_OVER_SEG="" HOLD_AGAIN_SEG=""
   hold_cycles
+  reveal_budget "shows 1 to 13, the S-022 AC2 hold-over and the drag after it" 15 \
+    "${rdts[@]}" "$(reveal_ms "$HOLD_OVER_SEG")" "$(reveal_ms "$HOLD_AGAIN_SEG")"
+  replace_pair
   window_waiting
   fi
   summary
