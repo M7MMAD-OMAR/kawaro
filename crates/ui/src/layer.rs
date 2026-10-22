@@ -9,18 +9,20 @@
 //!   configure so the pointer can enter it; a click on it, outside the hive,
 //!   asks to close (never in drop mode). In drop mode its input region is
 //!   its default one until the first position (or [`MOVE_WINDOW`] after the
-//!   first frame), then the hive rectangle, so
+//!   placement), then the hive rectangle, so
 //!   it takes the drag (S-020: Hyprland sends no drag motion to a layer
 //!   surface's subsurface; S-019 AC8).
 //! - hive: a subsurface of the catcher, placed by [`layout::plan_at`] at
 //!   the anchor, holding the Slint frame in a wl_shm buffer; no input in
-//!   drop mode.
+//!   drop mode. A drop show attaches no hive buffer until [`probed`] reveals
+//!   it for a drag of files with an action (S-021); its place, size and
+//!   regions are sent at bind all the same.
 //!
 //! The anchor (S-019 AC5, AC8) is the first pointer enter or motion on the
 //! catcher, or drag position in drop mode, waited for at most
 //! [`ANCHOR_WAIT`] from the first configure; without one the hive is
 //! centred. A drop show centred so moves once, at its first position within
-//! [`MOVE_WINDOW`] of its first frame; after that its catcher takes the hive
+//! [`MOVE_WINDOW`] of its placement; after that its catcher takes the hive
 //! rectangle and the hive stays centred (manager decision 12). With
 //! `sbarhive drop --at X,Y` the output holding that point (xdg-output) is
 //! chosen and the hive placed before the first commit.
@@ -32,6 +34,7 @@
 //! connection's display, to the catcher, offset by the hive position (S-020).
 
 use crate::HiveCell;
+use crate::dnd;
 use crate::layout::{self, Plan};
 use crate::overlay::{self, Surface};
 use rustix::event::{PollFd, PollFlags, poll};
@@ -105,7 +108,7 @@ thread_local! {
 const ANCHOR_WAIT: Duration = Duration::from_millis(50);
 
 /// How long a centred drop show's catcher keeps its full input region
-/// after the first frame, waiting for a position; then it takes the hive
+/// after the placement, waiting for a position; then it takes the hive
 /// rectangle and the hive stays centred (S-019 manager decision 12).
 const MOVE_WINDOW: Duration = Duration::from_millis(300);
 
@@ -151,6 +154,38 @@ pub(crate) fn replan(cells: &[HiveCell]) -> Option<Plan> {
         a.scale120.get(),
     );
     Some(plan)
+}
+
+/// Ends the probe of the shown drop show (S-021): `from` and `to` are the
+/// mode machine's states before and after `event`. A reveal prints `hive
+/// reveal: N`, with `cells` the cells the drag brought, and draws the hive;
+/// a hide prints `hive probe: hidden (R)` before the catcher goes. Escape
+/// and Cancel never reach a catcher before its enter, so print nothing.
+pub(crate) fn probed(from: dnd::State, to: dnd::State, event: dnd::Event, cells: usize) {
+    if from != dnd::State::Probing || to == from {
+        return;
+    }
+    let reason = match (to, event) {
+        (dnd::State::Waiting, _) => None,
+        (_, dnd::Event::PointerEnter) => Some("pointer"),
+        (_, dnd::Event::Reject) if crate::receiver::offered_uri_list() => Some("no-actions"),
+        (_, dnd::Event::Reject) => Some("no-uri-list"),
+        (_, dnd::Event::Release) => Some("release"),
+        (_, dnd::Event::Tick) => Some("cap"),
+        _ => return,
+    };
+    if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+        crate::stderr_line(&match reason {
+            Some(r) => format!("hive probe: hidden ({r})"),
+            None => format!("hive reveal: {cells}"),
+        });
+    }
+    if reason.is_none()
+        && let Some(a) = OWNER.with(|o| o.borrow().upgrade())
+    {
+        a.revealed.set(true);
+        a.request_redraw();
+    }
 }
 
 /// The rings a drop hive at `anchor` sizes for: those 18 cells would use,
@@ -542,6 +577,11 @@ pub(crate) struct LayerAdapter {
     may_move: Cell<bool>,
     /// The drop show's catcher takes only the hive rectangle (S-020 AC1).
     switched: Cell<bool>,
+    /// The hive is drawn: always outside drop mode, after [`probed`] in it.
+    revealed: Cell<bool>,
+    /// The pointer entered the catcher of a drop show not revealed: no
+    /// drag, so the show hides and is never placed after it (S-021 AC3).
+    no_drag: Cell<bool>,
     /// The anchor the hive was placed at, the output size and the rings
     /// its box is sized for.
     anchor: Cell<Option<(f32, f32)>>,
@@ -574,6 +614,8 @@ impl LayerAdapter {
             decided: Cell::new(false),
             may_move: Cell::new(false),
             switched: Cell::new(false),
+            revealed: Cell::new(true),
+            no_drag: Cell::new(false),
             anchor: Cell::new(None),
             screen: Cell::new((0, 0)),
             rings: Cell::new(1),
@@ -596,6 +638,9 @@ impl LayerAdapter {
         let Some(screen) = self.surfaces.borrow().as_ref().and_then(|s| s.configured) else {
             return;
         };
+        if self.no_drag.get() {
+            return;
+        }
         let drop_mode = SHOW.with(|r| r.borrow().drop);
         self.timer.stop();
         self.decided.set(true);
@@ -617,7 +662,7 @@ impl LayerAdapter {
             self.release_held();
         } else if self.may_move.get() {
             // Centred without a position: the full region lasts at most
-            // MOVE_WINDOW from this first frame, so a still pointer is never
+            // MOVE_WINDOW from this placement, so a still pointer is never
             // held (S-020 AC4).
             let me = self.me.clone();
             self.timer
@@ -732,8 +777,13 @@ impl LayerAdapter {
             }
             // A drop show's probe decides on it (S-021); this only forwards
             // it to the receiver's sink, on the next loop turn like its notes.
+            // Not revealed, the show is not placed at this enter.
             Ev::PointerEnter => {
                 if self.surfaces.borrow().as_ref().is_some_and(|s| s.drop_mode) {
+                    if !self.revealed.get() {
+                        self.no_drag.set(true);
+                        self.timer.stop();
+                    }
                     let note = || crate::on_note(crate::receiver::Note::PointerEnter);
                     let _ = slint::invoke_from_event_loop(note);
                 }
@@ -855,6 +905,8 @@ impl LayerAdapter {
         self.decided.set(false);
         self.may_move.set(false);
         self.switched.set(false);
+        self.revealed.set(!drop_mode);
+        self.no_drag.set(false);
         self.anchor.set(None);
         self.pos.set(None);
         self.sent.set(None);
@@ -1053,6 +1105,17 @@ impl LayerAdapter {
         let Some(screen) = s.configured else { return };
         self.redraw_wanted.set(false);
         let p = self.placement(screen);
+        if !self.revealed.get() {
+            // A drop show not revealed: its size and the catcher's pixel
+            // and region go out, no hive buffer (S-021 AC4).
+            s.hive_vp
+                .set_destination(p.destination.0 as i32, p.destination.1 as i32);
+            s.catcher.commit();
+            drop(surfaces);
+            self.report(&p);
+            flush();
+            return;
+        }
         let (pw, ph) = p.buffer;
         let mut pixels = vec![Bgra::default(); (pw * ph) as usize];
         self.renderer.render(&mut pixels, pw as usize);
@@ -1079,13 +1142,18 @@ impl LayerAdapter {
         });
         drop(surfaces);
         if drawn.is_some() {
-            // Once per show, with the hive's real size (not the initial 1 x 1).
-            if self.logical.get() != (1, 1) && !self.reported.replace(true) {
-                crate::report_surface("layer", p.x, p.y, p.destination.0, p.destination.1);
-            }
+            self.report(&p);
             self.waiting_frame.set(true);
             flush();
             crate::frame_presented();
+        }
+    }
+
+    /// The `hive surface` line, once per placement, with the hive's real
+    /// size (not the initial 1 x 1).
+    fn report(&self, p: &overlay::Placement) {
+        if self.logical.get() != (1, 1) && !self.reported.replace(true) {
+            crate::report_surface("layer", p.x, p.y, p.destination.0, p.destination.1);
         }
     }
 
@@ -1404,9 +1472,11 @@ impl Dispatch<WlPointer, ()> for Wl {
                 if s.pointer_on_hive {
                     s.events.push(Ev::Motion(surface_x, surface_y));
                 }
+                // The enter first: a drop show not revealed is not placed
+                // at this position (S-021 AC3).
                 if s.pointer_on_catcher {
-                    s.events.push(Ev::Position(surface_x, surface_y));
                     s.events.push(Ev::PointerEnter);
+                    s.events.push(Ev::Position(surface_x, surface_y));
                 }
             }
             wl_pointer::Event::Leave { surface, .. } => {

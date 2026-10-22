@@ -352,6 +352,8 @@ struct Inner {
     machine: RefCell<dnd::Machine>,
     /// Clock for the drop hive's enter timeout.
     ticker: slint::Timer,
+    /// The cells `on_drop_files` gave for the last enter (S-021 AC3).
+    found: Cell<usize>,
     /// Where `present_files` looks for thumbnails and file kinds.
     #[cfg(unix)]
     preview_source: RefCell<Option<(PathBuf, thumb::Globs)>>,
@@ -482,6 +484,7 @@ impl Inner {
         #[cfg(unix)]
         let dragged = files.clone();
         let (centre, cells) = f.map(|f| f(files)).unwrap_or_default();
+        self.found.set(cells.len());
         if state == dnd::State::Probing && cells.is_empty() {
             return dnd::Event::Reject;
         }
@@ -503,7 +506,13 @@ impl Inner {
     /// A repeated `Running` or `Hidden` is harmless: `choose` and `dismiss`
     /// do nothing once the hive is closed, and only a new show reopens it.
     fn drag(&self, event: dnd::Event) {
+        let before = self.machine.borrow().state();
         let state = self.machine.borrow_mut().handle(event, Instant::now());
+        // Its line before the hide unmaps the catcher.
+        #[cfg(target_os = "linux")]
+        layer::probed(before, state, event, self.found.get());
+        #[cfg(not(target_os = "linux"))]
+        let _ = before;
         match state {
             dnd::State::Over(i) => self.ui.borrow().set_highlight(i as i32),
             dnd::State::Waiting => self.ui.borrow().set_highlight(-1),
@@ -580,6 +589,7 @@ impl Hive {
             opener: slint::Timer::default(),
             machine: RefCell::new(dnd::Machine::new()),
             ticker: slint::Timer::default(),
+            found: Cell::new(0),
             #[cfg(unix)]
             preview_source: RefCell::new(None),
         });
@@ -678,8 +688,8 @@ impl Hive {
     }
 
     /// The held key of [`Hive::present_drop_hold`] was released: a hold
-    /// show probing, waiting or over a cell closes with [`Hive::on_dismiss`] and runs
-    /// nothing. Any other show ignores it.
+    /// show probing, waiting or over a cell closes with [`Hive::on_dismiss`]
+    /// and runs nothing. Any other show ignores it.
     pub fn key_released(&self) {
         self.inner.drag(dnd::Event::Release);
     }

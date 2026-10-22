@@ -90,6 +90,8 @@ static PLAN: Mutex<Option<Plan>> = Mutex::new(None);
 static OFFSET: Mutex<(f64, f64)> = Mutex::new((0.0, 0.0));
 /// The anchor phase of a layer drop show: enters are held, not handled.
 static ANCHORING: AtomicBool = AtomicBool::new(false);
+/// The last enter handled offered `text/uri-list`, set before its note.
+static URI_LIST_OFFERED: AtomicBool = AtomicBool::new(false);
 
 /// Binds a new data device for the drop surface `surface` on `display` (raw
 /// `wl_display` and `wl_surface` pointers, from winit or the layer
@@ -146,6 +148,12 @@ pub fn detach() {
         let _ = s.conn.flush();
     }
     *lock(&PLAN) = None;
+}
+
+/// The drag of the last [`Note::Enter`] offered `text/uri-list`: its files
+/// have no action, or it has no file list at all (S-021 AC6).
+pub fn offered_uri_list() -> bool {
+    URI_LIST_OFFERED.load(Ordering::SeqCst)
 }
 
 /// Where the hive sits on the attached surface; set after [`attach`].
@@ -205,6 +213,7 @@ fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
         offer: None,
         mimes: Vec::new(),
         on_us: false,
+        device: None,
         serial: 0,
         hover: None,
         accepted: false,
@@ -232,6 +241,9 @@ struct Receiver {
     mimes: Vec<String>,
     /// The current drag is over the drop surface.
     on_us: bool,
+    /// The data device that drag entered on. A show hidden under the drag
+    /// releases it with no `leave`, so the next show's device starts anew.
+    device: Option<WlDataDevice>,
     serial: u32,
     hover: Option<usize>,
     /// The last `accept` named a type.
@@ -281,6 +293,7 @@ impl Receiver {
         }
         self.mimes.clear();
         self.on_us = false;
+        self.device = None;
         self.hover = None;
         self.accepted = false;
         self.action = false;
@@ -302,6 +315,7 @@ impl Receiver {
             }
             None => Vec::new(),
         };
+        URI_LIST_OFFERED.store(self.has_uri_list(), Ordering::SeqCst);
         self.note(Note::Enter(files));
         self.hover_at(x, y);
     }
@@ -446,7 +460,7 @@ impl Dispatch<WlDataOffer, ()> for Receiver {
 impl Dispatch<WlDataDevice, ()> for Receiver {
     fn event(
         s: &mut Self,
-        _: &WlDataDevice,
+        dev: &WlDataDevice,
         e: wl_data_device::Event,
         _: &(),
         _: &Connection,
@@ -457,8 +471,8 @@ impl Dispatch<WlDataDevice, ()> for Receiver {
                 // A drag offer (its types follow before `enter`) or the
                 // clipboard selection (`selection` follows). A drag on us
                 // cannot be replaced without a `leave`, so a new offer then
-                // is the selection.
-                if !s.on_us {
+                // is the selection, unless it comes on a new device.
+                if !s.on_us || s.device.as_ref() != Some(dev) {
                     s.clear();
                     s.offer = Some(id);
                 }
@@ -486,6 +500,7 @@ impl Dispatch<WlDataDevice, ()> for Receiver {
                     return;
                 }
                 s.on_us = true;
+                s.device = Some(dev.clone());
                 s.serial = serial;
                 if ANCHORING.load(Ordering::SeqCst) {
                     s.held = Some((x, y));
