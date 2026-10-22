@@ -1,5 +1,5 @@
 # S-022 نقل IPC خلف واجهة واحدة، ثم named pipe على ويندوز
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: مراجعة (نُفِّذت والبوابات خضراء، بانتظار المراجع)
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: منتهية (PASS من المراجع 2026-10-22)؛ S-022b: لم تبدأ
 
 يبني على ADR 0005 القسم 2. للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -128,3 +128,14 @@ error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 pre
   - `scripts/design-lint.sh`: clean. سطر CHANGELOG تحت `[Unreleased]`.
   - تتمة: `tests/e2e/run.sh` على بناء release من هذا الفرع (KWin بلا شاشة، HOME مؤقت) نجح كله: «e2e: all passed» و«e2e S-019 AC7: all passed»، ومنه `open` و`drop` يشغّلان الخدمة، و«single instance»، و«second instance leaves the socket alone»، و«quit stops the daemon and removes the socket». و`cargo test -j 2 --workspace`: 581 ناجحاً، 0 فاشلاً.
   - عن `M`: مع المهلتين يخرج `cargo mutants` بالرمز 3 لا 0. المهلتان `read` و`write` بـ `Ok(1)`، تكشفهما الاختبارات بالدوران حتى المهلة، ولا يُسرَّع كشفهما دون تعديل الاختبارات.
+- 2026-10-22، المراجع (S-022a): **PASS**. كل البوابات أعيد تشغيلها داخل النطاق (`MemoryMax=6G`، `-j 2`) من شجرة `windows/0.6.0`:
+  - `C`: `cargo fmt --check` نظيف، و`cargo clippy -j 2 --workspace --all-targets -- -D warnings` انتهى بـ `Finished` بلا تحذير.
+  - `W`: `cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-core --lib -- -D warnings` بعد لمس `lib.rs` لإجبار الفحص: رمز الخروج 0، بلا تحذير.
+  - `cargo test -j 2 --all`: 581 ناجحاً، 0 فاشلاً، 1 متجاهل. اختبارات AC1 إلى AC7 السبعة عشر كلها ناجحة، ولكل معيار اختبار واحد على الأقل (AC5 بنوع `State::subscribers` وAC7 بـ `W` تحقق منهما المراجع في الشيفرة).
+  - `M`: `cargo mutants --jobs 1 --in-diff` على `git diff 20502bc..HEAD -- crates` بـ `CARGO_BUILD_JOBS=2`: 24 طفرة، 14 مكتشفة، 8 غير قابلة للبناء، 2 مهلة، **0 ناجية** (`missed.txt` فارغ). المهلتان `read` و`write` بـ `Ok(1)` في `unix.rs:103` و`unix.rs:109`: الاختبارات تدور حتى المهلة فتفشل، فليستا ناجيتين، ورمز الخروج 3 سببه المهلة وحدها.
+  - `scripts/design-lint.sh`: clean. لا شرطة طويلة في فرق `main...HEAD`. سطر CHANGELOG واحد للقصة تحت `[Unreleased]` بالإنكليزية مع نص عربي. `git diff --stat main...HEAD -- crates/ui` فارغ. `Cargo.lock`: 671 `[[package]]` كما في `main`، ولا تغيير في أي `Cargo.toml`. `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src`: 0 أسطر.
+  - الاختبارات لم تُعدَّل بعد المختبِر: `git diff 20502bc..HEAD -- crates/*/tests` فارغ.
+  - اللقطات: لا تغيير في الواجهة فلا لقطة جديدة. ميزانية الأداء: لا تمس مسار ظهور الخلية؛ الكلفة الوحيدة الجديدة `dup` واحد لكل طلب في `handle`.
+  - الانحرافات مقبولة: (1) `replace serve with ()` في `exclude_re` على سابقة `handle`، ولم يُعِد المراجع تشغيل `tests/e2e/run.sh`، فالقبول على السابقة وعلى سجل المنفِّذ. (2) `flush -> Ok(())` مكافئة: `flush` لمقبس Unix في std يعيد `Ok(())` (مصدر std غير مثبت محلياً للاقتباس منه). (3) `endpoint()` و`server_pid()` و`Display` في بذرة ويندوز لا تستطيع إعادة `Unsupported` بتوقيعات AC1، فالاسم الفارغ و`None` مفروضان؛ وكل دالة تعيد `io::Result` تعيد `Unsupported`. (4) `handle()` يقرأ عبر `try_clone` لأن `Read` غير مطبّق على `&Stream`؛ السلوك على لينكس كما كان، وفشل النسخ يغلق الاتصال بلا رد.
+  - ملاحظات صغيرة لما بعد: `crates/daemon/src/main.rs:84` ما زال يحذف `socket_path()` مباشرة لا عبر النقل (لـ S-022b أو S-027). و`flush` في `exclude_re` يطابق أي `<impl Write for Stream>` في المستودع، اليوم لا يوجد غير `unix.rs` و`windows.rs` المستثنى.
+  - لا سطر CHANGELOG جديد من المراجع: السطر الواحد للقصة كلها أضافته S-022a، وS-022b تعدّله.
