@@ -12,6 +12,8 @@
 # Usage: tests/e2e/run.sh [target/release]
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 BIN="${1:-$ROOT/target/release}"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
 # S-018 AC18: Esc closes the shown hive before the memory checks; on the layer
@@ -19,6 +21,8 @@ BIN="${1:-$ROOT/target/release}"
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 SANDBOX="$(mktemp -d)"
+no_real_portal "$SANDBOX"
+no_real_portal "$SANDBOX/rss"
 export BIN SANDBOX ROOT INPUT
 
 inner() {
@@ -117,7 +121,7 @@ inner() {
   check "a finished job sends one notification" '[ "$(notes)" -eq $((n0 + 1)) ]'
 
   mkdir -p "$XDG_CONFIG_HOME/sbarhive"
-  printf 'notify = false\noutput = "subfolder"\noutput-folder = "out"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  printf 'notify = false\noutput = "subfolder"\noutput-folder = "out"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   # No `sbarhive reload`: the daemon notices the edited file by itself.
   sleep 3
   n0=$(notes)
@@ -125,7 +129,7 @@ inner() {
   check "edited settings apply without reload: output in out/" '[ -f "$W/out/b.gif" ] && [ ! -f "$W/b.gif" ]'
   sleep 1
   check "notify = false sends no notification" '[ "$(notes)" -eq "$n0" ]'
-  rm -f "$XDG_CONFIG_HOME/sbarhive/config.toml"; "$BIN/sbarhive" reload
+  printf 'portal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; "$BIN/sbarhive" reload
   check "convert works without daemon" '"$BIN/sbarhive" convert --to png "$W/b.jpg" >/dev/null && [ -f "$W/b.png" ]'
 
   sleep 2
@@ -190,7 +194,7 @@ rss_inner() {
 [{"name": "outputs", "data": [{"connectorName": "Virtual-0", "mode": {"width": 1920, "height": 1200, "refreshRate": 60000}, "scale": 1.5, "transform": "Normal"}]},
  {"name": "setups", "data": [{"lidClosed": false, "outputs": [{"enabled": true, "outputIndex": 0, "position": {"x": 0, "y": 0}, "priority": 0}]}]}]
 JSON
-  printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   local xa
   for xa in xa xb xc; do
     printf '[[action]]\nid = "extra.%s"\nengine = "image"\nop = "convert"\nring = 1\norder = 900\naccepts = ["image"]\noutput = { mode = "per-file", ext = "webp" }\ncode = { ar = "%s", en = "%s" }\nlabel = { ar = "%s", en = "%s" }\nicon = "image"\n\n' \

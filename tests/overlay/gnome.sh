@@ -15,6 +15,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 BIN="${1:-$ROOT/target/release}"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
 OUT="${OVERLAY_OUT:-$HERE/out}"
@@ -130,6 +132,7 @@ export -f inner
 
 echo "== gnome"
 SANDBOX="$(mktemp -d)"
+no_real_portal "$SANDBOX"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"
 # Environment set BEFORE dbus-run-session, so nothing the private bus

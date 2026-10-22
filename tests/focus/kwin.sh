@@ -8,6 +8,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 CASES=()
 LEVEL=1
 BIN="$ROOT/target/release"
@@ -124,6 +126,7 @@ for CASE in "${CASES[@]}"; do
   echo "== kwin level $LEVEL $CASE"
   export CASE
   SANDBOX="$(mktemp -d)"
+  no_real_portal "$SANDBOX"
   # Environment set BEFORE dbus-run-session, so nothing the private bus
   # activates can reach the live desktop or the real profile.
   env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \

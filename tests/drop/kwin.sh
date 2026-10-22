@@ -131,6 +131,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 LEVEL=1
 MODE=""
 BIN="$ROOT/target/release"
@@ -656,13 +658,13 @@ inner() {
     # hold_ms changed in config.toml with the daemon running (AC18).
     echo "== S-019e hold_ms = 1000 in config.toml"
     mkdir -p "$XDG_CONFIG_HOME/sbarhive"
-    printf 'hold_ms = 1000\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'hold_ms = 1000\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
     sleep 1
     press; sleep 1.6
     read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1500)"
     local l950; read -r l950 _ _ <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 950)"
     release; sleep 0.8
-    rm -f "$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'portal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
     echo "INFO S-019e hold_ms 1000: press exit $P_RC in $P_MS ms; surfaces by 950 ms: layer $l950; by 1500 ms: layer $l xdg $x, the first ${first} ms after the press"
     check "S-019 AC18 hold_ms: hold_ms = 1000 written with the daemon running applies at the next press (one get_layer_surface after 950 ms and by 1150 ms)" \
       'cli_ok "$P_RC" "$P_MS" && [ "$l950" -eq 0 ] && [ "$l" -eq 1 ] && [ "$x" -eq 0 ] && in_ms "$first" 950 1150'
@@ -879,6 +881,7 @@ export -f inner
 
 echo "== kwin level $LEVEL${MODE:+ $MODE}"
 SANDBOX="$(mktemp -d)"
+no_real_portal "$SANDBOX"
 RUNDIR="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX" "$RUNDIR"' EXIT
 # Environment set BEFORE dbus-run-session, so nothing the private bus

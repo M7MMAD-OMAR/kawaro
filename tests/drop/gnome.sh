@@ -34,6 +34,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 POLICY=smart
 MODE=""
 BIN="$ROOT/target/release"
@@ -163,6 +165,7 @@ export -f inner
 
 echo "== gnome $POLICY${MODE:+ $MODE}"
 SANDBOX="$(mktemp -d)"
+no_real_portal "$SANDBOX"
 RUNDIR="$(mktemp -d)"
 trap 'rm -rf "$SANDBOX" "$RUNDIR"' EXIT
 # Environment set BEFORE dbus-run-session, so nothing the private bus

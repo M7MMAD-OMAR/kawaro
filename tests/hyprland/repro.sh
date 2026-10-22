@@ -144,6 +144,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 SELFTEST=0 JSON=0 QUASI=0 SURFACE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
@@ -337,7 +339,7 @@ print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
   local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo.png"
   mkdir -p "$XDG_CONFIG_HOME/sbarhive"
-  printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   local DLOG="$log-daemon.log"
   : >"$DLOG"
   # start_daemon [WL] [RM]: WL=1 (the default) adds WAYLAND_DEBUG=1. Show 1,
@@ -1083,6 +1085,7 @@ export -f inner
 # Human lines: stdout, or stderr with --json (stdout then carries the JSON).
 if [ "$JSON" = 1 ]; then exec 4>&2; else exec 4>&1; fi
 SANDBOX="$(mktemp -d)"
+no_real_portal "$SANDBOX"
 # Short on purpose: Hyprland's Wayland backend needs socket paths under 108 bytes.
 RUNTIME="$(mktemp -d /tmp/sbhh.XXXXXX)"
 chmod 700 "$RUNTIME"

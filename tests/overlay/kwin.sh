@@ -140,6 +140,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 MODE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
@@ -175,9 +177,9 @@ inner() {
   # English and light to start with; shows 4 and 5 of layer/window change them.
   # The scheme mode follows the system (AC15) until it changes the theme.
   if [ "$MODE" = scheme ]; then
-    printf 'language = "en"\ntheme = "auto"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'language = "en"\ntheme = "auto"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   elif [ "$MODE" = anchor ]; then
-    printf 'language = "en"\ntheme = "dark"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'language = "en"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
     # S-019 AC6 asks for 18 cells: a PNG gets 15 built-in image actions, and
     # three more ring 1 user actions make 18.
     mkdir -p "$XDG_CONFIG_HOME/sbarhive/actions"
@@ -187,7 +189,7 @@ inner() {
         "$xa" "${xa^^}" "${xa^^}" "${xa^^}" "${xa^^}"
     done >"$XDG_CONFIG_HOME/sbarhive/actions/extra.toml"
   else
-    printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
   fi
   # Lets shot.py (python3) use org.kde.KWin.ScreenShot2 in this private KWin only.
   mkdir -p "$XDG_DATA_HOME/applications"
@@ -371,9 +373,9 @@ PY
     # Drop mode may have no keyboard (S-018d): it closes 10 s after showing
     # without a drag entering it (S-014a AC3).
     sleep 10
-    printf 'language = "ar"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    printf 'language = "ar"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
     show language "$BIN/sbarhive" open "$W/photo.png"
-    printf 'language = "ar"\ntheme = "dark"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    printf 'language = "ar"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
     show theme "$BIN/sbarhive" open "$W/photo.png"
     local nshows=${#names[@]}
     if [ "$MODE" = window ]; then
@@ -1176,12 +1178,12 @@ PY
     sshow changed-to-2 light
     echo 1 >&5; sleep 1.5
     sshow changed-to-1 dark
-    printf 'language = "en"\ntheme = "light"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
     sshow config-light-portal-1 light
     echo 2 >&5
-    printf 'language = "en"\ntheme = "dark"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    printf 'language = "en"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
     sshow config-dark-portal-2 dark
-    printf 'language = "en"\ntheme = "auto"\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    printf 'language = "en"\ntheme = "auto"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
     restart_daemon SBARHIVE_COLOR_SCHEME=dark
     sshow env-dark-portal-2 dark
     echo 1 >&5; sleep 0.5
@@ -1291,6 +1293,7 @@ phases=("")
 for PHASE in "${phases[@]}"; do
   export PHASE
   SANDBOX="$(mktemp -d)"
+  no_real_portal "$SANDBOX"
   RUNTIME="$(mktemp -d)"
   chmod 700 "$RUNTIME"
   # Environment set BEFORE dbus-run-session, so nothing the private bus

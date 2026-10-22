@@ -30,6 +30,8 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
+# shellcheck source=../no_portal.sh
+source "$ROOT/tests/no_portal.sh"
 CASES=()
 BIN="$ROOT/target/release"
 for a in "$@"; do
@@ -149,6 +151,7 @@ for C in "${CASES[@]}"; do
   export LEVEL CASE
   echo "== kwin focus level $LEVEL $CASE" | tee -a "$SUMMARY"
   SANDBOX="$(mktemp -d)"
+  no_real_portal "$SANDBOX"
   RUNTIME="$(mktemp -d)"
   chmod 700 "$RUNTIME"
   # Environment set BEFORE dbus-run-session, so nothing the private bus
