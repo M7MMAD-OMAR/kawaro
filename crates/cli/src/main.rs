@@ -10,6 +10,7 @@ macro_rules! out {
 
 mod client;
 mod clipboard;
+mod spawn;
 
 use clap::{Parser, Subcommand};
 use sbarhive_core::i18n::Lang;
