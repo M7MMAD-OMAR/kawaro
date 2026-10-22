@@ -1,78 +1,73 @@
-# ADR 0003: إفلات الملف على خلية أثناء السحب
+# ADR 0003: Dropping a file on a cell during a drag
 
-الحالة: مقبول
-التاريخ: 2026-10-20
+Status: accepted
+Date: 2026-10-20
 
-## السياق
+## Context
 
-يريد المالك تفاعلاً جديداً: يبدأ المستخدم سحب ملف في مدير الملفات، ويضغط اختصاراً يختاره وهو ما زال يسحب، فتظهر الخلية، ثم يفلت الملف على خلية فيُنفَّذ إجراؤها. السؤال: هل يعمل هذا على Wayland في GNOME وKDE وHyprland، ثم على X11، وما أبسط طريق إليه؟
+The owner wants a new interaction: the user starts dragging a file in the file manager, presses a shortcut of their choice while still dragging, the hive appears, and dropping the file on a cell runs its action. Does this work on Wayland in GNOME, KDE and Hyprland, then X11, and what is the simplest route?
 
-التجربة في `spikes/drop/`، وشُغّلت داخل مؤلِّفات مخفية خاصة فقط (KWin 6.7.5 بوضع virtual، وGNOME Shell 50.5 بوضع headless)، بملف شخصي ومجلدات XDG وناقل جلسة معزولة، كما في `tests/e2e/run.sh`. لم يُلمس سطح المكتب الفعلي. مصدر السحب نافذة GTK 4 تسحب ملفاً وتعرض النسخ والنقل كما يفعل مدير الملفات.
+The spike in `spikes/drop/` ran only in private headless compositors (KWin 6.7.5 virtual, GNOME Shell 50.5 headless), isolated as in `tests/e2e/run.sh`. The drag source was a GTK 4 window that offers copy and move like a file manager.
 
-## النتائج
+## Findings
 
-علامة (مُتحقَّق) تعني تشغيلاً مخفياً أو سطراً مقروءاً في الشيفرة، وعلامة (مُفترَض) تعني استنتاجاً لم يُختبر.
+(verified) means a headless run or a line read in source; (assumed) means an untested inference.
 
-1. **winit 0.30 لا يدعم السحب والإفلات على Wayland (مُتحقَّق).** `DroppedFile` و`HoveredFile` مطبّقان في winit 0.30.13 على X11 وmacOS وويندوز فقط، ولا شيء في `src/platform_impl/linux/wayland/` يستخدم `wl_data_device`. الدعم موجود في winit 0.31 beta (PR #4571، في `winit-wayland/src/dnd.rs`)، وSlint 1.18.1 مثبت على winit 0.30.
-2. **Slint 1.18.1 لا يوصل الإفلات الخارجي (مُتحقَّق).** فيه `DropArea` و`BackendDragEvent`، لكن الدخول إليهما عبر `WindowInner::process_drag_event` الداخلية، ومحوّل winit لا يستدعيها. لذلك يكون اختيار الخلية عندنا بـ `geometry.rs`، وإبراز الخلية بخاصية نضبطها من Rust.
-3. **المستقبِل يعمل باتصال ثانٍ على عرض winit نفسه (مُتحقَّق).** التجربة تأخذ `wl_display` و`wl_surface` من raw-window-handle، وتفتح `Connection` من `Backend::from_foreign_display` بطابور أحداث وخيط خاصين، وتربط `wl_data_device_manager` وتصفّي الأحداث بمؤشر سطح winit. تقبل `text/uri-list` فوق الخلايا فقط، والنسخ فقط (`set_actions(Copy, Copy)`)، فلا يحذف مصدرٌ يعرض النقل الأصلَ بعد الإفلات. ثم تختار الخلية بـ `Layout::pick` من `crates/ui/src/geometry.rs` نفسه. لا يتعارض هذا مع الحافظة، لأن arboard في Slint يفتح اتصالاً منفصلاً (`Connection::connect_to_env` في wl-clipboard-rs) ببروتوكول data-control. لكن طلب الدمج #4729 في winit يذكر أن Hyprland 0.56.2 يرسل السحب إلى أول `wl_data_device` يربطه العميل فقط. لا يربط winit 0.30 ولا Slint جهازاً على هذا الاتصال، فجهازنا هو الأول، لكن هذا لم يُختبر على Hyprland (مُفترَض).
-4. **الاختصار العام يعمل أثناء السحب في GNOME وKDE (مُتحقَّق بالتشغيل، 3 من 3 في كلٍّ منهما).**
-   - في GNOME سجّلنا مسرّعاً بـ `grab_accelerator`، وهي الآلية نفسها التي يستخدمها منفذ GlobalShortcuts في xdg-desktop-portal-gnome، بوضع `ActionMode.NORMAL` فقط مثله. أطلق المسرّعُ الحدثَ أثناء السحب، وبقي الوضع NORMAL. في الشيفرة يعالج Mutter الاختصارات في `meta_display_handle_event` قبل معالجات Wayland، ولا يفحص سحب العميل.
-   - في KDE سجّلنا الاختصار عبر KGlobalAccel، وهو مسار منفذ KDE، فانطلق أثناء السحب. في الشيفرة `DragAndDropInputFilter::keyboardKey` لا يأخذ إلا Esc، والمرشِّح الذي يليه (`GlobalShortcutFilter`) لا يفحص السحب.
-   - في Hyprland 0.56.2 (مُتحقَّق من الشيفرة فقط، لم يُشغَّل): `CKeybindManager::onKeyEvent` لا يخرج مبكراً أثناء السحب، وEsc وحده يلغيه.
-   - في GNOME لا يعمل الاختصار إن فُتحت نظرة الأنشطة، كأن يمر السحب على الزاوية النشطة، لأن الوضع يصير OVERVIEW (مُفترَض من الشيفرة).
-5. **النافذة التي تظهر أثناء السحب تستقبل الإفلات (مُتحقَّق في GNOME وKDE، 3 من 3).** شُغّلت التجربة بعد بدء السحب، فوصلها `enter` ثم الحركة، وأُفلت الملف على الخلية 2، ووصل المسار الصحيح، وأبلغ المصدر `deleted=False`. البروتوكول لا يشترط تركيز لوحة المفاتيح لـ `enter`، وفي GNOME (smart) نجح الإفلات والتركيز باقٍ على المصدر. لكن في KWin (Low) أخذت النافذة التركيز، فالذي يحسم النتيجة عملياً هو ترتيب النوافذ، لا التركيز (راجع النتيجة 6). في KWin وHyprland لا يصل `enter` إلا بعد أن يتحرك المؤشر (مُتحقَّق من الشيفرة)، ويحركه المستخدم على أي حال.
-6. **ترتيب النوافذ هو الخطر الأول (مُتحقَّق).** بسياسة GNOME الافتراضية (smart) ومستوى KWin الافتراضي (Low) ظهرت النافذة فوق مدير الملفات. أما بالسياسة الصارمة في GNOME (strict) وبمستوى Extreme في KWin، فقد وُضعت النافذة الجديدة دون تركيز تحت نافذة المصدر، فلم يصلها الإفلات. الحل رمز xdg-activation، ومنفذ GNOME وحده يرسله مع `Activated` (`activation_token`). منفذا KDE وHyprland يرسلان خيارات فارغة.
-   - **«الخلية أولاً ثم السحب» فشل (مُتحقَّق في GNOME وKDE).** حين ظهرت الخلية قبل بدء السحب، رفع الضغطُ على الملف نافذةَ المصدر فوقها، فلم يصلها الإفلات وألغى المصدر السحب. نافذة المصدر في الاختبار مكبّرة، وهذه أسوأ حالة: مدير ملفات لا يغطي منتصف الشاشة لن يغطي الخلية. لذلك الترتيب المضمون على Wayland هو الضغط أثناء السحب.
-7. **X11 (مُفترَض، لم يُشغَّل).** يعطي winit 0.30 الحدث `HoveredFile` عند الدخول و`DroppedFile` عند الإفلات، لكن بلا موقع، ويقبل الإفلات على كامل النافذة بالإجراء `XdndActionPrivate`. لذلك نقرأ موقع المؤشر بأنفسنا (`QueryPointer`) عند الإفلات. أما الاختصار أثناء السحب فالأرجح أنه لا يعمل، لأن المصدر يمسك المؤشر وغالباً لوحة المفاتيح، والإمساك السلبي `XGrabKey` لا يعمل مع إمساك نشط. على X11 نعتمد ترتيب «الخلية أولاً ثم السحب»، مع `WindowLevel::AlwaysOnTop` الذي يحترمه winit على X11، فلا يغطي مدير الملفات الخلية حين يُرفع. هذا غير متاح على Wayland.
+1. **winit 0.30 has no drag and drop on Wayland (verified).** `DroppedFile` and `HoveredFile` exist in winit 0.30.13 on X11, macOS and Windows only; nothing in `src/platform_impl/linux/wayland/` uses `wl_data_device`. Support is in winit 0.31 beta (PR #4571, `winit-wayland/src/dnd.rs`), and Slint 1.18.1 is pinned to winit 0.30.
+2. **Slint 1.18.1 does not deliver external drops (verified).** It has `DropArea` and `BackendDragEvent`, but they are reached through the internal `WindowInner::process_drag_event`, which the winit adapter never calls. So cell picking uses our `geometry.rs`, and the highlight is a property set from Rust.
+3. **The receiver works on a second connection to winit's display (verified).** The spike takes `wl_display` and `wl_surface` from raw-window-handle, opens a `Connection` with `Backend::from_foreign_display` on its own event queue and thread, binds `wl_data_device_manager` and filters events by winit's surface pointer. It accepts `text/uri-list` over the cells only, copy only (`set_actions(Copy, Copy)`), so a source offering move never deletes the original after the drop. It picks the cell with `Layout::pick` from `crates/ui/src/geometry.rs`. No clash with the clipboard, since Slint's arboard opens a separate connection (`Connection::connect_to_env` in wl-clipboard-rs) with data-control. winit merge request #4729 notes that Hyprland 0.56.2 sends drags only to the first `wl_data_device` a client binds; neither winit 0.30 nor Slint binds one on this connection, so ours is first, but this was not tested on Hyprland (assumed).
+4. **The global shortcut fires during a drag on GNOME and KDE (verified by running, 3 of 3 each).**
+   - GNOME: an accelerator registered with `grab_accelerator`, the mechanism xdg-desktop-portal-gnome's GlobalShortcuts uses, with `ActionMode.NORMAL` only like it. It fired during the drag and the mode stayed NORMAL. Mutter handles shortcuts in `meta_display_handle_event` before the Wayland handlers and does not check client drags.
+   - KDE: a shortcut registered through KGlobalAccel, the KDE portal's path, fired during the drag. `DragAndDropInputFilter::keyboardKey` takes only Esc, and the next filter (`GlobalShortcutFilter`) does not check drags.
+   - Hyprland 0.56.2 (verified in source only, not run): `CKeybindManager::onKeyEvent` does not return early during a drag; only Esc cancels it.
+   - GNOME: the shortcut does not work if the activities overview opens, for example when the drag crosses the hot corner, because the mode becomes OVERVIEW (assumed from source).
+5. **A window that appears during a drag receives the drop (verified on GNOME and KDE, 3 of 3).** Started after the drag began, the spike got `enter` and motion, the drop on cell 2 delivered the right path, and the source reported `deleted=False`. `enter` needs no keyboard focus: on GNOME (smart) the drop worked with focus on the source, while KWin (Low) gave the window focus, so stacking order decides, not focus (finding 6). On KWin and Hyprland `enter` arrives only after the pointer moves (verified in source).
+6. **Stacking order is the top risk (verified).** Under GNOME's default (smart) and KWin's default (Low) the window appeared above the file manager. Under GNOME strict and KWin Extreme the new unfocused window went under the source window and got no drop. The fix is an xdg-activation token; only the GNOME portal sends one with `Activated` (`activation_token`). The KDE and Hyprland portals send empty options.
+   - **"Hive first, then drag" failed (verified on GNOME and KDE).** Pressing on the file raised the source window above the hive, the drop never arrived and the source cancelled the drag. The source was maximised, the worst case, but the guaranteed order on Wayland is pressing during the drag.
+7. **X11 (assumed, not run).** winit 0.30 gives `HoveredFile` on enter and `DroppedFile` on drop, with no position, and accepts the drop on the whole window with `XdndActionPrivate`. So we read the pointer ourselves (`QueryPointer`) on drop. The shortcut during a drag probably fails, because the source grabs the pointer and often the keyboard, and a passive `XGrabKey` does not work against an active grab. X11 uses "hive first, then drag", with `WindowLevel::AlwaysOnTop`, which winit honours on X11, so a raised file manager does not cover the hive. This is not available on Wayland.
 
-## البدائل مرتبة بالموثوقية في GNOME وKDE وHyprland
+### Alternatives, by reliability on GNOME, KDE and Hyprland
 
-1. **الاختصار أثناء السحب ثم الإفلات.** ثبت في GNOME وKDE بالتشغيل، وفي Hyprland بالشيفرة، مع قيد النتيجة 6 في السياسات الصارمة. الضغط قبل السحب لا يُعتمد على Wayland (النتيجة 6).
-2. **أمر `sbarhive drop` على اختصار مخصص في النظام.** يُضبط في إعدادات لوحة المفاتيح في GNOME، وفي اختصارات KDE، وبسطر `bind` في Hyprland. لا يحتاج بوابة، لكنه لا يحمل رمز تفعيل في أي سطح مكتب. المفترض أن اختصارات GNOME المخصصة تمر بالمسار نفسه في النتيجة 4، لكننا اختبرنا `grab_accelerator` لا اختصارات gsd-media-keys (مُفترَض).
-3. **قائمة النقر اليمين.** تبقى المدخل الأساسي المضمون، ولا علاقة لها بالسحب.
-4. **الإفلات على أيقونة في شريط المهام.** يعمل في KDE لأن مدير المهام يفتح التطبيق بالملفات (`requestOpenUrls`). لا يعمل في GNOME، لأن الشريط في نظرة الأنشطة لا يقبل إلا أيقونات التطبيقات (مُتحقَّق من الشيفرة). ولا شريط افتراضياً في Hyprland.
-5. **هدف إفلات صغير دائم أو زاوية شاشة.** يحتاج تحديد الموقع والبقاء فوق النوافذ، وهذا غير متاح دون wlr-layer-shell، وهي غير مدعومة في GNOME. مرفوض.
-6. **أيقونة الشريط (StatusNotifierItem).** البروتوكول لا يدعم الإفلات. مرفوض.
+1. **Shortcut during the drag, then drop.** Proven on GNOME and KDE by running, on Hyprland in source, with the finding 6 limit under strict policies. Pressing before the drag is not relied on for Wayland (finding 6).
+2. **`sbarhive drop` on a custom system shortcut.** Set in GNOME keyboard settings, KDE shortcuts, or a Hyprland `bind` line. Needs no portal but carries no activation token on any desktop. GNOME custom shortcuts are assumed to take the same path as finding 4, but we tested `grab_accelerator`, not gsd-media-keys shortcuts (assumed).
+3. **The right click menu.** Stays the guaranteed entry point, unrelated to dragging.
+4. **Dropping on a taskbar icon.** Works on KDE (`requestOpenUrls`); not on GNOME, whose dash accepts only app icons (verified in source); Hyprland has no default bar.
+5. **A permanent drop target or screen corner.** Needs wlr-layer-shell, which GNOME lacks. Rejected.
+6. **The tray icon (StatusNotifierItem).** The protocol has no drop. Rejected.
 
-## الاختصار القابل للتخصيص
+### Configurable shortcut
 
-- **البوابة org.freedesktop.portal.GlobalShortcuts:** مدعومة في GNOME منذ 48 (xdg-desktop-portal-gnome)، ويغيّرها المستخدم من الإعدادات، قسم التطبيقات، ثم «Global shortcuts». ومدعومة في KDE 6 (الإصدار 2)، ويغيّرها من إعدادات النظام، قسم الاختصارات. وفي Hyprland (xdg-desktop-portal-hyprland) لا يُربط الاختصار إلا بسطر `bind = MOD, KEY, global, <appid>:<id>` في الإعدادات، ولا يدعم `ConfigureShortcuts`.
-- **ashpd 0.13.13:** رخصة MIT، ميزة `global_shortcuts`، ويعتمد على zbus 5 مع tokio افتراضياً أو async-io. لم نجرّبه، وتطبيق خارج flatpak قد يحتاج تسجيل معرّفه في البوابة (`org.freedesktop.host.portal.Registry`) (مُفترَض).
+- **org.freedesktop.portal.GlobalShortcuts:** in GNOME since 48 (xdg-desktop-portal-gnome), changed in Settings, Apps, "Global shortcuts". In KDE 6 (version 2), changed in System Settings, Shortcuts. In Hyprland (xdg-desktop-portal-hyprland) the shortcut binds only through a config line `bind = MOD, KEY, global, <appid>:<id>`, with no `ConfigureShortcuts`.
+- **ashpd 0.13.13:** MIT, `global_shortcuts` feature, depends on zbus 5 with tokio by default or async-io. Not tried; an app outside flatpak may need to register its id with the portal (`org.freedesktop.host.portal.Registry`) (assumed).
 
-## القرار المقترح
+## Decision
 
-- مستقبِل إفلات واحد في `crates/ui` على نمط التجربة، بخيط وطابور خاصين، يُعاد ربطه بالسطح الجديد عند كل `present` لأن Slint يهدم السطح عند الإخفاء (ADR 0001، النتيجة 5). وعلى X11 نستخدم أحداث winit مع `QueryPointer`.
-- وضع «انتظار الإفلات» في الخلية: لا تُغلق عند فقدان التركيز ولا عند النقر خارجها، بل عند `leave` أو الإلغاء، أو بعد مهلة، أو بـ Esc. تُقرأ قائمة الملفات عند `enter` فتُبنى الخلايا لنوعها الفعلي قبل الإفلات.
-- المرحلة الأولى: أمر `sbarhive drop` يربطه المستخدم باختصار مخصص في نظامه، مع توثيق الربط لكل سطح مكتب. يعمل بالسياسات الافتراضية فقط، ويفشل مع GNOME strict وKWin Extreme (النتيجة 6). المرحلة الثانية: تسجيل الاختصار عبر البوابة بـ ashpd، مع تمرير `activation_token` في GNOME لتجاوز النتيجة 6.
-- لا ننتظر ترقية Slint إلى winit 0.31. إن صارت الترقية ممكنة وأوصل Slint الإفلات إلى `DropArea`، يُحذف المستقبِل الخاص في مهمة مستقلة.
+- One drop receiver in `crates/ui`, modelled on the spike, with its own thread and queue, rebound to the new surface on every `present` because Slint destroys the surface on hide (ADR 0001, finding 5). On X11, winit events plus `QueryPointer`.
+- A "waiting for drop" mode: the hive does not close on focus loss or an outside click, only on `leave`, cancel, a timeout or Esc. The file list is read on `enter`, so cells are built for the real file type before the drop.
+- Phase one: `sbarhive drop`, bound by the user to a custom system shortcut, with binding docs for each desktop. Works only under default policies; fails with GNOME strict and KWin Extreme (finding 6). Phase two: register the shortcut through the portal with ashpd, passing `activation_token` on GNOME to get past finding 6.
+- Do not wait for Slint to move to winit 0.31. If the upgrade becomes possible and Slint delivers drops to `DropArea`, the private receiver is removed in a separate task.
 
-## الجهد المقدَّر
+## Consequences
 
-- المستقبِل في `crates/ui` ووضع الانتظار والإبراز: يومان إلى ثلاثة.
-- مسار X11: نصف يوم إلى يوم.
-- `sbarhive drop` ورسالة IPC وتوثيق الربط: نصف يوم.
-- اختبار شامل مخفي لـ GNOME وKDE مبني على سكربتات التجربة: يوم.
-- البوابة بـ ashpd (المرحلة الثانية): يوم إلى يومين.
-- المجموع: نحو 4 إلى 5 أيام دون البوابة، و6 إلى 7 معها.
+Still open:
 
-## ما بقي مفتوحاً
+- [ ] Hyprland by running, not only in source (no safe headless mode here).
+- [ ] Real Dolphin and Nautilus as the drag source instead of a GTK 4 window.
+- [ ] Finding 6: is the portal token enough on GNOME strict? What fixes KDE at Extreme?
+- [ ] X11 by running: the shortcut during a drag, and the drop with `QueryPointer` and `AlwaysOnTop`.
+- [ ] GNOME custom shortcuts (gsd-media-keys) during a drag.
+- [ ] The Hyprland first `wl_data_device` limit (finding 3).
+- [ ] `enter` in Mutter without pointer motion (assumed from source).
 
-- [ ] Hyprland بالتشغيل، لا بالشيفرة فقط (لا وضع مخفياً آمناً هنا).
-- [ ] Dolphin وNautilus الحقيقيان مصدراً للسحب، بدل نافذة GTK 4.
-- [ ] النتيجة 6: هل يكفي رمز البوابة في GNOME بالسياسة الصارمة؟ وما الحل في KDE بمستوى Extreme؟
-- [ ] X11 بالتشغيل: الاختصار أثناء السحب، والإفلات مع `QueryPointer` و`AlwaysOnTop`.
-- [ ] اختصارات GNOME المخصصة (gsd-media-keys) أثناء السحب.
-- [ ] قيد Hyprland على أول `wl_data_device` للعميل (النتيجة 3).
-- [ ] ظهور `enter` في Mutter دون حركة المؤشر (مُفترَض من الشيفرة).
+## Amendments
 
-## تعديل S-019 (2026-10-21، بقرار المدير بتفويض من محمد)
+### S-019 (2026-10-21, manager decision delegated by Mohammad)
 
-- **إمساك المفتاح:** `sbarhive drop --hold` يُبقي خلية الإفلات ما دام المفتاح ممسوكاً، و`sbarhive drop --release` يغلقها عند تركه. خروج السحب من الخلية لا يغلقها ما دام المفتاح ممسوكاً، وتُغلق عند الإفلات أو الترك. الترك الذي يسبق ظهور الخلية يُحفظ 300 ms، ومهلة 10 ثوانٍ دون دخول باقية شبكةَ أمان. والضغطة دون `--hold` تبقى كما في S-014. يُنفَّذ في S-019e.
-- **موضع السحب:** `sbarhive drop --at X,Y` بإحداثيات منطقية عامة حيث يتوفر الموضع (Hyprland: `hyprctl cursorpos -j`)، وإلا فالمنتصف ثم انتقال واحد عند أول حركة للسحب (ADR 0004، تعديل S-019).
+- **Holding the key:** `sbarhive drop --hold` keeps the drop hive while the key is held, and `sbarhive drop --release` closes it when the key is let go. The drag leaving the hive does not close it while the key is held; it closes on drop or release. A 10 s timeout with no enter stays as a safety net. A press without `--hold` behaves as in S-014. Implemented in S-019e.
+- **Drag position:** `sbarhive drop --at X,Y` in global logical coordinates where the position is available (Hyprland: `hyprctl cursorpos -j`), otherwise the centre and then one move on the first drag motion (ADR 0004, S-019 amendment).
 
-## تعديل S-019e (2026-10-21، الضغط المطوّل)
+### S-019e (2026-10-21, long press)
 
-- **الظهور بعد عتبة:** `sbarhive drop --hold` حدث ضغط فقط، والخلية تظهر حين يبقى المفتاح ممسوكاً مدة `hold_ms` (المفتاح في `config.toml`، الافتراضي 400 ms، والمقبول من 100 إلى 2000). البوابة صافية في `sbarhive_core::hold`، والمؤقّت في الخدمة لا في العميل. الترك قبل العتبة يلغي المؤقّت، فلا تُظهر الضغطة العابرة شيئاً. لذلك أُلغي حفظ الترك 300 ms المذكور في التعديل السابق.
-- **ميزانية 150 ms:** الميزانية في مسار `hold` تبدأ عند انقضاء العتبة، وزمن الانتظار قرار تجربة مستخدم يضبطه المستخدم، لا زمن استجابة. فالوسيط من انقضاء العتبة إلى أول إطار أقل من 150 ms (ومنذ S-021 إلى أول `commit` جاهز للماسك، والإطار الظاهر خلال 150 ms من دخول السحب)، والزمن من الضغط يساوي العتبة زائداً ذلك الوسيط. مسارات الظهور الفوري (النقر اليمين، و`drop` دون `--hold`، و`open`) تبقى بالتعريف القديم: من الطلب إلى أول إطار، أقل من 150 ms.
-- **إغلاق الخلية:** تُصفَّر البوابة حين تُغلق الخلية لأي سبب (إفلات، أو مهلة 10 ثوانٍ، أو Esc، أو نقرة)، فلا يبتلع ترك ضائع الضغطة التالية (قرار المدير 14).
+- **Show after a threshold:** `sbarhive drop --hold` is only a press event; the hive appears once the key has been held for `hold_ms` (key in `config.toml`, default 400 ms, accepted 100 to 2000). The gate is pure logic in `sbarhive_core::hold`, and the timer lives in the service, not the client. A release before the threshold cancels the timer, so a brief tap shows nothing. This replaces the 300 ms saved release from the S-019 amendment.
+- **The 150 ms budget:** on the `hold` path the budget starts when the threshold elapses; the wait itself is a user setting, not response time. The median from threshold to first frame is under 150 ms (since S-021, to the first ready `commit` of the catcher, with the visible frame within 150 ms of the drag's enter), and the time from the press is the threshold plus that median. Instant paths (right click, `drop` without `--hold`, `open`) keep the old definition: request to first frame under 150 ms.
+- **Closing:** the gate resets whenever the hive closes for any reason (drop, 10 s timeout, Esc, a click), so a lost release never swallows the next press (manager decision 14).

@@ -1,149 +1,137 @@
-# صبار هايف (SbarHive): محوّل ملفات محلي مفتوح المصدر بواجهة خلية نحل
+# SbarHive (صبار هايف): a local, open source file converter with a honeycomb UI
 
-> الاسم معتمد: SbarHive باللاتينية، و«صبار هايف» بالعربية. الخطة الكاملة والإصدارات في `docs/PLAN.md`، والتغييرات في `CHANGELOG.md`.
+The name is fixed: SbarHive in Latin script, «صبار هايف» in Arabic. Releases and the plan are in `docs/PLAN.md`, changes in `CHANGELOG.md`.
 
-## ما هو المشروع
+## What it is
 
-أداة مجانية مفتوحة المصدر (GPLv3) تحوّل الملفات وتعالجها محلياً بالكامل. يحدد المستخدم ملفاً أو أكثر في مدير الملفات، فتظهر واجهة سداسية (خلية نحل) بالإجراءات المناسبة لنوع الملفات وعددها، ويُحفظ الناتج نسخةً جديدة بجانب الأصل.
+A free GPLv3 tool that converts and processes files entirely on the user's machine. The user selects one or more files in the file manager, a hexagonal hive shows the actions that fit their type and count, and the result is saved as a new file next to the original.
 
-الأولوية: لينكس على Wayland أولاً (GNOME وKDE)، ثم X11 كمسار ثانوي، ثم ويندوز. ماك لاحقاً.
+Platform order: Linux on Wayland first (GNOME and KDE), then X11, then Windows, then macOS. GNOME, Fedora and Ubuntu default to Wayland and GNOME's X11 session is gone from current distributions. The development machine runs Hyprland, which is more permissive than GNOME and KDE, so anything about windows and focus must also be tested on GNOME and KDE.
 
-السبب: GNOME وFedora وUbuntu تعمل على Wayland افتراضياً، وجلسة X11 في GNOME أُزيلت من التوزيعات الحديثة. جهاز التطوير الحالي يعمل على Hyprland، وهو أكثر تساهلاً من GNOME وKDE، فلا يكفي الاختبار عليه وحده: كل ما يخص النوافذ والتركيز يُختبر أيضاً على GNOME وKDE (آلة افتراضية).
+## Non-negotiable principles
 
-## المبادئ غير القابلة للتفاوض
+- No file leaves the user's machine. No processing servers, no telemetry.
+- The hive appears less than 150 ms after it is invoked. On the long press path (`sbarhive drop --hold`) "invoked" means the `hold_ms` threshold has elapsed, not the key press.
+- The base install is light. Extra engines are downloaded only when needed, or taken from the system when present.
+- The original file is never modified. Write to a temporary file, then rename atomically to the final name.
+- Arabic and English from day one, with full RTL.
 
-- لا يغادر أي ملف جهاز المستخدم. لا خوادم معالجة، ولا بيانات استخدام.
-- تظهر الخلية خلال أقل من 150 ملي ثانية من الاستدعاء. و«الاستدعاء» في مسار الضغط المطوّل (`sbarhive drop --hold`) هو انقضاء العتبة `hold_ms`، لا الضغط.
-- التثبيت الأساسي خفيف، والمحركات الإضافية تُنزَّل عند الحاجة فقط، أو تُستخدم من النظام إن وُجدت.
-- لا يُعدَّل الملف الأصلي أبداً. الكتابة في ملف مؤقت ثم نقل ذري للاسم النهائي.
-- عربي وإنكليزي من اليوم الأول، مع دعم RTL كامل.
+## Language policy
 
-## الـ Stack
+- English is the primary language of all repo text: code, comments, internal docs, ADRs, commit messages.
+- Public user docs have an English main file and an Arabic copy beside it (`NAME.md` and `NAME.ar.md`). Each starts with the language switch line `[English](NAME.md) | [العربية](NAME.ar.md)`.
+- Backlog stories may stay in Arabic. New stories and new log entries are written in English.
+- `CHANGELOG.md`: one line per story, in English and Arabic like the existing entries.
+- App UI strings stay in Arabic and English, with RTL.
 
-- **اللغة:** Rust (workspace متعدد crates).
-- **الواجهة:** Slint (رخصة GPLv3). القرار قابل للمراجعة بعد النموذج الأولي للخلية (راجع `docs/adr/0001-ui-toolkit.md`).
-- **IPC:** Unix socket على لينكس، named pipe على ويندوز.
-- **المحركات تعمل كعمليات منفصلة** للمحركات الثقيلة (FFmpeg، LibreOffice، Ghostscript).
+## Stack
 
-## هيكل المستودع
+- **Language:** Rust, a multi crate workspace.
+- **UI:** Slint (GPLv3) with the software renderer (`docs/adr/0001-ui-toolkit.md`). The Slint version is pinned; upgrading it is a separate task.
+- **IPC:** Unix socket on Linux, named pipe on Windows.
+- **Heavy engines run as separate processes** (FFmpeg, LibreOffice, Ghostscript).
+
+## Repository layout
 
 ```
 crates/
-  core/      نموذج المهمة، سجل الصيغ والإجراءات، الطابور، الإلغاء والتقدم
-             (فحص الجهاز والمحركات في وحدة core::probe حتى يكبر، ثم يُفصل إلى crate)
-  engines/   محوّل لكل محرك خلف trait موحّد
-  daemon/    الخدمة الخلفية، أيقونة الشريط، استقبال الطلبات
-  ui/        الخلية ونافذة الترتيب والإعدادات (Slint)
-  cli/       سطر الأوامر، يستخدم core مباشرة
-actions/     تعريف الإجراءات بملفات TOML (الخلية تُبنى منها ديناميكياً)
-integrations/linux/{nautilus,dolphin,nemo,thunar}/
-integrations/windows/{explorer-command,sparse-package}/
-design/tokens.json   مصدر الحقيقة الوحيد للتصميم
-docs/        PLAN.md، architecture.md، design-system.md، engines.md، adr/
-spikes/      تجارب مؤقتة لإثبات الجدوى، خارج الـ workspace، لا تُدمج كما هي
-site/        صفحة الهبوط (بعد أن تعمل الخلية فعلياً ويُسجَّل لها مقطع)
+  core/      job model, format and action registry, queue, cancel and progress
+             (device and engine probing in core::probe until it grows into a crate)
+  engines/   one adapter per engine behind a shared trait
+  daemon/    background service, tray icon, request handling
+  ui/        the hive, the settings window (Slint); hand built parts in components/
+  cli/       command line, uses core directly
+actions/     action definitions in TOML; the hive is built from them at runtime
+integrations/linux/{nautilus,dolphin,nemo,thunar,hyprland}/
+integrations/windows/{explorer-command,sparse-package}/   planned for 0.6.0
+design/tokens.json   the single source of truth for design
+docs/        PLAN.md, architecture.md, design-system.md, engines.md, adr/
+backlog/     one story file per task, from backlog/_TEMPLATE.md
+tests/       end to end and compositor tests, small fixtures in tests/fixtures
+spikes/      throwaway feasibility experiments, outside the workspace, never merged as is
+site/        landing page
 ```
 
-## عقد المحرك
+## Engine contract
 
-كل محرك يطبّق trait واحداً:
+Every engine implements one trait:
 
-- `capabilities()`: أزواج (نوع إدخال، صيغة إخراج) مع الخيارات المدعومة.
-- `estimate(file, device)`: تقدير الزمن والذاكرة.
-- `run(job, progress, cancel)`: التنفيذ مع التقدم والإلغاء.
+- `capabilities()`: (input type, output format) pairs with the options they support.
+- `estimate(file, device)`: expected time and memory.
+- `run(job, progress, cancel)`: execution with progress and cancellation.
 
-إضافة صيغة جديدة = ملف TOML في `actions/` + محوّل صغير. لا تكتب منطق الإجراءات داخل الواجهة.
+A new format is a TOML file in `actions/` plus a small adapter. Never put action logic in the UI.
 
-## قواعد التصميم (إلزامية)
+## Design rules (mandatory)
 
-- لا `box-shadow` ولا ظلال من أي نوع.
-- لا تدرجات لونية (gradient) نهائياً.
-- لا حدود من جهة واحدة ولا خطوط تمييز جانبية.
-- لا شرطة طويلة (em dash) في أي نص أو تعليق أو توثيق.
-- الارتفاع بدرجات الأسطح فقط: `surface-0` إلى `surface-3`.
-- الشفافية من رموز الزجاج فقط (`glass-2` و`glass-3`)، ولا تُستعمل إلا فوق ضبابية يرسمها المؤلِّف. حيث لا ضبابية (GNOME) تبقى الأسطح معتمة.
-- كل لون ومسافة ونصف قطر وزمن حركة يأتي من `design/tokens.json`. لا قيم مكتوبة يدوياً.
-- الخلايا سداسية برأس مدبب للأعلى، بالإحداثيات المحورية (axial)، وتتوسع حلقةً حلقة.
-- محتوى الخلية: أيقونة مع رمز الصيغة (WEBP، PDF). الاسم الكامل بالعربية أو الإنكليزية يظهر في الخلية المركزية عند المرور، لا داخل الخلية الصغيرة.
-- احترام إعداد تقليل الحركة في النظام.
+- No `box-shadow` and no shadows of any kind.
+- No gradients.
+- No one sided borders and no side accent lines.
+- No em dash or en dash in any text, comment or doc. Use a comma, colon, semicolon or a new sentence.
+- Elevation through surface tokens only: `surface-0` to `surface-3`.
+- Transparency only from the glass tokens (`glass-2`, `glass-3`) and only over a blur the compositor draws. Where there is no blur (GNOME) surfaces stay opaque.
+- Every colour, spacing, radius and motion duration comes from `design/tokens.json`. No hand written values.
+- Cells are pointy top hexagons in axial coordinates, growing ring by ring.
+- A cell shows an icon with the format code (WEBP, PDF). The full Arabic or English name shows in the centre cell on hover, never inside the small cell.
+- Respect the system's reduced motion setting.
 
-## Wayland وويندوز: حقائق يجب احترامها
+## UI
 
-- Wayland لا يسمح بتحديد موقع النافذة ولا بقراءة المؤشر خارجها: على مسار الطبقة (Hyprland وKDE وwlroots) تظهر الخلية عند المؤشر أو موضع السحب، ويتكيّف شكلها مع حواف الشاشة؛ وعلى مسار النافذة (GNOME، ومع قارئ شاشة يعمل) في المنتصف؛ وعند المؤشر على X11 وويندوز.
-- **منع سرقة التركيز (الخطر الأول):** نافذة تفتحها خدمة خلفية لا تأخذ التركيز تلقائياً في GNOME وKDE، وقد يظهر إشعار «التطبيق جاهز» بدلها. الحل المعتمد: تكامل مدير الملفات يطلب رمز تفعيل (xdg-activation token) ويمرّره مع طلب IPC، والخدمة تفعّل النافذة به. لا يُعتبر ظهور الخلية ناجحاً على مؤلِّف لم يُختبر فيه التركيز.
-- الخلية طبقة wlr-layer-shell حيث يقدّمها المؤلِّف (Hyprland، KDE Plasma منذ 5.20، Sway وwlroots)، ونافذة عادية على GNOME وX11 وويندوز، وعند قارئ شاشة يعمل فعلاً، لا العلم وحده. لا تفترض وجود layer-shell (راجع `docs/adr/0004-hive-overlay.md`).
-- الاختصار العام على Wayland عبر بوابة GlobalShortcuts في xdg-desktop-portal، مع قراءة الملفات المنسوخة من الحافظة.
-- المدخل الأساسي المضمون: قائمة النقر اليمين في مدير الملفات.
-- ويندوز 11: القائمة الحديثة تحتاج IExplorerCommand وحزمة sparse موقّعة. القائمة القديمة بمفاتيح السجل تعمل بلا توقيع.
+- Components come from Slint's official Material 3 library, vendored at v1.18.1 in `crates/ui/material/` (MIT, `docs/adr/0002-settings-components.md`). Colours and fonts are set from tokens only. Never rebuild a component the library has.
+- The only hand built components are the hexagonal cell and the centre cell, in `crates/ui/components/`.
+- Colours are passed once to `MaterialPalette.schemes` (light and dark) under Material Theme Builder field names, generated from `tokens.json`.
+- Shadows live only in the library's `elevation.slint`, which we keep as a modified copy without shadows. Do not use elevation levels to show height; use surface tokens.
+- RTL: Slint shapes Arabic and handles bidi text. Layout mirroring is not automatic: reverse element order by UI language.
+- Do not change the UI library without an ADR.
+- No work blocks the UI. Job progress shows in the tray icon tooltip with one notification when each job finishes (`docs/PLAN.md`, decision of 2026-10-20), never in a window that takes focus.
 
-## المراحل
+## Wayland and Windows: facts to respect
 
-المرحلة 0 مكتملة. صدرت 0.1.0 و0.2.0 و0.3.0 على لينكس (الوسوم والحزم على GitHub)، والعمل الآن على 0.4.0 «البوابة والمظهر»، ثم 0.5.0 لمسار X11، ثم 0.6.0 لويندوز، كما في `docs/PLAN.md`.
+- Wayland gives no window positioning and no pointer position outside our surfaces. On the layer path (Hyprland, KDE, wlroots) the hive appears at the pointer or the drag position and its shape adapts to the screen edges. On the window path (GNOME, or a running screen reader) it is centred. On X11 and Windows it appears at the pointer.
+- **Focus stealing prevention is the top risk.** A window opened by a background service does not get focus by default on GNOME and KDE, and an "app is ready" notification may show instead. The fix: the file manager integration requests an xdg-activation token and passes it with the IPC request, and the service activates the hive with it. The hive does not count as working on a compositor where focus was not tested.
+- The hive is a `zwlr_layer_shell_v1` surface where the compositor offers it (Hyprland, KDE Plasma since 5.20, Sway and wlroots), and an ordinary window on GNOME, X11 and Windows, and when a screen reader is actually running (not the flag alone). Never assume layer-shell exists (`docs/adr/0004-hive-overlay.md`).
+- The global shortcut on Wayland goes through the xdg-desktop-portal GlobalShortcuts portal, reading copied files from the clipboard.
+- The guaranteed entry point is the file manager's right click menu.
+- Windows 11: the modern menu needs IExplorerCommand and a signed sparse package. The legacy menu through registry keys works unsigned.
 
-## المرحلة 0 (الأساس)
+## Status (2026-10-22)
 
-### 0أ: تجربة الخلية (spike، في `spikes/hive/`)
+- Released on Linux, tagged on GitHub: 0.1.0, 0.2.0 to 0.2.2, 0.3.0, 0.3.1 (S-021) and 0.3.2 (S-022). RPM and DEB packages are on the release pages from 0.2.1 on.
+- Next: 0.4.0, the portal shortcut (S-014e, S-014f), signed repositories (S-016) and the glass hive (S-017). Then 0.5.0 for X11 (S-015) and 0.6.0 for Windows (ADR 0005 first). Details in `docs/PLAN.md`.
+- Still open from phase 0: the focus and activation test on real GNOME and KDE, with tokens from Nautilus and Dolphin (needs a virtual machine).
 
-هدفها إثبات أن الخلية ممكنة على Wayland قبل بناء أي شيء حولها. لا تمر بسلسلة الوكلاء.
+## Working rules
 
-- [x] خلية Slint من 19 خلية بإجراءات وهمية، بنافذة شفافة بلا إطار، في منتصف الشاشة.
-- [x] قياس الزمن من الطلب إلى أول إطار مرسوم، في وضع النافذة الجاهزة المخفية (مسار الخدمة) وفي وضع التشغيل البارد.
-- [x] اختيار الخلية بالنقر حسب الشكل السداسي، والزوايا الشفافة لا تختار شيئاً.
-- [x] Esc وفقدان التركيز يغلقان الخلية (تحقق حي على Hyprland في 2026-10-19).
-- [x] العربية متصلة والتخطيط ينعكس.
-- [ ] اختبار التركيز والتفعيل على Hyprland (تم) ثم GNOME ثم KDE، مع رمز xdg-activation من Nautilus (ينتظر آلة افتراضية).
-- [x] نتيجة التجربة في `docs/adr/0001-ui-toolkit.md`: نكمل بـ Slint والمُصيِّر البرمجي (يبقى اختبار التركيز على GNOME وKDE مفتوحاً).
+- Write an ADR before any major architectural decision.
+- Tests for every engine adapter, with small test files in `tests/fixtures`.
+- Check the licence of any new library before adding it and record it in `docs/engines.md`.
 
-### 0ب: الأساس (بعد نجاح 0أ)
+## Agent chain (mandatory for every task)
 
-- [x] تهيئة workspace والرخصة وREADME بالعربية والإنكليزية.
-- [x] `design/tokens.json` مع مولّد يكتب Slint globals (`crates/ui/build.rs`) ومتغيرات CSS (`scripts/tokens-to-css.py`).
-- [x] daemon مع أيقونة الشريط وIPC.
-- [x] تكاملات Nautilus (nautilus-python) وDolphin (service menu) ترسل الملفات للـ daemon، ومعها Nemo وThunar واختصار Hyprland.
-- [x] CLI أساسي: `sbarhive convert <files> --to webp`.
+All work in `crates/` goes through this chain, one agent per step in `.claude/agents/`. Spikes in `spikes/` are exempt; their result is an ADR, not merged code.
 
-مؤجَّل إلى مرحلة الإعدادات: مقارنة Material 3 وSleek-ui ثم ADR بالاختيار.
+1. **planner:** writes the story in `backlog/` from `backlog/_TEMPLATE.md`.
+2. **tester:** writes tests from the acceptance criteria only, runs them and shows they fail.
+3. **implementer:** writes code until the tests pass. Editing tests is forbidden.
+4. **reviewer:** in a fresh context, runs the quality gates and returns PASS or REWORK.
 
-المرحلة 0 اكتملت في 2026-10-20، ما عدا اختبار التركيز على GNOME وKDE الحقيقيين.
+The owner, Mohammad, has delegated approvals (stories, screenshots) to the manager, so the chain does not stop for approval. After two REWORKs the story stops and goes to Mohammad.
 
-## أسلوب العمل
-
-- اكتب ADR قبل أي قرار معماري كبير.
-- اختبارات لكل محوّل محرك، وملفات اختبار صغيرة في `tests/fixtures`.
-- تحقّق من رخصة أي مكتبة جديدة قبل إضافتها وسجّلها في `docs/engines.md`.
-- رسائل الـ commit بالإنكليزية، والتوثيق الموجّه للمستخدم بالعربية والإنكليزية.
-
-## آلية العمل (إلزامية لكل مهمة)
-
-كل عمل في `crates/` يمر بهذه السلسلة، ولكل خطوة وكيل في `.claude/agents/`. التجارب في `spikes/` مستثناة، ونتيجتها ADR لا شيفرة تُدمج:
-
-1. **planner:** يكتب ملف المهمة في `backlog/` من القالب `backlog/_TEMPLATE.md`، ثم يتوقف لموافقة محمد.
-2. **tester:** يكتب الاختبارات من معايير القبول فقط، ويشغّلها ويثبت أنها تفشل.
-3. **implementer:** يكتب الشيفرة حتى تنجح الاختبارات. ممنوع تعديل الاختبارات.
-4. **reviewer:** بسياق جديد، يشغّل بوابات الجودة ويصدر حكماً: PASS أو REWORK.
-
-بعد محاولتي REWORK تتوقف المهمة وتُرفع لمحمد. لقطات الشاشة الجديدة يعتمدها محمد.
-
-### بوابات الجودة
+### Quality gates
 
 ```
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test --all
-cargo mutants --in-diff <diff>        # بلا طفرات ناجية في الشيفرة المتغيرة
-scripts/design-lint.sh                # بلا ألوان يدوية أو ظلال أو تدرجات أو شرطة طويلة
+cargo mutants --in-place --in-diff <diff>   # no surviving mutants in changed code
+scripts/design-lint.sh                       # no hand written colours, shadows, gradients or long dashes
 ```
 
-إضافة إلى: لقطات الشاشة مطابقة، ميزانية الأداء محترمة، النصوص بالعربية والإنكليزية، تسمية وصفية لكل عنصر تفاعلي، وسطر واحد في CHANGELOG.md.
+Plus: screenshots match, the performance budget holds, UI strings in Arabic and English, a descriptive label on every interactive element, and one line in `CHANGELOG.md`.
 
-### الواجهة
+### Running heavy work
 
-- المكونات من مكتبة Material 3 الرسمية من Slint (https://material.slint.dev)، تُخصَّص ألوانها وخطوطها من الرموز فقط، وتُلغى أي ظلال فيها. لا تبنِ مكوّناً موجوداً فيها من الصفر.
-- المكوّن الوحيد المبني يدوياً هو الخلية السداسية والخلية المركزية، في `crates/ui/components/`.
-- الألوان: تُمرَّر مرة واحدة إلى `MaterialPalette.schemes` (light/dark) بأسماء حقول Material Theme Builder، وتُولَّد من tokens.json.
-- الظلال: محصورة في `elevation.slint` داخل المكتبة. نحتفظ بنسخة معدّلة منه بلا ظل (المكتبة MIT). لا تستخدم مستويات elevation لإظهار ارتفاع، استخدم أسطح الرموز.
-- RTL: تشكيل العربية والنص ثنائي الاتجاه يدعمه محرك Slint. قلب التخطيط غير تلقائي: اعكس ترتيب العناصر حسب لغة الواجهة.
-- البديل إن فشلت المقارنة في المرحلة 0: Sleek-ui (MIT، لسطح المكتب، ظلها رمز في UAppTheme). لا تغيّر المكتبة دون ADR.
-- إصدار Slint مثبت، وترقيته مهمة مستقلة.
-- الأعمال الثقيلة (بناء، اختبارات، cargo mutants، سكربتات المؤلِّف) تعمل داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` وبمهمة أو اثنتين، والطفرات على الملف المتغير فقط. في 2026-10-21 قتل systemd-oomd تطبيق Claude كله بسبب بناءات الطفرات.
-- لا يحجب أي عمل الواجهة: التقدم ينتقل إلى مؤشر جانبي صغير لا يأخذ التركيز.
+- Builds, tests, `cargo mutants` and compositor scripts run inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` with `CARGO_BUILD_JOBS` set to 1 or 2. On 2026-10-21 systemd-oomd killed the whole Claude app over mutant builds.
+- Put the commands in a script file and run that, because systemd-run substitutes `$` in its arguments.
+- `cargo mutants` always runs with `--in-place`, on the changed file only. Copy mode copies the 76 GB `target/` into tmpfs.
+- GUI tests run only in private compositors (`tests/hyprland/repro.sh`, the KWin scripts such as `tests/overlay/kwin.sh`), never on the live desktop.

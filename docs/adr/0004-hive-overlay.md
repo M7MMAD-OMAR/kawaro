@@ -1,132 +1,123 @@
-# ADR 0004: الخلية طبقةً فوق الشاشة لا نافذة، والملف نفسه في الخلية المركزية
+# ADR 0004: The hive as a screen overlay, not a window, with the file itself in the centre cell
 
-الحالة: مقبول (2026-10-20، الخيار أ). المعاينة تملأ السداسي المركزي بحجمه الحالي، دون تغيير التخطيط، وتُراجَع مع S-017.
-التاريخ: 2026-10-20
+Status: accepted (2026-10-20, option A). The preview fills the centre hexagon at its current size, with no layout change, to be reviewed with S-017.
+Date: 2026-10-20
 
-## السياق
+## Context
 
-في أول استخدام حقيقي على Hyprland 0.56 (التركيز يتبع المؤشر) ظهرت الخلية نافذةَ xdg_toplevel عادية، فرصفها Hyprland بإطار، وجاءت خارج المنتصف ومقصوصة، وأغلقها مرور المؤشر خارجها، لأن التركيز انتقل مع المؤشر وفقدانُ التركيز يغلق الخلية. يريد المالك ألا تتصرف الخلية كنافذة أبداً، بل طبقة مصقولة فوق الشاشة. ويريد أن تعرض الخلية المركزية الملف نفسه (صورة مصغّرة أو أيقونة نوعه) بدل نص «1 document».
+On first real use on Hyprland 0.56 (focus follows the mouse) the hive came up as an ordinary xdg_toplevel window: Hyprland tiled it with a border, placed it off centre and clipped, and moving the pointer out closed it, because focus followed the pointer and focus loss closes the hive. The owner wants the hive never to behave like a window, but as a polished layer over the screen, and wants the centre cell to show the file itself (a thumbnail or its type icon) instead of the text "1 document".
 
-التجربة في `spikes/overlay/`، وشُغّلت داخل مؤلِّفات مخفية خاصة فقط: KWin 6.7.5 بوضع virtual، وGNOME Shell 50.5 بوضع headless، بملف شخصي ومجلدات XDG وناقل جلسة ومجلد تشغيل معزولة، كما في `tests/e2e/run.sh`. لم يُلمس سطح المكتب الفعلي. تعرض التجربة الخلية الحقيقية من `crates/ui` دون تعديل، فوق نافذة GTK 4 مكبّرة تسجّل ما يصلها من نقرات وتركيز. Sway غير مثبت، ولا وضع مخفياً آمناً لـ Hyprland هنا، فما يخصهما مقروء من الشيفرة المصدرية (Hyprland v0.56.2، وsway master). وما يُنسب لشيفرة KWin مقروء من الوسم v6.8.0 ما لم يُذكر v6.7.5، والمُشغَّل 6.7.5.
+The spike in `spikes/overlay/` ran only in private headless compositors (KWin 6.7.5 virtual, GNOME Shell 50.5 headless), isolated as in `tests/e2e/run.sh`. It shows the real hive from `crates/ui` over a maximised GTK 4 window that logs the clicks and focus it receives. Sway and Hyprland facts come from source (Hyprland v0.56.2, sway master); KWin source references are tag v6.8.0 unless v6.7.5 is named.
 
-علامة (مُتحقَّق) تعني تشغيلاً مخفياً أو سطراً مقروءاً في الشيفرة مع ذكر المصدر، و(مُفترَض) تعني استنتاجاً لم يُختبر.
+(verified) means a headless run or a line read in source with its location; (assumed) means an untested inference.
 
-## النتائج
+## Findings
 
-### 1. من يدعم wlr-layer-shell
+### 1. Who supports wlr-layer-shell
 
-- **KWin يدعمه منذ Plasma 5.20 (مُتحقَّق).** `layershellv1client.cpp` موجود في الوسم v5.20.0 وغائب في v5.19.5. KWin 6.x يعلن الإصدار 5 (`src/wayland/layershell_v1.cpp`)، وظهر في التشغيل `zwlr_layer_shell_v1 v5`. ولا يقيّده لعملاء مميزين (`KWinDisplay::allowInterface` في `src/wayland_server.cpp`). عبارة CLAUDE.md الحالية «غير مدعوم في GNOME وKDE» خاطئة في شقّها الثاني.
-- **Hyprland 0.56 يعلن الإصدار 5 (مُتحقَّق من الشيفرة، `src/managers/ProtocolManager.cpp`)**، وكذلك Sway وبقية wlroots.
-- **GNOME لا يدعمه (مُتحقَّق).** لم يظهر في قائمة GNOME Shell 50.5 المخفي، ولا في قائمة بروتوكولات Mutter (`src/meson.build`)، والطلب #1922 أُغلق في 2021 دون دمج. فشلت التجربة في الحصول عليه فرجعت تلقائياً إلى xdg_toplevel عبر winit.
-- `wp_viewporter` و`wp_fractional_scale_v1` و`wp_single_pixel_buffer_v1` و`xdg_activation_v1` موجودة في KWin وGNOME (مُتحقَّق بالتشغيل) وفي Hyprland (مُتحقَّق من الشيفرة). وفي Sway (مُفترَض، لم نقرأه).
+- **KWin since Plasma 5.20 (verified).** `layershellv1client.cpp` exists in tag v5.20.0 and not in v5.19.5. KWin 6.x advertises version 5 (`src/wayland/layershell_v1.cpp`), seen in the run as `zwlr_layer_shell_v1 v5`, with no restriction to privileged clients (`KWinDisplay::allowInterface` in `src/wayland_server.cpp`).
+- **Hyprland 0.56 advertises version 5 (verified in source, `src/managers/ProtocolManager.cpp`)**, as do Sway and other wlroots compositors.
+- **GNOME does not (verified).** Absent from headless GNOME Shell 50.5 and from Mutter's protocol list (`src/meson.build`); merge request #1922 was closed in 2021 unmerged. The spike fell back to xdg_toplevel through winit on its own.
+- `wp_viewporter`, `wp_fractional_scale_v1`, `wp_single_pixel_buffer_v1` and `xdg_activation_v1` exist in KWin and GNOME (verified by running) and in Hyprland (verified in source); in Sway assumed, not read.
 
-### 2. التصميم المُجرَّب: سطح ماسك بحجم الشاشة وخلية سطحاً فرعياً
+### 2. Design tried: a full screen catcher with the hive as a subsurface
 
-- **الماسك:** سطح layer-shell على طبقة overlay، مثبّت على الحواف الأربع، `exclusive_zone = -1`، ولوحة المفاتيح `exclusive`. مخزنه بكسل شفاف واحد يمدّه `wp_viewporter` إلى حجم الشاشة، فكلفته في الذاكرة لا تُذكر (مخزن بحجم الشاشة يكلّف نحو 33 MB على شاشة 4K). أي نقرة خارج الخلية تقع عليه فتغلق الخلية.
-- **الخلية:** `wl_subsurface` من الماسك في منتصفه، فيه إطار Slint بالمُصيِّر البرمجي في مخزن `wl_shm`. الموقع نحسبه نحن، فلا يضعها المؤلِّف ولا يقصّها.
-- **تحديد مساحة الإدخال بالسداسيات وحدها لا يكفي للإغلاق بالنقر خارجها:** النقرة خارج المساحة تذهب للنافذة تحتها ولا يصلنا أي حدث. لذلك يأخذ الماسك كل الإدخال.
-- **وضع انتظار الإفلات (ADR 0003) عكس ذلك:** مساحة إدخال الماسك فارغة ولوحة المفاتيح `none`، فيبدأ المستخدم السحب من النافذة تحتها (عدّلتها S-020: بعد أول `configure` تصير منطقة الماسك مستطيل الخلية، والسطح الفرعي بلا إدخال، والمستقبِل على الماسك، لأن Hyprland لا يرسل حركة السحب لسطح فرعي من طبقة)، ويبقى الإغلاق بقواعد ADR 0003 (`leave` والمهلة وEsc).
+- **Catcher:** a layer-shell surface on the overlay layer, anchored to all four edges, `exclusive_zone = -1`, keyboard `exclusive`. Its buffer is one transparent pixel stretched to the screen by `wp_viewporter`, so its memory cost is negligible (a screen sized buffer would cost about 33 MB at 4K). Any click outside the hive lands on it and closes the hive.
+- **Hive:** a `wl_subsurface` of the catcher, at its centre, holding a Slint frame from the software renderer in a `wl_shm` buffer. We compute the position, so the compositor neither places nor clips it.
+- **An input region of only the hexagons cannot close on an outside click:** a click outside the region goes to the window below and we get no event. So the catcher takes all input.
+- **Drop mode (ADR 0003) is the opposite:** the catcher's input region is empty and keyboard `none`, so the user starts the drag from the window below, and closing follows ADR 0003 (`leave`, timeout, Esc). Changed by S-020: after the first `configure` the catcher's region becomes the hive's rectangle, the subsurface takes no input and the receiver is on the catcher, because Hyprland sends no drag motion to a subsurface of a layer surface.
 
-نتائج التشغيل في KWin 6.7.5 (شاشة 1280 × 800، كل حالة مرة واحدة، تحت نافذة GTK مكبّرة):
+Run on KWin 6.7.5 (1280 by 800 screen, each case once, under a maximised GTK window):
 
-| الحالة | النتيجة |
+| Case | Result |
 | --- | --- |
-| الموضع والشكل | الخلية 392 × 361 في (444، 219)، أي في المنتصف تماماً، بلا إطار ولا رصف (اللقطة `out/hive-kwin.png`) |
-| نقرة خارج الخلية | أغلقتها، ولم تصل النافذةَ تحتها (0 نقرات) |
-| نقرة على خلية | اختارت `image.to-png` |
-| السهم الأيمن ثم Enter | اختارا خلية، والمؤشر فوق منطقة النافذة الأخرى |
-| تجوال المؤشر فوق منطقة النافذة الأخرى ثم Esc | بقي التركيز في الخلية وأغلقها Esc، حتى مع «التركيز يتبع المؤشر» |
-| وضع الإفلات | النقرة خارج الخلية وصلت النافذة تحتها (نقرة واحدة)، ولم تأخذ الخلية لوحة المفاتيح |
-| مقياس كسري 1.5 (`kscreen-doctor`) | وصل `preferred_scale` = 1.5 قبل أول configure، ورُسمت الخلية بدقة الشاشة الفعلية دون ضبابية (`out/hive-kwin-scale1.5.png`) |
-| نافذة winit عادية في العملية نفسها | ظهرت xdg_toplevel عادية بجانب الطبقة، فالإعدادات تبقى نافذة |
+| Position and shape | Hive 392 by 361 at (444, 219), exactly centred, no border or tiling (`out/hive-kwin.png`) |
+| Click outside the hive | Closed it; the window below got 0 clicks |
+| Click on a cell | Picked `image.to-png` |
+| Right arrow then Enter | Picked a cell with the pointer over the other window's area |
+| Pointer roaming over the other window, then Esc | Focus stayed in the hive and Esc closed it, even with focus follows mouse |
+| Drop mode | A click outside the hive reached the window below (one click); the hive did not take the keyboard |
+| Fractional scale 1.5 (`kscreen-doctor`) | `preferred_scale` = 1.5 arrived before the first configure; the hive drew at the real screen resolution with no blur (`out/hive-kwin-scale1.5.png`) |
+| An ordinary winit window in the same process | Appeared as a normal xdg_toplevel beside the layer, so settings stays a window |
 
-### 3. التركيز والإغلاق
+### 3. Focus and closing
 
-- **Hyprland (مُتحقَّق من الشيفرة فقط).** يأخذ سطح `exclusive` التركيز عند الظهور (`CLayerSurface::onMap`)، ولا يسحبه منه «التركيز يتبع المؤشر» ما دام ظاهراً: `rawWindowFocus` يرفض التركيز «بسبب سطح طبقة حصري»، و`mouseMoveUnified` يجعل `allowKeyboardRefocus = false`. أما `on_demand` فيفقد التركيز بمرور المؤشر على نافذة. ولا يطبّق Hyprland على أسطح الطبقات رصفاً ولا إطاراً، لكنه يطبّق حركة الظهور `layersIn` افتراضياً، ويمكن للمستخدم إلغاؤها بقاعدة طبقة على الاسم `sbarhive` (المؤثر `noanim` موجود في الشيفرة، أما صيغة السطر في 0.56 فلم نتحقق منها، مُفترَض). هذا يعالج الأعراض الأربعة التي رآها المالك، لكنه لم يُشغَّل بعد (مُفترَض).
-- **Sway (مُتحقَّق من الشيفرة فقط).** `seat_set_focus` يمنع السطح الحصري من فقدان التركيز.
-- **KWin لا يفرّق بين `exclusive` و`on_demand` (مُتحقَّق من الشيفرة)**، ويطبّق منع سرقة التركيز على أسطح الطبقات. في `Workspace::mayActivate` (v6.7.5، `src/activation.cpp`) استثناء يمنح التركيز دون رمز لسطح top أو overlay مثبّت على الحواف الأربع وعلى شاشة النافذة النشطة، أي ماسكنا. لكن فحص الرمز في مستوى Extreme يرفض قبل الوصول إليه، فالاستثناء يعمل في المستويات الأدنى فقط (Medium وHigh مُفترَضان، لم يُشغَّلا). النتائج بالتشغيل:
+- **Hyprland (verified in source only).** An `exclusive` surface takes focus when mapped (`CLayerSurface::onMap`), and focus follows mouse cannot take it away while it is shown: `rawWindowFocus` refuses focus "because of an exclusive layer surface", and `mouseMoveUnified` sets `allowKeyboardRefocus = false`. `on_demand` loses focus when the pointer crosses a window. Hyprland applies no tiling or border to layer surfaces, but plays the `layersIn` animation by default; users can turn it off with a layer rule on the namespace `sbarhive` (the `noanim` effect exists in source; the 0.56 line syntax is unverified, assumed). This addresses the four symptoms the owner saw, not yet run (assumed).
+- **Sway (verified in source only).** `seat_set_focus` keeps an exclusive surface from losing focus.
+- **KWin treats `exclusive` and `on_demand` alike (verified in source)** and applies focus stealing prevention to layer surfaces. `Workspace::mayActivate` (v6.7.5, `src/activation.cpp`) has an exception that grants focus without a token to a top or overlay surface anchored to all four edges on the active window's output, which is our catcher. The token check at Extreme rejects before reaching it, so the exception works only at lower levels (Medium and High assumed, not run). Results by running:
 
-| سياسة KWin | Esc والمؤشر ساكن | دون رمز تفعيل | برمز من نقرة في نافذة GTK |
+| KWin policy | Esc with a still pointer | No activation token | Token from a click in a GTK window |
 | --- | --- | --- | --- |
-| يتبع المؤشر، المنع Low (الافتراضي) | يعمل | التركيز عند الظهور | التركيز عند الظهور |
-| يتبع المؤشر، المنع Extreme | لا يعمل | التركيز بعد نحو 300 ms من أول حركة للمؤشر (الماسك تحت المؤشر دائماً) | التركيز عند الظهور، وEsc يعمل |
-| بالنقر، المنع Extreme | لا يعمل | التركيز عند أول نقرة فقط | التركيز عند الظهور، وEsc يعمل |
+| Focus follows mouse, prevention Low (default) | Works | Focus on show | Focus on show |
+| Focus follows mouse, prevention Extreme | Fails | Focus about 300 ms after the first pointer motion (the catcher is always under the pointer) | Focus on show, Esc works |
+| Click to focus, prevention Extreme | Fails | Focus only on the first click | Focus on show, Esc works |
 
-  الخلاصة: الماسك يحوّل «التركيز يتبع المؤشر» من سبب للإغلاق إلى مصدر للتركيز، لأن المؤشر لا يغادره. ورمز xdg-activation يعمل مع سطح الطبقة كما يعمل مع النافذة. لكن التجربة حقنت الرمز مباشرة في `xdg_activation_v1.activate` عند الظهور، ولم تمرّ بـ `Hive::present(.., Some(token))`. في التطبيق يُرسل الرمز في كل ظهور على مسار الطبقة، فلا حاجة لإعادة بناء المكوّن كما في S-013 هناك. النقر خارج الخلية والنقر على خلية يعملان دون تركيز في كل السياسات.
-- **فقدان التركيز لا يغلق الخلية في التصميم الجديد.** الإغلاق بثلاثة أشياء فقط: Esc، أو نقرة على الماسك، أو اختيار خلية. أي تركيز يذهب لنافذة أخرى (كنافذة الإعدادات حين تُفتح، فقد أخذته في التجربة) لا يغلقها.
+  The catcher turns focus follows mouse into a source of focus, since the pointer never leaves it, and the xdg-activation token works with it as with a window (the spike injected the token into `xdg_activation_v1.activate`, not through `Hive::present`). On the layer path the token is sent on every show, so no component rebuild is needed as in S-013. Clicks outside and on a cell work without focus under every policy.
+- **Focus loss does not close the hive in the new design.** It closes on three things only: Esc, a click on the catcher, or picking a cell. Focus going to another window (the settings window took it in the spike) does not close it.
 
-### 4. رسم Slint 1.18.1 على سطحنا
+### 4. Rendering Slint 1.18.1 on our surface
 
-- **(أ) منصة مخصصة على winit (المُجرَّبة، مُتحقَّق).** `Platform` رقيقة تمرّر كل شيء إلى `i_slint_backend_winit::Backend`، إلا `create_window_adapter` حين تُعلَّم النافذة التالية طبقةً، فتعيد محوّلاً خاصاً: `SoftwareRenderer` و`slint::Window::new`، ويرسم في `wl_shm`. اتصال wayland-client خاص يُقرأ في خيط، وتُعالَج أحداثه في خيط Slint عبر `invoke_from_event_loop`. الحركة تُقاد بـ `wl_surface.frame`، لأن حلقة winit تعيد الرسم لنوافذها فقط. حلقة الأحداث والمؤقتات ونافذة الإعدادات وGNOME وX11 وaccesskit كلها تبقى في winit. الشيفرة في التجربة نحو 850 سطراً (`overlay.rs` و`platform.rs`).
-  - لا حزم جديدة لـ Wayland: `wayland-client` و`wayland-protocols` و`wayland-protocols-wlr` موجودة أصلاً في شجرة الاعتماديات عبر winit وsmithay-client-toolkit 0.19.2.
-  - الجديد اعتماد مباشر على `i-slint-backend-winit` و`i-slint-core` بالإصدار `=1.18.1`، الثاني فقط لنوعَي `InternalToken` و`SlintContextWeak` في التوقيعات المُمرَّرة. واجهتهما غير مستقرة، فكل ترقية لـ Slint تراجع هذا الملف. الإصدار مثبت أصلاً، وترقيته مهمة مستقلة.
-- **(ب) حزم المجتمع (مرفوضة).**
-  - `layer-shika` 0.3.1: رخصة AGPL-3.0، مبني على Slint 1.14، ويرسم بـ femtovg وEGL.
-  - `spell-framework` 1.0.6: رخصة GPL-3.0، مبني على Slint 1.17.1، ويرسم بـ Skia، ويطبّق `WindowAdapterInternal` الداخلية فينكسر مع أي إصدار آخر.
-  - كلاهما يرسم بـ GPU، وهذا يتجاوز ميزانية الذاكرة ثلاثة أضعاف (ADR 0001، النتيجة 3). يصلح `spell-framework` مرجعاً للقراءة فقط.
-- **(ج) عملية ثانية (مرفوضة).** كل عملية Slint تكلّف نحو 28 MB (ADR 0001)، فعمليتان لا تتسعان في حد 40 MB، ويُضاف بينهما IPC.
+- **(A) A custom platform over winit (tried, verified).** A thin `Platform` forwards everything to `i_slint_backend_winit::Backend` except `create_window_adapter` when the next window is marked as a layer; then it returns our adapter (`SoftwareRenderer`, `slint::Window::new`, drawing into `wl_shm`). A private wayland-client connection is read on a thread and handled on Slint's thread through `invoke_from_event_loop`. Animation is driven by `wl_surface.frame`, because winit redraws only its own windows. Event loop, timers, settings window, GNOME, X11 and accesskit stay on winit.
+  - No new Wayland crates: `wayland-client`, `wayland-protocols` and `wayland-protocols-wlr` are already in the tree through winit and smithay-client-toolkit 0.19.2.
+  - New: direct dependencies on `i-slint-backend-winit` and `i-slint-core` at `=1.18.1`, the second only for the `InternalToken` and `SlintContextWeak` types in forwarded signatures. Their API is unstable, so every Slint upgrade reviews this file. Slint is already pinned and its upgrade is a separate task.
+- **(B) Community crates (rejected).** `layer-shika` 0.3.1 (AGPL-3.0, Slint 1.14, femtovg and EGL) and `spell-framework` 1.0.6 (GPL-3.0, Slint 1.17.1, Skia, implements the internal `WindowAdapterInternal` so it breaks with any other version). Both render on the GPU, three times over the memory budget (ADR 0001, finding 3). `spell-framework` is useful as reading only.
+- **(C) A second process (rejected).** Each Slint process costs about 28 MB (ADR 0001), so two do not fit the 40 MB limit, plus IPC between them.
 
-القياس (KWin المخفي، جهاز التطوير): للخلية وحدها، من `show` حتى عرض أول إطار بين 6 و22 ms، ومن بدء العملية حتى أول إطار بين 55 و80 ms. حين فُتحت نافذة winit في اللحظة نفسها صار أول إطار للخلية بعد نحو 107 ms، لأن إنشاء النافذة يشغل الخيط نفسه. الذاكرة المقيمة 27 MB بعد إظهارين، لكن بملف شخصي نظيف، والملف الحقيقي بخطوطه ضاعفها تقريباً في ADR 0001. التشغيل البارد عبر winit كان 129 ms في ADR 0001، والمقياسان مختلفان، فلا يُقارنان مباشرة.
+Measurement (headless KWin, development machine): `show` to first frame 6 to 22 ms, process start to first frame 55 to 80 ms; about 107 ms when a winit window opens at the same moment, since window creation holds the same thread. Resident memory 27 MB after two shows with a clean profile (a font heavy profile nearly doubles it, ADR 0001).
 
-**المخاطر:**
+**Risks:**
 
-- **الوصولية تتراجع على مسار الطبقة.** لا accesskit للمحوّل الخاص، فلا يقرأ قارئ الشاشة أسماء الخلايا. الاقتراح: إن كان قارئ الشاشة مفعّلاً (`org.a11y.Status.ScreenReaderEnabled`) نستخدم xdg_toplevel كما اليوم.
-- **اختيار الطبقة عند كل بناء للمكوّن:** في التجربة علامة تُستهلك مرة واحدة قبل `Hive::new`. لكن `present` برمز، وتغيير اللغة أو السمة، يبني مكوّناً جديداً، فيستدعي `create_window_adapter` مرة أخرى، ومع علامة مستهلكة يرجع إلى xdg_toplevel بصمت. يجب أن يغطي الاختيار كل بناء لمكوّن الخلية، لا الأول وحده.
-- **مخطط الألوان:** `Palette.color-scheme` يأتي من واجهة داخلية في المحوّل، فعلى مسار الطبقة نضبط `Tokens.dark` بأنفسنا من إعداد البوابة (`org.freedesktop.appearance color-scheme`).
-- **المؤشر:** لا نضبط شكل المؤشر فوق أسطحنا في التجربة. التطبيق يحتاج `wp_cursor_shape_v1`، وقد ظهر في KWin وGNOME (مُتحقَّق)، ولم نتحقق منه في Hyprland وSway.
-- **لوحة المفاتيح:** نقرأ رموز evdev لـ Esc وEnter والمسافة وTab والأسهم، وهي مستقلة عن تخطيط لوحة المفاتيح. لا نصوص في الخلية، فلا حاجة لـ xkbcommon ولا لطريقة إدخال.
-- **مستقبِل الإفلات (S-014b)** ينتقل إلى اتصال الطبقة: جهاز البيانات على الاتصال نفسه الذي يملك السطح، ولا يُربط إلا جهاز واحد عليه، فقيد Hyprland على أول `wl_data_device` (ADR 0003، النتيجة 3) مستوفى. لم يُجرَّب السحب إلى سطح فرعي لطبقة (مُفترَض).
-- **X11 وويندوز:** لا تغيير، يبقيان على winit.
+- **Accessibility:** our adapter has no accesskit, so a screen reader cannot read cell names. Use xdg_toplevel when a screen reader is on (refined in the S-019 amendment).
+- **Layer choice on every component build:** `present` with a token, and a language or theme change, build a new component and call `create_window_adapter` again. A flag consumed once (as in the spike) silently falls back to xdg_toplevel, so the choice must cover every build.
+- **Colour scheme:** `Palette.color-scheme` comes from an internal adapter API, so on the layer path we set `Tokens.dark` from the portal setting (`org.freedesktop.appearance color-scheme`).
+- **Cursor:** needs `wp_cursor_shape_v1`, present on KWin and GNOME (verified), unchecked on Hyprland and Sway.
+- **Keyboard:** evdev codes for Esc, Enter, Space, Tab and the arrows, independent of layout. No text input, so no xkbcommon or input method.
+- **Drop receiver (S-014b)** moves to the layer connection, the only device bound there, so the Hyprland first `wl_data_device` limit (ADR 0003, finding 3) is met.
+- **X11 and Windows:** unchanged, on winit.
 
-### 5. الملف نفسه في الخلية المركزية
+### 5. The file itself in the centre cell
 
-- **مصدر الصورة: ذاكرة الصور المصغّرة التي يكتبها مدير الملفات، فلا كلفة رسم علينا (مُتحقَّق).**
-  - المسار `$XDG_CACHE_HOME/thumbnails/{normal,large,x-large,xx-large}/MD5(uri).png`.
-  - تُقبل الصورة إن ساوى `Thumb::URI` الرابطَ وساوى `Thumb::MTime` زمن تعديل الملف بالثواني، ويُقارن `Thumb::Size` إن وُجد.
-  - وجود الملف في `fail/` يعني أن المحاولة فشلت سابقاً.
-  - كتبنا صورة مصغّرة بمصنع gnome-desktop نفسه الذي يستخدمه Nautilus، لملف اسمه `صورة 1+&~,(x).png`. قرأتها التجربة صالحة، وفكّتها في 0.2 إلى 0.4 ms (`out/preview-thumbnail.png`). بعد `touch` للملف رُفضت لاختلاف الزمن، ونزلنا إلى الأيقونة.
-- **الرابط يجب أن يطابق GLib بايتاً ببايت.** المسموح دون ترميز: الحروف والأرقام و``- . _ ~ ! ' ( ) * + , $ & = : @ /``، وما سواها `%XX` بحروف كبيرة (`g_escape_file_uri` في `glib/gconvert.c`). طابق ترميزُنا `Gio.File.get_uri()` في 6 أسماء من 6، منها العربية والمسافة و`;` و`#` و`?` و`[]`.
-  - KIO (Dolphin) يرمّز بـ Qt ترميزاً مطابقاً في كل ما سبق، إلا `;` التي يتركها Qt حرفية، والروابط الرمزية التي يرمّز KIO هدفها (مُتحقَّق من الشيفرة، `src/gui/filepreviewjob.cpp`). فنجرّب الصيغتين حين يحوي الاسم `;`، ونجرّب الهدف حين يكون الملف رابطاً رمزياً.
-- **الأحجام:** Nautilus يكتب `large` بمقياس 1 و`x-large` بمقياس 2. Dolphin بعرض الأيقونات الافتراضي يكتب `normal` (128) فقط حتى مقياس 2. فنبحث بالترتيب `large` ثم `x-large` ثم `xx-large` ثم `normal`، والصغيرة تُكبَّر.
-- **دون صورة مصغّرة:** نعرض أيقونة النوع. تجربة سمات الأيقونات أعطت لـ PDF أيقونة Adwaita `x-office-document` الملوّنة (`out/preview-icon.png`)، وهي تخالف رموز التصميم وتختلف بين السمات. الاقتراح: نوع MIME من `globs2` في shared-mime-info (مُتحقَّق في التجربة)، ثم أيقونة أحادية الخط من مجموعتنا في `crates/ui/icons` حسب النوع (صورة، فيديو، صوت، PDF، مستند، جدول، شرائح، نص)، ملوّنة بالرموز، ومعها رمز الصيغة (PDF). أيقونات سمة النظام لا نستخدمها.
-- **عدة ملفات:** سداسيتان خلفها مزاحتان، ورقم العدد في شارة. نعرض الصورة المصغّرة للملف الأول إن وُجدت، وإلا أيقونة النوع المشترك، وإلا أيقونة عامة.
-- **الحزم:** `md-5` (MIT أو Apache-2.0) و`png` (MIT أو Apache-2.0، موجودة في dev-dependencies). نفكّ PNG بأنفسنا لأن Slint مبني دون `image-default-formats`. قرأنا globs2 بعشرين سطراً، فلا حاجة لـ `xdg-mime` (Apache-2.0) ولا `freedesktop-icons` (MIT). تُسجَّل الحزمتان في `docs/engines.md`.
-- **العرض في الخلية:** صورة داخل المربع المحاط بالسداسي مع `image-fit: contain`. Slint لا يقص الصور بشكل سداسي، فالمربع المحاط هو البديل.
-- **الحجم:** رُسمت المعاينة في التجربة بنصف قطر 96 px. الخلية المركزية الحالية عرضها نحو 72 px، فالمربع المحاط فيها نحو 50 px فقط. هل تكبر الخلية المركزية حين تعرض معاينة؟ قرار تصميم للمالك. والسداسية الخلفية مقصوصة من اليمين في لقطتي المعاينة، وهذا خلل في التجربة لا في التصميم المقترح.
+- **Image source: the thumbnail cache the file manager writes, so no render cost for us (verified).**
+  - Path `$XDG_CACHE_HOME/thumbnails/{normal,large,x-large,xx-large}/MD5(uri).png`.
+  - A thumbnail is accepted when `Thumb::URI` equals the URI and `Thumb::MTime` equals the file's mtime in seconds; `Thumb::Size` is compared when present.
+  - A file in `fail/` means an earlier attempt failed.
+  - A thumbnail written by Nautilus's gnome-desktop factory for `صورة 1+&~,(x).png` read as valid and decoded in 0.2 to 0.4 ms (`out/preview-thumbnail.png`); after `touch` it was rejected and the icon shown.
+- **The URI must match GLib byte for byte.** Unescaped: letters, digits and ``- . _ ~ ! ' ( ) * + , $ & = : @ /``; everything else is `%XX` in upper case (`g_escape_file_uri` in `glib/gconvert.c`). Our encoding matched `Gio.File.get_uri()` for 6 of 6 names, including Arabic, space, `;`, `#`, `?` and `[]`.
+  - KIO (Dolphin) encodes through Qt identically for all of these except `;`, which Qt leaves literal, and symlinks, where KIO encodes the target (verified in source, `src/gui/filepreviewjob.cpp`). So we try both forms when the name has `;`, and the target when the file is a symlink.
+- **Sizes:** Nautilus writes `large` at scale 1 and `x-large` at scale 2. Dolphin at the default icon size writes only `normal` (128) up to scale 2. So we look for `large`, then `x-large`, then `xx-large`, then `normal`, and small ones are scaled up.
+- **No thumbnail:** show the type icon. Icon themes gave PDF the coloured Adwaita `x-office-document` (`out/preview-icon.png`), which breaks the design tokens and varies by theme. Instead: the MIME type from shared-mime-info `globs2` (verified in the spike), then a monoline icon from our set in `crates/ui/icons` by kind (image, video, audio, PDF, document, spreadsheet, slides, text), coloured by tokens, with the format code (PDF). System theme icons are not used.
+- **Several files:** two offset hexagons behind, and the count in a badge. Show the first file's thumbnail if any, else the shared type icon, else a generic icon.
+- **Crates:** `md-5` (MIT or Apache-2.0) and `png` (MIT or Apache-2.0, already in dev-dependencies). We decode PNG ourselves because Slint is built without `image-default-formats`. Reading globs2 takes twenty lines, so no `xdg-mime` (Apache-2.0) or `freedesktop-icons` (MIT). Both crates are recorded in `docs/engines.md`.
+- **Display:** an image inside the square inscribed in the hexagon, with `image-fit: contain`. Slint does not clip images to a hexagon, so the inscribed square is the substitute.
+- **Size:** the centre cell is about 72 px wide, so its inscribed square is about 50 px (the spike drew at a 96 px radius). Growing it for a preview is the owner's call; for now it stays the current size (see Status).
 
-## القرار المقترح
+## Decision
 
-- **القاعدة المصحّحة لـ CLAUDE.md** (تحل محل «لا تعتمد على wlr-layer-shell»): على Wayland تظهر الخلية سطحَ `zwlr_layer_shell_v1` على طبقة overlay حين يعلنه المؤلِّف (Hyprland، وKDE Plasma منذ 5.20، وSway وبقية wlroots). وعلى GNOME (Mutter لا يدعمه) وX11 وويندوز تبقى نافذة xdg_toplevel أو ما يقابلها عبر winit. لا تُبنى ميزة على layer-shell دون بديل يعمل في GNOME. وإن كان قارئ الشاشة مفعّلاً تُستخدم النافذة في كل مكان.
-- المنصة الرقيقة على winit مع محوّل الطبقة (الخيار أ)، وتصميم الماسك والسطح الفرعي، ووضع الإفلات بماسك لا يأخذ الإدخال.
-- الإغلاق بـ Esc أو نقرة على الماسك أو الاختيار، لا بفقدان التركيز. رمز التفعيل القادم مع IPC يُرسل إلى `xdg_activation_v1.activate` على الماسك في كل ظهور، واختيار الطبقة يغطي كل بناء لمكوّن الخلية.
-- الخلية المركزية: الصورة المصغّرة من الذاكرة المشتركة، ثم أيقونتنا حسب النوع، ثم أيقونة عامة. والعدد لعدة ملفات.
+- **The corrected CLAUDE.md rule** (replacing "do not rely on wlr-layer-shell"): on Wayland the hive is a `zwlr_layer_shell_v1` surface on the overlay layer when the compositor offers it (Hyprland, KDE Plasma since 5.20, Sway and other wlroots). On GNOME (Mutter lacks it), X11 and Windows it stays an xdg_toplevel window or its equivalent through winit. No feature is built on layer-shell without a fallback that works on GNOME. With a screen reader running, the window is used everywhere.
+- The thin platform over winit with the layer adapter (option A), the catcher and subsurface design, and drop mode with a catcher that takes no input.
+- Close on Esc, a click on the catcher or a pick, not on focus loss. The activation token from IPC is sent to `xdg_activation_v1.activate` on the catcher on every show, and the layer choice covers every hive component build.
+- Centre cell: the thumbnail from the shared cache, then our icon by type, then a generic icon; a count for several files.
 
-## الجهد المقدَّر بالمراحل
+## Consequences
 
-1. **المرحلة 1: الطبقة (3 إلى 4 أيام).**
-   - المنصة والمحوّل في `crates/ui`، مع الاختيار بين الطبقة وwinit.
-   - شكل المؤشر، ومخطط الألوان، والرجوع إلى النافذة مع قارئ الشاشة.
-   - نقل مستقبِل الإفلات إلى الاتصال الجديد.
-   - توسيع `tests/e2e/run.sh` بفحوص KWin من هذه التجربة.
-2. **المرحلة 2: الخلية المركزية (يوم ونصف إلى يومين).** وحدة البحث عن الصورة المصغّرة ونوع MIME، وخريطة الأنواع إلى أيقوناتنا، وتعديل `hive.slint` والعدد، واختبارات بملفات في `tests/fixtures`.
-3. **المرحلة 3: التحقق (يوم).** تشغيل حي على Hyprland يجريه المالك، ثم Sway إن توفر، والتأكد من الرجوع في GNOME.
+Delivered in S-018: the layer platform and adapter, the centre cell preview, and KWin checks in `tests/overlay/`.
 
-المجموع: نحو 5.5 إلى 7 أيام.
+Still open:
 
-## ما بقي مفتوحاً
+- [ ] Hyprland by running: position, no border, focus with follows mouse, outside clicks, the `layersIn` animation.
+- [ ] Sway by running.
+- [x] Drop on a layer subsurface, on KWin and Hyprland: works on KWin; Hyprland sends it no `motion` (`tests/hyprland/repro.sh`), so the drop moved to the catcher with the hive's region (S-020), which works on both.
+- [ ] KWin at Medium and High prevention with no token: does the four edges exception grant focus on show as the source says?
+- [ ] The token through `Hive::present` in `crates/ui`, not by injection, with real Nautilus and Dolphin.
+- [ ] Several screens: which screen the hive appears on (the compositor picks when we pass `output = None`).
+- [ ] A low end machine measurement, and the first show after the service starts with a real accessibility bus (ADR 0001).
 
-- [ ] Hyprland بالتشغيل: الموضع، ولا إطار، والتركيز مع «يتبع المؤشر»، والنقر خارج الخلية، وحركة `layersIn`.
-- [ ] Sway بالتشغيل.
-- [x] الإفلات على سطح فرعي لطبقة، في KWin وHyprland: يعمل في KWin، ولا يصل Hyprland منه `motion` (`tests/hyprland/repro.sh`)، فصار الإفلات على الماسك بمنطقة الخلية (S-020)، وهو ناجح في الاثنين.
-- [ ] KWin بمستويي منع السرقة Medium وHigh دون رمز: هل يمنح استثناء الحواف الأربع التركيز عند الظهور كما تقول الشيفرة؟
-- [ ] الرمز عبر `Hive::present` في `crates/ui` لا بالحقن، مع Nautilus وDolphin حقيقيين.
-- [ ] شاشات متعددة: على أي شاشة تظهر الخلية (المؤلِّف يختار حين نمرّر `output = None`).
-- [ ] قياس على جهاز ضعيف، وقياس أول إظهار بعد تشغيل الخدمة مع ناقل الوصولية الحقيقي (ADR 0001).
+## Amendments
 
-## تعديل S-019 (2026-10-21، بقرار المدير بتفويض من محمد)
+### S-019 (2026-10-21, manager decision delegated by Mohammad)
 
-- **قاعدة قارئ الشاشة:** العلم `org.a11y.Status.ScreenReaderEnabled` وحده لا يكفي، فكثيراً ما يبقى صحيحاً من إعداد GNOME دون قارئ يعمل، وهذا ما أجبر الخلية على النافذة عند محمد على Hyprland. الخلية نافذةٌ لقارئ الشاشة فقط حين يجتمع العلم مع مالك للاسم `org.gnome.Orca.Service` على ناقل الجلسة (`NameHasOwner` ثم `NameOwnerChanged`). المفتاح `hive_surface` في `config.toml` (`auto` أو `layer` أو `window`، والغياب `auto`) يسبق القاعدة، و`SBARHIVE_SURFACE` يسبق الكل كما كان. كل تغيّر في القرار يطبع سطراً واحداً `hive surface choice: KIND, REASON` دون متغير بيئة. نُفِّذ في S-019a.
-- **المرساة:** على مسار الطبقة تظهر الخلية حيث المؤشر أو موضع السحب، لا في المنتصف. تُحصر المرساة حتى تبقى الخلية المركزية مع الهامش داخل الشاشة، ولا تتبع الخلية المؤشر بعد موضعها الأول (بعد أول إطار في الظهور العادي، وبعد انقضاء `ANCHOR_WAIT` في ظهور الإفلات منذ S-021). الحساب الصافي (`layout::plan_at`) نُفِّذ في S-019b، والوصل بالظهور في S-019c وS-019d.
-- **الشكل المتكيّف:** قرب الحواف تُستعمل الخانات الواقعة داخل الشاشة فقط، حلقةً حلقة حتى `MAX_RINGS` = 4، بلا هامش غير `PAD`. خلايا الحلقة الأولى لا تُزاح منها خلايا الحلقة الثانية، وفي الزاوية قد تظهر خلايا أقل من 18.
-- **مرحلة الماسك في الإفلات:** يأخذ الماسك الإدخال لحظةً حتى أول موضع للسحب، ثم يعود إلى منطقة الخلية كما في S-020. دون موضع خلال 50 ms تظهر الخلية في المنتصف، وتنتقل مرة واحدة إن جاء أول موضع خلال 300 ms من الموضع (كانت من أول إطار قبل S-021، فظهور الإفلات على مسار الطبقة لا يُرسم قبل دخول السحب). بعدها (القرار 12) تصير منطقة الماسك مستطيل الخلية في المنتصف ولا انتقال، فلا يحجز الماسك الإدخال أكثر من 300 ms (لا تجمّد، S-020 AC4). اليد الساكنة تتموضع بـ `--at` وحده. ويمرّر `sbarhive drop --at X,Y` الموضع حيث يتوفر (Hyprland عبر `hyprctl cursorpos`). يُنفَّذ في S-019d.
-- **مسار النافذة لا يتغير:** على GNOME ومع قارئ شاشة يعمل تبقى الخلية في المنتصف.
+- **Screen reader rule:** the `org.a11y.Status.ScreenReaderEnabled` flag alone is not enough; it often stays true from a GNOME setting with no reader running, which forced the hive into a window for Mohammad on Hyprland. The hive is a window for a screen reader only when the flag is set and the name `org.gnome.Orca.Service` has an owner on the session bus (`NameHasOwner`, then `NameOwnerChanged`). The `hive_surface` key in `config.toml` (`auto`, `layer` or `window`; missing means `auto`) overrides the rule, and `SBARHIVE_SURFACE` overrides everything, as before. Every change of the decision prints one line `hive surface choice: KIND, REASON`, with no environment variable needed. Implemented in S-019a.
+- **Anchor:** on the layer path the hive appears at the pointer or the drag position, not the centre. The anchor is clamped so the centre cell and its margin stay on screen, and the hive does not follow the pointer after its first position (after the first frame on a normal show; after `ANCHOR_WAIT` on a drop show, since S-021). The pure computation (`layout::plan_at`) is in S-019b, wiring into the show in S-019c and S-019d.
+- **Adaptive shape:** near the edges only slots inside the screen are used, ring by ring up to `MAX_RINGS` = 4, with no margin beyond `PAD`. First ring cells never displace second ring cells, and in a corner fewer than 18 cells may show.
+- **Catcher phase in a drop:** the catcher takes input briefly until the first drag position, then returns to the hive's region as in S-020. With no position within 50 ms the hive appears centred and moves once if the first position arrives within 300 ms, counted from the position (the end of `ANCHOR_WAIT`; it was from the first frame before S-021, but a drop show on the layer path is not drawn before the drag enters). After that (decision 12) the catcher's region becomes the centred hive's rectangle with no move, so the catcher never holds input for more than 300 ms (no freeze, S-020 AC4). A still hand is placed by `--at` alone. `sbarhive drop --at X,Y` passes the position where available (Hyprland through `hyprctl cursorpos`). Implemented in S-019d.
+- **The window path is unchanged:** on GNOME and with a running screen reader the hive stays centred.

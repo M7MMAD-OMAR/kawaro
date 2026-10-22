@@ -1,60 +1,60 @@
-# ADR 0002: مكونات نافذة الإعدادات
+# ADR 0002: Settings window components
 
-الحالة: مقبول
-التاريخ: 2026-10-20
+Status: accepted
+Date: 2026-10-20
 
-## السياق
+## Context
 
-يطلب CLAUDE.md (قسم «الواجهة») أن تُبنى نوافذ الإعدادات من مكتبة Material 3 الرسمية من Slint، بألوان من `design/tokens.json` تُمرَّر مرة واحدة إلى `MaterialPalette.schemes`، وبلا أي ظل. البديل الأول Sleek-ui، والأخير مكونات Slint القياسية بنمط fluent. إصدار Slint مثبت على 1.18.1.
+`CLAUDE.md` (UI section) requires settings windows built from Slint's official Material 3 library, with colours from `design/tokens.json` passed once to `MaterialPalette.schemes`, and no shadows. The first fallback was Sleek-ui, the last Slint's standard widgets with the fluent style. Slint is pinned at 1.18.1.
 
-## ما جرّبناه
+What we tried:
 
-1. **المستودع المستقل `slint-ui/material-components`:** مؤرشف منذ سبتمبر 2025، بلا إصدارات ولا وسوم، ويقول ملف README فيه إن التطوير انتقل إلى مستودع Slint نفسه. لم نعتمده لأنه لا يطابق إصداراً بعينه.
-2. **المكتبة داخل مستودع Slint:** موجودة في `ui-libraries/material/src` عند الوسم `v1.18.1` نفسه، أي أنها مطابقة للإصدار المثبت. نزّلناها من أرشيف الوسم (`codeload.github.com/slint-ui/slint/tar.gz/refs/tags/v1.18.1`)، ورخصتها MIT. بُنيت نافذة الإعدادات عليها دون أي خطأ أو تحذير من المترجم.
+1. **The standalone repo `slint-ui/material-components`:** archived since September 2025, no releases or tags, and its README says development moved into the Slint repo. Not used, because it matches no specific version.
+2. **The library inside the Slint repo:** `ui-libraries/material/src` at the `v1.18.1` tag, so it matches the pinned version. Downloaded from the tag archive (`codeload.github.com/slint-ui/slint/tar.gz/refs/tags/v1.18.1`), MIT licensed. The settings window built on it with no compiler error or warning.
 
-لم نحتج إلى تجربة Sleek-ui ولا fluent.
+Sleek-ui and fluent were not needed.
 
-## القرار
+## Decision
 
-- نعتمد مكتبة Material 3 من مستودع Slint عند الوسم v1.18.1، منسوخة في `crates/ui/material/` مع رخصتها وملف README يذكر المصدر والبصمة وكل تعديل.
-- تُستورد باسم `@material` (مسار مكتبة في `crates/ui/build.rs`)، وتُترجم نافذة الإعدادات في ملف Rust مستقل (`settings_ui.rs`) تضمّه `src/settings.rs` في وحدة خاصة، لأن `include_modules!()` يأخذ آخر ملف مترجم فقط وهو الخلية.
-- المكونات المستعملة: `MaterialWindow`، `SegmentedButton` (اللغة والمظهر ومكان النتائج والجودة)، `TextField` (اسم المجلد)، `Switch`، `FilledButton` (حفظ)، `TextButton` (إلغاء). لم نبنِ أي مكوّن موجود في المكتبة، والمكوّنان الصغيران في `settings.slint` (`Choice` و`SwitchRow`) تجميع لمكونات المكتبة مع عنوان أو تسمية.
+- Use the Material 3 library from the Slint repo at v1.18.1, vendored in `crates/ui/material/` with its licence and a README giving the source, the hash and every change.
+- Import it as `@material` (a library path in `crates/ui/build.rs`). The settings window compiles in its own Rust file (`settings_ui.rs`), included by `src/settings.rs` in a private module, because `include_modules!()` takes only the last compiled file, which is the hive.
+- Components used: `MaterialWindow`, `SegmentedButton` (language, theme, output location, quality), `TextField` (folder name), `Switch`, `FilledButton` (save), `TextButton` (cancel). No library component was rebuilt; `Choice` and `SwitchRow` in `settings.slint` only group library components with a title or label.
 
-## التعديلات على المكتبة
+### Changes to the library
 
-1. **الظلال:** `elevation.slint` صار مستطيلاً مدوّراً بلا ظل، ويحتفظ بخصائصه حتى تبقى بقية المكتبة كما هي. لا نضبط `level` في ملفاتنا.
-2. **حقل النص:** كان خطاً سفلياً وحده مع زوايا علوية مدوّرة، وهذا حد من جهة واحدة. صار حداً كاملاً مدوّراً يزداد سمكه عند التركيز، وأضفنا خاصية `horizontal_alignment` لمحاذاة النص والتسمية إلى اليمين في العربية.
-3. **الأزرار المجزأة:** حذفنا الخط الفاصل الجانبي بين الأجزاء (خط تمييز جانبي)، فالجزء المختار يتميز بسطحه وعلامة الصح. ودوّرنا زوايا الجزء المختار الطرفي بنفسه، لأن المُصيِّر البرمجي لا يقص الأبناء على حدود الأب المدوّرة، فكان اللون يخرج من الحافة.
+1. **Shadows:** `elevation.slint` is a rounded rectangle with no shadow, keeping its properties so the rest of the library is unchanged. Our files never set `level`.
+2. **Text field:** it was a bottom line with rounded top corners, a one sided border. It is now a full rounded border that thickens on focus, plus a `horizontal_alignment` property to right align text and label in Arabic.
+3. **Segmented buttons:** removed the side divider between segments (a side accent line); the selected segment shows by its surface and check mark. The selected end segment rounds its own corners, because the software renderer does not clip children to the parent's rounded bounds and the colour leaked past the edge.
 
-## الألوان
+### Colours
 
-يقرأ `build.rs` حقول `MaterialScheme` من الملف المنسوخ، ويفشل البناء إن لم يطابقها جدول `MATERIAL_ROLES` حقلاً بحقل، فلا يبقى دور بلا لون. ثم يكتب `material-tokens.slint`، وتسنده النافذة مرة واحدة إلى `MaterialPalette.schemes` في `init`.
+`build.rs` reads the `MaterialScheme` fields from the vendored file and fails the build unless the `MATERIAL_ROLES` table matches them field by field, so no role is left without a colour. It then writes `material-tokens.slint`, which the window assigns once to `MaterialPalette.schemes` in `init`.
 
-| الرمز | أدوار Material |
+| Token | Material roles |
 | --- | --- |
-| `accent` | primary، surfaceTint، tertiary، primaryFixed وأخواتها |
-| `accent-ink` | onPrimary، onTertiary، onPrimaryFixed |
-| `surface-0` | background، surface، surfaceBright، surfaceContainerLowest، primaryContainer (مقبض المفتاح) |
-| `surface-1` | surfaceContainer، surfaceContainerLow، surfaceDim |
-| `surface-2` | surfaceContainerHigh، surfaceVariant، tertiaryContainer، errorContainer |
-| `surface-3` | surfaceContainerHighest، secondaryContainer (الجزء المختار) |
-| `text-primary` | onSurface، onBackground، on*Container، shadow، scrim |
-| `text-secondary` | outline، secondary، onSurfaceVariant |
+| `accent` | primary, surfaceTint, tertiary, primaryFixed and siblings |
+| `accent-ink` | onPrimary, onTertiary, onPrimaryFixed |
+| `surface-0` | background, surface, surfaceBright, surfaceContainerLowest, primaryContainer (switch handle) |
+| `surface-1` | surfaceContainer, surfaceContainerLow, surfaceDim |
+| `surface-2` | surfaceContainerHigh, surfaceVariant, tertiaryContainer, errorContainer |
+| `surface-3` | surfaceContainerHighest, secondaryContainer (selected segment) |
+| `text-primary` | onSurface, onBackground, on*Container, shadow, scrim |
+| `text-secondary` | outline, secondary, onSurfaceVariant |
 | `border` | outlineVariant |
-| `danger` | error، onErrorContainer |
-| الرمز نفسه من المظهر الآخر | inverseSurface، inverseOnSurface، inversePrimary |
+| `danger` | error, onErrorContainer |
+| The same token from the other theme | inverseSurface, inverseOnSurface, inversePrimary |
 
-اخترنا `text-secondary` لدور outline لا `border`، لأن outline يرسم حدود المفتاح المطفأ والأزرار المجزأة وحقل النص، ورمز `border` أضعف من أن يُرى عليها.
+outline maps to `text-secondary`, not `border`, because outline draws the off switch, the segmented buttons and the text field, and `border` is too faint to see on them.
 
-المظهر: تتبع النافذة `Palette.color-scheme` القياسي، لأن `MaterialPalette` يختار منه. `SBARHIVE_COLOR_SCHEME` يفرضه أولاً (كما في الخلية)، ثم قيمة المظهر في الإعدادات (فاتح أو داكن)، والتلقائي يتبع النظام. لذلك تُبنى النافذة من جديد في كل `open`، فلا يبقى مظهر مفروض بعد العودة إلى التلقائي. تغيير المظهر داخل النافذة لا يغيّر شكلها قبل الحفظ.
+Theme: the window follows the standard `Palette.color-scheme`, which `MaterialPalette` reads. `SBARHIVE_COLOR_SCHEME` wins first (as in the hive), then the theme setting (light or dark); auto follows the system. So the window is rebuilt on every `open`, and no forced theme survives a return to auto. Changing the theme inside the window does not restyle it before save.
 
-## فحص التصميم
+### Design lint
 
-المكتبة المنسوخة فيها ألوان وأطوال مكتوبة يدوياً، فيتجاوز `scripts/design-lint.sh` المسار `crates/ui/material/` في فحصي اللون والطول فقط، بنمط مسار كامل لا بكلمة `material` وحدها حتى لا يخفي ملفاتنا. فحص الظلال والتدرجات والشرطات يمر على المكتبة أيضاً، وهو الدليل على أن الظلال أُزيلت. أضفنا فحص الشرطة المتوسطة بجانب الطويلة.
+The vendored library has hand written colours and lengths, so `scripts/design-lint.sh` skips `crates/ui/material/` for the colour and length checks only, matching the full path rather than the word `material` so our files are not hidden. Shadow, gradient and dash checks still run on the library, which proves the shadows are gone. An en dash check was added beside the em dash check.
 
-## ما بقي ومعروف
+## Consequences
 
-- أوزان الخط في `MaterialTypography` (300 و600) لا تطابق رموزنا (400 و500 و600)، والخط المضمّن يختار أقرب وزن. تغييرها يحتاج تعديلاً رابعاً على المكتبة، وأجّلناه.
-- علامة الصح في الجزء المختار تبقى يسار النص في العربية، لأن ترتيبها داخل زر المكتبة. الترتيب بين الأجزاء معكوس كاملاً.
-- النافذة والخلية في عملية واحدة وحلقة أحداث واحدة. معالج التركيز في `lib.rs` يستقبل أحداث التركيز لكل النوافذ؛ على Wayland يصل خروج التركيز من النافذة القديمة قبل دخوله الجديدة، و`present` يمسح حالة التركيز، فلا نتوقع أن تُغلق الخلية بسبب نافذة الإعدادات. لم يُختبر هذا على مؤلِّف حقيقي.
-- اللقطات من KWin مخفي خاص؛ لم تُفتح النافذة على GNOME أو KDE حقيقيين.
+- Font weights in `MaterialTypography` (300, 600) do not match our tokens (400, 500, 600); the bundled font picks the nearest weight. Changing them needs a fourth library change, deferred.
+- The check mark in the selected segment stays left of the text in Arabic, because its order is inside the library button. The order of segments is fully mirrored.
+- The window and the hive share one process and one event loop. The focus handler in `lib.rs` receives focus events for every window; on Wayland focus leaves the old window before entering the new one, and `present` clears the focus state, so the settings window should not close the hive. Not tested on a real compositor.
+- Screenshots come from a private headless KWin; the window has not been opened on real GNOME or KDE.

@@ -1,125 +1,126 @@
-# خطة SbarHive: الإصدارات
+# SbarHive plan: releases
 
-مستند التخطيط الأصلي لم يُصدَّر من محادثة التخطيط، فهذه الخطة تعيد بناءه من `CLAUDE.md` ونتائج تجربة الخلية (`docs/adr/0001-ui-toolkit.md`). أي تعارض لاحق يُحسم هنا بقرار مكتوب.
+The original planning document was never exported, so this plan rebuilds it from `CLAUDE.md` and the hive spike (`docs/adr/0001-ui-toolkit.md`). Any later conflict is settled here with a written decision.
 
-## أين نحن (2026-10-22)
+## Where we are (2026-10-22)
 
-| الإصدار | الحالة |
+| Release | State |
 | --- | --- |
-| 0.1.0 «الخلية» | صدر في 2026-10-20 |
-| 0.2.0 «المحركات» و0.2.1 و0.2.2 | صدرت في 2026-10-20، مع حزم RPM وDEB |
-| 0.3.0 «الإفلات» | صدر في 2026-10-22، مع حزم RPM وDEB |
-| 0.4.0 «البوابة والمظهر» | التالي: S-014e وS-014f وS-016 وS-017 |
-| 0.5.0 «X11» | مخطط: S-015 |
-| 0.6.0 «ويندوز» | مخطط: يبدأ بـ ADR 0005 |
+| 0.1.0 "The hive" | Released 2026-10-20 |
+| 0.2.0 "Engines", 0.2.1, 0.2.2 | Released 2026-10-20; RPM and DEB packages from 0.2.1 |
+| 0.3.0 "Drop" | Released 2026-10-22, with RPM and DEB packages |
+| 0.3.1 | Released 2026-10-22: the drop hive only during a real drag of files with an action (S-021) |
+| 0.3.2 | Released 2026-10-22: the opening animation plays on the layer path, and drop follow-ups (S-022) |
+| 0.4.0 "Portal and look" | Next: S-014e, S-014f, S-016, S-017 |
+| 0.5.0 "X11" | Planned: S-015 |
+| 0.6.0 "Windows" | Planned: starts with ADR 0005 |
 
-كل إصدار له وسم `vX.Y.Z` وصفحة إصدار على GitHub بحزمه، والتغييرات في `CHANGELOG.md`، والحدود المعروفة في issues المستودع.
+Each release has a `vX.Y.Z` tag and a GitHub release page with its packages. Changes are in `CHANGELOG.md`, known limits in the repo's issues.
 
-## الإصدار 0.1.0: «الخلية» (لينكس، الصور)
+## 0.1.0 "The hive" (Linux, images)
 
-الهدف: مستخدم لينكس يحدد صوراً في مدير الملفات، يفتح الخلية من قائمة النقر اليمين، يختار صيغة، فيجد الناتج بجانب الأصل.
+Goal: a Linux user selects images in the file manager, opens the hive from the right click menu, picks a format, and finds the result next to the original.
 
-| المكوّن | النطاق |
+| Component | Scope |
 | --- | --- |
-| core | سجل الإجراءات من TOML، مطابقة الإجراءات مع الملفات المحددة، تسمية الناتج دون تعارض، كتابة ذرية، طابور مهام مع تقدم وإلغاء |
-| engines/image | PNG وJPEG وWebP وAVIF وICO وTIFF وBMP وGIF، تحجيم، تدوير، قلب، تدرج رمادي، ضغط، حذف البيانات الوصفية، دمج الصور في PDF واحد |
-| ui | الخلية من التجربة بجودة إنتاجية، الأيقونات، مؤشر تقدم جانبي لا يأخذ التركيز، الرموز مولّدة من `design/tokens.json` |
-| daemon | خدمة خلفية بمقبس Unix، أيقونة في الشريط (StatusNotifierItem)، تشغيل تلقائي مع الجلسة، تمرير رمز xdg-activation |
-| cli | `sbarhive open`، `sbarhive convert --to`، `sbarhive actions`، `sbarhive daemon` |
-| integrations | Dolphin أولاً (service menu بعنصر واحد في أعلى القائمة)، ثم Nautilus (nautilus-python)، Nemo (action)، Thunar (custom action) |
-| اختصار مباشر | `sbarhive open --from-clipboard` يقرأ الملفات المنسوخة (text/uri-list)، مع وصفة Hyprland تربط Super مع النقر اليمين بنسخ التحديد ثم فتح الخلية |
-| توزيع | سكربت تثبيت وإزالة للمستخدم، وحدة systemd للمستخدم، ملف desktop، README بالعربية والإنكليزية، GPLv3، CHANGELOG |
+| core | Action registry from TOML, matching actions to the selection, conflict free output names, atomic writes, job queue with progress and cancel |
+| engines/image | PNG, JPEG, WebP, AVIF, ICO, TIFF, BMP, GIF; resize, rotate, flip, greyscale, compress, strip metadata, merge images into one PDF |
+| ui | Production quality hive from the spike, icons, a progress indicator that takes no focus, tokens generated from `design/tokens.json` |
+| daemon | Background service on a Unix socket, tray icon (StatusNotifierItem), autostart with the session, xdg-activation token passing |
+| cli | `sbarhive open`, `sbarhive convert --to`, `sbarhive actions`, `sbarhive daemon` |
+| integrations | Dolphin first (a service menu with one item at the top), then Nautilus (nautilus-python), Nemo (action), Thunar (custom action) |
+| Direct shortcut | `sbarhive open --from-clipboard` reads copied files (`text/uri-list`), with a Hyprland recipe binding Super plus right click to copy the selection and open the hive |
+| Distribution | User install and uninstall script, systemd user unit, desktop file, bilingual README, GPLv3, CHANGELOG |
 
-خارج النطاق: الصوت والفيديو والمستندات، الإعدادات، ويندوز.
+Out of scope: audio, video, documents, settings, Windows.
 
-قرار (2026-10-20): مؤشر التقدم الجانبي يصبح تلميح أيقونة الشريط مع إشعار واحد عند انتهاء كل مهمة. السبب: على Wayland لا تستطيع نافذة عادية أن تظهر دون أن تأخذ التركيز، والطريق الوحيد لذلك (wlr-layer-shell) غير مدعوم في GNOME (KDE يدعمه منذ Plasma 5.20، تصحيح 2026-10-20 في ADR 0004)، وقاعدة «لا يحجب أي عمل الواجهة» أولى من شكل المؤشر.
+Decision (2026-10-20): the progress indicator becomes the tray icon tooltip plus one notification when each job finishes. On Wayland an ordinary window cannot appear without taking focus, and the only way around that (wlr-layer-shell) is missing on GNOME (KDE has it since Plasma 5.20, ADR 0004). "No work blocks the UI" outranks the indicator's form.
 
-قرار: لا نستبدل قائمة النقر اليمين في مدير الملفات. القائمة ملك مدير الملفات لا النظام، ولا توجد واجهة رسمية لاستبدالها، وتعديل Dolphin نفسه يعني صيانة نسخة معدّلة يثبتها كل مستخدم وتنكسر مع كل تحديث. البديل: عنصر واحد في أعلى القائمة، واختصار يفتح الخلية مباشرة.
+Decision: we do not replace the file manager's right click menu. The menu belongs to the file manager, there is no official API to replace it, and patching Dolphin means maintaining a fork every user installs and every update breaks. Instead: one item at the top of the menu, and a shortcut that opens the hive directly.
 
-## الإصدار 0.2.0: «المحركات»
+## 0.2.0 "Engines"
 
-الهدف: الخلية نفسها تعمل مع الفيديو والصوت والمستندات وPDF، وتُظهر فقط ما يقدر الجهاز على تنفيذه.
+Goal: the same hive works with video, audio, documents and PDF, and shows only what the machine can run.
 
-| المكوّن | النطاق |
+| Component | Scope |
 | --- | --- |
-| core::probe | اكتشاف FFmpeg وLibreOffice وGhostscript، وإخفاء الإجراءات غير المتاحة، و`sbarhive doctor` |
-| engines/ffmpeg | فيديو إلى MP4 وWebM وGIF، استخراج الصوت، تحويل الصوت (MP3، OGG، FLAC، WAV، M4A)، ضغط الفيديو، تقدم حقيقي من `-progress` |
-| engines/office | مستندات Office وODF إلى PDF، وDOCX مع ODT في الاتجاهين، عبر LibreOffice بلا واجهة |
-| engines/pdf | ضغط PDF بـ Ghostscript، دمج عدة PDF، تقسيم الصفحات، تحويل الصفحات إلى صور |
-| ui | نافذة إعدادات: اللغة، المظهر، مكان الناتج، سياسة الأسماء، وضع الجودة |
-| config | `~/.config/sbarhive/config.toml` تقرؤه الخدمة ويعاد تحميله عند التغيير |
-| الهوية | الشعار والأيقونة بصيغة SVG، وصفحة الهبوط في `site/` |
+| core::probe | Detect FFmpeg, LibreOffice and Ghostscript, hide unavailable actions, `sbarhive doctor` |
+| engines/ffmpeg | Video to MP4, WebM, GIF; extract audio; convert audio (MP3, OGG, FLAC, WAV, M4A); compress video; real progress from `-progress` |
+| engines/office | Office and ODF documents to PDF, DOCX and ODT both ways, through headless LibreOffice |
+| engines/pdf | Compress PDF with Ghostscript, merge PDFs, split pages, pages to images |
+| ui | Settings window: language, theme, output location, naming policy, quality mode |
+| config | `~/.config/sbarhive/config.toml`, read by the service and reloaded on change |
+| Identity | Logo and icon as SVG, landing page in `site/` |
 
-خارج النطاق: ويندوز، ماك، Flatpak، الاختصار العام عبر بوابة GlobalShortcuts.
+Out of scope: Windows, macOS, Flatpak, the GlobalShortcuts portal.
 
-قرار (2026-10-20): سياسة الأسماء في 0.2.0 ثابتة وليست خياراً في الإعدادات: الناتج يأخذ اسم الأصل بالامتداد الجديد، وعند وجود ملف بالاسم نفسه يُضاف رقم «(1)» و«(2)» ولا يُكتب فوق شيء أبداً. السبب: كل خيار آخر (الكتابة فوق الموجود، أو استبدال الأصل) يخالف مبدأ «لا يُعدَّل الملف الأصلي أبداً» أو يعرّض ملفات المستخدم للضياع، وخيار لاحقة الاسم وحده لا يستحق حقلاً في 0.2. يُعاد النظر فيه في 0.3 إن طلبه المستخدمون.
+Decision (2026-10-20): the naming policy is fixed, not a setting. The output takes the original name with the new extension; if that name exists, "(1)", "(2)" is added and nothing is ever overwritten. Every other option (overwrite, replace the original) breaks "the original is never modified" or risks the user's files, and a name suffix alone does not justify a field. Revisit if users ask.
 
-إعادة التحميل عند التغيير: الخدمة تراقب `config.toml` وملفات `actions/*.toml` كل ثانيتين، فالتعديل اليدوي يسري دون `sbarhive reload`، وتغيير اللغة أو المظهر يعيد بناء النوافذ.
+Reload on change: the service polls `config.toml` and `actions/*.toml` every two seconds, so hand edits apply without `sbarhive reload`, and a language or theme change rebuilds the windows.
 
-## الإصدار 0.3.0: «الإفلات»
+## 0.3.0 "Drop"
 
-الهدف: مستخدم على GNOME أو KDE يسحب ملفاً، ويضغط اختصاراً يختاره أثناء السحب، فتظهر الخلية، ويفلت الملف على خلية فيُنفَّذ إجراؤها. المرجع `docs/adr/0003-drop-hive.md`.
+Goal: a GNOME or KDE user drags a file, presses a shortcut of their choice during the drag, the hive appears, and dropping the file on a cell runs its action. Reference: `docs/adr/0003-drop-hive.md`.
 
-| المكوّن | النطاق |
+| Component | Scope |
 | --- | --- |
-| ui | مستقبِل إفلات على Wayland (`wl_data_device` خاص على عرض winit، يُربط عند كل ظهور، نسخ فقط، `text/uri-list`)، ووضع «انتظار الإفلات» مع إبراز الخلية |
-| cli وdaemon | `sbarhive drop` ورسالة IPC له، يربطه المستخدم باختصار مخصص في نظامه |
-| التوثيق | ربط الاختصار في GNOME وKDE وسطر `bind` في Hyprland |
-| الطبقة والمعاينة | الخلية سطحَ `zwlr_layer_shell_v1` على طبقة overlay (ماسك بحجم الشاشة وخلية سطحاً فرعياً بالمُصيِّر البرمجي) حيث يعلنه المؤلِّف، ونافذة xdg_toplevel في GNOME وX11 ومع قارئ الشاشة؛ والمستقبِل على اتصال الطبقة؛ والملف نفسه في الخلية المركزية من الصور المصغّرة المشتركة أو أيقونة نوعه. يعتمد على `docs/adr/0004-hive-overlay.md`، ويسبق S-017b وS-017c. القصة: S-018 (معتمدة) |
-| الإفلات على Hyprland | في وضع الإفلات يستقبل الماسك السحب بمنطقة إدخال بحجم الخلية، لأن Hyprland لا يرسل حركة السحب لسطح فرعي من سطح طبقة؛ وخارج الخلية يعبر السحب والنقر كما هو. يسبق S-019. القصة: S-020 (منتهية) |
-| الموضع والإمساك والمعاينة | على مسار الطبقة تظهر الخلية عند المؤشر أو موضع السحب ويتكيّف شكلها مع حواف الشاشة، ومسار النافذة في المنتصف كما هو؛ وقارئ الشاشة يُقرَّر بقارئ يعمل لا بالعلم وحده؛ وخلية الإفلات تبقى ما دام المفتاح ممسوكاً (`drop --hold` و`--release`)؛ وصورة الملف في مركزها بعد دخول السحب. يعدّل ADR 0004 و0003. القصة: S-019 (منتهية) |
+| ui | Wayland drop receiver (a private `wl_data_device` on winit's display, bound on every show, copy only, `text/uri-list`) and a "waiting for drop" mode with cell highlight |
+| cli and daemon | `sbarhive drop` and its IPC message, bound by the user to a custom system shortcut |
+| Docs | Binding the shortcut on GNOME and KDE, and a `bind` line for Hyprland |
+| Layer and preview | The hive as a `zwlr_layer_shell_v1` overlay (a full screen catcher with the hive as a software rendered subsurface) where the compositor offers it, an xdg_toplevel window on GNOME, X11 and with a screen reader; the receiver on the layer connection; the file itself in the centre cell from shared thumbnails or its type icon. Based on `docs/adr/0004-hive-overlay.md`, ahead of S-017b and S-017c. Story: S-018 (done) |
+| Drop on Hyprland | In drop mode the catcher takes the drag with an input region the size of the hive, because Hyprland sends no drag motion to a subsurface of a layer surface; outside the hive drags and clicks pass through. Ahead of S-019. Story: S-020 (done) |
+| Position, hold, preview | On the layer path the hive appears at the pointer or drag position and adapts to screen edges, the window path stays centred; the screen reader rule needs a running reader, not the flag alone; the drop hive stays while the key is held (`drop --hold`, `--release`); the file's image in the centre after the drag enters. Amends ADR 0003 and 0004. Story: S-019 (done) |
 
-القصص: `backlog/S-014-drop-hive.md` (مقسّمة إلى S-014a حتى S-014f)، و`backlog/S-018-hive-overlay.md` (مقسّمة إلى S-018a حتى S-018h)، و`backlog/S-020-hyprland-layer-drop.md` (تسبق S-019)، و`backlog/S-019-hive-at-pointer.md` (مقسّمة إلى S-019a حتى S-019f).
+Stories: `backlog/S-014-drop-hive.md` (split into S-014a to S-014f), `backlog/S-018-hive-overlay.md` (S-018a to S-018h), `backlog/S-020-hyprland-layer-drop.md` (ahead of S-019), `backlog/S-019-hive-at-pointer.md` (S-019a to S-019f). Follow-ups shipped in 0.3.1 (`backlog/S-021-drop-only-on-drag.md`) and 0.3.2 (`backlog/S-022-drop-followups.md`).
 
-خارج النطاق: مسار X11 («الخلية أولاً ثم السحب»، قصة مستقلة S-015)، ويندوز، تشغيل Hyprland فعلياً.
+Out of scope: the X11 path ("hive first, then drag", story S-015), Windows, running Hyprland live.
 
+> Manager decision (2026-10-22, delegated by Mohammad): 0.3.0 shipped what was finished and verified. Its goal is met with a custom shortcut the user binds on GNOME, KDE and Hyprland (`docs/drop-shortcut.md`). The portal (S-014e, S-014f), signed distribution (S-016, needs accounts Mohammad opens) and the glass look (S-017) moved to 0.4.0.
 
-> قرار المدير (2026-10-22، بتفويض من محمد): صدر 0.3.0 بما اكتمل وتحقق. هدف الإصدار تحقق باختصار مخصص يربطه المستخدم في GNOME وKDE وHyprland (`docs/drop-shortcut.md`). انتقلت البوابة (S-014e وS-014f) والتوزيع الموقّع (S-016، يحتاج حسابات يفتحها محمد) والمظهر الزجاجي (S-017) إلى 0.4.0.
+## 0.4.0 "Portal and look"
 
-## الإصدار 0.4.0: «البوابة والمظهر»
+Goal: the shortcut registers through the portal with no manual setup, install and update come from signed repositories, and the hive is glass and animated.
 
-الهدف: تسجيل الاختصار عبر البوابة دون إعداد يدوي، وتثبيت وتحديث بحزم موقّعة، وخلية زجاجية متحركة.
-
-| المكوّن | النطاق |
+| Component | Scope |
 | --- | --- |
-| البوابة | تسجيل الاختصار عبر GlobalShortcuts بـ ashpd، يغيّره المستخدم من إعدادات GNOME وKDE، ورمز التفعيل في GNOME |
-| التوزيع | مستودع COPR لـ Fedora ومستودع APT موقّع لـ Ubuntu وDebian، فيصير التثبيت والتحديث بأمر `dnf` أو `apt` عادي، والحزم موقّعة بمفتاح OpenPGP (اليوم تحذّر dnf: «skipped OpenPGP checks»). القصة: S-016 |
-| المظهر | خلية زجاجية: سطح شفاف من الرموز فوق ضبابية المؤلِّف (KDE وHyprland)، ومعتم في GNOME، وحركة من الرموز: فتح حلقةً حلقة، إبراز ينزلق بين الخلايا، ضغط، إغلاق، مع احترام تقليل الحركة. يعتمد على `docs/adr/0004-hive-overlay.md`. القصة: S-017 (معتمدة) |
+| Portal | Register the shortcut through GlobalShortcuts with ashpd, changeable from GNOME and KDE settings, with the activation token on GNOME |
+| Distribution | A COPR repo for Fedora and a signed APT repo for Ubuntu and Debian, so install and update are plain `dnf` or `apt`, with packages signed by an OpenPGP key (today dnf warns "skipped OpenPGP checks"). Story: S-016 |
+| Look | Glass hive: a transparent token surface over the compositor's blur (KDE, Hyprland), opaque on GNOME, and token driven motion: open ring by ring, a highlight that slides between cells, press, close, respecting reduced motion. Based on `docs/adr/0004-hive-overlay.md`. Story: S-017 (approved) |
 
-## الإصدار 0.5.0: «X11»
+## 0.5.0 "X11"
 
-الهدف: الخلية والإفلات يعملان في جلسة X11، والخلية عند المؤشر كما في CLAUDE.md.
+Goal: the hive and drop work in an X11 session, with the hive at the pointer as `CLAUDE.md` says.
 
-| المكوّن | النطاق |
+| Component | Scope |
 | --- | --- |
-| ui | الخلية نافذة عادية عند المؤشر ويتكيّف شكلها مع حواف الشاشة، وترتيب الإفلات «الخلية أولاً ثم السحب» بمستقبِل XDND |
-| الاختبار | خادم X خاص بلا شاشة ومجلد HOME مؤقت، لا سطح مكتب المالك |
+| ui | The hive as an ordinary window at the pointer, adapting to screen edges, and the "hive first, then drag" drop order with an XDND receiver |
+| Testing | A private headless X server and a temporary HOME, never the owner's desktop |
 
-القصة: S-015 (مسودة). خارج النطاق: ويندوز وماك.
+Story: S-015 (draft). Out of scope: Windows, macOS.
 
-## الإصدار 0.6.0: «ويندوز»
+## 0.6.0 "Windows"
 
-الهدف: مستخدم على ويندوز 10 أو 11 يحدد ملفاً في مستكشف الملفات، ويختار SbarHive من قائمة النقر اليمين، فتظهر الخلية عند المؤشر، ويُحفظ الناتج بجانب الأصل، بالعربية والإنكليزية وبلا أي ملف يغادر الجهاز.
+Goal: a Windows 10 or 11 user selects a file in Explorer, picks SbarHive from the right click menu, the hive appears at the pointer, and the result is saved next to the original, in Arabic and English, with no file leaving the machine.
 
-قبل أي شيفرة: ADR 0005 (`docs/adr/0005-windows.md`) يحسم المثبّت وصيغته، وتوقيع الحزمة، وأيقونة الشريط والإشعارات، ومكان المحركات الخارجية، وكيف يُختبر على ويندوز حقيقي أو آلة افتراضية.
+Before any code: ADR 0005 (`docs/adr/0005-windows.md`) settles the installer and its format, package signing, tray icon and notifications, where external engines live, and how to test on real Windows or a virtual machine.
 
-| المكوّن | النطاق |
+| Component | Scope |
 | --- | --- |
-| core وdaemon | IPC على named pipe بدل Unix socket، ومسارات الإعدادات والمؤقت في `%APPDATA%` و`%TEMP%`، وأيقونة الشريط والإشعارات على ويندوز |
-| ui | الخلية نافذة بلا إطار عند المؤشر تأخذ التركيز، والإفلات بمستقبِل OLE، والاختصار العام |
-| engines | محرك الصور كما هو، وFFmpeg وLibreOffice وGhostscript من مسارات ويندوز أو تنزيل عند الحاجة، وإيقاف شجرة العمليات عند الإلغاء (البداية في `crates/engines/src/office/non_unix.rs`) |
-| integrations/windows | القائمة القديمة بمفاتيح السجل أولاً (بلا توقيع)، ثم القائمة الحديثة في ويندوز 11 بـ IExplorerCommand وحزمة sparse موقّعة |
-| التوزيع | مثبّت مرفق بصفحة الإصدار على GitHub ويُبنى في CI على مشغّل ويندوز |
+| core and daemon | IPC on a named pipe instead of a Unix socket, config and temp paths in `%APPDATA%` and `%TEMP%`, tray icon and notifications on Windows |
+| ui | The hive as a frameless window at the pointer that takes focus, drop through an OLE receiver, the global shortcut |
+| engines | The image engine as is; FFmpeg, LibreOffice and Ghostscript from Windows paths or downloaded on demand; kill the process tree on cancel (start in `crates/engines/src/office/non_unix.rs`) |
+| integrations/windows | The legacy registry menu first (unsigned), then the Windows 11 menu with IExplorerCommand and a signed sparse package |
+| Distribution | An installer attached to the GitHub release, built in CI on a Windows runner |
 
-يحتاج من محمد: شهادة توقيع للحزمة الموقّعة وللمثبّت (بدونها تعمل القائمة القديمة فقط ويحذّر SmartScreen)، وجهاز أو آلة افتراضية بويندوز للتحقق الحي.
+Needs from Mohammad: a code signing certificate for the sparse package and the installer (without it only the legacy menu works and SmartScreen warns), and a Windows machine or VM for live checks.
 
-القصص: تُكتب بعد اعتماد ADR 0005 وتُرقَّم من S-021. خارج النطاق: ماك.
+Stories: written after ADR 0005 is accepted, numbered from the next free story number. Out of scope: macOS.
 
-## ترتيب العمل
+## Work order
 
-1. عقود مشتركة في `crates/core` (أنواع الإجراء والمهمة والمحرك وIPC) ثم هيكل الـ workspace.
-2. مسارات متوازية لا تتشارك ملفات: core، محرك الصور، الواجهة، التكاملات، الهوية والموقع.
-3. ربط الخدمة وسطر الأوامر، ثم مراجعة مستقلة، ثم وسم `v0.1.0`.
-4. محركات 0.2 بالتوازي، ثم الإعدادات، ثم مراجعة، ثم وسم `v0.2.0`.
-5. 0.3.0: الإفلات والطبقة والخلية عند المؤشر، ثم مراجعة، ثم وسم `v0.3.0`.
-6. 0.4.0: البوابة والحزم الموقّعة والزجاج، ثم 0.5.0 لـ X11، ثم ADR 0005 وقصص ويندوز لـ 0.6.0.
+1. Shared contracts in `crates/core` (action, job, engine and IPC types), then the workspace skeleton.
+2. Parallel tracks that share no files: core, image engine, UI, integrations, identity and site.
+3. Wire the service and CLI, independent review, tag `v0.1.0`.
+4. 0.2 engines in parallel, then settings, review, tag `v0.2.0`.
+5. 0.3.0: drop, layer and hive at the pointer, review, tag `v0.3.0`; follow-ups in 0.3.1 and 0.3.2.
+6. 0.4.0: portal, signed packages and glass; then 0.5.0 for X11; then ADR 0005 and Windows stories for 0.6.0.

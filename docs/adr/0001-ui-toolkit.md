@@ -1,49 +1,57 @@
-# ADR 0001: مكتبة الواجهة والمُصيِّر للخلية
+# ADR 0001: UI toolkit and renderer for the hive
 
-الحالة: مقترح (بانتظار اختبار التركيز على GNOME حقيقي)
-التاريخ: 2026-10-19
+Status: proposed (waiting for the focus test on real GNOME)
+Date: 2026-10-19
 
-## السياق
+## Context
 
-تجربة `spikes/hive/` بنت الخلية (19 خلية سداسية، نافذة شفافة بلا إطار) بـ Slint 1.18.1 على winit، وقاستها داخل مؤلِّفات مخفية خاصة (KWin 6.7.5 بوضع virtual، وGNOME Shell 50.5 بوضع headless) بملف شخصي معزول، دون لمس سطح المكتب الفعلي. كل رقم أدناه وسيط 7 أو 8 محاولات.
+The spike in `spikes/hive/` built the hive (19 hexagonal cells, a transparent frameless window) with Slint 1.18.1 on winit and measured it in private headless compositors (KWin 6.7.5 virtual, GNOME Shell 50.5 headless) with an isolated profile, never touching the live desktop. Each number is the median of 7 or 8 runs.
 
-| المؤلِّف | المُصيِّر | تشغيل بارد حتى أول إطار | عبر الخدمة (IPC حتى أول إطار) | ذاكرة الخدمة الخاملة | التركيز |
+| Compositor | Renderer | Cold start to first frame | Through the service (IPC to first frame) | Idle service memory | Focus |
 | --- | --- | --- | --- | --- | --- |
-| KWin | femtovg (OpenGL) | 257 ms | 50 ms | 144 MB | نعم |
-| KWin | software | 129 ms | 41 ms | 28 MB | نعم |
-| GNOME | femtovg (OpenGL) | 172 ms | 55 ms | 129 MB | لا (غير حاسم) |
-| GNOME | software | 99 ms | 118 ms | 28 MB | لا (غير حاسم) |
+| KWin | femtovg (OpenGL) | 257 ms | 50 ms | 144 MB | yes |
+| KWin | software | 129 ms | 41 ms | 28 MB | yes |
+| GNOME | femtovg (OpenGL) | 172 ms | 55 ms | 129 MB | no (inconclusive) |
+| GNOME | software | 99 ms | 118 ms | 28 MB | no (inconclusive) |
 
-ملاحظات على القياس:
+Measurement notes:
 
-- وسيط «عبر الخدمة» يستثني أول إظهار بعد تشغيل الخدمة، لأنه لم يُبلغ عن أي إطار خلال 3 ثوانٍ في أي محاولة (راجع النتيجة 8).
-- الرسم في المؤلِّفات المخفية برمجي (llvmpipe)، فأرقام femtovg هنا أسوأ من جهاز ببطاقة رسومية.
-- كل الأرقام من جهاز التطوير السريع، لا من جهاز معيار القبول (4 GB ومعالج ثنائي النواة). تقييد التجربة بنواتين سريعتين (software على KWin) أعطى 101 ms بارداً و29 ms عبر الخدمة، وهذا لا يمثل معالجاً بطيئاً. القياس على جهاز ضعيف فعلي ما زال مطلوباً.
+- The service median leaves out the first show after the service starts, which reported no frame within 3 s in any run (finding 8).
+- Headless compositors render in software (llvmpipe), so femtovg looks worse here than on a machine with a GPU.
+- All numbers come from the fast development machine, not the acceptance machine (4 GB, dual core). Limiting the spike to two fast cores (software, KWin) gave 101 ms cold and 29 ms through the service, which does not represent a slow CPU. A real low end measurement is still needed.
 
-## النتائج
+## Findings
 
-1. **Slint مناسب للخلية.** الرسم بـ Path، والاختيار حسب الشكل السداسي، والعربية المتصلة، وعكس التخطيط تعمل كلها. اللقطات في `spikes/hive/out/`.
-2. **الخدمة الخلفية ضرورية عملياً.** بالمُصيِّر البرمجي وملف شخصي نظيف، التشغيل البارد تحت 150 ms (99 و129 ms). لكنه تجاوزها مع femtovg (172 و257 ms)، ومع ملف شخصي فيه خطوط كثيرة (نحو 300 ms)، ومتوقع أن يتجاوزها على جهاز ضعيف. عبر الخدمة بقي بين 41 و118 ms في كل الحالات.
-3. **المُصيِّر البرمجي (software) هو الخيار.** يحقق ميزانية الذاكرة (28 MB مقابل حد 40 MB في S-001)، وfemtovg يتجاوزها بثلاثة أضعاف بسبب تحميل OpenGL. الخلية صغيرة (393 × 362) فكلفة الرسم البرمجي مهملة.
-4. **الخطوط هي أكبر كلفة مخفية.** على جهاز التطوير 13659 خطاً (2.5 GB في `~/.local/share/fonts`). مع الملف الشخصي الحقيقي ارتفعت الذاكرة إلى 56 MB (software) و173 MB (femtovg) وزاد التشغيل البارد نحو 200 ms. القرار: نضمّن IBM Plex Sans Arabic في البرنامج، ونبحث في تقليل فحص خطوط النظام.
-5. **على Wayland يُهدم السطح عند الإخفاء.** Slint يدمّر نافذة winit عند `hide()` ويعيد إنشاءها عند `show()`. الأرقام أعلاه تشمل ذلك، فلا حاجة لحيلة إبقاء النافذة.
-6. **رمز التفعيل قابل للتمرير.** خطاف `with_winit_window_attributes_hook` يُستدعى عند كل إنشاء للنافذة، فتمرّر الخدمة رمز xdg-activation القادم مع طلب IPC.
-   - **تصحيح (2026-10-20، S-013):** هذا غير دقيق. الخطاف يُستدعى عند إنشاء محوّل النافذة فقط، أي عند إنشاء المكوّن، لا عند إعادة إنشاء نافذة winit في `show()` بعد `hide()`. لذلك لم يُرسل الرمز في أي ظهور. الإصلاح: `present` يبني مكوّن خلية جديداً حين يصله رمز. التفاصيل في `backlog/S-013-focus-gnome-kde.md`.
-7. **التركيز على GNOME غير محسوم، وهو الخطر الأكبر.** في GNOME المخفي لم تأخذ أي نافذة التركيز (0 من 8)، حتى بالتشغيل البارد العادي، والأرجح أن السبب غياب لوحة مفاتيح في الوضع المخفي. KWin المخفي أعطى التركيز دون رمز. أثر ذلك إن تكرر في جلسة حقيقية: Esc لا يصل، وإغلاق الخلية بفقدان التركيز لا يعمل (لأنه مشروط بتركيز سابق)، فتبقى الخلية مفتوحة حتى ينقر المستخدم. الحكم النهائي يحتاج جلسة GNOME حقيقية مع رمز من Nautilus.
-   - **نتائج 2026-10-20 (S-013، `tests/focus/`):** السبب لم يكن غياب لوحة المفاتيح وحده. GNOME المخفي يبدأ في نظرة الأنشطة (overview)، وفيها لا تملك أي نافذة التركيز. بعد إخفائها، ومع لوحة مفاتيح افتراضية من واجهة RemoteDesktop في Mutter، أخذت الخلية التركيز بسياسة GNOME الافتراضية (smart) برمز أو دونه، وأغلقها Esc. بالسياسة الصارمة (strict) أخذته برمز حقيقي من نافذة GTK 4 فقط، ودونه أو برمز مختلَق ظهر إشعار «"SbarHive" is ready» وبقيت الخلية دون لوحة المفاتيح. KWin بمستوى Extreme أعطى النتيجة نفسها، وبالمستويين Low وHigh أعطى التركيز في كل الحالات. هذه النتائج بعد إصلاح النتيجة 6، وقبله لم تأخذ الخلية التركيز برمز حقيقي في أي سياسة صارمة. بقي اختبار جلسة حقيقية بمدير ملفات فعلي (Nautilus وDolphin)، ولم يُفسَّر بعد لماذا لم يأخذ أول ظهور تجريبي التركيز في GNOME حين لم تكن هناك نافذة أخرى.
-8. **أول إظهار بعد تشغيل الخدمة لم يُقَس، وهو غير محقق.** في كل المحاولات تأخر أكثر من 3 ثوانٍ، وفي محاولة تتبع ظهر بعد نحو 8 ثوانٍ. الفرضية: انتظار ناقل الوصولية (AT-SPI)، لأن تفعيله فشل داخل ناقل الجلسة المعزول. هذه فرضية لا دليل قاطع، وهذا أول إظهار يراه المستخدم بعد تسجيل الدخول، فيجب قياسه على جلسة حقيقية قبل اعتماد القرار.
+1. **Slint fits the hive.** Path drawing, hexagon shaped hit testing, joined Arabic and mirrored layout all work. Screenshots in `spikes/hive/out/`.
+2. **The background service is required in practice.** With the software renderer and a clean profile, cold start is under 150 ms (99 and 129 ms), but not with femtovg (172 and 257 ms), not with a font heavy profile (about 300 ms), and probably not on a weak machine. Through the service it stayed between 41 and 118 ms in every case.
+3. **The software renderer is the choice.** It meets the memory budget (28 MB against the 40 MB limit in S-001); femtovg is three times over because of OpenGL. The hive is small (393 by 362), so software rendering costs almost nothing.
+4. **Fonts are the largest hidden cost.** The development machine has 13659 fonts (2.5 GB in `~/.local/share/fonts`). With the real profile memory rose to 56 MB (software) and 173 MB (femtovg), and cold start grew by about 200 ms. Decision: bundle IBM Plex Sans Arabic and look into scanning fewer system fonts.
+5. **On Wayland the surface is destroyed on hide.** Slint destroys the winit window on `hide()` and recreates it on `show()`. The numbers above include that, so no keep alive trick is needed.
+6. **The activation token can be passed.** The `with_winit_window_attributes_hook` hook lets the service pass the xdg-activation token from the IPC request. Corrected 2026-10-20, see Amendments.
+7. **Focus on GNOME is unresolved and is the largest risk.** In headless GNOME no window got focus (0 of 8), even on a plain cold start; the likely cause was the missing keyboard. Headless KWin gave focus without a token. If this held in a real session, Esc would not arrive and close on focus loss would not work (it needs prior focus), so the hive would stay open until clicked. A final verdict needs a real GNOME session with a token from Nautilus. Results of 2026-10-20 in Amendments.
+8. **The first show after the service starts is unmeasured and unexplained.** It took over 3 s in every run, about 8 s in a traced run. Hypothesis, not proven: waiting for the accessibility bus (AT-SPI), whose activation failed inside the isolated session bus. This is the first show a user sees after login, so it must be measured in a real session before the decision is accepted.
 
-## القرار المقترح
+## Decision
 
-- نكمل بـ Slint والخلية السداسية.
-- المُصيِّر الافتراضي: software. femtovg أو skia يُعاد تقييمهما فقط إن احتجنا رسماً لا يدعمه.
-- الخدمة الخلفية إلزامية، والتشغيل البارد مسار احتياطي.
-- الخط مضمَّن في البرنامج.
+- Continue with Slint and the hexagonal hive.
+- Default renderer: software. femtovg or skia are reconsidered only if we need drawing it cannot do.
+- The background service is mandatory; cold start is a fallback path.
+- The font is bundled in the program.
 
-## ما بقي قبل اعتماد القرار
+## Consequences
 
-- [x] تشغيل حي على Hyprland (جهاز التطوير، 2026-10-19، شغّله المالك): أول إطار بتشغيل بارد بعد 226 ms مع ملفه الشخصي الكامل وخطوطه، والنافذة أخذت التركيز (`focused=true`)، وأُغلقت عند الانتقال إلى نافذة أخرى (`focus_lost`). وفي تشغيل ثانٍ (209 ms) أُغلقت بـ Esc أو بنقرة خارج الخلايا (`dismissed`). التشغيل البارد هنا فوق 150 ms، وهذا يؤكد أن الخدمة الخلفية ضرورية.
-- [x] GNOME Shell 50.5 مخفي (2026-10-20، S-013): رمز من نافذة GTK 4 بنفس استدعاء سكربت Nautilus يعطي التركيز دون إشعار «جاهز»، حتى بالسياسة الصارمة.
-- [ ] آلة GNOME افتراضية: سكربت Nautilus الحقيقي يطلب رمز تفعيل ويمرّره، والتحقق من التركيز دون إشعار «جاهز».
-- [ ] آلة KDE افتراضية: نفس الاختبار عبر Dolphin.
-- [ ] إعادة قياس أول إظهار مع ناقل الوصولية الحقيقي.
+- Done: live run on Hyprland (development machine, 2026-10-19, run by the owner). Cold first frame at 226 ms with the full profile and fonts, the window got focus (`focused=true`) and closed on switching to another window (`focus_lost`); a second run (209 ms) closed with Esc or a click outside the cells (`dismissed`). Cold start above 150 ms confirms the service is required.
+- Done: headless GNOME Shell 50.5 (2026-10-20, S-013). A token from a GTK 4 window, using the same call as the Nautilus script, gives focus with no "ready" notification, even under the strict policy.
+- [ ] GNOME VM: the real Nautilus script requests and passes a token; check focus with no "ready" notification.
+- [ ] KDE VM: the same test through Dolphin.
+- [ ] Measure the first show again with a real accessibility bus.
+
+## Amendments
+
+### 2026-10-20 (S-013): finding 6 corrected
+
+The hook runs only when the window adapter is created, that is when the component is created, not when the winit window is recreated by `show()` after `hide()`. So no token was ever sent. Fix: `present` builds a new hive component when it receives a token. Details in `backlog/S-013-focus-gnome-kde.md`.
+
+### 2026-10-20 (S-013, `tests/focus/`): finding 7 results
+
+The missing keyboard was not the only cause. Headless GNOME starts in the activities overview, where no window has focus. With the overview hidden and a virtual keyboard from Mutter's RemoteDesktop interface, the hive got focus under GNOME's default policy (smart), with or without a token, and Esc closed it. Under the strict policy it got focus only with a real token from a GTK 4 window; with no token or a forged one the "\"SbarHive\" is ready" notification showed and the hive had no keyboard. KWin at Extreme gave the same result; at Low and High it gave focus in every case. These results are after the finding 6 fix; before it the hive never got focus with a real token under a strict policy. Still open: a real session with a real file manager (Nautilus, Dolphin), and why the first trial show in GNOME did not get focus when no other window existed.
