@@ -22,7 +22,8 @@
 #                      hive near pointer: `sbarhive open` while a 1 px
 #                        pointer jitter around P = (300, 200) runs (every
 #                        10 ms for 600 ms, from before the command): a
-#                        "hive anchor" line within 1 px of P and the
+#                        "hive anchor" line within 1 px of P or P + 1
+#                        (the two jitter points, see near_jit) and the
 #                        "hive surface" line equal to the AC3 placement for
 #                        it (tests/overlay/anchor.py, 1 px) on the 960x540
 #                        logical output; then a drag held still at
@@ -50,7 +51,8 @@
 #                        (a private KWin with two virtual outputs).
 #                      adaptive shape (S-019b, AC3, AC4): `sbarhive open`
 #                        with the pointer jittering 1 px around (4, 4): the
-#                        anchor within 1 px of it, the "hive surface" box
+#                        anchor within 1 px of (4, 4) or (5, 5), the
+#                        "hive surface" box
 #                        and the "hive cells" count and centre equal to
 #                        tests/overlay/anchor.py for the printed anchor
 #                        (1 px), the box inside the output;
@@ -572,6 +574,11 @@ for c in json.load(sys.stdin):
     local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
     # near A B TOL: |A - B| <= TOL, for decimals.
     near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
+    # near_jit A P: A within 1 px of P or of P + 1, the two points of a
+    # 1 px jitter. move() rounds to whole KWin pixels, so at scale 1.333333
+    # the corner jitter (4, 5) lands at 3.75 and 5.25: an anchor read at the
+    # second point is 1.25 px from P (seen once in 5 runs).
+    near_jit() { near "$1" "$2" 1 || near "$1" "$(($2 + 1))" 1; }
     # The output size in logical pixels (960x540 at 1.333333).
     local lw lh
     read -r lw lh < <(hyprctl monitors -j | python3 -I -c 'import json,sys
@@ -608,8 +615,8 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
     say "INFO quasimode near pointer (open): P ($px, $py), output ${lw}x${lh}, $(grep -m1 -E '^hive anchor: ' <<<"$nseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$nseg" || echo 'no surface line')"
     key 1; gone_within 30 || true
     reset_hive "the near pointer show"
-    check "quasimode: hive near pointer (S-019 AC5, AC6): \`sbarhive open\` with the pointer moving at ($px, $py) is anchored within 1 px of it and placed by plan_at for that anchor" \
-      'near "$nax" "$px" 1 && near "$nay" "$py" 1 && placed "$nseg" "$lw" "$lh"'
+    check "quasimode: hive near pointer (S-019 AC5, AC6): \`sbarhive open\` with the pointer moving at ($px, $py) is anchored within 1 px of it (or of it + 1, the jitter's other point) and placed by plan_at for that anchor" \
+      'near_jit "$nax" "$px" && near_jit "$nay" "$py" && placed "$nseg" "$lw" "$lh"'
 
     # Hive near pointer, 2: decision 1, a drag held still and
     # `sbarhive drop --at "$(hyprctl cursorpos)"` (no wait, no move).
@@ -664,8 +671,8 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
         near "$(awk -v a="$bsy" -v b="$bccy" 'BEGIN { print a + b }')" "$ocy" 1 && bcells=yes
     done <<<"$borc"
     say "INFO quasimode adaptive shape: B ($bx, $by), cursorpos $bcur, actions $nact, $(grep -m1 -E '^hive anchor: ' <<<"$bseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$bseg" || echo 'no surface line'), $(grep -m1 -E '^hive cells: ' <<<"$bseg" || echo 'no cells line'), anchor.py (min_rings cx cy count x y w h): $(tr '\n' '|' <<<"$borc")"
-    check "quasimode: adaptive shape (S-019b AC3, AC4): \`sbarhive open\` with the pointer at the top left corner is anchored there (1 px), its \"hive surface\" box and \"hive cells\" count and centre equal plan_at by tests/overlay/anchor.py (1 px), and the box lies inside the ${lw}x${lh} output" \
-      'near "$bax" "$bx" 1 && near "$bay" "$by" 1 && placed "$bseg" "$lw" "$lh" && [ "$bcells" = yes ] && [ "$bsx" -ge 0 ] && [ "$bsy" -ge 0 ] && [ $((bsx + bsw)) -le "$lw" ] && [ $((bsy + bsh)) -le "$lh" ]'
+    check "quasimode: adaptive shape (S-019b AC3, AC4): \`sbarhive open\` with the pointer at the top left corner is anchored there (1 px from B or B + 1, the two jitter points), its \"hive surface\" box and \"hive cells\" count and centre equal plan_at by tests/overlay/anchor.py (1 px), and the box lies inside the ${lw}x${lh} output" \
+      'near_jit "$bax" "$bx" && near_jit "$bay" "$by" && placed "$bseg" "$lw" "$lh" && [ "$bcells" = yes ] && [ "$bsx" -ge 0 ] && [ "$bsy" -ge 0 ] && [ $((bsx + bsw)) -le "$lw" ] && [ $((bsy + bsh)) -le "$lh" ]'
 
     # Screen reader rule (S-019a, AC1, AC2), last because it replaces the
     # daemon: one daemon with no SBARHIVE_SURFACE (config hive_surface absent,
