@@ -316,8 +316,9 @@ globalshortcuts` and appends its Lua `global` bind to the private config.
 T in `bound drop (T)` must equal the reply's `trigger_description` on the
 bus (`real_portal.py triggers`); xdg-desktop-portal-hyprland sends "".
 Two last cases let Super+Z go over a revealed hive, and after the drag has
-ended over the source: the layer goes within 500 ms of the key-up. `portal_docs.sh` reads the portal section of `docs/drop-shortcut`
-in both languages, the Hyprland README pair and CHANGELOG.md.
+ended over the source: the layer goes within 500 ms of the key-up.
+`portal_docs.sh` reads the portal section of `docs/drop-shortcut` in both
+languages, the Hyprland README pair and CHANGELOG.md.
 
 ## Input
 
