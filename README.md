@@ -107,6 +107,12 @@ Security reports: see `SECURITY.md`. Release history: `CHANGELOG.md`. A new
 format is one TOML file in `actions/` plus a small adapter in
 `crates/engines/`.
 
+## Support
+
+SbarHive is free and built in the open. If it helps you, you can support its development:
+
+<a href="https://sbarah.com/support"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/support-sbarah-dark.svg"><img src="docs/assets/support-sbarah-light.svg" alt="Support Sbarah" width="380"></picture></a>
+
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.

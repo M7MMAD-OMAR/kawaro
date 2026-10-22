@@ -77,6 +77,12 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 اقرأ [دليل المساهمة](CONTRIBUTING.ar.md) و`docs/architecture.md` قبل أي تعديل. للإبلاغ عن ثغرة أمنية راجع `SECURITY.md`، وسجل الإصدارات في `CHANGELOG.md`. إضافة صيغة جديدة تعني ملف TOML في `actions/` ومحوّلاً صغيراً في `crates/engines/`.
 
+## الدعم
+
+صبار هايف مجاني ويُبنى بشكل مفتوح. إن أفادك، يمكنك دعم تطويره:
+
+<a href="https://sbarah.com/support"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/support-sbarah-dark.svg"><img src="docs/assets/support-sbarah-light.svg" alt="ادعم صبارة" width="380"></picture></a>
+
 ## الرخصة
 
 GPLv3 أو أحدث (GPL-3.0-or-later). راجع `LICENSE`.
