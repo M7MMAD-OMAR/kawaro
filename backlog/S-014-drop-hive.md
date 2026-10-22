@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: مراجعة (S-014d)
+الحالة: مراجعة
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -252,6 +252,7 @@
     - للمراجِع: منطق الوضع الافتراضي في `kwin.sh` و`gnome.sh` نُقل داخل `if/else` ولم يُشغَّل بعد التعديل (فقط `bash -n` و`shellcheck -x`). يُشغَّلان في المراجعة.
 - 2026-10-22، المنفِّذ (S-014d): بقرار المدير في سؤال المختبِر عن مساعد Alt: لا مساعد يُشحن، وربط Alt الموثَّق يستعمل `sbarhive drop --hold` و`--release` من S-019e، وموضع المؤشر في Hyprland بـ `--at "$(hyprctl cursorpos)"` (S-019، القرار 1).
   - الملفات: `docs/drop-shortcut.md` (جديد، بالعربية والإنكليزية: GNOME من الإعدادات، KDE من إعدادات النظام، Hyprland بسطر `bind = SUPER, Z` لظهور فوري وسطري `bindn`/`bindri` على `ALT_L` للإمساك، والافتراضي Super+Z)، `integrations/linux/hyprland/README.md` (سطرا `ALT_L` بصيغتي hyprlang وLua في القسمين، بعد أسطر Super+Z التي أضافتها S-019 دون تغييرها)، `README.md` (سطر يحيل إلى `docs/drop-shortcut.md` في القسمين)، وسطر في CHANGELOG.md. لا شيفرة Rust: `hive_bench show --drop` موجود منذ S-019 ويطبع `mode=drop`.
-  - النتائج (`systemd-run` بـ MemoryMax=6G وCPUQuota=200%، `nice -n 19`، `CARGO_BUILD_JOBS=2`، KWin مخفي خاص واحد): `tests/drop/docs.sh` RESULT PASS؛ `tests/drop/budget.sh` RESULT PASS (21 ظهوراً كلها `mode=drop` وطبقة، `hive focus: true` صفر، الوسيط 51.3 ms والأقصى 52.1)؛ `tests/drop/hold_docs.sh` RESULT PASS؛ `tests/overlay/docs.sh` RESULT PASS؛ `scripts/design-lint.sh` نظيف.
+  - النتائج (كلها داخل `systemd-run` بـ MemoryMax=6G وMemoryHigh=5G وCPUQuota=200%، `nice -n 19`، `CARGO_BUILD_JOBS=2`، وKWin مخفي خاص واحد لـ budget.sh): `tests/drop/docs.sh` RESULT PASS؛ `tests/drop/budget.sh` RESULT PASS (21 ظهوراً كلها `mode=drop` وطبقة، `hive focus: true` صفر، الوسيط 51.3 ms والأقصى 52.1)؛ `tests/drop/hold_docs.sh` RESULT PASS؛ `tests/overlay/docs.sh` RESULT PASS؛ `scripts/design-lint.sh` نظيف.
   - ملاحظة: الوسيط 51.3 ms لا 2.7 كما في تشغيل المختبِر، لأن ظهور الإفلات صار ينتظر موضع المؤشر حتى 50 ms (S-019c) دون `--at`. يبقى تحت 150.
-  - لم يُشغَّل: cargo fmt وclippy وtest وmutants، إذ لم تتغير شيفرة Rust. أسطر Hyprland وخطوات GNOME وKDE لم تُجرَّب على جلسة حقيقية، وهي موسومة في التوثيق بأنها مفترضة (Hyprland).
+  - لم يُشغَّل: cargo fmt وclippy وtest وmutants، إذ لم تتغير شيفرة Rust. لم يُجرَّب شيء من التوثيق على جلسة حقيقية. موسوم في التوثيق بأنه غير متحقق: أسطر Hyprland كلها، والاختصار المخصص في GNOME أثناء السحب (ADR 0003 يذكر أن الاختبار كان بـ `grab_accelerator` لا gsd-media-keys)، وأثر Alt غير المستهلِك على نوع الإفلات. خطوات KDE هي طريقة «أمر أو سكربت» التي استعملها `kwin.sh shortcut` (kglobalacceld) فلم تُوسم.
+  - تنبيه: `docs.sh` يفحص كل `.md` في `docs/` ومنها `docs/launch/intro-video-plan.md` غير المتتبَّع وليس من هذه المهمة. ينجح اليوم، لكن مسار `/home/` أو شرطة طويلة فيه لاحقاً تُفشل الفحص.

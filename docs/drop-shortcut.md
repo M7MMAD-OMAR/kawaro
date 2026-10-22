@@ -19,7 +19,7 @@
 
 3. اضغط Super+Z لتسجيله، ثم احفظ.
 
-تظهر الخلية في GNOME نافذةً في منتصف الشاشة، لا عند المؤشر.
+تظهر الخلية في GNOME نافذةً في منتصف الشاشة، لا عند المؤشر. لم يُتحقق بعد من أن الاختصار المخصص في GNOME يعمل أثناء السحب: الاختبار المخفي سجّل الاختصار بآلية بوابة الاختصارات نفسها، لا من الإعدادات.
 
 ### KDE
 
@@ -46,7 +46,7 @@
 bind = SUPER, Z, exec, ~/.local/bin/sbarhive drop --at "$(hyprctl cursorpos)"
 ```
 
-أو إمساك Alt الأيسر: تظهر الخلية بعد ضغط مطوّل (المفتاح `hold_ms`، 400 ملي ثانية افتراضياً) وتختفي حين تترك المفتاح. ربط الضغط غير مستهلِك (العلم `n`) حتى تبقى تركيبات مثل Alt+Tab سليمة، وربط الترك يتجاهل المُعدِّلات (العلمان `r` و`i`):
+أو إمساك Alt الأيسر: تظهر الخلية بعد ضغط مطوّل (المفتاح `hold_ms`، 400 ملي ثانية افتراضياً) وتختفي حين تترك المفتاح. ربط الضغط غير مستهلِك (العلم `n`) حتى تبقى تركيبات مثل Alt+Tab سليمة، وربط الترك يتجاهل المُعدِّلات (العلمان `r` و`i`). ولأن الضغط غير مستهلِك يصل Alt إلى مدير الملفات أيضاً، وقد يغيّر نوع الإفلات فيه، ولم يُتحقق من ذلك:
 
 ```
 bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
@@ -74,7 +74,7 @@ On GNOME, bind the shortcut by hand in Settings:
 
 3. Press Super+Z to set it, then save.
 
-On GNOME the hive is a window in the middle of the screen, not at the pointer.
+On GNOME the hive is a window in the middle of the screen, not at the pointer. That a GNOME custom shortcut fires during a drag is not verified yet: the headless test grabbed the key the way the GlobalShortcuts portal does, not through Settings.
 
 ### KDE
 
@@ -101,7 +101,7 @@ Super+Z for an immediate show on the press, hyprlang form (`hyprland.conf`):
 bind = SUPER, Z, exec, ~/.local/bin/sbarhive drop --at "$(hyprctl cursorpos)"
 ```
 
-Or hold left Alt: the hive shows after a long press (`hold_ms`, 400 ms by default) and closes when you let the key go. The press bind is non consuming (the flag `n`) so combinations such as Alt+Tab keep working, and the release bind ignores modifiers (the flags `r` and `i`):
+Or hold left Alt: the hive shows after a long press (`hold_ms`, 400 ms by default) and closes when you let the key go. The press bind is non consuming (the flag `n`) so combinations such as Alt+Tab keep working, and the release bind ignores modifiers (the flags `r` and `i`). Being non consuming, Alt still reaches the file manager and may change the drop kind there; not verified:
 
 ```
 bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
