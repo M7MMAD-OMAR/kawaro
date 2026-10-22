@@ -16,12 +16,17 @@
 # covered by tests/overlay/kwin.sh a11y. The window path's surface line runs
 # only inside a winit event loop (tests/overlay/kwin.sh window, gnome.sh),
 # and the build kind helpers answer from the live platform only.
+# The GlobalShortcuts portal client's D-Bus side (S-014e1) runs on a live
+# session bus only, on its own thread and connection; it is covered by
+# tests/drop/portal.sh. Its decisions stay mutated in
+# crates/daemon/src/portal.rs (S-014e decision 5).
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",
   "crates/ui/src/layer.rs",
   "crates/ui/src/platform.rs",
   "crates/ui/src/a11y.rs",
+  "crates/daemon/src/portal_bus.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",

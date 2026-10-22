@@ -78,6 +78,12 @@ pub struct Config {
     /// underscore, as `hive_surface` is.
     #[serde(rename = "hold_ms", deserialize_with = "hold_ms_in_range")]
     pub hold_ms: u16,
+    /// Register the drop shortcut with the GlobalShortcuts portal at start
+    /// (S-014e1). The daemon writes `false` after the user denies the
+    /// portal's dialog, so it does not return at every login. Spelled with
+    /// an underscore, as `hold_ms` is.
+    #[serde(rename = "portal_shortcut")]
+    pub portal_shortcut: bool,
 }
 
 /// The default long press threshold.
@@ -113,6 +119,7 @@ impl Default for Config {
             notify: true,
             hive_surface: HiveSurface::Auto,
             hold_ms: HOLD_MS_DEFAULT,
+            portal_shortcut: true,
         }
     }
 }

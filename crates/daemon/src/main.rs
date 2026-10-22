@@ -3,6 +3,8 @@
 
 mod jobs;
 mod notify;
+mod portal;
+mod portal_bus;
 mod server;
 mod state;
 mod text;
@@ -98,6 +100,8 @@ fn main() -> ExitCode {
         let (state, queue) = (state.clone(), queue.clone());
         std::thread::spawn(move || watch::run(state, queue));
     }
+    let portal_shortcut = lock(&state).config.portal_shortcut;
+    portal_bus::start(portal_shortcut, lang, state.clone());
 
     let result = slint::run_event_loop_until_quit();
     queue.cancel_all();
