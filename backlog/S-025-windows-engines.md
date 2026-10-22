@@ -205,3 +205,4 @@ test result: ok. 6 passed; 0 failed    (pdf_ghostscript)
     - `cargo mutants --jobs 1 --in-diff <git diff 8160592 -- crates/engines/src> -p sbarhive-engines` in a copied tree, `CARGO_BUILD_JOBS=2`: 43 mutants, 41 caught, 2 unviable (`command -> Command with Default::default()`, `missing -> EngineError with Default::default()`), 0 missed, 0 timeouts.
     - `scripts/design-lint.sh`: clean. No em or en dash in the diff.
     - The six test-unchanged commands above print nothing. `crates/ui` untouched.
+  - Follow-up: `docs/engines.md` "Finding the programs" now says the lookup runs once per process for LibreOffice and Ghostscript and once per engine for ffmpeg (no `OnceLock` added). A grep found no old message text (`LibreOffice (soffice)`, `Ghostscript (gs)`) left in code or docs, and `fn find(` returning `Option<PathBuf>` exists only in `locate.rs`, so the new `exclude_re` entry hides no other mutant.

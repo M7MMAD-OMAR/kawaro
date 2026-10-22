@@ -254,7 +254,7 @@ Apache-2.0 or BSD-3-Clause, all compatible with GPL-3.0-or-later.
 
 ## Finding the programs (S-025b)
 
-`crates/engines/src/locate.rs` looks each external program up once, in this
+`crates/engines/src/locate.rs` looks each external program up (once per process for LibreOffice and Ghostscript, once per engine for ffmpeg), in this
 order, and takes the first executable file: `PATH`, then on Windows the usual
 install folder, then on Windows the folder the installer wrote in the
 registry (`HKEY_LOCAL_MACHINE`, read by `locate/windows.rs`). On Windows a
