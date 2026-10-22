@@ -3,7 +3,7 @@
 //! compositor), never on a live desktop.
 //!
 //!     hive_bench daemon [--lang ar|en] [--file PATH]   waits on $XDG_RUNTIME_DIR/sbarhive-ui-bench.sock
-//!     hive_bench show [--token T] [--drop [--hold]]   asks for the hive, prints first_frame_ms
+//!     hive_bench show [--token T] [--drop [--hold]]   asks for the hive, prints first_frame_ms (catcher_ms in drop mode)
 //!     hive_bench ctl hide|quit
 //!     hive_bench run [--lang ar|en] [--file PATH]      cold start, prints first_frame_epoch_ms
 //!
@@ -18,8 +18,15 @@
 //! prints `mode=drop`. `--drop --hold` passes the request through the long
 //! press gate (`sbarhive_core::hold`, 400 ms) as the daemon does, shows the
 //! hive with `Hive::present_drop_hold` when the gate's timer gives the show,
-//! and prints `mode=hold hold_ms=400`, with `first_frame_ms` timed from the
-//! threshold's end and `press_to_frame_ms` from the request (S-019e AC20).
+//! and prints `mode=hold hold_ms=400` (S-019e AC20).
+//!
+//! A drop show on the layer path binds a hidden catcher and draws the hive
+//! only once a drag of files with an action enters it (S-021), so a bench
+//! show, with no drag, has no first frame. Both drop modes are timed to the
+//! catcher's ready commit instead (S-021 AC8): its first commit after the
+//! first configure of its layer surface. `--drop` prints `catcher_ms` from
+//! the request line; `--drop --hold` prints `catcher_ms` from the
+//! threshold's end and `press_to_catcher_ms` from the request.
 
 mod common;
 
@@ -76,6 +83,31 @@ fn present(
     }
 }
 
+/// Runs `f` once the next drop show's catcher is ready (S-021 AC8). Only
+/// the layer path has a catcher; elsewhere the first frame stands in.
+#[cfg(target_os = "linux")]
+fn after_catcher_ready(f: impl FnOnce() + 'static) {
+    sbarhive_ui::after_catcher_ready(f);
+}
+
+#[cfg(not(target_os = "linux"))]
+fn after_catcher_ready(f: impl FnOnce() + 'static) {
+    sbarhive_ui::after_next_frame(f);
+}
+
+/// How long a drop show's reply waits after the catcher is ready, so the
+/// show is placed (its `hive surface` line comes after the 50 ms anchor
+/// wait) before measure.sh hides it. The time it reports is taken at the
+/// ready commit, not after this wait.
+const SETTLE: Duration = Duration::from_millis(250);
+
+/// Writes `line` to the client after [`SETTLE`].
+fn reply_later(mut stream: UnixStream, line: String) {
+    slint::Timer::single_shot(SETTLE, move || {
+        writeln!(stream, "{line}").ok();
+    });
+}
+
 /// The long press threshold of the hold shows (the default `hold_ms`).
 const HOLD_MS: u64 = 400;
 
@@ -87,7 +119,8 @@ thread_local! {
 }
 
 /// A hold show: the press goes through the gate at `received`; its timer
-/// shows the hive in hold mode and reports both times after the first frame.
+/// shows the hive in hold mode and reports both times once the catcher is
+/// ready.
 fn hold_show(hive: Rc<Hive>, token: Option<String>, received: Instant, stream: UnixStream) {
     GATE.with(|g| g.borrow_mut().signal(Signal::Hold { at: None }, received));
     let pending = RefCell::new(Some((hive, token, stream)));
@@ -101,18 +134,19 @@ fn hold_show(hive: Rc<Hive>, token: Option<String>, received: Instant, stream: U
                     return;
                 };
                 GATE_TIMER.with(|t| t.stop());
-                let Some((hive, token, mut stream)) = pending.borrow_mut().take() else {
+                let Some((hive, token, stream)) = pending.borrow_mut().take() else {
                     return;
                 };
                 let threshold = Instant::now();
-                sbarhive_ui::after_next_frame(move || {
+                after_catcher_ready(move || {
                     let ms = threshold.elapsed().as_secs_f64() * 1000.0;
                     let total = received.elapsed().as_secs_f64() * 1000.0;
-                    writeln!(
+                    reply_later(
                         stream,
-                        "mode=hold hold_ms={HOLD_MS} first_frame_ms={ms:.1} press_to_frame_ms={total:.1}"
-                    )
-                    .ok();
+                        format!(
+                            "mode=hold hold_ms={HOLD_MS} catcher_ms={ms:.1} press_to_catcher_ms={total:.1}"
+                        ),
+                    );
                 });
                 if let Err(e) = hive.present_drop_hold("", token, at) {
                     eprintln!("present failed: {e}");
@@ -165,12 +199,18 @@ fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Err
                         if mode == "hold" {
                             return hold_show(hive, token, received, stream);
                         }
-                        let tag = if mode == "drop" { "mode=drop " } else { "" };
                         let mut stream = stream;
-                        sbarhive_ui::after_next_frame(move || {
-                            let ms = received.elapsed().as_secs_f64() * 1000.0;
-                            writeln!(stream, "{tag}first_frame_ms={ms:.1}").ok();
-                        });
+                        if mode == "drop" {
+                            after_catcher_ready(move || {
+                                let ms = received.elapsed().as_secs_f64() * 1000.0;
+                                reply_later(stream, format!("mode=drop catcher_ms={ms:.1}"));
+                            });
+                        } else {
+                            sbarhive_ui::after_next_frame(move || {
+                                let ms = received.elapsed().as_secs_f64() * 1000.0;
+                                writeln!(stream, "first_frame_ms={ms:.1}").ok();
+                            });
+                        }
                         let shown = if mode == "drop" {
                             hive.present_drop("", token)
                         } else {

@@ -101,6 +101,24 @@ thread_local! {
     static SHOW: RefCell<ShowRequest> = RefCell::new(ShowRequest::default());
     /// The surface choice and reason last printed (S-019 AC2).
     static LAST_CHOICE: RefCell<Option<(Surface, String)>> = const { RefCell::new(None) };
+    /// The [`after_catcher_ready`] hook, taken once.
+    static AFTER_CATCHER: RefCell<Option<Box<dyn FnOnce()>>> = const { RefCell::new(None) };
+}
+
+/// Measurement hook (S-021 AC8): runs `f` once, right after the next
+/// show's catcher is ready, that is its first commit after the first
+/// configure of its layer surface. A drop show draws nothing until a drag
+/// enters, so the bench times this instead of a first frame.
+#[doc(hidden)]
+pub fn after_catcher_ready(f: impl FnOnce() + 'static) {
+    AFTER_CATCHER.with(|h| *h.borrow_mut() = Some(Box::new(f)));
+}
+
+/// Runs the [`after_catcher_ready`] hook, if one is set.
+fn catcher_ready() {
+    if let Some(f) = AFTER_CATCHER.with(|h| h.borrow_mut().take()) {
+        f();
+    }
 }
 
 /// How long a show waits for the pointer before it centres the hive
@@ -760,10 +778,14 @@ impl LayerAdapter {
                 };
                 if !self.decided.get() && first {
                     self.wait_for_anchor((w, h));
-                    return;
+                } else {
+                    self.place();
+                    self.render();
                 }
-                self.place();
-                self.render();
+                // Both branches committed the catcher and flushed.
+                if first {
+                    catcher_ready();
+                }
             }
             Ev::Position(x, y) => {
                 let configured = self

@@ -22,6 +22,9 @@ mod geometry;
 mod icons;
 #[cfg(target_os = "linux")]
 mod layer;
+#[cfg(target_os = "linux")]
+#[doc(hidden)]
+pub use layer::after_catcher_ready;
 mod layout;
 mod motion;
 pub mod overlay;

@@ -45,7 +45,11 @@ layerrule = no_anim on, match:namespace ^sbarhive$
 
 ### إمساك المفتاح للإفلات
 
-أثناء سحب ملف، أمسك المفتاح: تظهر الخلية بعد ضغط مطوّل (400 ملي ثانية افتراضياً، المفتاح `hold_ms` في `config.toml`)، وتبقى ما دمت ممسكاً به، وتختفي حين تتركه. الضغطة العابرة لا تُظهر شيئاً. يحتاج ذلك ربطين: ربط الضغط يشغّل `sbarhive drop --hold`، وربط الترك يشغّل `sbarhive drop --release`. المؤقّت في الخدمة لا في السكربت، فيعود الأمران فوراً.
+لا تظهر خلية الإفلات إلا أثناء سحب ملفات لها إجراء واحد على الأقل. ابدأ السحب أولاً، ثم أمسك المفتاح: بعد ضغط مطوّل (400 ملي ثانية افتراضياً، المفتاح `hold_ms` في `config.toml`) تظهر الخلية تحت الملف المسحوب، وتبقى ما دمت ممسكاً بالمفتاح، وتختفي حين تتركه. إن أمسكت المفتاح دون سحب، أو سحبت ملفاً ليس له إجراء، فلا يظهر شيء. والضغطة العابرة لا تُظهر شيئاً كذلك.
+
+بعد انقضاء المهلة تنتظر الخدمة أول حدث من المؤلِّف لتعرف أيجري سحب أم لا، وHyprland لا يرسله إلا مع أول حركة، فإن كانت يدك ساكنة تظهر الخلية حين تحرّك الملف قليلاً. وإن بدأت السحب بعد انقضاء المهلة والمفتاح ممسوك فلن تظهر الخلية، فاترك المفتاح وأعد بالترتيب الصحيح.
+
+يحتاج ذلك ربطين: ربط الضغط يشغّل `sbarhive drop --hold`، وربط الترك يشغّل `sbarhive drop --release`. المؤقّت في الخدمة لا في السكربت، فيعود الأمران فوراً.
 
 الخدمة لا تبدأ مع ربط الترك، وإن بدأت مع ربط الضغط فقد يضيع ترك سريع. لذلك شغّلها مع الجلسة: `exec-once = ~/.local/bin/sbarhived`.
 
@@ -85,7 +89,7 @@ hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
 - ربط الترك لا يصل إن تركت المُعدِّل قبل المفتاح الأساسي (تترك Super قبل Z مثلاً)، لذلك يحتاج تجاهل المُعدِّلات: العلم `i` مع `r` في hyprlang، و`ignore_mods` في Lua.
 - ربط الضغط على Alt وحده أو أي مُعدِّل يجب أن يكون غير مستهلِك (العلم `n` في hyprlang، و`non_consuming` في Lua)، حتى تبقى تركيبات مثل Alt+Tab سليمة. ويجب أن يتجاهل المُعدِّلات أيضاً (العلم `i` في hyprlang، و`ignore_mods` في Lua) وألا يشترط المُعدِّل نفسه: في الضغطة الأولى لا يكون Alt ممسوكاً بعد، فربطٌ مثل `ALT, ALT_L` لا يطابق إلا من الضغطة الثانية.
 - الموضع `--at` يُقرأ عند الضغطة الأولى، فتظهر الخلية حيث كان المؤشر لحظة الضغط.
-- `sbarhive drop` دون `--hold` يبقى ظهوراً فورياً لربط ضغطة عادية.
+- `sbarhive drop` دون `--hold` يبقى دون مهلة، لربط ضغطة عادية، وتسري عليه القاعدة نفسها: لا تظهر الخلية إلا مع سحب ملفات لها إجراء.
 
 ## English
 
@@ -132,7 +136,11 @@ layerrule = no_anim on, match:namespace ^sbarhive$
 
 ### Hold a key to drop
 
-While dragging a file, hold the key: the hive shows after a long press (400 ms by default, `hold_ms` in `config.toml`), stays while you hold the key and closes when you let it go. A short tap shows nothing. That takes two binds: the press runs `sbarhive drop --hold` and the release runs `sbarhive drop --release`. The timer is in the daemon, not in the bind, so both commands return at once.
+The drop hive shows only during a drag of files that have at least one action. Start the drag first, then hold the key: after a long press (400 ms by default, `hold_ms` in `config.toml`) the hive shows under the dragged file, stays while you hold the key and closes when you let it go. Without a drag, or for a file with no action, nothing shows. A short tap shows nothing either.
+
+Once the threshold ends, the daemon waits for the compositor's first event to learn whether a drag is under way, and Hyprland sends it only with the first move, so with a still hand the hive shows as soon as you move the file a little. If you start the drag only after the threshold has ended, the hive does not show; let go of the key and try again in the right order.
+
+That takes two binds: the press runs `sbarhive drop --hold` and the release runs `sbarhive drop --release`. The timer is in the daemon, not in the bind, so both commands return at once.
 
 The release bind never starts the daemon, and a daemon started by the press may miss a quick release, so start it with the session: `exec-once = ~/.local/bin/sbarhived`.
 
@@ -172,4 +180,4 @@ Notes, none of them verified:
 - The release bind does not fire when the modifier is let go before the main key (Super before Z, say), so it needs to ignore modifiers: the flag `i` with `r` in hyprlang, `ignore_mods` in Lua.
 - A press bind on Alt alone, or any modifier, must be non consuming (the flag `n` in hyprlang, `non_consuming` in Lua), so combinations such as Alt+Tab keep working. It must also ignore modifiers (the flag `i` in hyprlang, `ignore_mods` in Lua) and not require the modifier itself: on the first press Alt is not held yet, so a bind such as `ALT, ALT_L` matches only from the second press.
 - `--at` is read at the first press, so the hive shows where the pointer was when the key went down.
-- `sbarhive drop` without `--hold` stays an immediate show, for a plain key press bind.
+- `sbarhive drop` without `--hold` has no threshold, for a plain key press bind, and follows the same rule: the hive shows only with a drag of files that have an action.

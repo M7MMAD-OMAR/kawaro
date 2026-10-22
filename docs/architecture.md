@@ -162,11 +162,12 @@ On the layer path the hive opens at an anchor instead of the output centre:
   may show.
 - **Catcher phase of a drop show.** A drop show without `--at` takes its
   anchor from the drag: the catcher takes the input over the whole output
-  until the first position (`wl_data_device.enter` or `motion`, or
-  `wl_pointer` with no drag). This anchor phase never reaches the mode
+  until the first position (`wl_data_device.enter` or `motion`; a
+  `wl_pointer.enter` means no drag and hides the show, see below). This
+  anchor phase never reaches the mode
   machine: no enter, leave or drop, and no offer is accepted. With no
   position within 50 ms the hive shows centred; a first position within
-  300 ms of the first frame moves it once under the drag, after that it
+  300 ms of the placement moves it once under the drag, after that it
   stays centred (manager decision 12). Then the catcher's region becomes
   the hive rectangle, so a still pointer is never held, and the keyboard is
   never taken.
@@ -201,17 +202,56 @@ pure, with an injected clock), on the event loop thread:
   starts the daemon; `sbarhive drop` without `--hold` stays the immediate
   show of S-014. A GlobalShortcuts portal (a later story) maps `Activated`
   and `Deactivated` to the same two gate inputs (`hold::from_portal`).
-- Budget: on the hold path the 150 ms budget to the first frame is timed
-  from the end of the threshold (`hive_bench show --drop --hold`,
+- Budget: on the hold path the 150 ms budget is timed from the end of the
+  threshold (`hive_bench show --drop --hold`,
   `tests/drop/budget.sh 20 1 hold`); the threshold is a user setting, not a
-  response time. The immediate paths keep the request to first frame
-  budget.
+  response time. On the layer path a drop show draws nothing until a drag
+  enters (S-021, below), so that budget runs to the catcher's ready commit,
+  and the hive's first frame comes at most 150 ms after the drag's enter.
 
 After a drag enters a drop hive (either kind) its centre shows the dragged
 files by the S-018h rules (S-019f): one file's cached thumbnail or the kind
-icon with the format code, the count for several; before enter the waiting
-text and no preview. With `SBARHIVE_DEBUG_FOCUS` every enter prints one
+icon with the format code, the count for several; before enter, on the
+window path, the waiting text and no preview. With `SBARHIVE_DEBUG_FOCUS` every enter prints one
 `hive preview: thumb W H` or `hive preview: icon KIND` line.
+
+### Probing a drop show (S-021)
+
+On the layer path (Hyprland, KDE, wlroots) a drop show first binds
+a hidden catcher and draws nothing until it knows that a drag of files
+with an action is over it. Holding the key with no drag, or dragging a
+file no action takes, shows nothing at all.
+
+- **State.** The mode machine (`crates/ui/src/dnd.rs`) starts such a show
+  in `Probing` (`Event::Show { drop: true, layer: true, .. }`). The catcher
+  surface, its single transparent pixel, the hive subsurface and both input
+  regions are made at once; only the hive's buffers wait.
+- **The first event decides.** Wayland has no global "a drag is under way"
+  signal, but during a drag the data device grabs the pointer, so the first
+  event on the catcher tells: `wl_data_device.enter` means a drag, and
+  `wl_pointer.enter` means none. Hyprland sends it only with the first move;
+  KWin sends `wl_pointer.enter` at once under a still pointer.
+- **Reveal.** An enter whose files give at least one cell
+  (`on_drop_files`) moves the machine to `Waiting` and the hive is drawn;
+  from there S-014 and S-019 apply unchanged. With `SBARHIVE_DEBUG_FOCUS`
+  the show prints `hive reveal: N`, N the cells of the `drop cells:` line
+  before it. Budget: at most 150 ms from that enter to the hive's first
+  `wl_surface.attach`, by the daemon's trace timestamps.
+- **Hide.** Anything else hides the show without a frame and prints
+  `hive probe: hidden (R)`, one line per show, with R one of:
+  `pointer` (a `wl_pointer.enter`, no drag), `no-uri-list` (a drag with no
+  `text/uri-list` offer), `no-actions` (files with no action; the empty
+  `drop cells:` line comes first and no `no_actions` text is drawn),
+  `release` (the key let go in a hold show) and `cap` (10 s, the
+  `ENTER_TIMEOUT`, with no event). Esc and Cancel cannot reach the catcher
+  before an enter, so they print nothing. Every move from `Probing` to
+  `Hidden` calls `on_dismiss` once, so the long press gate forgets the show.
+- **Window path.** GNOME and a running screen reader keep the centred
+  window, which waits with its text as before (S-014 AC3 and AC10), and
+  print no `hive reveal` or `hive probe` line.
+- **Order.** The drag starts first, then the key is held. A drag started
+  after the threshold finds the hidden catcher under the pointer, whose
+  press hides the show (`pointer`).
 
 ## Settings
 
