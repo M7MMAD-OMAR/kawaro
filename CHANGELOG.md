@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-22 «الإفلات بسحب حقيقي»
+
 ### Fixed
 - Drop hive only during a real drag (S-021): on Hyprland, KDE and wlroots a drop show (`sbarhive drop`, held or not) now binds a hidden catcher and draws the hive only once a drag of files with at least one action enters it, so holding the key with no drag, or dragging a file no action takes, shows nothing; the first event on the catcher decides (`wl_data_device.enter` reveals, `wl_pointer.enter` hides), `SBARHIVE_DEBUG_FOCUS` prints one `hive reveal: N` or `hive probe: hidden (pointer|no-uri-list|no-actions|release|cap)` line per show, the hive's first frame comes at most 150 ms after the drag's enter, and the window path (GNOME, a running screen reader) is unchanged. «لا تظهر خلية الإفلات إلا أثناء سحب ملفات لها إجراء، فإمساك المفتاح دون سحب لا يُظهر شيئاً».
 
