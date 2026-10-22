@@ -14,8 +14,18 @@ file manager entry ──▶ sbarhive open ──▶ (Unix socket, JSON lines) �
 ```
 
 - `sbarhived` (crates/daemon) is the only process that shows UI. Single
-  instance: binding the socket fails if another daemon answers `ping`; a stale
-  socket file is removed.
+  instance, through `sbarhive_core::transport::Listener::bind`:
+  - Unix: binding the socket gives `AlreadyRunning` if another daemon answers
+    `ping` within 500 ms; any other socket file there is stale, removed and
+    bound.
+  - Windows: the pipe `\\.\pipe\io.github.m7mmad_omar.SbarHive.<SID>.<session>`.
+    The first instance is created with `FILE_FLAG_FIRST_PIPE_INSTANCE`; when
+    it fails with `ERROR_ACCESS_DENIED` a daemon already owns the name
+    (`AlreadyRunning`). Later instances, one per accepted client, omit the
+    flag. Every instance has a DACL for the current user alone and
+    `PIPE_REJECT_REMOTE_CLIENTS`; the client checks that the server process
+    runs as the same user before it writes, waits up to 2000 ms for a busy
+    pipe, and a read timeout is a watcher thread that calls `CancelIoEx`.
 - `sbarhive` (crates/cli) is a thin client, plus `convert` which runs engines
   in-process with no daemon.
 - Engines (crates/engines) run inside the daemon. Heavy external tools

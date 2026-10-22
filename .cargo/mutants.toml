@@ -16,7 +16,8 @@
 # covered by tests/overlay/kwin.sh a11y. The window path's surface line runs
 # only inside a winit event loop (tests/overlay/kwin.sh window, gnome.sh),
 # and the build kind helpers answer from the live platform only.
-# The Windows transport seed (S-022a) builds for Windows only.
+# The Windows named pipe (S-022a seed, S-022b pipe) builds for Windows only;
+# its decisions stay mutated in transport.rs and transport/deadline.rs.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",

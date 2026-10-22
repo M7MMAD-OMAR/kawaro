@@ -244,6 +244,7 @@ Limitations:
 | zip 9 | pdf, ghostscript | MIT | `default-features = false` (stored only); tests add `deflate-flate2` to read LibreOffice archives |
 | libc 0.2 | office, ghostscript | MIT OR Apache-2.0 | unix only, for `killpg` |
 | tempfile 3 | office, ghostscript | MIT OR Apache-2.0 | private work directories |
+| windows-sys 0.61.2 | core (IPC transport) | MIT OR Apache-2.0 | Windows only, for the named pipe (S-022b); already in Cargo.lock through other crates |
 
 lopdf's own dependencies (flate2, aes, cbc, ecb, md-5, sha2, nom, indexmap,
 weezl, rangemap, stringprep, encoding_rs, brotli-decompressor) are MIT,

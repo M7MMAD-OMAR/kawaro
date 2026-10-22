@@ -1,5 +1,5 @@
 # S-022 نقل IPC خلف واجهة واحدة، ثم named pipe على ويندوز
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: منتهية (PASS من المراجع 2026-10-22)؛ S-022b: كُتبت الاختبارات وتفشل كما يجب (المختبِر 2026-10-22)، تنتظر المنفِّذ
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: منتهية (PASS من المراجع 2026-10-22)؛ S-022b: مراجعة (نفّذها المنفِّذ 2026-10-22، تنتظر المراجع)
 
 يبني على ADR 0005 القسم 2. للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -196,3 +196,17 @@ sbarhive-core must use windows-sys 0.61.2:
 name = "sbarhive-core" ... dependencies = [ "serde", "serde_json", "tempfile", "thiserror 2.0.21", "toml 0.8.23" ]
 test result: FAILED. 1 passed; 3 failed
 ```
+- 2026-10-22، المنفِّذ (S-022b): لم يُعدَّل أي اختبار (`git diff 80345be -- crates/*/tests` فارغ). قبل المدير اختيارات المختبِر الستة كما هي.
+  - `transport.rs`: `dacl_sddl` و`BindOutcome`/`bind_result` و`ConnectStep`/`connect_plan` و`verify_owner` و`open_mode`/`pipe_mode`، والقيم ثوابت حرفية خاصة (`OPEN_MODE_FIRST` و`OPEN_MODE_LATER` و`PIPE_MODE` ورموز الأخطاء الثلاثة) حتى لا تنتج `|` طفرات مكافئة؛ يتحقق `windows.rs` منها بـ `const _: () = assert!` مقابل `windows_sys`. الرمز 2 لا ذراع له في `connect_plan`: يمر رمزاً خاماً، وstd يقرؤه `NotFound` على ويندوز (وعلى لينكس لأن 2 هو `ENOENT`)، فلا ذراع تنجو طفرة حذفها؛ وثابته `ERROR_FILE_NOT_FOUND` عليه `cfg_attr(not(windows), allow(dead_code))` ويُستعمل في الفحص وقت الترجمة.
+  - `transport/deadline.rs`: خيط مراقب بـ `recv_timeout` وقفل واحد يحسم من سبق (الإلغاء أو القراءة)، ثم `join` قبل العودة، فلا يُستدعى `cancel` بعد عودة القراءة ولا يبقى مراقب حي.
+  - `transport/windows.rs`: موضع واحد لـ `CreateNamedPipeW` (`create_instance`) يأخذ الواصف المبني من `dacl_sddl` بـ `ConvertStringSecurityDescriptorToSecurityDescriptorW`، فكل نسخة تأخذه؛ والواصف يعيش مع `Listener` ويُحرَّر بـ `LocalFree`. `accept` ينشئ النسخة التالية قبل تسليم الاتصال، فيجد العميل الأنبوب مشغولاً لا مفقوداً، و`ERROR_PIPE_CONNECTED` نجاح. العميل يفتح بـ `OpenOptions` مع `security_qos_flags(SECURITY_IDENTIFICATION)` ويدور على `connect_plan` و`WaitNamedPipeW` (المهلة 1 ms على الأقل، لأن 0 تعني المهلة الافتراضية)، ثم `GetNamedPipeServerProcessId` و`OpenProcess` و`GetTokenInformation(TokenUser)` و`verify_owner`؛ أي فشل في معرفة المالك يعطي SID فارغاً فيُرفض (يفشل مغلقاً). المهلة مشتركة بين `try_clone` كما على Unix، والقراءة ذات المهلة `read_with_deadline` مع `CancelIoEx` على مقبض القراءة نفسه. لا `DisconnectNamedPipe` عند الإغلاق حتى لا يضيع رد لم يُقرأ. `endpoint()` من `ProcessIdToSessionId` وSID الرمز، و`server_pid()` يعيد pid الخادم على مجرى العميل.
+  - `crates/core/Cargo.toml`: `windows-sys = { version = "0.61", features = [...] }` تحت `[target.'cfg(windows)'.dependencies]` وحده. `Cargo.lock`: سطر واحد في مدخل `sbarhive-core` (`"windows-sys 0.61.2"`)، و671 `[[package]]`.
+  - `C`: `cargo fmt --check` نظيف، و`cargo clippy -j 2 --workspace --all-targets -- -D warnings` بلا تحذير.
+  - `W`: `cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines --lib -- -D warnings` بلا تحذير، و`cargo check` بالأعلام نفسها بلا تحذير.
+  - `X`: يسرد serde وserde_json وthiserror وtoml و`windows-sys v0.61.2`؛ و`cargo tree -p sbarhive-core -e normal --depth 1` على لينكس لا يسرده.
+  - `cargo test -j 2 --all`: 610 ناجحاً، 0 فاشلاً، 1 متجاهل (581 قبلها، و29 جديدة: 16 في `transport_plan.rs`، و3 في `deadline.rs`، و7 في `transport_seed.rs` بعد أن كانت 1، و4 في `transport_deps.rs`).
+  - `M`: `cargo mutants --jobs 1 --in-diff` على `git diff 80345be -- crates` بـ `CARGO_BUILD_JOBS=2`: 21 طفرة، 15 مكتشفة، 6 غير قابلة للبناء، 0 مهلة، **0 ناجية**، رمز الخروج 0. لا إضافة إلى `exclude_re`؛ عُدّل تعليق `exclude_globs` لـ `windows.rs` وحده.
+  - `scripts/design-lint.sh`: clean. لا شرطة طويلة في الفرق. `git diff --stat main...HEAD -- crates/ui` فارغ.
+  - الوثائق: `SECURITY.md` (فقرة ويندوز بالإنكليزية وفقرة عربية)، و`docs/architecture.md` (النسخة الواحدة على المنصتين)، و`docs/engines.md` (سطر windows-sys 0.61.2، MIT OR Apache-2.0 من `Cargo.toml` الحزمة نفسها). سطر CHANGELOG نفسه عُدّل ولم يُضف غيره.
+  - لم يُتحقق حياً ولا يمكن على لينكس: أن `CancelIoEx` من خيط آخر يلغي `ReadFile` متزامناً على المقبض (اعتماد على ADR 0005)، وكل بنود S-034.
+  - لـ S-027: `crates/daemon/src/main.rs` ما زال يحذف `ipc::socket_path()` مباشرة عند الخروج؛ تُرك لأن معايير S-022b لا تطلبه والخدمة لا تُبنى لويندوز قبل S-027.

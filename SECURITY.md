@@ -1,8 +1,19 @@
 # Security
 
 SbarHive processes files only on your machine. It opens no network
-connections and its only listening socket is a Unix socket in
+connections. On Linux its only listening socket is a Unix socket in
 `$XDG_RUNTIME_DIR`, readable by your user alone.
+
+On Windows the daemon listens on a named pipe instead, named after your user
+and session. Its access list grants your user alone, it rejects clients from
+other machines (`PIPE_REJECT_REMOTE_CLIENTS`), and the client refuses to send
+anything to a pipe whose server runs as another user.
+
+بالعربية: لا يعالج SbarHive الملفات إلا على جهازك، ولا يفتح أي اتصال شبكي.
+على لينكس تستمع الخدمة على مقبس Unix في `$XDG_RUNTIME_DIR` لا يقرؤه غير
+مستخدمك. وعلى ويندوز تستمع على أنبوب مسمّى باسم مستخدمك وجلستك، قائمة
+صلاحياته تسمح لمستخدمك وحده، ويرفض العملاء من أجهزة أخرى، ولا يرسل العميل
+شيئاً إلى أنبوب يشغّل خادمه مستخدم آخر.
 
 ## Reporting a vulnerability
 
@@ -13,7 +24,7 @@ distribution, and a sample file if the problem is triggered by one.
 
 Of particular interest: crafted input files that crash an engine or write
 outside the output folder, and anything that lets another local user talk to
-the daemon socket.
+the daemon socket or pipe.
 
 ## Supported versions
 
