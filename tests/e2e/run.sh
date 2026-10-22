@@ -83,9 +83,13 @@ inner() {
   # S-018 AC18: close the hive explicitly, so the memory check below measures
   # the daemon after a hide. On KWin the hive is a layer surface (AC1) and
   # takes the keyboard (AC4), so Esc from fake input closes it (AC9).
-  for _ in $(seq 30); do grep -q '^hive focus: true$' "$SANDBOX/daemon.log" && break; sleep 0.1; done
-  check "S-018 AC18: the hive is a layer surface with the keyboard" \
-    'grep -qE "^hive surface: layer " "$SANDBOX/daemon.log" && grep -q "^hive focus: true$" "$SANDBOX/daemon.log"'
+  # S-027: the keyboard comes when the catcher maps, so "hive focus: true"
+  # can print up to ANCHOR_WAIT before "hive surface: layer". This is the
+  # daemon's first show, so its whole log is that show: wait (same 3 s bound)
+  # until both lines are there, then check both.
+  ac18_lines() { grep -qE '^hive surface: layer ' "$SANDBOX/daemon.log" && grep -q '^hive focus: true$' "$SANDBOX/daemon.log"; }
+  for _ in $(seq 30); do ac18_lines && break; sleep 0.1; done
+  check "S-018 AC18: the hive is a layer surface with the keyboard" 'ac18_lines'
   local inf="$XDG_RUNTIME_DIR/in"; mkfifo "$inf"
   "$INPUT" <"$inf" >"$SANDBOX/input.log" 2>&1 &
   exec 3>"$inf"
