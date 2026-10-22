@@ -145,14 +145,16 @@ animation; see `integrations/linux/hyprland/README.md`.
 
 On the layer path the hive opens at an anchor instead of the output centre:
 
-- **Anchor and wait.** The anchor is the first `wl_pointer.enter` or
-  `motion` on the catcher or the hive before the first frame, waited for at
-  most 50 ms from the catcher's first `configure`; with none the hive is
-  centred. `sbarhive drop --at X,Y` (global logical coordinates, for
-  example `$(hyprctl cursorpos)`) gives the anchor at once, on the output
-  that holds the point. After the first frame the centre does not follow
-  the pointer. With `SBARHIVE_DEBUG_FOCUS` every show prints
-  `hive anchor: X Y` or `hive anchor: none`, then `hive cells: N CX CY`.
+- **Anchor and wait.** On a normal show the anchor is the first
+  `wl_pointer.enter` or `motion` on the catcher or the hive before the
+  placement, waited for at most 50 ms (`ANCHOR_WAIT`) from the catcher's first
+  `configure`; with none the hive is centred. `sbarhive drop --at X,Y` (global
+  logical coordinates, for example `$(hyprctl cursorpos)`) gives the anchor at
+  once, on the output that holds the point. After the placement (the end of
+  `ANCHOR_WAIT`) the centre of a normal show does not follow the pointer. A drop
+  show without `--at` takes its anchor from the drag instead (the catcher phase
+  below). With `SBARHIVE_DEBUG_FOCUS` every show prints `hive anchor: X Y` or
+  `hive anchor: none`, then `hive cells: N CX CY`.
 - **Adaptive shape.** `layout::plan_at` (pure, `crates/ui/src/layout.rs`)
   clamps the anchor so the centre cell stays on screen, then fills the slots
   of rings 1 to `MAX_RINGS` (4) in spiral order that fit on screen, ring 1
@@ -160,17 +162,15 @@ On the layer path the hive opens at an anchor instead of the output centre:
   the box around the centre and every accepted slot. Without an anchor it
   is `plan_rings` and `place` as before. Near a corner fewer than 18 cells
   may show.
-- **Catcher phase of a drop show.** A drop show without `--at` takes its
-  anchor from the drag: the catcher takes the input over the whole output
-  until the first position (`wl_data_device.enter` or `motion`; a
-  `wl_pointer.enter` means no drag and hides the show, see below). This
-  anchor phase never reaches the mode
-  machine: no enter, leave or drop, and no offer is accepted. With no
-  position within 50 ms the hive shows centred; a first position within
-  300 ms of the placement moves it once under the drag, after that it
-  stays centred (manager decision 12). Then the catcher's region becomes
-  the hive rectangle, so a still pointer is never held, and the keyboard is
-  never taken.
+- **Catcher phase of a drop show.** A drop show without `--at` takes its anchor
+  from the drag: the catcher takes the input over the whole output until the
+  first position (`wl_data_device.enter` or `motion`; a `wl_pointer.enter` means
+  no drag and hides the show, see below). This anchor phase never reaches the
+  mode machine: no enter, leave or drop, and no offer is accepted. With no
+  position within 50 ms the hive shows centred; a first position within 300 ms
+  of the placement moves it once under the drag, after that it stays centred
+  (manager decision 12). Then the catcher's region becomes the hive rectangle,
+  so a still pointer is never held, and the keyboard is never taken.
 - **Window path.** GNOME and a running screen reader keep the window,
   centred by the compositor, with no anchor line.
 
@@ -209,10 +209,10 @@ pure, with an injected clock), on the event loop thread:
   enters (S-021, below), so that budget runs to the catcher's ready commit,
   and the hive's first frame comes at most 150 ms after the drag's enter.
 
-After a drag enters a drop hive (either kind) its centre shows the dragged
-files by the S-018h rules (S-019f): one file's cached thumbnail or the kind
-icon with the format code, the count for several; before enter, on the
-window path, the waiting text and no preview. With `SBARHIVE_DEBUG_FOCUS` every enter prints one
+After a drag enters a drop hive (either kind) its centre shows the dragged files
+by the S-018h rules (S-019f): one file's cached thumbnail or the kind icon with
+the format code, the count for several; before enter, on the window path, the
+waiting text and no preview. With `SBARHIVE_DEBUG_FOCUS` every enter prints one
 `hive preview: thumb W H` or `hive preview: icon KIND` line.
 
 ### Probing a drop show (S-021)
