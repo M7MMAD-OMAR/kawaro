@@ -52,7 +52,7 @@
 - خيار `page` غير `fit` في `to-pdf` (القيمة الوحيدة الآن، وأي قيمة أخرى `BadParam`).
 
 ## سجل المراجعة
-- 2026-10-19 planner: كُتبت القصة بحالة معتمدة (موافقة مسبقة من المالك لهذا المسار).
+- 2026-10-19 planner: كُتبت القصة بحالة معتمدة (موافقة مسبقة من المشرف لهذا المسار).
 - 2026-10-19 tester: الاختبارات في `crates/engines/tests/image_{ops,formats,pdf,fixtures}.rs` والمساعد المشترك في `tests/image_common/mod.rs`. الملفات الثابتة في `tests/fixtures/images/` (alpha.png وorient6.jpg وsample.gif وsample.bmp) يولّدها الاختبار المتجاهَل `regenerate`، ويتحقق `fixtures_are_current` من محتواها. التشغيل الأول على المحرك الفارغ (`cargo test -p sbarhive-engines --release --no-fail-fast`):
 
   ```

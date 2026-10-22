@@ -43,7 +43,7 @@
 - تغيير لغة النافذة وهي مفتوحة.
 
 ## سجل المراجعة
-- 2026-10-20، مسار الإعدادات (planner وtester وimplementer في جلسة واحدة بموافقة المالك المسبقة، لأنه غائب): نُفذت القصة كاملة. البوابات: `cargo fmt --all --check` نظيف، `cargo clippy -p sbarhive-ui --all-targets -- -D warnings` نظيف، `cargo test -p sbarhive-ui` نجح (37 اختباراً، منها 9 لنافذة الإعدادات)، `scripts/design-lint.sh crates/ui` نظيف، `settings_snapshots.sh` يطابق المراجع الأربعة بعد فحصها بالعين.
+- 2026-10-20، مسار الإعدادات (planner وtester وimplementer في جلسة واحدة بموافقة المشرف المسبقة، لأنه غائب): نُفذت القصة كاملة. البوابات: `cargo fmt --all --check` نظيف، `cargo clippy -p sbarhive-ui --all-targets -- -D warnings` نظيف، `cargo test -p sbarhive-ui` نجح (37 اختباراً، منها 9 لنافذة الإعدادات)، `scripts/design-lint.sh crates/ui` نظيف، `settings_snapshots.sh` يطابق المراجع الأربعة بعد فحصها بالعين.
 - 2026-10-20، cargo mutants على `crates/ui/src/settings.rs`: 37 طفرة، 29 مقتولة، 8 غير قابلة للبناء، ولا طفرة ناجية ولا مهلة. بعدها أُضيف إلى اختبار السلوك: الخلية معروضة طوال الاختبار، وEsc بعد الكتابة في حقل النص، والاختيار بـ Tab والمسافة، وصار العنوان الإنكليزي «SbarHive» كما في التكليف. الاختبارات كلها ناجحة (37)، و`cargo check --workspace --all-targets` نظيف، ومقارنة اللقطات الأربع: 0 بكسل مختلف.
 - لم يُتحقق منه: النافذة على GNOME وKDE حقيقيين، وأثر معالج التركيز المشترك في `lib.rs` على الخلية حين تكون النافذتان مفتوحتين على مؤلِّف حقيقي (راجع ADR 0002).
 
