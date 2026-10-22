@@ -656,4 +656,34 @@ mod tests {
         }
         assert_eq!(inherited(&doc, page, b"CropBox"), None);
     }
+
+    // S-025b: an engine without a program names Ghostscript and its
+    // download page.
+    #[test]
+    fn ac11_ghostscript_without_program_names_it_and_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("a.pdf");
+        std::fs::write(&input, "%PDF-1.4\n").unwrap();
+        let engine = GhostscriptEngine {
+            program: None,
+            ..GhostscriptEngine::with_program("unused")
+        }
+        .temp_root(dir.path());
+        for op in ["compress", "to-images"] {
+            let t = Task {
+                action_id: format!("test.{op}"),
+                op: op.into(),
+                params: toml::from_str("").unwrap(),
+                inputs: vec![input.clone()],
+                output: dir.path().join("out"),
+            };
+            match engine.run(&t, &|_| {}, &CancelToken::new()) {
+                Err(EngineError::Unavailable(m)) => {
+                    assert!(m.contains("Ghostscript"), "{op}: {m}");
+                    assert!(m.contains("https://ghostscript.com/releases/"), "{op}: {m}");
+                }
+                other => panic!("{op}: expected Unavailable, got {other:?}"),
+            }
+        }
+    }
 }

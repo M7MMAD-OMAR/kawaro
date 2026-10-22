@@ -598,4 +598,65 @@ mod tests {
         // Rename fails into a missing directory, and the copy fallback reports it.
         assert!(move_file(&b, &dir.path().join("no/such/dir/c")).is_err());
     }
+
+    // S-025b. `file_url_str(path: &str, windows: bool) -> String`, and an
+    // engine without a program names LibreOffice and its download page.
+
+    #[test]
+    fn ac10_file_url_str_windows_drive_letter_and_space() {
+        assert_eq!(file_url_str("C:\\a b\\x", true), "file:///C:/a%20b/x");
+    }
+
+    #[test]
+    fn ac10_file_url_str_windows_arabic_name() {
+        assert_eq!(
+            file_url_str("C:\\ملف.docx", true),
+            "file:///C:/%D9%85%D9%84%D9%81.docx"
+        );
+    }
+
+    #[test]
+    fn ac10_file_url_str_windows_drops_verbatim_prefix() {
+        assert_eq!(file_url_str("\\\\?\\C:\\a", true), "file:///C:/a");
+    }
+
+    #[test]
+    fn ac10_file_url_str_unix_unchanged() {
+        assert_eq!(file_url_str("/a b/c", false), "file:///a%20b/c");
+        assert_eq!(
+            file_url_str("/tmp/a b/p%1", false),
+            "file:///tmp/a%20b/p%251"
+        );
+        assert_eq!(file_url_str("/ü", false), "file:///%C3%BC");
+        if !cfg!(windows) {
+            assert_eq!(file_url(Path::new("/a b/c")), file_url_str("/a b/c", false));
+        }
+    }
+
+    #[test]
+    fn ac11_office_without_program_names_libreoffice_and_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("a.txt");
+        std::fs::write(&input, "x").unwrap();
+        let engine = OfficeEngine {
+            program: None,
+            ..OfficeEngine::with_program("unused", vec![])
+        }
+        .temp_root(dir.path());
+        let task = Task {
+            action_id: "test.to-pdf".into(),
+            op: "to-pdf".into(),
+            params: toml::from_str("").unwrap(),
+            inputs: vec![input],
+            output: dir.path().join("a.pdf"),
+        };
+        let r = engine.run(&task, &|_| {}, &CancelToken::new());
+        match r {
+            Err(EngineError::Unavailable(m)) => {
+                assert!(m.contains("LibreOffice"), "{m}");
+                assert!(m.contains("https://www.libreoffice.org/download/"), "{m}");
+            }
+            other => panic!("expected Unavailable, got {other:?}"),
+        }
+    }
 }

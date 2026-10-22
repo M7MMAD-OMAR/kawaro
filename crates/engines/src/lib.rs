@@ -5,6 +5,8 @@ use std::sync::Arc;
 
 pub mod ffmpeg;
 pub mod image;
+// S-025b: program lookup (PATH, known dirs, registry).
+mod locate;
 pub mod office;
 pub mod pdf;
 
