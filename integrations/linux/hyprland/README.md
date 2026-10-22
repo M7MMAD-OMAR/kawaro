@@ -59,31 +59,31 @@ bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
 بصيغة Lua (الملف `hyprland.lua`)، مفترضة كذلك:
 
 ```
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "SbarHive: hold to drop" })
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release to close" })
 ```
 
 لإمساك Alt الأيسر بدل Super+Z (مفترض كذلك)، بصيغة hyprlang:
 
 ```
-bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --release
+bindni = , ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 وبصيغة Lua:
 
 ```
-hl.bind("ALT + ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
-    { non_consuming = true, description = "SbarHive: hold Alt to drop" })
-hl.bind("ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+    { non_consuming = true, ignore_mods = true, description = "SbarHive: hold Alt to drop" })
+hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
 ```
 
 ملاحظات، كلها غير متحقق منها:
 - ربط الترك لا يصل إن تركت المُعدِّل قبل المفتاح الأساسي (تترك Super قبل Z مثلاً)، لذلك يحتاج تجاهل المُعدِّلات: العلم `i` مع `r` في hyprlang، و`ignore_mods` في Lua.
-- ربط الضغط على Alt وحده أو أي مُعدِّل يجب أن يكون غير مستهلِك (العلم `n` في hyprlang، و`non_consuming` في Lua)، حتى تبقى تركيبات مثل Alt+Tab سليمة.
+- ربط الضغط على Alt وحده أو أي مُعدِّل يجب أن يكون غير مستهلِك (العلم `n` في hyprlang، و`non_consuming` في Lua)، حتى تبقى تركيبات مثل Alt+Tab سليمة. ويجب أن يتجاهل المُعدِّلات أيضاً (العلم `i` في hyprlang، و`ignore_mods` في Lua) وألا يشترط المُعدِّل نفسه: في الضغطة الأولى لا يكون Alt ممسوكاً بعد، فربطٌ مثل `ALT, ALT_L` لا يطابق إلا من الضغطة الثانية.
 - الموضع `--at` يُقرأ عند الضغطة الأولى، فتظهر الخلية حيث كان المؤشر لحظة الضغط.
 - `sbarhive drop` دون `--hold` يبقى ظهوراً فورياً لربط ضغطة عادية.
 
@@ -146,30 +146,30 @@ bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
 Lua form (`hyprland.lua`), assumed as well:
 
 ```
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "SbarHive: hold to drop" })
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release to close" })
 ```
 
 To hold left Alt instead of Super+Z (assumed as well), hyprlang form:
 
 ```
-bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --release
+bindni = , ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 Lua form:
 
 ```
-hl.bind("ALT + ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
-    { non_consuming = true, description = "SbarHive: hold Alt to drop" })
-hl.bind("ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+    { non_consuming = true, ignore_mods = true, description = "SbarHive: hold Alt to drop" })
+hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
 ```
 
 Notes, none of them verified:
 - The release bind does not fire when the modifier is let go before the main key (Super before Z, say), so it needs to ignore modifiers: the flag `i` with `r` in hyprlang, `ignore_mods` in Lua.
-- A press bind on Alt alone, or any modifier, must be non consuming (the flag `n` in hyprlang, `non_consuming` in Lua), so combinations such as Alt+Tab keep working.
+- A press bind on Alt alone, or any modifier, must be non consuming (the flag `n` in hyprlang, `non_consuming` in Lua), so combinations such as Alt+Tab keep working. It must also ignore modifiers (the flag `i` in hyprlang, `ignore_mods` in Lua) and not require the modifier itself: on the first press Alt is not held yet, so a bind such as `ALT, ALT_L` matches only from the second press.
 - `--at` is read at the first press, so the hive shows where the pointer was when the key went down.
 - `sbarhive drop` without `--hold` stays an immediate show, for a plain key press bind.

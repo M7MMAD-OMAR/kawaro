@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: مراجعة (S-014d: REWORK 1 من 2)
+الحالة: محجوبة، تنتظر قرار المدير في تعارض `tests/drop/docs.sh` مع البند 2 (S-014d: بعد REWORK 1 من 2، لم تُرسل للمراجعة)
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -274,3 +274,11 @@
 
 - **Esc قبل دخول السحب إلى الخلية:** يُقبل الانحراف صراحة. وضع الإفلات لا يأخذ لوحة المفاتيح عمداً (S-018 AC13)، والسحب الذي لم يدخل لا يرسل شيئاً، فتُغلق الخلية بمهلتها (10 ثوانٍ). ومع الضغط المطوّل (S-019e) تُغلق برفع المفتاح، وهو المسار الموثّق. شرط 500 ms يبقى لـ Esc فوق الخلية بعد الدخول.
 - البنود 1 إلى 4 للمنفِّذ: ربط Alt بصيغة `bindni = , ALT_L` و`"ALT_L"` مع `non_consuming` و`ignore_mods`؛ و`os.getenv("HOME")` بدل `HOME ..` في كل سطر Lua؛ وتصحيح وصف آلية GNOME وزر «Add».
+
+- 2026-10-22، المنفِّذ (S-014d، إصلاح REWORK 1): **محجوبة، تنتظر قرار المدير.**
+  - البنود 1 و3 و4 منفّذة في `docs/drop-shortcut.md` و`integrations/linux/hyprland/README.md` باللغتين: ربط الضغط `bindni = , ALT_L, exec, ...` وربط الترك `bindri = , ALT_L, exec, ...` (بلا `ALT` في الربطين)، وLua `hl.bind("ALT_L", ...)` مع `non_consuming = true` و`ignore_mods = true`. ملاحظة README عن `n` تذكر `i` الآن مع السبب (Alt لا يكون ممسوكاً في الضغطة الأولى، فربط `ALT, ALT_L` لا يطابق إلا من الثانية)، وكذلك جملة العلم `n` في `docs/drop-shortcut.md`. ملاحظة GNOME تقول إن الاختبار سجّل المفتاح بـ `grab_accelerator('<Super>z')` داخل GNOME Shell عبر `Shell.Eval`. الخطوة 3 في GNOME: «إضافة» و"Add".
+  - البند 2 منفّذ حرفياً: أسطر Lua الثمانية في README (Super+Z وAlt، باللغتين) تستعمل `os.getenv("HOME") ..`. لا يبقى `HOME ..` في `docs/` ولا `integrations/` ولا `README.md`.
+  - النتائج (كل أمر داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` و`nice -n 19`، بلا مؤلِّف): `tests/drop/hold_docs.sh` RESULT PASS؛ `tests/overlay/docs.sh` RESULT PASS؛ `scripts/design-lint.sh` نظيف؛ `tests/drop/docs.sh` **RESULT FAIL (1)**، وكل فحوصه الأخرى ناجحة.
+  - سبب الفشل: الفحص «every program a documented bind runs is sbarhive or a helper shipped in integrations/ or scripts/» في `tests/drop/docs.sh` (الأسطر 134 إلى 136). النمط `exec_cmd\((.{0,200}?)\)` يتوقف عند أول `)`، وهو قوس `os.getenv` نفسه، فتصبح المجموعة `os.getenv("HOME"` ويُقرأ البرنامج `os.getenv(` (السطر `INFO not shipped: os.getenv(`). حذف `HOME ..` في الاختبار لا يكفي: الإصلاح في الاختبار يحتاج تغيير الالتقاط نفسه. لم أعدّل الاختبار، ولم ألتف عليه (لا `"$HOME/..."` داخل السلسلة ولا متغير محلي باسم `sbarhive`).
+  - خياران للمدير: (أ) يعدّل المختبِر المستخرِج ليفهم `os.getenv("HOME") ..`؛ (ب) يعدل المدير البند 2 إلى `hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive ...")`، وهي صيغة يقبلها الاختبار اليوم، وتعمل لأن `exec_cmd` يمر عبر `/bin/sh -c` كما تحقق المراجِع.
+  - لم تُرسل للمراجعة: بوابة حمراء تعني REWORK تلقائياً، وهذه المحاولة الثانية والأخيرة. لا شيفرة Rust متغيرة، فلم يُشغَّل cargo. لم يُلمس سطح المكتب الحي ولم يُشغَّل `hyprctl`.

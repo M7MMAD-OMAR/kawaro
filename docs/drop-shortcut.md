@@ -17,9 +17,9 @@
    sbarhive drop
    ```
 
-3. اضغط Super+Z لتسجيله، ثم احفظ.
+3. اضغط Super+Z لتسجيله، ثم اختر «إضافة».
 
-تظهر الخلية في GNOME نافذةً في منتصف الشاشة، لا عند المؤشر. لم يُتحقق بعد من أن الاختصار المخصص في GNOME يعمل أثناء السحب: الاختبار المخفي سجّل الاختصار بآلية بوابة الاختصارات نفسها، لا من الإعدادات.
+تظهر الخلية في GNOME نافذةً في منتصف الشاشة، لا عند المؤشر. لم يُتحقق بعد من أن الاختصار المخصص في GNOME يعمل أثناء السحب: الاختبار المخفي سجّل المفتاح بالدالة `grab_accelerator('<Super>z')` داخل GNOME Shell عبر `Shell.Eval`، لا من الإعدادات.
 
 ### KDE
 
@@ -46,11 +46,11 @@
 bind = SUPER, Z, exec, ~/.local/bin/sbarhive drop --at "$(hyprctl cursorpos)"
 ```
 
-أو إمساك Alt الأيسر: تظهر الخلية بعد ضغط مطوّل (المفتاح `hold_ms`، 400 ملي ثانية افتراضياً) وتختفي حين تترك المفتاح. ربط الضغط غير مستهلِك (العلم `n`) حتى تبقى تركيبات مثل Alt+Tab سليمة، وربط الترك يتجاهل المُعدِّلات (العلمان `r` و`i`). ولأن الضغط غير مستهلِك يصل Alt إلى مدير الملفات أيضاً، وقد يغيّر نوع الإفلات فيه، ولم يُتحقق من ذلك:
+أو إمساك Alt الأيسر: تظهر الخلية بعد ضغط مطوّل (المفتاح `hold_ms`، 400 ملي ثانية افتراضياً) وتختفي حين تترك المفتاح. ربط الضغط غير مستهلِك (العلم `n`) حتى تبقى تركيبات مثل Alt+Tab سليمة، ويتجاهل المُعدِّلات (العلم `i`) لأن Alt لا يكون ممسوكاً بعد في ضغطته الأولى، فربطٌ يشترط Alt لا يطابق إلا من الضغطة الثانية. وربط الترك يتجاهل المُعدِّلات كذلك (العلمان `r` و`i`). ولأن الضغط غير مستهلِك يصل Alt إلى مدير الملفات أيضاً، وقد يغيّر نوع الإفلات فيه، ولم يُتحقق من ذلك:
 
 ```
-bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --release
+bindni = , ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 يحتاج ربط الترك خدمةً تعمل مسبقاً، فشغّلها مع الجلسة: `exec-once = ~/.local/bin/sbarhived`. صيغة Lua وإمساك Super+Z بدل Alt في `integrations/linux/hyprland/README.md`.
@@ -72,9 +72,9 @@ On GNOME, bind the shortcut by hand in Settings:
    sbarhive drop
    ```
 
-3. Press Super+Z to set it, then save.
+3. Press Super+Z to set it, then choose Add.
 
-On GNOME the hive is a window in the middle of the screen, not at the pointer. That a GNOME custom shortcut fires during a drag is not verified yet: the headless test grabbed the key the way the GlobalShortcuts portal does, not through Settings.
+On GNOME the hive is a window in the middle of the screen, not at the pointer. That a GNOME custom shortcut fires during a drag is not verified yet: the headless test grabbed the key with `grab_accelerator('<Super>z')` inside GNOME Shell through `Shell.Eval`, not through Settings.
 
 ### KDE
 
@@ -101,11 +101,11 @@ Super+Z for an immediate show on the press, hyprlang form (`hyprland.conf`):
 bind = SUPER, Z, exec, ~/.local/bin/sbarhive drop --at "$(hyprctl cursorpos)"
 ```
 
-Or hold left Alt: the hive shows after a long press (`hold_ms`, 400 ms by default) and closes when you let the key go. The press bind is non consuming (the flag `n`) so combinations such as Alt+Tab keep working, and the release bind ignores modifiers (the flags `r` and `i`). Being non consuming, Alt still reaches the file manager and may change the drop kind there; not verified:
+Or hold left Alt: the hive shows after a long press (`hold_ms`, 400 ms by default) and closes when you let the key go. The press bind is non consuming (the flag `n`) so combinations such as Alt+Tab keep working, and ignores modifiers (the flag `i`) because Alt is not held yet on its own first press, so a bind that requires Alt matches only from the second press. The release bind ignores modifiers too (the flags `r` and `i`). Being non consuming, Alt still reaches the file manager and may change the drop kind there; not verified:
 
 ```
-bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --release
+bindni = , ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 The release bind needs a running daemon, so start it with the session: `exec-once = ~/.local/bin/sbarhived`. The Lua form, and holding Super+Z instead of Alt, are in `integrations/linux/hyprland/README.md`.
