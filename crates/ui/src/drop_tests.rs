@@ -17,6 +17,17 @@
 //! made by `sbarhive drop --hold` after its threshold, AC17) and a new
 //! `Event::Release` (the key of that show was released). The S-014 literals
 //! above take `hold: false`; their assertions are unchanged.
+//!
+//! S-021a (backlog/S-021-drop-only-on-drag.md, AC1 and AC9): on the layer
+//! path a drop show checks for a real file drag before it is revealed.
+//! `Event::Show` gains `layer: bool` (the show is on the layer path, a hidden
+//! catcher); the literals above take `layer: false` and keep their
+//! assertions (the window path). New in the contract: `State::Probing` (a
+//! layer drop show bound but not revealed), `Event::PointerEnter` (a
+//! `wl_pointer.enter` on the catcher: no drag) and `Event::Reject` (the drag
+//! has no `text/uri-list` or its files have no action). `Event::Enter` stays
+//! a unit variant and means an enter with one cell or more. `ENTER_TIMEOUT`
+//! (10 s) is the cap of a catcher that gets no event.
 
 use crate::HiveCell;
 use crate::dnd::{self, Event, Machine, State};
@@ -138,7 +149,14 @@ fn shown(drop: bool) -> (Machine, Instant) {
     let t0 = Instant::now();
     let mut m = Machine::new();
     assert_eq!(m.state(), State::Hidden);
-    let s = m.handle(Event::Show { drop, hold: false }, t0);
+    let s = m.handle(
+        Event::Show {
+            drop,
+            hold: false,
+            layer: false,
+        },
+        t0,
+    );
     assert_eq!(s, if drop { State::Waiting } else { State::Normal });
     assert_eq!(m.state(), s);
     (m, t0)
@@ -254,7 +272,8 @@ fn ac3_a_second_drop_show_restarts_the_timeout() {
         m.handle(
             Event::Show {
                 drop: true,
-                hold: false
+                hold: false,
+                layer: false,
             },
             at(t0, 9.5)
         ),
@@ -306,6 +325,7 @@ fn shown_hold() -> (Machine, Instant) {
         Event::Show {
             drop: true,
             hold: true,
+            layer: false,
         },
         t0,
     );
@@ -367,6 +387,7 @@ fn ac12_the_machine_keeps_no_earlier_release() {
         Event::Show {
             drop: true,
             hold: true,
+            layer: false,
         },
         at(t0, 0.05),
     );
@@ -419,4 +440,158 @@ fn ac12_a_cancelled_drag_and_escape_still_close_a_hold_show() {
     assert_eq!(m.handle(Event::Cancel, at(t0, 0.5)), State::Hidden);
     let (mut m, t0) = shown_hold();
     assert_eq!(m.handle(Event::Escape, at(t0, 0.5)), State::Hidden);
+}
+
+// ------------------------------------------------------------------------
+// S-021a, AC1: the probe of a drop show on the layer path.
+
+fn layer_show(hold: bool) -> (Machine, Instant) {
+    let t0 = Instant::now();
+    let mut m = Machine::new();
+    let s = m.handle(
+        Event::Show {
+            drop: true,
+            hold,
+            layer: true,
+        },
+        t0,
+    );
+    assert_eq!(s, State::Probing, "a layer drop show probes, hold={hold}");
+    assert_eq!(m.state(), State::Probing);
+    (m, t0)
+}
+
+#[test]
+fn ac1_a_layer_drop_show_probes_with_and_without_hold() {
+    layer_show(false);
+    layer_show(true);
+}
+
+#[test]
+fn ac1_a_normal_show_on_the_layer_path_does_not_probe() {
+    let mut m = Machine::new();
+    let s = m.handle(
+        Event::Show {
+            drop: false,
+            hold: false,
+            layer: true,
+        },
+        Instant::now(),
+    );
+    assert_eq!(s, State::Normal);
+}
+
+#[test]
+fn ac1_enter_with_cells_reveals_and_the_drag_then_runs_as_today() {
+    for hold in [false, true] {
+        let (mut m, t0) = layer_show(hold);
+        assert_eq!(m.handle(Event::Enter, at(t0, 0.5)), State::Waiting);
+        assert_eq!(
+            m.handle(Event::Motion(Some(2)), at(t0, 0.6)),
+            State::Over(2)
+        );
+        // After the enter the cap no longer applies.
+        assert_eq!(m.handle(Event::Tick, at(t0, 10.1)), State::Over(2));
+        assert_eq!(m.handle(Event::Drop, at(t0, 10.2)), State::Running(2));
+    }
+}
+
+#[test]
+fn ac1_reject_hides_a_probing_show() {
+    for hold in [false, true] {
+        let (mut m, t0) = layer_show(hold);
+        assert_eq!(m.handle(Event::Reject, at(t0, 0.5)), State::Hidden);
+    }
+}
+
+#[test]
+fn ac1_pointer_enter_hides_a_probing_show() {
+    for hold in [false, true] {
+        let (mut m, t0) = layer_show(hold);
+        assert_eq!(m.handle(Event::PointerEnter, at(t0, 0.3)), State::Hidden);
+    }
+}
+
+#[test]
+fn ac1_release_hides_a_probing_hold_show_only() {
+    let (mut m, t0) = layer_show(true);
+    assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Hidden);
+    // A show without hold (`sbarhive drop`, `SUPER+Z`) ignores the release.
+    let (mut m, t0) = layer_show(false);
+    assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Probing);
+}
+
+#[test]
+fn ac1_escape_and_cancel_hide_a_probing_show() {
+    for hold in [false, true] {
+        let (mut m, t0) = layer_show(hold);
+        assert_eq!(m.handle(Event::Escape, at(t0, 0.5)), State::Hidden);
+        let (mut m, t0) = layer_show(hold);
+        assert_eq!(m.handle(Event::Cancel, at(t0, 0.5)), State::Hidden);
+    }
+}
+
+#[test]
+fn ac1_the_cap_keeps_probing_at_9_9_seconds_and_hides_at_10_1() {
+    for hold in [false, true] {
+        let (mut m, t0) = layer_show(hold);
+        assert_eq!(m.handle(Event::Tick, at(t0, 9.9)), State::Probing);
+        assert_eq!(m.handle(Event::Tick, at(t0, 10.1)), State::Hidden);
+    }
+}
+
+#[test]
+fn ac1_focus_loss_and_click_outside_keep_probing() {
+    let (mut m, t0) = layer_show(false);
+    assert_eq!(m.handle(Event::FocusLost, at(t0, 0.2)), State::Probing);
+    assert_eq!(m.handle(Event::ClickOutside, at(t0, 0.3)), State::Probing);
+    // Still probing, so the cap still counts from the show.
+    assert_eq!(m.handle(Event::Tick, at(t0, 10.1)), State::Hidden);
+}
+
+#[test]
+fn ac1_the_window_path_still_waits_and_ignores_pointer_enter() {
+    let (mut m, t0) = shown(true);
+    assert_eq!(m.handle(Event::PointerEnter, at(t0, 0.3)), State::Waiting);
+    assert_eq!(m.handle(Event::Enter, at(t0, 0.5)), State::Waiting);
+    assert_eq!(m.handle(Event::PointerEnter, at(t0, 0.6)), State::Waiting);
+    assert_eq!(
+        m.handle(Event::Motion(Some(1)), at(t0, 0.7)),
+        State::Over(1)
+    );
+    assert_eq!(m.handle(Event::PointerEnter, at(t0, 0.8)), State::Over(1));
+    let (mut m, t0) = shown(false);
+    assert_eq!(m.handle(Event::PointerEnter, at(t0, 0.3)), State::Normal);
+}
+
+// S-021a, AC9: shows in a row on one machine, each with its own cap.
+
+#[test]
+fn ac9_two_hides_without_a_drag_then_a_held_drag_reveals_and_runs() {
+    let t0 = Instant::now();
+    let show = |hold| Event::Show {
+        drop: true,
+        hold,
+        layer: true,
+    };
+    let mut m = Machine::new();
+    // 1: no drag, the pointer enters the catcher.
+    assert_eq!(m.handle(show(false), t0), State::Probing);
+    assert_eq!(m.handle(Event::PointerEnter, at(t0, 0.3)), State::Hidden);
+    // 2: a hold show, the key released with the pointer still.
+    assert_eq!(m.handle(show(true), at(t0, 1.0)), State::Probing);
+    assert_eq!(m.handle(Event::Release, at(t0, 1.5)), State::Hidden);
+    // A release after the hide changes nothing.
+    assert_eq!(m.handle(Event::Release, at(t0, 1.6)), State::Hidden);
+    // 3: a hold show with a PNG drag: revealed, then dropped on a cell.
+    assert_eq!(m.handle(show(true), at(t0, 5.0)), State::Probing);
+    // Its cap counts from its own show, not from the first one.
+    assert_eq!(m.handle(Event::Tick, at(t0, 14.9)), State::Probing);
+    assert_eq!(m.handle(Event::Enter, at(t0, 14.95)), State::Waiting);
+    assert_eq!(
+        m.handle(Event::Motion(Some(0)), at(t0, 15.0)),
+        State::Over(0)
+    );
+    assert_eq!(m.handle(Event::Drop, at(t0, 15.1)), State::Running(0));
+    assert_eq!(m.handle(Event::Release, at(t0, 15.2)), State::Running(0));
 }

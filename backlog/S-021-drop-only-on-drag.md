@@ -111,3 +111,37 @@
 ## سجل المراجعة
 - 2026-10-22، المخطِّط: الجهد أكثر من يوم عمل، فقُسّمت القصة إلى ثلاث قصص فرعية في ملف واحد، كما في S-014 وS-019. القرارات الستة والأسئلة الخمسة تنتظر الاعتماد. انحرافان عن الموجز يحتاجان قراراً: مسار النافذة دون بوابة قبل الدخول (القرار 1، السؤال 5)، والحد 10 ثوانٍ لا «ثوانٍ قليلة» (السؤال 3). الحالة «مسودة» حتى موافقة محمد. الأعمال الثقيلة داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` بـ `-j 1` أو `-j 2`، ومؤلِّف خاص واحد في كل مرة (Hyprland متداخل خاص، لا سطح المكتب الحي)، والطفرات على الملفات المتغيرة فقط.
 - 2026-10-22، محمد: القصة معتمدة بالإجابات المقترحة كلها. 1: الـ 150 ms تُقاس من دخول السحب إلى أول إطار ظاهر (AC8). 2: ضياع النقرة الأولى مقبول. 3: الحد 10 ثوانٍ. 4: تُعاد اللقطة `drop-en-light-waiting.png` على مسار النافذة. 5: مسار النافذة دون تغيير. القرارات الستة معتمدة.
+- 2026-10-22، المختبِر (S-021a فقط، AC1 وAC2 وAC9): كُتبت الاختبارات من المعايير وجدول الحالات وإجابات محمد، وفشلت قبل التنفيذ. شُغّلت داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` بـ `-j 2`، دون مؤلِّف.
+  - الملفات: `crates/ui/src/drop_tests.rs` (11 اختباراً جديداً: عشرة `ac1_*` و`ac9_two_hides_without_a_drag_then_a_held_drag_reveals_and_runs`) و`crates/ui/src/drop_hive_tests.rs` (6 اختبارات `*_s021a_*` على منصة Slint المخفية).
+  - العقد الذي تثبّته الاختبارات (لا تُعدَّل):
+    - `crate::dnd::Event::Show { drop: bool, hold: bool, layer: bool }`: ‏`layer` ظهور على مسار الطبقة (ماسك خفي). ‏`drop: true, layer: true` يعطي `Probing` مع `hold` أو دونه، و`drop: false, layer: true` يعطي `Normal`، و`layer: false` كما اليوم.
+    - `crate::dnd::State::Probing`: ظهور إفلات مربوط على مسار الطبقة لم يُظهَر بعد.
+    - `crate::dnd::Event::PointerEnter`: ‏`wl_pointer.enter` على الماسك، أي لا سحب. يعطي `Hidden` من `Probing`، ولا أثر له في `Waiting` و`Over` و`Normal` (مسار النافذة).
+    - `crate::dnd::Event::Reject`: السحب بلا `text/uri-list` أو ملفاته بلا إجراء. يعطي `Hidden` من `Probing`.
+    - `Event::Enter` يبقى بلا حقل، ومعناه في `Probing` دخول بخلية واحدة أو أكثر، فيعطي `Waiting`، ثم تسري قواعد S-014 وS-019e كما هي (لا حد بعد الدخول، و`Motion` و`Drop` و`Leave`).
+    - في `Probing`: ‏`Release` يعطي `Hidden` في ظهور `hold` فقط، ويبقى `Probing` دونه. ‏`Escape` و`Cancel` يعطيان `Hidden`. ‏`FocusLost` و`ClickOutside` لا يغيّران شيئاً. ‏`Tick` عند 9.9 ثانية من الظهور يبقى `Probing`، وعند 10.1 يعطي `Hidden` (الحد `ENTER_TIMEOUT` نفسه، ويُحسب من آخر ظهور).
+    - `crate::receiver::Note::PointerEnter`: ينقله `layer.rs` إلى المصرف نفسه، و`on_note` يمرّره إلى الآلة `Event::PointerEnter`.
+    - في الخلية (`Inner`): حين تكون الآلة `Probing` يستدعي `Note::Enter(files)` الدالة `on_drop_files` مرة واحدة. بخلية أو أكثر تُطبَّق الخلايا ونص المركز كما اليوم وتأخذ الآلة `Enter`. بصفر خلايا تأخذ الآلة `Reject`، ولا يُطبَّق نص المركز الذي أعادته الدالة (نص `no_actions` في الخدمة)، وتُخفى الخلية. في `Waiting` (مسار النافذة) يبقى السلوك كما اليوم: نص `no_actions` في المركز والخلية باقية (السؤال 5).
+    - كل انتقال من `Probing` إلى `Hidden` (‏`PointerEnter` و`Release` و`Reject` و`Escape` و`Cancel` والحد) يستدعي `on_dismiss` مرة واحدة بالضبط، وأي حدث بعده لا يضيف استدعاءً. وفقدان التركيز (`focus_changed`) في `Probing` لا يغلقها.
+  - المنفذ إلى الآلة في اختبارات الخلية: المنصة المخفية مسار نافذة دائماً، فتضع الاختبارات الآلة في `Probing` بنفسها بعد `present_drop*` بـ `machine.handle(Event::Show { .., layer: true }, t)`، كما يفعل فحص المهلة القائم في `drop_hive_behaviour`. ربط `on_layer` بـ `layer: true` داخل `show()` لا يصله اختبار مخفي، وتفحصه أسطر `hive reveal:` و`hive probe:` في S-021b (AC3 وAC4).
+  - مكان قرار القائمة الفارغة: القرار 3 يضعه في `crates/daemon/src/ui.rs`. العقد المُلزِم هو سلوك الخلية أعلاه، فالمنفِّذ حرّ في مكان الحساب ما دام نص `no_actions` لا يُرسم على مسار الطبقة ويبقى على مسار النافذة. سطر `drop cells:` قبل فحص القائمة الفارغة يحرسه اختبار S-014 AC8 القائم (`drop_cells_line_lists_the_ids_in_order`)، ولم يُضف له اختبار.
+  - تأكيدات قائمة تغيّرت: ‏`drop_tests.rs` الأسطر 141 و255 و306 و366 قبل التعديل (القصة تسميها 142 و312 و373) أخذت `layer: false`، وتأكيداتها كما هي، وأُضيفت نظائرها لمسار الطبقة. على المنفِّذ أن يضيف الحقل نفسه إلى حرفيات `Event::Show` في وحدة `mod tests` داخل `crates/ui/src/dnd.rs` (الأسطر 133 و178 و192) وفي `show()` في `crates/ui/src/lib.rs`؛ هذا ليس تعديلاً للاختبارات بل لازم من تغيير النوع.
+  - ما ينجح قبل التنفيذ بعد وجود الأسماء: ثلاثة حراس لمسار النافذة لا يُلوَون: ‏`ac1_a_normal_show_on_the_layer_path_does_not_probe` و`ac1_the_window_path_still_waits_and_ignores_pointer_enter` و`ac1_s021a_the_window_path_is_unchanged`. تحقق المختبِر في نسخة مؤقتة (حُذفت): بأسماء بلا سلوك فشل الأربعة عشر الباقون كلهم عند تأكيد `Probing` الأول؛ وبتنفيذ تجريبي صغير نجحت اختبارات `sbarhive-ui --lib` كلها (140)، فالعقد قابل للتنفيذ.
+  - AC9: الجزء الذي في الوحدة هنا (ظهوران يُخفيان دون سحب، `pointer` ثم `release`، ثم `drop --hold` بسحب PNG يُظهِر ويُشغِّل، وترك المفتاح بعد الإخفاء لا يضيف شيئاً، وكل ظهور يعدّ حدّه من ظهوره). الجزء التكاملي (خروج `drop --release` بـ 0 خلال 200 ms، ولا سطح جديد، ولا خطأ بروتوكول، وسطر `hive reveal:`) يحتاج أسطر S-021b ومؤلِّفاً خاصاً، فينتقل إلى فحوص `repro.sh` في S-021b. لم يُعدَّل `repro.sh` ولم يُشغَّل.
+  - مخرجات الفشل:
+    ```
+    $ systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -p sbarhive-ui --lib -j 2
+    error[E0559]: variant `dnd::Event::Show` has no field named `layer`
+       --> crates/ui/src/drop_hive_tests.rs:447:13
+    error[E0599]: no variant, associated function, or constant named `Probing` found for enum `dnd::State` in the current scope
+       --> crates/ui/src/drop_hive_tests.rs:451:31
+    error[E0599]: no variant, associated function, or constant named `PointerEnter` found for enum `Note` in the current scope
+       --> crates/ui/src/drop_hive_tests.rs:502:23
+    error[E0599]: no variant, associated function, or constant named `Reject` found for enum `dnd::Event` in the current scope
+       --> crates/ui/src/drop_hive_tests.rs:537:33
+    error[E0599]: no variant, associated function, or constant named `PointerEnter` found for enum `dnd::Event` in the current scope
+       --> crates/ui/src/drop_tests.rs:511:36
+    error: could not compile `sbarhive-ui` (lib test) due to 35 previous errors
+    ```
+    الأخطاء الخمسة والثلاثون: 13 `Probing`، و8 الحقل `layer`، و6 `Note::PointerEnter`، و6 `Event::PointerEnter`، و2 `Reject`. كلها بنود من العقد، ولا خطأ غيرها.
+  - ملاحظة: كما في S-014a، لا تُبنى اختبارات وحدة `sbarhive-ui` كلها حتى تُضاف هذه البنود.

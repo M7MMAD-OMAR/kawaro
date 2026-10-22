@@ -389,3 +389,250 @@ fn ac14_s019f_the_drop_hive_previews_the_dragged_files_after_enter() {
     assert_eq!(image_size(&ui.get_preview_image()), (0, 0));
     assert_eq!(image_size(&ui.get_preview_icon()), (0, 0));
 }
+
+// ------------------------------------------------------------------------
+// S-021a (backlog/S-021-drop-only-on-drag.md, AC1, AC2 and AC9): on the layer
+// path a drop show probes for a real file drag before it is revealed.
+//
+// Contract (written by the tester from the acceptance criteria; do not edit):
+// - `dnd::Event::Show { drop, hold, layer }`, `dnd::State::Probing`,
+//   `dnd::Event::PointerEnter` and `dnd::Event::Reject` (see drop_tests.rs).
+// - `receiver::Note::PointerEnter`: the pointer entered the hidden catcher
+//   with no drag (`wl_pointer.enter`); `on_note` passes it to the machine as
+//   `Event::PointerEnter`. layer.rs only forwards it.
+// - While the machine is `Probing`, `Note::Enter(files)` calls
+//   `on_drop_files` once. One cell or more: the cells and the centre text
+//   are applied as today and the machine gets `Event::Enter` (`Waiting`).
+//   No cell: the machine gets `Event::Reject`, the centre text the callback
+//   returned is not applied, and the hive hides.
+// - Every `Probing` to `Hidden` transition fires `on_dismiss` exactly once.
+// - The headless platform is the window path, so the tests put the machine
+//   in `Probing` themselves after `present_drop*`, as the timeout check above
+//   drives the machine directly.
+
+/// The text the daemon puts in the centre for files without an action.
+const NO_ACTIONS: &str = "No actions";
+
+/// A hive whose drop callback gives cells to `.png` files only.
+fn probing_hive() -> (Hive, Rc<Log>) {
+    i_slint_backend_testing::init_no_event_loop();
+    let hive = Hive::new(Lang::En).unwrap();
+    let log = Rc::new(Log::default());
+    let l = log.clone();
+    hive.on_choose(move |id| l.chosen.borrow_mut().push(id));
+    let l = log.clone();
+    hive.on_dismiss(move || l.dismissed.set(l.dismissed.get() + 1));
+    let l = log.clone();
+    hive.on_drop_files(move |files| {
+        l.entered.borrow_mut().push(files.clone());
+        if !files.is_empty()
+            && files
+                .iter()
+                .all(|f| f.extension().is_some_and(|e| e == "png"))
+        {
+            ("1 image".into(), cells())
+        } else {
+            (NO_ACTIONS.into(), Vec::new())
+        }
+    });
+    (hive, log)
+}
+
+/// Puts the drop show just presented on the layer path, shown at `since`.
+fn probe_since(hive: &Hive, hold: bool, since: Instant) {
+    let s = hive.inner.machine.borrow_mut().handle(
+        dnd::Event::Show {
+            drop: true,
+            hold,
+            layer: true,
+        },
+        since,
+    );
+    assert_eq!(s, dnd::State::Probing);
+}
+
+fn probe(hive: &Hive, hold: bool) {
+    probe_since(hive, hold, Instant::now());
+}
+
+fn centre(hive: &Hive) -> String {
+    hive.inner.ui.borrow().get_centre_text().to_string()
+}
+
+#[test]
+fn ac1_ac2_s021a_enter_with_cells_reveals_a_probing_show() {
+    let (hive, log) = probing_hive();
+    let png = PathBuf::from("/tmp/a.png");
+    hive.present_drop_hold("", None, None).unwrap();
+    probe(&hive, true);
+    on_note(Note::Enter(vec![png.clone()]));
+    assert_eq!(log.entered.borrow().as_slice(), [vec![png.clone()]]);
+    assert_eq!(state(&hive), dnd::State::Waiting, "revealed for the drag");
+    assert!(hive.inner.visible());
+    assert_eq!(hive.inner.ui.borrow().get_cells().row_count(), 3);
+    assert_eq!(centre(&hive), "1 image");
+    assert_eq!(log.dismissed.get(), 0);
+    // Then the drop runs the cell as today.
+    on_note(Note::Motion(Some(0)));
+    on_note(Note::Drop);
+    assert_eq!(log.chosen.borrow().as_slice(), ["webp"]);
+    assert_eq!(log.dismissed.get(), 0);
+}
+
+#[test]
+fn ac2_s021a_enter_without_cells_hides_once_without_the_no_actions_text() {
+    let (hive, log) = probing_hive();
+    for files in [vec![PathBuf::from("/tmp/notes.unknownext")], Vec::new()] {
+        let before = log.dismissed.get();
+        let calls = log.entered.borrow().len();
+        hive.present_drop("", None).unwrap();
+        probe(&hive, false);
+        on_note(Note::Enter(files.clone()));
+        assert_eq!(
+            log.entered.borrow().len(),
+            calls + 1,
+            "{files:?}: asked once"
+        );
+        assert_eq!(state(&hive), dnd::State::Hidden, "{files:?}: rejected");
+        assert!(!hive.inner.visible(), "{files:?}: hidden");
+        assert_ne!(centre(&hive), NO_ACTIONS, "{files:?}: no `no_actions` text");
+        assert_eq!(log.dismissed.get(), before + 1, "{files:?}: one dismiss");
+        // Anything after the hide adds no dismiss.
+        on_note(Note::Leave);
+        on_note(Note::PointerEnter);
+        hive.inner.drag(dnd::Event::Tick);
+        assert_eq!(log.dismissed.get(), before + 1, "{files:?}: still one");
+    }
+    assert!(log.chosen.borrow().is_empty());
+}
+
+#[test]
+fn ac2_s021a_every_hide_of_a_probing_show_dismisses_exactly_once() {
+    let (hive, log) = probing_hive();
+    let mut expected = 0;
+    let mut check = |hive: &Hive, what: &str| {
+        expected += 1;
+        assert_eq!(state(hive), dnd::State::Hidden, "{what}");
+        assert!(!hive.inner.visible(), "{what}: hidden");
+        assert_eq!(log.dismissed.get(), expected, "{what}: one dismiss");
+        on_note(Note::PointerEnter);
+        hive.key_released();
+        hive.inner.drag(dnd::Event::Tick);
+        assert_eq!(log.dismissed.get(), expected, "{what}: no second dismiss");
+    };
+
+    hive.present_drop_at("", None, Some((400.0, 500.0)))
+        .unwrap();
+    probe(&hive, false);
+    on_note(Note::PointerEnter);
+    check(&hive, "pointer");
+
+    hive.present_drop_hold("", None, None).unwrap();
+    probe(&hive, true);
+    hive.key_released();
+    check(&hive, "release");
+
+    hive.present_drop("", None).unwrap();
+    probe(&hive, false);
+    hive.inner.drag(dnd::Event::Reject);
+    check(&hive, "reject");
+
+    hive.present_drop("", None).unwrap();
+    probe(&hive, false);
+    hive.inner.drag(dnd::Event::Escape);
+    check(&hive, "escape");
+
+    hive.present_drop("", None).unwrap();
+    probe(&hive, false);
+    hive.inner.drag(dnd::Event::Cancel);
+    check(&hive, "cancel");
+
+    // The cap: shown 10.1 s ago with no event, the next tick hides it.
+    hive.present_drop("", None).unwrap();
+    let since = Instant::now()
+        .checked_sub(Duration::from_secs_f64(10.1))
+        .unwrap();
+    probe_since(&hive, false, since);
+    hive.inner.drag(dnd::Event::Tick);
+    check(&hive, "cap");
+
+    assert!(log.chosen.borrow().is_empty());
+}
+
+#[test]
+fn ac1_s021a_focus_loss_and_click_outside_keep_a_probing_show() {
+    let (hive, log) = probing_hive();
+    hive.present_drop("", None).unwrap();
+    probe(&hive, false);
+    focus_changed(true);
+    focus_changed(false);
+    hive.inner.drag(dnd::Event::ClickOutside);
+    assert_eq!(state(&hive), dnd::State::Probing);
+    assert!(hive.inner.visible(), "the catcher stays bound");
+    assert_eq!(log.dismissed.get(), 0);
+    // A short tick changes nothing either.
+    hive.inner.drag(dnd::Event::Tick);
+    assert_eq!(state(&hive), dnd::State::Probing);
+}
+
+#[test]
+fn ac1_s021a_the_window_path_is_unchanged() {
+    let (hive, log) = probing_hive();
+    // No probe: the window path waits, and a pointer enter does nothing.
+    hive.present_drop("", None).unwrap();
+    assert_eq!(state(&hive), dnd::State::Waiting);
+    on_note(Note::PointerEnter);
+    assert_eq!(state(&hive), dnd::State::Waiting);
+    assert!(hive.inner.visible());
+    // A file without an action keeps the hive with the no_actions text (Q5).
+    on_note(Note::Enter(vec![PathBuf::from("/tmp/notes.unknownext")]));
+    assert_eq!(state(&hive), dnd::State::Waiting);
+    assert!(hive.inner.visible());
+    assert_eq!(centre(&hive), NO_ACTIONS);
+    assert_eq!(log.dismissed.get(), 0);
+    // A normal show ignores it too.
+    hive.present("3 images", cells(), None).unwrap();
+    on_note(Note::PointerEnter);
+    assert_eq!(state(&hive), dnd::State::Normal);
+    assert!(hive.inner.visible());
+    assert_eq!(log.dismissed.get(), 0);
+}
+
+#[test]
+fn ac9_s021a_two_hides_without_a_drag_then_a_held_png_drag_reveals() {
+    let (hive, log) = probing_hive();
+    let png = PathBuf::from("/tmp/a.png");
+
+    // 1: `drop --at` with no drag, the pointer moves into the catcher.
+    hive.present_drop_at("", None, Some((400.0, 500.0)))
+        .unwrap();
+    probe(&hive, false);
+    on_note(Note::PointerEnter);
+    assert_eq!(state(&hive), dnd::State::Hidden);
+    assert_eq!(log.dismissed.get(), 1);
+
+    // 2: `drop --hold`, then `drop --release` with the pointer still.
+    hive.present_drop_hold("", None, None).unwrap();
+    probe(&hive, true);
+    hive.key_released();
+    assert_eq!(state(&hive), dnd::State::Hidden);
+    assert_eq!(log.dismissed.get(), 2);
+    // A release after the hide adds nothing and shows nothing.
+    hive.key_released();
+    assert_eq!(log.dismissed.get(), 2);
+    assert!(!hive.inner.visible());
+
+    // 3: `drop --hold` with a PNG drag: revealed, and the drop runs.
+    hive.present_drop_hold("", None, None).unwrap();
+    probe(&hive, true);
+    on_note(Note::Enter(vec![png.clone()]));
+    assert_eq!(state(&hive), dnd::State::Waiting, "the third show reveals");
+    assert!(hive.inner.visible());
+    assert_eq!(hive.inner.ui.borrow().get_cells().row_count(), 3);
+    on_note(Note::Motion(Some(0)));
+    on_note(Note::Drop);
+    assert_eq!(log.chosen.borrow().as_slice(), ["webp"]);
+    assert_eq!(log.dismissed.get(), 2);
+    hive.key_released();
+    assert_eq!(log.dismissed.get(), 2, "no dismiss after the drop");
+}
