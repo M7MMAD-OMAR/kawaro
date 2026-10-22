@@ -10,6 +10,9 @@ mod tray;
 mod ui;
 mod watch;
 
+#[cfg(test)]
+mod portal_tests;
+
 use state::lock;
 
 use sbarhive_core::config::Config;

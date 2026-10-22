@@ -344,3 +344,70 @@
   5. A denied consent is remembered: a `config.toml` key stops registration until the user turns it back on in the settings, so the dialog does not return at every login.
   6. On Hyprland the documented `exec` bind with `--at` stays first; the portal `global` line is the alternative.
   Story numbers: the Windows work on branch `windows/0.6.0` uses S-022 to S-026, which clash with main's S-022. New stories on main start at S-027; the renumbering of the clash is settled when that branch merges.
+- 2026-10-22, tester (S-014e1 only: AC13, AC14, AC17, AC18 parts a and b, AC19; part c of AC18 is S-014e2): tests written from the criteria, the table and the manager's answers 4 and 5, run once on main (`0de3c74`, release binaries of 17:15, newer than the last crate change `966258b`, so no rebuild), and every one fails.
+  - Files: `crates/daemon/src/portal_tests.rs` with `#[cfg(test)] mod portal_tests;` in `crates/daemon/src/main.rs` (AC13, AC17, AC19 unit tests), `crates/core/tests/config_portal.rs` (answer 5), `tests/drop/shortcuts_portal.py` (the fake portal), `tests/drop/portal_log.py` (reads its log), `tests/drop/portal.sh` (AC13, AC17, AC18 a and b, AC19 in a private KWin), `tests/drop/deps.sh` (AC14, static).
+  - The fake was checked against a real client before use: a scratch program on ashpd 0.13.13 (`default-features = false`, `global_shortcuts`, `async-io`, outside the repo) on a private bus did Register, CreateSession, BindShortcuts and received Activated and Deactivated in modes ok, no-registry, no-gs (ashpd: "portal frontend ... not found"), version0, deny ("Portal request was cancelled"), empty and hold. The AC18 (b) flow was checked once with `drop --hold` and `--release` in place of the two signals (scratch copy of the script): `RESULT PASS`, anchor `400 500` at the drag's enter `400 500`, the WEBP written. So the harness passes for a working gate, and fails today only for the missing client.
+  - Contract (do not edit):
+    - `crate::portal` in `crates/daemon` (the pure part, under mutants; the D-Bus side may be excluded in `.cargo/mutants.toml` like `receiver.rs`, decision 5): `APP_ID = "io.github.m7mmad_omar.SbarHive"`, `SHORTCUT_ID = "drop"`, `PREFERRED_TRIGGER = "LOGO+z"` (shortcuts spec: modifiers CTRL, ALT, SHIFT, NUM, LOGO joined by `+` to an xkbcommon keysym name without `XKB_KEY_`; the installed GNOME backend binary contains `LOGO`; its acceptance is checked live in S-014e2), `REGISTRY_UNAVAILABLE = "portal registry: unavailable"`; `description(lang: Lang) -> &'static str` (non-empty, English Latin, Arabic Arabic, different, no long dash); `bound_line(trigger: &str) -> String` = `portal shortcuts: bound drop (T)`; `enum Reason { NoPortal, NoInterface, Denied, Error, NoRelease, Off }` with `Clone, Copy, Debug, PartialEq, Eq`; `unavailable_line(r: Reason) -> String` = `portal shortcuts: unavailable (R)`, R one of `no-portal`, `no-interface`, `denied`, `error`, `no-release` (answer 4: a backend that never sends `Deactivated`), `off` (answer 5: registration turned off by a remembered denial); `interface_reason(version: Option<u32>) -> Option<Reason>` (None or 0 is `NoInterface`); `bind_reason(response: u32, bound: &[&str]) -> Option<Reason>` (0 with `drop` among the bound ids is None, 0 with an empty list or without `drop` is `Denied`, 1 is `Denied`, any other code `Error`); `remembers(r: Reason) -> bool` (only `Denied`); `signal(own_session: &str, member: &str, session: &str, shortcut_id: &str) -> Option<hold::Signal>` (`Activated` and `Deactivated` of `drop` in the own session give `hold::from_portal`, everything else None).
+    - `sbarhive_core::config::Config::portal_shortcut: bool`, default true, spelled `portal_shortcut` in `config.toml` (as `hold_ms`). After a `denied` reason the daemon writes `portal_shortcut = false` and keeps the user's other keys; a daemon started with it false makes no portal call or property read, not even Register, and prints `portal shortcuts: unavailable (off)`; with it true again the next daemon registers. Live reload of the key is not required by these tests.
+    - Daemon stderr: the `portal shortcuts:` and `portal registry:` lines are printed always; with `SBARHIVE_DEBUG_FOCUS` one `portal: activated drop` or `portal: deactivated drop` line per signal that `signal` accepts, and no line for an ignored one.
+    - "Portal call" in AC13 and AC19 means a method call on an `org.freedesktop.portal.*` or `org.freedesktop.host.portal.*` interface. Property reads are not method calls: ashpd itself reads `version` when it builds each proxy, before Register. The 30 s counter of AC19 counts calls and reads both. The daemon's portal connection is the sender of the first CreateSession (else of the first Register).
+    - The fake, `tests/drop/shortcuts_portal.py CONTROL_FIFO MODE`, modes `ok`, `no-registry` (Register answers `org.freedesktop.DBus.Error.UnknownMethod`), `no-gs`, `version0`, `deny` (code 1), `error` (code 2), `empty` (code 0, no shortcuts), `hold` (the BindShortcuts Response waits for the control line `respond`). Paths as xdg-desktop-portal makes them (request and session paths from the sender and the tokens), `session_handle` as `s`, Response and the two signals sent to the caller only, after the reply. The trigger_description is `Fake Super+Z`. Control lines: `signal Activated|Deactivated ID [own|other]`, `pulse ID own|other MS [AT...]` (timed inside the fake), `respond`, `quit`. Log lines, each after a `[HH:MM:SS.ffffff]` UTC stamp: `owned NAME`, `call N IFACE.METHOD SENDER JSON_ARGS`, `get N IFACE.PROPERTY SENDER`, `error N NAME`, `response N CODE PATH JSON_RESULTS`, `held N PATH`, `emit SIGNAL ID SESSION DEST`, `skip LINE (REASON)`.
+    - `tests/drop/portal.sh [ac13] [ac17] [ac19] [hold] [BIN]`: one private `kwin_wayland --virtual`, a throwaway profile, and a private bus started with its own configuration whose only service directory is empty, so nothing is activated (a setup check reads `ListActivatableNames`): with no fake nothing owns `org.freedesktop.portal.Desktop`, and the real portal and its backends never start. Daemon and fake restart per mode.
+  - Failure output:
+    ```
+    $ cargo test -p sbarhive-core --test config_portal
+    error[E0609]: no field `portal_shortcut` on type `Config`
+      --> crates/core/tests/config_portal.rs:41:15
+    error[E0560]: struct `Config` has no field named `portal_shortcut`
+      --> crates/core/tests/config_portal.rs:56:9
+    error: could not compile `sbarhive-core` (test "config_portal") due to 6 previous errors
+
+    $ cargo test -p sbarhive-daemon portal
+    error[E0432]: unresolved import `crate::portal`
+     --> crates/daemon/src/portal_tests.rs:6:12
+    error: could not compile `sbarhive-daemon` (bin "sbarhived" test) due to 1 previous error
+
+    $ tests/drop/deps.sh
+    INFO AC14: crates/daemon: client none, ashpd version - default-features - features -, zbus direct no; zbus::proxy files for GlobalShortcuts: none; Cargo.lock: ashpd -, zbus 5.19.0, tokio 1.53.3
+    FAIL AC14: crates/daemon has a portal client: ashpd at a full version with default-features = false and only the features global_shortcuts and async-io (one ashpd in Cargo.lock at that version), or zbus directly with a #[zbus::proxy] for org.freedesktop.portal.GlobalShortcuts and no ashpd
+    FAIL AC14: with the client, no second zbus: cargo tree -d lists no zbus, and Cargo.lock has one zbus, at 5.19.0 or at the version docs/engines.md records
+    FAIL AC14: with the client, the daemon's normal dependencies have no tokio
+    FAIL AC14: with the client, every package new in Cargo.lock (ashpd among them, if it is the client) has a docs/engines.md row with its version and licence
+    RESULT FAIL (4)
+
+    $ tests/drop/portal.sh   (private KWin, about 6 minutes)
+    PASS setup: the private bus can activate nothing but itself (no org.freedesktop.portal.Desktop to start)
+    FAIL AC13 ok: the first portal method call of the daemon's portal connection is org.freedesktop.host.portal.Registry.Register with io.github.m7mmad_omar.SbarHive
+    FAIL AC13 ok: its next GlobalShortcuts method call is CreateSession
+    FAIL AC13 ok: exactly one BindShortcuts, on the session CreateSession gave (at most one per session)
+    FAIL AC13 ok: one shortcut, id "drop", preferred_trigger "LOGO+z", a non-empty English description
+    FAIL AC13 ok: stderr has exactly one portal line, "portal shortcuts: bound drop (Fake Super+Z)" (T is the reply's trigger_description)
+    FAIL AC17 600 ms (2 checks), AC18 (a) (2), AC17 150 ms, AC17 repeat (2), AC18 repeat, AC17 other id, AC17 other session, AC17 one gate (2)
+    INFO AC17 one gate, IPC press: exit 0, deactivated lines 0; within 1000 ms: layer 1 xdg 0
+    FAIL S-021 AC3, AC4, AC7 AC18 (b) (probe_checks), AC18 (b): "hive reveal: N" with N the 15 lines of `sbarhive actions` for the PNG, the WEBP written, the anchor lines
+    PASS AC19 no-portal setup: nothing owns org.freedesktop.portal.Desktop
+    FAIL AC19 no-portal, no-gs, version0, error, empty, deny: the line and its reason, the 30 s with no call, the hold cycle after the line, config.toml (4 checks each)
+    FAIL AC13 error: the daemon in Arabic sends an Arabic description
+    FAIL AC19 deny again (answer 5): ... prints exactly "portal shortcuts: unavailable (off)"
+    FAIL AC19 deny, turned back on (answer 5): ... the next daemon registers again
+    INFO AC19 hold: BindShortcuts held no before the shows, still held after them no, portal shortcuts lines before the Response 0; shows 5 of 5, ms from the command to the first frame: 21.8 6.6 10.8 6.2 6.7 (median 6.7)
+    FAIL AC19 hold (3 checks)
+    FAIL AC13 no-registry (2 checks)
+    RESULT FAIL (55)
+    ```
+    The reason everywhere: the daemon has no portal client, so the fake gets no call, there is no session to signal, and no `portal` line is printed. Totals: unit 2 compile failures (17 tests: 13 in the daemon, 4 in core), `deps.sh` 4 of 4 checks, `portal.sh` 55 of 57 checks (the two passes are setup guards).
+  - Guards that would pass on their own are tied to a precondition, so they fail today for the missing client and pass only with it: "no surface" and "ignored" cases need the `portal:` lines or the bound line; the AC19 30 s counter and the `drop --hold` cycle need the `unavailable (R)` line (the cycle itself works on main: shown 505 to 516 ms after the press with hold_ms 500, destroyed 2 to 3 ms after the release); the `open` timing needs the held BindShortcuts (median 6.7 ms today); AC14's tree checks need the client. The "one gate" cases fail on main for the right reason: `drop --hold` then the portal's Deactivated still shows a hive from the IPC timer.
+  - Not testable here, or tested differently from the table:
+    - AC14: `cargo tree -d -i zbus` cannot print nothing: on main it prints 37 lines, the duplicated `syn` 2 and 3 on the paths to the one zbus. `deps.sh` checks the intent instead: no zbus among the duplicated packages of `cargo tree -d`, and one zbus in `Cargo.lock`.
+    - AC19, last clause: `crates/ui/tests/measure.sh` drives `hive_bench`, which has no portal client, so it cannot show the hive while the daemon's BindShortcuts is pending. `portal.sh hold` times the real daemon: from a UTC stamp just before `sbarhive open FILE` to the first `attach(wl_buffer)` on the hive surface in its trace, median of 5. This includes the CLI's own start, so it is stricter.
+    - AC13 "a private thread on a dedicated connection": only the order on the portal connection is observable. The fake serves no Settings interface, so a shared connection cannot be seen.
+    - Answer 4: only the reason text `no-release` is tested. No backend is known to lack `Deactivated` until AC20 measures it, and the daemon cannot see that before it registers.
+    - AC19 `no-portal`: the fake starts 1 s after the line, so a retry would show in the 30 s counter.
+  - Decisions for the manager:
+    1. AC14's command: accept the intent check above in place of `cargo tree -d -i zbus` printing nothing.
+    2. Answer 4: how the daemon knows not to register through a backend. The backend is not visible from the frontend. One option is a list keyed by `XDG_CURRENT_DESKTOP`, filled from the AC20 results. The reason name `no-release` is fixed.
+    3. `no-portal` at a real login: `org.freedesktop.portal.Desktop` is D-Bus activatable but often not yet running when `sbarhive.service` starts. A `NameHasOwner` check would report `no-portal` there. The tests pass either way (nothing is activatable on the private bus). I propose: no-portal only when the name has no owner and is not activatable.
+    4. Answer 5: the settings window toggle for `portal_shortcut` is in no S-014e criterion. Should it go in S-014f or another story?
+    5. `bind_reason(0, &["other"])` (a reply without `drop`) counts as `denied`, so it is remembered. This goes beyond the AC's "empty list".
+  - Note: `mod portal_tests` stops every unit test of `sbarhive-daemon` from building until `crate::portal` exists, as in S-014a. `cargo mutants` was not run (not the tester's job). Heavy runs were inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` with `CARGO_BUILD_JOBS` 1 or 2, one private compositor at a time. The live desktop, its bus and the real portal were not touched.

@@ -254,6 +254,21 @@ lines, nothing drawn (`replace_checks`). `hold_docs.sh` checks
 reveal, the S-022 CHANGELOG line, and that no prose line of this file is
 longer than 80 columns (AC9, AC10).
 
+## S-014e1: the GlobalShortcuts portal (AC13, AC14, AC17 to AC19)
+
+`portal.sh` runs the daemon against `shortcuts_portal.py`, a fake portal
+with Registry and GlobalShortcuts version 2 that logs every call with a UTC
+stamp (`portal_log.py` reads the log). It uses one private KWin and a
+private bus with its own configuration and an empty service directory, so
+nothing is D-Bus activated and the real portal never starts. Phases: `ac13`
+(the call order, the BindShortcuts fields and the `portal shortcuts:` line,
+then a portal without Registry), `ac17` (the timed signals and the AC18 a
+and b shows), `ac19` (six fallback modes, 30 s each, and the remembered
+denial in `config.toml`) and `hold` (five `sbarhive open` shows while the
+BindShortcuts Response is held). `deps.sh` is AC14: the portal client
+dependency, one zbus, no tokio in the daemon, and a `docs/engines.md` row
+for every new package in `Cargo.lock`.
+
 ## Input
 
 - KWin: `kwin-input/`, a small client of `org_kde_kwin_fake_input` (copied
