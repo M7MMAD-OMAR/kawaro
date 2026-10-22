@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Fixed
+- Layer hive focus at KDE focus stealing prevention Extreme (S-027): on Hyprland, KDE and wlroots a normal show now asks for the keyboard before its full screen surface is first committed, so at Extreme a show with no activation token or a bogus one no longer takes the keyboard, while a show with a valid token, Hyprland and the lower KDE levels still get it and Esc still closes the hive. «لم تعد الخلية تأخذ لوحة المفاتيح دون رمز تفعيل صالح حين يكون منع سرقة التركيز في KDE على أقصى درجة».
+
 ## [0.3.2] - 2026-10-22 «حركة الظهور»
 
 ### Fixed

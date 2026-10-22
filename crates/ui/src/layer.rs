@@ -686,10 +686,6 @@ impl LayerAdapter {
         if drop_mode && anchor.is_some() {
             self.switched.set(true);
         }
-        if !drop_mode && let Some(s) = self.surfaces.borrow().as_ref() {
-            s.layer
-                .set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
-        }
         self.place();
         if let Some(s) = self.surfaces.borrow().as_ref() {
             s.catcher.commit();
@@ -975,11 +971,14 @@ impl LayerAdapter {
             layer.set_anchor(Anchor::Top | Anchor::Bottom | Anchor::Left | Anchor::Right);
             layer.set_size(0, 0);
             layer.set_exclusive_zone(-1);
-            // A normal show takes the keyboard with its first frame (in
-            // `decide`), not while the catcher waits for the pointer.
-            if drop_mode {
-                layer.set_keyboard_interactivity(KeyboardInteractivity::None);
-            }
+            // Before the catcher's first commit and never after it: KWin
+            // at focus stealing prevention level 4 gives the keyboard to a
+            // layer surface that asks for it once mapped (S-027).
+            layer.set_keyboard_interactivity(if drop_mode {
+                KeyboardInteractivity::None
+            } else {
+                KeyboardInteractivity::Exclusive
+            });
             let catcher_vp = wl.viewporter.get_viewport(&catcher, qh, ());
             let hive = wl.compositor.create_surface(qh, ());
             if drop_mode {
