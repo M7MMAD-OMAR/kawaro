@@ -28,6 +28,7 @@ S-025b:
 - AC10: `office::file_url_str(path: &str, windows: bool)` صافية، و`file_url` تستدعيها بـ `cfg!(windows)`. ويندوز: `C:\a b\x` تعطي `file:///C:/a%20b/x`، و`C:\ملف.docx` تعطي `file:///C:/%D9%85%D9%84%D9%81.docx`، و`\\?\C:\a` تعطي `file:///C:/a`. لينكس: `/a b/c` تعطي `file:///a%20b/c` كما اليوم، والاختبارات القائمة تنجح.
 - AC11: رسالة `EngineError::Unavailable` حين لا يوجد البرنامج تذكر اسمه ورابط موقعه: `https://www.libreoffice.org/download/`، و`https://ghostscript.com/releases/`، و`https://ffmpeg.org/download.html`. رسائل «لا مُرمِّز» في ffmpeg (`missing`) كما هي، والاختبارات التي تفحص `libx264` تنجح.
 - AC12: `docs/engines.md` يضيف عمود ويندوز (الأسماء والمسارات والسجل)، و`README.md` يذكر بالعربية والإنكليزية أين يبحث SbarHive عن المحركات على ويندوز وأنه لا ينزّلها.
+- AC13 (أضافه المدير في 2026-10-22 من ملاحظة مراجع S-025a): على ويندوز يُشغَّل ffmpeg وffprobe (`crates/engines/src/ffmpeg.rs`، كل مواضع `Command`) بالعلم `CREATE_NO_WINDOW` (القيمة 0x08000000 من `office::tree`)، فلا تومض نافذة طرفية. على لينكس لا تغيير. الإثبات: فحص نصي أن كل `Command::new` في ffmpeg.rs يمر بدالة واحدة تضيف العلم تحت `cfg(windows)`، وبناء W للهدف ويندوز نظيف.
 
 لكل قصة فرعية:
 - سطر واحد للقصة كلها في `CHANGELOG.md` تحت `[Unreleased]`، بالإنكليزية مع نص عربي بين «»: تضيفه S-025a، وS-025b تعدّل السطر نفسه.
@@ -55,6 +56,7 @@ S-025b:
 | AC11 | وحدة: محرك بلا برنامج يعيد رسالة فيها الاسم والرابط، لكل محرك من الثلاثة | وحدة |
 | AC6 | `grep -c '^\[\[package\]\]' Cargo.lock` يعطي 671، و`X` | مراجعة |
 | AC12 | المراجع يقرأ engines.md وREADME وCHANGELOG.md | مراجعة |
+| AC13 | فحص نصي لـ ffmpeg.rs، وW | وحدة |
 
 تبقى خضراء: `cargo test --workspace`، ومنها `office_engine.rs` و`pdf_ghostscript.rs` و`ffmpeg_engine.rs`.
 
