@@ -1,5 +1,5 @@
 # S-026 البناء المتقاطع لويندوز وبوابته وCI وصورة الاختبار
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: S-026a: الاختبارات مكتوبة وحمراء (`4af4c05`)، تنتظر المنفِّذ؛ S-026b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 1 و9، وعلى S-022 إلى S-025 (قبلها لا يُبنى `sbarhive.exe` للهدف). للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -68,3 +68,55 @@ S-026b:
 
 ## سجل المراجعة
 - 2026-10-22، المخطِّط: ADR يطلب فحص `objdump` على `sbarhived.exe` في أول قصة بناء، لكنه لا يُربط قبل S-027، فيُفحص هنا `sbarhive.exe` ويُضاف `sbarhived.exe` في S-027. وقائمة «ما يحتاجه المالك» تطلب الإذن بـ xorriso أو genisoimage، لكن genisoimage وisoinfo مثبتان على المضيف، فلا يلزم إذن لهذه القصة.
+- 2026-10-22, tester (S-026a):
+  - Tests, all shell, outside the cargo workspace so `cargo test` on real Windows (S-026b) never runs bash and the reviewer's `L` starts no nested build:
+    - `tests/windows/test_scripts.sh` (light, no real build, a few seconds): `ac1_build_sh_reexecs_in_a_6g_scope_with_j2_and_prints_its_cgroup`, `ac2_check_dlls_accepts_system_dlls_and_rejects_lib_dlls`, `ac3_check_sh_runs_windows_clippy_all_targets_in_a_6g_scope`, `ac4_unix_only_tests_carry_cfg_unix_and_nothing_else_changes`, `ac7_engines_md_and_readme_document_the_build_tools`, `no_long_dash_and_shell_lint_for_the_new_scripts` (`bash -n`, `shellcheck`, no em or en dash in the three scripts and the README).
+    - `tests/windows/test_heavy.sh` (the real `S` and `T`; refuses to start while `pgrep` sees cargo or cargo-mutants): `ac1_real_build_sh_runs_in_a_6g_scope_and_produces_sbarhive_exe`, `ac2_check_dlls_passes_on_the_real_sbarhive_exe`, `ac3_real_check_sh_exits_0`, `ac5_windows_test_binaries_build_one_exe_per_test_target`.
+    - `tests/windows/lib.sh` (helpers, sources `tests/integrations/lib.sh` for the asserts), fixtures `tests/windows/fixtures/objdump-ok.txt` and `objdump-mingw.txt`, trimmed from the real `x86_64-w64-mingw32-objdump -p` of the current `sbarhive.exe` (header, Import Tables, the trailing empty entry; the path on the first line is cut to `sbarhive.exe`). `objdump-ok.txt` has 9 distinct system DLLs; `objdump-mingw.txt` is the same plus `libgcc_s_seh-1.dll` and `libwinpthread-1.dll`.
+    - Both scripts must run from outside any memory scope (a plain terminal or the Claude app scope, whose `memory.max` is `max`).
+  - Contract pinned by the light tests (the implementer reads this, not the tests, to know what is checked):
+    - AC1 and AC3: the scripts call `cargo` from `PATH` (a fake `cargo` first on `PATH` logs each call's argv, its cgroup, that cgroup's `memory.max`, `CARGO_TARGET_DIR` and `CARGO_BUILD_JOBS`). The scope must keep `PATH` (a `systemd-run --scope` child inherits the environment). Two jobs are accepted as `-j 2`, `-j2`, `--jobs 2`, `--jobs=2` or `CARGO_BUILD_JOBS=2`. The build call has `build`, `--release` and `--target x86_64-pc-windows-gnu` (or `--target=`). A `CARGO_TARGET_DIR` from the caller is kept, and with it unset the build uses `/home/sbarah/.cache/sbarhive-win-target` (env or `--target-dir`, both read). The `cgroup:` line names the cgroup the cargo call runs in, with `memory.max` 6442450944, and it is not the caller's cgroup. With `CI=true`, `systemd-run` is never called (a fake that exits 99 is first on `PATH`) and the `cgroup:` line is the caller's own. AC3 checks `clippy` with `-p sbarhive-core -p sbarhive-engines -p sbarhive-cli --all-targets` and `-- -D warnings` in the 6G cgroup.
+    - AC2: `--text FILE` on `objdump-ok.txt` exits 0 and prints the line `dll check: ok <name> 9 imports`, where `<name>` may be `sbarhive.exe` (from the objdump header), `objdump-ok.txt` or the path given, and N counts `DLL Name` lines (DLLs, not functions). `objdump-mingw.txt` exits 1, names both DLLs, prints no `dll check: ok`, and does not name `kernel32` or `msvcrt`. A generated copy with `DLL Name: LIBSTDC++-6.DLL` exits 1 and names it (case-insensitive rule). Without `--text`, the script runs `x86_64-w64-mingw32-objdump -p <exe>` from `PATH` (a fake that prints `objdump-mingw.txt` gives exit 1). The heavy test on the real exe asks only for exit 0 and the line shape, because the real exe imports `ntdll.dll` twice and `KERNEL32.dll` beside `kernel32.dll`.
+    - AC4: inner `#![cfg(unix)]` lines in `crates/cli/tests/cli.rs` and `settings.rs`; `#[cfg(unix)]` among the attributes directly above `ac7_dangling_symlink_counts_as_taken` (output.rs), `socket_path_lives_in_the_runtime_dir` (contracts.rs), `office_find_program_respects_name_order_and_exec_bit` (office.rs unit tests), the four `office_engine.rs` tests that run `/bin/sh` as the program (`office_timeout_kills_the_process_group`, `office_cancel_kills_the_process_group`, `office_already_cancelled_starts_nothing` through `fake_engine`, and `office_missing_program_is_unavailable_error`), and `pdf_ghostscript_identity_and_capabilities` (`with_program("/bin/sh")`). `git diff -U0 5be5270` of the seven files has no `-` line, and every `+` line is a `#[cfg(...)]`, `#![cfg(...)]` or `#[cfg_attr(...)]` line, so helpers left unused on Windows may also get a cfg line.
+    - AC5 (heavy): T exits 0, and the number of distinct `(... .exe)` paths it prints equals the lib, bin and test targets with `test = true` in the three packages from `cargo metadata --no-deps`: today 35 (core 17, engines 13, cli 5). `cli.rs` and `settings.rs` under `#![cfg(unix)]` still build an empty test exe, so 35 holds.
+    - AC1 heavy: the first stdout line is read from a fifo and `memory.max` read at once, because the scope's cgroup is removed when the build ends; `file` must say `PE32+ executable ... x86-64` for the exe.
+  - The cfg(unix) edits in the seven files are left to the implementer. The story names them in the S-026a file list without giving them to the tester, and AC4 is how they are checked. Adding them here would turn AC4, and maybe AC5, green before implementation. The manager must give the implementer explicit leave for these cfg lines only, since the chain forbids the implementer to edit tests.
+  - Ambiguities and choices:
+    - (1) "N imports" is read as the count of `DLL Name` lines; the ok fixture has no duplicates, so raw and distinct counts agree there.
+    - (2) `<name>` with `--text` is open (see AC2 above).
+    - (3) For office_engine.rs and pdf_ghostscript.rs, the AC's "fake programs with sh" is pinned to the five tests above, the ones that pass `/bin/sh` as the program. `office_run_child_*` in office.rs are not required to be guarded, because the AC names only the `PermissionsExt` test there.
+    - (4) The AC1 "outside a scope" detection is the implementer's choice (env marker or memory.max); only the observable result is tested.
+    - (5) AC6 already holds today (671 `[[package]]`, `Cargo.lock` clean), so a test for it would pass before implementation. AC6 is left to the reviewer: `grep -c '^\[\[package\]\]' Cargo.lock` and `git diff --quiet 5be5270 -- Cargo.lock`. The same goes for the CHANGELOG line, `git diff --stat main...HEAD -- crates/ui`, `C` and design-lint.
+    - (6) AC7 is review in the table. The light test adds only a static floor: engines.md has a line with `mingw64-gcc`, `16.2.1` and `GPL`, and one with `genisoimage` and `GPL`. The README exists, names the three scripts, and has Arabic and English text.
+  - AC4 baseline for the equal pass count in `L`: 697 passed, 0 failed, 1 ignored at `d6779fb` (S-025b reviewer). `d6779fb..5be5270` touches only the backlog, and this commit adds no Rust, so the count holds before the implementer's cfg lines.
+  - Logic check: in a throwaway `git clone --shared` in the session scratch dir (deleted, not merged), I wrote stub scripts and added the cfg lines. With them the light suite passed (63 checks). Mutating the stub made it fail at the expected checks: dropping `-j 2`; skipping the scope in check.sh (memory.max `max`); dropping `<name>`; changing an assertion in contracts.rs, which gave a `-` and a non-cfg `+` line. The heavy suite was not run against the stub (see below).
+  - Failing output (light suite, here, before implementation):
+```
+$ bash tests/windows/test_scripts.sh
+== AC1: build.sh outside a scope
+  FAIL: AC1: missing or not executable scripts/windows/build.sh
+== AC2: check-dlls.sh
+  FAIL: AC2: missing or not executable scripts/windows/check-dlls.sh
+== AC3: check.sh
+  FAIL: AC3: missing or not executable scripts/windows/check.sh
+== AC4: cfg(unix) guards
+  FAIL: AC4: crates/cli/tests/cli.rs starts with the inner attribute #![cfg(unix)]
+  FAIL: AC4: crates/cli/tests/settings.rs starts with the inner attribute #![cfg(unix)]
+  FAIL: AC4: output.rs ac7_dangling_symlink_counts_as_taken has #[cfg(unix)]
+  FAIL: AC4: contracts.rs socket_path_lives_in_the_runtime_dir has #[cfg(unix)]
+  FAIL: AC4: office.rs office_find_program_respects_name_order_and_exec_bit has #[cfg(unix)]
+  FAIL: AC4: office_engine.rs office_timeout_kills_the_process_group (a /bin/sh fake program) has #[cfg(unix)]
+  FAIL: AC4: office_engine.rs office_cancel_kills_the_process_group (a /bin/sh fake program) has #[cfg(unix)]
+  FAIL: AC4: office_engine.rs office_already_cancelled_starts_nothing (a /bin/sh fake program) has #[cfg(unix)]
+  FAIL: AC4: office_engine.rs office_missing_program_is_unavailable_error (a /bin/sh fake program) has #[cfg(unix)]
+  FAIL: AC4: pdf_ghostscript.rs pdf_ghostscript_identity_and_capabilities (/bin/sh) has #[cfg(unix)]
+== AC7: docs
+  FAIL: AC7: engines.md names mingw64-gcc 16.2.1 with its licence
+  FAIL: AC7: engines.md names genisoimage with its licence
+  FAIL: AC7: missing scripts/windows/README.md
+== AC1 AC2 AC3: bash -n, shellcheck, no long dash
+  FAIL: lint: missing scripts/windows/build.sh
+  FAIL: lint: missing scripts/windows/check-dlls.sh
+  FAIL: lint: missing scripts/windows/check.sh
+FAIL S-026a windows scripts (light) (19 of 21 checks failed)
+```
