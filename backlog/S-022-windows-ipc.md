@@ -1,0 +1,74 @@
+# S-022 نقل IPC خلف واجهة واحدة، ثم named pipe على ويندوز
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+
+يبني على ADR 0005 القسم 2. للإصدار 0.6.0. لا يلمس `crates/ui`.
+
+## القصة
+بصفتي مستخدماً على ويندوز، أريد أن يتحدث `sbarhive.exe` و`sbarhived.exe` عبر أنبوب لا يفتحه غيري، حتى تعمل الخلية كما على لينكس دون أن يرسل مستخدم آخر أو جهاز آخر أوامر إلى خدمتي.
+
+## التقسيم (بالترتيب، كل قصة فرعية يوم عمل أو أقل)
+| القصة | المحتوى | المعايير | الملفات |
+| --- | --- | --- | --- |
+| S-022a | وحدة النقل بتطبيق Unix الحالي، ودالة اسم الأنبوب الصافية، وتحويل العميل والخدمة إليها | AC1 إلى AC7 | `crates/core/src/{lib.rs,transport.rs,transport/unix.rs,transport/windows.rs}` (بذرة)، `crates/cli/src/{client.rs,main.rs}`، `crates/daemon/src/{main.rs,server.rs,state.rs}`، `.cargo/mutants.toml`، `CHANGELOG.md` |
+| S-022b | أنبوب ويندوز: DACL، ورفض البعيد، والنسخة الواحدة، والمهلة بـ `CancelIoEx`، ومالك الخادم | AC8 إلى AC14 | `crates/core/Cargo.toml`، `Cargo.lock` (مصفوفة اعتماديات core فقط)، `crates/core/src/transport.rs` و`transport/{windows.rs,deadline.rs}`، `.cargo/mutants.toml`، `SECURITY.md`، `docs/architecture.md`، `docs/engines.md`، `CHANGELOG.md` |
+
+## معايير القبول
+S-022a:
+- AC1: `sbarhive_core::transport` يقدّم الواجهة كاملة (الأسماء مقترحة يثبّتها المختبِر): `endpoint() -> Endpoint`، و`Listener::bind(&Endpoint) -> io::Result<Bound>` حيث `Bound` إما `Listening(Listener)` أو `AlreadyRunning`، و`Listener::accept()`، و`Stream::connect(&Endpoint)`، و`Stream::set_read_timeout(Option<Duration>)`، و`Stream::try_clone()`، و`Stream::server_pid() -> Option<u32>` (تعيد `None` على Unix)، و`Stream` يطبّق `Read` و`Write`. `ipc::socket_path()` و`SOCKET_NAME` باقيان بتوقيعهما وقيمتهما.
+- AC2: `transport::pipe_name(sid: &str, session: u32) -> String` دالة صافية: `pipe_name("S-1-5-21-1-2-3-1001", 1)` تساوي حرفياً `\\.\pipe\io.github.m7mmad_omar.SbarHive.S-1-5-21-1-2-3-1001.1`. SID مختلف أو جلسة مختلفة يعطي اسماً مختلفاً، وأطول SID ممكن (`S-1-5-21-4294967295-4294967295-4294967295-4294967295`) مع الجلسة `4294967295` يعطي 256 حرفاً أو أقل.
+- AC3: على لينكس، `Listener` و`Stream` في مجلد مؤقت: سطر `{"cmd":"ping"}` من العميل يصل الخادم كما هو، ورده `{"status":"ok"}` يصل العميل. سطران يُكتبان من `Stream` ومن نسخته بـ `try_clone` يصلان بالترتيب نفسه.
+- AC4: مهلة القراءة على لينكس: خادم يقبل ولا يكتب، والعميل بـ `set_read_timeout(Some(200 ms))`: `read_line` يعيد خطأً نوعه `ErrorKind::TimedOut` (لا `WouldBlock`) بعد 180 ms إلى 1000 ms. وبـ `None` يُقرأ رد كُتب بعد 300 ms.
+- AC5: لا `std::os::unix::net` في `crates/cli/src` ولا `crates/daemon/src`: `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src` يعيد 0 أسطر. `State::subscribers` من نوع `HashMap<JobId, Vec<transport::Stream>>`، و`sbarhive doctor` (`main.rs:384`) يطبع `endpoint()`.
+- AC6: الخدمة: `bind` يعطي `AlreadyRunning` حين تجيب خدمة على `ping` خلال 500 ms، فتطبع `sbarhived: already running` وتخرج بـ 0، كما اليوم. ملف مقبس قديم لا يجيب يُحذف ثم يُربط.
+- AC7: بذرة ويندوز `transport/windows.rs`: كل دالة فيها تعيد `ErrorKind::Unsupported`، والملف في `exclude_globs`. `cargo clippy -p sbarhive-core --lib` للهدف ويندوز بلا تحذير.
+
+S-022b:
+- AC8: `transport::dacl_sddl(sid) -> String` صافية: `dacl_sddl("S-1-5-21-1-2-3-1001")` تساوي `D:P(A;;GA;;;S-1-5-21-1-2-3-1001)`، ولا تحتوي `WD` ولا `AN` ولا `BU`. `windows.rs` يبني الواصف منها (`ConvertStringSecurityDescriptorToSecurityDescriptorW`) ويمرّره إلى كل `CreateNamedPipeW`.
+- AC9: `transport::bind_result(first_instance_error: Option<u32>) -> BindOutcome` صافية: `None` تعطي استماعاً، و`Some(5)` (`ERROR_ACCESS_DENIED`) تعطي `AlreadyRunning`، وأي رمز آخر خطأً يحمل الرمز نفسه في `raw_os_error()`.
+- AC10: `transport::deadline::read_with_deadline(timeout, read, cancel)` يشغّل خيط مراقب: قراءة وهمية تحجب حتى يُستدعى `cancel` تعيد `ErrorKind::TimedOut` بعد 180 ms إلى 1000 ms لمهلة 200 ms، و`cancel` يُستدعى مرة واحدة بالضبط. قراءة تنتهي خلال 50 ms تعيد بياناتها، و`cancel` يُستدعى 0 مرة، ولا يبقى خيط مراقب حي بعد العودة (عدّاد في الاختبار). على ويندوز `cancel` هو `CancelIoEx` على مقبض الأنبوب.
+- AC11: `transport::connect_plan(results)` صافية لمحاولات الاتصال: `ERROR_FILE_NOT_FOUND` (2) تعطي `NotFound` فوراً دون انتظار، و`ERROR_PIPE_BUSY` (231) تعطي «انتظر بـ `WaitNamedPipeW` ثم أعد» حتى 2000 ms ثم `TimedOut`. ونتيجة التحقق من المالك: SID الخادم مختلف عن SID العميل تعطي `PermissionDenied` ولا يُرسل أي بايت (عدّاد كتابة في الاختبار 0).
+- AC12: أعلام الإنشاء دالتان صافيتان في `transport.rs`: `open_mode(first: bool)` تعطي `0x00080003` للنسخة الأولى (`PIPE_ACCESS_DUPLEX` مع `FILE_FLAG_FIRST_PIPE_INSTANCE`) و`0x3` لما بعدها، فلا تفشل النسخ التالية بـ `ERROR_ACCESS_DENIED`. و`pipe_mode()` تعطي `0x8` (`PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT` قيمتها 0، مع `PIPE_REJECT_REMOTE_CLIENTS`). `windows.rs` يمرّرهما إلى `CreateNamedPipeW`، ويتحقق من كل ثابت وقت الترجمة مقابل `windows_sys` (`const _: () = assert!(...)`)، فيفشل `W` إن اختلفت قيمة. والتحقق من المالك بـ `GetNamedPipeServerProcessId` ثم رمز العملية، و`endpoint()` من `ProcessIdToSessionId` وSID من `GetTokenInformation(TokenUser)`. فحص الاستيراد في الملف التنفيذي للعميل يأتي في S-024 AC6.
+- AC13: لا حزمة جديدة: عدد `[[package]]` في `Cargo.lock` يبقى 671، و`cargo tree --target x86_64-pc-windows-gnu -p sbarhive-core -e normal --depth 1` يسرد `windows-sys v0.61.2` وحده جديداً، و`cargo tree -p sbarhive-core -e normal --depth 1` على لينكس لا يسرده.
+- AC14: `cargo check` و`cargo clippy -p sbarhive-core -p sbarhive-engines --lib` للهدف ويندوز بلا تحذير. `SECURITY.md` يصف الأنبوب (المستخدم وحده، لا عملاء عن بعد) بالإنكليزية والعربية، و`docs/architecture.md` يصف النسخة الواحدة على المنصتين، و`docs/engines.md` يسجّل windows-sys 0.61.2 (MIT OR Apache-2.0).
+
+لكل قصة فرعية:
+- سطر واحد للقصة كلها في `CHANGELOG.md` تحت `[Unreleased]`، بالإنكليزية مع نص عربي بين «»: تضيفه S-022a، وS-022b تعدّل السطر نفسه ولا تضيف غيره.
+- `git diff --stat main...HEAD -- crates/ui` فارغ.
+- `C` على لينكس بلا تحذير. الدوال الصافية التي لا يستدعيها إلا ملف ويندوز `pub` في core، أو عليها `#[cfg_attr(not(windows), allow(dead_code))]`.
+- `M` بلا طفرة ناجية.
+
+## أوامر الفحص
+أدوات القراءة وحدها (`grep` و`file` و`objdump` و`isoinfo`) تعمل خارج النطاق.
+- `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
+- `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p sbarhive-core -p sbarhive-cli -p sbarhive-daemon`
+- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core --lib -- -D warnings` (ويُضاف `-p sbarhive-engines` في S-022b)
+- `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (الملفات المتغيرة وحدها؛ ملفات ويندوز مستثناة بـ `exclude_globs`)
+- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --target x86_64-pc-windows-gnu -p sbarhive-core -e normal --depth 1`
+
+## حالات الاختبار
+| معيار | الاختبار | النوع |
+| --- | --- | --- |
+| AC1، AC3 | `crates/core/tests/transport.rs`: ربط واتصال ورحلة `ping` وترتيب السطرين عبر `try_clone`، و`server_pid()` تساوي `None`؛ `L` | تكامل |
+| AC2، AC8، AC9، AC11، AC12 | وحدة بالقيم الحرفية والرموز 2 و5 و231 وقيم `open_mode` و`pipe_mode`، تحت `M`؛ و`W` يثبت مطابقة الثوابت | وحدة، بناء |
+| AC4، AC10 | وحدة بالأزمنة المذكورة وعدّاد `cancel` وعدّاد الخيوط | وحدة |
+| AC5 | الأمر `grep` المذكور يعيد 0 أسطر؛ `sbarhive doctor` في `crates/cli/tests/cli.rs` يطبع المسار في المجلد المؤقت | مراجعة، تكامل |
+| AC6 | خدمتان على `XDG_RUNTIME_DIR` واحد: الثانية تخرج بـ 0 ونصها `already running`؛ ومقبس قديم يُستبدل | تكامل |
+| AC7، AC14 | `W` بلا تحذير؛ المراجع يقرأ الوثائق الثلاث | بناء، مراجعة |
+| AC13 | `grep -c '^\[\[package\]\]' Cargo.lock` يعطي 671، و`X`، و`cargo tree -p sbarhive-core -e normal --depth 1` داخل النطاق نفسه على لينكس | مراجعة |
+
+تبقى خضراء: `cargo test --workspace`، و`crates/cli/tests/cli.rs` و`settings.rs` بخوادمهما الوهمية على `UnixListener` دون تعديل (دليل أن البروتوكول لم يتغير)، و`tests/e2e/run.sh`.
+
+## تحقق حي مؤجَّل إلى S-034
+- مستخدم ويندوز ثانٍ لا يفتح الأنبوب (`ERROR_ACCESS_DENIED`).
+- اتصال من جهاز آخر عبر `\\<host>\pipe\...` مرفوض.
+- `sbarhived.exe` ثانٍ يخرج بـ 0 فوراً، وعشر نسخ معاً تترك خادماً واحداً.
+- عملية تسبق إلى الاسم بحساب آخر يرفضها العميل.
+- مهلة 10 s في العميل و500 ms في فحص الخدمة تعملان بـ `CancelIoEx`.
+
+## خارج النطاق
+- تشغيل الخدمة وأعلامها و`AllowSetForegroundWindow`: S-024.
+- فحص الخدمة كلها للهدف ويندوز: S-027 (تعتمد على ui).
+- `crates/ui/examples/hive_bench.rs` يبقى على `UnixStream`: S-027.
+
+## سجل المراجعة
+- 2026-10-22، المخطِّط: الواجهة كلها تُثبَّت في S-022a (ومنها `server_pid` و`AlreadyRunning`) حتى لا تعيد S-022b وS-024 فتحها. قرارات ويندوز في دوال صافية تُختبر وتُطفَّر على لينكس، والاستدعاءات الرقيقة في `windows.rs` المستثنى.
