@@ -21,7 +21,32 @@
 #         `hold_ms` and 150; CHANGELOG.md has one line that names `--hold`
 #         or `hold_ms` in English and in Arabic (one line per story, as the
 #         file's other entries are written).
-#   No em dash or en dash in any of these files.
+#   S-021 AC12 (backlog/S-021-drop-only-on-drag.md), on the same sections:
+#     integrations/linux/hyprland/README.md, in one Arabic and in one English
+#     section each, three sentences (a sentence ends at . ! ? or a line
+#     end; inline code is left out):
+#       only      the hive shows only during a drag of files with an action:
+#                 English "only" + "drag..." + "action"; Arabic "فقط" or
+#                 "الا" + "سحب" + "اجراء";
+#       first     the order, start the drag and then hold the key: English
+#                 "start" or "begin" + "drag..." + "then", "first" or
+#                 "before" + "hold" or "press"; Arabic "ابدا" + "سحب" +
+#                 "ثم", "اولا" or "قبل" + "مسك" or "ضغط";
+#       nothing   with no drag, or for a file with no action, nothing shows:
+#                 English "without" or "no" + "drag" + "no action(s)",
+#                 "without an action" or "with no action" + "nothing",
+#                 "never" or "does not show|appear"; Arabic "دون سحب",
+#                 "بلا سحب" or "من غير سحب" + "بلا اجراء", "دون اجراء",
+#                 "ليس له اجراء" or "لا اجراء" + "لا يظهر", "لا تظهر" or
+#                 "لا شيء".
+#     docs/architecture.md: one section names the `Probing` state, the
+#     `hive reveal` and `hive probe` lines, a hidden catcher ("hidden" and
+#     "catcher" in one sentence) and all five hide reasons as words:
+#     pointer, no-uri-list, no-actions, release and cap.
+#   S-021 AC11: CHANGELOG.md, under "## [Unreleased]" (up to the next "## ["
+#   heading), one line that names S-021 (or S-021a, b, c) with Arabic and
+#   English text, as the file's other entries are written.
+#   No em dash or en dash in any of these files, nor in tests/drop/README.md.
 # Usage: tests/drop/hold_docs.sh
 # shellcheck disable=SC2016,SC2034
 set -u
@@ -56,12 +81,41 @@ KEYS = {
     "unverified": re.compile(r"not verified|unverified|assumed|مفترض|غير متحقق", re.I),
     "hold_ms": re.compile(r"hold_ms"),
     "range": re.compile(r"(?s)(?=.*(?<!\d)400(?!\d))(?=.*(?<!\d)100(?!\d))(?=.*(?<!\d)2000(?!\d))"),
+    "probing": re.compile(r"\bProbing\b"),
+    "reveal-line": re.compile(r"\bhive reveal\b"),
+    "probe-line": re.compile(r"\bhive probe\b"),
+    "reasons": re.compile(r"(?s)" + "".join(r"(?=.*(?<![\w-])" + w + r"(?![\w-]))" for w in ("pointer", "no-uri-list", "no-actions", "release", "cap"))),
+}
+# S-021 AC12: keys met by one sentence of the prose, every pattern of one
+# list (English patterns ignore case).
+W = lambda w: r"(?<!\S)(?:" + w + r")(?!\S)"
+SENT = {
+    "only": [
+        [r"\bonly\b", r"\bdrag", r"\baction"],
+        [W("فقط|الا"), r"سحب", r"اجراء"],
+    ],
+    "first": [
+        [r"\b(start|begin)\b", r"\bdrag", r"\b(then|first|before)\b", r"\b(hold|press)"],
+        [W("ابدا"), r"سحب", W("ثم|اولا|قبل"), r"مسك|ضغط"],
+    ],
+    "nothing": [
+        [r"\b(without|no)\b[^,;]{0,20}\bdrag", r"\bno actions?\b|\bwithout an action\b|\bwith no action\b",
+         r"\bnothing\b|\bnever\b|\bdoes not (show|appear)\b"],
+        [W("دون|بلا|من غير") + r" (?:ال)?سحب", W("بلا|دون|لا|ليس له") + r" (?:اي )?اجراء", r"لا (?:يظهر|تظهر)|لا شيء"],
+    ],
+    "hidden-catcher": [
+        [r"\bhidden\b", r"\bcatcher"],
+    ],
 }
 for i, body in enumerate(parts):
     head = heads[i - 1] if i > 0 else ""
     prose = re.sub(r"(?s)```.*?```|`[^`]*`", "", head + "\n" + body)
     lang = "ar" if len(AR.findall(prose)) > len(LAT.findall(prose)) else "en"
     found = [k for k, r in KEYS.items() if r.search(body)]
+    sentences = re.split(r"[.!?؟](?:\s|$)|\n", prose)
+    for k, lists in SENT.items():
+        if any(all(re.search(p, t, re.I) for p in pats) for pats in lists for t in sentences):
+            found.append(k)
     for k in found:
         print(lang, k, head.strip())
 PY
@@ -96,7 +150,16 @@ check "S-019 AC23: docs/architecture.md names hold_ms and drop --hold" 'grep -q 
 check "S-019 AC20/AC23: ADR 0003 names hold_ms and the 150 ms budget" 'grep -q "hold_ms" "$ADR" && grep -q "150" "$ADR"'
 check "S-019 AC23: CHANGELOG.md has a line for the long press (--hold or hold_ms) in English and in Arabic" \
   'grep -E -- "--hold|hold_ms" "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
-check "S-019 AC22/AC23: no em dash or en dash in these files" \
-  '! grep -nP "\x{2014}|\x{2013}" "$HYPR" "$README" "$ARCH" "$ADR" "$LOG"'
+for lang in ar en; do
+  name=$([ $lang = ar ] && echo Arabic || echo English)
+  check "S-021 AC12: Hyprland README, one $name section says the hive shows only during a drag of files with an action, to start the drag first and then hold the key, and that with no drag or for a file with no action nothing shows" \
+    'has "$HYPR" $lang only first nothing'
+done
+check "S-021 AC12: docs/architecture.md, one section describes the probe: the Probing state, the hidden catcher, the \"hive reveal\" and \"hive probe\" lines and the five hide reasons (pointer, no-uri-list, no-actions, release, cap)" \
+  'has "$ARCH" en probing hidden-catcher reveal-line probe-line reasons'
+check "S-021 AC11: CHANGELOG.md has a line under [Unreleased] that names S-021 in English and in Arabic" \
+  'awk "/^## \\[Unreleased\\]/ { u = 1; next } /^## \\[/ { u = 0 } u" "$LOG" | grep -E "S-021" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
+check "S-019 AC22/AC23, S-021 AC12: no em dash or en dash in these files" \
+  '! grep -nP "\x{2014}|\x{2013}" "$HYPR" "$README" "$ARCH" "$ADR" "$LOG" "$HERE/README.md"'
 if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 [ "$FAILS" -eq 0 ]

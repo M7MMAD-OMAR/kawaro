@@ -679,6 +679,12 @@ for c in json.load(sys.stdin):
     say "INFO S-021 AC3 timeout drag: probe lines $tall (reveal $trev); Esc drag: probe lines $eall (reveal $erev)"
     check "S-021 AC3 timeout and Esc drags: each prints exactly one probe line, \"hive reveal: N\"" \
       '[ "$tall" -eq 1 ] && [ "$trev" -eq 1 ] && [ "$eall" -eq 1 ] && [ "$erev" -eq 1 ]'
+    # S-021 AC8 (the owner's budget, question 1): the four revealed shows
+    # (AC9 (3), cell, timeout, Esc) are visible, the hive's first attach, at
+    # most 150 ms after the drag's first enter on the catcher, by the
+    # daemon's trace timestamps.
+    reveal_budget "AC9 (3), cell, timeout and Esc drags" 4 \
+      "$(reveal_ms "${seg94:-}")" "$(reveal_ms "$CELL_SEG")" "$(reveal_ms "$TIMEOUT_SEG")" "$(reveal_ms "$ESC_SEG")"
 
     # S-021 AC6: a drag the hive has nothing for. no_drop KIND sets NSEG (the
     # show's trace), NNEW (files new in the work folder) and NAFTER (a new drag

@@ -755,6 +755,14 @@ inner() {
   done
   echo "INFO S-021 AC3 shows 6 to $(( ${#MARKS[@]} - 1 )): shows without exactly one \"hive reveal\" line: ${bad3:-none}"
   check "S-021 AC3 shows 6 to 13: each prints exactly one probe line, \"hive reveal: N\"" '[ "${#MARKS[@]}" -ge 14 ] && [ -z "$bad3" ]'
+  # S-021 AC8 (the owner's budget, question 1): in each of the 13 revealed
+  # shows the hive is visible (its first attach) at most 150 ms after the
+  # drag's first enter on the catcher, by the daemon's trace timestamps.
+  local rdts=()
+  for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
+    rdts+=("$(reveal_ms "$(sed -n "$((MARKS[i] + 1)),$((MARKS[i + 1]))p" "$DLOG")")")
+  done
+  reveal_budget "shows 1 to 13" 13 "${rdts[@]}"
   no_action_cycle
   hold_cycles
   window_waiting

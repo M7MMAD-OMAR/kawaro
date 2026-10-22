@@ -345,3 +345,35 @@ probe_checks() {
       '[ "$att" -eq 0 ] && [ "$catt" -ge 1 ]'
   fi
 }
+
+# reveal_ms SEG (S-021 AC8): for one revealed drop show, the ms by the
+# trace's timestamps from the first wl_data_device.enter naming the catcher
+# to the first attach(wl_buffer) on the hive subsurface (the first frame a
+# user can see; the catcher and subsurface as in probe_show). Negative when
+# the attach comes first, "none" when either line is missing.
+reveal_ms() {
+  local seg=$1 cat child e a
+  cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  [ -n "$cat" ] && [ -n "$child" ] || { echo none; return; }
+  e=$(grep -m1 -E -- "^\[[0-9:.]+\] wl_data_device[#@][0-9]+\.enter\([0-9]+, ${cat}, " <<<"$seg")
+  a=$(grep -m1 -E -- "-> ${child}\.attach\(wl_buffer" <<<"$seg")
+  [ -n "$e" ] && [ -n "$a" ] || { echo none; return; }
+  awk -v a="$(trace_ms "$e")" -v b="$(trace_ms "$a")" 'BEGIN { if (a == "" || b == "") print "none"; else printf "%.1f\n", b - a }'
+}
+
+# reveal_budget NAME WANT DT...: the S-021 AC8 check over the revealed shows
+# of one script. WANT is the number of revealed shows the script makes; each
+# DT (reveal_ms of one show) must be a number from 0 to 150 ms, so a show
+# with no enter or no attach, or one left out, fails the check.
+reveal_budget() {
+  local name=$1 want=$2 ok=0 dt worst=none n; shift 2
+  n=$#
+  for dt in "$@"; do
+    within_ms "$dt" 150 && ok=$((ok + 1))
+    if [ "$dt" != none ] && { [ "$worst" = none ] || awk -v d="$dt" -v w="$worst" 'BEGIN { exit !(d + 0 > w + 0) }'; }; then worst=$dt; fi
+  done
+  echo "INFO S-021 AC8 $name: ms from the first wl_data_device.enter on the catcher to the hive's first attach, per revealed show: $* (worst ${worst}, within 0 to 150 ms: $ok of $want)"
+  check "S-021 AC8 $name: in every revealed show ($want) the hive's first attach comes at most 150 ms after the first wl_data_device.enter on the catcher, by the daemon's trace timestamps" \
+    '[ "$n" -eq "$want" ] && [ "$ok" -eq "$want" ]'
+}

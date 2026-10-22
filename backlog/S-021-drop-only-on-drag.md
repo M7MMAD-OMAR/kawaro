@@ -240,3 +240,50 @@
   - ملاحظات غير حاجبة: (أ) `lib.rs:714-717`: ظهور إفلات جديد فوق ظهور في `Probing` يمر بـ `inner.close()` فتُعاد الآلة دون سطر، فالظهور المستبدَل لا يطبع شيئاً. لا يصله مسار الضغط المطوّل (الترك ينهي الفحص أولاً) ولا أي فحص، بل `drop --at` ثانٍ خلال الفحص فقط؛ يمكن أن تنظر فيه S-022. (ب) `URI_LIST_OFFERED` (`receiver.rs:94`) لا يُعاد لكل ظهور، وهو آمن لأن `Reject` يأتي دائماً بعد ملاحظة `Enter` التي تضبطه (`receiver.rs:318`). (ج) `release()` (`receiver.rs:174`) لا يحرّر جهازاً من الإصدار 1، فقد يصل منه `leave` يمحو حالة الجهاز الجديد؛ سلوك قائم قبل هذه القصة، وKWin وHyprland يقدّمان الإصدار 3.
   - اللقطة: المرجع والمرشّح الجديد `tests/drop/out/drop-en-light-waiting.png` متطابقان بالعين (393 × 362، الخلية المركزية «Drop files here»، بلا ظل ولا تدرج)، وبالفحص 0 % فرق.
   - لا نص واجهة جديد ولا عنصر تفاعلي جديد (أسطر السجل للتشخيص فقط). الأسلوب يطابق ما حوله، ولا شرطة طويلة في الملفات المتغيرة. لم يُضف سطر CHANGELOG.md لأنه من AC11 في S-021c، والميزانية AC8 والتوثيق كذلك. غياب حركة الفتح عند الكشف مسجّل لـ S-022 وليس سبباً للإعادة.
+- 2026-10-22، المختبِر (S-021c: AC8 وAC11 وAC12): كُتبت الفحوص من المعايير وجدول الحالات وموافقة محمد على السؤال 1، دون قراءة شيفرة الميزة. شُغّلت على بناء main ‏(62a013a، `cargo build --release` جديد) داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` بـ `CARGO_BUILD_JOBS=2`، وكل مؤلِّف خاص وحده (KWin ‏`--virtual` ثم Hyprland 0.56.2 متداخل، بـ HOME مؤقت)، ولا سطح المكتب الحي.
+  - الملفات: `tests/drop/layer.sh` (‏`reveal_ms` و`reveal_budget`)، و`tests/drop/kwin.sh` و`tests/hyprland/repro.sh` (فحص AC8 لكل ظهور ظاهر)، و`tests/drop/budget.sh` (الوضعان)، و`crates/ui/tests/measure.sh` (أسطر الملخص الجديدة فقط)، و`tests/drop/hold_docs.sh` (‏AC11 وAC12)، و`tests/drop/README.md` (البند الإضافي: المرجع الجديد على مسار الطبقة).
+  - العقد الذي تثبّته الفحوص (لا يُعدَّل):
+    - AC8، الشق الأول: «ظاهر» كما في S-021b: أول `-> wl_surface#C.attach(wl_buffer` على السطح الفرعي للخلية (C من `get_subsurface`). الزمن بطوابع أثر الخدمة من أول `wl_data_device.enter` يسمّي الماسك إلى ذلك `attach`، بين 0 و150 ms شاملاً، في كل ظهور ظاهر: أربعة في `repro.sh` على مسار الطبقة (‏AC9 (3) و`cell` و`timeout` و`esc`، ويجري في `--json` و`--json --quasimode`)، وثلاثة عشر في `tests/drop/kwin.sh level=1` (الظهورات 1 إلى 13). ظهور بلا `enter` أو بلا `attach`، أو عدد ظهورات أقل، يُفشل الفحص.
+    - AC8، الشق الثاني (`budget.sh`): ظهور المقياس دون سحب لا يُرسم بعد اليوم، فالمرجع «جاهزية الماسك» كما في S-021b (`catcher_ready`): أول `commit` على الماسك بعد أول `configure` لسطح طبقته. اختير هذا لا أول `commit` مطلقاً لأن الـ `commit` الأول قبل `configure` بلا مخزن، ولأنه الأبكر فلا يوفي بالمعنى، والمتأخر يوفي بالقراءتين. ‏`hive_bench` (شيفرة المنفِّذ في `crates/ui/examples/`) يطبع بدل `first_frame_ms`:
+      - `show --drop`: ‏`mode=drop catcher_ms=A`، وA من وصول سطر الطلب إلى جاهزية الماسك.
+      - `show --drop --hold`: ‏`mode=hold hold_ms=400 catcher_ms=A press_to_catcher_ms=B`، وA من انقضاء العتبة (عرض البوابة) إلى جاهزية الماسك، وB من الطلب، وB ناقص A بين 400 و450.
+      - في الوضعين: سطر `hive surface: layer` واحد لكل ظهور، ولا `hive focus: true`، ولا سطر `hive reveal:` (لا سحب يدخل)، ووسيط `catcher_ms` الدافئ لعشرين ظهوراً أقل من 150 ms. ‏`measure.sh` يطبع `warm catcher_ms median` و`max` و`warm press_to_catcher_ms median`.
+    - AC12 (‏`hold_docs.sh`، الأقسام والتطبيع كما في S-019: بلا تشكيل، وأ إ آ تُقرأ ا). في `integrations/linux/hyprland/README.md`، في قسم عربي واحد وقسم إنكليزي واحد، ثلاث جمل (الجملة تنتهي عند . ! ? ؟ أو نهاية السطر، دون الشيفرة المضمّنة):
+      - only: الإنكليزية `only` و`drag...` و`action`؛ العربية `فقط` أو `الا` و`سحب` و`اجراء`.
+      - first: الإنكليزية `start` أو `begin` و`drag...` و`then` أو `first` أو `before` و`hold` أو `press`؛ العربية `ابدا` و`سحب` و`ثم` أو `اولا` أو `قبل` و`مسك` أو `ضغط`.
+      - nothing: الإنكليزية `without` أو `no` قبل `drag`، و`no action(s)` أو `without an action` أو `with no action`، و`nothing` أو `never` أو `does not show|appear`؛ العربية `دون سحب` أو `بلا سحب` أو `من غير سحب`، و`بلا اجراء` أو `دون اجراء` أو `لا اجراء` أو `ليس له اجراء`، و`لا يظهر` أو `لا تظهر` أو `لا شيء`.
+      - وفي `docs/architecture.md` قسم واحد يسمّي `Probing` و`hive reveal` و`hive probe`، وجملة فيها `hidden` و`catcher`، والأسباب الخمسة كلمات: `pointer` و`no-uri-list` و`no-actions` و`release` و`cap`.
+      - مثال ينجح (جُرّب على نسخة مؤقتة حُذفت): «تظهر الخلية فقط أثناء سحب ملفات لها إجراء واحد على الأقل. ابدأ السحب أولاً، ثم أمسك المفتاح. دون سحب، أو لملف بلا إجراء، لا يظهر شيء.» و«The hive shows only during a drag of files with at least one action. Start the drag first, then hold the key. Without a drag, or for a file with no action, nothing shows.» وحذف «ثم أمسك المفتاح» من العربية وحده يُفشل فحص القسم العربي.
+    - AC11: في `CHANGELOG.md` تحت `## [Unreleased]` (حتى عنوان `## [` التالي) سطر يسمّي `S-021` بنص عربي وإنكليزي. وفحص الشرطة الطويلة يشمل الآن `tests/drop/README.md`.
+  - `tests/drop/README.md` عدّله المختبِر (ملف اختبار، والمنفِّذ ممنوع من `tests/`): المرجع «أول إطار» صار جاهزية الماسك في فقرة مسار الطبقة والقرار 12، ولقطة الانتظار صارت على مسار النافذة، وأوضاع `tests/overlay/kwin.sh drop` كما صارت في S-021b، و`hidden (cap)` لـ Esc قبل الدخول، وحقول `budget.sh` الجديدة، وقسم S-021. لا فحص له.
+  - ما ينجح قبل التنفيذ ولماذا: الشق الأول من AC8 كله، لأن S-021b نفّذ الكشف عند الدخول: `repro.sh` ‏2.7 و2.6 و4.0 و3.9 ms (‏`--quasimode`: 4.0 و2.7 و2.5 و3.5)، و`kwin.sh` ‏16.1 و2.3 و2.5 و3.7 و2.4 و2.5 و2.9 و3.8 و2.7 و2.3 و3.2 و3.2 و2.5 ms. ليس فارغاً: على سجل KWin سابق، حذف ظهور واحد من القائمة (12 من 13) أفشله، والظهورات المخفية تعطي `none` فتُفشله. وفي `budget.sh` تنجح حراس قائمة (عدد الظهورات، وسطح طبقة لكل ظهور، ولا لوحة مفاتيح) وفحص «لا `hive reveal:`». وفي `hold_docs.sh` فحوص S-019 الأحد عشر وفحص الشرطة الطويلة.
+  - مخرجات الفشل (بناء main):
+    ```
+    $ tests/drop/budget.sh 20 1
+    INFO first show after daemon start: Error: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }
+    INFO drop: shows 21 (warm 20), mode=drop lines with catcher_ms 0, hive surface layer 21 window 0, hive focus: true 0, hive reveal 0, median none ms
+    FAIL AC12, S-021 AC8: every show line says mode=drop with catcher_ms (hive_bench show --drop)
+    FAIL AC12, S-021 AC8: median warm catcher_ms of drop-mode shows, from the request to the catcher's ready commit, under 150 ms
+    RESULT FAIL (2)   (4 PASS)
+    $ tests/drop/budget.sh 20 1 hold
+    INFO hold: shows 21 (warm 20), mode=hold hold_ms=400 lines with catcher_ms and press_to_catcher_ms 0, threshold span lines 0, hive surface layer 21 window 0, hive focus: true 0, hive reveal 0, median from the threshold none ms, median from the press none ms
+    FAIL S-019 AC20, S-021 AC8: every show line says mode=hold and hold_ms=400 with catcher_ms and press_to_catcher_ms (hive_bench show --drop --hold)
+    FAIL S-019 AC20, S-021 AC8: in every show the time from the press is the threshold plus the time from its end (press_to_catcher_ms - catcher_ms 400 to 450)
+    FAIL S-021 AC8: median warm catcher_ms of hold shows, from the end of the threshold to the catcher's ready commit, under 150 ms
+    RESULT FAIL (3)   (4 PASS)
+    $ tests/drop/hold_docs.sh
+    FAIL S-021 AC12: Hyprland README, one Arabic section says the hive shows only during a drag of files with an action, to start the drag first and then hold the key, and that with no drag or for a file with no action nothing shows
+    FAIL S-021 AC12: Hyprland README, one English section says ... (as above)
+    FAIL S-021 AC12: docs/architecture.md, one section describes the probe: the Probing state, the hidden catcher, the "hive reveal" and "hive probe" lines and the five hide reasons (pointer, no-uri-list, no-actions, release, cap)
+    FAIL S-021 AC11: CHANGELOG.md has a line under [Unreleased] that names S-021 in English and in Arabic
+    RESULT FAIL (4)   (12 PASS)
+    $ tests/drop/kwin.sh level=1
+    RESULT PASS   (339 PASS، منها S-021 AC8 shows 1 to 13)
+    $ tests/hyprland/repro.sh --json
+    {"total": 40, "failed": 0, "skipped": 0}
+    $ tests/hyprland/repro.sh --json --quasimode
+    {"total": 47, "failed": 0, "skipped": 0}
+    ```
+  - سبب فشل `budget.sh`: ‏`hive_bench` ينتظر أول إطار (`after_next_frame`)، وظهور الإفلات على مسار الطبقة دون سحب لا يرسم إطاراً منذ S-021b، فتنقضي مهلة القراءة (10 ثوانٍ) في كل ظهور ولا يُطبع `catcher_ms`. هذا المرجع الذي أسقطه AC8، والإصلاح في المقياس لا في السكربت.
+  - المجاميع الجديدة لـ AC11: `repro.sh --json` ‏40 (كانت 39)، و`--quasimode` ‏47 (كانت 46)، و`tests/drop/kwin.sh level=1` ‏339 PASS (كانت 338). لم تتغير `tests/drop/layer.sh` في الفحوص القائمة، ولا `tests/overlay/kwin.sh` (AC8 لا يسمّيه).
+  - ما لم يُختبر: (1) الطفرات وبوابات CLAUDE.md الكاملة من AC11 للمراجِع، ولم يُشغَّل `cargo mutants` هنا. (2) قيمة `catcher_ms` التي يطبعها المقياس لا تُقارن بطوابع الأثر (‏`budget.sh` بلا `WAYLAND_DEBUG` حتى لا يبطئ الظهور)؛ صحة مرجعها مسؤولية المنفِّذ، ويقرؤها المراجِع في `hive_bench.rs`. (3) لم يُشغَّل `tests/overlay/kwin.sh` ولا `tests/drop/window_path.sh` ولا `tests/drop/kwin.sh shortcut` لأن S-021c لم يغيّر فحوصها؛ يشغّلها المراجِع ضمن AC11.

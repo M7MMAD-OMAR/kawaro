@@ -18,10 +18,11 @@ tests/drop/kwin.sh             # KWin, focus stealing prevention Low (level=1)
 tests/drop/gnome.sh            # Mutter, focus-new-windows=smart
 tests/drop/kwin.sh shortcut    # S-014d AC11: Super+Z mid-drag, Esc
 tests/drop/gnome.sh shortcut
-tests/drop/budget.sh           # S-014d AC12: drop-mode first frame, 20 shows
+tests/drop/budget.sh           # S-014d AC12, S-021 AC8: drop-mode catcher ready, 20 shows
 tests/drop/docs.sh             # S-014d AC12: binding docs, no compositor
-tests/drop/budget.sh 20 1 hold # S-019e AC20: hold-mode first frame from the threshold
-tests/drop/hold_docs.sh        # S-019 AC16, AC22, AC23: docs, no compositor
+tests/drop/budget.sh 20 1 hold # S-019e AC20, S-021 AC8: hold-mode catcher ready from the threshold
+tests/drop/hold_docs.sh        # S-019 AC16, AC22, AC23, S-021 AC11, AC12: docs, no compositor
+tests/drop/window_path.sh      # S-021 AC10: gnome.sh smart and overlay/gnome.sh unchanged
 ```
 
 Each prints `PASS`/`FAIL` lines, ends with `RESULT PASS` or `RESULT FAIL (n)`,
@@ -56,10 +57,14 @@ the show's `get_layer_surface` (the daemon runs with
 `SBARHIVE_DEBUG_FOCUS=1`), counts it shown while there are more
 `get_layer_surface` than `zwlr_layer_surface_v1.destroy` requests, and takes
 the show's new surface from `get_layer_surface`. In each show the drag
-stands still for at least 400 ms after the hive is mapped, then moves to the
-hive's centre: with no position within 300 ms of the first frame the catcher
-takes only the centred hive rectangle and the hive never moves (S-019,
-manager decision 12), and the drag enters it there. It then runs the
+stands still for at least 400 ms after the catcher is mapped, then moves to
+the hive's centre: with no position within 300 ms of the catcher's ready
+commit the catcher takes only the centred hive rectangle and the hive never
+moves (S-019, manager decision 12), and the drag enters it there. The ready
+commit is the catcher's first `commit` after the first `configure` of its
+layer surface (`catcher_ready` in `layer.sh`, S-021 AC4): a drop show on the
+layer path draws no hive until the drag enters, so there is no first frame
+to count from. It then runs the
 checks in `layer.sh` (S-018d AC13, revised by S-020 AC1 and AC2 and by S-019
 AC8 and AC9) for each show: keyboard interactivity 0; the catcher's default
 input region until the first position (the first pointer or drag enter on
@@ -67,19 +72,24 @@ it), then a region of exactly the hive rectangle; with
 `sbarhive drop --at X,Y` that rectangle before the catcher's first commit;
 with no position (the drag standing still, no `--at`, decision 12) that
 rectangle as the catcher's first region, with no enter on it before, at most
-400 ms after the first frame by the trace timestamps, and as its last region;
-after a first position, the switch at most 400 ms after the first frame;
+400 ms after the catcher's ready commit by the trace timestamps, and as its
+last region; after a first position, the switch at most 400 ms after the
+catcher's ready commit;
 no typed `accept`, no `receive` and no `drop cells:` line before the switch,
 and one `drop cells:` line per show; an empty input region on the hive
 subsurface; one `get_data_device` after `get_layer_surface` with every
 earlier data device released first; and the drag's first `enter` on this
 show's data device naming the catcher, at a point inside the hive rectangle. GNOME stays on the window
 path (`get_xdg_surface`). `tests/overlay/kwin.sh drop` runs the same
-`layer.sh` checks without a drag, plus a click at (100, 700), after the
-show's `hive anchor` line, that must reach the window below while the hive
-stays, with no pointer enter on the catcher outside the hive after that line
-and no button; and in its second show a press with no motion on the catcher
-that must not close the hive.
+`layer.sh` checks (S-021: KWin sends `wl_pointer.enter` to a catcher bound
+under a still pointer, which hides a drop show with no drag): its first and
+third shows are a held PNG drag; its second has no drag and a press with no
+motion, and must print `hive probe: hidden (pointer)` with one destroy
+within 500 ms of that enter and nothing drawn; its fourth is
+`sbarhive drop --at 640,400` with the pointer at (100, 700), where a click
+must reach the window below once, with no pointer enter on the catcher
+outside the hive and no button, while the catcher stays until its 10 s
+bound (`hidden (cap)`) and draws nothing.
 
 S-019d adds six shows to `kwin.sh` with the drag held at P (S-019 AC10 and
 the manager's decision 1): a 1 px drag motion around (400, 500) from before
@@ -109,17 +119,24 @@ with `SBARHIVE_DEBUG_FOCUS=1`.
   PNG and PDF lists must be non-empty and differ.
 - AC9, AC10 (KWin only; the window path draws the same component, S-018 AC7):
   the daemon runs with `SBARHIVE_COLOR_SCHEME=light` and
-  `SBARHIVE_REDUCED_MOTION=1`. In show 1, a ScreenShot2 shot is taken while
-  the hive waits (before enter) and one while the drag is over the WEBP cell
+  `SBARHIVE_REDUCED_MOTION=1`. In show 1, a ScreenShot2 shot is taken before
+  the drag enters and one while the drag is over the WEBP cell
   (`tests/overlay/shot.py`, started in the background because it writes its
-  PNG only after 5 s). `pixels.py` checks the centre shows text-primary ink
-  before enter (the waiting text), the WEBP cell is `color.light.accent` and
-  the ring 1 cell across the centre is `surface-2` with no accent. The hive's
-  box of each shot is written to `out/drop-en-light-waiting.png` and
-  `out/drop-en-light-over.png` and compared (0.1 % of pixels or less, 8
-  levels) with `snapshots/drop-en-light-waiting.png` and
-  `snapshots/drop-en-light-over.png`. A missing reference is a FAIL: the owner
-  approves a candidate from `out/` and it is copied to `snapshots/`.
+  PNG only after 5 s). Since S-021 the layer path draws nothing before the
+  enter: the shot before it must have no `text-primary`, `surface-2` or
+  `surface-3` pixel in the hive's box (guarded by a shot of the source window
+  alone). Over the WEBP cell `pixels.py` checks the cell is
+  `color.light.accent` and the ring 1 cell across the centre is `surface-2`
+  with no accent; that box is written to `out/drop-en-light-over.png` and
+  compared (0.1 % of pixels or less, 8 levels) with
+  `snapshots/drop-en-light-over.png`. The waiting text (AC10) is checked on
+  the window path (S-021 question 4): after the long press cycles `kwin.sh`
+  restarts the daemon with `SBARHIVE_SURFACE=window`, holds a PNG drag still
+  under the waiting hive, checks text-primary ink in the centre, no cell and
+  no S-021 line, and compares the crop of the `hive surface: window`
+  rectangle with `snapshots/drop-en-light-waiting.png`. A missing reference
+  is a FAIL: the owner approves a candidate from `out/` and it is copied to
+  `snapshots/`.
 - `source.py` uses a one pixel transparent drag icon, so the shots show the
   hive only.
 
@@ -149,14 +166,17 @@ WEBP cell: the binding ran once, the hive appeared, `<name>.webp` is written,
 - before the drag enters the hive: the compositor cancels the drag at the
   source and nothing reaches the hive (on the KWin layer path the hive takes
   no keyboard in drop mode, S-018 AC13; on GNOME Mutter's drag grab takes
-  Esc), so it closes by its 10 s timeout (checked within 12 s).
+  Esc), so it closes by its 10 s timeout (checked within 12 s); on the layer
+  path that hidden catcher prints `hive probe: hidden (cap)` (S-021).
 
 On KWin no `wl_keyboard` enter or key may reach the daemon in those shows.
 
 `budget.sh` runs `crates/ui/tests/measure.sh 20 1` with `DROP=1`
 (`hive_bench show --drop`): every show line must say `mode=drop`, every show
 is a layer surface that takes no keyboard (no `hive focus: true`), and the
-median warm first frame is under 150 ms. `docs.sh` checks the GNOME, KDE and
+median warm time is under 150 ms. Since S-021 AC8 that time is `catcher_ms`,
+from the request to the catcher's ready commit (no drag enters the bench's
+show, so the hive is never drawn and no `hive reveal:` line may appear). `docs.sh` checks the GNOME, KDE and
 Hyprland binding sections in `docs/`, in Arabic and in English.
 
 ## S-019e and S-019f: the long press and the preview
@@ -182,9 +202,35 @@ would pass on a rejected option. `gnome.sh` adds show 6 (the seeded
 thumbnail, `thumb W H`) and `preview_checks`.
 
 `budget.sh 20 1 hold` runs `measure.sh` with `DROP=1 HOLD=1`: every show
-line says `mode=hold hold_ms=400`, `press_to_frame_ms` is `first_frame_ms`
-plus 400 to 450 ms, and the median `first_frame_ms` (from the end of the
-threshold) is under 150 ms.
+line says `mode=hold hold_ms=400`, `press_to_catcher_ms` is `catcher_ms`
+plus 400 to 450 ms, and the median `catcher_ms` (from the end of the
+threshold to the catcher's ready commit, S-021 AC8; it was `first_frame_ms`
+before S-021) is under 150 ms.
+
+## S-021: the drop hive only for a drag of files with an action
+
+On the layer path a drop show binds a hidden catcher and draws the hive only
+once a drag of files with an action enters it. With `SBARHIVE_DEBUG_FOCUS`
+the daemon prints exactly one of these lines per drop show there:
+`hive reveal: N` (N the ids of the `drop cells:` line before it) or
+`hive probe: hidden (R)`, R one of `pointer`, `no-uri-list`, `no-actions`,
+`release` and `cap`. `layer.sh` reads them per show (`probe_checks`): one
+line, no `attach` on the hive subsurface before a reveal or in a hidden
+show, and the hive's first `attach` after the drag's first
+`wl_data_device.enter` on the catcher. `kwin.sh` checks shows 1 to 13 that
+way, a drag of `notes.unknownext` (no action, `hidden (no-actions)`) and
+the long press release (`hidden (release)`); `tests/hyprland/repro.sh`
+adds the cases with no drag (`hidden (pointer)`, `hidden (release)`), a
+text drag (`source.py` line `text:WORDS`, `hidden (no-uri-list)`) and the
+cycle of AC9. AC8: in every revealed show of `repro.sh` (four) and of
+`kwin.sh` level=1 (13) the hive's first `attach` comes at most 150 ms after
+that first enter, by the trace timestamps (`reveal_ms` and `reveal_budget`
+in `layer.sh`). `window_path.sh` runs `gnome.sh smart` and
+`tests/overlay/gnome.sh` unchanged and finds no probe or reveal line in
+their logs (AC10). `hold_docs.sh` checks the Hyprland README, in Arabic and
+English, for the hive showing only during a drag of files with an action,
+the drag starting first, and nothing shown otherwise, `docs/architecture.md`
+for the probe and its five reasons, and the CHANGELOG line (AC11, AC12).
 
 ## Input
 

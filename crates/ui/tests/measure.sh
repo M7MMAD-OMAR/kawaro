@@ -21,6 +21,12 @@
 #             end (the gate's show) to the first frame, and
 #             "press_to_frame_ms=B" from the request to the first frame
 #             (B is the threshold plus A).
+#   S-021 AC8: a drop show on the layer path draws nothing until a drag
+#             enters, so with DROP=1 (and HOLD=1) hive_bench prints
+#             "catcher_ms=A" (to the catcher's ready commit, its first
+#             commit after its first configure) instead of first_frame_ms,
+#             and with HOLD=1 "press_to_catcher_ms=B"; the summary adds
+#             their warm medians and the warm catcher_ms max.
 #   PREVIEW=1 every show presents one selected file whose only thumbnail is a
 #             1024 px "xx-large" one (S-018 AC27): the file and the thumbnail
 #             are made in this script's sandbox (tests/overlay/thumbs.py), and
@@ -105,6 +111,9 @@ echo "cold exec_to_frame_ms median $(grep '^cold ' "$OUT/result.txt" | grep -o '
 echo "first show after daemon start: $(grep '^first ' "$OUT/result.txt" | cut -d' ' -f2-)"
 echo "warm first_frame_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o 'first_frame_ms=[0-9.]*' | cut -d= -f2 | median)"
 echo "warm first_frame_ms max $(grep '^warm ' "$OUT/result.txt" | grep -o 'first_frame_ms=[0-9.]*' | cut -d= -f2 | sort -n | tail -1)"
+echo "warm catcher_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o '\bcatcher_ms=[0-9.]*' | cut -d= -f2 | median)"
+echo "warm catcher_ms max $(grep '^warm ' "$OUT/result.txt" | grep -o '\bcatcher_ms=[0-9.]*' | cut -d= -f2 | sort -n | tail -1)"
+[ -n "${HOLD:-}" ] && echo "warm press_to_catcher_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o 'press_to_catcher_ms=[0-9.]*' | cut -d= -f2 | median)"
 [ -n "${HOLD:-}" ] && echo "warm press_to_frame_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o 'press_to_frame_ms=[0-9.]*' | cut -d= -f2 | median)"
 grep '^rss_kb' "$OUT/result.txt"
 echo "raw output: $OUT/result.txt"
