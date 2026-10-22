@@ -5,7 +5,7 @@ Date: 2026-10-20
 
 ## Context
 
-The owner wants a new interaction: the user starts dragging a file in the file manager, presses a shortcut of their choice while still dragging, the hive appears, and dropping the file on a cell runs its action. Does this work on Wayland in GNOME, KDE and Hyprland, then X11, and what is the simplest route?
+The maintainer wants a new interaction: the user starts dragging a file in the file manager, presses a shortcut of their choice while still dragging, the hive appears, and dropping the file on a cell runs its action. Does this work on Wayland in GNOME, KDE and Hyprland, then X11, and what is the simplest route?
 
 The spike in `spikes/drop/` ran only in private headless compositors (KWin 6.7.5 virtual, GNOME Shell 50.5 headless), isolated as in `tests/e2e/run.sh`. The drag source was a GTK 4 window that offers copy and move like a file manager.
 
@@ -61,7 +61,7 @@ Still open:
 
 ## Amendments
 
-### S-019 (2026-10-21, manager decision delegated by Mohammad)
+### S-019 (2026-10-21, manager decision)
 
 - **Holding the key:** `sbarhive drop --hold` keeps the drop hive while the key is held, and `sbarhive drop --release` closes it when the key is let go. The drag leaving the hive does not close it while the key is held; it closes on drop or release. A 10 s timeout with no enter stays as a safety net. A press without `--hold` behaves as in S-014. Implemented in S-019e.
 - **Drag position:** `sbarhive drop --at X,Y` in global logical coordinates where the position is available (Hyprland: `hyprctl cursorpos -j`), otherwise the centre and then one move on the first drag motion (ADR 0004, S-019 amendment).

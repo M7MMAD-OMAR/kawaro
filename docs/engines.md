@@ -156,7 +156,7 @@ Behaviour:
   `-env:UserInstallation=file:///...`, and `out/`. The copy means LibreOffice
   never writes `.~lock` files next to the original and odd file names cannot
   be read as options. The private profile means a run never collides with the
-  owner's open LibreOffice and never touches their profile. The whole
+  user's open LibreOffice and never touches their profile. The whole
   directory is deleted after success, failure, cancel and timeout.
 - Office Open XML targets use explicit filters (`MS Word 2007 XML`,
   `Calc MS Excel 2007 XML`, `Impress MS PowerPoint 2007 XML`).

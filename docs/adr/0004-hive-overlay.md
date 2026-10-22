@@ -5,7 +5,7 @@ Date: 2026-10-20
 
 ## Context
 
-On first real use on Hyprland 0.56 (focus follows the mouse) the hive came up as an ordinary xdg_toplevel window: Hyprland tiled it with a border, placed it off centre and clipped, and moving the pointer out closed it, because focus followed the pointer and focus loss closes the hive. The owner wants the hive never to behave like a window, but as a polished layer over the screen, and wants the centre cell to show the file itself (a thumbnail or its type icon) instead of the text "1 document".
+On first real use on Hyprland 0.56 (focus follows the mouse) the hive came up as an ordinary xdg_toplevel window: Hyprland tiled it with a border, placed it off centre and clipped, and moving the pointer out closed it, because focus followed the pointer and focus loss closes the hive. The maintainer wants the hive never to behave like a window, but as a polished layer over the screen, and wants the centre cell to show the file itself (a thumbnail or its type icon) instead of the text "1 document".
 
 The spike in `spikes/overlay/` ran only in private headless compositors (KWin 6.7.5 virtual, GNOME Shell 50.5 headless), isolated as in `tests/e2e/run.sh`. It shows the real hive from `crates/ui` over a maximised GTK 4 window that logs the clicks and focus it receives. Sway and Hyprland facts come from source (Hyprland v0.56.2, sway master); KWin source references are tag v6.8.0 unless v6.7.5 is named.
 
@@ -42,7 +42,7 @@ Run on KWin 6.7.5 (1280 by 800 screen, each case once, under a maximised GTK win
 
 ### 3. Focus and closing
 
-- **Hyprland (verified in source only).** An `exclusive` surface takes focus when mapped (`CLayerSurface::onMap`), and focus follows mouse cannot take it away while it is shown: `rawWindowFocus` refuses focus "because of an exclusive layer surface", and `mouseMoveUnified` sets `allowKeyboardRefocus = false`. `on_demand` loses focus when the pointer crosses a window. Hyprland applies no tiling or border to layer surfaces, but plays the `layersIn` animation by default; users can turn it off with a layer rule on the namespace `sbarhive` (the `noanim` effect exists in source; the 0.56 line syntax is unverified, assumed). This addresses the four symptoms the owner saw, not yet run (assumed).
+- **Hyprland (verified in source only).** An `exclusive` surface takes focus when mapped (`CLayerSurface::onMap`), and focus follows mouse cannot take it away while it is shown: `rawWindowFocus` refuses focus "because of an exclusive layer surface", and `mouseMoveUnified` sets `allowKeyboardRefocus = false`. `on_demand` loses focus when the pointer crosses a window. Hyprland applies no tiling or border to layer surfaces, but plays the `layersIn` animation by default; users can turn it off with a layer rule on the namespace `sbarhive` (the `noanim` effect exists in source; the 0.56 line syntax is unverified, assumed). This addresses the four symptoms seen on first use, not yet run (assumed).
 - **Sway (verified in source only).** `seat_set_focus` keeps an exclusive surface from losing focus.
 - **KWin treats `exclusive` and `on_demand` alike (verified in source)** and applies focus stealing prevention to layer surfaces. `Workspace::mayActivate` (v6.7.5, `src/activation.cpp`) has an exception that grants focus without a token to a top or overlay surface anchored to all four edges on the active window's output, which is our catcher. The token check at Extreme rejects before reaching it, so the exception works only at lower levels (Medium and High assumed, not run). Results by running:
 
@@ -63,7 +63,7 @@ Run on KWin 6.7.5 (1280 by 800 screen, each case once, under a maximised GTK win
 - **(B) Community crates (rejected).** `layer-shika` 0.3.1 (AGPL-3.0, Slint 1.14, femtovg and EGL) and `spell-framework` 1.0.6 (GPL-3.0, Slint 1.17.1, Skia, implements the internal `WindowAdapterInternal` so it breaks with any other version). Both render on the GPU, three times over the memory budget (ADR 0001, finding 3). `spell-framework` is useful as reading only.
 - **(C) A second process (rejected).** Each Slint process costs about 28 MB (ADR 0001), so two do not fit the 40 MB limit, plus IPC between them.
 
-Measurement (headless KWin, development machine): `show` to first frame 6 to 22 ms, process start to first frame 55 to 80 ms; about 107 ms when a winit window opens at the same moment, since window creation holds the same thread. Resident memory 27 MB after two shows with a clean profile (a font heavy profile nearly doubles it, ADR 0001).
+Measurement (headless KWin): `show` to first frame 6 to 22 ms, process start to first frame 55 to 80 ms; about 107 ms when a winit window opens at the same moment, since window creation holds the same thread. Resident memory 27 MB after two shows with a clean profile (a font heavy profile nearly doubles it, ADR 0001).
 
 **Risks:**
 
@@ -89,7 +89,7 @@ Measurement (headless KWin, development machine): `show` to first frame 6 to 22 
 - **Several files:** two offset hexagons behind, and the count in a badge. Show the first file's thumbnail if any, else the shared type icon, else a generic icon.
 - **Crates:** `md-5` (MIT or Apache-2.0) and `png` (MIT or Apache-2.0, already in dev-dependencies). We decode PNG ourselves because Slint is built without `image-default-formats`. Reading globs2 takes twenty lines, so no `xdg-mime` (Apache-2.0) or `freedesktop-icons` (MIT). Both crates are recorded in `docs/engines.md`.
 - **Display:** an image inside the square inscribed in the hexagon, with `image-fit: contain`. Slint does not clip images to a hexagon, so the inscribed square is the substitute.
-- **Size:** the centre cell is about 72 px wide, so its inscribed square is about 50 px (the spike drew at a 96 px radius). Growing it for a preview is the owner's call; for now it stays the current size (see Status).
+- **Size:** the centre cell is about 72 px wide, so its inscribed square is about 50 px (the spike drew at a 96 px radius). Growing it for a preview is the maintainer's call; for now it stays the current size (see Status).
 
 ## Decision
 
@@ -114,9 +114,9 @@ Still open:
 
 ## Amendments
 
-### S-019 (2026-10-21, manager decision delegated by Mohammad)
+### S-019 (2026-10-21, manager decision)
 
-- **Screen reader rule:** the `org.a11y.Status.ScreenReaderEnabled` flag alone is not enough; it often stays true from a GNOME setting with no reader running, which forced the hive into a window for Mohammad on Hyprland. The hive is a window for a screen reader only when the flag is set and the name `org.gnome.Orca.Service` has an owner on the session bus (`NameHasOwner`, then `NameOwnerChanged`). The `hive_surface` key in `config.toml` (`auto`, `layer` or `window`; missing means `auto`) overrides the rule, and `SBARHIVE_SURFACE` overrides everything, as before. Every change of the decision prints one line `hive surface choice: KIND, REASON`, with no environment variable needed. Implemented in S-019a.
+- **Screen reader rule:** the `org.a11y.Status.ScreenReaderEnabled` flag alone is not enough; it often stays true from a GNOME setting with no reader running, which forced the hive into a window on a Hyprland desktop. The hive is a window for a screen reader only when the flag is set and the name `org.gnome.Orca.Service` has an owner on the session bus (`NameHasOwner`, then `NameOwnerChanged`). The `hive_surface` key in `config.toml` (`auto`, `layer` or `window`; missing means `auto`) overrides the rule, and `SBARHIVE_SURFACE` overrides everything, as before. Every change of the decision prints one line `hive surface choice: KIND, REASON`, with no environment variable needed. Implemented in S-019a.
 - **Anchor:** on the layer path the hive appears at the pointer or the drag position, not the centre. The anchor is clamped so the centre cell and its margin stay on screen, and the hive does not follow the pointer after its first position (after the first frame on a normal show; after `ANCHOR_WAIT` on a drop show, since S-021). The pure computation (`layout::plan_at`) is in S-019b, wiring into the show in S-019c and S-019d.
 - **Adaptive shape:** near the edges only slots inside the screen are used, ring by ring up to `MAX_RINGS` = 4, with no margin beyond `PAD`. First ring cells never displace second ring cells, and in a corner fewer than 18 cells may show.
 - **Catcher phase in a drop:** the catcher takes input briefly until the first drag position, then returns to the hive's region as in S-020. With no position within 50 ms the hive appears centred and moves once if the first position arrives within 300 ms, counted from the position (the end of `ANCHOR_WAIT`; it was from the first frame before S-021, but a drop show on the layer path is not drawn before the drag enters). After that (decision 12) the catcher's region becomes the centred hive's rectangle with no move, so the catcher never holds input for more than 300 ms (no freeze, S-020 AC4). A still hand is placed by `--at` alone. `sbarhive drop --at X,Y` passes the position where available (Hyprland through `hyprctl cursorpos`). Implemented in S-019d.

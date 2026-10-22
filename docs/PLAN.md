@@ -75,7 +75,7 @@ Stories: `backlog/S-014-drop-hive.md` (split into S-014a to S-014f), `backlog/S-
 
 Out of scope: the X11 path ("hive first, then drag", story S-015), Windows, running Hyprland live.
 
-> Manager decision (2026-10-22, delegated by Mohammad): 0.3.0 shipped what was finished and verified. Its goal is met with a custom shortcut the user binds on GNOME, KDE and Hyprland (`docs/drop-shortcut.md`). The portal (S-014e, S-014f), signed distribution (S-016, needs accounts Mohammad opens) and the glass look (S-017) moved to 0.4.0.
+> Manager decision (2026-10-22): 0.3.0 shipped what was finished and verified. Its goal is met with a custom shortcut the user binds on GNOME, KDE and Hyprland (`docs/drop-shortcut.md`). The portal (S-014e, S-014f), signed distribution (S-016, needs accounts the maintainer opens) and the glass look (S-017) moved to 0.4.0.
 
 ## 0.4.0 "Portal and look"
 
@@ -94,7 +94,7 @@ Goal: the hive and drop work in an X11 session, with the hive at the pointer as 
 | Component | Scope |
 | --- | --- |
 | ui | The hive as an ordinary window at the pointer, adapting to screen edges, and the "hive first, then drag" drop order with an XDND receiver |
-| Testing | A private headless X server and a temporary HOME, never the owner's desktop |
+| Testing | A headless X server and a temporary HOME, never a live desktop |
 
 Story: S-015 (draft). Out of scope: Windows, macOS.
 
@@ -112,7 +112,7 @@ Before any code: ADR 0005 (`docs/adr/0005-windows.md`) settles the installer and
 | integrations/windows | The legacy registry menu first (unsigned), then the Windows 11 menu with IExplorerCommand and a signed sparse package |
 | Distribution | An installer attached to the GitHub release, built in CI on a Windows runner |
 
-Needs from Mohammad: a code signing certificate for the sparse package and the installer (without it only the legacy menu works and SmartScreen warns), and a Windows machine or VM for live checks.
+Needs from the maintainer: a code signing certificate for the sparse package and the installer (without it only the legacy menu works and SmartScreen warns), and a Windows machine or VM for live checks.
 
 Stories: written after ADR 0005 is accepted, numbered from the next free story number. Out of scope: macOS.
 

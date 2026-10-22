@@ -2,7 +2,7 @@
 
 # Mobile version idea (Android first)
 
-Status: an idea only. No work before Linux (0.4, 0.5) and Windows (0.6) are done. Recorded 2026-10-22. The owner has no Mac, so iOS is out of scope for now.
+Status: an idea only. No work before Linux (0.4, 0.5) and Windows (0.6) are done. Recorded 2026-10-22. iOS is out of scope for now.
 
 ## Principle
 

@@ -18,14 +18,14 @@ Measurement notes:
 
 - The service median leaves out the first show after the service starts, which reported no frame within 3 s in any run (finding 8).
 - Headless compositors render in software (llvmpipe), so femtovg looks worse here than on a machine with a GPU.
-- All numbers come from the fast development machine, not the acceptance machine (4 GB, dual core). Limiting the spike to two fast cores (software, KWin) gave 101 ms cold and 29 ms through the service, which does not represent a slow CPU. A real low end measurement is still needed.
+- All numbers come from a fast machine, not a low end machine (4 GB, two cores). Limiting the spike to two fast cores (software, KWin) gave 101 ms cold and 29 ms through the service, which does not represent a slow CPU. A real low end measurement is still needed.
 
 ## Findings
 
 1. **Slint fits the hive.** Path drawing, hexagon shaped hit testing, joined Arabic and mirrored layout all work. Screenshots in `spikes/hive/out/`.
 2. **The background service is required in practice.** With the software renderer and a clean profile, cold start is under 150 ms (99 and 129 ms), but not with femtovg (172 and 257 ms), not with a font heavy profile (about 300 ms), and probably not on a weak machine. Through the service it stayed between 41 and 118 ms in every case.
 3. **The software renderer is the choice.** It meets the memory budget (28 MB against the 40 MB limit in S-001); femtovg is three times over because of OpenGL. The hive is small (393 by 362), so software rendering costs almost nothing.
-4. **Fonts are the largest hidden cost.** The development machine has 13659 fonts (2.5 GB in `~/.local/share/fonts`). With the real profile memory rose to 56 MB (software) and 173 MB (femtovg), and cold start grew by about 200 ms. Decision: bundle IBM Plex Sans Arabic and look into scanning fewer system fonts.
+4. **Fonts are the largest hidden cost.** On a machine with a very large font set, memory with the real profile rose to 56 MB (software) and 173 MB (femtovg), and cold start grew by about 200 ms. Decision: bundle IBM Plex Sans Arabic and look into scanning fewer system fonts.
 5. **On Wayland the surface is destroyed on hide.** Slint destroys the winit window on `hide()` and recreates it on `show()`. The numbers above include that, so no keep alive trick is needed.
 6. **The activation token can be passed.** The `with_winit_window_attributes_hook` hook lets the service pass the xdg-activation token from the IPC request. Corrected 2026-10-20, see Amendments.
 7. **Focus on GNOME is unresolved and is the largest risk.** In headless GNOME no window got focus (0 of 8), even on a plain cold start; the likely cause was the missing keyboard. Headless KWin gave focus without a token. If this held in a real session, Esc would not arrive and close on focus loss would not work (it needs prior focus), so the hive would stay open until clicked. A final verdict needs a real GNOME session with a token from Nautilus. Results of 2026-10-20 in Amendments.
@@ -40,7 +40,7 @@ Measurement notes:
 
 ## Consequences
 
-- Done: live run on Hyprland (development machine, 2026-10-19, run by the owner). Cold first frame at 226 ms with the full profile and fonts, the window got focus (`focused=true`) and closed on switching to another window (`focus_lost`); a second run (209 ms) closed with Esc or a click outside the cells (`dismissed`). Cold start above 150 ms confirms the service is required.
+- Done: live run on Hyprland (2026-10-19). Cold first frame at 226 ms with the full profile and fonts, the window got focus (`focused=true`) and closed on switching to another window (`focus_lost`); a second run (209 ms) closed with Esc or a click outside the cells (`dismissed`). Cold start above 150 ms confirms the service is required.
 - Done: headless GNOME Shell 50.5 (2026-10-20, S-013). A token from a GTK 4 window, using the same call as the Nautilus script, gives focus with no "ready" notification, even under the strict policy.
 - [ ] GNOME VM: the real Nautilus script requests and passes a token; check focus with no "ready" notification.
 - [ ] KDE VM: the same test through Dolphin.

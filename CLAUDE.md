@@ -6,7 +6,7 @@ The name is fixed: SbarHive in Latin script, «صبار هايف» in Arabic. Re
 
 A free GPLv3 tool that converts and processes files entirely on the user's machine. The user selects one or more files in the file manager, a hexagonal hive shows the actions that fit their type and count, and the result is saved as a new file next to the original.
 
-Platform order: Linux on Wayland first (GNOME and KDE), then X11, then Windows, then macOS. GNOME, Fedora and Ubuntu default to Wayland and GNOME's X11 session is gone from current distributions. The development machine runs Hyprland, which is more permissive than GNOME and KDE, so anything about windows and focus must also be tested on GNOME and KDE.
+Platform order: Linux on Wayland first (GNOME and KDE), then X11, then Windows, then macOS. GNOME, Fedora and Ubuntu default to Wayland and GNOME's X11 session is gone from current distributions. Hyprland is more permissive than GNOME and KDE, so testing on it alone is not enough: anything about windows and focus must also be tested on GNOME and KDE.
 
 ## Non-negotiable principles
 
@@ -115,7 +115,7 @@ All work in `crates/` goes through this chain, one agent per step in `.claude/ag
 3. **implementer:** writes code until the tests pass. Editing tests is forbidden.
 4. **reviewer:** in a fresh context, runs the quality gates and returns PASS or REWORK.
 
-The owner, Mohammad, has delegated approvals (stories, screenshots) to the manager, so the chain does not stop for approval. After two REWORKs the story stops and goes to Mohammad.
+The maintainer has delegated approvals (stories, screenshots) to the manager, so the chain does not stop for approval. After two REWORKs the story stops and goes to the maintainer.
 
 ### Quality gates
 

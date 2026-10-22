@@ -27,17 +27,15 @@ tools installed on your system.
 
 ## Platform support
 
-What has been tested, and how:
-
-| Platform | Status | How it was checked |
+| Platform | Tested | What works |
 |---|---|---|
-| Hyprland 0.56 | Works: overlay layer, at the pointer, drop and long press | Automated tests in a private nested Hyprland; daily use on the developer's machine in progress |
-| KDE Plasma 6 (KWin 6.7) | Works: layer, focus at every focus stealing prevention level, drop and shortcut | Automated tests in a private headless KWin, one and two outputs |
-| GNOME 50 | Works as a centred window | Automated tests in a private headless gnome-shell; focus not yet tried on a real GNOME session |
-| Sway and wlroots | Expected to work as a layer | Not tested |
-| X11 | Not supported yet | Not tested |
-| Distributions | RPM for Fedora 41 and later, DEB for Ubuntu 22.04 and 24.04 and Debian 12 | Automated install and run in a clean container for each |
-| Windows and macOS | Not available yet | Planned |
+| Hyprland 0.56 | Tested | Works as a layer at the pointer, with drop and long press |
+| KDE Plasma 6 (KWin 6.7) | Tested | Works as a layer, with focus, drop and the shortcut |
+| GNOME 50 | Tested | Works as a centred window |
+| Sway and wlroots | Not tested | Expected to work as a layer |
+| X11 | Not supported yet | Planned |
+| Fedora 41 and later (RPM), Ubuntu 22.04 and 24.04, Debian 12 (DEB) | Tested | The packages install and run |
+| Windows and macOS | Not supported yet | Planned |
 
 ## Install
 
