@@ -95,7 +95,7 @@ hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
 
 ## اختصار البوابة
 
-يبقى ربط `exec` السابق هو الطريقة الأولى. والبديل أن يوصل xdg-desktop-portal-hyprland اختصار Super+Z الذي تسجّله الخدمة، بسطر `global` واحد بدلاً من ربط الضغط وربط الترك. ويعمل بالإمساك كذلك (`hold_ms`). بصيغة hyprlang (الملف `hyprland.conf`):
+يبقى ربط `exec` السابق هو الطريقة الأولى. والبديل أن يوصل xdg-desktop-portal-hyprland اختصار Super+Z الذي تسجّله الخدمة، بسطر `global` واحد بدلاً من ربط الضغط وربط الترك. ويعمل بالإمساك كذلك (`hold_ms`). بصيغة hyprlang (الملف `hyprland.conf`)، ولم يُتحقق منها:
 
 ```
 bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop

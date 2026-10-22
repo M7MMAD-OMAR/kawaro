@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 أُعيدت للعمل (المراجعة 1: REWORK، 1 من 2)؛ S-014f لم تبدأ
+الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 في المراجعة بعد إعادة العمل 1 (المراجعة 1: REWORK، 1 من 2)؛ S-014f لم تبدأ
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -636,3 +636,9 @@
     2. The KDE menu path is incomplete. `docs/drop-shortcut.md:64` and `docs/drop-shortcut.ar.md:66` say "System Settings, then Shortcuts". In Plasma 6.7.5 the Shortcuts module (`kcm_keys`) has `X-KDE-System-Settings-Parent-Category` set to `keyboard`, and the same file's KDE section says "System Settings, then Keyboard, then Shortcuts" (`docs/drop-shortcut.md:28`, `docs/drop-shortcut.ar.md:30`). Use the full path in both languages. Check 3 still finds "System Settings" and "Shortcuts" in one sentence.
   - Minor, not blocking: in `docs/drop-shortcut.ar.md:68`, «المفتاح `hold_ms`» and «تترك المفتاح» use one word for the config key and for the keyboard key in the same sentence; «الإعداد `hold_ms`» reads better. `systemctl --user restart sbarhive` (`docs/drop-shortcut.md:68`, `.ar.md:70`) assumes the systemd unit. When `scripts/install.sh` finds no systemd user session it installs an autostart entry instead, so a "or log out and back in" would cover that case.
   - Not applicable: cargo fmt, clippy, test and mutants (no crate code changed); screenshots (none new); the performance budget (no daemon path changed); UI strings and interactive elements (none new). No CHANGELOG line added by the reviewer: the implementer's one line is there.
+- 2026-10-23, implementer (S-014e3, rework 1): docs only, no test or code changed.
+  - The hyprlang `global` line is marked not verified in all four places: `docs/drop-shortcut.md` and `.ar.md` (which now point to the Hyprland guide for the verified Lua form) and `integrations/linux/hyprland/README.md` and `.ar.md`, in the style of the older Hyprland lines. The README's Lua form stays unmarked.
+  - The KDE path in the portal section now reads System Settings, then Keyboard, then Shortcuts, in both languages, matching the KDE section.
+  - Arabic: «الإعداد `hold_ms`» in the portal hold sentence. Both languages add, after `systemctl --user restart sbarhive`, that without a systemd user session logging out and back in restarts the service.
+  - Checks, all RESULT PASS or clean: `tests/drop/portal_docs.sh`, `tests/drop/docs.sh` (`DROP_OUT` in a scratch directory), `tests/drop/hold_docs.sh`, `tests/overlay/docs.sh`, `tests/integrations/test_static.sh` (43 checks), `scripts/design-lint.sh`. No Rust changed, so cargo checks were not run.
+  - Status: S-014e3 ready for review.

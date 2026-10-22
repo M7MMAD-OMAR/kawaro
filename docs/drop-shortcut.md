@@ -61,15 +61,15 @@ On GNOME 48 and later and on KDE 6, the daemon registers Super+Z itself through 
 
 If you bound Super+Z by hand above, remove that manual bind once the portal has registered the shortcut, so the two do not clash.
 
-To change the key: on GNOME, open Settings, then Apps, choose SbarHive, then Global Shortcuts; on KDE, open System Settings, then Shortcuts.
+To change the key: on GNOME, open Settings, then Apps, choose SbarHive, then Global Shortcuts; on KDE, open System Settings, then Keyboard, then Shortcuts.
 
 The portal shortcut works by holding, not by a tap: hold Super+Z during a drag and the hive shows after the long press (`hold_ms`, 400 ms by default), then closes when you let the key go. A short tap shows nothing.
 
-If you refuse the dialog, the daemon remembers it as `portal_shortcut = false` in `~/.config/sbarhive/config.toml` and does not ask again at the next login. To turn registration back on, set `portal_shortcut = true` in that file, or delete the line, then restart the daemon: `systemctl --user restart sbarhive`.
+If you refuse the dialog, the daemon remembers it as `portal_shortcut = false` in `~/.config/sbarhive/config.toml` and does not ask again at the next login. To turn registration back on, set `portal_shortcut = true` in that file, or delete the line, then restart the daemon: `systemctl --user restart sbarhive`. Without a systemd user session, log out and back in instead.
 
 Where there is no portal (an older GNOME or KDE, or another desktop), the manual bind above stays the way to set the shortcut.
 
-On Hyprland the `exec` bind above with `--at` stays the first way. As an alternative, bind the shortcut the daemon registers with a `global` line instead (hyprlang form):
+On Hyprland the `exec` bind above with `--at` stays the first way. As an alternative, bind the shortcut the daemon registers with a `global` line instead (hyprlang form, not verified; the verified Lua form is in [the Hyprland guide](../integrations/linux/hyprland/README.md)):
 
 ```
 bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop

@@ -93,7 +93,7 @@ Notes, none of them verified:
 
 ## Portal shortcut
 
-The `exec` binds above stay the first way. As an alternative, xdg-desktop-portal-hyprland passes on the Super+Z shortcut the daemon registers, with one `global` line instead of the press and release binds. It works by holding too (`hold_ms`). hyprlang form (`hyprland.conf`):
+The `exec` binds above stay the first way. As an alternative, xdg-desktop-portal-hyprland passes on the Super+Z shortcut the daemon registers, with one `global` line instead of the press and release binds. It works by holding too (`hold_ms`). hyprlang form (`hyprland.conf`), not verified:
 
 ```
 bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop
