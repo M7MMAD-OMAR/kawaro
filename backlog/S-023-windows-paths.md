@@ -1,5 +1,5 @@
 # S-023 مسارات الإعدادات والإجراءات والسجل على ويندوز، وتسمية الناتج دون استبدال
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ كُتبت الاختبارات وتفشل كما يجب (المختبِر 2026-10-22)، تنتظر المنفِّذ
 
 يبني على ADR 0005 القسم 4، وعلى S-022b (اعتماد windows-sys في core). للإصدار 0.6.0. لا يلمس `crates/ui`. يوم عمل واحد أو أقل، فلا تقسيم.
 
@@ -53,3 +53,52 @@
 
 ## سجل المراجعة
 - 2026-10-22، المخطِّط: الاختيار يأخذ `os` معاملاً حتى يُختبر فرع ويندوز على لينكس، والاستدعاء الحقيقي يمرّر `Os` من `cfg!(windows)`.
+- 2026-10-22، المختبِر: العقد الذي ثبّته المختبِر في رأس `crates/core/tests/paths.rs` وفي تعليق وحدة الاختبار في `output_impl.rs` (لا يُعدَّلان):
+  - `sbarhive_core::paths` وحدة `pub` على كل المنصات، فيها `enum Os { Linux, Windows }` و`config_dir_with(os, env, known)` و`log_dir_with(os, env, known)` و`config_dir()`، كلها `pub`. `env` بشكل `Fn(&str) -> Option<OsString>` (شكل `var_os`)، و`known` بشكل `Fn() -> Option<PathBuf>`، والاختبارات تمرّرهما بمرجع فيصلح `&dyn Fn` والمعاملات العامة. `Config::actions_dir() -> Option<PathBuf>`.
+  - `finalize_with(temp, final_path, link: &LinkFn, place: &PlaceFn)` حيث `PlaceFn` هو `dyn Fn(&Path, &Path) -> std::io::Result<()>`: ينقل ويفشل بـ `AlreadyExists` إن كان الاسم مأخوذاً. `finalize_with` لا يفحص الوجود ولا يستدعي `rename` بنفسه حين يفشل الربط، ويبقى إرجاع خطأ الربط إن غاب المؤقت (`ac9_fallback_with_missing_temp_reports_the_link_error`). الدوال الوهمية لا تلتقط شيئاً، فيصلح اسم مستعار `'static` كـ `LinkFn`.
+  - `place_no_replace(from, to)` مرئية في `output_impl.rs`: على لينكس الفحص ثم `rename`، وعلى ويندوز من `output_impl/windows.rs`. و`move_error_kind(code: u32) -> ErrorKind` صافية: 80 و183 `AlreadyExists`، و5 `PermissionDenied`، وغيرها ليس أياً منهما.
+  - الملفات والاختبارات:
+    - `crates/core/tests/paths.rs` (جديد): `ac1_windows_appdata_wins_and_known_is_not_called`، `ac1_windows_empty_appdata_falls_back_to_the_known_folder`، `ac1_windows_missing_appdata_falls_back_to_the_known_folder`، `ac1_windows_ignores_xdg_and_home`، `ac1_windows_without_appdata_and_without_known_folder_is_none`، `ac1_windows_appdata_is_not_read_as_localappdata`، `ac1_linux_xdg_config_home_first`، `ac1_linux_home_dot_config_second`، `ac1_linux_without_xdg_and_home_is_none_even_with_appdata` (فروع لينكس الثلاثة تتحقق أن `known` لا يُستدعى)، `ac2_windows_log_dir_is_localappdata_sbarhive_logs_without_known`، `ac2_windows_empty_or_missing_localappdata_falls_back_to_the_known_folder` (و`APPDATA` وحدها لا تنوب)، `ac2_windows_without_localappdata_and_without_known_folder_is_none`، `ac2_linux_has_no_log_dir`، `ac3_config_dir_follows_the_process_environment_on_linux`، `ac3_config_path_is_config_dir_joined_with_config_toml`، `ac3_actions_dir_is_config_dir_joined_with_actions`.
+    - `crates/core/src/output_impl.rs` (وحدة الاختبار): `ac6_place_already_exists_moves_on_to_the_next_number` (الملفان موجودان فعلاً، وترتيب الأسماء المسؤولة `a.webp` ثم `a (1).webp` ثم `a (2).webp`)، `ac6_finalize_trusts_the_place_function_not_its_own_check` (لا ملف على القرص، فالفحص الباقي داخل `finalize_with` يعطي `a.webp`)، `ac6_place_permission_denied_is_returned_and_keeps_the_temp` (استدعاء واحد بلا إعادة على اسم آخر)، `ac6_a_successful_link_does_not_call_place`، `ac7_linux_place_refuses_a_taken_name_and_keeps_both_files`، `ac7_linux_place_refuses_a_dangling_link_name`، `ac7_linux_place_moves_to_a_free_name`، `ac7_move_error_codes_80_and_183_are_already_exists`، `ac7_move_error_code_5_is_permission_denied`، `ac7_move_error_other_codes_are_neither`. وعُدّلت استدعاءات `finalize_with` في `ac9_*` الثلاثة التي تستدعيها لتمرّر `&place_no_replace` معاملاً رابعاً، وتأكيداتها كما هي حرفياً (AC7).
+    - `crates/core/tests/paths_windows.rs` (جديد، فحص نص ملفات ويندوز على طريقة `transport_seed.rs`): `ac5_paths_windows_reads_both_known_folders_and_frees_them`، `ac5_ac7_windows_files_are_excluded_from_mutants`، `ac5_ac7_paths_rs_and_output_impl_rs_stay_mutated`، `ac7_windows_places_with_move_file_ex_without_replacing` (يمنع اسم `MOVEFILE_REPLACE_EXISTING` في الملف كله، والتعليقات منه، ويطلب `MoveFileExW` و`move_error_kind(`).
+    - `crates/daemon/tests/actions_dir.rs` (جديد): `ac4_no_crate_defines_user_actions_dir` (يمشي `crates/` كلها، والنص المبحوث مبني من قطعتين فلا يطابقه `grep` المراجع)، `ac4_load_registry_uses_config_actions_dir`.
+  - ينجح قبل التنفيذ عن قصد: `actions_include_user_actions_from_the_config_dir` في `crates/cli/tests/cli.rs` (حارس تراجع لسلوك AC4 «كما اليوم»)، و`ac13_cargo_lock_keeps_671_packages` من S-022b (حارس AC8)، و`path_and_load_follow_xdg_then_home` و`ac9_*` في `crates/core/tests/output.rs`.
+  - غموض وما اختاره المختبِر: (1) الجدول يطلب وحدة داخل `paths.rs`، والملف ملك المنفِّذ، فاختبارات AC1 وAC2 وAC3 في `crates/core/tests/paths.rs` عبر الواجهة العامة؛ واختبار `actions_dir` ليس في `config.rs` لأن الاختبار القائم هناك يغيّر البيئة فيتسابق معه، وثنائي منفصل لا يغيّر البيئة يقرأها كما هي. (2) **AC4 لا ينجح دون لمس ملفين خارج قائمة الملفات:** `crates/cli/src/main.rs:235` يعرّف `user_actions_dir` خاصة به، و`crates/daemon/src/watch.rs` يستوردها من `state.rs`؛ `grep` المعيار على `crates/` كلها يعدّ الأول، والثاني لا يُبنى بعد الحذف. لم يضيّق المختبِر الاختبار، فعلى المنفِّذ تعديلهما إلى `Config::actions_dir()`. (3) `XDG_CONFIG_HOME` الفارغة على لينكس غير مثبتة: «كما اليوم» يعني أنها تُستعمل كما هي، ولم يُكتب لها اختبار. (4) رموز ويندوز غير 80 و183 و5 لم يحددها AC7؛ ثبّت المختبِر أنها ليست `AlreadyExists` ولا `PermissionDenied` (0 و1 و2 و3 و79 و81 و87 و182 و184) حتى لا تنجو طفرة «كل رمز مأخوذ»، وترك نوعها للمنفِّذ. (5) أسماء `place_no_replace` و`move_error_kind` و`config_dir` اختارها المختبِر لأن المعيار لم يسمّها.
+  - للمراجع لا للاختبار: `W` و`X`، وقراءة `paths/windows.rs` (تحرير الذاكرة في كل مسار)، وميزات `windows-sys` في `crates/core/Cargo.toml`، وREADME وarchitecture.md وCHANGELOG.md، و`git diff --stat main...HEAD -- crates/ui`، و`M`.
+  - تحقق من منطق الاختبارات: نسخة مؤقتة من المستودع في مجلد الجلسة (حُذفت ولا تُدمج) بتطبيق مختصر للعقد نجحت فيها 28 من اختبارات `--lib` في core، و`paths` الستة عشر، و`paths_windows` الأربعة، و`output` الأربعة عشر، و`actions_dir` الاثنان؛ و`cargo clippy -p sbarhive-core --tests -D warnings` نظيف عليها. `cargo fmt --check` نظيف هنا.
+  - مخرجات الفشل (كل أمر داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
+```
+$ cargo test -j 2 -p sbarhive-core --lib
+error[E0061]: this function takes 3 arguments but 4 arguments were supplied
+error[E0425]: cannot find function `move_error_kind` in this scope
+error[E0425]: cannot find function `place_no_replace` in this scope
+error[E0425]: cannot find value `place_no_replace` in this scope
+error: could not compile `sbarhive-core` (lib test) due to 17 previous errors
+
+$ cargo test -j 2 -p sbarhive-core --test paths
+error[E0432]: unresolved import `sbarhive_core::paths`
+error[E0599]: no associated function or constant named `actions_dir` found for struct `Config` in the current scope
+error: could not compile `sbarhive-core` (test "paths") due to 2 previous errors
+
+$ cargo test -j 2 -p sbarhive-core --test paths_windows
+test ac5_ac7_paths_rs_and_output_impl_rs_stay_mutated ... FAILED
+test ac5_ac7_windows_files_are_excluded_from_mutants ... FAILED
+test ac5_paths_windows_reads_both_known_folders_and_frees_them ... FAILED
+test ac7_windows_places_with_move_file_ex_without_replacing ... FAILED
+crates/core/src/paths.rs must exist
+"crates/core/src/paths/windows.rs" must be in exclude_globs (AC5, AC7)
+.../crates/core/src/output_impl/windows.rs must exist: No such file or directory (os error 2)
+.../crates/core/src/paths/windows.rs must exist: No such file or directory (os error 2)
+test result: FAILED. 0 passed; 4 failed
+
+$ cargo test -j 2 -p sbarhive-daemon --test actions_dir
+test ac4_load_registry_uses_config_actions_dir ... FAILED
+test ac4_no_crate_defines_user_actions_dir ... FAILED
+load_registry must call Config::actions_dir() (AC4):
+these files still define the old helper: [".../crates/cli/src/main.rs", ".../crates/daemon/src/state.rs"] (AC4)
+test result: FAILED. 0 passed; 2 failed
+
+$ cargo test -j 2 -p sbarhive-cli --test cli actions_include_user_actions
+test actions_include_user_actions_from_the_config_dir ... ok
+test result: ok. 1 passed; 0 failed
+```
