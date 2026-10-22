@@ -82,6 +82,7 @@ S-022b:
   - ينجح قبل التنفيذ عن قصد: `ac5_doctor_prints_the_endpoint_in_the_runtime_dir`، لأن `doctor` يطبع مسار المقبس اليوم، وسلوك لينكس يجب ألا يتغير. هو حارس تراجع لا دليل تنفيذ. وكذلك سلوك AC6 موجود اليوم، وما يجعل اختباره يفشل هو الخادم الوهمي المبني على `transport`.
   - للمراجع لا للاختبار: نوع `State::subscribers` (`HashMap<JobId, Vec<transport::Stream>>`) لأن الخدمة crate تنفيذية وفحص النص هش، و`W` لـ AC7.
   - غموض: مقبس فيه مستمع يقبل ولا يجيب على `ping` خلال 500 ms: هل يُعدّ قديماً فيُحذف؟ AC6 لا يحدد، فلم يُختبر.
+  - تحقق من منطق اختبار الخدمة: نسخة مؤقتة غير مثبتة بخادم وهمي على `UnixListener` نجحت على `sbarhived` الحالي (0.02 s)، فلا يحجبه عرض ولا أيقونة. و`cargo clippy -D warnings` نظيف على `sbarhive-cli --tests` و`transport_seed`؛ أما `transport.rs` و`single_instance.rs` فلا يُفحصان قبل وجود الواجهة، فأي تحذير فيهما من الاختبار لا من التنفيذ.
   - مخرجات الفشل (`L` داخل النطاق، `-j 2`):
 ```
 $ cargo test -j 2 -p sbarhive-core --test transport
