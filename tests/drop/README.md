@@ -26,6 +26,8 @@ tests/drop/window_path.sh      # S-021 AC10: gnome.sh smart and overlay/gnome.sh
 tests/drop/gnome.sh smart portal       # S-014e2 AC18 c: fake portal, window path
 tests/drop/gnome.sh smart portal-real  # S-014e2 AC20, AC21: the real GNOME portal
 tests/drop/kwin.sh level=1 portal-real # S-014e2 AC20, AC21: the real KDE portal
+tests/hyprland/repro.sh --portal       # S-014e3 AC20: the real Hyprland portal
+tests/drop/portal_docs.sh      # S-014e3 AC22: portal docs, CHANGELOG, no compositor
 ```
 
 Each prints `PASS`/`FAIL` lines, ends with `RESULT PASS` or `RESULT FAIL (n)`,
@@ -302,6 +304,20 @@ and within 200 ms of the release. (c): a 150 ms tap makes no hive surface
 within 1000 ms. AC21 run 2: the daemon and every portal process end, a new
 daemon on the same profile: no new window within 5 s, the bound line, and one
 held drop writes the file.
+
+## S-014e3: the real portal in Hyprland (AC20) and the portal docs (AC22)
+
+`tests/hyprland/repro.sh --portal` (with `tests/hyprland/portal.sh`) runs
+`real_portal_run` in the nested Hyprland with xdg-desktop-portal-hyprland.
+The bus gets the nested names through `dbus-update-activation-environment`
+(no `--systemd`), and Hyprland runs with `HYPRLAND_NO_SD_VARS=1`. After the
+bound line, the hook `portal_after_bound` reads the ID from `hyprctl
+globalshortcuts` and appends its Lua `global` bind to the private config.
+T in `bound drop (T)` must equal the reply's `trigger_description` on the
+bus (`real_portal.py triggers`); xdg-desktop-portal-hyprland sends "".
+Two last cases let Super+Z go over a revealed hive, and after the drag has
+ended over the source: the layer goes within 500 ms of the key-up. `portal_docs.sh` reads the portal section of `docs/drop-shortcut`
+in both languages, the Hyprland README pair and CHANGELOG.md.
 
 ## Input
 

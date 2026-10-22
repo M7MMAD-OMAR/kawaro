@@ -512,3 +512,100 @@
     3. `tests/drop/portal_real.sh:182`: AC20 names GNOME Shell 50 and KWin 6, but the INFO line prints only the portal packages' versions. Recorded above from `rpm -q`.
   - Style: no em dash or en dash in the diff of the two commits, no personal details, "the maintainer" wording kept; the new scripts follow `lib.sh` and the existing modes (`check` with single quoted conditions, INFO lines, `shellcheck` directives).
   - Not applicable here: screenshots needing approval (none new), the performance budget (no daemon path changed; `portal.sh` hold phase passes), new UI strings or interactive elements (none). CHANGELOG: the S-014e line belongs to S-014e3 (AC22), so none is added here.
+- 2026-10-23, tester (S-014e3 only: AC20 for Hyprland, AC22): tests written from the criteria, the table, the manager's answers 2, 5 and 6 and the note of 2026-10-22 (the GNOME dialog behind a full screen window). Run on main (`532e823`; `git status crates/` clean before and after `cargo build --release`, `CARGO_BUILD_JOBS=1`) inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, `nice -n 19`, one private compositor at a time. No production code or doc touched. AC22 fails on main; the new AC20 checks for Hyprland pass on main, as S-014e2's did, because S-014e1 delivered the client, and a control run proves they fail without it.
+  - Files: `tests/hyprland/portal.sh` (new, the `--portal` mode), `tests/hyprland/repro.sh` (mode `--portal`), `tests/drop/portal_docs.sh` (new, AC22), `tests/drop/portal_real.sh` (a caller hook, and the bound line check follows the reply), `tests/drop/real_portal.py` (`triggers`), `tests/drop/README.md`. The regular modes of `repro.sh` are unchanged and keep `tests/no_portal.sh`.
+  - Contract, `tests/hyprland/repro.sh --portal` (AC20, Hyprland):
+    - The only mode of `repro.sh` that skips `no_real_portal`. The shipped `packaging/io.github.m7mmad_omar.SbarHive.desktop` is copied to the throwaway `XDG_DATA_HOME/applications`. `config.toml` is `language = "en"`, `theme = "light"`, `hold_ms = 400`, with no `portal_shortcut = false`. The nested Hyprland runs with `HYPRLAND_NO_SD_VARS=1`, so it runs no `systemctl --user import-environment` and no `dbus-update-activation-environment --systemd`. Once it is up, `dbus-update-activation-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE` (no `--systemd`, no `--all`) sets the private bus's activation environment before any client starts; portal processes already running then are ended (none were). The bus's own stdout, which the activated portal and backend inherit, goes to `tests/hyprland/out/hypr-portal-bus-stdout.log`; the check lines go where the other modes put them.
+    - Setup checks, from `/proc/PID/exe` and `/proc/PID/environ`: `/usr/libexec/xdg-desktop-portal` runs on this private bus with `XDG_CURRENT_DESKTOP=Hyprland`, and `/usr/libexec/xdg-desktop-portal-hyprland` runs on it with the nested `WAYLAND_DISPLAY` and instance signature. Teardown (`portal_teardown` of S-014e2): the live desktop's `xdg-desktop-portal` PIDs are the same before and after, and no portal process of this bus is left. After the bus ends, `fusermount3 -u "$RUNTIME/doc"` runs before the `rm -rf`.
+    - The bind (`portal_after_bound`, a hook `real_portal_run` calls once after the daemon's `portal shortcuts:` line, before AC20 (a)): the ID is the first `ID:drop` in `hyprctl globalshortcuts` of the nested instance, and it must equal `io.github.m7mmad_omar.SbarHive` (the identifier AC22 documents). The private config is Lua, as in every `repro.sh` run, so AC20's `bind = SUPER, Z, global, <ID>:drop` is appended in its Lua form, `hl.bind("SUPER + Z", hl.dsp.global("<ID>:drop"))`, with the ID read, followed by `hyprctl reload config-only`. Check: no config error and exactly one Super+Z bind (modmask 64) in `hyprctl binds -j`. In Lua the listing shows `dispatcher "__lua"`, not the ID; the AC20 cases after it prove the bind works.
+    - AC20 (a), (b), (c) and AC21 runs 1 and 2: `real_portal_run Hyprland xdg-desktop-portal-hyprland` of `tests/drop/portal_real.sh`, unchanged except as below. The keys go through the outer KWin's fake_input: Super (125), then Z (44) 50 ms later, released in the reverse order. `hold_motion` is a 1 px jitter at the drag's position (210, 180) for 800 ms. `hive_geo` is the last `hive surface:` line while a layer named `sbarhive` is listed. The dialog watch polls `hyprctl clients -j`, and a window that is neither the daemon's nor the drag source's counts as a dialog.
+    - The release closes the hive: a PNG drag, Super+Z held, the drag moved to the hive's centre, then the key let go there. Checks: a `hive reveal: N` line before the release, the layer's `zwlr_layer_surface_v1.destroy` within 500 ms of a UTC stamp taken just before the key-up, and no WEBP once the button is let go over the source.
+    - What the backend sent: INFO lines count the `Activated` and `Deactivated` of `org.freedesktop.impl.portal.GlobalShortcuts` (xdph to the frontend) and of `org.freedesktop.portal.GlobalShortcuts` (the frontend to the daemon), from `dbus-monitor`, plus the layers on the nested output. If `Activated` comes and `Deactivated` never does, a `FINDING` INFO line says so, and AC20 (b) fails as the AC requires.
+  - Changes to the S-014e2 harness (`portal_real.sh`, `real_portal.py`), for GNOME and KDE too:
+    - The optional hook `portal_after_bound`, a no-op when undefined.
+    - AC13 says T is the reply's `trigger_description`. xdg-desktop-portal-hyprland 1.4.1 replies with `""`, so the daemon prints `portal shortcuts: bound drop ()`, which meets AC13. The old check (`\((.+)\)`) required a non-empty T. Now T must equal the `trigger_description` of `drop` in the first BindShortcuts Response on the bus (`real_portal.py triggers MONLOG`), and at least one such Response must exist. AC21 run 2 checks for that same exact line. For GNOME and KDE this is stricter than before, not looser: on the saved S-014e2 monitor logs `triggers` gives `Press <Super>z` and `Meta+Z`, the T those runs printed.
+  - Contract, `tests/drop/portal_docs.sh` (AC22, static):
+    - English reads `docs/drop-shortcut.md`; Arabic reads `docs/drop-shortcut.ar.md`. The portal section is a heading naming the portal (English "portal", Arabic "بوابة"), together with everything up to the next heading of the same or a higher level, subsections included. Every key of one check must be met in one such section.
+    - Paired words must be met in one sentence of the prose. Literals (the global line, `hold_ms`, `portal_shortcut = false`) may be anywhere in the section, code blocks included. Arabic is compared without harakat, and أ إ آ are read as ا.
+    - The checks, per language:
+      1. GNOME 48 and later, and KDE 6;
+      2. the daemon registers Super+Z itself, with a consent dialog the first time;
+      3. how to change it: GNOME Apps, then "Global Shortcuts", and KDE System Settings, then Shortcuts;
+      4. the exact line `bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop`, called the alternative ("alternative" or "instead"; "بديل" or "بدلا"), where the file's first `bind = SUPER, Z, exec, ... sbarhive drop ... --at` line comes before it (answer 6);
+      5. hold, not tap, with `hold_ms`;
+      6. where there is no portal the manual bind stays;
+      7. a Super+Z bound by hand is removed (answer 2);
+      8. the dialog may open behind a full screen window (the note);
+      9. a refusal is remembered as `portal_shortcut = false`, and registration can be turned back on (answer 5).
+    - The Hyprland README pair (`integrations/linux/hyprland/README.md` and `README.ar.md`, any section) has the global line, called the alternative, after its exec Super+Z line with `--at`.
+    - Then: `tests/drop/docs.sh` and `tests/drop/hold_docs.sh` exit 0; no em dash or en dash in the four docs or in CHANGELOG.md; and between `## [Unreleased]` and the next `## [` there is exactly one line that names S-014e (or e1, e2, e3) and has both Arabic and English text.
+    - Checked against a scratch copy of the docs (`git archive HEAD`, outside the repository) with a portal section written to the contract in both languages, the README lines and a CHANGELOG line added: `RESULT PASS`. With the full screen sentence removed: exactly those 2 checks fail.
+  - Failure output on main:
+    ```
+    $ tests/drop/portal_docs.sh
+    INFO AC22 docs/drop-shortcut.md: keys met by portal sections:
+    FAIL AC22 docs/drop-shortcut.md (English): a portal section (a heading naming the portal) exists
+    FAIL AC22 docs/drop-shortcut.md (English): in GNOME 48 and later and KDE 6 the daemon registers Super+Z itself, with a consent dialog the first time
+    FAIL AC22 docs/drop-shortcut.md (English): it is changed in the settings (GNOME: Apps, then "Global shortcuts"; KDE: System Settings, then Shortcuts)
+    FAIL AC22 docs/drop-shortcut.md (English): on Hyprland the line `bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop`, as the alternative, the documented exec bind with --at staying the first way (answer 6)
+    FAIL AC22 docs/drop-shortcut.md (English): the portal shortcut works by holding (`hold_ms`), not by a tap
+    FAIL AC22 docs/drop-shortcut.md (English): where there is no portal the manual bind stays
+    FAIL AC22 docs/drop-shortcut.md (English): a Super+Z bound by hand is to be removed once the portal registers it (answer 2)
+    FAIL AC22 docs/drop-shortcut.md (English): on GNOME the consent dialog may open behind a full screen window (note 2026-10-22)
+    FAIL AC22 docs/drop-shortcut.md (English): a refusal is remembered as `portal_shortcut = false` and registration can be turned back on (answer 5)
+    FAIL AC22 integrations/linux/hyprland/README.md (English): the global line, after the exec Super+Z line with --at, called the alternative (answer 6)
+    (the same 10 for docs/drop-shortcut.ar.md (Arabic) and integrations/linux/hyprland/README.ar.md (Arabic))
+    INFO AC22: tests/drop/docs.sh RESULT PASS; tests/drop/hold_docs.sh RESULT PASS
+    PASS AC22: tests/drop/docs.sh passes
+    PASS AC22: tests/drop/hold_docs.sh passes
+    PASS AC22: no em dash or en dash in docs/drop-shortcut.md, its Arabic copy, the Hyprland README pair and CHANGELOG.md
+    INFO AC22: CHANGELOG.md lines under [Unreleased] naming S-014e in both languages: 0
+    FAIL AC22: CHANGELOG.md has one line under "## [Unreleased]" that names S-014e, in English and in Arabic
+    RESULT FAIL (21)
+    ```
+    The cause: no portal section in either language, no global line in the Hyprland README pair, and no S-014e CHANGELOG line. The three passes are guards the AC asks to keep green.
+  - `tests/hyprland/repro.sh --portal` on main: RESULT PASS, 27 of 27 checks in the final run. The two full runs before the last case (the release after the drag has ended) was added each passed 26 of 26.
+  - Control (fail for the right reason): a scratch copy of `tests/hyprland/repro.sh` and `portal.sh`, outside the repository, whose only change is `portal_shortcut = false` added to the `--portal` mode's `config.toml` line. That is a daemon with no portal client, as on main before S-014e1. The copy predates the last case.
+    ```
+    $ tests/hyprland/repro.sh --portal     (control)
+    FAIL AC20 Hyprland: `hyprctl globalshortcuts` of the nested instance lists the daemon's shortcut as io.github.m7mmad_omar.SbarHive:drop (the ID is read, not guessed)
+    FAIL AC20 Hyprland: the private config's Super+Z global bind for the read ID is loaded (one Super+Z bind in `hyprctl binds`, no config error)
+    FAIL AC20 Hyprland: the daemon prints "portal shortcuts: bound drop (T)" exactly once, T the BindShortcuts reply's trigger_description, and no other "portal shortcuts:" line
+    FAIL AC20 (a) Hyprland run 1: the hive appears while Super+Z is held mid-drag      (and runs 2, 3)
+    FAIL AC20 (a) Hyprland: 3 of 3 drags with Super+Z held, dropped on WEBP with the key held, wrote the file
+    FAIL AC20 (b) Hyprland: "portal: deactivated drop" comes 500 ms or more after "portal: activated drop" (the backend sends Deactivated at the release, not at once)
+    FAIL AC20 (b) Hyprland: and within 200 ms of the key release
+    FAIL AC20 (c) Hyprland: both signals reach the daemon and no hive surface is made within 1000 ms (no get_layer_surface)
+    FAIL AC21 run 2: no new window from the backend within 5 s of the second daemon's start, and it prints "portal shortcuts: bound drop"
+    FAIL AC21 run 2: exactly one "portal shortcuts:" line, the bound one
+    FAIL AC21 run 2: the hive appears while Super+Z is held mid-drag
+    FAIL AC21 run 2: the shortcut shows the hive and the drop writes the file, 1 of 1
+    FAIL AC20 Hyprland: Super+Z held mid-drag shows the hive ("hive reveal: N" once the drag enters), and letting the key go over it destroys the layer within 500 ms of the key-up, with no file written
+    INFO AC20 Hyprland backend: over the run, xdg-desktop-portal-hyprland sent Activated 0 and Deactivated 0; the frontend sent the daemon Activated 0 and Deactivated 0
+    RESULT FAIL (15)
+    ```
+    The control ran 22 checks, not 26, because a cycle with no hive returns before its file checks. The 7 that pass are setup and teardown guards: the three setup checks (the frontend on this bus, with `XDG_CURRENT_DESKTOP=Hyprland`, and xdph on the nested Hyprland), AC21 run 1 "none left open" (there was no dialog), AC21 run 2 setup, and the two teardown checks. The negative cases (AC20 (c), AC21 run 2 "no window") are tied to the signal lines or to the bound line, so they cannot pass without registration.
+  - What the Hyprland backend sent (nested Hyprland 0.56.2, xdg-desktop-portal 1.22.1, xdg-desktop-portal-hyprland 1.4.1, from `dbus-monitor` on the private bus in the passing runs):
+    - No dialog. No window or layer from the backend appeared during the registration in either run, and AC21 run 1 records "appeared: no". The consent is implicit, so AC21 holds trivially on Hyprland.
+    - `hyprctl globalshortcuts` lists `io.github.m7mmad_omar.SbarHive:drop -> Show the SbarHive hive for a dragged file`. So the ID is the app id the daemon registers through Registry, and AC22's line `bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop` is the right one. The bind only works once it is in the config; xdph does not bind a key itself, which is why the AC needs the `global` line.
+    - The BindShortcuts reply's `trigger_description` is `""`, so the daemon prints `portal shortcuts: bound drop ()`. That matches AC13, but users read nothing useful in it. The manager may want a different line for an empty T; that would be a daemon change, so I have not tested for it.
+    - A held press gives one `Activated`, with no key repeat. With a 600 ms hold and no drag, `Deactivated` came 602.4 ms after it and 1.2 ms after the key-up (602.4 and 1.1 to 2.0 ms across the runs). A 150 ms tap gave one of each and no `get_layer_surface`. The frontend forwards each signal to the daemon within 1 ms.
+    - Finding: **no `Deactivated` after a drop that runs an action**. Every hold that ended in a drop on WEBP with the key still held got an `Activated` but no backend `Deactivated` after the key-up: 4 of 4 per run (AC20 (a) runs 1 to 3, and AC21 run 2). Over the run the backend sent 8 `Activated` and 4 `Deactivated`.
+      - The same flows on KDE and GNOME lost none: the monitor logs of the S-014e2 runs, and those of this regression run, show 0 of 6 lost holds for each (GNOME's key repeat folded in).
+      - A release over a revealed hive (1.3 ms to the layer's destroy) and a release after the drag had ended over the source, with the hive still shown (`Deactivated` 1.0 ms after the key-up, layer gone 1.5 ms after it), both get their `Deactivated`. Both are checked.
+      - So the loss follows only a drop whose action closed the hive before the key-up. In this harness nothing visible broke: the next held drops showed and wrote their files.
+      - It is not "never sends `Deactivated`" in the sense of manager decision 2. AC20 (b) passes, so this run does not put Hyprland on the no-release list. It is an INFO line in `backend_report` (`holds with no Deactivated from the backend before the next press: N of M`), not a check; the manager decides whether it should be one.
+    - The daemon's conversion notifications activated `org.freedesktop.Notifications` on the private bus, and the installed `mako` showed a `notifications` layer on the nested output, as S-014e2 finding 2 saw under KWin. It exits with the bus: no `mako` process was left after the runs.
+  - Regression after the harness changes, one private compositor at a time, all RESULT PASS:
+    - `tests/hyprland/repro.sh --json`: total 55, failed 0, skipped 0.
+    - `tests/drop/kwin.sh level=1 portal-real`: 21 of 21, `bound drop (Meta+Z)`, with T equal to the reply.
+    - `tests/drop/gnome.sh smart portal-real`: 21 of 21, `bound drop (Press <Super>z)`, with T equal to the reply.
+    - `tests/drop/hold_docs.sh`, `tests/drop/docs.sh`: pass.
+    - `bash -n` and `shellcheck -x -S warning` are clean on every changed script, and `py_compile` is clean on `real_portal.py`.
+    - In every run the live desktop's `xdg-desktop-portal*` PIDs were the same before and after (5), and no private portal, compositor or `mako` process was left.
+  - For the manager:
+    1. AC20 on Hyprland needs no implementer, as in S-014e2: every check passes on main and the control fails them. AC22 needs the implementer: the portal section of `docs/drop-shortcut.md` and `docs/drop-shortcut.ar.md`, the global line in the Hyprland README pair, and the CHANGELOG line.
+    2. The reviewer should know that the S-014e2 bound line check changed: T must now equal the reply's `trigger_description` on the bus, which may be empty. This is stricter for GNOME and KDE, and the reason Hyprland's empty T passes.
+    3. The lost `Deactivated` after a drop on Hyprland (above): is it accepted as recorded, or should it be a failing check that escalates the story?
+    4. The `--portal` mode runs AC21's two runs on Hyprland too, through `real_portal_run`. They are not in S-014e3's criteria, but they pass and they cost nothing extra.
+  - Not done here: `cargo mutants` (no crate code changed), and the docs themselves (the implementer's). The live desktop, its bus and its portal were not touched; `hyprctl` ran only inside the private session, against the nested instance.

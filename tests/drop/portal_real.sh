@@ -57,6 +57,8 @@
 #   screen_middle      (gnome.sh, AC18 (c)) "CX CY", the centre of the work
 #                      area of the monitor, where Mutter centres a window
 #                      (below the top bar)
+#   portal_after_bound (optional, tests/hyprland/portal.sh) runs once in AC21
+#                      run 1, after the daemon's "portal shortcuts:" line
 
 PR="$HERE/real_portal.py"
 PORTAL_PROCS='xdg-desktop-portal|xdg-permission-store|xdg-document-portal|global-shortcuts-provider'
@@ -212,19 +214,28 @@ real_portal_run() { # real_portal_run DESKTOP BACKEND_PACKAGE
     done
   fi
   wait_bound 10 || true
+  # S-014e3: a caller hook between the bound line and AC20 (a); Hyprland
+  # reads the shortcut's ID there and adds its global bind.
+  if declare -F portal_after_bound >/dev/null; then portal_after_bound; fi
   local procs1; procs1=$(bus_procs)
   local added; added=$(others_since 0)
   echo "INFO AC21 run 1: the backend dialog appeared: $([ -n "$seen" ] && echo "yes (${seen#*|})" || echo no); accepted by ${accepted}; windows from others since the daemon started: $(tr '\n' ';' <<<"${added:-none}")"
   echo "INFO AC20 $desk: portal processes on the private bus: $(tr '\n' ';' <<<"$procs1")"
-  local lines t1
+  local lines t1 nb reply
   lines=$(bound_lines)
-  t1=$(sed -nE 's/^portal shortcuts: bound drop \((.+)\)$/\1/p' <<<"$lines")
-  echo "INFO AC20 $desk: daemon portal lines: $(tr '\n' '|' <<<"${lines:-none}"); trigger_description \"${t1:-none}\" for preferred_trigger LOGO+z"
+  # AC13: T is the reply's trigger_description, which may be empty
+  # (xdg-desktop-portal-hyprland 1.4.1 sends ""): T must equal what the
+  # first BindShortcuts Response on the bus carried for "drop".
+  nb=$(grep -cE '^portal shortcuts: bound drop \(.*\)$' <<<"$lines")
+  t1=$(sed -nE 's/^portal shortcuts: bound drop \((.*)\)$/\1/p' <<<"$lines" | head -1)
+  reply=$(python3 -I "$PR" triggers "$MONLOG" | head -1)
+  REPLY_TRIGGER=$reply
+  echo "INFO AC20 $desk: daemon portal lines: $(tr '\n' '|' <<<"${lines:-none}"); trigger_description \"${t1}\" (the reply on the bus: \"${reply}\", $(python3 -I "$PR" triggers "$MONLOG" | grep -c '^' ) replies) for preferred_trigger LOGO+z"
   check "setup $desk: the installed xdg-desktop-portal runs on this private bus (activated here, not through the live session's systemd)" \
     'grep -qE "^[0-9]+ xdg-desktop-por" <<<"$procs1"'
   check "AC21 run 1: any backend dialog is accepted with injected input (none left open)" '[ "$accepted" != no ]'
-  check "AC20 $desk: the daemon prints \"portal shortcuts: bound drop (T)\" exactly once, and no other \"portal shortcuts:\" line" \
-    '[ -n "$t1" ] && [ "$(grep -c "^portal shortcuts:" <<<"$lines")" -eq 1 ]'
+  check "AC20 $desk: the daemon prints \"portal shortcuts: bound drop (T)\" exactly once, T the BindShortcuts reply's trigger_description, and no other \"portal shortcuts:\" line" \
+    '[ "$nb" -eq 1 ] && [ "$(python3 -I "$PR" triggers "$MONLOG" | grep -c "^")" -ge 1 ] && [ "$t1" = "$reply" ] && [ "$(grep -c "^portal shortcuts:" <<<"$lines")" -eq 1 ]'
 
   # --- AC20 (a) ----------------------------------------------------------
   local i ok=0
@@ -297,9 +308,9 @@ real_portal_run() { # real_portal_run DESKTOP BACKEND_PACKAGE
   check "AC21 run 2 setup: the portal processes of run 1 were ended and the second daemon activated new ones" \
     '[ -z "$procs_mid" ] && grep -qE "^[0-9]+ xdg-desktop-por" <<<"$procs2"'
   check "AC21 run 2: no new window from the backend within 5 s of the second daemon's start, and it prints \"portal shortcuts: bound drop\"" \
-    '[ -z "$new2" ] && { [ -z "$dlg2" ] || [[ "$dlg2" == *"(not a portal process)" ]]; } && grep -qE "^portal shortcuts: bound drop \(.+\)$" <<<"$lines2"'
+    '[ -z "$new2" ] && { [ -z "$dlg2" ] || [[ "$dlg2" == *"(not a portal process)" ]]; } && grep -qxF "portal shortcuts: bound drop ($REPLY_TRIGGER)" <<<"$lines2"'
   check "AC21 run 2: exactly one \"portal shortcuts:\" line, the bound one" \
-    '[ "$(grep -c "^portal shortcuts:" <<<"$lines2")" -eq 1 ] && grep -qE "^portal shortcuts: bound drop \(.+\)$" <<<"$lines2"'
+    '[ "$(grep -c "^portal shortcuts:" <<<"$lines2")" -eq 1 ] && grep -qxF "portal shortcuts: bound drop ($REPLY_TRIGGER)" <<<"$lines2"'
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/again.png"
   real_drop_cycle "AC21 run 2" "$W/again.png"
   check "AC21 run 2: the shortcut shows the hive and the drop writes the file, 1 of 1" '[ "$REAL_OK" = yes ]'

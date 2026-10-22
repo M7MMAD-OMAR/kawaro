@@ -66,6 +66,17 @@
 #                        set, no reader running" line; then a11y.py owns the
 #                        name: the next show is a window, with one "hive
 #                        surface choice: window ... screen reader running".
+#   --portal           S-014e3 (backlog/S-014-drop-hive.md, AC20 for
+#                      Hyprland), and nothing else: the installed
+#                      xdg-desktop-portal with xdg-desktop-portal-hyprland on
+#                      the private bus, the daemon's real registration, the ID
+#                      read from `hyprctl globalshortcuts` of the nested
+#                      instance and its global bind in the private config,
+#                      then AC20 (a), (b), (c) and the AC21 runs of
+#                      tests/drop/portal_real.sh, a release over the hive,
+#                      and the record of what the backend sent. See
+#                      tests/hyprland/portal.sh. The only mode that skips
+#                      tests/no_portal.sh; the others keep it.
 # Checks (layer or window): surface shown, keyboard focus received, show
 # latency under 150 ms, Esc closes, click outside closes, input reaches the
 # other client after close. Then S-021 (backlog/S-021-drop-only-on-drag.md),
@@ -138,7 +149,7 @@
 # dbus-run-session. LIBSEAT_BACKEND=seatd with no seatd socket makes
 # aquamarine's DRM backend fail at once, so logind is never asked for the
 # live session's devices.
-# Usage: tests/hyprland/repro.sh [--selftest|--json [--quasimode]] [layer|window] [BIN_DIR]
+# Usage: tests/hyprland/repro.sh [--selftest|--portal|--json [--quasimode]] [layer|window] [BIN_DIR]
 # BIN_DIR defaults to target/release; ~/.local/bin tests the installed build.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -146,13 +157,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=../no_portal.sh
 source "$ROOT/tests/no_portal.sh"
-SELFTEST=0 JSON=0 QUASI=0 SURFACE=layer
+SELFTEST=0 JSON=0 QUASI=0 PORTAL=0 SURFACE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
   case "$a" in
     --selftest) SELFTEST=1 ;;
     --json) JSON=1 ;;
     --quasimode) QUASI=1 ;;
+    --portal) PORTAL=1 ;;
     layer|window) SURFACE=$a ;;
     *) BIN="$a" ;;
   esac
@@ -164,13 +176,14 @@ if ! command -v Hyprland >/dev/null || ! command -v kwin_wayland >/dev/null; the
 [ -x "$INPUT" ] || need "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"
 OUT="${HYPR_OUT:-$HERE/out}"
 mkdir -p "$OUT"
-export BIN HERE ROOT OUT INPUT SELFTEST JSON QUASI SURFACE
+export BIN HERE ROOT OUT INPUT SELFTEST JSON QUASI PORTAL SURFACE
 export HYPR_SCALE="${HYPR_SCALE:-1.333333}"
 
 inner() {
   set -u
   local log="$OUT/hypr-$SURFACE"
   [ "$SELFTEST" = 1 ] && log="$OUT/hypr-selftest"
+  [ "$PORTAL" = 1 ] && log="$OUT/hypr-portal"
   local TOTAL=0 FAILS=0
   # Shared drop helpers (webp_offset, drag_past_threshold, move_to_webp),
   # which drive the pointer through ptr_move, ptr_down and ptr_up, defined
@@ -247,6 +260,10 @@ hl.window_rule({ match = sbarhive, no_anim = true })
 hl.window_rule({ match = sbarhive, border_size = 0 })
 hl.layer_rule({ match = { namespace = "^sbarhive$" }, no_anim = true })
 LUA
+  # --portal: no systemd or activation environment updates by Hyprland
+  # itself (the portal's environment is set below, on this bus only).
+  [ "$PORTAL" = 1 ] && export HYPRLAND_NO_SD_VARS=1
+  HYPR_CONF="$XDG_CONFIG_HOME/hypr/sbh.lua"
   WAYLAND_DISPLAY=sbh-kwin LIBSEAT_BACKEND=seatd HYPRLAND_NO_SD_NOTIFY=1 HYPRLAND_NO_CRASHREPORTER=1 \
     Hyprland --config "$XDG_CONFIG_HOME/hypr/sbh.lua" >"$log-hyprland.log" 2>&1 &
   local hy=$!
@@ -267,6 +284,17 @@ LUA
   [ -n "$cerr" ] && { say "FAIL private Hyprland config: $cerr"; finish; return 1; }
   # A real session names Hyprland; only private processes see these.
   export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland
+  if [ "$PORTAL" = 1 ]; then
+    # S-014e3: what the bus hands to the portal it activates, on this private
+    # bus only (no --systemd, no --all). Portal processes activated before
+    # this (none expected) are ended, so the next activation reads it.
+    # shellcheck source=portal.sh
+    source "$HERE/portal.sh"
+    dbus-update-activation-environment WAYLAND_DISPLAY HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+    local early; early=$(bus_procs)
+    say "INFO portal: activation environment set on the private bus; portal processes already running: $(tr '\n' ';' <<<"${early:-none}")"
+    for p in $(cut -d' ' -f1 <<<"$early"); do kill "$p" 2>/dev/null; done
+  fi
   say "INFO nested $(Hyprland --version | head -1 | cut -d' ' -f1-2) on $wl, scale $HYPR_SCALE, output $(hyprctl monitors | grep -m1 -oE '[0-9]+x[0-9]+@[0-9.]+')"
 
   local KLOG="$log-keys.log" kp
@@ -321,6 +349,23 @@ m = json.load(sys.stdin)[0]
 print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
   : "${hcx:=480}" "${hcy:=270}"
   centre_ptr() { move "$hcx" "$hcy"; sleep 0.3; }
+
+  if [ "$PORTAL" = 1 ]; then
+    # S-014e3 (tests/hyprland/portal.sh): keys.py is not needed; the dialog
+    # watch counts every window that is not the daemon's or the source's.
+    kill "$kp" 2>/dev/null
+    local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
+    mkdir -p "$XDG_CONFIG_HOME/sbarhive"
+    printf 'language = "en"\ntheme = "light"\nhold_ms = 400\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    local NEXT="$XDG_RUNTIME_DIR/next" SLOG="$log-source.log" OUT_LOG="$log" MODE=portal-real
+    local DLOG="$log-first-daemon.log" d="" src=""
+    portal_hypr_run
+    finish
+    say "RESULT $([ "$FAILS" -eq 0 ] && echo PASS || echo "FAIL ($FAILS)")"
+    echo "{\"total\": $TOTAL, \"failed\": $FAILS, \"skipped\": 0}" >"$XDG_RUNTIME_DIR/json"
+    [ "$FAILS" -eq 0 ]
+    return
+  fi
   # Focus the other client with a click on it, then measure from there.
   # keys.py now and then maps but never takes input (seen 2 runs in ~15);
   # a fresh one always has, so restart it rather than fail the input checks.
@@ -1085,24 +1130,41 @@ export -f inner
 # Human lines: stdout, or stderr with --json (stdout then carries the JSON).
 if [ "$JSON" = 1 ]; then exec 4>&2; else exec 4>&1; fi
 SANDBOX="$(mktemp -d)"
-no_real_portal "$SANDBOX"
+if [ "$PORTAL" = 1 ]; then
+  # S-014e3: the real portal on the private bus; the app's desktop entry
+  # where an install puts it, in the throwaway data directory.
+  mkdir -p "$SANDBOX/.local/share/applications"
+  cp "$ROOT/packaging/io.github.m7mmad_omar.SbarHive.desktop" "$SANDBOX/.local/share/applications/"
+else
+  no_real_portal "$SANDBOX"
+fi
 # Short on purpose: Hyprland's Wayland backend needs socket paths under 108 bytes.
 RUNTIME="$(mktemp -d /tmp/sbhh.XXXXXX)"
 chmod 700 "$RUNTIME"
 mkdir -p "$SANDBOX/.config" "$SANDBOX/.local/share" "$SANDBOX/.cache" "$SANDBOX/.local/state"
 # Environment set BEFORE dbus-run-session, so nothing the private bus
 # activates can reach the live desktop or the real profile.
-env -u DISPLAY -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
-  -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID -u SBARHIVE_SURFACE \
-  -u SBARHIVE_REDUCED_MOTION \
-  HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
-  XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" XDG_RUNTIME_DIR="$RUNTIME" \
-  GIO_USE_VFS=local GVFS_DISABLE_FUSE=1 \
-  nice -n 19 dbus-run-session -- bash -c inner >&4 2>"$OUT/hypr-bus.log"
+ENVS=(-u DISPLAY -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP
+  -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID -u SBARHIVE_SURFACE
+  -u SBARHIVE_REDUCED_MOTION
+  HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share"
+  XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" XDG_RUNTIME_DIR="$RUNTIME"
+  GIO_USE_VFS=local GVFS_DISABLE_FUSE=1)
+if [ "$PORTAL" = 1 ]; then
+  # --portal: the services the bus activates (the portal and its backend)
+  # inherit its stdout, so theirs goes to a log; inner's lines go to fd 4
+  # (through fd 5), as in the other modes.
+  env "${ENVS[@]}" nice -n 19 dbus-run-session -- bash -c 'inner >&5' \
+    5>&4 >"$OUT/hypr-portal-bus-stdout.log" 2>"$OUT/hypr-bus.log"
+else
+  env "${ENVS[@]}" nice -n 19 dbus-run-session -- bash -c inner >&4 2>"$OUT/hypr-bus.log"
+fi
 rc=$?
 if [ "$JSON" = 1 ]; then
   if [ -s "$RUNTIME/json" ]; then cat "$RUNTIME/json"; else echo '{"total": 0, "failed": 1, "skipped": 0}'; rc=1; fi
 fi
 cp "$RUNTIME"/hypr/*/hyprland.log "$OUT/hypr-hyprland-full.log" 2>/dev/null
+# --portal: the document portal's FUSE mount, if the private bus started it.
+fusermount3 -u "$RUNTIME/doc" 2>/dev/null
 rm -rf "$SANDBOX" "$RUNTIME" 2>/dev/null || { sleep 1; rm -rf "$SANDBOX" "$RUNTIME"; }
 exit "$rc"

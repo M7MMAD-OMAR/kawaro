@@ -25,6 +25,12 @@ through tests/drop/portal_real.sh. Standard library only.
       "none" for what is missing.
   real_portal.py count STAMPS FROM LINE
       The number of lines equal to LINE stamped at or after FROM.
+  real_portal.py triggers MONLOG
+      Reads `dbus-monitor` output and prints, for every
+      org.freedesktop.portal.Request Response that binds the shortcut "drop"
+      (the BindShortcuts reply the daemon gets), one line: the
+      trigger_description of "drop" in that reply, as sent (possibly
+      empty). S-014e3: xdg-desktop-portal-hyprland 1.4.1 sends "".
 """
 import datetime
 import re
@@ -121,6 +127,37 @@ def count(path, frm, want):
     print(sum(1 for t, text in entries(path) if t >= f and text == want))
 
 
+RESP = re.compile(r"^signal time=[0-9.]+ .*interface=org\.freedesktop\.portal\.Request; member=Response")
+
+
+def triggers(path):
+    """The trigger_description of "drop" in each Response that binds it."""
+    blocks, cur = [], None
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.startswith("signal ") or line.startswith("method "):
+                if cur is not None:
+                    blocks.append(cur)
+                cur = [] if RESP.match(line) else None
+            elif cur is not None:
+                cur.append(line.rstrip("\n"))
+    if cur is not None:
+        blocks.append(cur)
+    for b in blocks:
+        in_drop = False
+        for i, line in enumerate(b):
+            s = STR.match(line)
+            if not s:
+                continue
+            if s.group(1) == "drop":
+                in_drop = True
+            elif in_drop and s.group(1) == "trigger_description" and i + 1 < len(b):
+                v = re.match(r'^\s+variant\s+string "(.*)"$', b[i + 1])
+                if v:
+                    print(v.group(1))
+                    break
+
+
 def main():
     cmd, args = sys.argv[1], sys.argv[2:]
     if cmd == "stamp":
@@ -131,6 +168,8 @@ def main():
         hold(*args)
     elif cmd == "count":
         count(*args)
+    elif cmd == "triggers":
+        triggers(*args)
     else:
         raise SystemExit(__doc__)
 
