@@ -184,10 +184,11 @@ Hyprland binding sections in `docs/`, in Arabic and in English.
 `kwin.sh` (level=1) adds, after the S-019d shows: show 12, where the drag
 moves LATE_MS (170 ms by default) after `sbarhive drop` returns, so its
 first enter on the catcher falls inside the 300 ms window of manager
-decision 12, which since S-021 AC4 counts from the catcher's ready commit
-(its first commit after its first configure, `catcher_ready` in
-`layer.sh`), not from a first frame (one move to the drag, `set_position` twice, the
-catcher region the hive rectangle after it); show 13, a PNG with a
+decision 12. Since S-021 AC4 the daemon counts that window from the
+placement, and the check counts it from the catcher's ready commit (its
+first commit after its first configure, `catcher_ready` in `layer.sh`),
+which comes earlier, so the bound is stricter (one move to the drag,
+`set_position` twice, the catcher region the hive rectangle after it); show 13, a PNG with a
 thumbnail seeded in the sandbox cache held over the centre cell (200 or
 more pixels of the thumbnail's sky colour in the centre, `pixels.py
 rgbcount`); `preview_checks` (lib.sh) on every show: one

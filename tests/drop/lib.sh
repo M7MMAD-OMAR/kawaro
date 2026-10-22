@@ -19,9 +19,10 @@
 #                        entered it yet (AC10: the waiting text)
 #   on_over N X Y W H    the drag is over the first cell (AC9: highlight)
 # and set ANCHOR_SETTLE=1 (S-019d, layer path): a drop-mode hive shown with
-# the drag standing still sits in the middle, and after 300 ms from its
-# first frame its catcher takes only the hive rectangle and it never moves
-# (manager decision 12, 2026-10-21). Each show then waits 400 ms, so every
+# the drag standing still sits in the middle, and 300 ms after its
+# placement (S-021 AC4; the first frame before S-021) its catcher takes
+# only the hive rectangle and it never moves (manager decision 12,
+# 2026-10-21). Each show then waits 400 ms, so every
 # one of these shows takes that path, first moves the drag to the hive's
 # centre (inside the rectangle, so the drag enters there), and reads the
 # geometry again before going on.

@@ -40,7 +40,7 @@
 
 في Hyprland يُضاف سطر ربط إلى ملف الإعداد بنفسك. الأسطر أدناه مفترضة، لم تُجرَّب بعد على Hyprland حقيقي. يقرأ `--at` موضع المؤشر من `hyprctl cursorpos` لحظة الضغطة. ولا تظهر الخلية إلا أثناء سحب ملفات لها إجراء واحد على الأقل، فإن كان السحب جارياً ظهرت عند الملف المسحوب، وإلا فلا يظهر شيء.
 
-ربط Super+Z يُظهر الخلية بالضغطة إن كنت تسحب ملفات لها إجراء، بصيغة hyprlang (الملف `hyprland.conf`):
+ربط Super+Z يُظهر الخلية أثناء سحب ملفات لها إجراء، ويظهر على Hyprland مع أول حركة للسحب بعد الضغطة، بصيغة hyprlang (الملف `hyprland.conf`):
 
 ```
 bind = SUPER, Z, exec, ~/.local/bin/sbarhive drop --at "$(hyprctl cursorpos)"
@@ -95,7 +95,7 @@ On KDE the hive is a layer at the dragged file.
 
 On Hyprland, add a bind line to your config yourself. The lines below are assumed, not verified yet on a real Hyprland session. `--at` reads the pointer from `hyprctl cursorpos` at the press. The hive shows only during a drag of files that have an action: with such a drag it shows at the dragged file, otherwise nothing shows.
 
-Super+Z shows the hive on the press while you drag files that have an action, hyprlang form (`hyprland.conf`):
+Super+Z shows the hive while you drag files that have an action; on Hyprland it appears with the drag's first motion after the press, hyprlang form (`hyprland.conf`):
 
 ```
 bind = SUPER, Z, exec, ~/.local/bin/sbarhive drop --at "$(hyprctl cursorpos)"

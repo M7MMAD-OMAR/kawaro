@@ -68,8 +68,10 @@
 #   late    (coverage of decision 12, accepted by the manager) the drag
 #           stands still, `sbarhive drop`, and the drag moves to P =
 #           (400, 500) LATE_MS (170 ms by default) after the command
-#           returns, inside the 300 ms window counted from the catcher's
-#           ready commit (S-021 AC4, catcher_ready in layer.sh): "hive anchor: none", then one move to the drag
+#           returns, inside the 300 ms window (the daemon counts it from
+#           the placement, S-021 AC4; the check from the earlier catcher
+#           ready commit, catcher_ready in layer.sh, a stricter bound):
+#           "hive anchor: none", then one move to the drag
 #           position, "hive anchor" within 1 px of P, exactly two
 #           wl_subsurface.set_position, (444, 219) then (204, 319), the
 #           catcher region the hive rectangle after that first position
