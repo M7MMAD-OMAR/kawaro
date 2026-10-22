@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 في المراجعة بعد إعادة العمل 1 (المراجعة 1: REWORK، 1 من 2)؛ S-014f لم تبدأ
+الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 منتهية (المراجعة 2: PASS)؛ S-014f لم تبدأ
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -642,3 +642,13 @@
   - Arabic: «الإعداد `hold_ms`» in the portal hold sentence. Both languages add, after `systemctl --user restart sbarhive`, that without a systemd user session logging out and back in restarts the service.
   - Checks, all RESULT PASS or clean: `tests/drop/portal_docs.sh`, `tests/drop/docs.sh` (`DROP_OUT` in a scratch directory), `tests/drop/hold_docs.sh`, `tests/overlay/docs.sh`, `tests/integrations/test_static.sh` (43 checks), `scripts/design-lint.sh`. No Rust changed, so cargo checks were not run.
   - Status: S-014e3 ready for review.
+- 2026-10-23, reviewer (S-014e3, review 2): **PASS**.
+  - Diff integrity: `git diff 48750ab..HEAD` touches only the story, `docs/drop-shortcut.md` and `.ar.md`, and `integrations/linux/hyprland/README.md` and `.ar.md`. No test, script or crate code changed.
+  - Reason 1 fixed: the hyprlang `global` line is marked not verified in all four places, `docs/drop-shortcut.md:72`, `docs/drop-shortcut.ar.md:74`, `integrations/linux/hyprland/README.md:96`, `integrations/linux/hyprland/README.ar.md:98`. The two `docs/drop-shortcut` files now link to the Hyprland guide for the verified Lua form; both link targets exist. The README Lua form stays unmarked, as review 1 allowed.
+  - Reason 2 fixed: the portal section's KDE path reads "System Settings, then Keyboard, then Shortcuts" (`docs/drop-shortcut.md:64`) and «إعدادات النظام، ثم لوحة المفاتيح، ثم الاختصارات» (`docs/drop-shortcut.ar.md:66`), matching each file's KDE section.
+  - Minor items fixed: «الإعداد `hold_ms`» in the Arabic portal hold sentence; both languages add that without a systemd user session, logging out and back in restarts the daemon, which matches the XDG autostart fallback in `scripts/install.sh` (step 5).
+  - Not a REWORK: `docs/drop-shortcut.ar.md:51`, in the older Hyprland Alt paragraph from `f8ad634` (outside S-014e3), still reads «المفتاح `hold_ms`» next to «تترك المفتاح». It is clear in context; worth the same «الإعداد» wording in a later docs pass.
+  - Language: the Arabic reads naturally and says the same as the English. Small style difference only: `docs/drop-shortcut.ar.md` uses «ولم نتحقق منها» and the Arabic README uses «ولم يُتحقق منها»; both match their file's existing style. No em dash or en dash in the changed files or the story; no personal details in the diff.
+  - Checks, all exit 0: `tests/drop/portal_docs.sh` RESULT PASS, `tests/drop/docs.sh` (`DROP_OUT` in a scratch directory) RESULT PASS, `tests/drop/hold_docs.sh` RESULT PASS, `tests/overlay/docs.sh` RESULT PASS, `tests/integrations/test_static.sh` 43 checks pass, `scripts/design-lint.sh` clean. The compositor and portal runs from review 1 were not rerun: the code they ran is unchanged.
+  - Not applicable: cargo fmt, clippy, test and mutants (no crate code changed); screenshots (none new); the performance budget (no daemon path changed); UI strings and interactive elements (none new). The CHANGELOG line from S-014e3 is already there, so the reviewer added none.
+  - Status: S-014e1, S-014e2 and S-014e3 done.
