@@ -71,9 +71,9 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 افتح الإعدادات من أيقونة صبار هايف في شريط النظام، أو عدّل `~/.config/sbarhive/config.toml` مباشرة: اللغة، والمظهر، ومكان الناتج (بجانب الأصل أو في مجلد فرعي)، ومستوى الجودة. ويمكن إضافة إجراءات خاصة بك بملفات TOML في `~/.config/sbarhive/actions/`.
 
-على ويندوز يكون ملف الإعدادات في `%APPDATA%\SbarHive\config.toml`، والإجراءات الخاصة في `%APPDATA%\SbarHive\actions\`، وسجل الخدمة في `%LOCALAPPDATA%\SbarHive\logs\`.
+على ويندوز يكون ملف الإعدادات في `%APPDATA%\SbarHive\config.toml`، والإجراءات الخاصة في `%APPDATA%\SbarHive\actions\`. أما سجل الخدمة في `%LOCALAPPDATA%\SbarHive\logs\` فمخطَّط لقصة لاحقة (S-027) ولا يُكتب بعد.
 
-وعلى ويندوز يشغّل `sbarhive open` الخدمة `sbarhived.exe` من مجلد البرنامج إن لم تكن تعمل، وتبقى تعمل بعد إغلاق الطرفية.
+وعلى ويندوز يشغّل `sbarhive open` الخدمة `sbarhived.exe` من مجلد البرنامج إن لم تكن تعمل، والمقصود أن تبقى تعمل بعد إغلاق الطرفية. نسخة ويندوز من الخدمة لم تُبنَ بعد (S-027)، ولم يُتحقق من هذا السلوك حياً (S-034).
 
 ولا ينزّل صبار هايف المحركات الخارجية على ويندوز، بل يبحث عنها في `PATH` أولاً، ثم في مجلدات تثبيتها المعتادة: LibreOffice في `%ProgramFiles%\LibreOffice\program`، وGhostscript في أحدث `%ProgramFiles%\gs\gs*\bin`، وFFmpeg في المجلد `ffmpeg\bin` بجانب `sbarhive.exe`، ثم في سجل ويندوز لـ LibreOffice وGhostscript. وإن لم يجد محركاً ذكرت رسالة الخطأ اسمه ورابط تنزيله.
 
@@ -186,12 +186,13 @@ Open Settings from the SbarHive tray icon, or edit `~/.config/sbarhive/config.to
 go in `~/.config/sbarhive/actions/*.toml`.
 
 On Windows the settings file is `%APPDATA%\SbarHive\config.toml`, your own
-actions go in `%APPDATA%\SbarHive\actions\*.toml`, and the service log in
-`%LOCALAPPDATA%\SbarHive\logs\`.
+actions go in `%APPDATA%\SbarHive\actions\*.toml`. A service log in
+`%LOCALAPPDATA%\SbarHive\logs\` is planned for S-027 and not written yet.
 
 On Windows `sbarhive open` starts the service, `sbarhived.exe`, from the
-program folder when it is not running, and it keeps running after the
-terminal closes.
+program folder when it is not running, and it is meant to keep running after
+the terminal closes. The Windows service itself is not built yet (S-027), and
+this behaviour is not verified live (S-034).
 
 SbarHive does not download the external engines on Windows. It looks for
 them in `PATH` first, then in their usual install folders: LibreOffice in
