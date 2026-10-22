@@ -411,3 +411,9 @@
     4. Answer 5: the settings window toggle for `portal_shortcut` is in no S-014e criterion. Should it go in S-014f or another story?
     5. `bind_reason(0, &["other"])` (a reply without `drop`) counts as `denied`, so it is remembered. This goes beyond the AC's "empty list".
   - Note: `mod portal_tests` stops every unit test of `sbarhive-daemon` from building until `crate::portal` exists, as in S-014a. `cargo mutants` was not run (not the tester's job). Heavy runs were inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` with `CARGO_BUILD_JOBS` 1 or 2, one private compositor at a time. The live desktop, its bus and the real portal were not touched.
+- 2026-10-22, manager under the maintainer's delegation, on the S-014e1 tester's decisions:
+  1. AC14 is checked by intent, as `tests/drop/deps.sh` does: no zbus among the duplicated packages and exactly one zbus in `Cargo.lock`. Accepted.
+  2. Answer 4: a list of desktops whose backend sends no `Deactivated`, keyed by `XDG_CURRENT_DESKTOP`, empty until the S-014e2 and S-014e3 runs show otherwise. A listed desktop skips registration and prints `unavailable (no-release)`.
+  3. `no-portal` only when `org.freedesktop.portal.Desktop` has no owner and is not activatable. Accepted.
+  4. The settings toggle that turns `portal_shortcut` back on belongs to S-014f.
+  5. A code 0 reply whose list lacks `drop` counts as `denied` and is remembered. Accepted.
