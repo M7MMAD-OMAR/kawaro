@@ -113,12 +113,12 @@ test result: ok. 1 passed; 0 failed
   - `crates/core/src/output_impl.rs`: `PlaceFn` و`finalize_with` بأربعة معاملات بلا فحص ولا `rename` داخلها، و`place_no_replace` (لينكس: الفحص ثم `rename`)، و`move_error_kind` (80 و183 `AlreadyExists`، و5 `PermissionDenied`، وغيرها `Other`؛ لا `from_raw_os_error` لأن 1 على لينكس EPERM). وحدة الاختبار لم تتغير (الفرقان من سجل المختبِر فارغان).
   - `crates/core/src/output_impl/windows.rs` (جديد): `MoveFileExW` بأعلام 0، ويحفظ رمز النظام داخل الخطأ.
   - `config.rs`: `path()` و`actions_dir()` من `paths::config_dir()`، والتوقيعات كما هي. `Cargo.toml`: الميزتان `Win32_UI_Shell` و`Win32_System_Com`. `.cargo/mutants.toml`: الملفان في `exclude_globs`.
-  - انحراف: طفرة `replace run with ()` في `watch.rs` ناجية لأن `run` حلقة استطلاع لا تنتهي ولا يشغّلها اختبار وحدة، وS-023 غيّر سطر الاستيراد فيها فقط. أضفت النمط `replace run with \\(\\)$` إلى `exclude_re` مع تعليق، على سابقة `serve`؛ لا يطابق `run` في `cli/src/main.rs` لأنها تعيد `Res<()>` (تحققت بـ `--list`). `tests/e2e/run.sh` يغطي إعادة التحميل.
+  - انحراف: طفرة `replace run with ()` في `watch.rs` ناجية لأن `run` حلقة استطلاع لا تنتهي ولا يشغّلها اختبار وحدة، وS-023 غيّر فيها سطر الاستيراد واستدعاء مجلد الإجراءات داخل `run` فقط. أضفت النمط `replace run with \\(\\)$` إلى `exclude_re` مع تعليق، على سابقة `serve`؛ لا يطابق `run` في `cli/src/main.rs` لأنها تعيد `Res<()>` (تحققت بـ `--list`). `tests/e2e/run.sh` يغطي إعادة التحميل.
   - البوابات (كلها داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
     - `C`: `cargo fmt --check` و`cargo clippy -j 2 --workspace --all-targets -- -D warnings` نظيفان.
     - `L` و`cargo test -j 2 --all`: 642 ناجحاً، 0 فاشلاً، 1 متجاهلاً، في 43 ثنائياً.
-    - `W`: clippy لـ core وengines `--lib` للهدف `x86_64-pc-windows-gnu` بلا تحذير. daemon وcli بلا هدف `lib`.
-    - `M` على فرق الملفات السبعة المتغيرة من 8a27c8e: 25 طفرة، 23 ممسوكة، 1 غير قابلة للبناء، 1 ناجية (`watch.rs` أعلاه، مستثناة الآن، فالقائمة 24).
+    - `W`: clippy و`cargo check` لـ core وengines `--lib` للهدف `x86_64-pc-windows-gnu` بلا تحذير. daemon وcli بلا هدف `lib`.
+    - `M` على فرق الملفات السبعة المتغيرة من 8a27c8e: 25 طفرة، 23 ممسوكة، 1 غير قابلة للبناء (`move_error_kind` بـ `Default::default()`، لأن `ErrorKind` بلا `Default`)، 1 ناجية (`watch.rs` أعلاه، مستثناة الآن، فالقائمة 24).
     - `X`: serde وserde_json وthiserror وtoml وwindows-sys كما بعد S-022b. `Cargo.lock` لم يتغير، و`[[package]]` 671.
     - `scripts/design-lint.sh` نظيف. `tests/e2e/run.sh`: كله ناجح. `git diff --stat main...HEAD -- crates/ui` فارغ.
-
+    - ملاحظة: `--jobs 1` مرفوض مع `--in-place`، فشغّلت `--in-place` وهو تسلسلي بطبعه. وتداخل تشغيلان (بناء e2e والجولة الأخيرة) مع بناء من جلسة أخرى رغم الفحص بـ `pgrep`، ولم يفشل شيء.

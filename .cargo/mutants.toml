@@ -67,8 +67,8 @@ exclude_re = [
   # The service's accept loop (S-022a) runs only inside the live daemon;
   # tests/e2e/run.sh covers it. The transport it accepts from stays mutated.
   "replace serve with \\(\\)",
-  # The settings watcher (S-023 touched its import only) is an endless poll
-  # loop that posts a reload to the Slint event loop, so no unit test can
+  # The settings watcher (S-023 changed its import and its one call to the
+  # actions folder) is an endless poll loop that posts a reload to the Slint event loop, so no unit test can
   # run it; its stamp() stays mutated and tests/e2e/run.sh covers reload.
   "replace run with \\(\\)$",
   # A Unix socket has no write buffer: std's flush is already Ok(()), so
