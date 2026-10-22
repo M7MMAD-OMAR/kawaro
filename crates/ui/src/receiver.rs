@@ -59,6 +59,9 @@ pub enum Note {
     Leave,
     /// Dropped; the last `Motion` says on which cell, `None` when refused.
     Drop,
+    /// The pointer entered the layer catcher with no drag; sent by
+    /// `layer.rs` (S-021).
+    PointerEnter,
     /// A drag position on the drop surface in the anchor phase, in its
     /// coordinates; never reaches the mode machine.
     Position(f64, f64),

@@ -1,5 +1,5 @@
 # S-021 خلية الإفلات لا تظهر إلا لسحب حقيقي لملفات لها إجراء
-الحالة: معتمدة (2026-10-22)؛ S-021a عند المختبِر، وS-021b وS-021c لم تبدأ
+الحالة: معتمدة (2026-10-22)؛ S-021a في المراجعة، وS-021b وS-021c لم تبدأ
 
 بلاغ محمد (2026-10-22، الإصدار 0.3.0 مثبت): دون تحديد ولا سحب، إمساك Alt وتحريك الفأرة يُظهر الخلية. المطلوب: لا تظهر خلية الإفلات إلا أثناء سحب ملف فعلي، ولملفات لها إجراء واحد على الأقل.
 
@@ -146,3 +146,10 @@
     الأخطاء الخمسة والثلاثون: 13 `Probing`، و8 الحقل `layer`، و6 `Note::PointerEnter`، و6 `Event::PointerEnter`، و2 `Reject`. كلها بنود من العقد، ولا خطأ غيرها.
   - ملاحظة: كما في S-014a، لا تُبنى اختبارات وحدة `sbarhive-ui` كلها حتى تُضاف هذه البنود.
 - 2026-10-22، محمد: يُسمح للمنفِّذ بإضافة `layer: false` إلى حرفيات `Event::Show` في `mod tests` داخل `crates/ui/src/dnd.rs` (الأسطر 133 و178 و192)، تعديلاً آلياً فقط لا يغيّر أي تأكيد. ونصف AC9 الخاص بـ `repro.sh` (خروج `drop --release` بـ 0 خلال 200 ms، ولا سطح جديد، ولا خطأ بروتوكول، وسطر `hive reveal:`) ينتقل إلى فحوص `repro.sh` في S-021b.
+- 2026-10-22، المنفِّذ (S-021a): نجحت الاختبارات دون تعديل أي تأكيد. الوحيد المسموح: `layer: false` في حرفيات `Event::Show` الثلاث في `mod tests` داخل `dnd.rs`.
+  - `dnd.rs`: الحالة `Probing`، والحدثان `PointerEnter` و`Reject`، والحقل `layer` في `Show`. ‏`drop` مع `layer` يعطي `Probing`؛ ومنه `Enter` يعطي `Waiting`، و`PointerEnter` و`Reject` و`Escape` و`Cancel` و`Release` (في `hold`) والحد `ENTER_TIMEOUT` تعطي `Hidden`، والباقي لا يغيّرها.
+  - `lib.rs`: ‏`show()` يمرّر `layer: inner.on_layer.get()`. ‏`drop_files` يقبل `Probing` ويعيد حدث الآلة: بصفر خلايا في `Probing` يعيد `Reject` دون تطبيق النص ولا الخلايا، وفي `Waiting` كما اليوم. ‏`on_note` يربط `Note::PointerEnter` بـ `Event::PointerEnter`. ‏`focus_lost` لا يغلق في `Probing`.
+  - `receiver.rs`: البند `Note::PointerEnter` فقط. ‏`layer.rs`: ‏`wl_pointer.enter` على الماسك يضيف `Ev::PointerEnter`، والمحوّل في وضع الإفلات ينقله إلى `on_note` (المصرف نفسه) في الدورة التالية عبر `invoke_from_event_loop` كما يفعل المستقبِل.
+  - قرار القائمة الفارغة في الخلية (`Inner::drop_files`) لا في `crates/daemon/src/ui.rs`، كما يسمح عقد المختبِر؛ سطر `drop cells:` يبقى قبله في الخدمة.
+  - مؤقتاً حتى S-021b: على مسار الطبقة تُرسم الخلية فارغة عند الربط كما اليوم، وتُخفى عند `wl_pointer.enter` أو ملف بلا إجراء. فحوص `repro.sh` و`kwin.sh` القديمة التي تنتظر بقاء الخلية حتى المهلة دون سحب ستفشل حتى يعدّلها المختبِر في S-021b. لم يُشغَّل أي مؤلِّف.
+  - البوابات داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` بـ `-j 2`: ‏`cargo fmt --check` نظيف، و`cargo clippy --all-targets -- -D warnings` نظيف، و`cargo test --all` ‏563 ناجحاً و0 فاشلاً (‏`sbarhive-ui --lib` ‏140)، و`scripts/design-lint.sh` نظيف.

@@ -311,13 +311,11 @@ fn on_note(note: receiver::Note) {
         return;
     };
     let event = match note {
-        receiver::Note::Enter(files) => {
-            inner.drop_files(files);
-            dnd::Event::Enter
-        }
+        receiver::Note::Enter(files) => inner.drop_files(files),
         receiver::Note::Motion(cell) => dnd::Event::Motion(cell),
         receiver::Note::Leave => dnd::Event::Leave,
         receiver::Note::Drop => dnd::Event::Drop,
+        receiver::Note::PointerEnter => dnd::Event::PointerEnter,
         // The anchor phase on the layer path (S-019 AC9): never the machine.
         receiver::Note::Position(x, y) => return layer::position(x, y),
     };
@@ -469,18 +467,24 @@ impl Inner {
     }
 
     /// The drag entered with `files`: lays out their actions in the same
-    /// two-ring window, so the centre does not move under the drag.
-    fn drop_files(&self, files: Vec<PathBuf>) {
+    /// two-ring window, so the centre does not move under the drag. Returns
+    /// the machine event: a probing show with no cell is rejected and hides
+    /// without the centre text (S-021).
+    fn drop_files(&self, files: Vec<PathBuf>) -> dnd::Event {
+        let state = self.machine.borrow().state();
         if !matches!(
-            self.machine.borrow().state(),
-            dnd::State::Waiting | dnd::State::Over(_)
+            state,
+            dnd::State::Probing | dnd::State::Waiting | dnd::State::Over(_)
         ) {
-            return;
+            return dnd::Event::Enter;
         }
         let f = self.on_drop_files.borrow().clone();
         #[cfg(unix)]
         let dragged = files.clone();
         let (centre, cells) = f.map(|f| f(files)).unwrap_or_default();
+        if state == dnd::State::Probing && cells.is_empty() {
+            return dnd::Event::Reject;
+        }
         // On the layer path the hive keeps the place and box it took at the
         // pointer (S-019d).
         #[cfg(target_os = "linux")]
@@ -492,6 +496,7 @@ impl Inner {
         // The dragged files in the centre, by the S-018h rules (S-019f).
         #[cfg(unix)]
         self.set_preview(&centre, &dragged);
+        dnd::Event::Enter
     }
 
     /// Feeds a drag or clock event to the mode machine and acts on the result.
@@ -508,13 +513,17 @@ impl Inner {
         }
     }
 
-    /// Focus left the hive: closes it, except while waiting for a drop.
+    /// Focus left the hive: closes it, except while probing or waiting for
+    /// a drop.
     fn focus_lost(&self) {
         let state = self
             .machine
             .borrow_mut()
             .handle(dnd::Event::FocusLost, Instant::now());
-        if !matches!(state, dnd::State::Waiting | dnd::State::Over(_)) {
+        if !matches!(
+            state,
+            dnd::State::Probing | dnd::State::Waiting | dnd::State::Over(_)
+        ) {
             self.dismiss();
         }
     }
@@ -718,10 +727,12 @@ impl Hive {
         #[cfg(not(unix))]
         let _ = files;
         let (at, drop) = (drop.flatten(), drop.is_some());
+        // On the layer path a drop show probes for a file drag (S-021).
+        let layer = inner.on_layer.get();
         inner
             .machine
             .borrow_mut()
-            .handle(dnd::Event::Show { drop, hold }, Instant::now());
+            .handle(dnd::Event::Show { drop, hold, layer }, Instant::now());
         #[cfg(target_os = "linux")]
         layer::set_show(layer::ShowRequest {
             cells,

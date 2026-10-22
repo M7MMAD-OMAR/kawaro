@@ -234,6 +234,8 @@ enum Ev {
     Motion(f64, f64),
     /// The pointer or a drag on the catcher, in its coordinates.
     Position(f64, f64),
+    /// `wl_pointer.enter` on the catcher: no drag holds the pointer.
+    PointerEnter,
     Leave,
     Button {
         pressed: bool,
@@ -726,6 +728,14 @@ impl LayerAdapter {
                     .is_some_and(|s| s.configured.is_some());
                 if configured && (!self.decided.get() || self.may_move.replace(false)) {
                     self.decide(Some((x as f32, y as f32)));
+                }
+            }
+            // A drop show's probe decides on it (S-021); this only forwards
+            // it to the receiver's sink, on the next loop turn like its notes.
+            Ev::PointerEnter => {
+                if self.surfaces.borrow().as_ref().is_some_and(|s| s.drop_mode) {
+                    let note = || crate::on_note(crate::receiver::Note::PointerEnter);
+                    let _ = slint::invoke_from_event_loop(note);
                 }
             }
             Ev::Closed => self.window.dispatch_event(WindowEvent::CloseRequested),
@@ -1396,6 +1406,7 @@ impl Dispatch<WlPointer, ()> for Wl {
                 }
                 if s.pointer_on_catcher {
                     s.events.push(Ev::Position(surface_x, surface_y));
+                    s.events.push(Ev::PointerEnter);
                 }
             }
             wl_pointer::Event::Leave { surface, .. } => {

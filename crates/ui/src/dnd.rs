@@ -5,7 +5,8 @@
 use crate::layout::Plan;
 use std::time::{Duration, Instant};
 
-/// How long a drop hive waits for the drag to enter it before closing.
+/// How long a drop hive waits for the drag to enter it before closing; on
+/// the layer path, the cap of a hidden catcher that gets no event (S-021).
 pub const ENTER_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The cell under a surface local drop point (`wl_fixed` as `f64`), with the
@@ -19,6 +20,10 @@ pub enum State {
     Hidden,
     /// Shown from the context menu or `sbarhive open`.
     Normal,
+    /// A drop show on the layer path, its catcher bound but the hive not
+    /// revealed: waits for the first event that says whether a file drag
+    /// is there (S-021).
+    Probing,
     /// Shown by `sbarhive drop`, no cell under the drag.
     Waiting,
     /// A drag hovers this cell.
@@ -34,9 +39,17 @@ pub enum Event {
         /// A drop show made by a held key (`sbarhive drop --hold`, S-019e):
         /// the key release closes it, and the drag leaving does not.
         hold: bool,
+        /// The show is on the layer path (a hidden catcher, S-021): a drop
+        /// show probes before it is revealed.
+        layer: bool,
     },
-    /// The drag entered the hive surface.
+    /// The drag entered the hive surface; while probing, with one cell or
+    /// more.
     Enter,
+    /// The pointer entered the catcher (`wl_pointer.enter`): no drag.
+    PointerEnter,
+    /// The drag has no `text/uri-list`, or its files have no action.
+    Reject,
     /// The drag moved; the cell under it, if any.
     Motion(Option<usize>),
     /// The drag left the hive surface.
@@ -85,12 +98,25 @@ impl Machine {
     pub fn handle(&mut self, event: Event, now: Instant) -> State {
         use State::*;
         self.state = match (self.state, event) {
-            (_, Event::Show { drop, hold }) => {
+            (_, Event::Show { drop, hold, layer }) => {
                 self.shown_at = Some(now);
                 self.entered = false;
                 self.hold = hold;
-                if drop { Waiting } else { Normal }
+                match (drop, layer) {
+                    (true, true) => Probing,
+                    (true, false) => Waiting,
+                    _ => Normal,
+                }
             }
+            (Probing, Event::Enter) => {
+                self.entered = true;
+                Waiting
+            }
+            (Probing, Event::PointerEnter | Event::Reject | Event::Escape | Event::Cancel) => {
+                Hidden
+            }
+            (Probing, Event::Release) if self.hold => Hidden,
+            (Probing, Event::Tick) if self.timed_out(now) => Hidden,
             (Normal, Event::Escape | Event::FocusLost | Event::ClickOutside) => Hidden,
             (Waiting | Over(_), Event::Enter) => {
                 self.entered = true;
@@ -130,7 +156,14 @@ mod tests {
     fn shown(drop: bool) -> (Machine, Instant) {
         let t0 = Instant::now();
         let mut m = Machine::default();
-        m.handle(Event::Show { drop, hold: false }, t0);
+        m.handle(
+            Event::Show {
+                drop,
+                hold: false,
+                layer: false,
+            },
+            t0,
+        );
         (m, t0)
     }
 
@@ -178,6 +211,7 @@ mod tests {
             Event::Show {
                 drop: true,
                 hold: false,
+                layer: false,
             },
             t0,
         );
@@ -192,6 +226,7 @@ mod tests {
                 Event::Show {
                     drop: false,
                     hold: false,
+                    layer: false,
                 },
                 t0
             ),
