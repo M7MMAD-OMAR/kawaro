@@ -59,9 +59,9 @@ bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
 بصيغة Lua (الملف `hyprland.lua`)، مفترضة كذلك:
 
 ```
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "SbarHive: hold to drop" })
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release to close" })
 ```
 
@@ -75,9 +75,9 @@ bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 وبصيغة Lua:
 
 ```
-hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, ignore_mods = true, description = "SbarHive: hold Alt to drop" })
-hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
+hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
 ```
 
@@ -146,9 +146,9 @@ bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
 Lua form (`hyprland.lua`), assumed as well:
 
 ```
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "SbarHive: hold to drop" })
-hl.bind("SUPER + Z", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
+hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release to close" })
 ```
 
@@ -162,9 +162,9 @@ bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 Lua form:
 
 ```
-hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, ignore_mods = true, description = "SbarHive: hold Alt to drop" })
-hl.bind("ALT_L", hl.dsp.exec_cmd(os.getenv("HOME") .. "/.local/bin/sbarhive drop --release"),
+hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
 ```
 
