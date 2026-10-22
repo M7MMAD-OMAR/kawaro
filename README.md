@@ -75,6 +75,8 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 وعلى ويندوز يشغّل `sbarhive open` الخدمة `sbarhived.exe` من مجلد البرنامج إن لم تكن تعمل، وتبقى تعمل بعد إغلاق الطرفية.
 
+ولا ينزّل صبار هايف المحركات الخارجية على ويندوز، بل يبحث عنها في `PATH` أولاً، ثم في مجلدات تثبيتها المعتادة: LibreOffice في `%ProgramFiles%\LibreOffice\program`، وGhostscript في أحدث `%ProgramFiles%\gs\gs*\bin`، وFFmpeg في المجلد `ffmpeg\bin` بجانب `sbarhive.exe`، ثم في سجل ويندوز لـ LibreOffice وGhostscript. وإن لم يجد محركاً ذكرت رسالة الخطأ اسمه ورابط تنزيله.
+
 المفتاح `hold_ms` مدة الضغط المطوّل بالملي ثانية قبل أن تظهر الخلية مع `sbarhive drop --hold`: الافتراضي 400، والمقبول من 100 إلى 2000، وأي قيمة غير ذلك تعيد الافتراضي مع تحذير في السجل. يُقرأ عند كل ضغطة، فيسري تعديله دون إعادة تشغيل الخدمة. نافذة الإعدادات لا تعرضه، فعدّله في الملف.
 
 ## المساهمة
@@ -190,6 +192,14 @@ actions go in `%APPDATA%\SbarHive\actions\*.toml`, and the service log in
 On Windows `sbarhive open` starts the service, `sbarhived.exe`, from the
 program folder when it is not running, and it keeps running after the
 terminal closes.
+
+SbarHive does not download the external engines on Windows. It looks for
+them in `PATH` first, then in their usual install folders: LibreOffice in
+`%ProgramFiles%\LibreOffice\program`, Ghostscript in the newest
+`%ProgramFiles%\gs\gs*\bin`, FFmpeg in the `ffmpeg\bin` folder next to
+`sbarhive.exe`, then in the Windows registry for LibreOffice and
+Ghostscript. When an engine is missing, the error names it and links to its
+download page.
 
 `hold_ms` is the long press, in milliseconds, before `sbarhive drop --hold`
 shows the hive: 400 by default, accepted from 100 to 2000; any other value

@@ -1,5 +1,5 @@
 # S-025 المحركات الخارجية على ويندوز: شجرة العمليات والاكتشاف ورابط الملف
-الحالة: S-025a: منتهية (PASS من المراجع، 2026-10-22)؛ S-025b: الاختبارات مكتوبة وحمراء (`863709c`)، تنتظر المنفِّذ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: S-025a: منتهية (PASS من المراجع، 2026-10-22)؛ S-025b: مراجعة (المنفِّذ أنهى، 2026-10-22، فرع windows/0.6.0 بطلب محمد)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 3 و7. للإصدار 0.6.0. لا يلمس `crates/ui`. مستقلة عن S-022 إلى S-024 في الشيفرة.
 
@@ -188,3 +188,20 @@ test result: ok. 23 passed; 0 failed   (ffmpeg_engine)
 test result: ok. 12 passed; 0 failed   (office_engine)
 test result: ok. 6 passed; 0 failed    (pdf_ghostscript)
 ```
+- 2026-10-22, implementer (S-025b):
+  - Manager decisions applied: the tester's choices are accepted (Program enum with Ffprobe; PATH, then known dirs, then registry; `.com` before `.exe`; `GS_DLL` and the LibreOffice UNO `InstallPath` default value as assumptions to check in S-034; `RegEnumKeyExW` with the `Win32_System_Registry` feature). The S-025b file list is extended by the manager with `crates/engines/src/lib.rs` and the non-test part of `crates/engines/src/office/tree.rs`: `CREATE_NO_WINDOW` is now `pub(crate)` and `mod tree` is `pub(crate) mod tree` in `office.rs`, so `ffmpeg.rs` reads `crate::office::tree::CREATE_NO_WINDOW`. `lib.rs` is unchanged by me (the tester's `mod locate;` is enough).
+  - `crates/engines/src/locate.rs` (above the tester's header and test module): `Os`, `Program`, `names`, `Registry`, `search`, `newest_gs` (one `newest(names, prefix)` helper with a `Vec<u32>` version and `max_by_key`, shared with the registry version subkeys), and `find(program)`, the live glue (`PATH`, `std::env::var_os`, `current_exe` folder, registry). `const OS` comes from `cfg!(windows)`, so the Windows tiers build and run on Linux and `newest_gs` needs no `allow(dead_code)` (clippy `--all-targets` is clean without it; the story asked for the attribute only if it was dead). Off Windows the registry is an empty `SystemRegistry` that `search` never asks.
+  - `crates/engines/src/locate/windows.rs`: `SystemRegistry` over `RegGetValueW` (`RRF_RT_REG_SZ`, size query then read), `RegOpenKeyExW`, `RegEnumKeyExW` and `RegCloseKey`; added to `exclude_globs`.
+  - Wiring: `OfficeEngine::default` and `GhostscriptEngine::default` call `locate::find` (still once per process); `FfmpegEngine::default` calls it for both programs and keeps the bare name when one is not found, so on Linux the stored name and the message stay as before. `find_program` stays in `office.rs` (its tests use it) and is step 1 of `search`.
+  - AC10: `file_url_str(path, windows)`; `file_url` calls it with `cfg!(windows)`. Windows mode drops `\\?\`, turns `\` into `/`, prefixes `/` and keeps `:`; Unix mode is byte for byte the old encoder.
+  - AC11: `office::missing(name, url, tried)` gives `"<name> not found[ at <path>]; install it from <url>"` for LibreOffice and Ghostscript, both for no program and for a spawn `NotFound`. ffmpeg keeps its path message and adds `; install FFmpeg from https://ffmpeg.org/download.html`. The encoder messages are unchanged.
+  - AC13: one `fn command(bin)` in `ffmpeg.rs` holds the only `Command::new(`, with `#[cfg(windows)] cmd.creation_flags(crate::office::tree::CREATE_NO_WINDOW)` and `#[cfg_attr(not(windows), allow(unused_mut))]` on the `let mut`. The four call sites use it.
+  - `.cargo/mutants.toml`: `locate/windows.rs` in `exclude_globs`; `exclude_re` adds `replace find -> Option<PathBuf> with None` (live glue; the Office and Ghostscript tests skip when the program is absent and ffmpeg falls back to the bare name the OS resolves the same way) and the two bodies of the empty off-Windows `SystemRegistry` (never asked on Unix). `find`'s other mutant (`Some(Default::default())`) stays and is caught.
+  - Docs: `docs/engines.md` new section "Finding the programs (S-025b)" with Linux and Windows columns (names, install folder, registry, download page), the office "Program" bullet and the windows-sys row; `README.md` one paragraph in Arabic and one in English; the S-025 line in `CHANGELOG.md` edited (now "Windows engines (S-025)").
+  - Gates (each cargo command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`, `-j 2`):
+    - `cargo fmt --check`: clean. `cargo clippy -j 2 --workspace --all-targets -- -D warnings`: clean.
+    - Windows target (`CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target`): `cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-engines --lib -- -D warnings` clean; same for `-p sbarhive-cli` clean; `cargo check --target x86_64-pc-windows-gnu -p sbarhive-engines --lib -p sbarhive-cli` clean. `X` lists `windows-sys v0.61.2` as before; `[[package]]` count 671; `Cargo.lock` unchanged.
+    - `cargo test -j 2 --all`: 697 passed, 0 failed, 1 ignored (engines lib 74, `windows_engines` 4).
+    - `cargo mutants --jobs 1 --in-diff <git diff 8160592 -- crates/engines/src> -p sbarhive-engines` in a copied tree, `CARGO_BUILD_JOBS=2`: 43 mutants, 41 caught, 2 unviable (`command -> Command with Default::default()`, `missing -> EngineError with Default::default()`), 0 missed, 0 timeouts.
+    - `scripts/design-lint.sh`: clean. No em or en dash in the diff.
+    - The six test-unchanged commands above print nothing. `crates/ui` untouched.

@@ -34,7 +34,7 @@ use std::io;
 pub(super) const CREATE_SUSPENDED: u32 = 0x4;
 /// No console window for a console tool started by a service with none.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub(super) const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+pub(crate) const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// The system calls `start_in_job` makes, injected so a fake can record them.
 #[cfg_attr(not(windows), allow(dead_code))]

@@ -24,7 +24,8 @@ zip = { version = "9", default-features = false }
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
-# The job object that holds each engine's process tree on Windows (S-025a).
+# The job object that holds each engine's process tree on Windows (S-025a),
+# and the registry read that finds the engines (S-025b).
 # Already in Cargo.lock through other crates, so no new package; features
 # add none.
 [target.'cfg(windows)'.dependencies]
@@ -33,6 +34,7 @@ windows-sys = { version = "0.61", features = [
   "Win32_Security",
   "Win32_System_Diagnostics_ToolHelp",
   "Win32_System_JobObjects",
+  "Win32_System_Registry",
   "Win32_System_Threading",
 ] }
 

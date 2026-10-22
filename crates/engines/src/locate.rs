@@ -43,6 +43,167 @@
 //   name with the highest version compared number by number; names that are
 //   not `gs` followed by a version are ignored.
 
+use crate::office::{find_program, path_dirs};
+use std::ffi::OsString;
+use std::path::{Path, PathBuf};
+
+#[cfg(windows)]
+mod windows;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Os {
+    Unix,
+    Windows,
+}
+
+/// The system this build runs on. A value, not a `cfg`, so the Windows
+/// order in [`search`] builds and runs everywhere.
+const OS: Os = if cfg!(windows) { Os::Windows } else { Os::Unix };
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Program {
+    Office,
+    Ghostscript,
+    Ffmpeg,
+    Ffprobe,
+}
+
+/// Program file names in priority order.
+pub(crate) fn names(os: Os, program: Program) -> &'static [&'static str] {
+    match (os, program) {
+        (Os::Unix, Program::Office) => &["soffice", "libreoffice"],
+        (Os::Unix, Program::Ghostscript) => &["gs"],
+        (Os::Unix, Program::Ffmpeg) => &["ffmpeg"],
+        (Os::Unix, Program::Ffprobe) => &["ffprobe"],
+        (Os::Windows, Program::Office) => &["soffice.com", "soffice.exe"],
+        (Os::Windows, Program::Ghostscript) => &["gswin64c.exe", "gswin32c.exe"],
+        (Os::Windows, Program::Ffmpeg) => &["ffmpeg.exe"],
+        (Os::Windows, Program::Ffprobe) => &["ffprobe.exe"],
+    }
+}
+
+/// Read only view of `HKEY_LOCAL_MACHINE`. Keys are given without the hive.
+pub(crate) trait Registry {
+    /// String value `name` of `key`; `""` is the key's default value.
+    fn value(&self, key: &str, name: &str) -> Option<String>;
+    /// Names of the direct subkeys of `key`.
+    fn subkeys(&self, key: &str) -> Vec<String>;
+}
+
+// Both keys are assumptions from ADR 0005, to be checked on Windows (S-034).
+const LO_KEY: &str = "SOFTWARE\\LibreOffice\\UNO\\InstallPath";
+const GS_KEY: &str = "SOFTWARE\\GPL Ghostscript";
+
+/// The first executable `program` found: `path_dirs`, then on Windows the
+/// usual install folder, then the folder the registry names.
+pub(crate) fn search(
+    os: Os,
+    program: Program,
+    path_dirs: &[PathBuf],
+    env: &dyn Fn(&str) -> Option<OsString>,
+    exe_dir: Option<&Path>,
+    registry: &dyn Registry,
+) -> Option<PathBuf> {
+    let names = names(os, program);
+    let found = find_program(names, path_dirs);
+    if found.is_some() || os == Os::Unix {
+        return found;
+    }
+    let in_dir = |dir: PathBuf| find_program(names, &[dir]);
+    known_dir(program, env, exe_dir)
+        .and_then(in_dir)
+        .or_else(|| registry_dir(program, registry).and_then(in_dir))
+}
+
+/// Where the Windows installers put the program.
+fn known_dir(
+    program: Program,
+    env: &dyn Fn(&str) -> Option<OsString>,
+    exe_dir: Option<&Path>,
+) -> Option<PathBuf> {
+    match program {
+        Program::Office => {
+            env("ProgramFiles").map(|pf| PathBuf::from(pf).join("LibreOffice").join("program"))
+        }
+        Program::Ghostscript => {
+            let gs = PathBuf::from(env("ProgramFiles")?).join("gs");
+            let dirs: Vec<String> = std::fs::read_dir(&gs)
+                .ok()?
+                .filter_map(|e| e.ok()?.file_name().into_string().ok())
+                .collect();
+            let dirs: Vec<&str> = dirs.iter().map(String::as_str).collect();
+            Some(gs.join(newest_gs(&dirs)?).join("bin"))
+        }
+        Program::Ffmpeg | Program::Ffprobe => exe_dir.map(|d| d.join("ffmpeg").join("bin")),
+    }
+}
+
+/// The folder the installer recorded in the registry.
+fn registry_dir(program: Program, registry: &dyn Registry) -> Option<PathBuf> {
+    match program {
+        Program::Office => registry.value(LO_KEY, "").map(PathBuf::from),
+        Program::Ghostscript => {
+            let versions = registry.subkeys(GS_KEY);
+            let versions: Vec<&str> = versions.iter().map(String::as_str).collect();
+            let newest = newest(&versions, "")?;
+            let dll = registry.value(&format!("{GS_KEY}\\{newest}"), "GS_DLL")?;
+            Path::new(&dll).parent().map(Path::to_path_buf)
+        }
+        Program::Ffmpeg | Program::Ffprobe => None,
+    }
+}
+
+/// The `gs<version>` name with the highest version, compared number by number.
+pub(crate) fn newest_gs<'a>(names: &[&'a str]) -> Option<&'a str> {
+    newest(names, "gs")
+}
+
+/// The `<prefix><version>` name with the highest version; other names are
+/// ignored.
+fn newest<'a>(names: &[&'a str], prefix: &str) -> Option<&'a str> {
+    names
+        .iter()
+        .filter_map(|name| Some((version(name.strip_prefix(prefix)?)?, *name)))
+        .max_by_key(|(v, _)| v.clone())
+        .map(|(_, name)| name)
+}
+
+/// `10.04.0` as `[10, 4, 0]`; `None` unless every part is a number.
+fn version(text: &str) -> Option<Vec<u32>> {
+    text.split('.').map(|part| part.parse().ok()).collect()
+}
+
+/// `program` on this system, from the live `PATH`, environment, executable
+/// folder and registry.
+pub(crate) fn find(program: Program) -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok();
+    search(
+        OS,
+        program,
+        &path_dirs(),
+        &|key| std::env::var_os(key),
+        exe.as_deref().and_then(Path::parent),
+        &SystemRegistry,
+    )
+}
+
+#[cfg(windows)]
+use windows::SystemRegistry;
+
+/// No registry off Windows; [`search`] never asks it there.
+#[cfg(not(windows))]
+struct SystemRegistry;
+
+#[cfg(not(windows))]
+impl Registry for SystemRegistry {
+    fn value(&self, _key: &str, _name: &str) -> Option<String> {
+        None
+    }
+    fn subkeys(&self, _key: &str) -> Vec<String> {
+        Vec::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

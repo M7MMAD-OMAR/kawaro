@@ -25,8 +25,11 @@
 # The Windows job object for engine process trees (S-025a) builds for Windows
 # only; the start sequence, thread filter and exe check stay mutated in
 # office/tree.rs.
+# The Windows registry reader (S-025b) builds for Windows only; the lookup
+# order that reads it stays mutated in locate.rs.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
+  "crates/engines/src/locate/windows.rs",
   "crates/ui/src/receiver.rs",
   "crates/ui/src/layer.rs",
   "crates/ui/src/platform.rs",
@@ -99,4 +102,13 @@ exclude_re = [
   # behind cfg(unix), and its Windows twin is wait_exit, mutated in spawn.rs.
   "replace daemon_binary -> PathBuf with",
   "replace exec_daemon -> Result<\\(\\), String> with Ok\\(\\(\\)\\)",
+  # The engine program lookup (S-025b): find only reads the live PATH,
+  # environment, current_exe and registry; its choice is search, mutated in
+  # locate.rs. The Office and Ghostscript tests skip when the program is
+  # absent, and ffmpeg keeps its bare name, which the OS resolves the same
+  # way, so its None mutant is not observable. The empty registry off
+  # Windows is never asked there (search stops after PATH on Unix).
+  "replace find -> Option<PathBuf> with None",
+  "replace <impl Registry for SystemRegistry>::value -> Option<String> with",
+  "replace <impl Registry for SystemRegistry>::subkeys -> Vec<String> with",
 ]
