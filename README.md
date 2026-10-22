@@ -16,6 +16,20 @@
 
 تعرض الخلية ما يناسب الملفات المحددة فقط: نوعها وعددها، والأدوات المثبتة على جهازك.
 
+## حالة الدعم
+
+بصراحة، ما الذي جُرِّب وكيف:
+
+| النظام | الحالة | كيف تحققنا |
+|---|---|---|
+| Hyprland 0.56 | يعمل: طبقة فوق النوافذ، عند المؤشر، الإفلات والضغط المطوّل | اختبارات آلية في Hyprland خاص متداخل؛ والاستعمال اليومي عند المطوّر قيد التجربة |
+| KDE Plasma 6 (KWin 6.7) | يعمل: طبقة، والتركيز في كل مستويات منع سرقته، والإفلات والاختصار | اختبارات آلية في KWin خاص بلا شاشة، بشاشة وبشاشتين |
+| GNOME 50 | يعمل نافذةً في المنتصف | اختبارات آلية في gnome-shell خاص بلا شاشة؛ لم يُجرَّب التركيز على GNOME حقيقي بعد |
+| Sway وwlroots | متوقع أن يعمل كطبقة | لم يُجرَّب |
+| X11 | غير مدعوم بعد | لم يُجرَّب |
+| التوزيعات | حزم RPM لـ Fedora 41 وما بعده، وDEB لـ Ubuntu 22.04 و24.04 وDebian 12 | تثبيت وتشغيل آلي في حاويات نظيفة لكل منها |
+| ويندوز وماك | غير متوفر بعد | ضمن الخطة |
+
 ## التثبيت
 
 يعمل الإصدار الحالي على لينكس (64 بت).
@@ -95,6 +109,20 @@ Everything runs on your machine: no uploads, no servers, no telemetry.
 
 The hive only offers what fits the selection: file kind, file count, and the
 tools installed on your system.
+
+## Platform support
+
+Plainly, what has been tested and how:
+
+| Platform | Status | How it was checked |
+|---|---|---|
+| Hyprland 0.56 | Works: overlay layer, at the pointer, drop and long press | Automated tests in a private nested Hyprland; daily use on the developer's machine in progress |
+| KDE Plasma 6 (KWin 6.7) | Works: layer, focus at every focus stealing prevention level, drop and shortcut | Automated tests in a private headless KWin, one and two outputs |
+| GNOME 50 | Works as a centred window | Automated tests in a private headless gnome-shell; focus not yet tried on a real GNOME session |
+| Sway and wlroots | Expected to work as a layer | Not tested |
+| X11 | Not supported yet | Not tested |
+| Distributions | RPM for Fedora 41 and later, DEB for Ubuntu 22.04 and 24.04 and Debian 12 | Automated install and run in a clean container for each |
+| Windows and macOS | Not available yet | Planned |
 
 ## Install
 
