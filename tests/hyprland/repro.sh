@@ -18,7 +18,7 @@
 #   --json --quasimode adds the S-019 checks (a screen reader flag without a
 #                      running reader keeps the layer, key release hides, hive
 #                      near the pointer, same output as the pointer, adaptive
-#                      shape). Real checks so far (S-019c, S-019d):
+#                      shape), all real checks:
 #                      hive near pointer: `sbarhive open` while a 1 px
 #                        pointer jitter around P = (300, 200) runs (every
 #                        10 ms for 600 ms, from before the command): a
@@ -48,8 +48,22 @@
 #                        output create` listed none within 10 s), so those
 #                        two checks run in tests/overlay/kwin.sh outputs
 #                        (a private KWin with two virtual outputs).
-#                      The screen reader and adaptive shape checks (S-019a,
-#                      S-019b) are still placeholders that count as failed.
+#                      adaptive shape (S-019b, AC3, AC4): `sbarhive open`
+#                        with the pointer jittering 1 px around (4, 4): the
+#                        anchor within 1 px of it, the "hive surface" box
+#                        and the "hive cells" count and centre equal to
+#                        tests/overlay/anchor.py for the printed anchor
+#                        (1 px), the box inside the output;
+#                      screen reader flag without a reader (S-019a, AC1,
+#                        AC2), last, on a daemon with no SBARHIVE_SURFACE:
+#                        the fake a11y bus (tests/overlay/a11y.py, started
+#                        before KWin with the flag off) sets
+#                        ScreenReaderEnabled with no owner of
+#                        org.gnome.Orca.Service: a layer show and exactly one
+#                        "hive surface choice: layer ... screen reader flag
+#                        set, no reader running" line; then a11y.py owns the
+#                        name: the next show is a window, with one "hive
+#                        surface choice: window ... screen reader running".
 # Checks (layer or window): surface shown, keyboard focus received, show
 # latency under 150 ms, Esc closes, click outside closes, input reaches the
 # other client after close, a click outside a drop show passes through;
@@ -130,6 +144,7 @@ inner() {
   pids=()
   finish() {
     exec 3>&- 2>/dev/null
+    exec 6>&- 2>/dev/null
     [ -n "${d:-}" ] && { "$BIN/sbarhive" quit >/dev/null 2>&1; sleep 0.3; }
     kill "${pids[@]}" 2>/dev/null
     sleep 0.5
@@ -140,6 +155,20 @@ inner() {
   # Every private process goes, whatever way this function ends.
   trap finish EXIT
   trap '' PIPE
+
+  # S-019a (--quasimode): the fake accessibility bus (tests/overlay/a11y.py)
+  # owns org.a11y.Bus before KWin, Hyprland or the daemon can activate the
+  # real at-spi-bus-launcher on this private bus. It starts with the flag off
+  # and no reader, so the checks before S-019a see no screen reader.
+  local A11Y="" A11YF="$XDG_RUNTIME_DIR/a11y.fifo"
+  if [ "$QUASI" = 1 ]; then
+    mkfifo "$A11YF"
+    python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/a11y.py" "$A11YF" false >"$log-a11y.log" 2>&1 &
+    A11Y=$!
+    pids+=("$A11Y")
+    exec 6>"$A11YF"
+    timeout 10 gdbus wait --session org.a11y.Bus || say "INFO fake org.a11y.Bus did not appear"
+  fi
 
   printf '[Windows]\nFocusStealingPreventionLevel=0\n' >"$XDG_CONFIG_HOME/kwinrc"
   KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 \
@@ -498,10 +527,6 @@ for c in json.load(sys.stdin):
   check "Esc mid-drag: the hive closes and a new drag begins" '[ "$CLOSED" = yes ] && [ "$AFTER" = yes ]'
 
   if [ "$QUASI" = 1 ]; then
-    for c in "screen reader flag without a reader keeps the layer" "adaptive shape"; do
-      check "quasimode: $c (S-019, not implemented)" 'false'
-    done
-
     # Key release hides (S-019e): the press, the threshold, the release.
     gone_within 120 || true
     reset_hive "the drag cases"
@@ -605,6 +630,87 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
     reset_hive "the drop --at show"
     check "quasimode: hive near pointer (S-019 decision 1): a still drag and \`sbarhive drop --at \"\$(hyprctl cursorpos)\"\` anchor at the cursor (1 px) at once, with one set_position" \
       '[ "$(grep -cE "^hive anchor: " <<<"$dseg")" -eq 1 ] && near "$dax" "${cur%,*}" 1 && near "$day" "${cur#*,}" 1 && [ "$dsets" -eq 1 ] && placed "$dseg" "$lw" "$lh"'
+
+    # Adaptive shape (S-019b, AC3, AC4): `sbarhive open` with the pointer
+    # moving 1 px around B, a few pixels inside the top left corner (Hyprland
+    # 0 is the nested window's edge in KWin). The anchor is clamped, so the
+    # hive keeps only the slots that fit: its box, its cell count and its
+    # centre must be what tests/overlay/anchor.py predicts for the printed
+    # anchor, and the box must lie inside the output.
+    gone_within 120 || true
+    local bx=4 by=4
+    move "$bx" "$by"; sleep 0.5
+    MARK=$(wc -l <"$DLOG")
+    for ((i = 0; i < 60; i++)); do
+      if ((i % 2)); then move $((bx + 1)) $((by + 1)); else move "$bx" "$by"; fi
+      echo "sleep 10" >&3
+    done
+    local bcur; bcur=$(hyprctl cursorpos | tr -d ' ')
+    show "$BIN/sbarhive" open "$W/photo.png"
+    sleep 1
+    local bseg; bseg=$(after "$MARK")
+    key 1; gone_within 30 || true
+    reset_hive "the corner show"
+    local bax bay bsx="" bsy="" bsw="" bsh="" bcn="" bccx="" bccy="" borc="" bcells=no
+    read -r bax bay <<<"$(anchor_of "$bseg")"
+    read -r _ _ _ bsx bsy bsw bsh <<<"$(grep -m1 -E '^hive surface: layer ' <<<"$bseg")"
+    read -r _ _ bcn bccx bccy <<<"$(grep -m1 -E '^hive cells: ' <<<"$bseg")"
+    [ -n "${bay:-}" ] && [ "$bax" != none ] &&
+      borc=$(python3 -I "$ROOT/tests/overlay/anchor.py" "$ROOT/design/tokens.json" "$lw" "$lh" "$bax" "$bay" "$nact")
+    local ocx ocy ocn
+    while read -r _ ocx ocy ocn _; do
+      [ -n "${ocn:-}" ] && [ "$bcn" = "$ocn" ] && [ -n "$bccy" ] &&
+        near "$(awk -v a="$bsx" -v b="$bccx" 'BEGIN { print a + b }')" "$ocx" 1 &&
+        near "$(awk -v a="$bsy" -v b="$bccy" 'BEGIN { print a + b }')" "$ocy" 1 && bcells=yes
+    done <<<"$borc"
+    say "INFO quasimode adaptive shape: B ($bx, $by), cursorpos $bcur, actions $nact, $(grep -m1 -E '^hive anchor: ' <<<"$bseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$bseg" || echo 'no surface line'), $(grep -m1 -E '^hive cells: ' <<<"$bseg" || echo 'no cells line'), anchor.py (min_rings cx cy count x y w h): $(tr '\n' '|' <<<"$borc")"
+    check "quasimode: adaptive shape (S-019b AC3, AC4): \`sbarhive open\` with the pointer at the top left corner is anchored there (1 px), its \"hive surface\" box and \"hive cells\" count and centre equal plan_at by tests/overlay/anchor.py (1 px), and the box lies inside the ${lw}x${lh} output" \
+      'near "$bax" "$bx" 1 && near "$bay" "$by" 1 && placed "$bseg" "$lw" "$lh" && [ "$bcells" = yes ] && [ "$bsx" -ge 0 ] && [ "$bsy" -ge 0 ] && [ $((bsx + bsw)) -le "$lw" ] && [ $((bsy + bsh)) -le "$lh" ]'
+
+    # Screen reader rule (S-019a, AC1, AC2), last because it replaces the
+    # daemon: one daemon with no SBARHIVE_SURFACE (config hive_surface absent,
+    # so auto). With ScreenReaderEnabled set on the fake bus and no owner of
+    # org.gnome.Orca.Service, its show is a layer surface and exactly one
+    # "hive surface choice:" line names the reason; once a11y.py owns the
+    # name (as Orca does when it starts), the same daemon's next show is a
+    # window and its choice line says a reader is running. The second
+    # segment starts before the name appears, because the line comes when
+    # NameOwnerChanged arrives, not at the next show.
+    gone_within 120 || true
+    stop_daemon
+    echo on >&6; sleep 1
+    local am1 am2 aseg1 aseg2
+    am1=$(wc -l <"$DLOG")
+    SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+    d=$!
+    pids+=("$d")
+    for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+    centre_ptr
+    show "$BIN/sbarhive" open "$W/photo.png"
+    sleep 0.5; key 1; sleep 1
+    am2=$(wc -l <"$DLOG")
+    echo orca >&6
+    timeout 10 gdbus wait --session org.gnome.Orca.Service || say "INFO fake org.gnome.Orca.Service did not appear"
+    sleep 1
+    centre_ptr
+    show "$BIN/sbarhive" open "$W/photo.png"
+    sleep 0.5; key 1; sleep 1
+    stop_daemon
+    aseg1=$(sed -n "$((am1 + 1)),${am2}p" "$DLOG")
+    aseg2=$(sed -n "$((am2 + 1)),\$p" "$DLOG")
+    # rq SEG KIND: the daemon's get_layer_surface (layer) or get_xdg_surface
+    # (xdg) requests in SEG; nch SEG: its choice lines.
+    rq() {
+      local p='-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\('
+      [ "$2" = xdg ] && p='-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\('
+      grep -cE -- "$p" <<<"$1"
+    }
+    nch() { grep -cE '^hive surface choice: ' <<<"$1"; }
+    say "INFO quasimode screen reader, flag set and no reader: get_layer_surface $(rq "$aseg1" layer), get_xdg_surface $(rq "$aseg1" xdg), choice lines: $(grep -E '^hive surface choice: ' <<<"$aseg1" | tr '\n' '|')"
+    say "INFO quasimode screen reader, fake Orca on the bus: get_layer_surface $(rq "$aseg2" layer), get_xdg_surface $(rq "$aseg2" xdg), choice lines: $(grep -E '^hive surface choice: ' <<<"$aseg2" | tr '\n' '|')"
+    say "INFO a11y.py: $(tr '\n' ' ' <"$log-a11y.log" | cut -c1-600)"
+    check "quasimode: screen reader flag without a reader keeps the layer (S-019a AC1, AC2): with ScreenReaderEnabled set and no org.gnome.Orca.Service owner the show is a layer (no get_xdg_surface) with exactly one \"hive surface choice: layer ... screen reader flag set, no reader running\" line; with a fake Orca owner the next show is a window (no get_layer_surface) with one \"hive surface choice: window ... screen reader running\" line" \
+      '[ "$(rq "$aseg1" layer)" -ge 1 ] && [ "$(rq "$aseg1" xdg)" -eq 0 ] && [ "$(nch "$aseg1")" -eq 1 ] && grep -qE "^hive surface choice: layer\b.*screen reader flag set, no reader running" <<<"$aseg1" && [ "$(rq "$aseg2" layer)" -eq 0 ] && [ "$(rq "$aseg2" xdg)" -ge 1 ] && [ "$(nch "$aseg2")" -eq 1 ] && grep -qE "^hive surface choice: window\b.*screen reader running" <<<"$aseg2"'
 
     # Same output as the pointer (S-019 AC5, decision 1): nested Hyprland
     # made no reliable second output (`hyprctl output create wayland SBH-2`

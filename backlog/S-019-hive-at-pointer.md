@@ -746,3 +746,25 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - `crates/ui/src/layout.rs` على أسطر S-019 وحدها (`--in-diff` من 3957651): 60 طفرة، 59 مُلتقطة وواحدة غير صالحة، ولا ناجية. تشغيل الملف كاملاً بلغ حدّ الساعة، ووجد ثلاث ناجيات في شيفرة سابقة على S-019 (`assign` السطر 51، و`plan_rings` السطر 84 مرتين)، وكلها مكافئة: `split_off(RING1)` حين يساوي الطول RING1 يعيد فارغاً، و`n = 0` أو `n = RING1` يعطيان الخانات نفسها.
 - **البند 3 (ADR 0004):** صُحّح في 80442bc بحدّ 300 ms.
 - **البند 1 (فحصا S-019a وS-019b في `repro.sh --quasimode`):** للمختبِر.
+
+### المختبِر: REWORK 1، البند 1 (فحصا S-019a وS-019b في `repro.sh --quasimode`، 2026-10-22)
+
+- كُتب من AC1 إلى AC4 وبند المراجع ونص `tests/overlay/kwin.sh` و`a11y.py` و`anchor.py` وحدها، دون قراءة الشيفرة. الفحصان الثابتان `false` حُذفا وحلّ محل كل منهما فحص حقيقي واحد، فبقي المجموع 20.
+- `tests/hyprland/repro.sh`:
+  - مع `--quasimode` يبدأ `tests/overlay/a11y.py` (بالعلم مطفأ ودون Orca) قبل KWin وHyprland والخدمة، وينتظر `org.a11y.Bus` بـ `gdbus wait`، لأن `/usr/share/dbus-1/services/org.a11y.Bus.service` موجود فيُشغَّل المشغّل الحقيقي لو سأل أحد قبله. التحكم على fd 6 ويُغلق في `finish`.
+  - **S-019b (الشكل المتكيّف، AC3 وAC4):** `sbarhive open` والمؤشر يهتز 1 px حول (4، 4) من قبل الأمر. يشترط: المرساة بفرق 1 px، و`placed` (صندوق `hive surface` يساوي `anchor.py` بفرق 1 px)، وعدد `hive cells` يساوي COUNT من `anchor.py` ومركزها (`X + CX`، `Y + CY`) بفرق 1 px من المرساة المحصورة، والصندوق داخل المخرج 960x540.
+  - **S-019a (قاعدة القارئ، AC1 وAC2)، آخر الفحوص لأنه يبدّل الخدمة:** خدمة واحدة دون `SBARHIVE_SURFACE` (فـ `start_daemon` يفرضه، وAC1 يقدّمه على كل شيء)، و`hive_surface` غائب فهو `auto`. `on` ثم ظهور: `get_layer_surface` واحد على الأقل، وصفر `get_xdg_surface`، وسطر `hive surface choice:` واحد بالضبط فيه `layer` و`screen reader flag set, no reader running`. ثم `orca` (ينتظر الاسم بـ `gdbus wait`) وظهور ثانٍ للخدمة نفسها: صفر `get_layer_surface`، و`get_xdg_surface` واحد على الأقل، وسطر اختيار واحد `window ... screen reader running`. المقطع الثاني يبدأ قبل امتلاك الاسم لأن السطر يأتي مع `NameOwnerChanged`.
+- كلاهما حارس تراجع ينجح على HEAD عمداً (القصتان منفّذتان)، كحرّاس الفجوات السابقة. لماذا يميّزان:
+  - S-019b: الصندوق في المنتصف `284 89 393 362`، وعند الزاوية `0 0 393 362` و15 خلية مركزها (40، 45.57)؛ ظهور غير مرسى أو غير محصور يفشل في المرساة والمركز معاً.
+  - S-019a: نصف النافذة يثبت أن الخدمة رأت الناقل الوهمي فعلاً، فلا ينجح نصف الطبقة لمجرد أن الخدمة لم تسأل. خدمة تتبع العلم وحده (سلوك S-018) تعطي `get_xdg_surface` في النصف الأول فتفشل (استنتاج من AC1، لم يُشغَّل). وفي S-019b العدد 15 يساوي عدد الإجراءات والحجم 393x362 كالمنتصف، فالمميِّز هو الموضع والمركز لا العدد.
+- التشغيل: `cargo build --release` ثم `tests/hyprland/repro.sh --json --quasimode` مرة واحدة، كلاهما داخل `systemd-run --user --scope --quiet -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200% nice -n 19 env CARGO_BUILD_JOBS=2`، ومؤلِّف واحد، دون `cargo mutants`. النتيجة `{"total": 20, "failed": 0, "skipped": 0}` و`RESULT PASS`:
+  ```
+  INFO quasimode adaptive shape: B (4, 4), cursorpos 3,3, actions 15, hive anchor: 3.75 3.75, hive surface: layer 0 0 393 362, hive cells: 15 40 45.56922, anchor.py (min_rings cx cy count x y w h): 1 40.0 45.57 15 0 0 392 362|2 40.0 45.57 15 0 0 392 362|
+  PASS quasimode: adaptive shape (S-019b AC3, AC4): ...
+  INFO quasimode screen reader, flag set and no reader: get_layer_surface 1, get_xdg_surface 0, choice lines: hive surface choice: layer, screen reader flag set, no reader running|
+  INFO quasimode screen reader, fake Orca on the bus: get_layer_surface 0, get_xdg_surface 1, choice lines: hive surface choice: window, screen reader running|
+  PASS quasimode: screen reader flag without a reader keeps the layer (S-019a AC1, AC2): ...
+  ```
+  الفحوص الثلاثة عشر الأساسية نجحت والناقل الوهمي قائم بالعلم مطفأ (زمن الظهور 60 ms).
+- `bash -n` و`shellcheck -S warning` نظيفان على السكربت، ولا شرطة طويلة فيه.
+- لم يُشغَّل: `repro.sh --json` دون `--quasimode` ووضع `window`؛ التغيير خارج فرع `QUASI=1` هو `exec 6>&-` في `finish` وحده. وسطر `hive surface choice:` ما زال `eprintln!` فقد يتداخل مع أثر libwayland ويُفشل S-019a عَرَضاً: يُعاد السكربت مرة ويُسجَّل (قاعدة المدير). لا عمليات باقية ولا `/tmp/sbhh.*`، ولم يُلمس سطح محمد الحي (`Hyprland` 13248 و`sbarhived` 15227).
