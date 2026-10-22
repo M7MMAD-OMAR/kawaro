@@ -17,10 +17,10 @@
 #             request through the long press gate (sbarhive_core::hold,
 #             threshold 400 ms) and shows the hive when the gate's timer
 #             gives the show. The show line then carries "mode=hold",
-#             "hold_ms=400", "first_frame_ms=A" timed from the threshold's
-#             end (the gate's show) to the first frame, and
-#             "press_to_frame_ms=B" from the request to the first frame
-#             (B is the threshold plus A).
+#             "hold_ms=400", "catcher_ms=A" timed from the threshold's end
+#             (the gate's show) to the catcher's ready commit, and
+#             "press_to_catcher_ms=B" from the request to that commit
+#             (B is the threshold plus A); see S-021 AC8 below.
 #   S-021 AC8: a drop show on the layer path draws nothing until a drag
 #             enters, so with DROP=1 (and HOLD=1) hive_bench prints
 #             "catcher_ms=A" (to the catcher's ready commit, its first
@@ -114,6 +114,5 @@ echo "warm first_frame_ms max $(grep '^warm ' "$OUT/result.txt" | grep -o 'first
 echo "warm catcher_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o '\bcatcher_ms=[0-9.]*' | cut -d= -f2 | median)"
 echo "warm catcher_ms max $(grep '^warm ' "$OUT/result.txt" | grep -o '\bcatcher_ms=[0-9.]*' | cut -d= -f2 | sort -n | tail -1)"
 [ -n "${HOLD:-}" ] && echo "warm press_to_catcher_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o 'press_to_catcher_ms=[0-9.]*' | cut -d= -f2 | median)"
-[ -n "${HOLD:-}" ] && echo "warm press_to_frame_ms median $(grep '^warm ' "$OUT/result.txt" | grep -o 'press_to_frame_ms=[0-9.]*' | cut -d= -f2 | median)"
 grep '^rss_kb' "$OUT/result.txt"
 echo "raw output: $OUT/result.txt"

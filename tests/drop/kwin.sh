@@ -67,15 +67,16 @@
 #           on the WEBP cell writes the file.
 #   late    (coverage of decision 12, accepted by the manager) the drag
 #           stands still, `sbarhive drop`, and the drag moves to P =
-#           (400, 500) about 100 ms after the first frame, inside the
-#           300 ms window: "hive anchor: none", then one move to the drag
+#           (400, 500) LATE_MS (170 ms by default) after the command
+#           returns, inside the 300 ms window counted from the catcher's
+#           ready commit (S-021 AC4, catcher_ready in layer.sh): "hive anchor: none", then one move to the drag
 #           position, "hive anchor" within 1 px of P, exactly two
 #           wl_subsurface.set_position, (444, 219) then (204, 319), the
 #           catcher region the hive rectangle after that first position
 #           (layer.sh mode 0), and the drop on the WEBP cell writes the
-#           file. The first enter on the catcher must fall after the first
-#           frame and within 300 ms of it, or the show did not test the
-#           window (a setup FAIL).
+#           file. The first enter on the catcher must fall after the
+#           catcher's ready commit and within 300 ms of it, or the show did
+#           not test the window (a setup FAIL).
 # S-019f (AC14, AC15): show 13 drags thumbed.png, whose thumbnail (the
 # "photo" picture of tests/overlay/thumbs.py, sky 70 130 200) is seeded in
 # the sandbox's XDG_CACHE_HOME, and holds it over the centre cell: a shot
@@ -363,8 +364,9 @@ inner() {
         ;;
       late)
         # Queued on the input client as soon as the command returns, so no
-        # polling delay: the first frame comes some 60 to 80 ms after it
-        # (50 ms anchor wait, KWin), the move LATE_MS after it.
+        # polling delay: the move comes LATE_MS after the command returns.
+        # No hive is drawn before the drag enters (S-021), so the window is
+        # timed from the catcher's ready commit, as in the check below.
         "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
         echo "sleep ${LATE_MS:-170}" >&3
         jitter "$x" "$y" 600
