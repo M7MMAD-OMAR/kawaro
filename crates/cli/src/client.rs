@@ -1,21 +1,21 @@
 //! Socket client for the daemon protocol in `sbarhive_core::ipc`.
 
-use sbarhive_core::ipc::{Request, Response, socket_path};
+use sbarhive_core::ipc::{Request, Response};
+use sbarhive_core::transport::{self, Stream};
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 const START_TIMEOUT: Duration = Duration::from_secs(2);
 
-fn connect() -> std::io::Result<UnixStream> {
-    let s = UnixStream::connect(socket_path())?;
+fn connect() -> std::io::Result<Stream> {
+    let s = Stream::connect(&transport::endpoint())?;
     s.set_read_timeout(Some(Duration::from_secs(10)))?;
     Ok(s)
 }
 
-fn send(stream: &mut UnixStream, req: &Request) -> Result<(), String> {
+fn send(stream: &mut Stream, req: &Request) -> Result<(), String> {
     let line = serde_json::to_string(req).map_err(|e| e.to_string())?;
     writeln!(stream, "{line}").map_err(|e| format!("daemon: {e}"))
 }

@@ -16,12 +16,14 @@
 # covered by tests/overlay/kwin.sh a11y. The window path's surface line runs
 # only inside a winit event loop (tests/overlay/kwin.sh window, gnome.sh),
 # and the build kind helpers answer from the live platform only.
+# The Windows transport seed (S-022a) builds for Windows only.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",
   "crates/ui/src/layer.rs",
   "crates/ui/src/platform.rs",
   "crates/ui/src/a11y.rs",
+  "crates/core/src/transport/windows.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
@@ -57,6 +59,12 @@ exclude_re = [
   "replace handle with \\(\\)",
   "replace build -> Result",
   "replace present with \\(\\)",
+  # The service's accept loop (S-022a) runs only inside the live daemon;
+  # tests/e2e/run.sh covers it. The transport it accepts from stays mutated.
+  "replace serve with \\(\\)",
+  # A Unix socket has no write buffer: std's flush is already Ok(()), so
+  # this mutant is equivalent.
+  "replace <impl Write for Stream>::flush -> io::Result<\\(\\)> with Ok\\(\\(\\)\\)",
   # The long press gate's daemon side (S-019e): it posts to the Slint event
   # loop, ticks a slint::Timer and shows the live hive, so no unit test can
   # run it. The gate itself is pure and mutated in crates/core/src/hold.rs;

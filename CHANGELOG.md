@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Added
+- IPC behind one transport (S-022): the client and the service reach each other only through `sbarhive_core::transport` (an endpoint, a listener that answers `AlreadyRunning` when a service already answers `ping`, and a stream whose read past its timeout fails with `TimedOut`), still the same socket and protocol on Linux, with a Windows named pipe name per user and session and a Windows seed that builds but answers unsupported. «العميل والخدمة يتصلان عبر واجهة نقل واحدة تمهيداً لأنبوب ويندوز، دون تغيير على لينكس».
+
 ## [0.3.0] - 2026-10-22 «الإفلات»
 
 ### Added

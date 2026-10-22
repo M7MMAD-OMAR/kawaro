@@ -15,6 +15,7 @@ pub mod output;
 mod output_impl;
 pub mod queue;
 mod queue_impl;
+pub mod transport;
 pub mod uri_list;
 
 pub use action::{ActionDef, OutputMode, Registry};

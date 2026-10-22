@@ -381,7 +381,7 @@ fn doctor() {
     out!(
         "  {} sbarhived answering on {}",
         mark(client::daemon_up()),
-        sbarhive_core::ipc::socket_path().display()
+        sbarhive_core::transport::endpoint()
     );
 }
 

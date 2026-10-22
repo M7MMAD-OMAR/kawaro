@@ -1,5 +1,5 @@
 # S-022 نقل IPC خلف واجهة واحدة، ثم named pipe على ويندوز
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: الاختبارات مكتوبة وتفشل، بانتظار المنفِّذ
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: مراجعة (نُفِّذت والبوابات خضراء، بانتظار المراجع)
 
 يبني على ADR 0005 القسم 2. للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -117,3 +117,12 @@ error[E0432]: unresolved import `sbarhive_core::transport`
   |                    ^^^^^^^^^ could not find `transport` in `sbarhive_core`
 error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 previous error
 ```
+- 2026-10-22، المنفِّذ (S-022a): الوحدة `crates/core/src/transport.rs` (`Bound` و`pipe_name` والتوجيه حسب المنصة)، و`transport/unix.rs` (المقبس بغلاف يحوّل `WouldBlock` إلى `TimedOut` في `Read`، و`bind` يرسل `ping` بمهلة 500 ms كما كان `already_running()` في الخدمة)، و`transport/windows.rs` بذرة تعيد `ErrorKind::Unsupported` و`endpoint()` فيها اسم فارغ حتى S-022b. العميل (`client.rs`) والخدمة (`main.rs` و`server.rs` و`state.rs`) و`doctor` تحوّلت إليها. لم يُعدَّل أي اختبار.
+  - قرار المدير في الغموض: مستمع يقبل ولا يجيب على `ping` خلال 500 ms يبقى كما اليوم بالضبط: يُعدّ غير عامل، فيُحذف الملف ويُربط. وكذلك رد غير `ok` أو فشل الكتابة.
+  - حذف الملف عند خروج الخدمة باقٍ على `ipc::socket_path()` كما كان.
+  - `C`: `cargo fmt --check` نظيف، و`cargo clippy -j 2 --workspace --all-targets -- -D warnings` بلا تحذير (ومنه `transport.rs` و`single_instance.rs` في الاختبارات).
+  - `W`: `cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-core --lib -- -D warnings` بلا تحذير.
+  - `L`: `cargo test -j 2 -p sbarhive-core -p sbarhive-cli -p sbarhive-daemon`: 210 ناجحاً، 0 فاشلاً (منها 14 في `transport.rs`، و1 في كل من `transport_seed.rs` و`no_unix_net.rs` و`single_instance.rs`، و32 في `cli.rs`).
+  - AC5: `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src` يعيد 0 أسطر. `git diff --stat main...HEAD -- crates/ui` فارغ.
+  - `M` على الفرق من `20502bc`: 26 طفرة، 14 مكتشفة، 8 غير قابلة للبناء، 2 مهلة (`read` و`write` بـ `Ok(1)`، تكرار لا ينتهي فتكشفه المهلة)، و2 ناجيتان استُثنيتا في `exclude_re` مع السبب: `replace serve with ()` (حلقة القبول في الخدمة الحية، يغطيها `tests/e2e/run.sh` كسابقة `handle`)، و`flush -> Ok(())` في `unix.rs` (طفرة مكافئة: `flush` للمقبس في std لا يفعل شيئاً). بعد الاستثناء `cargo mutants --list` يسرد 24 طفرة، وليس بينها ناجية معروفة.
+  - `scripts/design-lint.sh`: clean. سطر CHANGELOG تحت `[Unreleased]`.

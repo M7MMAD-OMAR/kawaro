@@ -4,25 +4,28 @@ use crate::state::{Shared, common_kind, lock};
 use crate::{notify, text, ui};
 use sbarhive_core::ipc::{Request, Response};
 use sbarhive_core::queue::Queue;
+use sbarhive_core::transport::{Listener, Stream};
 use std::io::{BufRead, BufReader, Write};
-use std::os::unix::net::{UnixListener, UnixStream};
 use std::sync::Arc;
 use std::time::Instant;
 
-pub fn serve(listener: UnixListener, state: Shared, queue: Arc<Queue>) {
-    for stream in listener.incoming().flatten() {
+pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
+    loop {
+        let Ok(stream) = listener.accept() else {
+            continue;
+        };
         let (state, queue) = (state.clone(), queue.clone());
         std::thread::spawn(move || handle(stream, &state, &queue));
     }
 }
 
-fn reply(stream: &mut UnixStream, r: &Response) {
+fn reply(stream: &mut Stream, r: &Response) {
     if let Ok(line) = serde_json::to_string(r) {
         let _ = writeln!(stream, "{line}");
     }
 }
 
-fn error(stream: &mut UnixStream, message: impl Into<String>) {
+fn error(stream: &mut Stream, message: impl Into<String>) {
     reply(
         stream,
         &Response::Error {
@@ -31,9 +34,12 @@ fn error(stream: &mut UnixStream, message: impl Into<String>) {
     );
 }
 
-fn handle(mut stream: UnixStream, state: &Shared, queue: &Arc<Queue>) {
+fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     let mut line = String::new();
-    if BufReader::new(&stream).read_line(&mut line).is_err() {
+    let Ok(reader) = stream.try_clone() else {
+        return;
+    };
+    if BufReader::new(reader).read_line(&mut line).is_err() {
         return;
     }
     let req: Request = match serde_json::from_str(&line) {
