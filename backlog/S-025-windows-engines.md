@@ -1,5 +1,5 @@
 # S-025 المحركات الخارجية على ويندوز: شجرة العمليات والاكتشاف ورابط الملف
-الحالة: S-025a: الاختبارات مكتوبة وتفشل، بانتظار المنفِّذ؛ S-025b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: S-025a: مراجعة (المنفِّذ أنهى، بانتظار المراجع)؛ S-025b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 3 و7. للإصدار 0.6.0. لا يلمس `crates/ui`. مستقلة عن S-022 إلى S-024 في الشيفرة.
 
@@ -49,7 +49,7 @@ S-025b:
 | AC1، AC2 | وحدة في `tree.rs` بعمليات وهمية تسجّل التسلسل وعدّادات الإغلاق والإنهاء؛ تحت `M` | وحدة |
 | AC3، AC6، AC9 | `W` بلا تحذير، والمراجع يقرأ `non_unix.rs` و`locate/windows.rs` | بناء، مراجعة |
 | AC4 | اختبارات `run_child` القائمة في `office.rs` و`crates/engines/tests/office_engine.rs` على لينكس | تكامل |
-| AC5 | وحدة بالأسماء التسعة | وحدة |
+| AC5 | وحدة بالأسماء الثمانية | وحدة |
 | AC7، AC8 | وحدة في `locate.rs` ببيئة وسجل وهميين، ومسارات مبنية بـ `Path::join`؛ تحت `M` | وحدة |
 | AC10 | وحدة بالسلاسل الأربع | وحدة |
 | AC11 | وحدة: محرك بلا برنامج يعيد رسالة فيها الاسم والرابط، لكل محرك من الثلاثة | وحدة |
@@ -104,3 +104,9 @@ $ env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --targ
 ├── image v0.25.10  ├── lopdf v0.45.0  ├── miniz_oxide v0.8.9  ├── pdf-writer v0.15.0  ├── sbarhive-core v0.3.0
 ├── tempfile v3.27.0  ├── thiserror v2.0.21  ├── toml v0.8.23  ├── webp v0.3.1  └── zip v9.0.5   (لا windows-sys بعد)
 ```
+- 2026-10-22، المنفِّذ (S-025a):
+  - التنفيذ: في `tree.rs` فوق وحدة الاختبار: الثابتان، والسمة `JobOps`، و`start_in_job` بمسار تنظيف واحد (مساعد `assign_and_resume` يُسند ثم يقرأ الخيوط ويعيد خطأً لقائمة فارغة ثم يستأنف، وعند أي خطأ بعد التشغيل: `terminate_process` ثم إغلاق المهمة ثم الخطأ)، و`threads_of`، و`has_exe_extension` (`.exe` أو `.com` بأي حالة وبعد جذع غير فارغ). كلها بـ `#[cfg_attr(not(windows), allow(dead_code))]`. في `non_unix.rs`: `WinOps` بـ `CreateJobObjectW` و`SetInformationJobObject` (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) و`creation_flags(CREATE_SUSPENDED | CREATE_NO_WINDOW)` و`AssignProcessToJobObject` ولقطة خيوط Toolhelp تمر عبر `tree::threads_of` ثم `OpenThread` و`ResumeThread`، و`TerminateProcess` عند الفشل؛ و`spawn_in_job` و`terminate_job` (`TerminateJobObject`)، ومقبض مملوك يُغلق بالإسقاط؛ و`is_executable` تساوي `is_file() && has_exe_extension`؛ وتحقق وقت الترجمة من الثابتين مقابل `windows_sys`؛ وحُذف `kill_group` غير اللينكسي. في `run_child` سطرا تشغيل وإنهاء بـ `#[cfg(not(unix))]` فقط، وأسطر لينكس كما هي. `windows-sys` 0.61 تحت `[target.'cfg(windows)'.dependencies]` لـ engines بميزات Foundation وSecurity وDiagnostics_ToolHelp وJobObjects وThreading.
+  - تصحيح نص القصة: AC5 ثمانية أسماء لا تسعة (قبِل المدير اختيار المختبِر)، فصُحّح صف جدول حالات الاختبار إلى «الثمانية»؛ اسم الاختبار `ac5_has_exe_extension_for_the_nine_names` باقٍ دون تعديل.
+  - ملاحظة لـ S-025b: على ويندوز لا يجد `find_program` الاسمين `soffice` و`libreoffice` بلا امتداد حتى تضيف S-025b أسماء `.exe` و`.com`، وهذا متوقع.
+  - البوابات (كل أمر داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%` و`-j 2`): `C` نظيف (fmt وclippy للمساحة كلها بكل الأهداف)؛ `cargo test -j 2 --all` نجح 670 وفشل 0 (`sbarhive-engines` lib 51، و`office_engine` 12، و`pdf_ghostscript` 6، و`ffmpeg_engine` 23)؛ `W` نظيف، و`cargo check --target x86_64-pc-windows-gnu -p sbarhive-engines --lib` نظيف؛ `X` يسرد `windows-sys v0.61.2` وحده جديداً؛ `grep -c '^\[\[package\]\]' Cargo.lock` يعطي 671، وفرق `Cargo.lock` سطر واحد في مصفوفة `sbarhive-engines`؛ `scripts/design-lint.sh` نظيف؛ فرقا وحدتي الاختبار المضمّنتين فارغان؛ `git diff --stat main...HEAD -- crates/ui` فارغ.
+  - `M` على نسخة منسوخة في مجلد الجلسة، بفرق `git diff c3619de -- crates/engines/src`، و`CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 -p sbarhive-engines`: 12 طفرة، 10 ممسوكة، 2 غير قابلة للبناء، ولا ناجية.

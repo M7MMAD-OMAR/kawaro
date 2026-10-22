@@ -301,7 +301,7 @@ mod tree;
 #[cfg(not(unix))]
 mod non_unix;
 #[cfg(not(unix))]
-use non_unix::{is_executable, kill_group};
+use non_unix::is_executable;
 
 pub(crate) struct ChildOutcome {
     pub status: ExitStatus,
@@ -330,7 +330,11 @@ pub(crate) fn run_child(
         use std::os::unix::process::CommandExt;
         cmd.process_group(0);
     }
+    #[cfg(unix)]
     let mut child = cmd.spawn()?;
+    // On Windows a kill-on-close job holds the tree (ADR 0005 section 3).
+    #[cfg(not(unix))]
+    let (job, mut child) = non_unix::spawn_in_job(cmd)?;
     let (line_tx, lines) = mpsc::channel::<String>();
     let stdout = child.stdout.take().expect("stdout is piped");
     std::thread::spawn(move || {
@@ -380,7 +384,10 @@ pub(crate) fn run_child(
         }
     };
     // Also on success: nothing the tool left running may outlive the task.
+    #[cfg(unix)]
     kill_group(&mut child);
+    #[cfg(not(unix))]
+    non_unix::terminate_job(&job);
     let status = match stop {
         Ok(status) => status,
         Err(e) => {

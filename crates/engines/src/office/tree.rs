@@ -26,6 +26,92 @@
 //   (owner pid, thread id) pairs, result in entry order.
 // - `has_exe_extension(name: &str) -> bool`.
 
+use std::io;
+
+/// Starts the process with its main thread suspended, so it cannot start
+/// children before it joins the job.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(super) const CREATE_SUSPENDED: u32 = 0x4;
+/// No console window for a console tool started by a service with none.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(super) const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// The system calls `start_in_job` makes, injected so a fake can record them.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(super) trait JobOps {
+    /// An owned job handle, closed when dropped.
+    type Job;
+    /// The spawned process.
+    type Child;
+    fn create_job(&mut self) -> io::Result<Self::Job>;
+    fn kill_on_close(&mut self, job: &Self::Job) -> io::Result<()>;
+    /// The suspended child and its process id.
+    fn spawn_suspended(&mut self) -> io::Result<(Self::Child, u32)>;
+    fn assign(&mut self, job: &Self::Job, child: &Self::Child) -> io::Result<()>;
+    fn threads_of(&mut self, pid: u32) -> io::Result<Vec<u32>>;
+    fn resume(&mut self, tid: u32) -> io::Result<()>;
+    fn terminate_process(&mut self, child: &Self::Child);
+}
+
+/// Creates a kill-on-close job, spawns the child suspended, puts it in the
+/// job and resumes its threads. The job comes back open: closing it kills
+/// the whole tree. On a failure after the spawn the child is terminated and
+/// the job closed before the error returns.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(super) fn start_in_job<O: JobOps>(ops: &mut O) -> io::Result<(O::Job, O::Child)> {
+    let job = ops.create_job()?;
+    ops.kill_on_close(&job)?;
+    let (child, pid) = ops.spawn_suspended()?;
+    match assign_and_resume(ops, &job, &child, pid) {
+        Ok(()) => Ok((job, child)),
+        Err(e) => {
+            ops.terminate_process(&child);
+            drop(job);
+            Err(e)
+        }
+    }
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+fn assign_and_resume<O: JobOps>(
+    ops: &mut O,
+    job: &O::Job,
+    child: &O::Child,
+    pid: u32,
+) -> io::Result<()> {
+    ops.assign(job, child)?;
+    let threads = ops.threads_of(pid)?;
+    if threads.is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "the suspended process has no thread",
+        ));
+    }
+    for tid in threads {
+        ops.resume(tid)?;
+    }
+    Ok(())
+}
+
+/// The thread ids owned by `pid`, from (owner pid, thread id) pairs, in
+/// entry order.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(super) fn threads_of(pid: u32, entries: &[(u32, u32)]) -> Vec<u32> {
+    entries
+        .iter()
+        .filter(|(owner, _)| *owner == pid)
+        .map(|(_, tid)| *tid)
+        .collect()
+}
+
+/// Whether `name` ends in `.exe` or `.com`, any case, after a non-empty stem.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(super) fn has_exe_extension(name: &str) -> bool {
+    name.rsplit_once('.').is_some_and(|(stem, ext)| {
+        !stem.is_empty() && (ext.eq_ignore_ascii_case("exe") || ext.eq_ignore_ascii_case("com"))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

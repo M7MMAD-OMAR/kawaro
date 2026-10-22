@@ -22,6 +22,9 @@
 # only; the choices stay mutated in paths.rs and output_impl.rs.
 # The Windows service start and foreground grant (S-024) build for Windows
 # only; the flags, the retry and the grant stay mutated in spawn.rs.
+# The Windows job object for engine process trees (S-025a) builds for Windows
+# only; the start sequence, thread filter and exe check stay mutated in
+# office/tree.rs.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",
