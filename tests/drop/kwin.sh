@@ -19,7 +19,8 @@
 # shows 1 to 5 each print one "hive reveal: N" line, N the number of their
 # file's actions, with no attach on the hive before it and the first one
 # after the drag's first enter (AC3, AC4, AC7, tests/drop/layer.sh
-# probe_checks); a drag of notes.unknownext (no action) gives an empty "drop
+# probe_checks), and shows 6 to 13 one "hive reveal" line each (AC3); a
+# drag of notes.unknownext (no action) gives an empty "drop
 # cells:" line, "hidden (no-actions)", nothing drawn, no accept with a type,
 # no new file, and a new drag after it (AC6); the late show's 300 ms window
 # and the decision 12 bounds count from the catcher's ready commit (its
@@ -745,6 +746,15 @@ inner() {
     check "S-021 AC7 show $((i + 1)): \"hive reveal: N\" with N the number of \`sbarhive actions\` for its file ($(wc -w <<<"${EXPECT[i]}"))" \
       '[ "$pn" != none ] && [ -n "${EXPECT[i]}" ] && [ "$pn" -eq "$(wc -w <<<"${EXPECT[i]}")" ]'
   done
+  # S-021 AC3 for shows 6 to 13: every one is a drag that enters the hive,
+  # so each prints exactly one probe line, "hive reveal: N".
+  local bad3="" pall prev
+  for ((i = 5; i + 1 < ${#MARKS[@]}; i++)); do
+    IFS='|' read -r pall prev _ <<<"$(probe_show "$(sed -n "$((MARKS[i] + 1)),$((MARKS[i + 1]))p" "$DLOG")")"
+    [ "$pall" = 1 ] && [ "$prev" = 1 ] || bad3+="$((i + 1)) "
+  done
+  echo "INFO S-021 AC3 shows 6 to $(( ${#MARKS[@]} - 1 )): shows without exactly one \"hive reveal\" line: ${bad3:-none}"
+  check "S-021 AC3 shows 6 to 13: each prints exactly one probe line, \"hive reveal: N\"" '[ "${#MARKS[@]}" -ge 14 ] && [ -z "$bad3" ]'
   no_action_cycle
   hold_cycles
   window_waiting

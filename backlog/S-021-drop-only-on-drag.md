@@ -177,12 +177,12 @@
   - تأكيدات قائمة تغيّرت (كما في القائمة أعلاه): `repro.sh` (S-020 AC4 صار AC5 (ب)، وفحص القرار 12 على الظهور نفسه بالمرجع الجديد ودون `set_position`، وتعليق الرأس)، و`layer.sh` (المرجع)، و`tests/overlay/kwin.sh drop` (‏drop1 وdrop3 سحب PNG، وdrop2 ‏`hidden (pointer)`، والنقرة في (100، 700) في drop4 ‏`--at 640,400`)، و`outputs at-v1` (سحب PNG ممسوك وحركة 1 px، ولقطة «قبل» مع السحب)، و`tests/drop/kwin.sh` (لقطة ما قبل `enter` بصفر بكسل من الرموز الثلاثة مع حارس من لقطة المصدر وحده، والمرجع في late)، و`lib.sh` (‏`hidden (cap)` على مسار الطبقة فقط، ‏`ESC_NO_KEYBOARD=1`، فلا يتغير `gnome.sh`).
   - تغييرات إعداد خارج القائمة، تحتاج إقرار محمد (القرار 6 يكسرها بعد التنفيذ الصحيح): (1) ‏`tests/drop/kwin.sh hold_cycles` حالة held: المؤشر في (640، 400) فيُخفي KWin الماسك عند الربط قبل الترك، فصارت `drop --hold --at 640,400` والمؤشر في (100، 700)، والتأكيدات كما هي، مع `hidden (release)`. (2) ‏`tests/overlay/kwin.sh` الوضع الافتراضي، ظهور drop: صار `drop --at 640,400` والمؤشر في (100، 700)، وفحص AC18 «رسم في مخازن wl_shm» صار لهذا الظهور «صفر مخزن wl_shm وبكسل الماسك وحده». الإعداد نفسه الذي اعتمدته القصة لسطري 846 و847.
   - اللقطة (السؤال 4): حُذف المرجع القديم (أُخذ على مسار الطبقة، ويختلف عن مرشّح مسار النافذة في 0.59 % من بكسلاته). `tests/drop/kwin.sh` يعيد تشغيل الخدمة بـ `SBARHIVE_SURFACE=window` بعد `hold_cycles`، ويلتقط الخلية المنتظرة تحت سحب PNG ساكن، ويقصّها بمستطيل سطر `hive surface: window` (‏393 x 362)، ويفحص نص الانتظار (حبر `text-primary` في المركز) وغياب الخلايا وغياب أسطر S-021، ثم يقارنها بالمرجع. المرشّح في `tests/drop/out/drop-en-light-waiting.png` بعد التشغيل، وفحص المرجع يفشل حتى يعتمده محمد. لم يعتمده المختبِر.
-  - ما ينجح قبل التنفيذ ولماذا: حراس سلوك قائم أو سلوك S-021a لا يُلوَون: نقرات `keys.py` والإخفاء خلال 500 ms (‏AC5 (أ) و(ب) و(ج) وAC9 (1)، الآلة من S-021a)، ومنطقة القرار 12 بالمرجع الجديد (‏350.8 ms، والحد 400)، وغياب `receive` في سحب النص، وكتابة WEBP، والنقرة في (100، 700)، وفحوص مسار النافذة، وAC10 كله. كل فحص S-021 لأسطر السجل أو المخازن يفشل.
+  - ما ينجح قبل التنفيذ ولماذا (`repro.sh` ‏18 من 39): حراس سلوك قائم أو سلوك S-021a لا يُلوَون: نقرات `keys.py` والإخفاء خلال 500 ms (‏AC5 (أ) و(ب) و(ج) وAC9 (1)، الآلة من S-021a)، ومنطقة القرار 12 بالمرجع الجديد (‏350.8 ms، والحد 400)، وغياب `receive` في سحب النص، وكتابة WEBP، والنقرة في (100، 700)، وفحوص مسار النافذة، وAC10 كله. كل فحص S-021 لأسطر السجل أو المخازن يفشل.
   - ملاحظة لمحمد (خلل خارج المعايير، ظهر في تشغيل أول): ترك المفتاح (`drop --release`) والسحب فوق خلية ظاهرة، ثم سحب جديد: دخول الظهور التالي لا يُقرأ (لا `drop cells:` ولا `accept`، والخدمة تهدم عرض الظهور السابق `wl_data_offer#4278190080` عند `enter` العرض الجديد)، فلا يُكتب WEBP. أثره في `hypr-layer-daemon.log` من أول تشغيل. تجنّبه AC9 (3) بمغادرة الخلية قبل الترك، فهو ليس من AC9.
   - مخرجات الفشل (بناء main):
     ```
     $ tests/hyprland/repro.sh --json
-    {"total": 39, "failed": 22, "skipped": 0}
+    {"total": 39, "failed": 21, "skipped": 0}
     $ tests/hyprland/repro.sh --json --quasimode
     {"total": 46, "failed": 21, "skipped": 0}
     FAIL S-021 AC3 AC5 (b) pointer into the rectangle: exactly one probe line, "hive probe: hidden (pointer)" ...
@@ -193,10 +193,10 @@
     FAIL S-021 AC6 notes.unknownext: an empty "drop cells:" line before the hide, ...
     FAIL S-021 AC3 AC6 text drag: exactly one probe line, "hive probe: hidden (no-uri-list)" ...
     $ tests/drop/kwin.sh level=1
-    RESULT FAIL (27)   (310 PASS)
+    RESULT FAIL (28)   (310 PASS)
     FAIL S-021 AC4 show 1: before the drag enters the hive is not drawn (no text-primary, surface-2 or surface-3 pixel in its box)
       (INFO: waiting shot text-primary 46, surface-2 24, surface-3 3896; source shot before show 1: 0, 0, 0)
-    FAIL S-021 AC3/AC4/AC7 show 1 to 5 (4 each), AC6 notes.unknownext (3), S-019e held released (2)
+    FAIL S-021 AC3/AC4/AC7 show 1 to 5 (4 each), AC3 shows 6 to 13 (1), AC6 notes.unknownext (3), S-019e held released (2)
     FAIL S-014 AC10 window path: no approved reference .../drop-en-light-waiting.png (... needs the owner's approval)
     $ tests/overlay/kwin.sh drop
     RESULT FAIL (11)   (38 PASS)
@@ -207,5 +207,13 @@
     $ tests/overlay/kwin.sh
     FAIL S-021 AC4 show 3 (drop): never revealed, so no wl_shm buffer, only the catcher's single pixel buffer
     RESULT FAIL (1)
+    $ tests/drop/kwin.sh level=1 shortcut
+    INFO AC11 esc before: ... hive surface destroyed 9892.1 ms after Esc
+    FAIL S-021 AC11 esc before (layer path): the timeout prints exactly one probe line, "hive probe: hidden (cap)"
+    RESULT FAIL (1)
+    $ tests/drop/window_path.sh
+    RESULT PASS   (gnome.sh smart وoverlay/gnome.sh: RESULT PASS، وصفر سطر probe أو reveal)
     ```
-  - لم يُشغَّل: `tests/drop/kwin.sh shortcut` (فحص `hidden (cap)` الجديد فيه)، و`tests/drop/kwin.sh level=1` بعد تعديل أخير يقصّ المرشّح بمستطيل النافذة (جُرّب القص على لقطة التشغيل نفسها). AC8 لـ S-021c.
+  - في `tests/drop/kwin.sh shortcut` هُدم ماسك «Esc قبل الدخول» بعد 9892 ms من Esc، أي بالحد لا بدخول المؤشر، فالسبب المنتظر `cap` كما توقعت القصة. فحوص S-021 في `repro.sh` تجري في وضع الطبقة فقط (القرار 1)، فوضع `window` فيه 11 فحصاً (18 مع `--quasimode`). المرشّح بعد التشغيل الأخير 393 x 362 بمستطيل النافذة.
+  - هامش حد الـ 400 ms في القرار 12 بالمرجع الجديد: Hyprland ‏350.8 ms، وKWin (ظهورات still السبعة) 350.1 إلى 356.6 ms، أي نحو 45 ms. المرجع الجديد أبكر بنحو 50 ms (‏ANCHOR_WAIT)، والحد 400 من القصة فلم يُغيَّر.
+  - ليس من S-021b: AC8 (الميزانية) وتوثيق `tests/drop/README.md` الذي ما زال يذكر مرجع الانتظار على مسار الطبقة، لـ S-021c.
