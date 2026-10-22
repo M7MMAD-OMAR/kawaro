@@ -12,6 +12,10 @@ set -u
 # shellcheck source=tests/windows/lib.sh
 . "$(dirname "$0")/lib.sh"
 cd "$REPO_ROOT" || exit 2
+if [ "$(cat "/sys/fs/cgroup$(own_cgroup)/memory.max" 2>/dev/null)" != max ]; then
+  echo "run outside a memory scope: the AC1 and AC3 checks need to see the scripts enter one" >&2
+  exit 2
+fi
 trap drop_fakes EXIT
 
 ac1_build_sh_reexecs_in_a_6g_scope_with_j2_and_prints_its_cgroup () {

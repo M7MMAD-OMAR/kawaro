@@ -83,7 +83,11 @@ print(sum(1 for p in m["packages"] if p["name"] in pk
   if [ "$rc" != 0 ]; then grep -E '^error' "$WORK/t.out" | sort | uniq -c | head -n 20 >&2; fi
 }
 
-if pgrep -x cargo >/dev/null || pgrep -f cargo-mutants >/dev/null; then
+if [ "$(cat "/sys/fs/cgroup$(own_cgroup)/memory.max" 2>/dev/null)" != max ]; then
+  echo "run outside a memory scope: build.sh and check.sh enter their own" >&2
+  exit 2
+fi
+if pgrep -x cargo >/dev/null || pgrep -x cargo-mutants >/dev/null; then
   echo "another cargo run is active; run this when pgrep -a cargo is empty" >&2
   exit 2
 fi

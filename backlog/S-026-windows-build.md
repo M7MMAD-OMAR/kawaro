@@ -120,3 +120,26 @@ $ bash tests/windows/test_scripts.sh
   FAIL: lint: missing scripts/windows/check.sh
 FAIL S-026a windows scripts (light) (19 of 21 checks failed)
 ```
+  - Heavy suite, here, before implementation. Ran when no other cargo was running. T fails at the first crate, and cargo prints no `Executable` line on failure, hence 0 listed:
+```
+$ bash tests/windows/test_heavy.sh
+== AC1: real build.sh (S)
+  FAIL: AC1: missing or not executable scripts/windows/build.sh
+== AC2: check-dlls.sh on the real sbarhive.exe
+  FAIL: AC2: missing or not executable scripts/windows/check-dlls.sh
+== AC3: real check.sh
+  FAIL: AC3: missing or not executable scripts/windows/check.sh
+== AC5: cargo test --no-run for Windows (T)
+  FAIL: AC5: exit code: got [101] want [0]
+  AC5: test targets 35, listed .exe files 0
+  FAIL: AC5: listed .exe files equal test targets: got [0] want [35]
+      1 error: could not compile `sbarhive-cli` (test "settings") due to 1 previous error
+      1 error[E0433]: cannot find `unix` in `os`
+FAIL S-026a windows build (heavy) (5 of 6 checks failed)
+```
+  - BLOCKER for the manager: the AC4 file list does not cover every Windows compile error under `--all-targets`. Full list from `cargo check --tests --keep-going -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines -p sbarhive-cli`, inside the scope with the Windows target dir:
+    - Listed in AC4: `cli/tests/cli.rs` (3 errors), `cli/tests/settings.rs` (1), `core/tests/output.rs` (1), `engines/src/office.rs` unit tests (3).
+    - NOT listed:
+      - `crates/core/tests/transport.rs`, 4 errors: `Endpoint::from_path` at lines 35, 77 and 272, and `std::os::unix` at line 267.
+      - `crates/core/src/output_impl.rs:401`, 1 error: `std::os::unix` inside its `#[cfg(test)] mod tests`.
+    - AC5 and AC3 (clippy `--all-targets`) cannot pass without cfg lines in these two files too. The implementer may not edit tests, and these two are outside the story. So the story needs its AC4 list (and the S-026a file list) extended before implementation; I did not extend the AC4 test on my own.
