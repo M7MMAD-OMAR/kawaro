@@ -273,7 +273,7 @@ assumptions from ADR 0005, checked on a real Windows install in S-034. On
 Windows `ffmpeg` and `ffprobe` start with `CREATE_NO_WINDOW`, so no console
 window flashes.
 
-## Windows build tools (S-026a)
+## Windows build tools (S-026)
 
 Used on the Fedora build host only, to cross build and check the Windows
 programs; nothing from them is shipped. `scripts/windows/check-dlls.sh`
@@ -282,7 +282,9 @@ mingw library ends up beside `sbarhive.exe`.
 
 | tool | version | license | used by | why |
 | --- | --- | --- | --- | --- |
-| mingw64-gcc | 16.2.1 (Fedora 44, installed) | GPL-3.0-or-later with the GCC runtime exception (runtime parts LGPL and others) | `scripts/windows/build.sh`, `check.sh` | linker for `x86_64-pc-windows-gnu`; its `x86_64-w64-mingw32-objdump` reads the imports in `check-dlls.sh` |
+| mingw64-gcc | 16.2.1 (Fedora 44, installed) | GPL-3.0-or-later with the GCC runtime exception (runtime parts LGPL and others) | `scripts/windows/build.sh`, `check.sh` | linker for `x86_64-pc-windows-gnu` |
+| mingw64-binutils | 2.46.0 (Fedora 44, installed) | GPL-3.0-or-later (some parts GPL-2.0-or-later, LGPL and BSD-3-Clause) | `scripts/windows/check-dlls.sh` | its `x86_64-w64-mingw32-objdump` reads the DLL imports |
+| mingw-w64 | Ubuntu 24.04 package, version of the runner image | GPL-3.0-or-later with the GCC runtime exception, binutils GPL-3.0-or-later | `windows-cross` job in `.github/workflows/ci.yml` | the Ubuntu package that gives the CI runner the same mingw gcc and `x86_64-w64-mingw32-objdump` |
 | genisoimage | 1.1.11 (Fedora 44, installed) | GPL-2.0-only | `scripts/windows/make-iso.sh` (S-026b) | writes the ISO that carries the test programs to the Windows test machine |
 
 ## Application dependencies (daemon, CLI, UI)

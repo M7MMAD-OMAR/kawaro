@@ -22,3 +22,40 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: scripts/design-lint.sh crates/ui
+
+  # Windows cross build on Linux (S-026): the same scripts as on the Fedora
+  # host, run directly (CI=true) with the target dir inside the workspace.
+  windows-cross:
+    runs-on: ubuntu-24.04
+    env:
+      CI: true
+      CARGO_TARGET_DIR: ${{ github.workspace }}/target-windows
+    steps:
+      - uses: actions/checkout@v4
+      - name: mingw-w64
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-gnu
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target-windows"
+      - run: scripts/windows/check.sh
+      - run: scripts/windows/build.sh
+      - run: scripts/windows/check-dlls.sh "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release/sbarhive.exe"
+
+  # Tests on real Windows (S-026). FFmpeg is installed because the FFmpeg
+  # engine tests require it; the office and PDF engine tests skip themselves
+  # when their programs are absent, so those are not installed.
+  windows-native:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: FFmpeg
+        run: choco install ffmpeg -y
+      - run: cargo test -p sbarhive-core -p sbarhive-engines -p sbarhive-cli
