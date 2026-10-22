@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)؛ S-014f لم تبدأ
+الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 في المراجعة؛ S-014f لم تبدأ
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -615,3 +615,9 @@
   3. The empty trigger in `portal shortcuts: bound drop ()` is accepted; the docs do not promise a trigger text.
   4. The AC21 runs on Hyprland stay as extra coverage.
   5. Checked by the manager: after the runs the live user manager's environment still names the live Hyprland instance and `wayland-1`, so the nested `systemctl --user import-environment` did not leak. The regular modes stay as they are.
+- 2026-10-23, implementer (S-014e3, AC22 only; AC20 on Hyprland needs no code, manager point 1): docs and CHANGELOG written to the tester's contract. No test, crate code or other file touched.
+  - `docs/drop-shortcut.md` and `docs/drop-shortcut.ar.md`: a new last section, "Portal shortcut" and «اختصار البوابة», same content in both: GNOME 48 and later and KDE 6 register Super+Z through the portal with a consent dialog the first time; the dialog may open behind a full screen window on GNOME; remove a Super+Z bound by hand once the portal has registered it; change it in GNOME Settings, Apps, then Global Shortcuts, or KDE System Settings, then Shortcuts; hold, not tap, with `hold_ms`; a refusal is remembered as `portal_shortcut = false` and is turned back on with `portal_shortcut = true` (or by deleting the line) and `systemctl --user restart sbarhive`; with no portal the manual bind stays; on Hyprland the `exec` bind with `--at` stays first and the `global` line is the alternative. The section is last, so the file's first exec Super+Z line comes before the global line.
+  - `integrations/linux/hyprland/README.md` and `README.ar.md`: a last section with the `global` line in hyprlang and Lua (the Lua form is the one the tester's nested Hyprland run loaded), called the alternative to the `exec` binds, with a line to keep only one of the two ways. It is the last section so the Lua `hl.bind("SUPER + Z", ...)` line is not followed by an `exec_cmd` that `tests/drop/docs.sh` could pair with it.
+  - `CHANGELOG.md`: one `### Added` line under `## [Unreleased]` naming S-014e, in English and Arabic.
+  - Checks, all RESULT PASS or clean: `tests/drop/portal_docs.sh`, `tests/drop/docs.sh` (with `DROP_OUT` in a scratch directory), `tests/drop/hold_docs.sh`, `tests/overlay/docs.sh`, `tests/integrations/test_static.sh` (43 checks), `scripts/design-lint.sh`. No Rust changed, so `cargo fmt`, `clippy`, `test` and `mutants` have nothing new to check; they were not run.
+  - Status: S-014e3 ready for review.

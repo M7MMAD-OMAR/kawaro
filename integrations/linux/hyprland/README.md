@@ -90,3 +90,19 @@ Notes, none of them verified:
 - A press bind on Alt alone, or any modifier, must be non consuming (the flag `n` in hyprlang, `non_consuming` in Lua), so combinations such as Alt+Tab keep working. It must also ignore modifiers (the flag `i` in hyprlang, `ignore_mods` in Lua) and not require the modifier itself: on the first press Alt is not held yet, so a bind such as `ALT, ALT_L` matches only from the second press.
 - `--at` is read at the first press, so the hive shows where the pointer was when the key went down.
 - `sbarhive drop` without `--hold` has no threshold, for a plain key press bind, and follows the same rule: the hive shows only with a drag of files that have an action.
+
+## Portal shortcut
+
+The `exec` binds above stay the first way. As an alternative, xdg-desktop-portal-hyprland passes on the Super+Z shortcut the daemon registers, with one `global` line instead of the press and release binds. It works by holding too (`hold_ms`). hyprlang form (`hyprland.conf`):
+
+```
+bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop
+```
+
+Lua form (`hyprland.lua`):
+
+```
+hl.bind("SUPER + Z", hl.dsp.global("io.github.m7mmad_omar.SbarHive:drop"))
+```
+
+Keep only one of the two ways for Super+Z.

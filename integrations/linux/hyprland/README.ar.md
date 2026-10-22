@@ -93,4 +93,20 @@ hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
 - يُقرأ الموضع `--at` عند الضغطة الأولى، فتظهر الخلية حيث كان المؤشر لحظة الضغط.
 - `sbarhive drop` دون `--hold` لا مهلة له، وهو لربط ضغطة عادية، وتسري عليه القاعدة نفسها: لا تظهر الخلية إلا مع سحب ملفات لها إجراء.
 
+## اختصار البوابة
+
+يبقى ربط `exec` السابق هو الطريقة الأولى. والبديل أن يوصل xdg-desktop-portal-hyprland اختصار Super+Z الذي تسجّله الخدمة، بسطر `global` واحد بدلاً من ربط الضغط وربط الترك. ويعمل بالإمساك كذلك (`hold_ms`). بصيغة hyprlang (الملف `hyprland.conf`):
+
+```
+bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop
+```
+
+وبصيغة Lua (الملف `hyprland.lua`):
+
+```
+hl.bind("SUPER + Z", hl.dsp.global("io.github.m7mmad_omar.SbarHive:drop"))
+```
+
+اختر إحدى الطريقتين فقط لـ Super+Z.
+
 </div>
