@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: مراجعة (S-014d بعد REWORK 1)
+الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e وS-014f لم تبدأ
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -283,3 +283,15 @@
   - خياران للمدير: (أ) يعدّل المختبِر المستخرِج ليفهم `os.getenv("HOME") ..`؛ (ب) يعدل المدير البند 2 إلى `hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive ...")`، وهي صيغة يقبلها الاختبار اليوم، وتعمل لأن `exec_cmd` يمر عبر `/bin/sh -c` كما تحقق المراجِع.
   - لم تُرسل للمراجعة: بوابة حمراء تعني REWORK تلقائياً، وهذه المحاولة الثانية والأخيرة. لا شيفرة Rust متغيرة، فلم يُشغَّل cargo. لم يُلمس سطح المكتب الحي ولم يُشغَّل `hyprctl`.
 - 2026-10-22، المدير: الخيار (ب). أسطر Lua تكتب `"$HOME/.local/bin/sbarhive ..."` داخل `exec_cmd`، والصدفة `/bin/sh -c` توسّع `$HOME` (أكّد المراجع ذلك). `tests/drop/docs.sh` وhold_docs.sh وoverlay/docs.sh بنتيجة RESULT PASS، وdesign-lint نظيف. الحالة: مراجعة.
+- 2026-10-22، المراجِع (S-014d، المراجعة 2 بعد REWORK 1): **PASS**.
+  - شُغّل كل شيء مرة واحدة داخل `systemd-run --user --scope` (MemoryMax=6G، MemoryHigh=5G، CPUQuota=200%، `nice -n 19`، `CARGO_BUILD_JOBS=2`)، ومؤلِّف مخفي واحد في كل مرة، دون لمس سطح المكتب الحي ودون `hyprctl`: `tests/drop/docs.sh` RESULT PASS (`INFO not shipped: none`)؛ `tests/drop/hold_docs.sh` RESULT PASS؛ `tests/overlay/docs.sh` RESULT PASS؛ `scripts/design-lint.sh` نظيف؛ `tests/drop/kwin.sh level=1` (الوضع الافتراضي) RESULT PASS، 308 PASS و0 FAIL؛ `tests/drop/gnome.sh smart` (الوضع الافتراضي) RESULT PASS، 72 PASS و0 FAIL. لم يبقَ بعدهما `kwin_wayland` ولا `gnome-shell`.
+  - بنود المراجعة 1، كلها محلولة في `docs/drop-shortcut.md` و`integrations/linux/hyprland/README.md` باللغتين:
+    1. ربط ضغط Alt: `bindni = , ALT_L, exec, ...` في المواضع الأربعة، وLua `hl.bind("ALT_L", ...)` مع `non_consuming = true` و`ignore_mods = true`. ربط الترك `bindri = , ALT_L` وLua `"ALT_L"` مع `release` و`ignore_mods`. جملة العلم `n` في الملفين تذكر `i` وسببه. لا يبقى `ALT + ALT_L` ولا `bindn = ALT`.
+    2. لا `HOME ..` ولا `os.getenv` في أي سطر Lua: الأسطر الثمانية (Super+Z وAlt، باللغتين) تكتب `"$HOME/.local/bin/sbarhive ..."` داخل `exec_cmd`، بقرار المدير (الخيار ب). تحقق: حُلِّلت الأسطر الثمانية بـ luajit مع جدول `hl` بديل، فتمر السلسلة إلى الصدفة `$HOME/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"` و`... drop --release`، والصدفة `/bin/sh -c` توسّع `$HOME` (المراجعة 1).
+    3. ملاحظة GNOME تقول إن الاختبار سجّل المفتاح بـ `grab_accelerator('<Super>z')` داخل GNOME Shell عبر `Shell.Eval`، ولا تنسبه إلى البوابة.
+    4. GNOME الخطوة 3: «إضافة» و"Add".
+  - التصعيد عن AC11: حسمه المدير (af4d07d) بقبول الانحراف صراحة لحالة Esc قبل دخول السحب.
+  - بوابات cargo: لا تنطبق. إيداعات الإصلاح (af4d07d، d5f3852، 4dc53be) لا تغيّر أي ملف `.rs` ولا `Cargo.toml` ولا `Cargo.lock`. لا `cargo mutants` بطلب المدير، ولا شيفرة متغيرة له. لا لقطات جديدة.
+  - CHANGELOG.md: سطر S-014d موجود منذ baf35ac وما زال دقيقاً بعد الإصلاح، فلم يُضف سطر ثانٍ.
+  - الحالة: الرأس يغطي القصص الست، فضُبط على «S-014d منتهية» مع بقاء S-014e وS-014f.
+  - ما زال غير متحقق على جلسة حقيقية، وموسوماً كذلك في التوثيق: أسطر Hyprland، واختصار GNOME المخصص أثناء السحب، وأثر Alt غير المستهلِك على نوع الإفلات. وتبقى هشاشة `docs.sh` مع `docs/launch/` غير المتتبَّع ملاحظة غير حاجبة.
