@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-23 «اختصار البوابة»
+
 ### Added
 - Drop shortcut through the global shortcuts portal (S-014e): on GNOME 48 and later and KDE 6 the daemon registers Super+Z itself through xdg-desktop-portal, with a consent dialog the first time, and the shortcut works by holding (`hold_ms`) like the manual binds; a refused dialog is remembered as `portal_shortcut = false` in config.toml, Hyprland can use `bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop` as the alternative to the `exec` bind, and `docs/drop-shortcut.md` explains it in both languages. «تسجّل الخدمة اختصار الإفلات Super+Z بنفسها عبر البوابة في GNOME وKDE، فلا حاجة إلى ربطه يدوياً».
 

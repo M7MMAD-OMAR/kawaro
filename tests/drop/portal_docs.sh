@@ -42,8 +42,9 @@
 # `hold_ms`, `portal_shortcut = false`) is looked for anywhere in the
 # section, code blocks included.
 #
-# CHANGELOG.md: between "## [Unreleased]" and the next "## [" heading, one
-# line that names S-014e (or S-014e1, e2, e3) with Arabic and English text.
+# CHANGELOG.md: one line that names S-014e (or S-014e1, e2, e3) with
+# Arabic and English text (it was under "## [Unreleased]" until the 0.3.3
+# release).
 # Usage: tests/drop/portal_docs.sh
 # shellcheck disable=SC2016,SC2034
 set -u
@@ -207,9 +208,8 @@ check "AC22: tests/drop/docs.sh passes" '[ "$drc" -eq 0 ]'
 check "AC22: tests/drop/hold_docs.sh passes" '[ "$hrc" -eq 0 ]'
 check "AC22: no em dash or en dash in docs/drop-shortcut.md, its Arabic copy, the Hyprland README pair and CHANGELOG.md" \
   '! grep -nP "\x{2014}|\x{2013}" "$DOC" "$DOC_AR" "$HYPR" "$HYPR_AR" "$LOG"'
-unrel=$(awk '/^## \[Unreleased\]/ { f = 1; next } f && /^## \[/ { exit } f' "$LOG")
-lines=$(grep -E 'S-014e[0-9]?\b' <<<"$unrel" | grep -P "[\x{0600}-\x{06FF}]" | grep -cE "[A-Za-z]{4,} [A-Za-z]{2,}")
-echo "INFO AC22: CHANGELOG.md lines under [Unreleased] naming S-014e in both languages: $lines"
-check "AC22: CHANGELOG.md has one line under \"## [Unreleased]\" that names S-014e, in English and in Arabic" '[ "$lines" -eq 1 ]'
+lines=$(grep -E 'S-014e[0-9]?\b' "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -cE "[A-Za-z]{4,} [A-Za-z]{2,}")
+echo "INFO AC22: CHANGELOG.md lines naming S-014e in both languages: $lines"
+check "AC22: CHANGELOG.md has one line that names S-014e, in English and in Arabic (released in 0.3.3)" '[ "$lines" -eq 1 ]'
 if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 [ "$FAILS" -eq 0 ]

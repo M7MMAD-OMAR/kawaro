@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.3" date="2026-10-23">
+      <description>
+        <p>On GNOME and KDE the drop shortcut Super+Z registers itself through the system portal, after a one time consent. On KDE with the strictest focus stealing prevention, the hive no longer takes the keyboard without a valid activation token.</p>
+      </description>
+    </release>
     <release version="0.3.2" date="2026-10-22">
       <description>
         <p>The hive plays its opening animation on Hyprland and KDE again, including the drop hive when a drag reveals it.</p>

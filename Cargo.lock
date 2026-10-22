@@ -4569,7 +4569,7 @@ dependencies = [
 
 [[package]]
 name = "sbarhive-cli"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "clap",
  "sbarhive-core",
@@ -4580,7 +4580,7 @@ dependencies = [
 
 [[package]]
 name = "sbarhive-core"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -4591,7 +4591,7 @@ dependencies = [
 
 [[package]]
 name = "sbarhive-daemon"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "ashpd",
  "futures-util",
@@ -4607,7 +4607,7 @@ dependencies = [
 
 [[package]]
 name = "sbarhive-engines"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "image",
  "libc",
@@ -4626,7 +4626,7 @@ dependencies = [
 
 [[package]]
 name = "sbarhive-ui"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "i-slint-backend-testing",
  "i-slint-backend-winit",
