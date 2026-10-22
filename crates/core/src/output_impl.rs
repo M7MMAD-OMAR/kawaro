@@ -392,6 +392,7 @@ mod tests {
         assert_eq!(fs::read(&from).unwrap(), b"new");
     }
 
+    #[cfg(unix)]
     #[test]
     fn ac7_linux_place_refuses_a_dangling_link_name() {
         let d = tempfile::tempdir().unwrap();

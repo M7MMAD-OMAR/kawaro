@@ -493,6 +493,7 @@ mod tests {
         assert_eq!(file_url(Path::new("/ü")), "file:///%C3%BC");
     }
 
+    #[cfg(unix)]
     #[test]
     fn office_find_program_respects_name_order_and_exec_bit() {
         use std::os::unix::fs::PermissionsExt;

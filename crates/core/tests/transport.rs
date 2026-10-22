@@ -24,17 +24,25 @@
 //!   `{"cmd":"ping"}` with `{"status":"ok"}` within 500 ms; a stale socket
 //!   file nobody listens on is removed and bound.
 
+#[cfg_attr(not(unix), allow(unused_imports))]
 use sbarhive_core::ipc::{self, Request, Response};
+#[cfg_attr(not(unix), allow(unused_imports))]
 use sbarhive_core::transport::{self, Bound, Endpoint, Listener, Stream};
+#[cfg_attr(not(unix), allow(unused_imports))]
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
+#[cfg(unix)]
 use std::path::Path;
+#[cfg(unix)]
 use std::thread;
+#[cfg(unix)]
 use std::time::{Duration, Instant};
 
+#[cfg(unix)]
 fn ep(dir: &Path) -> Endpoint {
     Endpoint::from_path(dir.join("sbarhive.sock"))
 }
 
+#[cfg(unix)]
 fn listen(e: &Endpoint) -> Listener {
     match Listener::bind(e).expect("bind") {
         Bound::Listening(l) => l,
@@ -42,6 +50,7 @@ fn listen(e: &Endpoint) -> Listener {
     }
 }
 
+#[cfg(unix)]
 fn read_line(s: &Stream) -> std::io::Result<String> {
     let mut line = String::new();
     BufReader::new(s.try_clone()?).read_line(&mut line)?;
@@ -64,6 +73,7 @@ fn ac1_socket_name_and_socket_path_keep_their_value() {
     assert_eq!(p.file_name().unwrap(), "sbarhive.sock");
 }
 
+#[cfg(unix)]
 #[test]
 fn ac1_endpoint_on_unix_is_the_socket_path() {
     assert_eq!(
@@ -72,6 +82,7 @@ fn ac1_endpoint_on_unix_is_the_socket_path() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn ac1_endpoint_from_path_displays_the_path() {
     let e = Endpoint::from_path("/run/user/1000/sbarhive.sock");
@@ -79,6 +90,7 @@ fn ac1_endpoint_from_path_displays_the_path() {
     assert_eq!(e.clone().to_string(), e.to_string());
 }
 
+#[cfg(unix)]
 #[test]
 fn ac1_ac3_server_pid_is_none_on_unix() {
     let dir = tempfile::tempdir().unwrap();
@@ -127,6 +139,7 @@ fn ac2_longest_sid_and_session_fit_in_256_chars() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn ac3_ping_line_reaches_the_server_and_the_reply_reaches_the_client() {
     let dir = tempfile::tempdir().unwrap();
@@ -151,6 +164,7 @@ fn ac3_ping_line_reaches_the_server_and_the_reply_reaches_the_client() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn ac3_lines_from_a_stream_and_its_try_clone_arrive_in_order() {
     let dir = tempfile::tempdir().unwrap();
@@ -175,6 +189,7 @@ fn ac3_lines_from_a_stream_and_its_try_clone_arrive_in_order() {
     assert_eq!(b, "second\n");
 }
 
+#[cfg(unix)]
 #[test]
 fn ac4_read_timeout_is_timed_out_between_180_and_1000_ms() {
     let dir = tempfile::tempdir().unwrap();
@@ -204,6 +219,7 @@ fn ac4_read_timeout_is_timed_out_between_180_and_1000_ms() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn ac4_no_timeout_reads_a_reply_written_after_300_ms() {
     let dir = tempfile::tempdir().unwrap();
@@ -227,6 +243,7 @@ fn ac4_no_timeout_reads_a_reply_written_after_300_ms() {
     server.join().unwrap();
 }
 
+#[cfg(unix)]
 #[test]
 fn ac6_bind_is_already_running_when_a_server_answers_ping() {
     let dir = tempfile::tempdir().unwrap();
@@ -260,6 +277,7 @@ fn ac6_bind_is_already_running_when_a_server_answers_ping() {
     assert_eq!(read_line(&c).unwrap().trim(), "{\"status\":\"ok\"}");
 }
 
+#[cfg(unix)]
 #[test]
 fn ac6_a_stale_socket_file_is_removed_and_bound() {
     let dir = tempfile::tempdir().unwrap();

@@ -1,5 +1,5 @@
 # S-026 البناء المتقاطع لويندوز وبوابته وCI وصورة الاختبار
-الحالة: S-026a: الاختبارات مكتوبة وحمراء (`4af4c05`)، تنتظر المنفِّذ؛ S-026b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: S-026a: مراجعة (المنفِّذ أنهى، تنتظر المراجع)؛ S-026b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 1 و9، وعلى S-022 إلى S-025 (قبلها لا يُبنى `sbarhive.exe` للهدف). للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -143,3 +143,19 @@ FAIL S-026a windows build (heavy) (5 of 6 checks failed)
       - `crates/core/tests/transport.rs`, 4 errors: `Endpoint::from_path` at lines 35, 77 and 272, and `std::os::unix` at line 267.
       - `crates/core/src/output_impl.rs:401`, 1 error: `std::os::unix` inside its `#[cfg(test)] mod tests`.
     - AC5 and AC3 (clippy `--all-targets`) cannot pass without cfg lines in these two files too. The implementer may not edit tests, and these two are outside the story. So the story needs its AC4 list (and the S-026a file list) extended before implementation; I did not extend the AC4 test on my own.
+- 2026-10-22, implementer (S-026a):
+  - Manager decisions, recorded as given:
+    1. "You are allowed to add cfg lines only (`#[cfg(...)]`, `#![cfg(...)]`, `#[cfg_attr(...)]`, no deleted lines, no changed assertion) to the seven test files AC4 lists. This is the configuration the story describes, not a test edit."
+    2. "The S-026a file list and AC4's scope are extended with crates/core/tests/transport.rs (unix-only tests using Endpoint::from_path and std::os::unix) and the test module of crates/core/src/output_impl.rs (line ~401), under the same cfg-lines-only rule, so AC3 and AC5 can pass. The AC4 test itself covers the seven files; the reviewer checks the two extra files by diff."
+  - Scripts: `scripts/windows/build.sh` and `check.sh` re-exec through `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200% env SBARHIVE_WIN_SCOPE=1 "$0"` unless `CI=true` or that marker is set, print `cgroup: <path>` from `/proc/self/cgroup`, default `CARGO_TARGET_DIR` to `/home/sbarah/.cache/sbarhive-win-target` and keep a caller's, then exec `cargo build -j 2 --release --target x86_64-pc-windows-gnu -p sbarhive-cli` or the AC3 clippy line. `check-dlls.sh` counts `DLL Name` lines (raw, not distinct), names the file by its basename, and rejects `^lib.*\.dll$` case-insensitive with exit 1; usage or objdump failure is exit 2. `scripts/windows/README.md` in English and Arabic.
+  - AC2 on the real exe: `dll check: ok sbarhive.exe 11 imports`, exit 0. No mingw DLL, so no `.cargo/config.toml` and no `crt-static`.
+  - AC4 cfg lines beyond the tester's named tests, all cfg lines only, needed by Windows clippy `-D warnings` once the guarded tests drop out:
+    - `office_engine.rs`: `#[cfg(unix)]` on `fake_engine`, `read_pid`, `wait_gone` and `use std::ffi::OsString;`; `#[cfg_attr(not(unix), allow(unused_imports))]` on `use std::path::{Path, PathBuf};`.
+    - `pdf_ghostscript.rs`: `#[cfg_attr(not(unix), allow(unused_imports))]` on the `sbarhive_core` use line (`MediaKind`).
+    - `transport.rs` (decision 2): `#[cfg(unix)]` on `ep`, `listen`, `read_line`, the `Path`, `thread` and `time` imports, and on every test that uses `Endpoint::from_path` or a socket (`ac1_endpoint_from_path_displays_the_path`, `ac1_ac3_server_pid_is_none_on_unix`, `ac3_*`, `ac4_*`, `ac6_*`), plus `ac1_endpoint_on_unix_is_the_socket_path`, which compiles on Windows but asserts the Unix socket path and would fail on real Windows in S-026b; `#[cfg_attr(not(unix), allow(unused_imports))]` on the three grouped use lines. Left on Windows: `ac1_stream_is_read_write_send_and_listener_is_send`, `ac1_socket_name_and_socket_path_keep_their_value` and the three `ac2_pipe_name*` tests.
+    - `output_impl.rs` (decision 2): `#[cfg(unix)]` on `ac7_linux_place_refuses_a_dangling_link_name`.
+    - `git diff -U0 5be5270` of all nine files: no `-` line, every `+` line is a cfg line.
+  - Note for S-026b: `processes_mentioning` in `office_engine.rs` reads `/proc`; it compiles on Windows and is reached only by `office_cancel_stops_real_libreoffice_and_cleans_up`, which skips itself without LibreOffice.
+  - AC5 count: 35 test executables for 35 test targets (core 17, engines 13, cli 5).
+  - Results: light suite `PASS (63 checks)`; heavy suite `PASS (11 checks)` in 56 s, run from the app scope (memory.max `max`) with no other cargo; `cargo fmt --check` and Linux `cargo clippy -j 2 --workspace --all-targets -- -D warnings` clean; `cargo test -j 2 --workspace` 697 passed, 0 failed, 1 ignored (equal to the baseline); `shellcheck scripts/windows/*.sh` clean; `scripts/design-lint.sh` clean; AC6 671 `[[package]]`, `Cargo.lock` unchanged; `crates/ui` untouched.
+  - One Windows clippy attempt overlapped with a `cargo build --release` another session started at the same moment; it failed on a real warning and was re-run alone. Every later run, the heavy suite and the Linux gates started with `pgrep -x cargo` empty.

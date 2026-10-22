@@ -273,6 +273,18 @@ assumptions from ADR 0005, checked on a real Windows install in S-034. On
 Windows `ffmpeg` and `ffprobe` start with `CREATE_NO_WINDOW`, so no console
 window flashes.
 
+## Windows build tools (S-026a)
+
+Used on the Fedora build host only, to cross build and check the Windows
+programs; nothing from them is shipped. `scripts/windows/check-dlls.sh`
+refuses an executable that imports a mingw runtime DLL (`lib*.dll`), so no
+mingw library ends up beside `sbarhive.exe`.
+
+| tool | version | license | used by | why |
+| --- | --- | --- | --- | --- |
+| mingw64-gcc | 16.2.1 (Fedora 44, installed) | GPL-3.0-or-later with the GCC runtime exception (runtime parts LGPL and others) | `scripts/windows/build.sh`, `check.sh` | linker for `x86_64-pc-windows-gnu`; its `x86_64-w64-mingw32-objdump` reads the imports in `check-dlls.sh` |
+| genisoimage | 1.1.11 (Fedora 44, installed) | GPL-2.0-only | `scripts/windows/make-iso.sh` (S-026b) | writes the ISO that carries the test programs to the Windows test machine |
+
 ## Application dependencies (daemon, CLI, UI)
 
 Not engines, recorded here because CLAUDE.md asks for every new library.

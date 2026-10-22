@@ -1,5 +1,6 @@
 //! `sbarhive settings`, the command the app launcher entry runs. The daemon
 //! side is a fake socket server, so no window opens.
+#![cfg(unix)]
 
 use sbarhive_core::ipc::{Request, Response};
 use std::io::{BufRead, BufReader, Write};

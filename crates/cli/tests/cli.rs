@@ -1,5 +1,6 @@
 //! Runs the `sbarhive` binary with a private HOME, runtime dir and PATH. The
 //! daemon side is a fake socket server in this process, so no window opens.
+#![cfg(unix)]
 
 use sbarhive_core::ipc::{Event, Request, Response};
 use std::io::{BufRead, BufReader, Write};

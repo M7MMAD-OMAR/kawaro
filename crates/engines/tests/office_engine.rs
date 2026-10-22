@@ -3,8 +3,10 @@
 
 use sbarhive_core::{CancelToken, Engine, EngineError, Task};
 use sbarhive_engines::office::OfficeEngine;
+#[cfg(unix)]
 use std::ffi::OsString;
 use std::io::{Read, Write};
+#[cfg_attr(not(unix), allow(unused_imports))]
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -96,6 +98,7 @@ fn is_zombie(pid: &str) -> bool {
 }
 
 /// Waits up to 3 s for `pid` to disappear or become a zombie.
+#[cfg(unix)]
 fn wait_gone(pid: &str) -> bool {
     let end = Instant::now() + Duration::from_secs(3);
     while Instant::now() < end {
@@ -386,6 +389,7 @@ fn office_reports_failure_when_no_output_is_produced() {
     assert!(is_empty_dir(&root));
 }
 
+#[cfg(unix)]
 #[test]
 fn office_missing_program_is_unavailable_error() {
     let dir = tempfile::tempdir().unwrap();
@@ -417,6 +421,7 @@ fn office_missing_program_is_unavailable_error() {
 
 /// A fake LibreOffice: a shell script that starts a grandchild `sleep`,
 /// records its pid and waits, so only a process group kill stops both.
+#[cfg(unix)]
 fn fake_engine(dir: &Path, root: &Path) -> (OfficeEngine, PathBuf) {
     let script = dir.join("fake-soffice.sh");
     let pidfile = dir.join("sleep.pid");
@@ -429,6 +434,7 @@ fn fake_engine(dir: &Path, root: &Path) -> (OfficeEngine, PathBuf) {
     (engine, pidfile)
 }
 
+#[cfg(unix)]
 fn read_pid(pidfile: &Path) -> String {
     let end = Instant::now() + Duration::from_secs(3);
     loop {
@@ -442,6 +448,7 @@ fn read_pid(pidfile: &Path) -> String {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn office_timeout_kills_the_process_group() {
     let dir = tempfile::tempdir().unwrap();
@@ -474,6 +481,7 @@ fn office_timeout_kills_the_process_group() {
     assert!(is_empty_dir(&root));
 }
 
+#[cfg(unix)]
 #[test]
 fn office_cancel_kills_the_process_group() {
     let dir = tempfile::tempdir().unwrap();
@@ -534,6 +542,7 @@ fn office_cancel_stops_real_libreoffice_and_cleans_up() {
     assert!(is_empty_dir(&root));
 }
 
+#[cfg(unix)]
 #[test]
 fn office_already_cancelled_starts_nothing() {
     let dir = tempfile::tempdir().unwrap();
