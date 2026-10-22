@@ -1,5 +1,5 @@
 # S-025 المحركات الخارجية على ويندوز: شجرة العمليات والاكتشاف ورابط الملف
-الحالة: S-025a: منتهية (PASS من المراجع، 2026-10-22)؛ S-025b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: S-025a: منتهية (PASS من المراجع، 2026-10-22)؛ S-025b: الاختبارات مكتوبة وحمراء (`863709c`)، تنتظر المنفِّذ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 3 و7. للإصدار 0.6.0. لا يلمس `crates/ui`. مستقلة عن S-022 إلى S-024 في الشيفرة.
 
@@ -122,3 +122,69 @@ $ env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --targ
     - متوسطة، خارج AC1 إلى AC6: `crates/engines/src/ffmpeg.rs:148` (و`:65` و`:77` و`:92`) يشغّل ffmpeg وffprobe بلا `CREATE_NO_WINDOW` ولا مهمة، والقائمة الحية في S-034 تنتظر «لا نافذة طرفية تومض عند تشغيل ffmpeg». لا قصة تغطيه اليوم؛ يقترح المراجع إسناده إلى S-025b أو قصة جديدة بقرار المخطِّط. سطر CHANGELOG.md يذكر LibreOffice وGhostscript وحدهما فهو دقيق.
     - منخفضة، انحراف مقبول: `crates/engines/src/office.rs:301` يشرط `mod non_unix` بـ `not(unix)` و`windows-sys` تحت `cfg(windows)`، فهدف ليس unix ولا windows لا يُبنى. لا هدف مدعوم يتأثر؛ يُقترح `cfg(windows)` لاحقاً.
     - مقبول: `find_program` بالأسماء المجردة لا يجد `soffice` على ويندوز حتى S-025b، ولم يكن يجده قبل هذا التغيير أيضاً، فلا تراجع.
+- 2026-10-22, tester (S-025b):
+  - Tests commit `863709c`. Contract pinned at the top of `crates/engines/src/locate.rs` (new file, test module only; the implementation goes above it), and `mod locate;` added to `crates/engines/src/lib.rs` (not in the story's file list, needed to compile the module):
+    - `enum Os { Unix, Windows }` and `enum Program { Office, Ghostscript, Ffmpeg, Ffprobe }` (`Clone, Copy, Debug, PartialEq`); `fn names(os, program) -> &'static [&'static str]`.
+    - `trait Registry { fn value(&self, key: &str, name: &str) -> Option<String>; fn subkeys(&self, key: &str) -> Vec<String>; }`, keys under HKLM without the hive (`SOFTWARE\LibreOffice\UNO\InstallPath`), `""` is the default value. The fake compares keys and names without case and accepts an optional `HKLM\` prefix.
+    - `fn search(os: Os, program: Program, path_dirs: &[PathBuf], env: &dyn Fn(&str) -> Option<OsString>, exe_dir: Option<&Path>, registry: &dyn Registry) -> Option<PathBuf>`.
+    - `fn newest_gs<'a>(names: &[&'a str]) -> Option<&'a str>`.
+    - `office::file_url_str(path: &str, windows: bool) -> String`.
+  - Tests:
+    - `crates/engines/src/locate.rs`: `ac7_windows_names_per_program`, `ac7_unix_names_as_today`, `ac7_windows_office_path_wins_over_program_files_and_registry`, `ac7_windows_office_com_before_exe_in_one_dir`, `ac7_windows_office_program_files_wins_over_registry`, `ac7_windows_office_registry_install_path_last`, `ac7_windows_office_none_when_missing_everywhere`, `ac7_windows_ghostscript_path_wins_and_64_before_32`, `ac7_ac8_windows_ghostscript_newest_program_files_dir_by_number`, `ac7_windows_ghostscript_32_bit_name_in_program_files`, `ac7_ac8_windows_ghostscript_registry_newest_version_key_by_number`, `ac7_windows_ghostscript_none_when_missing_everywhere`, `ac7_windows_ffmpeg_path_wins_over_exe_dir`, `ac7_windows_ffmpeg_and_ffprobe_in_exe_dir_ffmpeg_bin`, `ac7_unix_searches_path_only`, `ac7_unix_ignores_program_files_exe_dir_and_registry`, `ac8_newest_gs_compares_versions_by_number`.
+    - `crates/engines/src/office.rs` test module: `ac10_file_url_str_windows_drive_letter_and_space`, `ac10_file_url_str_windows_arabic_name`, `ac10_file_url_str_windows_drops_verbatim_prefix`, `ac10_file_url_str_unix_unchanged` (also `file_url` equals `file_url_str(.., false)` off Windows), `ac11_office_without_program_names_libreoffice_and_link`.
+    - `crates/engines/src/pdf.rs` test module: `ac11_ghostscript_without_program_names_it_and_link` (`compress` and `to-images`).
+    - `crates/engines/tests/windows_engines.rs`: `ac11_office_missing_program_names_libreoffice_and_link`, `ac11_ghostscript_missing_program_names_it_and_link`, `ac11_ffmpeg_missing_programs_names_ffmpeg_and_link`, `ac13_every_ffmpeg_command_goes_through_one_no_window_function`.
+  - Ambiguities and choices:
+    1. AC7's `names` slot is a `Program` enum, with ffprobe as its own program, because the known dirs and the registry depend on the program, not only on its names. `names(os, program)` gives the lists.
+    2. Order inside `PATH` stays as `find_program` today (names first, then dirs), which is what "Linux as today" requires. Across tiers PATH, then known dirs, then registry. Within one dir `.com` before `.exe`. Name against dir ties across different dirs on Windows are not pinned.
+    3. The registry trait needs subkey enumeration for the Ghostscript version keys; AC9 names only `RegGetValueW`, so `locate/windows.rs` also needs `RegEnumKeyExW` (or similar). The Ghostscript value read is `GS_DLL` (full path of the DLL in `bin`, its parent is the folder), and LibreOffice's is the default value of `...\UNO\InstallPath`. Both are my choice: ADR 0005 marks the keys as assumed, to be verified in the VM (S-034).
+    4. The registry version rule is tested through `search` with bare version subkeys (`9.56.1` larger as text, `10.10.0` newest), not by calling `newest_gs` with names without `gs`.
+    5. AC11 "when the program is missing" is tested both ways: no program at all (`program: None`, inline, built with struct update syntax, so only the field name `program` is pinned) and a configured path that does not exist (public `with_program` / `with_binaries`). Name checks: `LibreOffice`, `Ghostscript`, `ffmpeg` (any case).
+    6. AC13: exactly one `Command::new(` in the non-test part of `ffmpeg.rs`, and the enclosing fn (with its attributes) holds `cfg(windows)`, `creation_flags` and `CREATE_NO_WINDOW`; `ffmpeg.rs` has no `const CREATE_NO_WINDOW` of its own. Call sites are not counted. The constant in `office/tree.rs` must become reachable from ffmpeg.rs (today `mod tree;` is private).
+    7. The executable helper in `locate.rs` sets the exec bit under `#[cfg(unix)]` only, so the module also builds for the Windows target.
+  - For the reviewer, not tests: `W` (and `locate/windows.rs` in `exclude_globs`), the `[[package]]` count, AC12 docs, CHANGELOG.md, `C`, `M`, and `git diff --stat main...HEAD -- crates/ui`.
+  - Tests unchanged after `863709c` (all must print nothing). The S-025a command for `office.rs` (keyed on `c3619de`) is superseded by the one below, since this commit adds tests to that module:
+    `git diff 863709c -- 'crates/*/tests/*'`
+    `diff <(git show 863709c:crates/engines/src/locate.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/locate.rs)`
+    `diff <(git show 863709c:crates/engines/src/office.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/office.rs)`
+    `diff <(git show 863709c:crates/engines/src/pdf.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/pdf.rs)`
+    `diff <(git show 863709c:crates/engines/src/office/tree.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/office/tree.rs)`
+    `diff <(git show 863709c:crates/engines/src/ffmpeg.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/ffmpeg.rs)`
+  - Note: the engines lib test binary does not build until the implementation lands, so every existing unit test in it is red until then (as in S-025a). The integration tests build.
+  - Logic check: a throwaway copy in the session scratch dir (deleted, not merged) with a short implementation of the contract passed all 74 lib tests and the 4 in `windows_engines.rs`, with clippy `--all-targets -D warnings` clean on Linux; on the Windows target the new test code compiled (the only errors were the pre-existing unix-only tests in `office.rs` and the stub's own private-constant use). It caught one contract wording error (PATH order), fixed in the header before the commit. Here `cargo fmt -p sbarhive-engines --check` is clean.
+  - Failing output (each command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
+```
+$ cargo test -j 2 -p sbarhive-engines --lib
+      2 error[E0405]: cannot find trait `Registry` in this scope
+      7 error[E0425]: cannot find function `file_url_str` in this scope
+      8 error[E0425]: cannot find function `names` in this scope
+      3 error[E0425]: cannot find function `newest_gs` in this scope
+      5 error[E0425]: cannot find function `search` in this scope
+      2 error[E0425]: cannot find type `Program` in this scope
+     13 error[E0433]: cannot find type `Os` in this scope
+     33 error[E0433]: cannot find type `Program` in this scope
+warning: unused import: `super::*`
+error: could not compile `sbarhive-engines` (lib test) due to 73 previous errors; 1 warning emitted
+
+$ cargo test -j 2 -p sbarhive-engines --test windows_engines
+---- ac11_ffmpeg_missing_programs_names_ffmpeg_and_link stdout ----
+panicked at crates/engines/tests/windows_engines.rs:71:5:
+`/nonexistent/ffmpeg` or `/nonexistent/ffprobe` not found
+---- ac11_ghostscript_missing_program_names_it_and_link stdout ----
+panicked at crates/engines/tests/windows_engines.rs:55:5:
+/nonexistent/gs not found
+---- ac13_every_ffmpeg_command_goes_through_one_no_window_function stdout ----
+panicked at crates/engines/tests/windows_engines.rs:109:5:
+assertion `left == right` failed: every ffmpeg and ffprobe command must be built in one function; `Command::new(` at lines [65, 77, 92, 148]
+  left: 4
+ right: 1
+---- ac11_office_missing_program_names_libreoffice_and_link stdout ----
+panicked at crates/engines/tests/windows_engines.rs:40:5:
+/nonexistent/soffice not found
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out
+
+$ cargo test -j 2 -p sbarhive-engines --test office_engine --test pdf_ghostscript --test ffmpeg_engine   # stay green
+test result: ok. 23 passed; 0 failed   (ffmpeg_engine)
+test result: ok. 12 passed; 0 failed   (office_engine)
+test result: ok. 6 passed; 0 failed    (pdf_ghostscript)
+```
