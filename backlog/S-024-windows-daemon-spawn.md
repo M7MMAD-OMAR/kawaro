@@ -1,5 +1,5 @@
 # S-024 تشغيل الخدمة من سطر الأوامر على ويندوز ومنحها حق الواجهة
-الحالة: الاختبارات مكتوبة وتفشل، بانتظار المنفِّذ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: جاهزة للمراجعة (المنفِّذ 2026-10-22)، على فرع windows/0.6.0 بطلب محمد؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 3 و5 (التركيز)، وعلى S-022b (`Stream::server_pid`). للإصدار 0.6.0. لا يلمس `crates/ui`. يوم عمل واحد أو أقل، فلا تقسيم. هذه أول قصة يُبنى فيها `sbarhive.exe` للهدف ويندوز.
 
@@ -93,3 +93,17 @@ error[E0599]: no method named `process_group` found for mutable reference `&mut 
 error[E0599]: no method named `exec` found for struct `std::process::Command`  --> crates/cli/src/client.rs:102:45
 error: could not compile `sbarhive-cli` (bin "sbarhive") due to 4 previous errors
 ```
+- 2026-10-22، المنفِّذ:
+  - `crates/cli/src/spawn.rs`: الثوابت الثلاثة `u32`، و`FIRST_FLAGS = 0x0100_0208` و`RETRY_FLAGS = 0x208` قيمتين حرفيتين يثبتهما `const _: () = assert!(...)` مقابل الثوابت (فلا طفرة `|` إلى `^` مكافئة)، و`start_with` بـ `match` وحارس `raw_os_error() == Some(5)`، و`wait_exit` بـ `status()` ورمز الخروج (`1` حين لا رمز، أي إشارة على لينكس)، و`daemon_binary_in`، و`foreground_grant` (`Open` و`Drop` يمرران `server_pid`، والباقي `None`). `start_with` و`wait_exit` والثوابت عليها `#[cfg_attr(not(windows), allow(dead_code))]`. وحدة الاختبار لم تتغير: الفرقان من سجل المختبِر فارغان.
+  - `crates/cli/src/spawn/windows.rs` (جديد): ثلاثة `const _: () = assert!` مقابل `windows_sys::Win32::System::Threading`، و`start_detached` (`start_with` مع `creation_flags(flags).spawn()`)، و`allow_foreground` (`AllowSetForegroundWindow`، والنتيجة مهملة لأن فشلها يعني خلية بلا تركيز فقط).
+  - `crates/cli/src/client.rs`: `send` يستدعي `foreground_grant(req, stream.server_pid())` أول شيء، أي بعد `connect` في `request` و`stream` وقبل `writeln!`، وعلى ويندوز يمرّر الناتج إلى `allow_foreground`. `ensure_daemon` يبني الأمر مرة واحدة ثم `process_group(0)` تحت `cfg(unix)` أو `start_detached` تحت `cfg(windows)`. `exec_daemon` على لينكس جسمه كما هو تحت `cfg(unix)`، وعلى ويندوز `wait_exit` ثم `process::exit` بالرمز. `daemon_binary()` تمرّر `EXE_SUFFIX` إلى `daemon_binary_in`.
+  - `crates/cli/Cargo.toml`: `windows-sys 0.61` تحت `[target.'cfg(windows)'.dependencies]` بالميزتين `Win32_System_Threading` و`Win32_UI_WindowsAndMessaging`. `Cargo.lock`: سطر `"windows-sys 0.61.2"` في اعتماديات cli وحده. `.cargo/mutants.toml`: `spawn/windows.rs` في `exclude_globs`، ونمطان في `exclude_re` (انحراف أدناه). README بالعربية والإنكليزية، وسطر CHANGELOG واحد.
+  - انحراف: جولة `M` الأولى (16 طفرة) أبقت طفرتين ناجيتين في `client.rs`: `replace daemon_binary -> PathBuf with Default::default()` و`replace exec_daemon -> Result<(), String> with Ok(())`. الأولى غراء يقرأ `current_exe` والقرار في `daemon_binary_in` المطفَّرة، و`tests/e2e/run.sh` («open starts the daemon») يغطيها؛ والثانية `exec` يستبدل العملية فلا يعود منها اختبار، ولم يتغير جسمها، وإنما دخلت الفرق بإضافة `#[cfg(unix)]`. أضفت لهما نمطين ضيقين في `exclude_re` مع تعليق، على سابقة `serve` و`run`. إن رأى المدير أن اختباراً تكاملياً لـ `sbarhive daemon` أولى من الاستثناء فهو للمختبِر؛ صعوبته أن `target/debug/sbarhived` موجود عادة بجانب الثنائي فيُشغَّل حقاً.
+  - البوابات (كلها داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%` بـ `-j 2`):
+    - `C`: `cargo fmt --check` و`cargo clippy -j 2 --workspace --all-targets -- -D warnings` نظيفان.
+    - `cargo test -j 2 --all`: 664 ناجحاً، 0 فاشلاً، 1 متجاهلاً، في 44 ثنائياً. في cli: ثنائي `sbarhive` 23، و`cli` 32، و`settings` 2، و`no_unix_net` 1، و`spawn_windows` 4.
+    - `W` نظيف، و`cargo check -p sbarhive-cli --target x86_64-pc-windows-gnu` نظيف. `B`: `sbarhive.exe` بُني (release)، و`objdump -p` يسرد `AllowSetForegroundWindow` و`GetNamedPipeServerProcessId` و`CancelIoEx` و`WaitNamedPipeW`.
+    - `X`: clap وsbarhive-core وsbarhive-engines وserde_json و`windows-sys v0.61.2` (الجديد وحده). `[[package]]` في `Cargo.lock`: 671.
+    - `M` في نسخة من الشجرة في مجلد الجلسة، `CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff` على `git diff 34a3288 -- crates/cli/src/{client.rs,spawn.rs,main.rs}` مع `-p sbarhive-cli`: بعد الاستثناءين 14 طفرة، 13 ممسوكة، 1 مهلة (`replace send -> Result<(), String> with Ok(())`: العميل ينتظر ردًا لطلب لم يُكتب، فالمهلة إمساك)، 0 ناجية.
+    - `scripts/design-lint.sh` نظيف. `tests/e2e/run.sh`: كله ناجح (ومعه S-019 AC7). `git diff --stat main...HEAD -- crates/ui` فارغ. لا شرطة طويلة في الفرق.
+  - للتحقق الحي في S-034: بقاء الخدمة بعد إغلاق الطرفية (README وCHANGELOG يذكرانه تصميماً)، والإعادة داخل المهمة، والتركيز. `Settings` لا يمنح حق الواجهة كما يحدد ADR.

@@ -13,6 +13,76 @@
 // - `foreground_grant(req: &Request, server_pid: Option<u32>) -> Option<u32>`,
 //   `Request` being `sbarhive_core::ipc::Request`.
 
+use sbarhive_core::ipc::Request;
+use std::io;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+pub use windows::{allow_foreground, start_detached};
+
+/// Win32 process creation flags, checked against `windows_sys` at compile
+/// time in `spawn/windows.rs`.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const DETACHED_PROCESS: u32 = 0x8;
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const CREATE_NEW_PROCESS_GROUP: u32 = 0x200;
+#[cfg_attr(not(windows), allow(dead_code))]
+pub const CREATE_BREAKAWAY_FROM_JOB: u32 = 0x0100_0000;
+
+/// The first attempt leaves the terminal's job; the retry stays in it.
+/// Literal values, so no operator can be mutated into an equivalent one.
+const FIRST_FLAGS: u32 = 0x0100_0208;
+const RETRY_FLAGS: u32 = 0x208;
+const _: () =
+    assert!(FIRST_FLAGS == DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP | CREATE_BREAKAWAY_FROM_JOB);
+const _: () = assert!(RETRY_FLAGS == DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP);
+
+/// ERROR_ACCESS_DENIED: the job the terminal runs in forbids breaking away.
+const ERROR_ACCESS_DENIED: i32 = 5;
+
+/// Starts the service detached: once leaving the terminal's job, and once
+/// more inside it when that is refused (ADR 0005, section 3).
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn start_with(mut attempt: impl FnMut(u32) -> io::Result<()>) -> io::Result<()> {
+    match attempt(FIRST_FLAGS) {
+        Err(e) if e.raw_os_error() == Some(ERROR_ACCESS_DENIED) => attempt(RETRY_FLAGS),
+        r => r,
+    }
+}
+
+/// Runs the service in the foreground and returns its exit code; this is
+/// `sbarhive daemon` on Windows, which has no `exec`.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn wait_exit(cmd: &mut Command) -> Result<i32, String> {
+    let status = cmd
+        .status()
+        .map_err(|e| format!("cannot run sbarhived: {e}"))?;
+    Ok(status.code().unwrap_or(1))
+}
+
+/// The service binary in `dir` when present, else its bare name for PATH.
+pub fn daemon_binary_in(dir: &Path, suffix: &str) -> PathBuf {
+    let name = format!("sbarhived{suffix}");
+    let path = dir.join(&name);
+    if path.is_file() {
+        path
+    } else {
+        PathBuf::from(name)
+    }
+}
+
+/// The process the client lets take the foreground before sending `req`:
+/// the service, for the requests that show the hive (ADR 0005, section 5).
+pub fn foreground_grant(req: &Request, server_pid: Option<u32>) -> Option<u32> {
+    match req {
+        Request::Open { .. } | Request::Drop { .. } => server_pid,
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

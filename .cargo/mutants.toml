@@ -20,6 +20,8 @@
 # its decisions stay mutated in transport.rs and transport/deadline.rs.
 # The Windows known folders and place function (S-023) build for Windows
 # only; the choices stay mutated in paths.rs and output_impl.rs.
+# The Windows service start and foreground grant (S-024) build for Windows
+# only; the flags, the retry and the grant stay mutated in spawn.rs.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",
@@ -29,6 +31,7 @@ exclude_globs = [
   "crates/core/src/transport/windows.rs",
   "crates/core/src/paths/windows.rs",
   "crates/core/src/output_impl/windows.rs",
+  "crates/cli/src/spawn/windows.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
@@ -85,4 +88,12 @@ exclude_re = [
   "in gate_tick$",
   "replace gate_tick with",
   "replace gate_hive_closed with",
+  # The client's service binary lookup (S-024 changed it to pass the exe
+  # suffix): its choice is daemon_binary_in, mutated in spawn.rs; this glue
+  # only reads current_exe, and tests/e2e/run.sh "open starts the daemon"
+  # covers it. exec_daemon on Unix replaces the process with the service,
+  # so no test can return from it; S-024 only gated its unchanged body
+  # behind cfg(unix), and its Windows twin is wait_exit, mutated in spawn.rs.
+  "replace daemon_binary -> PathBuf with",
+  "replace exec_daemon -> Result<\\(\\), String> with Ok\\(\\(\\)\\)",
 ]
