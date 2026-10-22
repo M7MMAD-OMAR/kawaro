@@ -1,5 +1,5 @@
 # S-022 نقل IPC خلف واجهة واحدة، ثم named pipe على ويندوز
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: منتهية (PASS من المراجع 2026-10-22)؛ S-022b: مراجعة (نفّذها المنفِّذ 2026-10-22، تنتظر المراجع)
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: منتهية (PASS من المراجع 2026-10-22)؛ S-022b: منتهية (PASS من المراجع 2026-10-22)
 
 يبني على ADR 0005 القسم 2. للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -210,3 +210,19 @@ test result: FAILED. 1 passed; 3 failed
   - الوثائق: `SECURITY.md` (فقرة ويندوز بالإنكليزية وفقرة عربية)، و`docs/architecture.md` (النسخة الواحدة على المنصتين)، و`docs/engines.md` (سطر windows-sys 0.61.2، MIT OR Apache-2.0 من `Cargo.toml` الحزمة نفسها). سطر CHANGELOG نفسه عُدّل ولم يُضف غيره.
   - لم يُتحقق حياً ولا يمكن على لينكس: أن `CancelIoEx` من خيط آخر يلغي `ReadFile` متزامناً على المقبض (اعتماد على ADR 0005)، وكل بنود S-034.
   - لـ S-027: `crates/daemon/src/main.rs` ما زال يحذف `ipc::socket_path()` مباشرة عند الخروج؛ تُرك لأن معايير S-022b لا تطلبه والخدمة لا تُبنى لويندوز قبل S-027.
+- 2026-10-22، المراجع (S-022b): **PASS**. كل البوابات أعيد تشغيلها داخل النطاق (`MemoryMax=6G`، `-j 2`) من شجرة `windows/0.6.0` على `78fe2c5`:
+  - `cargo fmt --check` نظيف. `cargo clippy -j 2 --workspace --all-targets -- -D warnings` بلا تحذير. `cargo test -j 2 --all`: 610 ناجحاً، 0 فاشلاً، 1 متجاهل.
+  - `W` (بعد `touch` لإجبار إعادة الفحص، `CARGO_TARGET_DIR` المنفصل): `cargo check` و`cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines --lib -- -D warnings` بلا تحذير.
+  - `X`: ويندوز يسرد serde وserde_json وthiserror وtoml و`windows-sys v0.61.2`؛ لينكس لا يسرده. `Cargo.lock` فيه 671 `[[package]]`.
+  - `M`: `cargo mutants --jobs 1 --in-diff` على `git diff 80345be -- crates` بـ `CARGO_BUILD_JOBS=2`: 21 طفرة، 15 مكتشفة، 6 غير قابلة للبناء، 0 مهلة، **0 ناجية**؛ مطابق لسجل المنفِّذ.
+  - `scripts/design-lint.sh` clean. لا شرطة طويلة في `git diff da12857..HEAD` (بفحص ضابط موجب). `git diff --stat main...HEAD -- crates/ui` فارغ. الاختبارات لم تتغير منذ `80345be`: تنبيه، المسار `crates/*/tests` يعطي فراغاً حتى على فرق المختبِر نفسه، فالفحص الصحيح `crates/*/tests/*` وهو فارغ على `80345be..HEAD` ويسرد الملفات الأربعة على `da12857..80345be`.
+  - كل معيار مربوط باختبار: AC8 وAC9 وAC11 وAC12 في `transport_plan.rs` وفحوص النص في `transport_seed.rs`، وAC10 في `deadline.rs`، وAC13 وAC14 في `transport_deps.rs`، والباقي من AC13 وAC14 بالأوامر أعلاه وقراءة الوثائق.
+  - مراجعة الأمان لـ `crates/core/src/transport/windows.rs`: الواصف `D:P(A;;GA;;;<SID>)` محمي بإدخال واحد للمستخدم، فلا يفتح الأنبوب غيره ولا يضيف نسخاً إليه. `CreateNamedPipeW` يُستدعى في موضع واحد (`create_instance`، السطر 137) بالواصف، و`open_mode(true)` في `bind` وحده (170) و`false` في `accept` (190). `PIPE_REJECT_REMOTE_CLIENTS` في `pipe_mode`، وكل ثابت مثبت وقت الترجمة (55 إلى 63). التحقق من المالك يفشل مغلقاً: فشل `GetNamedPipeServerProcessId` أو `OpenProcess` أو قراءة الرمز يعطي SID فارغاً، وفشل `current_sid` يعيد خطأً لا نصاً فارغاً. المقابض كلها `OwnedHandle`، والواصف ونص SID يُحرَّران بـ `LocalFree`، ومخزن `TOKEN_USER` محاذى بخلايا u64، والمراقب يُضم قبل أن يُغلق المقبض الخام. العميل يفتح بـ `security_qos_flags(SECURITY_IDENTIFICATION)` (std يضيف `SECURITY_SQOS_PRESENT`؛ من معرفة تطبيق std، مصدره غير مثبت محلياً)، و`bInheritHandle` صفر.
+  - الانحراف في `connect_plan` مقبول: ذراع صريحة للرمز 2 تعطي `io::Error` نفسه، فحذفها طفرة مكافئة. `ac11_connect_plan_file_not_found_is_not_found_at_once` يثبت `NotFound` ولا `Wait` عند 0 و1 و1999 و2000 و5000 ms، وstd يقرأ 2 `NotFound` على المنصتين.
+  - CHANGELOG: سطر S-022 نفسه عُدّل ولم يُضف غيره، فلا سطر جديد من المراجع (حُسم في مراجعة S-022a: سطر واحد للقصة كلها). `SECURITY.md` بالإنكليزية والعربية، و`docs/architecture.md` يصف النسخة الواحدة على المنصتين، و`docs/engines.md` يسجّل windows-sys 0.61.2 (MIT OR Apache-2.0).
+  - ملاحظات غير حاجبة لما بعد:
+    - منخفضة، `windows.rs:190-191` مع `crates/daemon/src/server.rs:14-16`: إن فشل `create_instance` في `accept` يبقى المقبض المتصل في `next`، فيعيد `ConnectNamedPipe` التالي `ERROR_PIPE_CONNECTED` فوراً ويفشل الإنشاء ثانية، و`serve` يدور بلا توقف والعميل معلق. لـ S-027 أو S-034.
+    - منخفضة، `windows.rs:85`: نتيجة `ProcessIdToSessionId` مهملة، فالفشل يجعل الجلسة 0 بصمت.
+    - معلومة: مستخدم آخر يستطيع حجز اسم الأنبوب أولاً (SID ليس سراً)، فتقرأ الخدمة `ERROR_ACCESS_DENIED` `AlreadyRunning` وتخرج، والعميل يرفض بحق بـ `PermissionDenied`. هذا ما يفرضه AC9، ولـ S-027: التحقق من المالك قبل الوثوق بـ `AlreadyRunning`.
+    - معلومة: إن سبق المراقب القفل لحظة عودة القراءة ببيانات تُهمل البيانات ويعود `TimedOut`، وهذا عقد المختبِر.
+    - خطر محمول: أن `CancelIoEx` يلغي `ReadFile` متزامناً على الأنبوب لم يُتحقق حياً، مؤجل إلى S-034.
