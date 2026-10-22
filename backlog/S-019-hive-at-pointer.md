@@ -768,3 +768,11 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   الفحوص الثلاثة عشر الأساسية نجحت والناقل الوهمي قائم بالعلم مطفأ (زمن الظهور 60 ms).
 - `bash -n` و`shellcheck -S warning` نظيفان على السكربت، ولا شرطة طويلة فيه.
 - لم يُشغَّل: `repro.sh --json` دون `--quasimode` ووضع `window`؛ التغيير خارج فرع `QUASI=1` هو `exec 6>&-` في `finish` وحده. وسطر `hive surface choice:` ما زال `eprintln!` فقد يتداخل مع أثر libwayland ويُفشل S-019a عَرَضاً: يُعاد السكربت مرة ويُسجَّل (قاعدة المدير). لا عمليات باقية ولا `/tmp/sbhh.*`، ولم يُلمس سطح محمد الحي (`Hyprland` 13248 و`sbarhived` 15227).
+
+### المنفِّذ: REWORK 1، بند الأسطر المتقطعة (2026-10-22)
+
+- ملاحظة المراجع (منخفضة): أسطر `hive anchor:` و`hive cells:` و`hive surface choice:` وبقية أسطر `hive ...` التي تقرؤها السكربتات كانت تُطبع بـ `eprintln!`، فقد يدخل فيها أثر libwayland (`WAYLAND_DEBUG`) من خيط آخر.
+- لم يكن هناك مساعد مشترك: `drop cells:` في `crates/daemon/src/ui.rs` و`debug_preview` في `crates/ui/src/lib.rs` كتب كل منهما الكتابة الواحدة بنفسه. استُخرج `sbarhive_ui::stderr_line(line)` (السطر وسطره الجديد في `write_all` واحد) وصار يستعمله الاثنان، ومعهما `hive surface:` و`hive focus:` (المساران) و`hive anchor:` و`hive cells:` و`hive surface choice:`. شروط الطباعة لم تتغير: كلها خلف `SBARHIVE_DEBUG_FOCUS` كما كانت ما عدا سطر الاختيار الذي يُطبع دونه كما كان. لم يبقَ `eprintln!` في `crates/ui/src` إلا أسطر `sbarhive: drop receiver` في `receiver.rs`، ولا يقرؤها أي سكربت.
+- `.cargo/mutants.toml`: أُضيف `replace stderr_line with` إلى الاستثناءات بسابقة `debug_preview`، لأن stderr وحده يرى الكتابة. `cargo mutants --in-place --in-diff` على `lib.rs` و`crates/daemon/src/ui.rs`: لا طفرات في الأسطر المتغيرة.
+- لم يُعدَّل أي اختبار. التحقق داخل النطاق المحدود: `cargo fmt --all --check` و`cargo clippy --all-targets -- -D warnings` نظيفان، و`cargo test -p sbarhive-ui` و`-p sbarhive-daemon` نجحا، و`scripts/design-lint.sh` نظيف، ثم `cargo build --release` و`tests/hyprland/repro.sh --json --quasimode` مرة واحدة: `{"total": 20, "failed": 0, "skipped": 0}` و`RESULT PASS`. لم يُلمس سطح محمد الحي. لا سطر في CHANGELOG.md لأن السلوك لم يتغير.
+- الحالة: مراجعة.

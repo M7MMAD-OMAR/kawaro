@@ -49,6 +49,9 @@ exclude_re = [
   # tests/e2e/run.sh read it); no unit test can observe stderr here.
   "in debug_preview$",
   "replace debug_preview with",
+  # The one write of a diagnostic line those scripts read (S-019 rework):
+  # only stderr observes it.
+  "replace stderr_line with",
   # Daemon glue that needs the socket, the windows and the event loop
   # together; tests/e2e/run.sh and tests/overlay/*.sh cover it end to end.
   "replace handle with \\(\\)",

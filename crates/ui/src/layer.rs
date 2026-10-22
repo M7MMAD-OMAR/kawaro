@@ -315,7 +315,7 @@ fn report_choice(surface: Surface, reason: String) {
     LAST_CHOICE.with(|last| {
         let mut last = last.borrow_mut();
         if last.as_ref() != Some(&(surface, reason.clone())) {
-            eprintln!("{}", overlay::choice_line(surface, &reason));
+            crate::stderr_line(&overlay::choice_line(surface, &reason));
             *last = Some((surface, reason));
         }
     });
@@ -654,8 +654,8 @@ impl LayerAdapter {
     fn plan_for(&self, anchor: Option<(f32, f32)>, screen: (u32, u32)) {
         if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
             match anchor {
-                Some((x, y)) => eprintln!("hive anchor: {x} {y}"),
-                None => eprintln!("hive anchor: none"),
+                Some((x, y)) => crate::stderr_line(&format!("hive anchor: {x} {y}")),
+                None => crate::stderr_line("hive anchor: none"),
             }
         }
         let (plan, p) = SHOW.with(|r| {
@@ -677,7 +677,7 @@ impl LayerAdapter {
         });
         if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
             let (cx, cy) = plan.layout.origin;
-            eprintln!("hive cells: {} {cx} {cy}", plan.cells.len());
+            crate::stderr_line(&format!("hive cells: {} {cx} {cy}", plan.cells.len()));
         }
         self.anchor.set(anchor);
         self.screen.set(screen);
@@ -783,7 +783,7 @@ impl LayerAdapter {
             Ev::Focus(f) => {
                 // Observation hook for tests/focus, as on the window path.
                 if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-                    eprintln!("hive focus: {f}");
+                    crate::stderr_line(&format!("hive focus: {f}"));
                 }
                 // Focus loss does not close the hive on this path (S-018,
                 // manager decision 1), so `focus_changed` is not told.

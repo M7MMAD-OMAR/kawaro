@@ -110,7 +110,7 @@ fn set_shown_plan(plan: Plan) {
 /// `SBARHIVE_DEBUG_FOCUS` is set (S-018 AC11).
 fn report_surface(kind: &str, x: i32, y: i32, w: u32, h: u32) {
     if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-        eprintln!("hive surface: {kind} {x} {y} {w} {h}");
+        stderr_line(&format!("hive surface: {kind} {x} {y} {w} {h}"));
     }
 }
 
@@ -146,15 +146,20 @@ fn report_window(w: &winit::window::Window) {
     );
 }
 
+/// Prints `line` and its newline to stderr in one write, so the libwayland
+/// trace (`WAYLAND_DEBUG`) printed on the same stderr from another thread
+/// cannot land inside a line the test scripts read.
+pub fn stderr_line(line: &str) {
+    use std::io::Write;
+    let _ = std::io::stderr().write_all(format!("{line}\n").as_bytes());
+}
+
 /// Prints `hive preview: WHAT` when `SBARHIVE_DEBUG_FOCUS` is set: the
 /// thumbnail size handed to Slint, or the kind icon (S-018 AC27).
 #[cfg(unix)]
 fn debug_preview(what: &str) {
     if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-        // One write with its newline, so the libwayland trace on the same
-        // stderr cannot land inside the line.
-        use std::io::Write;
-        let _ = std::io::stderr().write_all(format!("hive preview: {what}\n").as_bytes());
+        stderr_line(&format!("hive preview: {what}"));
     }
 }
 
@@ -199,7 +204,7 @@ impl CustomApplicationHandler for FocusWatcher {
             winit::event::WindowEvent::Focused(f) if is_hive_window(slint_window) => {
                 // Observation hook for tests/focus: logs the hive's focus changes.
                 if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-                    eprintln!("hive focus: {f}");
+                    stderr_line(&format!("hive focus: {f}"));
                 }
                 focus_changed(*f)
             }

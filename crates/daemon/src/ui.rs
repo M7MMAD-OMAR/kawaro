@@ -91,11 +91,7 @@ pub fn build(
             let lang = st.lang;
             let actions = st.matching(&files);
             if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-                // One write with its newline, so the libwayland trace on the
-                // same stderr cannot land inside the line.
-                use std::io::Write;
-                let line = format!("{}\n", drop_cells_line(&actions));
-                let _ = std::io::stderr().write_all(line.as_bytes());
+                sbarhive_ui::stderr_line(&drop_cells_line(&actions));
             }
             if actions.is_empty() {
                 st.pending = None;
