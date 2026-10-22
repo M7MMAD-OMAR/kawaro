@@ -244,3 +244,10 @@ $ bash tests/windows/test_ci_iso.sh
   FAIL: lint: missing scripts/windows/make-iso.sh
 FAIL S-026b windows CI, ISO and runner (light) (29 of 41 checks failed)
 ```
+  - Heavy failing output (here, before implementation, `pgrep` empty; T was fresh and passed its 3 setup checks in about 1 s):
+```
+$ bash tests/windows/test_heavy_iso.sh
+== AC9: make-iso.sh on the real build output
+  FAIL: AC9: missing or not executable scripts/windows/make-iso.sh
+FAIL S-026b windows ISO (heavy) (1 of 4 checks failed)
+```
