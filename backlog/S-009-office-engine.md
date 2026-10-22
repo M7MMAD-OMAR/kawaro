@@ -1,5 +1,5 @@
 # S-009 تحويل مستندات Office وODF عبر LibreOffice بلا واجهة
-الحالة: مراجعة
+الحالة: منتهية
 
 ## القصة
 بصفتي مستخدماً يحدد مستندات Word أو جداول أو عروضاً تقديمية في مدير الملفات، أريد تحويلها إلى PDF أو إلى DOCX وODT وXLSX وODS وPPTX وODP من الخلية،
@@ -45,3 +45,4 @@
 - 2026-10-20، مراجع الإصدار (HEAD 71576ee، سياق جديد): **REWORK**. مدخل المراجع أعلاه يعد بنتيجة cargo mutants «أدناه» ولا نتيجة، و`office.rs` غير مشمول في `scripts/release-gates.sh:41-43`. شغّلتُ `cargo mutants -f crates/engines/src/office.rs -f crates/engines/src/pdf.rs` على نسخة نظيفة: ثلاث طفرات ناجية في هذا الملف:
   1. `crates/engines/src/office.rs:299` (`is_executable` إلى true وإلى false) و`crates/engines/src/office.rs:408` (`kill_group` إلى `()`). الدالتان تحت `#[cfg(not(unix))]` فلا تُبنيان على لينكس ولا يمكن لأي اختبار هنا قتلهما. الإصلاح (commit واحد): استثناؤهما من cargo mutants (`#[mutants::skip]` أو `exclude_re` في `.cargo/mutants.toml`)، وإضافة `office.rs` و`pdf.rs` إلى قائمة الطفرات في بوابات الإصدار.
   - ما نجح: office_engine 12 وoffice_actions 2 ناجحة، وe2e يحوّل نصاً إلى PDF.
+- 2026-10-22، تحديث الحالة: الطفرات الناجية عولجت في `b95902e`: نُقلت `is_executable` و`kill_group` لغير يونكس إلى `office/non_unix.rs` واستُثني من cargo mutants، وأُضيف `office.rs` و`pdf.rs` إلى طفرات `scripts/release-gates.sh`. صدرت القصة في v0.2.0 والإصلاح ضمنه. لا مدخل مراجعة مستقلة بعد الإصلاح في هذا السجل؛ الحالة تتبع الإصدار.
