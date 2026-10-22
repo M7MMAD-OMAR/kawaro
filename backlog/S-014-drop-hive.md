@@ -609,3 +609,9 @@
     3. The lost `Deactivated` after a drop on Hyprland (above): is it accepted as recorded, or should it be a failing check that escalates the story?
     4. The `--portal` mode runs AC21's two runs on Hyprland too, through `real_portal_run`. They are not in S-014e3's criteria, but they pass and they cost nothing extra.
   - Not done here: `cargo mutants` (no crate code changed), and the docs themselves (the implementer's). The live desktop, its bus and its portal were not touched; `hyprctl` ran only inside the private session, against the nested instance.
+- 2026-10-23, manager under the maintainer's delegation, on the S-014e3 tester's points:
+  1. AC20 on Hyprland needs no implementer; AC22 (docs and CHANGELOG) does.
+  2. The `Deactivated` the Hyprland backend drops after a drop that closed the hive stays an INFO line, not a failing check: the long press gate resets whenever the hive closes (manager decision 14), so the lost release has no effect, and the next held drops work.
+  3. The empty trigger in `portal shortcuts: bound drop ()` is accepted; the docs do not promise a trigger text.
+  4. The AC21 runs on Hyprland stay as extra coverage.
+  5. Checked by the manager: after the runs the live user manager's environment still names the live Hyprland instance and `wayland-1`, so the nested `systemctl --user import-environment` did not leak. The regular modes stay as they are.
