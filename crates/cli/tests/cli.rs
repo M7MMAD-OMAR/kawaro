@@ -386,6 +386,18 @@ fn doctor_reports_tools_found_on_path() {
     assert!(text.contains("missing sbarhived answering"), "{text}");
 }
 
+/// S-022a AC5: `sbarhive doctor` prints `transport::endpoint()`, which on
+/// Linux is the socket in the private runtime dir.
+#[test]
+fn ac5_doctor_prints_the_endpoint_in_the_runtime_dir() {
+    let env = Env::new(None);
+    let o = env.run(&["doctor"]);
+    assert!(o.status.success());
+    let text = stdout(&o);
+    let sock = env.root().join("sbarhive.sock").display().to_string();
+    assert!(text.contains(&sock), "{sock} missing from:\n{text}");
+}
+
 /// Like `fake_daemon`, but records raw JSON, so a request the protocol does
 /// not know yet still reaches the assertion instead of a parse panic.
 fn raw_daemon(env: &Env) -> Arc<Mutex<Vec<serde_json::Value>>> {

@@ -1,5 +1,5 @@
 # S-022 نقل IPC خلف واجهة واحدة، ثم named pipe على ويندوز
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ S-022a: الاختبارات مكتوبة وتفشل، بانتظار المنفِّذ
 
 يبني على ADR 0005 القسم 2. للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -72,3 +72,47 @@ S-022b:
 
 ## سجل المراجعة
 - 2026-10-22، المخطِّط: الواجهة كلها تُثبَّت في S-022a (ومنها `server_pid` و`AlreadyRunning`) حتى لا تعيد S-022b وS-024 فتحها. قرارات ويندوز في دوال صافية تُختبر وتُطفَّر على لينكس، والاستدعاءات الرقيقة في `windows.rs` المستثنى.
+- 2026-10-22، المختبِر (S-022a): كُتبت اختبارات AC1 إلى AC7. العقد الذي ثبّته المختبِر في رأس `crates/core/tests/transport.rs` (لا يُعدَّل): `transport::endpoint() -> Endpoint`، و`Endpoint: Clone + Debug + Display` يُعرض على Unix كما `ipc::socket_path().display()`، و`Endpoint::from_path(impl Into<PathBuf>)` على Unix حتى لا تغيّر الاختبارات `XDG_RUNTIME_DIR` (في edition 2024 `set_var` غير آمن ويتسابق مع الاختبارات المتوازية)، و`enum Bound { Listening(Listener), AlreadyRunning }`، و`Listener::bind(&Endpoint) -> io::Result<Bound>`، و`Listener::accept(&self) -> io::Result<Stream>`، و`Listener: Send`، و`Stream::connect(&Endpoint)`، و`set_read_timeout(&self, Option<Duration>) -> io::Result<()>`، و`try_clone(&self) -> io::Result<Stream>`، و`server_pid(&self) -> Option<u32>`، و`Stream: Read + Write + Send`، و`pipe_name(&str, u32) -> String` على كل المنصات.
+  - الملفات والاختبارات:
+    - `crates/core/tests/transport.rs`: `ac1_stream_is_read_write_send_and_listener_is_send`، `ac1_socket_name_and_socket_path_keep_their_value`، `ac1_endpoint_on_unix_is_the_socket_path`، `ac1_endpoint_from_path_displays_the_path`، `ac1_ac3_server_pid_is_none_on_unix`، `ac2_pipe_name_is_the_exact_literal`، `ac2_pipe_name_differs_by_sid_and_by_session`، `ac2_longest_sid_and_session_fit_in_256_chars`، `ac3_ping_line_reaches_the_server_and_the_reply_reaches_the_client`، `ac3_lines_from_a_stream_and_its_try_clone_arrive_in_order`، `ac4_read_timeout_is_timed_out_between_180_and_1000_ms`، `ac4_no_timeout_reads_a_reply_written_after_300_ms` (يضبط مهلة ثم يلغيها بـ `None`)، `ac6_bind_is_already_running_when_a_server_answers_ping`، `ac6_a_stale_socket_file_is_removed_and_bound`.
+    - `crates/core/tests/transport_seed.rs`: `ac7_windows_seed_is_unsupported_and_excluded_from_mutants` (الملف موجود، فيه `ErrorKind::Unsupported` وبلا `todo!`، ومذكور في `exclude_globs`). بناء ويندوز نفسه يثبته `W` عند المراجع، فهو ينجح اليوم لأن الوحدة غير موجودة.
+    - `crates/cli/tests/no_unix_net.rs`: `ac5_no_std_os_unix_net_in_cli_or_daemon_sources` (الأمر `grep` نفسه اختباراً).
+    - `crates/cli/tests/cli.rs`: `ac5_doctor_prints_the_endpoint_in_the_runtime_dir`. لم يُضف أي استيراد لـ `transport` إلى هذا الملف، وخوادمه الوهمية باقية على `UnixListener` كما تطلب القصة.
+    - `crates/daemon/tests/single_instance.rs`: `ac6_second_daemon_on_the_same_runtime_dir_says_already_running_and_exits_0`. الخدمة الأولى خادم وهمي على `transport::Listener`، والثانية `sbarhived` الحقيقي بلا متغيرات عرض، بمهلة 5 s ثم قتل.
+  - ينجح قبل التنفيذ عن قصد: `ac5_doctor_prints_the_endpoint_in_the_runtime_dir`، لأن `doctor` يطبع مسار المقبس اليوم، وسلوك لينكس يجب ألا يتغير. هو حارس تراجع لا دليل تنفيذ. وكذلك سلوك AC6 موجود اليوم، وما يجعل اختباره يفشل هو الخادم الوهمي المبني على `transport`.
+  - للمراجع لا للاختبار: نوع `State::subscribers` (`HashMap<JobId, Vec<transport::Stream>>`) لأن الخدمة crate تنفيذية وفحص النص هش، و`W` لـ AC7.
+  - غموض: مقبس فيه مستمع يقبل ولا يجيب على `ping` خلال 500 ms: هل يُعدّ قديماً فيُحذف؟ AC6 لا يحدد، فلم يُختبر.
+  - مخرجات الفشل (`L` داخل النطاق، `-j 2`):
+```
+$ cargo test -j 2 -p sbarhive-core --test transport
+error[E0432]: unresolved import `sbarhive_core::transport`
+  --> crates/core/tests/transport.rs:28:20
+   |
+28 | use sbarhive_core::transport::{self, Bound, Endpoint, Listener, Stream};
+   |                    ^^^^^^^^^ could not find `transport` in `sbarhive_core`
+error: could not compile `sbarhive-core` (test "transport") due to 1 previous error
+
+$ cargo test -j 2 -p sbarhive-core --test transport_seed
+---- ac7_windows_seed_is_unsupported_and_excluded_from_mutants stdout ----
+panicked at crates/core/tests/transport_seed.rs:12:29:
+.../crates/core/src/transport/windows.rs must exist: No such file or directory (os error 2)
+test result: FAILED. 0 passed; 1 failed
+
+$ cargo test -j 2 -p sbarhive-cli --test no_unix_net --test cli -- ac5
+test ac5_doctor_prints_the_endpoint_in_the_runtime_dir ... ok
+---- ac5_no_std_os_unix_net_in_cli_or_daemon_sources stdout ----
+4 lines:
+crates/cli/src/client.rs:5: use std::os::unix::net::UnixStream;
+crates/daemon/src/main.rs:19: use std::os::unix::net::{UnixListener, UnixStream};
+crates/daemon/src/server.rs:8: use std::os::unix::net::{UnixListener, UnixStream};
+crates/daemon/src/state.rs:10: use std::os::unix::net::UnixStream;
+test result: FAILED. 0 passed; 1 failed
+
+$ cargo test -j 2 -p sbarhive-daemon --test single_instance
+error[E0432]: unresolved import `sbarhive_core::transport`
+ --> crates/daemon/tests/single_instance.rs:8:20
+  |
+8 | use sbarhive_core::transport::{Bound, Endpoint, Listener};
+  |                    ^^^^^^^^^ could not find `transport` in `sbarhive_core`
+error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 previous error
+```
