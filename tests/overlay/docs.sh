@@ -11,7 +11,9 @@
 #         four globals, the screen reader, SBARHIVE_SURFACE); the user docs
 #         (README.md, integrations/linux/hyprland/README.md) give a Hyprland
 #         layerrule that turns off the animation of the "sbarhive" namespace,
-#         in Arabic and in English, each marked as not verified;
+#         in Arabic and in English, each marked as not verified; the
+#         Arabic rule is read from the Arabic copies (README.ar.md beside
+#         each), the English rule from the English files;
 #         tests/overlay/README.md runs every overlay test with one command
 #         (the command is read, not run).
 # Usage: tests/overlay/docs.sh [BASE]
@@ -82,7 +84,7 @@ check "AC20: docs/architecture.md gives the screen reader rule" 'grep -qiE "scre
 # namespace (noanim or no_anim, any Hyprland syntax), in each language, with
 # the "not verified" mark within 5 lines of it, the Arabic and the English
 # rule on different lines. Arabic is matched with its diacritics removed.
-rules=$(python3 -I - "$ROOT/README.md" "$ROOT/integrations/linux/hyprland/README.md" <<'PY'
+rules=$(python3 -I - "$ROOT/README.md" "$ROOT/README.ar.md" "$ROOT/integrations/linux/hyprland/README.md" "$ROOT/integrations/linux/hyprland/README.ar.md" <<'PY'
 import re, sys
 strip = lambda s: re.sub("[ً-ْ]", "", s)
 rule = re.compile(r"layerrule.*(noanim|no_anim)|(noanim|no_anim).*layerrule", re.I)
@@ -96,9 +98,11 @@ for path in sys.argv[1:]:
     for i, l in enumerate(lines):
         if rule.search(l) and "sbarhive" in l:
             near = "\n".join(lines[max(0, i - 5): i + 6])
-            if ar in strip(near):
+            # The Arabic mark counts in an Arabic copy (.ar.md), the
+            # English one in an English file.
+            if path.endswith(".ar.md") and ar in strip(near):
                 found["ar"].append(f"{path.split('/')[-3:]}:{i + 1}")
-            if en.search(near):
+            if not path.endswith(".ar.md") and en.search(near):
                 found["en"].append(f"{path.split('/')[-3:]}:{i + 1}")
 # One rule per language: an Arabic and an English rule on different lines.
 two = any(a != e for a in found["ar"] for e in found["en"])

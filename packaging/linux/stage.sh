@@ -41,4 +41,5 @@ install -Dm644 "$INT/nemo/sbarhive.nemo_action" "$U/share/nemo/actions/sbarhive.
 
 install -Dm644 "$ROOT/LICENSE" "$U/share/licenses/sbarhive/LICENSE"
 install -Dm644 "$ROOT/README.md" "$U/share/doc/sbarhive/README.md"
+install -Dm644 "$ROOT/README.ar.md" "$U/share/doc/sbarhive/README.ar.md"
 install -Dm644 "$ROOT/CHANGELOG.md" "$U/share/doc/sbarhive/CHANGELOG.md"

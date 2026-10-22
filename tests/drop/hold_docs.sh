@@ -56,6 +56,11 @@
 #   S-022 AC10: no prose line of tests/drop/README.md is longer than 80
 #   columns (characters); lines inside ``` fences are not counted.
 #   No em dash or en dash in any of these files, nor in tests/drop/README.md.
+#   Language pairs: each user doc is English NAME.md with an Arabic copy
+#   NAME.ar.md beside it. An Arabic check above reads the .ar.md copy (the
+#   Hyprland README.ar.md, README.ar.md), an English check the English file.
+#   README.md and CONTRIBUTING.md each have both files, and both start with
+#   the switch line "[English](NAME.md) | [العربية](NAME.ar.md)".
 # Usage: tests/drop/hold_docs.sh
 # shellcheck disable=SC2016,SC2034
 set -u
@@ -65,7 +70,9 @@ FAILS=0
 check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
 
 HYPR="$ROOT/integrations/linux/hyprland/README.md"
+HYPR_AR="$ROOT/integrations/linux/hyprland/README.ar.md"
 README="$ROOT/README.md"
+README_AR="$ROOT/README.ar.md"
 ARCH="$ROOT/docs/architecture.md"
 ADR="$ROOT/docs/adr/0003-drop-hive.md"
 LOG="$ROOT/CHANGELOG.md"
@@ -145,16 +152,19 @@ for line in sys.stdin:
 sys.exit(0 if any(keys <= v for v in by.values()) else 1)' "$lang" "$@"
 }
 
+# doc_for LANG FILE: FILE for English, its .ar.md copy for Arabic.
+doc_for() { if [ "$1" = ar ]; then echo "${2%.md}.ar.md"; else echo "$2"; fi; }
 for lang in ar en; do
   name=$([ $lang = ar ] && echo Arabic || echo English)
+  hypr=$(doc_for $lang "$HYPR") readme=$(doc_for $lang "$README")
   check "S-019 AC22: Hyprland README, one $name section with the hyprlang press bind (flag n, drop --hold) and release bind (flags r and i, drop --release)" \
-    'has "$HYPR" $lang press-hyprlang release-hyprlang'
+    'has "$hypr" $lang press-hyprlang release-hyprlang'
   check "S-019 AC22: Hyprland README, one $name section with the Lua press and release binds" \
-    'has "$HYPR" $lang press-lua release-lua'
+    'has "$hypr" $lang press-lua release-lua'
   check "S-019 AC22: Hyprland README, the $name binds name ignore_mods and say they are not verified yet" \
-    'has "$HYPR" $lang press-hyprlang ignore_mods unverified'
+    'has "$hypr" $lang press-hyprlang ignore_mods unverified'
   check "S-019 AC23: README.md, the $name settings section names hold_ms with 400, 100 and 2000" \
-    'has "$README" $lang hold_ms range'
+    'has "$readme" $lang hold_ms range'
 done
 check "S-019 AC23: docs/architecture.md names hold_ms and drop --hold" 'grep -q "hold_ms" "$ARCH" && grep -q -- "drop --hold" "$ARCH"'
 check "S-019 AC20/AC23: ADR 0003 names hold_ms and the 150 ms budget" 'grep -q "hold_ms" "$ADR" && grep -q "150" "$ADR"'
@@ -162,8 +172,9 @@ check "S-019 AC23: CHANGELOG.md has a line for the long press (--hold or hold_ms
   'grep -E -- "--hold|hold_ms" "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
 for lang in ar en; do
   name=$([ $lang = ar ] && echo Arabic || echo English)
+  hypr=$(doc_for $lang "$HYPR")
   check "S-021 AC12: Hyprland README, one $name section says the hive shows only during a drag of files with an action, to start the drag first and then hold the key, and that with no drag or for a file with no action nothing shows" \
-    'has "$HYPR" $lang only first nothing'
+    'has "$hypr" $lang only first nothing'
 done
 check "S-021 AC12, S-022 AC9: docs/architecture.md, one section describes the probe: the Probing state, the hidden catcher, the \"hive reveal\" and \"hive probe\" lines and the six hide reasons (pointer, no-uri-list, no-actions, release, cap, replaced)" \
   'has "$ARCH" en probing hidden-catcher reveal-line probe-line reasons'
@@ -179,6 +190,15 @@ long=$(awk '/^```/ { f = !f; next } !f && length($0) > 80 { printf "%d:%d ", NR,
 echo "INFO S-022 AC10: tests/drop/README.md prose lines over 80 columns: ${long:-none}"
 check "S-022 AC10: no prose line of tests/drop/README.md is longer than 80 columns (outside code fences)" '[ -z "$long" ]'
 check "S-019 AC22/AC23, S-021 AC12: no em dash or en dash in these files" \
-  '! grep -nP "\x{2014}|\x{2013}" "$HYPR" "$README" "$ARCH" "$ADR" "$LOG" "$HERE/README.md"'
+  '! grep -nP "\x{2014}|\x{2013}" "$HYPR" "$HYPR_AR" "$README" "$README_AR" "$ARCH" "$ADR" "$LOG" "$HERE/README.md"'
+# Language pairs: both files exist and line 1 is the switch line.
+switch_ok() {
+  local en=$1 ar=${1%.md}.ar.md n
+  n=$(basename "$en" .md)
+  local want="[English]($n.md) | [العربية]($n.ar.md)"
+  [ -f "$en" ] && [ -f "$ar" ] && [ "$(head -1 "$en")" = "$want" ] && [ "$(head -1 "$ar")" = "$want" ]
+}
+check "pair: README.md and README.ar.md exist and start with the language switch line" 'switch_ok "$README"'
+check "pair: CONTRIBUTING.md and CONTRIBUTING.ar.md exist and start with the language switch line" 'switch_ok "$ROOT/CONTRIBUTING.md"'
 if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 [ "$FAILS" -eq 0 ]

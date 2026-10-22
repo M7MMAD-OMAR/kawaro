@@ -10,7 +10,13 @@
 #                 two binds, S-014 log), hyprlang or Lua syntax
 #     and names Super+Z, the default the owner chose.
 #   - integrations/linux/hyprland/README.md, where Hyprland users look, gives
-#     the same two bind lines in its Arabic and its English section.
+#     the same two bind lines in its English section, and its Arabic copy
+#     README.ar.md beside it in an Arabic section.
+#   - each user doc is a pair, English NAME.md and Arabic NAME.ar.md: an
+#     Arabic check counts only sections of a .ar.md file, an English check
+#     only sections of the other files. Both files of each pair checked here
+#     (docs/drop-shortcut and the Hyprland README) exist and start with the
+#     switch line "[English](NAME.md) | [العربية](NAME.ar.md)".
 #   - every program a documented bind line runs is `sbarhive` or a helper
 #     shipped in integrations/ or scripts/ (it must exist); no /home/ paths.
 #   - no em dash or en dash in those files.
@@ -31,6 +37,7 @@ check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS
 
 DOCS=$(find "$ROOT/docs" -name '*.md' -not -path "$ROOT/docs/adr/*" -not -name PLAN.md | sort)
 HYPR="$ROOT/integrations/linux/hyprland/README.md"
+HYPR_AR="$ROOT/integrations/linux/hyprland/README.ar.md"
 
 # scan --hyprland-word|--any FILE...
 # Prints "KEY ar|en FILE:LINE" for every section that satisfies KEY.
@@ -100,7 +107,12 @@ PY
 found=$(scan --hyprland-word $DOCS)
 echo "INFO docs/ files: $(tr "\n" " " <<<"${DOCS//$ROOT\//}")"
 echo "INFO sections in docs/: $(tr '\n' ';' <<<"${found:-none}")"
-has_key() { grep -qE "^$1 $2 " <<<"$3"; }
+# has_key KEY LANG FOUND: a LANG section with KEY, Arabic only in a .ar.md
+# file and English only in the others.
+has_key() {
+  if [ "$2" = ar ]; then grep -E "^$1 ar " <<<"$3" | grep -qE '\.ar\.md:[0-9]+$'
+  else grep -E "^$1 en " <<<"$3" | grep -qvE '\.ar\.md:[0-9]+$'; fi
+}
 for k in gnome kde hypr-superz hypr-alt superz; do
   case $k in
     gnome) what='GNOME: Settings, Keyboard, custom shortcut running `sbarhive drop`' ;;
@@ -114,10 +126,10 @@ for k in gnome kde hypr-superz hypr-alt superz; do
 done
 
 # The whole README is about Hyprland: the word is not needed in the section.
-hfound=$(scan --any "$HYPR")
-echo "INFO sections in integrations/linux/hyprland/README.md: $(tr '\n' ';' <<<"${hfound:-none}")"
+hfound=$(scan --any "$HYPR" "$HYPR_AR")
+echo "INFO sections in integrations/linux/hyprland/README.md and README.ar.md: $(tr '\n' ';' <<<"${hfound:-none}")"
 for k in hypr-superz hypr-alt; do
-  check "AC12: integrations/linux/hyprland/README.md in Arabic: $k bind line" 'has_key "$k" ar "$hfound"'
+  check "AC12: integrations/linux/hyprland/README.ar.md in Arabic: $k bind line" 'has_key "$k" ar "$hfound"'
   check "AC12: integrations/linux/hyprland/README.md in English: $k bind line" 'has_key "$k" en "$hfound"'
 done
 
@@ -125,7 +137,7 @@ done
 # after exec (hyprlang) or inside exec_cmd( (Lua), with ~, $HOME and HOME ..
 # prefixes and quotes removed. Each must be sbarhive or a file in the repo.
 # shellcheck disable=SC2086
-progs=$(cat $DOCS "$HYPR" 2>/dev/null | python3 -I -c '
+progs=$(cat $DOCS "$HYPR" "$HYPR_AR" 2>/dev/null | python3 -I -c '
 import re, sys
 t = sys.stdin.read()
 out = set()
@@ -153,9 +165,19 @@ check "AC12: the documented binds run programs that exist (a bind was found)" '[
 check "AC12: every program a documented bind runs is sbarhive or a helper shipped in integrations/ or scripts/" '[ -n "$progs" ] && [ -z "$missing" ]'
 echo "INFO not shipped:${missing:- none}"
 # shellcheck disable=SC2086
-check "AC12: no /home/ path in the docs" '! grep -n "/home/" $DOCS "$HYPR"'
+check "AC12: no /home/ path in the docs" '! grep -n "/home/" $DOCS "$HYPR" "$HYPR_AR"'
 # shellcheck disable=SC2086
-check "AC12: no em dash or en dash in the docs" '! grep -nP "\x{2014}|\x{2013}" $DOCS "$HYPR"'
+check "AC12: no em dash or en dash in the docs" '! grep -nP "\x{2014}|\x{2013}" $DOCS "$HYPR" "$HYPR_AR"'
+
+# Language pairs: both files exist and line 1 is the switch line.
+switch_ok() {
+  local en=$1 ar=${1%.md}.ar.md n
+  n=$(basename "$en" .md)
+  local want="[English]($n.md) | [العربية]($n.ar.md)"
+  [ -f "$en" ] && [ -f "$ar" ] && [ "$(head -1 "$en")" = "$want" ] && [ "$(head -1 "$ar")" = "$want" ]
+}
+check "pair: docs/drop-shortcut.md and docs/drop-shortcut.ar.md exist and start with the language switch line" 'switch_ok "$ROOT/docs/drop-shortcut.md"'
+check "pair: integrations/linux/hyprland/README.md and README.ar.md exist and start with the language switch line" 'switch_ok "$HYPR"'
 
 if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 [ "$FAILS" -eq 0 ]

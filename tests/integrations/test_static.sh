@@ -93,7 +93,7 @@ assert_file "$H" 755
 R=integrations/linux/hyprland/README.md
 if [ -f "$R" ]; then
   assert_contains "mouse bind" "$R" "bind = SUPER, mouse:273, exec, ~/.local/bin/sbarhive-open-selection"
-  check "README has Arabic" grep -q 'ربط' "$R"
+  check "README has Arabic" grep -q 'ربط' "${R%.md}.ar.md"
   check "README has a keyboard bind" grep -qE '^bind = SUPER( SHIFT)?, [A-Z0-9]+, exec' "$R"
 else
   fail "missing $R"
