@@ -385,6 +385,40 @@ impl Inner {
         ui.set_preview_icon(slint::Image::default());
     }
 
+    /// Ends the shown hive for a new show, without `on_dismiss` (S-022
+    /// decision 8). Returns the reason the replaced show prints: `replaced`
+    /// for a probing show, none for any other or a hidden one.
+    fn replace(&self) -> Option<&'static str> {
+        if !self.visible() {
+            return None;
+        }
+        let probing = self.machine.borrow().state() == dnd::State::Probing;
+        self.close();
+        probing.then_some("replaced")
+    }
+
+    /// Starts the opening animation: at once with reduced motion, else
+    /// after the first frame (on the layer path, the first drawn one).
+    fn open(&self) {
+        let ui = self.ui.borrow();
+        if self.reduced_motion {
+            ui.set_opened(true);
+            return;
+        }
+        let w = ui.as_weak();
+        let start = move || {
+            if let Some(ui) = w.upgrade() {
+                ui.set_opened(true);
+            }
+        };
+        #[cfg(target_os = "linux")]
+        if self.on_layer.get() {
+            return layer::after_drawn(start);
+        }
+        self.opener
+            .start(slint::TimerMode::SingleShot, Duration::ZERO, start);
+    }
+
     /// Shows `plan` in the window and keeps it for picking.
     fn apply(&self, centre: &str, plan: Plan) {
         self.set_plan(plan);
@@ -516,6 +550,10 @@ impl Inner {
         layer::probed(before, state, event, self.found.get());
         #[cfg(not(target_os = "linux"))]
         let _ = before;
+        // A probed show opens at its reveal (S-022).
+        if before == dnd::State::Probing && state == dnd::State::Waiting {
+            self.open();
+        }
         match state {
             dnd::State::Over(i) => self.ui.borrow().set_highlight(i as i32),
             dnd::State::Waiting => self.ui.borrow().set_highlight(-1),
@@ -716,7 +754,11 @@ impl Hive {
         let plan = layout::plan_rings(cells.clone(), inner.rtl, min_rings);
         if inner.visible() {
             // Hide first so the old surface goes away before the new one.
-            inner.close();
+            let reason = inner.replace();
+            #[cfg(target_os = "linux")]
+            layer::replaced(reason);
+            #[cfg(not(target_os = "linux"))]
+            let _ = reason;
         }
         // A token needs a new window adapter, which runs the attributes hook
         // and hands the token to winit (see PENDING_TOKEN). So does a changed
@@ -780,22 +822,14 @@ impl Hive {
         // The layer adapter prints its own line with its first frame.
         let size = (!inner.on_layer.get()).then(|| (ui.get_win_w(), ui.get_win_h()));
         WINDOW_REPORT.with(|c| c.set(size));
-        if inner.reduced_motion {
-            ui.set_opened(true);
-            ui.show()
-        } else {
-            ui.set_opened(false);
-            ui.show()?;
-            let w = Rc::downgrade(inner);
-            inner
-                .opener
-                .start(slint::TimerMode::SingleShot, Duration::ZERO, move || {
-                    if let Some(i) = w.upgrade() {
-                        i.ui.borrow().set_opened(true);
-                    }
-                });
-            Ok(())
+        // A probing show opens at its reveal, in `Inner::drag` (S-022).
+        let probing = inner.machine.borrow().state() == dnd::State::Probing;
+        ui.set_opened(false);
+        ui.show()?;
+        if !probing {
+            inner.open();
         }
+        Ok(())
     }
 
     /// Hides the hive without firing any callback.

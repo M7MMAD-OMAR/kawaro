@@ -103,6 +103,8 @@ thread_local! {
     static LAST_CHOICE: RefCell<Option<(Surface, String)>> = const { RefCell::new(None) };
     /// The [`after_catcher_ready`] hook, taken once.
     static AFTER_CATCHER: RefCell<Option<Box<dyn FnOnce()>>> = const { RefCell::new(None) };
+    /// The shown hive's opening, run after its next drawn frame.
+    static OPENER: RefCell<Option<Box<dyn FnOnce()>>> = const { RefCell::new(None) };
 }
 
 /// Measurement hook (S-021 AC8): runs `f` once, right after the next
@@ -203,6 +205,23 @@ pub(crate) fn probed(from: dnd::State, to: dnd::State, event: dnd::Event, cells:
     {
         a.revealed.set(true);
         a.request_redraw();
+    }
+}
+
+/// Runs `f` once the shown hive has drawn a frame, so the opening
+/// animation it starts runs from that frame (S-022 AC4): Slint animates a
+/// property only from a value it has drawn. A hide drops it.
+pub(crate) fn after_drawn(f: impl FnOnce() + 'static) {
+    OPENER.with(|o| *o.borrow_mut() = Some(Box::new(f)));
+}
+
+/// The shown hive was replaced by a new show: a probing one prints `hive
+/// probe: hidden (replaced)` (S-022), any other nothing.
+pub(crate) fn replaced(reason: Option<&str>) {
+    if let Some(r) = reason
+        && std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some()
+    {
+        crate::stderr_line(&format!("hive probe: hidden ({r})"));
     }
 }
 
@@ -1025,8 +1044,10 @@ impl LayerAdapter {
     }
 
     fn unmap(&self) {
-        // A show closed before its first frame keeps no token for the next.
+        // A show closed before its first frame keeps no token nor opening
+        // for the next.
         self.activation.borrow_mut().take();
+        let _ = OPENER.try_with(|o| o.borrow_mut().take());
         self.timer.stop();
         let Some(s) = self.surfaces.borrow_mut().take() else {
             return;
@@ -1168,6 +1189,9 @@ impl LayerAdapter {
             self.waiting_frame.set(true);
             flush();
             crate::frame_presented();
+            if let Some(f) = OPENER.with(|o| o.borrow_mut().take()) {
+                f();
+            }
         }
     }
 

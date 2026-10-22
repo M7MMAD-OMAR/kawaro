@@ -236,16 +236,20 @@ file no action takes, shows nothing at all.
   from there S-014 and S-019 apply unchanged. With `SBARHIVE_DEBUG_FOCUS`
   the show prints `hive reveal: N`, N the cells of the `drop cells:` line
   before it. Budget: at most 150 ms from that enter to the hive's first
-  `wl_surface.attach`, by the daemon's trace timestamps.
+  `wl_surface.attach`, by the daemon's trace timestamps. The opening
+  animation starts at the reveal, after that first frame, not at the bind
+  (S-022); with reduced motion the hive is open at once.
 - **Hide.** Anything else hides the show without a frame and prints
   `hive probe: hidden (R)`, one line per show, with R one of:
   `pointer` (a `wl_pointer.enter`, no drag), `no-uri-list` (a drag with no
   `text/uri-list` offer), `no-actions` (files with no action; the empty
   `drop cells:` line comes first and no `no_actions` text is drawn),
-  `release` (the key let go in a hold show) and `cap` (10 s, the
-  `ENTER_TIMEOUT`, with no event). Esc and Cancel cannot reach the catcher
-  before an enter, so they print nothing. Every move from `Probing` to
-  `Hidden` calls `on_dismiss` once, so the long press gate forgets the show.
+  `release` (the key let go in a hold show), `cap` (10 s, the
+  `ENTER_TIMEOUT`, with no event) and `replaced` (a new show came first;
+  printed while the new one is made). Esc and Cancel cannot reach the
+  catcher before an enter, so they print nothing. Every move from `Probing`
+  to `Hidden` calls `on_dismiss` once, so the long press gate forgets the
+  show, except `replaced`: the new show's request is already under way.
 - **Window path.** GNOME and a running screen reader keep the centred
   window, which waits with its text as before (S-014 AC3 and AC10), and
   print no `hive reveal` or `hive probe` line.

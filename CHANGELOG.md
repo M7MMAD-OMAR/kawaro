@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Fixed
+- Drop follow-ups (S-022): on the layer path a probed drop hive now plays its opening animation when it is revealed, the opening animation of every overlay show draws its frames from the first drawn frame, a new drop show over one still probing prints `hive probe: hidden (replaced)` without dismissing it, and a new drag after `sbarhive drop --release` over a revealed hive is now checked to be read again. «تنفتح خلية الإفلات بحركتها حين تُكشف، ويُطبع سبب `replaced` لظهور يحل محل ظهور ما زال يفحص، ويُفحص أن السحب التالي بعد ترك المفتاح فوق الخلية يُقرأ».
+
 ## [0.3.1] - 2026-10-22 «الإفلات بسحب حقيقي»
 
 ### Fixed
