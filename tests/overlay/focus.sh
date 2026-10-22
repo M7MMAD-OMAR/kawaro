@@ -16,15 +16,23 @@
 # Checks:
 #   token at levels 1 and 4: activate(<client's token>, <catcher>) on the
 #     show's catcher, and "hive focus: true".
-#   notoken and bogus at level 4: no "hive focus: true" (S-013 AC4).
-#   notoken at level 1: wl_keyboard.enter on the catcher within 500 ms of
-#     the show's get_layer_surface, and "hive focus: true".
-#   notoken at levels 2 and 3: measured and printed in a table, no check
-#     (assumed in ADR 0004; a difference from level 1 is the maintainer's call).
+#   notoken and bogus at level 4, pointer still (S-013 AC4, S-027 AC3): the
+#     show is a layer surface, no wl_keyboard.enter on the catcher, no
+#     "hive focus: true", focus=false in the TABLE line; bogus still sends
+#     activate("sbarhive-bogus-token", <catcher>).
+#   notoken at levels 0 to 3 (S-027 AC4, hard checks): wl_keyboard.enter on
+#     the catcher within 500 ms of the show's get_layer_surface, and
+#     "hive focus: true".
+#   every case (S-027 AC2): the first set_keyboard_interactivity on the
+#     show's layer surface has value 1 and comes before the catcher's first
+#     wl_surface.commit, and none follows that commit.
+#   notoken at levels 0 to 3 and token at levels 1 and 4 (S-027 AC5): Esc
+#     (evdev 1) injected through kwin-input while client.py runs, and the
+#     layer surface's destroy follows within 1000 ms.
 # Runs with a throwaway HOME, XDG dirs, runtime dir and session bus. Never
 # touches the live desktop or profile.
 # Usage: tests/overlay/focus.sh [LEVEL:CASE ...] [target/release]
-#   default cases: 1:token 1:notoken 4:token 4:notoken 4:bogus 2:notoken 3:notoken
+#   default cases: 0:notoken 1:token 1:notoken 2:notoken 3:notoken 4:token 4:notoken 4:bogus
 # Conditions go to check() in single quotes and are expanded by eval.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -37,7 +45,7 @@ BIN="$ROOT/target/release"
 for a in "$@"; do
   case "$a" in [0-4]:token|[0-4]:notoken|[0-4]:bogus) CASES+=("$a") ;; *) BIN="$a" ;; esac
 done
-[ ${#CASES[@]} -eq 0 ] && CASES=(1:token 1:notoken 4:token 4:notoken 4:bogus 2:notoken 3:notoken)
+[ ${#CASES[@]} -eq 0 ] && CASES=(0:notoken 1:token 1:notoken 2:notoken 3:notoken 4:token 4:notoken 4:bogus)
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
@@ -97,6 +105,17 @@ inner() {
   else
     sleep 6
   fi
+  # S-027 AC5: in the cases where the hive must take the keyboard, Esc is
+  # injected while client.py still runs, and the injection time is taken in
+  # the trace's clock (WAYLAND_DEBUG stamps are UTC wall time).
+  local esc_case=0 esc_at="" client_alive=no
+  case "$LEVEL:$CASE" in [0-3]:notoken | 1:token | 4:token) esc_case=1 ;; esac
+  if [ "$esc_case" = 1 ]; then
+    kill -0 "$client" 2>/dev/null && client_alive=yes
+    esc_at="[$(date -u +%H:%M:%S.%6N)]"
+    echo "keydown 1" >&3; echo "sleep 40" >&3; echo "keyup 1" >&3
+    sleep 1.5
+  fi
   local seg; seg=$(tail -n +$((mark + 1)) "$DLOG")
   kill $client 2>/dev/null
 
@@ -111,8 +130,40 @@ inner() {
   tok=$(grep -oE 'client: token [^ ]+' "$log-client.log" | head -1 | cut -d' ' -f3)
   acts=$(grep -E -- "${R}xdg_activation_v1[#@][0-9]+\.activate\(" <<<"$seg" | sed -E 's/^\[[^]]*\] +//')
   focus_true=$(grep -c '^hive focus: true$' <<<"$seg")
+  # S-027 AC2: order of the keyboard interactivity requests against the
+  # catcher's commits, by line number in the trace (stamps can tie). The
+  # window starts at the catcher's create_surface (or get_layer_surface),
+  # because object ids are reused across shows.
+  local lsurf="" n_gl=0 n_from=0 n_c1=0 n_k1=0 k1_val=none n_klate=0 n_destroy=0 n
+  lsurf=$(grep -oE 'zwlr_layer_surface_v1[#@][0-9]+' <<<"$gl" | head -1)
+  if [ -n "$gl" ] && [ -n "$cat" ] && [ -n "$lsurf" ]; then
+    n_gl=$(grep -nF -- "$gl" <<<"$seg" | head -1 | cut -d: -f1)
+    n_from=$n_gl
+    n=$(head -n "$n_gl" <<<"$seg" | grep -nE -- "${R}wl_compositor[#@][0-9]+\.create_surface\(new id $cat\)" | tail -1 | cut -d: -f1)
+    [ -n "$n" ] && n_from=$n
+    n_destroy=$(tail -n +"$n_gl" <<<"$seg" | grep -nE -- "${R}$lsurf\.destroy\(\)" | head -1 | cut -d: -f1)
+    if [ -n "$n_destroy" ]; then n_destroy=$((n_gl + n_destroy - 1)); else n_destroy=$(wc -l <<<"$seg"); fi
+    local win; win=$(sed -n "${n_from},${n_destroy}p" <<<"$seg")
+    n=$(grep -nE -- "${R}$cat\.commit\(\)" <<<"$win" | head -1 | cut -d: -f1); [ -n "$n" ] && n_c1=$n
+    n=$(grep -nE -- "${R}$lsurf\.set_keyboard_interactivity\(" <<<"$win" | head -1); if [ -n "$n" ]; then
+      n_k1=${n%%:*}; k1_val=$(sed -E 's/.*set_keyboard_interactivity\(([0-9]+)\).*/\1/' <<<"$n"); fi
+    [ "$n_c1" -gt 0 ] && n_klate=$(tail -n +"$((n_c1 + 1))" <<<"$win" | grep -cE -- "${R}$lsurf\.set_keyboard_interactivity\(")
+  fi
+  # S-027 AC5: time from the injected Esc to the layer surface's destroy.
+  local destroy_line="" esc_dt=none
+  [ -n "$lsurf" ] && destroy_line=$(grep -E -- "${R}$lsurf\.destroy\(\)" <<<"$seg" | head -1)
+  [ -n "$esc_at" ] && [ -n "$destroy_line" ] && esc_dt=$(( $(ts_ms "$destroy_line") - $(ts_ms "$esc_at") ))
+  local esc_key; esc_key=$(grep -E -- "^\[[0-9:.]+\] wl_keyboard[#@][0-9]+\.key\([0-9]+, [0-9]+, 1, 1\)" <<<"$seg" | tail -1 | cut -d' ' -f1)
+  local table_focus; table_focus=$([ "$focus_true" -ge 1 ] && echo true || echo false)
   echo "INFO level $LEVEL $CASE: layer show ${gl:+yes}${gl:-none}, catcher ${cat:-none}, token ${tok:-none}, activate: $(tr '\n' ' ' <<<"$acts"), keyboard enter after ${dt} ms, hive focus lines: $(grep '^hive focus' <<<"$seg" | tr '\n' ' ')"
-  echo "TABLE level=$LEVEL case=$CASE focus=$([ "$focus_true" -ge 1 ] && echo true || echo false) enter_ms=$dt"
+  echo "INFO level $LEVEL $CASE: layer surface ${lsurf:-none}, first set_keyboard_interactivity(${k1_val}) at line ${n_k1}, catcher's first commit at line ${n_c1}, set_keyboard_interactivity after that commit: ${n_klate}"
+  [ "$esc_case" = 1 ] && echo "INFO level $LEVEL $CASE: Esc injected at ${esc_at} (client.py running: $client_alive), Esc key event ${esc_key:-none}, destroy ${destroy_line:+at $(cut -d' ' -f1 <<<"$destroy_line")}, Esc to destroy ${esc_dt} ms"
+  local table="TABLE level=$LEVEL case=$CASE focus=$table_focus enter_ms=$dt"
+  echo "$table"
+  check "S-027 AC2 level $LEVEL $CASE: the first set_keyboard_interactivity on the layer surface is 1 and comes before the catcher's first commit" \
+    '[ "$n_k1" -gt 0 ] && [ "$n_c1" -gt 0 ] && [ "$k1_val" = 1 ] && [ "$n_k1" -lt "$n_c1" ]'
+  check "S-027 AC2 level $LEVEL $CASE: no set_keyboard_interactivity on the layer surface after the catcher's first commit" \
+    '[ "$n_c1" -gt 0 ] && [ "$n_klate" -eq 0 ]'
   check "AC10 level $LEVEL $CASE: the measured show is a layer surface" '[ -n "$cat" ]'
   case "$LEVEL:$CASE" in
   1:token | 4:token)
@@ -123,13 +174,17 @@ inner() {
     ;;
   4:notoken | 4:bogus)
     check "AC10 level 4 $CASE, pointer still: the hive does not take the keyboard (no hive focus: true)" '[ -n "$cat" ] && [ "$focus_true" -eq 0 ]'
+    check "S-027 AC3 level 4 $CASE, pointer still: no wl_keyboard.enter on the catcher" '[ -n "$cat" ] && [ -z "$enter" ]'
+    check "S-027 AC3 level 4 $CASE, pointer still: focus=false in the TABLE line" '[ -n "$cat" ] && grep -q " focus=false " <<<"$table "'
     ;;
-  1:notoken)
-    check "AC10 level 1 notoken: wl_keyboard.enter on the catcher within 500 ms of get_layer_surface" '[ "$dt" != none ] && [ "$dt" -le 500 ]'
-    check "AC10 level 1 notoken: hive focus: true" '[ "$focus_true" -ge 1 ]'
+  [0-3]:notoken)
+    check "S-027 AC4 level $LEVEL notoken: wl_keyboard.enter on the catcher within 500 ms of get_layer_surface" '[ "$dt" != none ] && [ "$dt" -le 500 ]'
+    check "S-027 AC4 level $LEVEL notoken: hive focus: true" '[ "$focus_true" -ge 1 ]'
     ;;
-  *) echo "INFO level $LEVEL $CASE: measured only (AC10, levels 2 and 3)" ;;
+  *) echo "INFO level $LEVEL $CASE: no level check for this case" ;;
   esac
+  [ "$esc_case" = 1 ] && check "S-027 AC5 level $LEVEL $CASE: Esc injected while client.py runs, and the layer surface's destroy follows within 1000 ms" \
+    '[ "$client_alive" = yes ] && [ "$esc_dt" != none ] && [ "$esc_dt" -ge 0 ] && [ "$esc_dt" -le 1000 ]'
   [ "$CASE" = bogus ] && check "AC10 level $LEVEL bogus: activate(\"sbarhive-bogus-token\", <catcher>) still sent" \
     '[ -n "$cat" ] && grep -qF "activate(\"sbarhive-bogus-token\", $cat)" <<<"$acts"'
 
@@ -165,7 +220,7 @@ for C in "${CASES[@]}"; do
   grep -q '^RESULT PASS' "$OUT/focus-l$LEVEL-$CASE.txt" || ALL=1
   rm -rf "$SANDBOX" "$RUNTIME"
 done
-echo "== levels 2 and 3 without a token, and the rest (AC10 table)"
+echo "== every case (AC10 and S-027 table)"
 grep '^TABLE' "$SUMMARY" | sed 's/^TABLE /  /'
 if [ "$ALL" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL"; fi
 exit "$ALL"
