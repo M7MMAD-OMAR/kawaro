@@ -1,5 +1,5 @@
 # S-025 المحركات الخارجية على ويندوز: شجرة العمليات والاكتشاف ورابط الملف
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: S-025a: الاختبارات مكتوبة وتفشل، بانتظار المنفِّذ؛ S-025b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 3 و7. للإصدار 0.6.0. لا يلمس `crates/ui`. مستقلة عن S-022 إلى S-024 في الشيفرة.
 
@@ -72,3 +72,35 @@ S-025b:
 
 ## سجل المراجعة
 - 2026-10-22، المخطِّط: `CREATE_NO_WINDOW` إضافة لا يذكرها ADR؛ بدونها يفتح كل برنامج طرفية نافذة حين تشغّله خدمة بنظام `windows`. رسالة المحرك الغائب (ADR القسم 7) لم تُسند لقصة في جدول ADR، فوُضعت في S-025b لأنها في engines وحدها.
+- 2026-10-22، المختبِر (S-025a):
+  - العقد المثبت في رأس `crates/engines/src/office/tree.rs` (الملف جديد، فيه وحدة الاختبار وحدها، والتنفيذ يُكتب فوقها): الثابتان `CREATE_SUSPENDED` و`CREATE_NO_WINDOW` من النوع `u32`؛ السمة `JobOps` بنوعين مرافقين `Job` (مقبض مملوك يُغلق عند الإسقاط) و`Child`، وطرائقها `create_job` و`kill_on_close(&Job)` و`spawn_suspended() -> io::Result<(Child, u32)>` (العملية ومعرّفها) و`assign(&Job, &Child)` و`threads_of(pid) -> io::Result<Vec<u32>>` و`resume(tid)` و`terminate_process(&Child)` بلا قيمة معادة؛ `start_in_job<O: JobOps>(ops: &mut O) -> io::Result<(O::Job, O::Child)>`؛ `threads_of(pid: u32, entries: &[(u32, u32)]) -> Vec<u32>` والأزواج (معرّف العملية المالكة، معرّف الخيط)؛ `has_exe_extension(name: &str) -> bool`. وأُضيف `mod tree;` إلى `office.rs` بلا شرط منصة، ولم يتغير شيء آخر فيه.
+  - الاختبارات في `crates/engines/src/office/tree.rs` (مكتبة `sbarhive-engines`): `ac3_flag_constants_have_the_win32_values`؛ `ac1_success_runs_the_sequence_and_keeps_the_job_open` (التسلسل كاملاً بـ `threads_of(10)` ثم `resume(1)` و`resume(3)`، ولا إنهاء، وعدّاد الإغلاق 0 ما دامت المهمة المعادة محفوظة ثم 1 بعد إسقاطها)؛ `ac1_assign_failure_terminates_returns_the_error_and_closes_the_job` (التسلسل ينتهي بـ `assign` ثم `terminate_process`، والخطأ المعاد هو خطأ `assign` برمزه 5، و`resume` صفر، والإنهاء 1، والإغلاق 1)؛ `ac2_threads_of_keeps_the_threads_of_one_pid_in_order`؛ `ac2_no_threads_is_an_error_and_terminates_the_suspended_process`؛ `ac5_has_exe_extension_for_the_nine_names`.
+  - غموض وقرارات: (1) شكل السمة لم يحدده المعيار، فاختيرت الأنواع المرافقة حتى يصلح مقبض ويندوز و`std::process::Child`، ويُعدّ الإغلاق بإسقاط `Job` لا بطريقة `close` صريحة. (2) AC2 لا يذكر عدّاد الإغلاق للقائمة الفارغة؛ الاختبار يطلب 1 كما في AC1، لأن الخطأ لا يعيد المهمة فإما أن تُغلق أو تتسرّب. (3) AC5 يقول «الأسماء التسعة» والمعيار يسرد ثمانية (`a.exe` و`A.EXE` و`soffice.Com`، و`a.bat` و`a.cmd` و`a` و`a.exe.txt` و`.exe`)، فاختُبرت الثمانية ولم يُخترع تاسع. (4) فشل `create_job` أو `kill_on_close` أو `spawn_suspended` أو `threads_of` أو `resume` أو `terminate_process` لا يذكره المعيار، فلا اختبار له. (5) `is_executable` على ويندوز وثابتا AC3 مقابل `windows_sys` وجانب ويندوز من AC4 (`TerminateJobObject` و`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) لا تُبنى على لينكس، فهي لـ `W` وللمراجع بقراءة `non_unix.rs`، ولا فحص نصي لها لأن الجدول يجعلها مراجعة.
+  - للمراجع لا للاختبار: `W`، و`X` (اليوم لا يسرد `windows-sys` لـ engines، فهو أحمر قبل التنفيذ)، وعدد `[[package]]` (671 اليوم أصلاً، فاختبار له ينجح قبل التنفيذ)، و`non_unix.rs` في `exclude_globs`، وسطر CHANGELOG.md، و`git diff --stat main...HEAD -- crates/ui`، و`C` و`M`.
+  - AC4 على لينكس: اختبارات `run_child` القائمة في وحدة اختبار `office.rs` و`crates/engines/tests/office_engine.rs` تبقى بلا تعديل. فحص `crates/*/tests/*` يغطي `office_engine.rs`؛ والوحدتان المضمّنتان يجب ألا تتغيرا بعد هذا الالتزام (فرق فارغ مطلوب، و`<T>` التزام المختبِر):
+    `diff <(git show <T>:crates/engines/src/office/tree.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/office/tree.rs)`
+    `diff <(git show <T>:crates/engines/src/office.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/office.rs)`
+  - تنبيه: ثنائي اختبارات مكتبة engines لا يُبنى حتى يصل التنفيذ، فاختبارات الوحدة القائمة فيه (ومنها `run_child` في `office.rs`) حمراء حتى ذلك. اختبارات التكامل تُبنى: `office_engine` خضراء (12).
+  - تحقق من منطق الاختبارات: نسخة مؤقتة في مجلد الجلسة (حُذفت ولا تُدمج) بتطبيق مختصر للعقد نجحت فيها الاختبارات الستة، و`cargo clippy --tests -D warnings` نظيف عليها. هنا `cargo fmt --check -p sbarhive-engines` نظيف.
+  - مخرجات الفشل (كل أمر داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
+```
+$ cargo test -j 2 -p sbarhive-engines --lib
+      1 error[E0405]: cannot find trait `JobOps` in this scope
+      1 error[E0425]: cannot find function `has_exe_extension` in this scope
+      3 error[E0425]: cannot find function `start_in_job` in this scope
+      2 error[E0425]: cannot find function `threads_of` in this scope
+      1 error[E0425]: cannot find value `CREATE_NO_WINDOW` in this scope
+      1 error[E0425]: cannot find value `CREATE_SUSPENDED` in this scope
+warning: unused import: `super::*`  --> crates/engines/src/office/tree.rs:31:9
+error: could not compile `sbarhive-engines` (lib test) due to 9 previous errors; 1 warning emitted
+
+$ cargo test -j 2 -p sbarhive-engines --test office_engine      # AC4، خط الأساس
+test result: ok. 12 passed; 0 failed
+
+$ env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-engines --lib -- -D warnings   # W، بوابة لا اختبار
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
+
+$ env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --target x86_64-pc-windows-gnu -p sbarhive-engines -e normal --depth 1   # X
+├── image v0.25.10  ├── lopdf v0.45.0  ├── miniz_oxide v0.8.9  ├── pdf-writer v0.15.0  ├── sbarhive-core v0.3.0
+├── tempfile v3.27.0  ├── thiserror v2.0.21  ├── toml v0.8.23  ├── webp v0.3.1  └── zip v9.0.5   (لا windows-sys بعد)
+```

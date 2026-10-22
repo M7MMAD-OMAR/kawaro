@@ -294,6 +294,8 @@ fn is_executable(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 }
 
+mod tree;
+
 // The non-Unix versions live in their own file, so `.cargo/mutants.toml`
 // can leave them out: a Linux build never compiles them.
 #[cfg(not(unix))]
