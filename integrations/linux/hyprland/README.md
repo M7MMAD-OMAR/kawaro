@@ -65,6 +65,22 @@ hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --releas
     { release = true, ignore_mods = true, description = "SbarHive: release to close" })
 ```
 
+لإمساك Alt الأيسر بدل Super+Z (مفترض كذلك)، بصيغة hyprlang:
+
+```
+bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --release
+```
+
+وبصيغة Lua:
+
+```
+hl.bind("ALT + ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+    { non_consuming = true, description = "SbarHive: hold Alt to drop" })
+hl.bind("ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+    { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
+```
+
 ملاحظات، كلها غير متحقق منها:
 - ربط الترك لا يصل إن تركت المُعدِّل قبل المفتاح الأساسي (تترك Super قبل Z مثلاً)، لذلك يحتاج تجاهل المُعدِّلات: العلم `i` مع `r` في hyprlang، و`ignore_mods` في Lua.
 - ربط الضغط على Alt وحده أو أي مُعدِّل يجب أن يكون غير مستهلِك (العلم `n` في hyprlang، و`non_consuming` في Lua)، حتى تبقى تركيبات مثل Alt+Tab سليمة.
@@ -134,6 +150,22 @@ hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold -
     { non_consuming = true, description = "SbarHive: hold to drop" })
 hl.bind("SUPER + Z", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
     { release = true, ignore_mods = true, description = "SbarHive: release to close" })
+```
+
+To hold left Alt instead of Super+Z (assumed as well), hyprlang form:
+
+```
+bindn = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
+bindri = ALT, ALT_L, exec, ~/.local/bin/sbarhive drop --release
+```
+
+Lua form:
+
+```
+hl.bind("ALT + ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
+    { non_consuming = true, description = "SbarHive: hold Alt to drop" })
+hl.bind("ALT_L", hl.dsp.exec_cmd(HOME .. "/.local/bin/sbarhive drop --release"),
+    { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
 ```
 
 Notes, none of them verified:

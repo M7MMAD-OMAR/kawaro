@@ -51,6 +51,8 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 على Hyprland يمكن ربط Super مع النقر اليمين بفتح الخلية للملفات المحددة مباشرة. الطريقة في `integrations/linux/hyprland/README.md`.
 
+لإظهار الخلية وأنت تسحب ملفاً، اربط الأمر `sbarhive drop` باختصار، والافتراضي Super+Z. الطريقة في GNOME وKDE وHyprland في `docs/drop-shortcut.md`.
+
 ## الإعدادات
 
 افتح الإعدادات من أيقونة صبار هايف في شريط النظام، أو عدّل `~/.config/sbarhive/config.toml` مباشرة: اللغة، والمظهر، ومكان الناتج (بجانب الأصل أو في مجلد فرعي)، ومستوى الجودة. ويمكن إضافة إجراءات خاصة بك بملفات TOML في `~/.config/sbarhive/actions/`.
@@ -138,6 +140,10 @@ sbarhive open --from-clipboard          # open the hive for copied files
 
 On Hyprland you can bind Super plus right-click to open the hive for the
 selected files directly; see `integrations/linux/hyprland/README.md`.
+
+To show the hive while you drag a file, bind `sbarhive drop` to a
+shortcut, Super+Z by default; GNOME, KDE and Hyprland steps are in
+`docs/drop-shortcut.md`.
 
 ## Settings
 
