@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e مسودة محدَّثة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3) تنتظر موافقة محمد؛ S-014f لم تبدأ
+الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 عند المختبِر؛ S-014f لم تبدأ
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -336,3 +336,11 @@
     4. إن لم يرسل أحد المنافذ الثلاثة `Deactivated` عند الترك: ظهور فوري لذلك المنفذ وحده، أم يبقى الربط اليدوي هناك؟
     5. من ألغى نافذة الموافقة (`denied` في AC19) ستعود له النافذة عند كل تشغيل للخدمة، أي كل دخول. هل تتذكر الخدمة الرفض (مثلاً مفتاح في `config.toml` يوقف التسجيل حتى يغيّره المستخدم من الإعدادات)، أم تسأل في كل تشغيل؟ AC21 اليوم يغطي حالة القبول فقط.
     6. Hyprland: هل يبقى سطر `exec` مع `--at` الطريق الأول في التوثيق وسطر `global` بديلاً (المقترح، القرار 7)، أم العكس؟
+- 2026-10-22, manager under Mohammad's delegation (he asked not to be asked and to finish the work): S-014e (e1, e2, e3) is approved with the planner's seven decisions. Answers to the six questions:
+  1. The portal shortcut is hold only, like the documented Alt and Super+Z hold binds. No instant option in `config.toml` for now.
+  2. The docs tell users who bound Super+Z by hand to remove that bind once the portal registers it.
+  3. If ashpd would add a second zbus or any tokio, write the small zbus proxy by hand against the installed interface XML instead.
+  4. If a portal backend never sends `Deactivated`, do not register through that backend; it keeps the manual bind, and the daemon prints the `portal shortcuts: unavailable (R)` line with a reason the tester names.
+  5. A denied consent is remembered: a `config.toml` key stops registration until the user turns it back on in the settings, so the dialog does not return at every login.
+  6. On Hyprland the documented `exec` bind with `--at` stays first; the portal `global` line is the alternative.
+  Story numbers: the Windows work on branch `windows/0.6.0` uses S-022 to S-026, which clash with main's S-022. New stories on main start at S-027; the renumbering of the clash is settled when that branch merges.
