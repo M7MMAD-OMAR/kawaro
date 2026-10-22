@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.0" date="2026-10-22">
+      <description>
+        <p>Drag a file, hold a key, and drop it on the hive. The hive opens over every window at the pointer on Hyprland and KDE, and as a centred window on GNOME.</p>
+      </description>
+    </release>
     <release version="0.2.2" date="2026-10-20">
       <description>
         <p>SbarHive appears in app launchers and opens its settings.</p>

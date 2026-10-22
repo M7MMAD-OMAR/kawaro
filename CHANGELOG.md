@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-22 «الإفلات»
+
 ### Added
 - Drop shortcut docs and budget (S-014d): `docs/drop-shortcut.md` explains, in Arabic and English, how to bind `sbarhive drop` to Super+Z (the default) in GNOME Settings, KDE System Settings and Hyprland, the Hyprland README adds the held left Alt binds (`sbarhive drop --hold` and `--release`), and a drop-mode show is measured on headless KWin at a median 51.3 ms to the first frame, taking no keyboard. «توثيق ربط اختصار الإفلات Super+Z في GNOME وKDE وHyprland».
 - Hold a key to drop, and the dragged file in the drop hive (S-019e, S-019f): `sbarhive drop --hold` is the press of a held key and `sbarhive drop --release` its release, both returning at once; the daemon's long press gate shows the drop hive only once the key has been held for `hold_ms` (config.toml, 100 to 2000, default 400, read at every press), so a tap shows nothing, the release closes the hive without running anything, the drag leaving it does not close it while the key is held, and any close resets the gate; after a drag enters, the drop hive's centre shows the dragged file's thumbnail or kind icon, or the count of several. «تظهر خلية الإفلات بعد ضغط مطوّل على المفتاح وتختفي عند تركه، وفي مركزها صورة الملف المسحوب».
