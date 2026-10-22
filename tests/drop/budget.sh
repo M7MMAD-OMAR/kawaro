@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# S-014d AC12 (first half): from the shortcut to the first frame drawn under
-# 150 ms with a ready daemon, median of 20 drop-mode shows. Runs
+# S-014d AC12 (first half): from the shortcut to the show being ready under
+# 150 ms with a ready daemon, median of 20 drop-mode shows (the first frame
+# until S-021, the catcher's ready commit since S-021 AC8, below). Runs
 # crates/ui/tests/measure.sh RUNS IDLE with DROP=1 in its private headless
 # KWin (1920x1080, scale 1, the layer path), and checks:
 #   - measure.sh ran the first show and RUNS warm shows;
@@ -9,7 +10,8 @@
 #     SBARHIVE_DEBUG_FOCUS=1) prints one "hive surface: layer" line per show
 #     and no "hive focus: true" line, because the drop-mode layer takes no
 #     keyboard (S-018 AC13) while a normal show takes it;
-#   - the median warm first_frame_ms is under 150 ms.
+#   - the median warm catcher_ms is under 150 ms (first_frame_ms before
+#     S-021 AC8).
 # The time from the key press to the `sbarhive drop` process (the
 # compositor's spawn) is not in this number; tests/drop/*.sh shortcut cover
 # that the key runs it (AC11). No WAYLAND_DEBUG: it would slow the frames.
@@ -19,12 +21,14 @@
 # with DROP=1 HOLD=1 (hive_bench "show --drop --hold", the gate in
 # sbarhive_core::hold with its default 400 ms), on the layer path, and:
 #   - all RUNS + 1 shows ran, every line says mode=hold and hold_ms=400;
-#   - in every line press_to_frame_ms is first_frame_ms plus the threshold:
+#   - in every line press_to_catcher_ms is catcher_ms plus the threshold:
 #     B - A between 400 and 450 ms (the clock starts at the threshold's end,
 #     neither at the press nor late; an instant show cannot pass);
 #   - one "hive surface: layer" line per show, no "hive focus: true";
-#   - the median warm first_frame_ms is under 150 ms; the median
-#     press_to_frame_ms is printed as INFO (the threshold plus that median).
+#   - the median warm catcher_ms is under 150 ms; the median
+#     press_to_catcher_ms is printed as INFO (the threshold plus that
+#     median). Before S-021 AC8 these were first_frame_ms and
+#     press_to_frame_ms.
 # S-021 AC8 (backlog/S-021-drop-only-on-drag.md, the owner's answer to
 # question 1): a drop show on the layer path binds a hidden catcher and
 # draws the hive only once a drag of files with an action enters it, so a
