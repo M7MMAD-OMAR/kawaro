@@ -11,7 +11,7 @@ ADR يجعلها قصة واحدة، وهي أكبر من يوم، فقُسمت:
 | القصة | المحتوى | المعايير | الملفات |
 | --- | --- | --- | --- |
 | S-026a | سكربت البناء، وفحص `objdump`، وبوابة clippy للهدف بكل الأهداف، وحصر اختبارات Unix | AC1 إلى AC7 | `scripts/windows/{build.sh,check-dlls.sh,check.sh,README.md}`، `tests/windows/fixtures/{objdump-ok.txt,objdump-mingw.txt}`، `crates/cli/tests/{cli.rs,settings.rs}`، `crates/core/tests/{output.rs,contracts.rs}`، `crates/engines/src/office.rs` (وحدة الاختبار)، `crates/engines/tests/{office_engine.rs,pdf_ghostscript.rs}`، وربما `.cargo/config.toml` (AC2)، `docs/engines.md`، `CHANGELOG.md` |
-| S-026b | وظيفتا CI، وسكربت ISO، و`run-tests.cmd` | AC8 إلى AC11 | `.github/workflows/ci.yml`، `scripts/windows/{make-iso.sh,run-tests.cmd,README.md}`، `CHANGELOG.md` |
+| S-026b | وظيفتا CI، وسكربت ISO، و`run-tests.cmd` | AC8 إلى AC12 | `.github/workflows/ci.yml`، `scripts/windows/{make-iso.sh,run-tests.cmd,README.md}`، `CHANGELOG.md` |
 
 ## معايير القبول
 S-026a:
@@ -28,6 +28,7 @@ S-026b:
 - AC9: `scripts/windows/make-iso.sh` يبني بـ `genisoimage -J -R` صورة `/home/sbarah/.cache/sbarhive-win-target/sbarhive-win-tests.iso` فيها `bin/sbarhive.exe`، وملفات الاختبار في `tests/`، و`run-tests.cmd`، و`SHA256SUMS`. `isoinfo -J -f -i <iso>` يسرد كل هذه، وعدد أسطر `SHA256SUMS` يساوي عدد الملفات التنفيذية، و`sha256sum` لـ `run-tests.cmd` المستخرج بـ `isoinfo -J -x` يساوي الأصل.
 - AC10: `run-tests.cmd` بنهايات CRLF (`file` يقول `with CRLF line terminators`). يشغّل كل `tests\*.exe` بـ `--test-threads=1`، ويكتب في `%USERPROFILE%\sbarhive-tests\results.txt` سطراً `<exe> <errorlevel>` لكل ملف، وآخر سطر `total N failed F`، والمخرج الكامل في `log.txt` بجانبه. لا يكتب على القرص المضغوط.
 - AC11: `scripts/windows/README.md` يضيف بالعربية والإنكليزية أمر الإرفاق `virsh -c qemu:///session attach-disk win11 <iso> sdb --type cdrom --mode readonly` دون تشغيله في هذه القصة.
+- AC12 (أضافه المدير في 2026-10-22 من ملاحظات مراجع S-026a): `scripts/windows/check-dlls.sh` يخرج بـ 2 لكل خطأ إدخال (ملف `--text` غير موجود، أو مدخل بلا أي سطر `DLL Name`)، ويبقى 1 للرفض وحده. وظيفة `windows-cross` تضبط `CARGO_TARGET_DIR` داخل مساحة العمل. و`docs/engines.md` ينسب `x86_64-w64-mingw32-objdump` إلى mingw64-binutils بإصداره ورخصته، ويسجّل حزمة `mingw-w64` في Ubuntu. الملفان `check-dlls.sh` و`docs/engines.md` ضمن ملفات S-026b.
 
 لكل قصة فرعية:
 - سطر واحد للقصة كلها في `CHANGELOG.md` تحت `[Unreleased]`، بالإنكليزية مع نص عربي بين «»: تضيفه S-026a، وS-026b تعدّل السطر نفسه.
@@ -55,6 +56,7 @@ S-026b:
 | AC9 | `make-iso.sh` ثم `isoinfo -J -f` و`isoinfo -J -x` و`sha256sum` | تكامل |
 | AC10 | `file scripts/windows/run-tests.cmd`، والمراجع يقرأ الملف | مراجعة |
 | AC7، AC11 | المراجع يقرأ engines.md وREADME وCHANGELOG.md | مراجعة |
+| AC12 | تشغيل `check-dlls.sh` على ملف مفقود ومدخل فارغ، وقراءة ci.yml وengines.md | وحدة |
 
 ## تحقق حي مؤجَّل إلى S-034
 - أول نجاح للوظيفتين في CI: `ci.yml` لا يعمل إلا عند الدفع إلى main أو طلب دمج، والدفع والدمج خارج هذه القصة ويحتاجان قرار محمد.
