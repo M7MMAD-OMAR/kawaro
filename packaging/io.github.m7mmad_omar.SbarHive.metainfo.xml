@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.3.2" date="2026-10-22">
+      <description>
+        <p>The hive plays its opening animation on Hyprland and KDE again, including the drop hive when a drag reveals it.</p>
+      </description>
+    </release>
     <release version="0.3.1" date="2026-10-22">
       <description>
         <p>The drop hive appears only while you drag files that have an action. Holding the key with no drag, or dragging a file no action takes, shows nothing.</p>

@@ -50,9 +50,9 @@
 #   S-022 AC9 (backlog/S-022-drop-followups.md): that same section of
 #   docs/architecture.md also says the opening animation starts at the
 #   reveal ("open" or "opening", then "animation", and "reveal" within 120
-#   characters either way, line ends included); CHANGELOG.md, under
-#   "## [Unreleased]" (up to the next "## [" heading), has one line that
-#   names S-022 with Arabic and English text.
+#   characters either way, line ends included); CHANGELOG.md has one line
+#   that names S-022 with Arabic and English text (it was under
+#   "## [Unreleased]" until the 0.3.2 release).
 #   S-022 AC10: no prose line of tests/drop/README.md is longer than 80
 #   columns (characters); lines inside ``` fences are not counted.
 #   No em dash or en dash in any of these files, nor in tests/drop/README.md.
@@ -171,8 +171,8 @@ check "S-022 AC9: docs/architecture.md, that section also says the opening anima
   'has "$ARCH" en probing reveal-line probe-line reasons open-at-reveal'
 check "S-021 AC11: CHANGELOG.md has a line that names S-021 in English and in Arabic (released in 0.3.1)" \
   'grep -E "S-021" "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
-check "S-022 AC9: CHANGELOG.md has a line under [Unreleased] that names S-022 in English and in Arabic" \
-  'awk "/^## \\[Unreleased\\]/ { u = 1; next } /^## \\[/ { u = 0 } u" "$LOG" | grep -E "S-022" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
+check "S-022 AC9: CHANGELOG.md has a line that names S-022 in English and in Arabic (released in 0.3.2)" \
+  'grep -E "S-022" "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -qE "[A-Za-z]{4,} [A-Za-z]{2,}"'
 # S-022 AC10: prose lines of tests/drop/README.md over 80 columns, outside
 # ``` fences ("LINE:COLUMNS" each).
 long=$(awk '/^```/ { f = !f; next } !f && length($0) > 80 { printf "%d:%d ", NR, length($0) }' "$HERE/README.md")
