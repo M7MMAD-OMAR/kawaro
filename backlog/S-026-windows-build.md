@@ -1,5 +1,5 @@
 # S-026 البناء المتقاطع لويندوز وبوابته وCI وصورة الاختبار
-الحالة: S-026a: مراجعة (المنفِّذ أنهى، تنتظر المراجع)؛ S-026b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+الحالة: S-026a: منتهية (المراجع: PASS، 2026-10-22)؛ S-026b لم تبدأ (فرع windows/0.6.0 بطلب محمد، 2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسمين 1 و9، وعلى S-022 إلى S-025 (قبلها لا يُبنى `sbarhive.exe` للهدف). للإصدار 0.6.0. لا يلمس `crates/ui`.
 
@@ -159,3 +159,19 @@ FAIL S-026a windows build (heavy) (5 of 6 checks failed)
   - AC5 count: 35 test executables for 35 test targets (core 17, engines 13, cli 5).
   - Results: light suite `PASS (63 checks)`; heavy suite `PASS (11 checks)` in 56 s, run from the app scope (memory.max `max`) with no other cargo; `cargo fmt --check` and Linux `cargo clippy -j 2 --workspace --all-targets -- -D warnings` clean; `cargo test -j 2 --workspace` 697 passed, 0 failed, 1 ignored (equal to the baseline); `shellcheck scripts/windows/*.sh` clean; `scripts/design-lint.sh` clean; AC6 671 `[[package]]`, `Cargo.lock` unchanged; `crates/ui` untouched.
   - One Windows clippy attempt overlapped with a `cargo build --release` another session started at the same moment; it failed on a real warning and was re-run alone. Every later run, the heavy suite and the Linux gates started with `pgrep -x cargo` empty.
+- 2026-10-22, reviewer (S-026a): **PASS**.
+  - Light suite `tests/windows/test_scripts.sh`: PASS (63 checks). Heavy suite `tests/windows/test_heavy.sh` from the app scope (memory.max `max`), `pgrep -x cargo` empty: PASS (11 checks), incremental (0.95 s, the implementer's artifacts were fingerprinted fresh). AC5: 35 test exe files for 35 test targets.
+  - AC1 run by hand through a fifo: first line `cgroup: .../app.slice/run-p3239487-i20022953.scope`, its `memory.max` 6442450944 and `cpu.max` `200000 100000`; exit 0; `file` says `PE32+ executable ... x86-64`.
+  - AC2 on the real exe: `dll check: ok sbarhive.exe 11 imports`, exit 0 (no `lib*.dll`, so no `.cargo/config.toml` is right). `objdump-mingw.txt`: exit 1 with both DLLs. AC3 `check.sh`: exit 0 in its own 6G scope.
+  - `cargo fmt --check` and `cargo clippy -j 2 --workspace --all-targets -- -D warnings`: clean. `cargo test -j 2 --all`: 697 passed, 0 failed, 1 ignored in 45 suites, equal to the baseline (AC4).
+  - `git diff -U0 5be5270` of the nine files: 0 deleted lines, 35 added lines, all cfg lines (26 `#[cfg(unix)]`, 2 indented `#[cfg(unix)]`, 2 `#![cfg(unix)]`, 5 `#[cfg_attr(not(unix), allow(unused_imports))]`). `cargo mutants --list --in-diff` on the crates diff: 0 mutants (cfg lines only).
+  - AC6: 671 `[[package]]`, `Cargo.lock` identical to `5be5270` (it differs from main only through S-022b, S-024 and S-025a). `crates/ui` diff against main empty. `tests/windows/*` unchanged since e6fd108. `shellcheck scripts/windows/*.sh` and `scripts/design-lint.sh` clean; no em or en dash in `main...HEAD`.
+  - Scripts: re-exec through `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%` unless `CI=true` or the `SBARHIVE_WIN_SCOPE` marker; `"$0" "$@"` quoted; `-j 2`; caller `CARGO_TARGET_DIR` kept. CHANGELOG line present (added by the implementer, not duplicated).
+  - Deviations accepted: extra cfg and `cfg_attr` lines on helpers and imports, the guarded `ac1_endpoint_on_unix_is_the_socket_path` (asserts the Unix socket path), and no `.cargo/config.toml`; all inside the manager's cfg-lines-only decisions.
+  - Findings, none blocking:
+    - Low, `docs/engines.md:285`: `x86_64-w64-mingw32-objdump` is called the tool of mingw64-gcc, but `rpm -qf` gives mingw64-binutils 2.46.0 (GPL-3.0-or-later and others), which is not recorded. Fix in S-026b, which must record Ubuntu's `mingw-w64` anyway; add `docs/engines.md` to its file list.
+    - Low, `scripts/windows/check-dlls.sh:12`: `--text` on a missing file exits 1 (the rejection code), while the header at line 8 says input errors are exit 2.
+    - Low, `scripts/windows/check-dlls.sh:20-28`: input with no `DLL Name` line prints `ok <name> 0 imports` and exits 0, so the gate fails open on unparseable output; worth a guard before CI (S-026b) uses another objdump build.
+    - Info, `scripts/windows/build.sh:9`, `check.sh:8`: a caller with `SBARHIVE_WIN_SCOPE` already set skips the scope.
+    - Info, `scripts/windows/build.sh:14-15`, `check.sh:13-14`: a relative caller `CARGO_TARGET_DIR` is resolved after the `cd` to the repo root.
+    - Info for S-026b: with `CI=true` the default target dir is still `/home/sbarah/.cache/...`, which a GitHub runner cannot create; the CI job should set `CARGO_TARGET_DIR`.
