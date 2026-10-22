@@ -6,9 +6,9 @@
 #       GNOME     Settings, Keyboard, custom shortcut, command `sbarhive drop`
 #       KDE       System Settings, Shortcuts, command `sbarhive drop`
 #       Hyprland  a Super+Z bind line that runs `sbarhive drop`, and a left
-#                 Alt bind line (key ALT_L) that runs sbarhive (the owner's
+#                 Alt bind line (key ALT_L) that runs sbarhive (the maintainer's
 #                 two binds, S-014 log), hyprlang or Lua syntax
-#     and names Super+Z, the default the owner chose.
+#     and names Super+Z, the default the maintainer chose.
 #   - integrations/linux/hyprland/README.md, where Hyprland users look, gives
 #     the same two bind lines in its English section, and its Arabic copy
 #     README.ar.md beside it in an Arabic section.

@@ -132,7 +132,7 @@ with `SBARHIVE_DEBUG_FOCUS=1`.
   under the waiting hive, checks text-primary ink in the centre, no cell and
   no S-021 line, and compares the crop of the `hive surface: window`
   rectangle with `snapshots/drop-en-light-waiting.png`. A missing reference
-  is a FAIL: the owner approves a candidate from `out/` and it is copied to
+  is a FAIL: the maintainer approves a candidate from `out/` and it is copied to
   `snapshots/`.
 - `source.py` uses a one pixel transparent drag icon, so the shots show the
   hive only.

@@ -6,7 +6,7 @@ as a thumbnailer would (S-018 AC24 to AC27). Standard library only.
 
 FILE must exist; its path must need no URI escaping (ASCII letters, digits,
 "/", ".", "_", "-"), so file:// plus the path is the GLib URI. CACHE is the
-XDG_CACHE_HOME of a sandbox, never the owner's. SIZE is the cache folder
+XDG_CACHE_HOME of a sandbox, never a real one. SIZE is the cache folder
 (normal, large, x-large, xx-large). The PNG is 8-bit RGBA with the tEXt
 chunks Thumb::URI, Thumb::MTime (seconds) and Thumb::Size, at
 CACHE/thumbnails/SIZE/MD5(URI).png. Pictures are deterministic:

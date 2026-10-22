@@ -76,7 +76,7 @@
 #                    configure plus one frame, and the screenshot box inside
 #                    the surface rectangle. The (0, 0) crop is the candidate
 #                    hive-en-dark-corner.png, compared with
-#                    tests/overlay/snapshots/ (the owner approves it).
+#                    tests/overlay/snapshots/ (the maintainer approves it).
 #   1.5              AC17 (S-018e): a reference show at scale 1, then a
 #                    second private KWin at scale 1.5 (1920x1200 physical,
 #                    1280x800 logical; the scale is seeded in
@@ -1028,7 +1028,7 @@ PY
       check "S-019 AC6 $name: the screenshot box lies inside the hive rectangle and the screen" \
         '[ -n "${bh:-}" ] && [ -n "$sh" ] && [ "$bx" -ge "$sx" ] && [ "$by" -ge "$sy" ] && [ $((bx + bw)) -le $((sx + sw)) ] && [ $((by + bh)) -le $((sy + sh)) ] && [ $((bx + bw)) -le 1280 ] && [ $((by + bh)) -le 800 ]'
     done
-    # AC6: the new reference, approved by the owner. The candidate is the
+    # AC6: the new reference, approved by the maintainer. The candidate is the
     # corner show's hive rectangle, cropped from its screenshot.
     local cseg csx csy csw csh cref="$HERE/snapshots/hive-en-dark-corner.png" ccand="$OUT/hive-en-dark-corner.png"
     cseg=$(seg_of 3)
@@ -1039,7 +1039,7 @@ PY
       check "S-019 AC6: hive-en-dark-corner.png candidate written" 'false'
     elif [ ! -f "$cref" ]; then
       echo "INFO S-019 AC6: candidate $ccand, no approved reference yet"
-      check "S-019 AC6: hive-en-dark-corner.png has an approved reference in tests/overlay/snapshots/ (needs the owner's approval)" 'false'
+      check "S-019 AC6: hive-en-dark-corner.png has an approved reference in tests/overlay/snapshots/ (needs the maintainer's approval)" 'false'
     else
       local cd; cd=$(python3 -I "$ROOT/tests/drop/pixels.py" diff "$ccand" "$cref")
       echo "INFO S-019 AC6: hive-en-dark-corner.png differs from the reference in $cd of its pixels"

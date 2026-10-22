@@ -29,7 +29,7 @@
 #     press_to_catcher_ms is printed as INFO (the threshold plus that
 #     median). Before S-021 AC8 these were first_frame_ms and
 #     press_to_frame_ms.
-# S-021 AC8 (backlog/S-021-drop-only-on-drag.md, the owner's answer to
+# S-021 AC8 (backlog/S-021-drop-only-on-drag.md, the maintainer's answer to
 # question 1): a drop show on the layer path binds a hidden catcher and
 # draws the hive only once a drag of files with an action enters it, so a
 # bench show (no drag) has no first frame any more. Its reference is the

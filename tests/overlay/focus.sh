@@ -20,7 +20,7 @@
 #   notoken at level 1: wl_keyboard.enter on the catcher within 500 ms of
 #     the show's get_layer_surface, and "hive focus: true".
 #   notoken at levels 2 and 3: measured and printed in a table, no check
-#     (assumed in ADR 0004; a difference from level 1 is Mohammad's call).
+#     (assumed in ADR 0004; a difference from level 1 is the maintainer's call).
 # Runs with a throwaway HOME, XDG dirs, runtime dir and session bus. Never
 # touches the live desktop or profile.
 # Usage: tests/overlay/focus.sh [LEVEL:CASE ...] [target/release]

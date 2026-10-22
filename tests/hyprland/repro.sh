@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The hive on Hyprland, in a private nested Hyprland (aquamarine Wayland
 # backend) inside a private headless kwin_wayland --virtual. Reproduces the
-# owner's report on Hyprland 0.56 with SBARHIVE_SURFACE=layer: the overlay
+# report on Hyprland 0.56 with SBARHIVE_SURFACE=layer: the overlay
 # shows, but no `hive focus` line ever comes and input feels frozen.
 # Input comes from org_kde_kwin_fake_input on the outer KWin
 # (tests/drop/kwin-input), so it reaches Hyprland as a real seat keyboard and
@@ -28,7 +28,7 @@
 #                        it (tests/overlay/anchor.py, 1 px) on the 960x540
 #                        logical output; then a drag held still at
 #                        (500, 300) and `sbarhive drop --at "$(hyprctl
-#                        cursorpos)"`, as the owner's binding would run it
+#                        cursorpos)"`, as the documented binding would run it
 #                        (manager decision 1): anchored there at once, one
 #                        wl_subsurface.set_position;
 #                      key release hides (S-019e, AC11 to AC13 on
@@ -92,7 +92,7 @@
 #   AC5 (c) and AC9 (2): `drop --hold`, the layer bound, the pointer still,
 #     `drop --release` (exit 0 within 200 ms): gone within 500 ms,
 #     "hidden (release)".
-# Then drop mode mid-drag, as the owner's Super+Z
+# Then drop mode mid-drag, as the documented Super+Z
 # and Alt-hold bindings run it (a GTK source from tests/drop/source.py drags
 # a PNG): AC9 (3), on the same daemon, a PNG drag and `drop --hold`, the drag
 # moved into the hive: "hive reveal: N", and no protocol error in the daemon
@@ -129,9 +129,9 @@
 # view for a subsurface of a layer surface, so its drag motion listener finds
 # none for the hive subsurface and sends nothing (src/protocols/core/
 # DataDevice.cpp, mouse.move listener in initiateDrag).
-# HYPR_SCALE sets the nested output scale (default 1.333333, the owner's laptop panel).
+# HYPR_SCALE sets the nested output scale (default 1.333333, a common laptop panel scale).
 # HYPR_DROP_VIA=exec runs the mid-drag `sbarhive drop` through Hyprland's
-# exec dispatcher, as the owner's Super+Z binding does.
+# exec dispatcher, as the documented Super+Z binding does.
 # Never touches the live desktop: everything runs with a throwaway HOME, XDG
 # dirs, runtime dir and session bus, with DISPLAY, WAYLAND_DISPLAY,
 # HYPRLAND_INSTANCE_SIGNATURE and the desktop names unset before
@@ -221,7 +221,7 @@ inner() {
   sleep 1
 
   mkdir -p "$XDG_CONFIG_HOME/hypr"
-  # No stay_focused rule for the hive window: the owner's live config has
+  # No stay_focused rule for the hive window: a typical live config has
   # one, but integrations/linux/hyprland/README.md does not recommend it, and
   # it keeps the window path's hive open on a click outside by construction.
   cat >"$XDG_CONFIG_HOME/hypr/sbh.lua" <<LUA
@@ -236,7 +236,7 @@ hl.config({
   animations = { enabled = false },
   input = { follow_mouse = 1 },
 })
--- The owner's rules for the hive window (window path), so it floats centred.
+-- Typical rules for the hive window (window path), so it floats centred.
 local sbarhive = { class = [[^(io\\.github\\.m7mmad_omar\\.SbarHive)$]], title = [[^(SbarHive)$]] }
 hl.window_rule({ match = sbarhive, float = true })
 hl.window_rule({ match = sbarhive, center = true })
@@ -263,7 +263,7 @@ LUA
   # A config error makes Hyprland fall back to its defaults (other scale).
   local cerr; cerr=$(hyprctl configerrors 2>/dev/null | grep -v '^\s*$')
   [ -n "$cerr" ] && { say "FAIL private Hyprland config: $cerr"; finish; return 1; }
-  # The owner's session names Hyprland; only private processes see these.
+  # A real session names Hyprland; only private processes see these.
   export XDG_CURRENT_DESKTOP=Hyprland XDG_SESSION_TYPE=wayland
   say "INFO nested $(Hyprland --version | head -1 | cut -d' ' -f1-2) on $wl, scale $HYPR_SCALE, output $(hyprctl monitors | grep -m1 -oE '[0-9]+x[0-9]+@[0-9.]+')"
 
@@ -531,7 +531,7 @@ for c in json.load(sys.stdin):
     probe_checks "AC5 (a) drop --at, 5 px move" "$aseg" pointer
 
     # AC9, first half of the cycle, on one daemon: (1) `drop --hold --at` the
-    # cursor as the owner's binding runs it, the layer bound, a 5 px move:
+    # cursor as the documented binding runs it, the layer bound, a 5 px move:
     # "hidden (pointer)"; then `drop --release` after that hide exits 0
     # within 200 ms and binds nothing for 1000 ms; (2) AC5 (c): `drop --hold`,
     # the layer bound, the pointer still, `drop --release`: "hidden (release)".
@@ -588,7 +588,7 @@ for c in json.load(sys.stdin):
     replace_checks "pointer at (40, 40), drop --at 500,300 twice, then a move there" "$seg7"
   fi
 
-  # Drop mode mid-drag, as the owner's Super+Z and Alt-hold bindings do: a
+  # Drop mode mid-drag, as the documented Super+Z and Alt-hold bindings do: a
   # GTK drag source (tests/drop/source.py) drags a PNG and `sbarhive drop`
   # runs while the button is held. Three cases:
   #   cell     the drag enters the hive and is released over the WEBP cell
@@ -750,7 +750,7 @@ for c in json.load(sys.stdin):
     s0=$(wc -l <"$SLOG")
     begin_drag
     local dragging=no; sed -n "$((s0 + 1)),\$p" "$SLOG" | grep -q drag-begin && dragging=yes
-    # HYPR_DROP_VIA=exec runs it as the owner's binding does, through
+    # HYPR_DROP_VIA=exec runs it as the documented binding does, through
     # Hyprland's exec (which hands the process an activation token).
     if [ "${HYPR_DROP_VIA:-}" = exec ]; then show hyprctl dispatch "hl.dsp.exec_cmd(\"$BIN/sbarhive drop\")"
     else show "$BIN/sbarhive" drop; fi
@@ -818,7 +818,7 @@ for c in json.load(sys.stdin):
     say "INFO S-021 AC3 timeout drag: probe lines $tall (reveal $trev); Esc drag: probe lines $eall (reveal $erev)"
     check "S-021 AC3 timeout and Esc drags: each prints exactly one probe line, \"hive reveal: N\"" \
       '[ "$tall" -eq 1 ] && [ "$trev" -eq 1 ] && [ "$eall" -eq 1 ] && [ "$erev" -eq 1 ]'
-    # S-021 AC8 (the owner's budget, question 1) and S-022 AC5: the eight
+    # S-021 AC8 (the maintainer's budget, question 1) and S-022 AC5: the eight
     # revealed shows (AC9 (3), the two S-022 AC1 drags, the two S-022 AC4
     # shows, cell, timeout, Esc) are visible, the hive's first attach, at
     # most 150 ms after the drag's first enter on the catcher, by the

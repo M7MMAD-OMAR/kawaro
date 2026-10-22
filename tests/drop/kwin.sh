@@ -11,7 +11,7 @@
 # show's cells at enter must equal `sbarhive actions` for its file. In show 1
 # ScreenShot2 shots are taken before the drag enters the hive and while the
 # drag is over the WEBP cell (it must be highlighted with color.light.accent,
-# a cell across the centre not), and the over box is compared with the owner
+# a cell across the centre not), and the over box is compared with the maintainer
 # approved reference tests/drop/snapshots/drop-en-light-over.png.
 # S-021 (backlog/S-021-drop-only-on-drag.md): before the drag enters, the
 # hive is not drawn on the layer path (AC4: no text-primary, surface-2 or
@@ -27,10 +27,10 @@
 # first commit after the first configure). Last, the waiting hive on the
 # window path (question 4): a daemon with SBARHIVE_SURFACE=window, a PNG
 # drag, the waiting text in the centre, no probe line, and its crop
-# compared with drop-en-light-waiting.png (retaken there; the owner
+# compared with drop-en-light-waiting.png (retaken there; the maintainer
 # approves the candidate).
 # Candidates are always written to the output folder; a missing reference is
-# a FAIL until the owner approves one and it is copied there. The daemon runs
+# a FAIL until the maintainer approves one and it is copied there. The daemon runs
 # light (SBARHIVE_COLOR_SCHEME) with reduced motion (SBARHIVE_REDUCED_MOTION),
 # so the highlight is drawn at once and the shots are stable.
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
@@ -268,7 +268,7 @@ inner() {
     if [ ! -f "$cand" ]; then
       echo "FAIL $1: drop-en-light-$2.png: no screenshot taken"; FAILS=$((FAILS + 1))
     elif [ ! -f "$ref" ]; then
-      echo "FAIL $1: no approved reference $ref (candidate: $cand, needs the owner's approval)"; FAILS=$((FAILS + 1))
+      echo "FAIL $1: no approved reference $ref (candidate: $cand, needs the maintainer's approval)"; FAILS=$((FAILS + 1))
     else
       d=$(python3 -I "$px" diff "$cand" "$ref")
       echo "INFO $1 drop-en-light-$2.png differs from the reference in $d of its pixels"
@@ -722,7 +722,7 @@ inner() {
     replace_checks "pointer at (100, 700), drop --at 640,400 twice, then a move there" "$seg"
   }
 
-  # S-021 question 4 (Mohammad, 2026-10-22): the waiting state is no longer
+  # S-021 question 4 (the maintainer, 2026-10-22): the waiting state is no longer
   # drawn on the layer path, so drop-en-light-waiting.png is retaken on the
   # window path. A new daemon with SBARHIVE_SURFACE=window (same language,
   # scheme and reduced motion), a PNG drag held still at (210, 180), then
@@ -733,9 +733,9 @@ inner() {
   # S-014 AC10 had them on the layer path: the shot comes before the cells
   # (no surface-2 or accent in the WEBP cell's box), the centre (72 x 48) has
   # text-primary ink, no "hive probe" or "hive reveal" line on the window
-  # path (S-021 AC10), and the crop matches the owner approved reference.
+  # path (S-021 AC10), and the crop matches the maintainer approved reference.
   # The reference from the layer path was removed: the candidate in the
-  # output folder needs the owner's approval.
+  # output folder needs the maintainer's approval.
   window_waiting() {
     echo "== S-021 window path: the waiting hive (drop-en-light-waiting.png)"
     "$BIN/sbarhive" quit >/dev/null 2>&1
@@ -850,7 +850,7 @@ inner() {
   echo "INFO S-021 AC3 shows 6 to $(( ${#MARKS[@]} - 1 )): shows without exactly one \"hive reveal\" line: ${bad3:-none}"
   check "S-021 AC3 shows 6 to 13: each prints exactly one probe line, \"hive reveal: N\"" '[ "${#MARKS[@]}" -ge 14 ] && [ -z "$bad3" ]'
   shot_times
-  # S-021 AC8 (the owner's budget, question 1) and S-022 AC5: in each of the
+  # S-021 AC8 (the maintainer's budget, question 1) and S-022 AC5: in each of the
   # 13 revealed shows, and the two of S-022 AC2 in hold_cycles, the hive is
   # visible (its first attach) at most 150 ms after the drag's first enter
   # on the catcher, by the daemon's trace timestamps.
