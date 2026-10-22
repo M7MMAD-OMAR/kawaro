@@ -17,7 +17,7 @@ import time
 
 from gi.repository import Gio, GLib
 
-KEYSYMS = {"Super_L": 0xFFEB, "Control_L": 0xFFE3, "Shift_L": 0xFFE1, "Escape": 0xFF1B, "z": 0x7A}
+KEYSYMS = {"Super_L": 0xFFEB, "Control_L": 0xFFE3, "Shift_L": 0xFFE1, "Escape": 0xFF1B, "Return": 0xFF0D, "z": 0x7A}
 BTN_LEFT = 0x110
 
 

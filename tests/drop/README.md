@@ -23,6 +23,9 @@ tests/drop/docs.sh             # S-014d AC12: binding docs, no compositor
 tests/drop/budget.sh 20 1 hold # S-019e AC20, S-021 AC8: hold-mode catcher ready from the threshold
 tests/drop/hold_docs.sh        # S-019 AC16, AC22, AC23, S-021 AC11, AC12: docs, no compositor
 tests/drop/window_path.sh      # S-021 AC10: gnome.sh smart and overlay/gnome.sh unchanged
+tests/drop/gnome.sh smart portal       # S-014e2 AC18 c: fake portal, window path
+tests/drop/gnome.sh smart portal-real  # S-014e2 AC20, AC21: the real GNOME portal
+tests/drop/kwin.sh level=1 portal-real # S-014e2 AC20, AC21: the real KDE portal
 ```
 
 Each prints `PASS`/`FAIL` lines, ends with `RESULT PASS` or `RESULT FAIL (n)`,
@@ -269,6 +272,37 @@ BindShortcuts Response is held). `deps.sh` is AC14: the portal client
 dependency, one zbus, no tokio in the daemon, and a `docs/engines.md` row
 for every new package in `Cargo.lock`.
 
+## S-014e2: the real portal in GNOME and KDE (AC18 c, AC20, AC21)
+
+`portal_real.sh` holds the shared part of two modes. `gnome.sh smart portal`
+starts `shortcuts_portal.py ok` on the private bus (the installed portal stays
+blocked by `tests/no_portal.sh`): a PNG drag, the fake's `Activated`, the hive
+a window centred in the work area with the waiting text before enter, no
+`hive probe:` or `hive reveal:` line, and the drop on WEBP before
+`Deactivated` writes the file.
+
+`portal-real` is the one place where the installed `xdg-desktop-portal` runs:
+`gnome.sh` with xdg-desktop-portal-gnome (its dialog comes from
+gnome-control-center's global shortcuts provider) and `kwin.sh` with
+xdg-desktop-portal-kde. Nothing changes for the live desktop: the private bus
+starts the services itself, with `XDG_CURRENT_DESKTOP` set before
+`dbus-run-session`, and the throwaway data directory gets the shipped
+`packaging/io.github.m7mmad_omar.SbarHive.desktop`. Checks: the portal process
+is on this bus, the live desktop's portal PIDs are the same after the run, and
+no private portal process is left. The daemon's output goes through
+`real_portal.py stamp` (a UTC stamp per `portal` line) and `dbus-monitor`
+logs `Activated` and `Deactivated` of the backend and of the frontend.
+
+AC21 run 1: the backend dialog is found (a window of neither the daemon nor
+the source), accepted by a click on "Add" (GNOME) or "OK" (KDE), and the
+daemon prints one `portal shortcuts: bound drop (T)`. AC20 (a): three drags,
+Super+Z held until the hive shows, the drop on WEBP with the key held. (b):
+no drag, Super+Z held 600 ms: `deactivated` 500 ms or more after `activated`
+and within 200 ms of the release. (c): a 150 ms tap makes no hive surface
+within 1000 ms. AC21 run 2: the daemon and every portal process end, a new
+daemon on the same profile: no new window within 5 s, the bound line, and one
+held drop writes the file.
+
 ## Input
 
 - KWin: `kwin-input/`, a small client of `org_kde_kwin_fake_input` (copied
@@ -277,3 +311,4 @@ for every new package in `Cargo.lock`.
   private compositor.
 - GNOME: `input_gnome.py`, Mutter's RemoteDesktop API on the private bus, with
   `keydown`/`keyup` to hold Shift at the drop.
+  Since S-014e2 it also knows `Return`, for the portal dialog.

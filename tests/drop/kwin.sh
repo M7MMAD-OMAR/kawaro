@@ -126,7 +126,13 @@
 # Daemon lines (SBARHIVE_DEBUG_FOCUS): "hive anchor: X Y" or
 # "hive anchor: none" before each placement's "hive surface: layer X Y W H";
 # the drop-mode move to the first position prints both again.
-# Usage: tests/drop/kwin.sh [level=N] [shortcut] [target/release]
+# S-014e2 (AC20 for KDE, AC21), mode "portal-real", tests/drop/portal_real.sh:
+# the installed xdg-desktop-portal with xdg-desktop-portal-kde on this
+# private bus only, XDG_CURRENT_DESKTOP KDE (the kglobalacceld inside this
+# private KWin keeps the shortcut); the backend's dialog accepted by an
+# injected click; Super+Z held through fake_input: AC20 (a), (b), (c), then
+# a second daemon on the same profile (AC21). Super+Z is not bound by hand.
+# Usage: tests/drop/kwin.sh [level=N] [shortcut|portal-real] [target/release]
 #   level: focus stealing prevention 0..4, default 1 (Low)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -137,7 +143,7 @@ LEVEL=1
 MODE=""
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in level=*) LEVEL="${a#level=}" ;; shortcut) MODE=shortcut ;; *) BIN="$a" ;; esac
+  case "$a" in level=*) LEVEL="${a#level=}" ;; shortcut | portal-real) MODE="$a" ;; *) BIN="$a" ;; esac
 done
 TAG="kwin-l$LEVEL${MODE:+-$MODE}"
 INPUT="$HERE/kwin-input/target/release/kwin-input"
@@ -150,6 +156,8 @@ export BIN HERE ROOT OUT LEVEL INPUT MODE TAG
 inner() {
   set -u
   unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+  # S-014e2: the daemon sees the desktop the real portal was started for.
+  [ "$MODE" = portal-real ] && export XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland
   # shellcheck source=lib.sh
   source "$HERE/lib.sh"
   # trace_ms and the other trace helpers, used during the shows (S-019).
@@ -236,15 +244,60 @@ inner() {
   NEXT="$XDG_RUNTIME_DIR/next"; printf '%s\n' "$W/photo one.png" >"$NEXT"
   DLOG="$log-daemon.log"; SLOG="$log-source.log"
 
+  local d src=""
+  if [ "$MODE" = portal-real ]; then
+    # S-014e2 hooks for tests/drop/portal_real.sh. Meta 125, Z 44, Return
+    # 28, evdev codes through fake_input; the shell times the keys.
+    key_down() { echo "keydown 125" >&3; sleep 0.05; echo "keydown 44" >&3; }
+    key_up() { echo "keyup 44" >&3; sleep 0.05; echo "keyup 125" >&3; }
+    hold_motion() { jitter 400 500 800; }
+    # kwin_js TAG CODE [keep]: runs CODE as a KWin script in this private
+    # KWin (its print() goes to the KWin log); unloaded unless "keep".
+    kwin_js() {
+      local js="$XDG_RUNTIME_DIR/$1.js" id
+      printf '%s\n' "$2" >"$js"
+      id=$(gdbus call --session --dest org.kde.KWin --object-path /Scripting \
+        --method org.kde.kwin.Scripting.loadScript "$js" "$1" | grep -o '[0-9]\+' | head -1)
+      gdbus call --session --dest org.kde.KWin --object-path "/Scripting/Script$id" \
+        --method org.kde.kwin.Script.run >/dev/null 2>&1
+      sleep 0.3
+      [ "${3:-}" = keep ] || gdbus call --session --dest org.kde.KWin --object-path /Scripting \
+        --method org.kde.kwin.Scripting.unloadScript "$1" >/dev/null 2>&1
+    }
+    local JSN=0
+    dialog_now() {
+      JSN=$((JSN + 1))
+      kwin_js "sbh-dlg-$JSN" "print(\"sbh-dlg-$JSN \" + (workspace.windowList()
+        .filter(w => w.pid !== $d && w.pid !== ${src:-0} && !w.minimized && w.frameGeometry.width > 0)
+        .map(w => [w.frameGeometry.x, w.frameGeometry.y, w.frameGeometry.width, w.frameGeometry.height].map(Math.round).join(' ') + '|' + w.pid + '|' + w.resourceClass + '|' + w.caption)[0] || ''));"
+      grep -o "sbh-dlg-$JSN .*" "$log-kwin.log" | tail -1 | cut -d' ' -f2- | grep .
+    }
+    dialog_raise() {
+      JSN=$((JSN + 1))
+      kwin_js "sbh-raise-$JSN" "workspace.windowList().filter(w => w.pid === $1).forEach(w => { workspace.raiseWindow(w); workspace.activeWindow = w; });"
+    }
+    accept_click() { echo "move $(($1 + $3 - 148)) $(($2 + $4 - 33))" >&3; sleep 0.3; echo down >&3; sleep 0.05; echo up >&3; }
+    accept_key() { echo "keydown 28" >&3; sleep 0.05; echo "keyup 28" >&3; }
+    watch_start() {
+      kwin_js sbh-watch 'workspace.windowAdded.connect(w => print("sbh-added " + w.pid + "|" + w.resourceClass + "|" + w.caption));' keep
+    }
+    watch_read() { grep -o 'sbh-added .*' "$log-kwin.log" | cut -d' ' -f2-; }
+    hive_shows() { grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' <<<"$1"; }
+    # shellcheck source=portal_real.sh
+    source "$HERE/portal_real.sh"
+    portal_setup
+    portal_start_daemon first
+  else
   # English layout, so the WEBP cell is top right of the centre. No warm-up
   # show: the first drop-mode show is part of AC5.
   SBARHIVE_LANG=en SBARHIVE_COLOR_SCHEME=light SBARHIVE_REDUCED_MOTION=1 \
     SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
-  local d=$!
+  d=$!
   for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  fi
 
   GTK_A11Y=none python3 "$HERE/source.py" "$NEXT" >"$SLOG" 2>&1 &
-  local src=$!
+  src=$!
   sleep 3
 
   # S-014c AC9, AC10: screenshots in show 1 (the PNG, English, light).
@@ -797,6 +850,9 @@ inner() {
       --method org.kde.KGlobalAccel.allComponents 2>&1)
     check "AC11 setup: kglobalacceld lists the custom command shortcut component" 'grep -q sbarhive_drop <<<"$comps"'
     shortcut_shows
+  elif [ "$MODE" = portal-real ]; then
+    real_portal_run KDE xdg-desktop-portal-kde
+    portal_teardown
   else
   # S-021 AC4 setup: the source window alone, for the waiting shot's guard.
   timeout 10 python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/shot.py" "$OUT_LOG-shot-before.png" >>"$log-shot.log" 2>&1
@@ -881,12 +937,23 @@ export -f inner
 
 echo "== kwin level $LEVEL${MODE:+ $MODE}"
 SANDBOX="$(mktemp -d)"
-no_real_portal "$SANDBOX"
+DESK=()
+if [ "$MODE" = portal-real ]; then
+  # S-014e2: the installed portal on this private bus, for KDE. The daemon
+  # registers (no portal_shortcut = false), hold_ms 400, and the shipped
+  # .desktop file is installed in the throwaway data directory.
+  DESK=(XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland)
+  mkdir -p "$SANDBOX/.config/sbarhive" "$SANDBOX/.local/share/applications"
+  printf 'hold_ms = 400\n' >"$SANDBOX/.config/sbarhive/config.toml"
+  cp "$ROOT/packaging/io.github.m7mmad_omar.SbarHive.desktop" "$SANDBOX/.local/share/applications/"
+else
+  no_real_portal "$SANDBOX"
+fi
 RUNDIR="$(mktemp -d)"
-trap 'rm -rf "$SANDBOX" "$RUNDIR"' EXIT
+trap 'fusermount3 -u "$RUNDIR/doc" 2>/dev/null; rm -rf "$SANDBOX" "$RUNDIR"' EXIT
 # Environment set BEFORE dbus-run-session, so nothing the private bus
 # activates can reach the live desktop or the real profile.
-env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP \
+env -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP "${DESK[@]}" \
   HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
   XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
   XDG_RUNTIME_DIR="$RUNDIR" WAYLAND_DISPLAY=wayland-sbh-drop-kwin \
