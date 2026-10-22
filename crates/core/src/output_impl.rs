@@ -105,17 +105,61 @@ fn numbered(path: &Path) -> (Name, u32) {
 }
 
 type LinkFn = dyn Fn(&Path, &Path) -> std::io::Result<()>;
+/// Moves a file to a name and fails with `AlreadyExists` when the name is
+/// taken, never replacing it.
+type PlaceFn = dyn Fn(&Path, &Path) -> std::io::Result<()>;
+
+#[cfg(windows)]
+mod windows;
+#[cfg(windows)]
+use windows::place_no_replace;
+
+/// The place function off Windows: an existence check, then `rename`. A
+/// file created between the two would be replaced; Windows has no such
+/// race (`output_impl/windows.rs`).
+#[cfg(not(windows))]
+fn place_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
+    if exists(to) {
+        return Err(std::io::Error::new(
+            ErrorKind::AlreadyExists,
+            "output name taken",
+        ));
+    }
+    std::fs::rename(from, to)
+}
+
+/// The kind of a Win32 error code from `MoveFileExW`: `ERROR_FILE_EXISTS`
+/// (80) and `ERROR_ALREADY_EXISTS` (183) mean the name is taken,
+/// `ERROR_ACCESS_DENIED` (5) is a refusal, anything else is `Other`.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn move_error_kind(code: u32) -> ErrorKind {
+    match code {
+        80 | 183 => ErrorKind::AlreadyExists,
+        5 => ErrorKind::PermissionDenied,
+        _ => ErrorKind::Other,
+    }
+}
 
 pub(crate) fn finalize(temp: &Path, final_path: &Path) -> std::io::Result<PathBuf> {
-    finalize_with(temp, final_path, &|a, b| std::fs::hard_link(a, b))
+    finalize_with(
+        temp,
+        final_path,
+        &|a, b| std::fs::hard_link(a, b),
+        &place_no_replace,
+    )
 }
 
 /// Tries `final_path`, then the following numbers. `hard_link` fails when
 /// the target exists, so it never replaces a file. When the filesystem
-/// cannot hard link (vfat, some network mounts), falls back to an
-/// existence check followed by `rename`. That fallback has a small race:
-/// a file created between the check and the rename would be replaced.
-fn finalize_with(temp: &Path, final_path: &Path, link: &LinkFn) -> std::io::Result<PathBuf> {
+/// cannot hard link (vfat, exFAT, some network mounts), falls back to
+/// `place`, which also refuses a taken name: on Windows atomically
+/// (`MoveFileExW` without replacing), elsewhere with a check then `rename`.
+fn finalize_with(
+    temp: &Path,
+    final_path: &Path,
+    link: &LinkFn,
+    place: &PlaceFn,
+) -> std::io::Result<PathBuf> {
     let (name, start) = numbered(final_path);
     let first = std::iter::once(final_path.to_path_buf());
     let rest =
@@ -131,11 +175,11 @@ fn finalize_with(temp: &Path, final_path: &Path, link: &LinkFn) -> std::io::Resu
                 if !exists(temp) {
                     return Err(e);
                 }
-                if exists(&candidate) {
-                    continue;
+                match place(temp, &candidate) {
+                    Ok(()) => return Ok(candidate),
+                    Err(e) if e.kind() == ErrorKind::AlreadyExists => continue,
+                    Err(e) => return Err(e),
                 }
-                std::fs::rename(temp, &candidate)?;
-                return Ok(candidate);
             }
         }
     }

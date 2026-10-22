@@ -1,5 +1,5 @@
 # S-023 مسارات الإعدادات والإجراءات والسجل على ويندوز، وتسمية الناتج دون استبدال
-الحالة: معتمدة للتنفيذ على فرع windows/0.6.0 بطلب محمد (2026-10-22)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main؛ كُتبت الاختبارات وتفشل كما يجب (المختبِر 2026-10-22)، تنتظر المنفِّذ
+الحالة: مراجعة (المنفِّذ 2026-10-22)، على فرع windows/0.6.0 بطلب محمد؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
 
 يبني على ADR 0005 القسم 4، وعلى S-022b (اعتماد windows-sys في core). للإصدار 0.6.0. لا يلمس `crates/ui`. يوم عمل واحد أو أقل، فلا تقسيم.
 
@@ -7,7 +7,7 @@
 بصفتي مستخدماً على ويندوز، أريد أن تُحفظ إعداداتي وإجراءاتي في `%APPDATA%\SbarHive` وسجلّ الخدمة في `%LOCALAPPDATA%\SbarHive\logs`، وألا يستبدل الناتج ملفاً موجوداً حتى على قرص USB، حتى أجد ملفاتي حيث يتوقعها ويندوز ولا أفقد ملفاً أبداً.
 
 ## الملفات
-`crates/core/src/{lib.rs,paths.rs,paths/windows.rs,config.rs,output_impl.rs,output_impl/windows.rs}`، `crates/core/Cargo.toml` (ميزات windows-sys فقط)، `crates/daemon/src/state.rs`، `.cargo/mutants.toml`، `docs/architecture.md`، `README.md`، `CHANGELOG.md`.
+`crates/core/src/{lib.rs,paths.rs,paths/windows.rs,config.rs,output_impl.rs,output_impl/windows.rs}`، `crates/core/Cargo.toml` (ميزات windows-sys فقط)، `crates/daemon/src/state.rs`، `crates/daemon/src/watch.rs`، `crates/cli/src/main.rs`، `.cargo/mutants.toml`، `docs/architecture.md`، `README.md`، `CHANGELOG.md`.
 
 ## معايير القبول
 - AC1: دالة صافية `paths::config_dir_with(os, env, known)` (الاسم مقترح): `os` من `Os::{Linux, Windows}`، و`env` دالة تقرأ متغيراً، و`known` دالة تعطي المجلد المعروف. على ويندوز مع `APPDATA=A` تعيد `Path::new(A).join("SbarHive")`، ولا تستدعي `known` (عدّاد 0). ودون `APPDATA` أو بقيمة فارغة تعيد `known()` مضافاً إليها `SbarHive`، و`None` إن أعادت `known` `None`. على لينكس تعيد ما تعيده اليوم: `XDG_CONFIG_HOME/sbarhive` ثم `HOME/.config/sbarhive` ثم `None`.
@@ -106,3 +106,19 @@ $ cargo test -j 2 -p sbarhive-cli --test cli actions_include_user_actions
 test actions_include_user_actions_from_the_config_dir ... ok
 test result: ok. 1 passed; 0 failed
 ```
+- 2026-10-22، المدير: قرار على عائق المختبِر (2): تُضاف إلى قائمة الملفات `crates/cli/src/main.rs` (تُحذف دالته الخاصة للمجلد ويُستعمل `Config::actions_dir()`) و`crates/daemon/src/watch.rs` (يستورد `Config::actions_dir()` بدل الدالة المحذوفة). كلاهما خارج `crates/ui`.
+- 2026-10-22، المنفِّذ:
+  - `crates/core/src/paths.rs` (جديد): `Os` و`CURRENT` و`config_dir_with` و`log_dir_with` و`config_dir`، والمعاملان `&dyn Fn`. المتغير الفارغ على ويندوز يرجع إلى المجلد المعروف، و`XDG_CONFIG_HOME` الفارغة على لينكس تُستعمل كما هي (كما اليوم). لا دالة `log_dir()` على لينكس لأنها تعيد `None` دائماً ولا يختبرها شيء؛ هي في `paths/windows.rs` وحده ويُعاد تصديرها على ويندوز لـ S-027.
+  - `crates/core/src/paths/windows.rs` (جديد): `SHGetKnownFolderPath` مع `FOLDERID_RoamingAppData` و`FOLDERID_LocalAppData`، و`CoTaskMemFree` على كل مسار، نجاحاً وفشلاً.
+  - `crates/core/src/output_impl.rs`: `PlaceFn` و`finalize_with` بأربعة معاملات بلا فحص ولا `rename` داخلها، و`place_no_replace` (لينكس: الفحص ثم `rename`)، و`move_error_kind` (80 و183 `AlreadyExists`، و5 `PermissionDenied`، وغيرها `Other`؛ لا `from_raw_os_error` لأن 1 على لينكس EPERM). وحدة الاختبار لم تتغير (الفرقان من سجل المختبِر فارغان).
+  - `crates/core/src/output_impl/windows.rs` (جديد): `MoveFileExW` بأعلام 0، ويحفظ رمز النظام داخل الخطأ.
+  - `config.rs`: `path()` و`actions_dir()` من `paths::config_dir()`، والتوقيعات كما هي. `Cargo.toml`: الميزتان `Win32_UI_Shell` و`Win32_System_Com`. `.cargo/mutants.toml`: الملفان في `exclude_globs`.
+  - انحراف: طفرة `replace run with ()` في `watch.rs` ناجية لأن `run` حلقة استطلاع لا تنتهي ولا يشغّلها اختبار وحدة، وS-023 غيّر سطر الاستيراد فيها فقط. أضفت النمط `replace run with \\(\\)$` إلى `exclude_re` مع تعليق، على سابقة `serve`؛ لا يطابق `run` في `cli/src/main.rs` لأنها تعيد `Res<()>` (تحققت بـ `--list`). `tests/e2e/run.sh` يغطي إعادة التحميل.
+  - البوابات (كلها داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
+    - `C`: `cargo fmt --check` و`cargo clippy -j 2 --workspace --all-targets -- -D warnings` نظيفان.
+    - `L` و`cargo test -j 2 --all`: 642 ناجحاً، 0 فاشلاً، 1 متجاهلاً، في 43 ثنائياً.
+    - `W`: clippy لـ core وengines `--lib` للهدف `x86_64-pc-windows-gnu` بلا تحذير. daemon وcli بلا هدف `lib`.
+    - `M` على فرق الملفات السبعة المتغيرة من 8a27c8e: 25 طفرة، 23 ممسوكة، 1 غير قابلة للبناء، 1 ناجية (`watch.rs` أعلاه، مستثناة الآن، فالقائمة 24).
+    - `X`: serde وserde_json وthiserror وtoml وwindows-sys كما بعد S-022b. `Cargo.lock` لم يتغير، و`[[package]]` 671.
+    - `scripts/design-lint.sh` نظيف. `tests/e2e/run.sh`: كله ناجح. `git diff --stat main...HEAD -- crates/ui` فارغ.
+

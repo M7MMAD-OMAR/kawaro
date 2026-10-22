@@ -40,19 +40,12 @@ pub fn lock(s: &Shared) -> MutexGuard<'_, State> {
 
 pub fn load_registry() -> Registry {
     let mut reg = Registry::builtin();
-    if let Some(dir) = user_actions_dir()
+    if let Some(dir) = Config::actions_dir()
         && let Err(e) = reg.add_dir(&dir)
     {
         eprintln!("sbarhived: ignoring user actions: {e}");
     }
     reg
-}
-
-pub fn user_actions_dir() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    Some(base.join("sbarhive").join("actions"))
 }
 
 impl State {

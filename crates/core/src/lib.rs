@@ -13,6 +13,7 @@ pub mod ipc;
 pub mod media;
 pub mod output;
 mod output_impl;
+pub mod paths;
 pub mod queue;
 mod queue_impl;
 pub mod transport;

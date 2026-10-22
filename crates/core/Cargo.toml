@@ -14,8 +14,9 @@ thiserror.workspace = true
 [dev-dependencies]
 tempfile.workspace = true
 
-# The named pipe transport (S-022b). Already in Cargo.lock through other
-# crates, so no new package.
+# The named pipe transport (S-022b), the known folders and the place
+# function (S-023). Already in Cargo.lock through other crates, so no new
+# package; features add none.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
   "Win32_Foundation",
@@ -26,4 +27,6 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_Pipes",
   "Win32_System_RemoteDesktop",
   "Win32_System_Threading",
+  "Win32_UI_Shell",
+  "Win32_System_Com",
 ] }

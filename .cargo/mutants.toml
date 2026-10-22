@@ -18,6 +18,8 @@
 # and the build kind helpers answer from the live platform only.
 # The Windows named pipe (S-022a seed, S-022b pipe) builds for Windows only;
 # its decisions stay mutated in transport.rs and transport/deadline.rs.
+# The Windows known folders and place function (S-023) build for Windows
+# only; the choices stay mutated in paths.rs and output_impl.rs.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/ui/src/receiver.rs",
@@ -25,6 +27,8 @@ exclude_globs = [
   "crates/ui/src/platform.rs",
   "crates/ui/src/a11y.rs",
   "crates/core/src/transport/windows.rs",
+  "crates/core/src/paths/windows.rs",
+  "crates/core/src/output_impl/windows.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
@@ -63,6 +67,10 @@ exclude_re = [
   # The service's accept loop (S-022a) runs only inside the live daemon;
   # tests/e2e/run.sh covers it. The transport it accepts from stays mutated.
   "replace serve with \\(\\)",
+  # The settings watcher (S-023 touched its import only) is an endless poll
+  # loop that posts a reload to the Slint event loop, so no unit test can
+  # run it; its stamp() stays mutated and tests/e2e/run.sh covers reload.
+  "replace run with \\(\\)$",
   # A Unix socket has no write buffer: std's flush is already Ok(()), so
   # this mutant is equivalent.
   "replace <impl Write for Stream>::flush -> io::Result<\\(\\)> with Ok\\(\\(\\)\\)",

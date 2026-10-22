@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- Windows folders and output naming without replacing (S-023): settings and user actions live in `%APPDATA%\SbarHive` and the service log folder is `%LOCALAPPDATA%\SbarHive\logs`, falling back to `SHGetKnownFolderPath` when the variable is missing, one `Config::actions_dir()` replaces the two copies of the actions folder in the daemon and the CLI, and where hard links are unavailable (FAT, exFAT) the output is placed with `MoveFileExW` without replacing, so a file of the same name is never overwritten. «على ويندوز تُحفظ الإعدادات والإجراءات في مجلد التطبيقات المعتاد، ولا يستبدل الناتج ملفاً موجوداً حتى على قرص USB».
 - IPC behind one transport (S-022): the client and the service reach each other only through `sbarhive_core::transport` (an endpoint, a listener that answers `AlreadyRunning` when a service already answers `ping`, and a stream whose read past its timeout fails with `TimedOut`), still the same socket and protocol on Linux, and on Windows a named pipe per user and session: an access list for the current user alone, no remote clients, one service through `FILE_FLAG_FIRST_PIPE_INSTANCE`, a client that refuses a pipe served by another user, and read timeouts cancelled with `CancelIoEx`. «العميل والخدمة يتصلان عبر واجهة نقل واحدة: مقبس لينكس كما هو، وعلى ويندوز أنبوب لا يفتحه إلا مستخدمك ولا يقبل اتصالاً من جهاز آخر».
 
 ## [0.3.0] - 2026-10-22 «الإفلات»

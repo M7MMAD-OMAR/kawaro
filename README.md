@@ -71,6 +71,8 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 افتح الإعدادات من أيقونة صبار هايف في شريط النظام، أو عدّل `~/.config/sbarhive/config.toml` مباشرة: اللغة، والمظهر، ومكان الناتج (بجانب الأصل أو في مجلد فرعي)، ومستوى الجودة. ويمكن إضافة إجراءات خاصة بك بملفات TOML في `~/.config/sbarhive/actions/`.
 
+على ويندوز يكون ملف الإعدادات في `%APPDATA%\SbarHive\config.toml`، والإجراءات الخاصة في `%APPDATA%\SbarHive\actions\`، وسجل الخدمة في `%LOCALAPPDATA%\SbarHive\logs\`.
+
 المفتاح `hold_ms` مدة الضغط المطوّل بالملي ثانية قبل أن تظهر الخلية مع `sbarhive drop --hold`: الافتراضي 400، والمقبول من 100 إلى 2000، وأي قيمة غير ذلك تعيد الافتراضي مع تحذير في السجل. يُقرأ عند كل ضغطة، فيسري تعديله دون إعادة تشغيل الخدمة. نافذة الإعدادات لا تعرضه، فعدّله في الملف.
 
 ## المساهمة
@@ -178,6 +180,10 @@ shortcut, Super+Z by default; GNOME, KDE and Hyprland steps are in
 Open Settings from the SbarHive tray icon, or edit `~/.config/sbarhive/config.toml`, which holds the language, theme, output place
 (next to the original or in a subfolder) and quality preset. Your own actions
 go in `~/.config/sbarhive/actions/*.toml`.
+
+On Windows the settings file is `%APPDATA%\SbarHive\config.toml`, your own
+actions go in `%APPDATA%\SbarHive\actions\*.toml`, and the service log in
+`%LOCALAPPDATA%\SbarHive\logs\`.
 
 `hold_ms` is the long press, in milliseconds, before `sbarhive drop --hold`
 shows the hive: 400 by default, accepted from 100 to 2000; any other value

@@ -2,7 +2,7 @@
 //! `config.toml` by hand needs no `sbarhive reload`. Polls file times every
 //! two seconds: two small paths, no extra dependency.
 
-use crate::state::{Shared, user_actions_dir};
+use crate::state::Shared;
 use sbarhive_core::config::Config;
 use sbarhive_core::queue::Queue;
 use std::path::{Path, PathBuf};
@@ -38,7 +38,7 @@ pub fn stamp(config: &Path, actions: &Path) -> Stamp {
 }
 
 pub fn run(state: Shared, queue: Arc<Queue>) {
-    let (Some(config), Some(actions)) = (Config::path(), user_actions_dir()) else {
+    let (Some(config), Some(actions)) = (Config::path(), Config::actions_dir()) else {
         return;
     };
     let mut last = stamp(&config, &actions);

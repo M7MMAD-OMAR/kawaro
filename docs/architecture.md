@@ -36,10 +36,23 @@ file manager entry ──▶ sbarhive open ──▶ (Unix socket, JSON lines) �
 - `Engine` trait, `Task`, `CancelToken`, `EngineError`: `engine.rs`.
 - `ActionDef`, `Registry`, TOML schema: `action.rs`. Built-in actions live in
   the repository `actions/` folder and are embedded with `include_str!`. User
-  actions load from `~/.config/sbarhive/actions/*.toml` and may override a
+  actions load from `Config::actions_dir()` (`~/.config/sbarhive/actions/`
+  on Linux, `%APPDATA%\SbarHive\actions\` on Windows) and may override a
   built-in id.
+- Folders: `paths.rs`. `config_dir_with` and `log_dir_with` take the
+  platform, the environment and the known folder as parameters, so the
+  Windows choice (`APPDATA` or `LOCALAPPDATA`, else `SHGetKnownFolderPath`
+  in `paths/windows.rs`) is tested on Linux. The log folder is `None` on
+  Linux, where the log is stderr.
 - Output naming and atomic finalisation: `output.rs`. Engines write
   `task.output` (temp file in the destination directory); the queue renames.
+  The final name is taken with `hard_link`, which fails when the name
+  exists. Where the filesystem cannot hard link (FAT, exFAT, some network
+  mounts) the place function takes over, and it never replaces a file
+  either: `MoveFileExW` without the replace flag on Windows
+  (`output_impl/windows.rs`), an existence check then `rename` elsewhere.
+  A taken name moves on to the next number; any other error stops and
+  keeps the temp file.
 - Queue and events: `queue.rs`. IPC messages: `ipc.rs`.
 
 ## Image engine operations (engine = "image")
@@ -225,7 +238,8 @@ text and no preview. With `SBARHIVE_DEBUG_FOCUS` every enter prints one
 
 ## Settings
 
-`~/.config/sbarhive/config.toml`, model in `crates/core/src/config.rs`:
+`config.toml` in `paths::config_dir()` (`~/.config/sbarhive` on Linux,
+`%APPDATA%\SbarHive` on Windows), model in `crates/core/src/config.rs`:
 language, theme, output place (beside the original, or a subfolder whose
 name the daemon puts in `OutputSpec.dir`), quality preset (shifts the
 `quality` parameter by -15, 0 or +10, clamped to 1..100), notify, open the
