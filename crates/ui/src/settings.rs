@@ -683,6 +683,25 @@ mod tests {
             }
         }
 
+        /// S-014e1, manager answer 5: `portal_shortcut` has no control here
+        /// yet (S-014f), so a save keeps a remembered portal denial.
+        #[test]
+        fn s014e1_save_keeps_a_remembered_portal_denial() {
+            i_slint_backend_testing::init_no_event_loop();
+            for lang in [Lang::En, Lang::Ar] {
+                let (win, saved) = wired(lang);
+                let start = Config {
+                    portal_shortcut: false,
+                    ..Config::default()
+                };
+                win.open(&start).unwrap();
+                let save = if lang == Lang::En { "Save" } else { "حفظ" };
+                click(&win, &find(&win, save, AccessibleRole::Button));
+                assert_eq!(*saved.borrow(), [start], "{lang:?}");
+                win.close();
+            }
+        }
+
         #[test]
         fn settings_window_behaviour() {
             i_slint_backend_testing::init_no_event_loop();

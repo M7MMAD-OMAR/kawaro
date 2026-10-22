@@ -73,4 +73,7 @@ exclude_re = [
   "in gate_tick$",
   "replace gate_tick with",
   "replace gate_hive_closed with",
+  # main() wires the daemon together on a live display and socket; the
+  # portal client it starts (S-014e1) is covered by tests/drop/portal.sh.
+  "replace main -> ExitCode with",
 ]
