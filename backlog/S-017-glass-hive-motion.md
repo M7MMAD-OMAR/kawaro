@@ -1,58 +1,74 @@
-# S-017 خلية زجاجية بحركة سلسة بين الخلايا
-الحالة: معتمدة
+# S-017 Glass hive with motion between cells
+Status: approved (2026-10-23), starts after S-014f
 
-من ملاحظة المشرف بعد أول استخدام حقيقي: «اجعلها زجاجية قليلاً، سائلة، بشكل جميل، وانتقالات سلسة من خلية إلى أخرى». يعتمد على ADR 0004 (`docs/adr/0004-hive-overlay.md`، لم يُكتب بعد عند كتابة هذه القصة): نوع السطح (layer-shell في Hyprland وKDE، وxdg-toplevel في GNOME) وقواعد Hyprland ومعاينة الملف في الخلية المركزية كلها منه، ولا تُكرَّر هنا. ويأتي بعد S-014c، لأنه يستبدل إبراز الإفلات فيها (S-014، AC9) بعنصر الإبراز المشترك.
+From the maintainer after first real use: "a little glassy, fluid, beautiful, smooth transitions from cell to cell". It builds on what shipped: the layer overlay (S-018, ADR 0004), the hive at the pointer with adaptive shape up to `MAX_RINGS` = 4 (S-019), the drop probe and reveal (S-021), the opening animation from the first drawn frame (S-022) and the keyboard request before the catcher's first commit (S-027). The 2026-10-20 Arabic ACs are superseded by this text (see git history). The Arabic log entries are kept as history.
 
-## القصة
-بصفتي مستخدماً يفتح الخلية عدة مرات في اليوم، أريد أن تبدو سطحاً شفافاً فوق ما خلفه، وأن تنتقل الإضاءة من خلية إلى أخرى بانسياب، حتى تبدو الخلية جزءاً من سطح المكتب لا نافذة مربعة.
+## Story
+As a user who opens the hive many times a day, I want it to look like a glass surface over what is behind it, with light that slides from cell to cell, so that it feels part of the desktop and not a square window.
 
-## التقسيم (كل قصة فرعية يوم عمل أو أقل، بالترتيب، ولا تبدأ قبل اعتماد القرارات في سجل المراجعة)
-| القصة | المحتوى | المعايير |
+## Facts (verified) and assumptions
+- Verified by running: KWin 6.7.5 `--virtual` (`tests/fixtures/overlay/kwin-6.7.5-globals.txt`) and nested Hyprland 0.56.2 (`WAYLAND_DEBUG` trace in `tests/hyprland/out/hypr-layer-daemon.log`) both advertise `ext_background_effect_manager_v1` v1. Neither advertises `org_kde_kwin_blur_manager`. GNOME Shell 50.5 advertises neither.
+- Assumed: the `capabilities` flags each compositor sends (never bound so far); that the blur lands behind a region set on the catcher layer surface; that the headless compositors draw blur at all. The tester records the flags first.
+
+## Planner decisions (for the manager)
+1. One protocol: `ext_background_effect_manager_v1`, version 1, on the layer path. `org_kde_kwin_blur` is not used: it would add `wayland-protocols-plasma` as a direct dependency, and no private compositor we run advertises it, so it cannot be tested. Plasma before the ext global gets opaque. No Hyprland `blur` layer rule: the protocol covers Hyprland, and the Lua blur fields are not verified.
+2. Glass only when the compositor says it blurs (capability `blur`). `hive_glass = "auto" | "off"` in config.toml (missing means `auto`). `SBARHIVE_GLASS=on|off` overrides everything and is for tests. The window path (GNOME, X11, screen reader) is always opaque.
+3. The blur is requested on the catcher, not the subsurface, in catcher coordinates offset by the hive position. The region is 1 logical px strips in each hexagon's pointed caps plus one rectangle for its straight band.
+4. The region follows the motion: it grows ring by ring as each ring starts. It is full size during scale (open 0.92, press 0.94): a rim of 3 px at most, accepted. It stays until the catcher is destroyed on close, so glass is never over a sharp background. A drop show gets no region before its first drawn frame, and the drop move re-sends it in the commit that moves the hive.
+5. Values: `glass-2` is `surface-2` at alpha `B8` (72 %), `glass-3` is `surface-3` at `D1` (82 %); the highlight stays opaque `accent`; `border` stays opaque. Motion: `ring-delay-ms` 40, `highlight-move` 140 ms `cubic-bezier(0.2, 0, 0, 1)`, `press` 70 ms to 0.94, `hive-close` 90 ms to 0.96 and opacity 0, `ease-in`.
+6. The close animation keeps the surfaces for 90 ms, and the action starts at once. The tester (not the implementer) rewrites the `!hive.inner.visible()` checks right after a pick or a dismiss in `ui_tests.rs` and `drop_hive_tests.rs`.
+7. Pure decisions (glass choice, region strips, ring delays) live in `overlay.rs` and `layout.rs`, which are under mutants. `layer.rs` stays outside mutants and is guarded by trace checks.
+8. Real blur is measured only where it can be. The checker check in AC14 is hard on a compositor whose recorded flags contain `blur` and where a capture works. In any other case (no `blur` flag, no capture, or no blur drawn by the headless GL), it is INFO, the tester records why, and the ADR says "assumed". This is proposed for acceptance with this story's approval.
+9. Each sub-story passes the CLAUDE.md quality gates plus the scripts its own ACs name. S-017e runs the full set (AC19) and adds the single S-017 CHANGELOG line.
+
+## Split (one working day or less each, in order; S-017d needs only S-017a)
+| Story | Content | ACs |
 | --- | --- | --- |
-| S-017a | الرموز ومولّداتها: ألوان الزجاج، رموز الحركة والتسارع، التباين، `docs/design-system.md` | AC1، AC2، AC3 |
-| S-017b | الحركة: فتح حلقةً حلقة، إبراز مشترك ينزلق، ضغط، إغلاق، إفلات | AC4 إلى AC8 |
-| S-017c | الزجاج: طلب ضبابية الخلفية من المؤلِّف بمنطقة الخلايا، والبديل المعتم | AC9، AC10، AC11 |
-| S-017d | اللقطات وقياس الإطارات على المُصيِّر البرمجي | AC12، AC13 |
+| S-017a | Tokens, generators, contrast, lint, `docs/design-system.md` | AC1 to AC3 |
+| S-017b | Open ring by ring, the sliding highlight, press | AC4 to AC7 |
+| S-017c | The animated close | AC8, AC9 |
+| S-017d | Glass on the layer path: detection, request, region | AC10 to AC14 |
+| S-017e | Snapshots, performance, docs, release gates | AC15 to AC19 |
 
-## معايير القبول
-- AC1: في `design/tokens.json` لكل مخطط لونان جديدان (قيم مقترحة، القرار 1): `glass-2` يساوي `surface-2` بشفافية `B8` (72 %)، و`glass-3` يساوي `surface-3` بشفافية `D1` (82 %)، أي فاتح `#E9E1D0B8` و`#DFD3BBD1`، وداكن `#27231CB8` و`#322C23D1`. المولّد يكتبهما في `Tokens` و`site/tokens.css`، و`scripts/design-lint.sh` يبقى نظيفاً.
-- AC2: `text-primary` على `glass-2` وعلى `glass-3`، بعد تركيبهما فوق أسود خالص وفوق أبيض خالص، تباينه 4.5:1 أو أكثر في المخططين (8 حالات). إن فشلت حالة تُرفع الشفافية لا يُخفَّض المعيار.
-- AC3: رموز الحركة الجديدة في `motion`: `hive-open.ring-delay-ms` 40، `highlight-move` 140 ms بتسارع `cubic-bezier(0.2, 0, 0, 1)`، `press` 70 ms بمقياس 0.94، `hive-close` 90 ms بمقياس 0.96 إلى الصفر في الشفافية وتسارع `ease-in`. المولّد يكتب كل تسارع مسمّى في الرموز، ويفشل البناء عند اسم أو شكل غير معروف. مع تقليل الحركة كل مدة جديدة صفر في `Tokens` وفي `site/tokens.css`.
-- AC4: الفتح: المركز عند 0 ms، والحلقة 1 تبدأ بعد 40 ms، والحلقة 2 بعد 80 ms، وكل حلقة تنتقل من شفافية 0 ومقياس 0.92 إلى 1 خلال 120 ms. عند 100 ms بعد `present` الحلقة 1 أعلى شفافيةً من الحلقة 2، وعند 200 ms كل الخلايا بشفافية 1 ومقياس 1.
-- AC5: الإبراز عنصر واحد بلون `accent` ينزلق بين مراكز الخلايا بالفأرة وبلوحة المفاتيح وأثناء السحب. عند منتصف المدة (70 ms) بعد الانتقال من خلية إلى جارتها يقع مركزه بين المركزين على الخط الواصل بينهما (لا عند أحدهما)، وعند 140 ms يطابق مركز الخلية الجديدة. أول ظهور له يكون في مكانه دون انزلاق، وخروج المؤشر يخفيه في مكانه.
-- AC6: الضغط على خلية يصغّرها إلى 0.94 خلال 70 ms، والإفلات يعيدها إلى 1. اختيار الخلية بالنقر يبقى بالشكل السداسي الحاد في `geometry.rs`: كل اختبارات الاختيار القائمة (ومنها S-014، AC2) تنجح دون تعديل.
-- AC7: الإغلاق: `on_choose` و`on_dismiss` يُستدعيان في الدورة نفسها كما اليوم، ثم تختفي النافذة بعد 90 ms من الحركة. أثناء الإغلاق يُتجاهل كل نقر ومفتاح وفقدان تركيز وحدث سحب، فيُستدعى رد واحد فقط لكل ظهور. `present` أثناء الإغلاق يلغيه ويُظهر الخلية الجديدة دون رد إضافي. في وضع الإفلات تختفي الخلية خلال 500 ms (S-014، AC11). هذا يغيّر عقد «الخلية مغلقة عند الرد»: فحوص `!hive.inner.visible()` بعد الاختيار أو الصرف في `ui_tests.rs` (الأسطر 114 إلى 193، 268) و`drop_hive_tests.rs` (85، 98، 108، 122) يعيد كتابتها المختبِر بساعة وهمية، لا المنفِّذ.
-- AC8: مع تقليل الحركة: بعد `present` وعند الزمن 0 كل الخلايا بشفافية 1 ومقياس 1، والإبراز في الخلية الهدف فور تغييره، والضغط لا يغيّر المقياس، والإغلاق يخفي النافذة في الدورة نفسها.
-- AC9: دالة صافية تختار الوضع من بيئة المؤلِّف وعوامّه المعلنة، ثلاثة مسارات: (أ) `ext_background_effect_manager_v1` بقدرة الضبابية أو `org_kde_kwin_blur_manager` بإصدار مدعوم: «زجاج بطلب»؛ (ب) Hyprland (`HYPRLAND_INSTANCE_SIGNATURE`) دون هذه العوامّ: «زجاج بلا طلب»، والضبابية من قاعدة المؤلِّف الموثقة في ADR 0004؛ (ج) غير ذلك، ومنه GNOME: «معتم». `SBARHIVE_GLASS=on|off` يفرض الوضع للاختبار.
-- AC10: في مسار (أ) تطلب الخدمة الضبابية على كل سطح خلية جديد (السطح يُعاد بناؤه في كل ظهور، ADR 0001)، بمنطقة من أشرطة أفقية داخل السداسيات: صفر بكسل خارج أي سداسي، وتغطي 95 % أو أكثر من مساحة الخلايا. في مساري (أ) و(ب) الخلايا بـ `glass-2` والمركز بـ `glass-3`، والفجوات شفافة تماماً (شفافية 0).
-- AC11: في وضع المعتم الألوان هي الحالية بالضبط (`surface-2` و`surface-3`، شفافية 255)، ولا يُرسل أي طلب ضبابية. لا يُرسل طلب ضبابية إلا لعامٍّ معلن بإصدار مدعوم، وإن أُزيل العامّ (`global_remove`) يكون الظهور التالي معتماً بلا طلب، لأن خطأ البروتوكول على الاتصال الثاني يُسقط اتصال winit كله (S-014b).
-- AC12: لقطات `crates/ui/tests/snapshots.sh`: المراجع الأربعة الحالية تبقى مطابقة بـ `SBARHIVE_GLASS=off` (لأن KWin المخفي قد يعلن عامّ الضبابية)، أي أن الخلية المبرزة المستقرة في المعتم مطابقة لليوم: تعبئة وحد `accent` ونص `accent-ink`. وتُضاف أربع للزجاج (`hive-{en,ar}-{dark,light}-glass.png`) بـ `SBARHIVE_GLASS=on`، يعتمدها المشرف قبل الإيداع. في لقطة الزجاج بكسل داخل خلية غير مبرزة بعيد عن النص قناة الشفافية فيه 184 ± 2، وبكسل في فجوة شفافيته 0.
-- AC13: في KWin المخفي الخاص، بالمُصيِّر البرمجي (الوحيد المبني: ميزة `renderer-software` في `Cargo.toml`)، على نافذة `plan_rings(_, _, 2)` (`Layout::extent` بحلقتين: 392 × 361.3 منطقياً، والمطلوب من المدير 393 × 362 بكسل، والقياس يطبع الحجم الفعلي)، عبر 20 فتحاً و20 مسحاً للإبراز على الخلايا الـ 18 بالترتيب: زمن رسم كل إطار في العملية 16.7 ms أو أقل (الأقصى، لا الوسيط)، وزمن أول إطار بخدمة جاهزة يبقى تحت 150 ms (وسيط 20 ظهوراً).
+## Acceptance criteria
+- AC1: `tokens.json` has `glass-2` and `glass-3` per scheme: light `#E9E1D0B8` and `#DFD3BBD1`, dark `#27231CB8` and `#322C23D1`, plus the motion tokens in decision 5. `Tokens` and `site/tokens.css` carry them. Every new duration is 0 under reduced motion in both. `build.rs` fails on an unknown easing name or bezier shape, and `hive.slint` contains no literal `ease-out`.
+- AC2: `text-primary` on `glass-2` and `glass-3`, composited over pure black and pure white, is 4.5:1 or more in both schemes (8 cases).
+- AC3: `scripts/design-lint.sh` is clean and fails on an 8-digit hex colour in `tokens.json` outside `glass-*`. `docs/design-system.md` has rows for glass and the new motion tokens.
+- AC4: open (any path): a cell's delay is its slot ring (axial distance) × 40 ms, and the centre has 0. Each cell goes from opacity 0 and scale 0.92 to 1 in 120 ms. With mock time, 100 ms after the first frame ring 1 has a higher opacity than ring 2. At 120 + 40 × R ms (R is the outermost ring shown, 1 to 4) every cell is at 1 and 1, including a corner show with rings 3 or 4.
+- AC5: one `accent` highlight element slides between cell centres for the mouse, the keyboard and the drop drag. At 70 ms after a move to a neighbour, its centre is on the segment and at least 25 % of it from each end. At 140 ms it is within 0.5 px of the new centre. Its first appearance is in place, and leaving all cells hides it in place.
+- AC6: press shrinks the cell to 0.94 ± 0.005 within 70 ms; release or leaving returns it to 1. Picking stays on the sharp hexagon: every existing `geometry` and `drop_tests` test passes unchanged.
+- AC7: reduced motion: at 0 ms after the first frame every cell is at 1 and 1, the highlight is at its target when it changes, and press does not scale. In `repro.sh` a normal show has 8 or more `attach` on the hive subsurface in the 240 ms after its first, and with `SBARHIVE_REDUCED_MOTION=1` 2 or fewer.
+- AC8: close: `on_choose` or `on_dismiss` runs in the same turn as today, and the surface is gone between 80 and 90 ms + one frame later (0 with reduced motion). A click, a key, focus loss or a drag event during the close gives no second callback (1 per show). `present` during the close cancels it and shows the new hive with no extra callback.
+- AC9: a probing drop show (nothing drawn) closes at once. A revealed drop show still ends within 500 ms (S-014). `repro.sh` and `tests/drop/kwin.sh level=1` keep their S-021 and S-022 probe and timing checks.
+- AC10: the pure glass choice gives `on` only for the ext global with the `blur` capability, `hive_glass` not `off`, and the layer path. It prints `hive glass choice: on|off, REASON` once per change with no environment variable. `global_remove` of the manager, or capabilities without `blur`, make the next show `off` with no request.
+- AC11: region (integer logical px, unit test rasterised on a 0.25 px grid): 0 pixels outside every hexagon, coverage 94 % or more of each cell's area, and at most 2 × ceil(r / 2) + 1 rectangles per cell (r is the circumradius from `hex.size.md`, about 41.6, so 43). This holds for rings 1 to 4 at fractional hive positions. `hive_glass` parsing: a missing key gives `auto`, and an unknown value gives `auto` with one load warning while the other keys stay as read.
+- AC12: `tests/overlay/kwin.sh glass` (new mode, `SBARHIVE_GLASS=on`, `SBARHIVE_REDUCED_MOTION=0`, plus one show with `=1`): each drawn show has exactly one `get_background_effect` on the catcher. With motion, `set_blur_region` count = rings shown + 1, with growing add counts; a drop show that moves after its first frame gets one more. With reduced motion the count is exactly 1. Also required: no `set_blur_region` before the first hive `attach` or after the effect's destroy, the effect destroyed before the catcher's `wl_surface.destroy`, and 0 protocol errors. The capability flags are printed as INFO.
+- AC13: glass fills: on the layer path with glass on, cells and stack hexagons are `glass-2` and the centre is `glass-3`. Gaps have alpha 0, and the highlighted cell has alpha 255.
+- AC14: opaque: `tests/overlay/gnome.sh`, and `kwin.sh window` with `SBARHIVE_GLASS=on`, show 0 `get_background_effect` and `hive glass choice: off`. `repro.sh` records the Hyprland flags as INFO. Checker check, in `repro.sh` and `kwin.sh glass`: with glass on over a 4 px black and white checker, the luma standard deviation in a 16 × 16 patch inside a ring-1 cell is at most 0.1 of the checker's. Without blur it would be about 0.28. It is hard or INFO as decision 8 says.
+- AC15: `crates/ui/tests/snapshots.sh` with `SBARHIVE_GLASS=off`: the 8 references still match, and the 4 older ones keep their sha256. The settled highlight matches today's within the `hive_snapshot` tolerance.
+- AC16: 4 new references `hive-{en,ar}-{dark,light}-glass.png`, from a layer run with `SBARHIVE_GLASS=on`. A non-highlighted cell pixel away from text has alpha 184 ± 2, a centre pixel 209 ± 2 and a gap pixel 0. The manager approves them, under the maintainer's delegation and logged here, before they are committed.
+- AC17: performance (`measure.sh` with a new `hive_bench animate` mode, KWin `--virtual`): over 20 opens and 20 highlight sweeps of every cell, the max frame render is 16.7 ms or less on the 4-ring box at scale 1. On the 2-ring box at scale 2 the median is 16.7 ms or less, with the max as INFO.
+- AC18: `tests/overlay/budget.sh` passes in its plain and token runs and in a new `SBARHIVE_GLASS=on` run: the median warm first frame is under 150 ms, and RSS after idle is 40 MB or less.
+- AC19: ADR 0004 gets an S-017 amendment with each fact labelled verified or assumed. `docs/architecture.md` gets `hive_glass` and the choice line. `CHANGELOG.md` gets one line under `[Unreleased]`, in English and Arabic. The gates pass: the CLAUDE.md quality gates (mutants `--in-place --in-diff`, `CARGO_BUILD_JOBS=1`), `tests/overlay/kwin.sh` (default, `window`, `drop`, `glass`), `tests/overlay/gnome.sh`, `tests/hyprland/repro.sh --json` and `--json --quasimode` (failed 0, skipped 0), `tests/overlay/budget.sh`, `tests/drop/kwin.sh level=1`, and `snapshots.sh`.
 
-## حالات الاختبار
-| معيار | الاختبار | النوع |
+## Test cases
+| AC | Test | Type |
 | --- | --- | --- |
-| AC1 | وحدة على ناتج المولّد: قيم `glass-2` و`glass-3` في المخططين كما أعلاه؛ `scripts/design-lint.sh` | وحدة |
-| AC2 | وحدة تحسب التباين بصيغة WCAG للحالات الثماني وتطبع كل قيمة | وحدة |
-| AC3 | وحدة على `Tokens`: كل مدة جديدة بقيمتها ثم صفر مع `reduced-motion`؛ رموز بتسارع مجهول تُفشل المولّد؛ فحص CSS تحت `prefers-reduced-motion` | وحدة |
-| AC4 | `ui_tests` بـ `mock_elapsed_time`: شفافية ومقياس كل حلقة عند 0 و100 و200 ms | وحدة |
-| AC5 | `ui_tests`: موقع الإبراز عند 70 و140 ms بين خليتين، بالفأرة والأسهم؛ ظهور أول دون انزلاق | وحدة |
-| AC6 | `ui_tests`: مقياس الخلية عند الضغط والإفلات؛ تشغيل اختبارات `geometry` و`drop_tests` كما هي | وحدة |
-| AC7 | `ui_tests`: ترتيب الاستدعاء والإخفاء بساعة وهمية؛ نقرة ثانية وEsc وفقدان تركيز وإفلات عند 45 ms من الإغلاق، وعدّ الردود (1)؛ و`present` عند 45 ms؛ `tests/drop/kwin.sh` لحد 500 ms | وحدة، تكامل |
-| AC8 | `ui_tests` بـ `reduced_motion` مفعّل: كل القيم نهائية عند 0 ms | وحدة |
-| AC9 | وحدة على الدالة: قوائم عوامّ KWin وGNOME وHyprland مع متغيرات البيئة، والمسارات الثلاثة، والفرض بالمتغير | وحدة |
-| AC10 | الأساس: وحدة ترسم المنطقة على شبكة بكسل وتعدّ ما خارج السداسيات (0) والتغطية. وإن أعلن KWin المخفي عامّ الضبابية (مُفترَض، لم يُرَ في أي أثر في المستودع): `WAYLAND_DEBUG=1` يُظهر طلب الضبابية و`set_region` على السطح في 3 ظهورات متتالية. مسار (ب): لقطة يعتمدها المشرف على جهازه | وحدة، تكامل |
-| AC11 | GNOME Shell المخفي: لا طلب ضبابية في الأثر، ولقطة معتمة مطابقة؛ وحدة: إصدار غير مدعوم وإزالة العامّ يعطيان «معتم» | وحدة، تكامل |
-| AC12 | `crates/ui/tests/snapshots.sh` بالمراجع الثمانية وفحص البكسلين | لقطة |
-| AC13 | `crates/ui/tests/measure.sh` مع وضع `animate` جديد في `hive_bench` يطبع زمن كل إطار والأقصى | أداء |
+| AC1 to AC3 | Generator output values, zero under reduced motion, build fails on a bad easing; WCAG ratios printed for all 8 cases; lint on a bad fixture | unit |
+| AC4 to AC6, AC8 | `ui_tests` with `mock_elapsed_time`: opacity and scale per ring at 0, 100 and 120 + 40R ms (2-ring and corner 4-ring plans); highlight position at 70 and 140 ms by mouse, arrows and drag; press scale; callback count and hide time with input at 45 ms into the close | unit |
+| AC7, AC9 | The same with reduced motion; `attach` counts in the `repro.sh` trace; the existing drop checks | unit, integration |
+| AC10, AC11 | Choice table over the KWin, GNOME and Hyprland global lists, flags, config and env; region rasterised and counted; `hive_glass` missing, `off`, unknown | unit |
+| AC12 to AC14 | `kwin.sh glass` and `window` traces, `gnome.sh` trace, `repro.sh` INFO and checker capture | integration |
+| AC15, AC16 | `snapshots.sh`, sha256 and the alpha probes | snapshot |
+| AC17, AC18 | `measure.sh` animate mode; `budget.sh` | performance |
+| AC19 | All the scripts once, one private compositor at a time; the reviewer reads the ADR, docs and CHANGELOG | integration, review |
 
-## خارج النطاق
-- السطح نفسه (layer-shell أو xdg-toplevel)، وموقعه، وقواعد Hyprland، ومعاينة الملف في المركز: ADR 0004 وقصته.
-- تشغيل Hyprland فعلياً: يُتحقق منه يدوياً على جهاز حقيقي بلقطة يعتمدها، لا باختبار آلي.
-- شكل «سائل» بدمج الأشكال (metaballs): يحتاج تمويهاً أو تدرجاً، ومخالف للقواعد وثقيل على المُصيِّر البرمجي.
-- إعداد يطفئ الشفافية في نافذة الإعدادات.
+## Out of scope
+- `org_kde_kwin_blur`, Hyprland blur layer rules, rounded corners, metaball "liquid" shapes, and a settings window toggle.
+- Live desktops: every test runs in private compositors only (KWin `--virtual`, headless GNOME Shell, nested Hyprland), in the 6 GB scope with one or two build jobs.
+- `backlog/S-014-drop-hive.md`, `.claude/worktrees/`, the branch `windows/0.6.0`.
 
-## سجل المراجعة
+## Review log
 - 2026-10-20، المخطِّط: الجهد نحو 3 إلى 4 أيام، فقُسّمت إلى أربع قصص فرعية. ADR 0004 لم يكن موجوداً عند الكتابة: AC9 إلى AC11 تُراجع بعد قبوله. قرارات تنتظر المشرف قبل الاعتماد، ولا تُعدَّل `CLAUDE.md` قبلها:
   1. ألوان بشفافية في الرموز: يسمح بـ `glass-2` و`glass-3`؟ هذا يوسّع قاعدة «الارتفاع بدرجات الأسطح فقط» إلى «الأسطح أو نسختها الزجاجية، والأعلى أقل شفافية». والقيم 72 % و82 %.
   2. التباين: وعد `docs/design-system.md` بـ 4.5:1 «على كل سطح» يصير على الزجاج مركّباً فوق الأسود والأبيض (AC2)، لأن ما خلفه مجهول.
@@ -70,3 +86,5 @@
   5. منحنيات مسماة و`cubic-bezier` في الرموز مسموحة، ويُزال `ease-out` المكتوب يدوياً من `hive.slint`.
   6. إغلاق متحرك 90 ms مقبول، والإجراء يبدأ فوراً.
   7. GNOME وكل مؤلِّف بلا ضبابية: معتم بالكامل، بلا شفافية.
+- 2026-10-23, planner: rewritten in English for 0.4.0 against the current code (`layer.rs`, `motion.rs`, `hive.slint`, `hex-cell.slint`, `layout.rs`, `build.rs`, the test scripts) and against S-018, S-019, S-021, S-022 and S-027. The 2026-10-20 decisions stand, except as refined in decisions 1 to 9. The AC numbers in the Arabic entries refer to the superseded ACs. The Hyprland open question there is closed by the verified ext global. The new facts: the ext global on KWin and Hyprland, and no kwin_blur anywhere. Ring delays now use the slot ring up to 4. Split into five sub-stories. No open questions. Status: draft, for the manager's approval.
+- 2026-10-23, manager under the maintainer's delegation: approved with the planner's nine decisions and the split S-017a to S-017e. It runs after S-014f so that only one chain changes `crates/ui` at a time. New glass references (AC16) are approved by the manager after looking at them, logged here before commit.
