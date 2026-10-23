@@ -291,7 +291,7 @@ changed=$(cd "$ROOT" && git diff --name-only "$BASE" -- 2>/dev/null) && changed+
 changed=$(sort -u <<<"$changed")
 dashed=""
 while IFS= read -r f; do
-  [ -n "$f" ] && [ -f "$ROOT/$f" ] && grep -qP "\x{2014}|\x{2013}" "$ROOT/$f" && dashed+="$f "
+  [ -n "$f" ] && [ -f "$ROOT/$f" ] && grep -qIP "\x{2014}|\x{2013}" "$ROOT/$f" && dashed+="$f "
 done <<<"$changed"
 echo "INFO AC28: files changed since $BASE or untracked: $(grep -c . <<<"$changed"); with a long dash: ${dashed:-none}"
 check "AC28: no em dash or en dash in any file changed since $BASE (or untracked)" '[ -z "$dashed" ] && ! grep -q "^(git diff" <<<"$changed"'
