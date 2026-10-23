@@ -24,7 +24,7 @@
 #     in Cargo.lock at all);
 #   - every package in Cargo.lock that is not in the lock of 0de3c74 (the
 #     approval of S-014e) has a row in docs/engines.md naming it, its
-#     version and a licence; workspace members (no "source") are not
+#     version and a licence; the workspace members (sbarhive-*) are not
 #     dependencies and are left out.
 # The checks after the first are only meaningful with a client, so each one
 # requires it.
@@ -108,9 +108,10 @@ check "AC14: with the client, the daemon's normal dependencies have no tokio" '[
 NEW=$(python3 -I - <(git show "$BASE:Cargo.lock") Cargo.lock <<'PY'
 import sys, tomllib
 def pk(f):
-    # Workspace members have no "source"; a version bump at release time
-    # (0.3.3) makes them "new" but they are not dependencies.
-    return {(p["name"], p["version"]) for p in tomllib.load(open(f, "rb")).get("package", []) if "source" in p}
+    # Workspace members (sbarhive-*) are not dependencies; a version bump
+    # at release time (0.3.3) made them look new. The vendored softbuffer
+    # has no "source" either but is a dependency, so filter by name.
+    return {(p["name"], p["version"]) for p in tomllib.load(open(f, "rb")).get("package", []) if not p["name"].startswith("sbarhive-")}
 for n, v in sorted(pk(sys.argv[2]) - pk(sys.argv[1])):
     print(n, v)
 PY
