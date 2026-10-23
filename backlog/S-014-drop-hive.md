@@ -721,3 +721,4 @@
     - `target/settings-snapshot-candidates/settings-ar-light.png` (`b6e12daa...`)
     Looked at `en-light` and `ar-dark`: the new row is on, below "Open the folder when done", the switch on the right in English and on the left in Arabic, the labels not clipped. The references were not touched; they are the manager's to replace after approval.
   - Status: S-014f1 for review, after the manager approves the four candidates.
+- 2026-10-23, manager under the maintainer's delegation: the four S-014f1 settings candidates (512x705) are approved after looking at each one: the new switch row sits after "Open the folder when done", the switch is on the right in English and on the left in Arabic, nothing is clipped, no shadow, token colours only. They replace the four references; `settings_snapshots.sh` now prints `snapshots: ok` with 0 pixel difference.
