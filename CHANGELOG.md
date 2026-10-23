@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Added
+- Portal shortcut follow-ups (S-014f): a Settings switch "Register the drop shortcut with the desktop" turns the portal shortcut on or off and applies within seconds with no restart, on GNOME the daemon passes the activation token the portal gives it so the hive takes the drop under strict focus, and a key changed in the desktop's settings is kept, also after a restart (at once on KDE, on GNOME at the latest after logging out and back in). «خيار في الإعدادات يشغّل اختصار البوابة أو يوقفه دون إعادة تشغيل، وتأخذ الخلية الإفلات في GNOME برمز التفعيل، ويُحتفظ بالمفتاح الذي تغيّره في إعدادات سطح المكتب».
+
 ### Fixed
 - Hyprland release binds in the docs are non consuming (`bindrni`, `non_consuming = true`): a consuming release bind that ignores modifiers makes Hyprland swallow the bare key's press, so the documented `bindri = SUPER, Z` ate every Z typed anywhere and the `ALT_L` one every Alt; `tests/drop/hold_docs.sh` now fails on any consuming release bind in the docs. «ربط الترك الموثَّق في Hyprland صار غير مستهلِك، فلم يعد يبتلع كل حرف Z وكل ضغطة Alt».
 

@@ -63,6 +63,8 @@ If you bound Super+Z by hand above, remove that manual bind once the portal has 
 
 To change the key: on GNOME, open Settings, then Apps, choose SbarHive, then Global Shortcuts; on KDE, open System Settings, then Keyboard, then Shortcuts.
 
+SbarHive keeps a key you changed there, also after a restart of the daemon. On KDE the new key applies at once. On GNOME it applies at the latest after you log out and back in.
+
 The portal shortcut works by holding, not by a tap: hold Super+Z during a drag and the hive shows after the long press (`hold_ms`, 400 ms by default), then closes when you let the key go. A short tap shows nothing.
 
 If you refuse the dialog, the daemon remembers it as `portal_shortcut = false` in `~/.config/sbarhive/config.toml` and does not ask again at the next login. The settings switch "Register the drop shortcut with the desktop" turns registration back on or off. It applies within seconds, with no restart of the daemon. With the switch off, the daemon does not use the portal, and the manual bind above is the way to show the hive.
