@@ -16,7 +16,9 @@ cd "$REPO_ROOT" || exit 2
 trap drop_fakes EXIT
 
 CI_YML=.github/workflows/ci.yml
-BASE="$(git merge-base main HEAD)"
+# Fixed base: aa84616 is the commit windows/0.6.0 was cut from. A merge base
+# with main stopped working once the Windows work was merged (it equals HEAD).
+BASE=aa84616a634397031c97c058c2fceba16cf026f7
 LONG_DASH="$(printf '\342\200\224\|\342\200\223')"
 
 # ci_query CHECK: runs one named python check on ci.yml; prints a reason and

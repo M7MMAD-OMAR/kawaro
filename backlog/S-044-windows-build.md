@@ -273,3 +273,7 @@ FAIL S-044b windows ISO (heavy) (1 of 4 checks failed)
     - Info, `scripts/windows/check-dlls.sh:12`: a non-regular `--text` path (such as `/dev/null`) is reported as "no such file"; the exit code 2 is right.
     - Info, `scripts/windows/run-tests.cmd:7`: delayed expansion would mangle a path holding `!`; the disc and `%USERPROFILE%` paths here have none.
     - Info, `.github/workflows/ci.yml:28-61`: the first green run of both jobs stays the S-052 live check.
+- 2026-10-23, tester (S-044b, AC8 base fix):
+  - Cause: `tests/windows/test_ci_iso.sh` took `BASE="$(git merge-base main HEAD)"`. Since windows/0.6.0 was merged into main (c303826), the merge base is HEAD itself, so the AC8 check "ci.yml has added lines against the merge base" saw 0 added lines and failed on a clean main: `FAIL: AC8: ci.yml has added lines against the merge base (got 0)`, `FAIL S-044b windows CI, ISO and runner (light) (1 of 78 checks failed)`.
+  - Change: `BASE` is now the fixed full hash `aa84616a634397031c97c058c2fceba16cf026f7`, the commit windows/0.6.0 was cut from, with a two-line comment saying why. `git log aa84616..main -- .github/workflows/ci.yml` lists only the Windows commits adc84ad and f2ff8a7. Every assertion is unchanged: only `+` lines, `check` byte-identical to the base, the two jobs and their steps. No other `merge-base` use in `tests/windows/*.sh`.
+  - Results: `bash tests/windows/test_ci_iso.sh` PASS (78 checks); `bash tests/windows/test_scripts.sh` PASS (63). `shellcheck -x tests/windows/test_ci_iso.sh` clean. No em or en dash in the changed files.
