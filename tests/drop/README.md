@@ -29,6 +29,8 @@ tests/drop/kwin.sh level=1 portal-real # S-014e2 AC20, AC21: the real KDE portal
 tests/hyprland/repro.sh --portal       # S-014e3 AC20: the real Hyprland portal
 tests/drop/portal_docs.sh      # S-014e3 AC22: portal docs, CHANGELOG, no compositor
 tests/drop/gnome.sh strict portal-real # S-014f3 AC15 b, c: token, strict focus
+tests/drop/kwin.sh level=1 portal-real rebind # S-014f4 AC16: Meta+Y in KDE
+tests/drop/gnome.sh smart portal-real rebind  # S-014f4 AC16: Super+Y in GNOME
 ```
 
 Each prints `PASS`/`FAIL` lines, ends with `RESULT PASS` or `RESULT FAIL (n)`,
@@ -333,6 +335,19 @@ focus-new-windows strict: the trace's token against the last frontend
 `Activated` before it (`real_portal.py last`), and the focus window by
 `Shell.Eval`; then the control (c), `drop --hold` with no token.
 `portal.sh ro`: a denial whose save fails leaves memory as the file is.
+
+## S-014f4: a key changed in the desktop's store (AC16)
+
+`rebind` after `portal-real` runs `rebind_run` of `portal_real.sh` instead
+of AC20 and AC21. After the consent, `rebind_store.py` sets `drop` to
+Super+Y in the store on the private bus: on KDE with the kglobalaccel
+setter named in its `Introspect`, on GNOME in the `shortcuts` key that
+`dconf list` finds. Then Super+Y, Super+Z and Super+Y held mid-drag with
+the same daemon (KDE checks, a GNOME INFO line), a restart of the daemon
+and of every portal process, one bound line naming Y, and the three cases
+again. `REBIND_CONTROL=1` skips the store write, so the Y checks fail.
+`portal_docs.sh` reads that GNOME INFO line from the output folder
+(`gnome-smart-portal-real-rebind.txt`), for AC28.
 
 ## Input
 

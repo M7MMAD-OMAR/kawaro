@@ -620,3 +620,213 @@ ac15_real_run() {
   echo "INFO AC15 instrument: token from the shell \"${ptok:-none}\"; focus before the drag pid $pf0 (source $src); hive window line $pshown; activate requests $pn (${ptk:-none}); focus after it pid $pf1, 500 ms later ${plate:-none} (daemon $d); the daemon's windows: ${hivef:-none}; probe.webp $([ "$pwrote" = yes ] && echo written || echo 'not written'); verdict: $([ -n "$ptok" ] && [ "$pf1" = "$d" ] && [ "$pwrote" = yes ] && echo 'a valid token moves the focus under strict' || echo 'not shown (see the fields)')"
   wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
 }
+
+# --- S-014f4 (AC16): kwin.sh level=1 portal-real rebind, ---------------------
+# gnome.sh smart portal-real rebind. After the consent and the bound line
+# (Meta+Z, "Press <Super>z"), drop is set to Super+Y in the desktop's own
+# store by tests/drop/rebind_store.py on this private bus: KDE through
+# kglobalaccel's D-Bus interface (the method taken from its Introspect),
+# GNOME in the private dconf (the path found with `dconf list`), and read
+# back. Then, live with the same daemon: Super+Y held mid-drag (1 of 1),
+# Super+Z held 600 ms mid-drag (no activated, no hive surface over 1150 ms),
+# Super+Y again (positive after the negative), no new "portal shortcuts:"
+# line; hard checks on KDE, one INFO line "live rebind: followed" or "not
+# followed" on GNOME (planner decision 6). Then the daemon and every portal
+# process of the bus are restarted (the AC21 run 2 pattern) and the same
+# three cases are hard checks on both, after one bound line whose T equals
+# the new BindShortcuts reply on the bus and names Y.
+# REBIND_CONTROL=1 skips the store write (the control: the checks on Y must
+# then fail). The caller's key_down and key_up press Super+$KEY (z or y).
+# Optional caller hook: overview_hide (GNOME), run after each case.
+
+RS="$HERE/rebind_store.py"
+
+# rebind_cycle NAME FILE: a PNG drag, Super+$KEY held until the hive shows,
+# the drop on WEBP with the key held, then the release. No checks; sets
+# RB_ACT (activated lines), RB_SHOWN, RB_OK (the WEBP written, deleted=False,
+# the original's sha256 unchanged).
+rebind_cycle() {
+  local name=$1 file=$2 base="${2%.*}" smark sha geo wrote=no mime mark seg
+  RB_OK=no RB_SHOWN=no RB_ACT=0
+  echo "== $name: $(basename "$file"), Super+${KEY^^} held mid-drag, drop on WEBP, then release"
+  printf '%s\n' "$file" >"$NEXT"
+  smark=$(wc -l <"$SLOG")
+  sha=$(sha256sum "$file" | cut -d' ' -f1)
+  drag_past_threshold
+  mark=$(wc -l <"$DLOG")
+  key_down
+  hold_motion
+  geo=$(wait_geo 4)
+  if [ -n "$geo" ]; then
+    RB_SHOWN=yes
+    sleep 1
+    local g2; g2=$(hive_geo); [ -n "$g2" ] && geo=$g2
+    # shellcheck disable=SC2086
+    move_to_webp $geo
+  fi
+  ptr_up
+  [ -n "$geo" ] && wait_file "$base.webp" 5 && wrote=yes
+  key_up
+  sleep 0.5
+  mime=$(file --mime-type -b "$base.webp" 2>/dev/null)
+  seg=$(tail -n +$((mark + 1)) "$DLOG")
+  RB_ACT=$(grep -cE '^portal: activated drop$' <<<"$seg")
+  [ "$wrote" = yes ] && [ "$mime" = image/webp ] && tail -n +$((smark + 1)) "$SLOG" | grep -q "drag-end deleted=False" \
+    && [ "$(sha256sum "$file" | cut -d' ' -f1)" = "$sha" ] && RB_OK=yes
+  echo "INFO $name: activated lines $RB_ACT; hive ${geo:-not shown}; $(basename "$base").webp ${mime:-not written}; written, deleted=False and sha256 kept: $RB_OK"
+  wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
+  if declare -F overview_hide >/dev/null; then overview_hide; fi
+  sleep 1
+}
+
+# rebind_neg NAME: a PNG drag, Super+Z held 600 ms, then 1150 ms from the
+# press counted: sets RB_NACT (activated lines) and RB_NHIVE (hive surfaces
+# made, plus 1 if a hive is mapped at the end).
+rebind_neg() {
+  local name=$1 mark t0 seg left
+  echo "== $name: Super+Z held 600 ms mid-drag, counted over 1150 ms"
+  printf '%s\n' "$W/neg.png" >"$NEXT"
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/neg.png"
+  drag_past_threshold
+  mark=$(wc -l <"$DLOG")
+  t0=$(now_ms)
+  KEY=z key_down
+  hold_motion
+  sleep 0.6
+  KEY=z key_up
+  left=$((t0 + 1150 - $(now_ms)))
+  [ "$left" -gt 0 ] && sleep "$(awk -v m="$left" 'BEGIN { printf "%.3f", m / 1000 }')"
+  seg=$(tail -n +$((mark + 1)) "$DLOG")
+  RB_NACT=$(grep -cE '^portal: activated drop$' <<<"$seg")
+  RB_NHIVE=$(hive_shows "$seg")
+  [ -n "$(hive_geo)" ] && RB_NHIVE=$((RB_NHIVE + 1))
+  echo "INFO $name: activated lines $RB_NACT; hive surfaces $RB_NHIVE over $(($(now_ms) - t0)) ms from the press"
+  ptr_up
+  wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
+  if declare -F overview_hide >/dev/null; then overview_hide; fi
+  sleep 1
+}
+
+# rebind_cases PHASE HARD: Super+Y, Super+Z, Super+Y. With HARD=1 each is a
+# check; else one INFO line. Sets RB_FOLLOWED (yes when all three held).
+rebind_cases() {
+  local phase=$1 hard=$2 y1 y2 neg
+  KEY=y
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/$phase y1.png"
+  rebind_cycle "AC16 $phase Super+Y" "$W/$phase y1.png"
+  y1="$RB_ACT|$RB_SHOWN|$RB_OK"
+  rebind_neg "AC16 $phase Super+Z"
+  neg="$RB_NACT|$RB_NHIVE"
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/$phase y2.png"
+  rebind_cycle "AC16 $phase Super+Y after Super+Z" "$W/$phase y2.png"
+  y2="$RB_ACT|$RB_SHOWN|$RB_OK"
+  KEY=z
+  RB_FOLLOWED=no
+  [[ "$y1" == [1-9]*"|yes|yes" ]] && [ "$neg" = "0|0" ] && [[ "$y2" == [1-9]*"|yes|yes" ]] && RB_FOLLOWED=yes
+  if [ "$hard" = 1 ]; then
+    check "AC16 $phase: Super+Y held mid-drag gives \"portal: activated drop\", the hive and the WEBP (deleted=False, sha256 unchanged), 1 of 1" \
+      '[[ "$y1" == [1-9]*"|yes|yes" ]]'
+    check "AC16 $phase: Super+Z held 600 ms mid-drag gives zero \"portal: activated drop\" and zero hive surfaces over 1150 ms" \
+      '[ "$neg" = "0|0" ]'
+    check "AC16 $phase: then Super+Y again, 1 of 1 (positive after the negative)" \
+      '[[ "$y2" == [1-9]*"|yes|yes" ]]'
+  fi
+}
+
+rebind_run() { # rebind_run DESKTOP
+  local desk=$1
+  echo "INFO AC16 $desk: xdg-desktop-portal $(pkg_version xdg-desktop-portal), $([ "$desk" = KDE ] && echo "xdg-desktop-portal-kde $(pkg_version xdg-desktop-portal-kde), kglobalacceld $(pkg_version kglobalacceld)" || echo "xdg-desktop-portal-gnome $(pkg_version xdg-desktop-portal-gnome), gnome-control-center $(pkg_version gnome-control-center), dconf $(pkg_version dconf)"), XDG_CURRENT_DESKTOP=$XDG_CURRENT_DESKTOP${REBIND_CONTROL:+, CONTROL (no store write)}"
+  consent_once
+  local lines nb t0 reply0
+  lines=$(bound_lines)
+  nb=$(grep -cE '^portal shortcuts: bound drop \(.*\)$' <<<"$lines")
+  t0=$(sed -nE 's/^portal shortcuts: bound drop \((.*)\)$/\1/p' <<<"$lines" | head -1)
+  reply0=$(python3 -I "$PR" triggers "$MONLOG" | head -1)
+  echo "INFO AC16 setup: $CONSENT; daemon portal lines: $(tr '\n' '|' <<<"${lines:-none}"); the reply on the bus \"$reply0\""
+  check "AC16 setup $desk: the backend dialog is accepted and the daemon prints one \"portal shortcuts: bound drop (T)\", T the reply on the bus and naming Z" \
+    '[ "$CONSENT_OK" = yes ] && [ "$nb" -eq 1 ] && [ "$(grep -c "^portal shortcuts:" <<<"$lines")" -eq 1 ] && [ "$t0" = "$reply0" ] && grep -qiE "[+>]z$" <<<"$t0"'
+
+  # --- the store: drop set to Super+Y, read back -------------------------
+  local rs ok=""
+  if [ "$desk" = KDE ]; then
+    rs=$(python3 -I "$RS" kde "$OUT_LOG-kglobalaccel.xml" 2>&1)
+    echo "INFO AC16 KDE store before: $(tr "\n" " " <<<"$rs")"
+    local reader setter
+    reader=$(python3 -I -c 'import json, sys; print(json.loads(sys.argv[1]).get("reader") or "")' "$rs" 2>/dev/null)
+    setter=$(python3 -I -c 'import json, sys; print(json.loads(sys.argv[1]).get("setter") or "")' "$rs" 2>/dev/null)
+    check "AC16 setup KDE: Introspect of org.kde.kglobalaccel /kglobalaccel lists the reader and the foreign setter (shortcutKeys, setForeignShortcutKeys)" \
+      '[ -n "$reader" ] && [ -n "$setter" ] && grep -q "name=\"$setter\"" "$OUT_LOG-kglobalaccel.xml" && grep -q "name=\"$reader\"" "$OUT_LOG-kglobalaccel.xml"'
+    check "AC16 setup KDE: kglobalaccel has the action \"drop\" of the portal's component, with the keys Meta+Z" \
+      'python3 -I -c "import json, sys; j = json.loads(sys.argv[1]); sys.exit(not (j[\"action_id\"] and j[\"before_text\"] == \"Meta+Z\"))" "$rs"'
+    if [ -z "${REBIND_CONTROL:-}" ]; then
+      rs=$(python3 -I "$RS" kde "$OUT_LOG-kglobalaccel.xml" set 2>&1)
+      echo "INFO AC16 KDE store set: $(tr "\n" " " <<<"$rs")"
+      ok=$(python3 -I -c 'import json, sys; j = json.loads(sys.argv[1]); print("yes" if j.get("ok") and j.get("readback_text") == "Meta+Y" else "no")' "$rs" 2>/dev/null)
+    fi
+    check "AC16 KDE: drop set to Meta+Y through $setter on the private bus and read back as Meta+Y" '[ "$ok" = yes ]'
+  else
+    rs=$(python3 -I "$RS" gnome 2>&1)
+    echo "INFO AC16 GNOME store before (dconf list from /): $(tr "\n" " " <<<"$rs")"
+    check "AC16 setup GNOME: \`dconf list\` finds exactly one directory with a \"shortcuts\" key (a(sa{sv})) holding \"drop\", in the throwaway profile" \
+      'python3 -I -c "import json, sys; sys.exit(len(json.loads(sys.argv[1])[\"paths\"]) != 1)" "$rs" && [ -f "$XDG_CONFIG_HOME/dconf/user" ] && [[ "$XDG_CONFIG_HOME" == "$HOME"/* ]] && [ "$HOME" != "$(getent passwd "$(id -u)" | cut -d: -f6)" ]'
+    if [ -z "${REBIND_CONTROL:-}" ]; then
+      rs=$(python3 -I "$RS" gnome set 2>&1)
+      echo "INFO AC16 GNOME store set: $(tr "\n" " " <<<"$rs")"
+      ok=$(python3 -I -c 'import json, sys; j = json.loads(sys.argv[1]); print("yes" if j.get("ok") and "<Super>y" in j.get("readback", "") and "<Super>z" not in j.get("readback", "") else "no")' "$rs" 2>/dev/null)
+    fi
+    check "AC16 GNOME: the shortcuts key gets <Super>y for drop with the other entries kept, and is read back" '[ "$ok" = yes ]'
+  fi
+  sleep 2
+
+  # --- live, the same daemon ---------------------------------------------
+  local d0=$d nlines0; nlines0=$(grep -c '^portal shortcuts:' "$DLOG")
+  rebind_cases live "$([ "$desk" = KDE ] && echo 1 || echo 0)"
+  local nlines1; nlines1=$(grep -c '^portal shortcuts:' "$DLOG")
+  local same=no; [ "$d" = "$d0" ] && kill -0 "$d" 2>/dev/null && [ "$nlines1" -eq "$nlines0" ] && same=yes
+  echo "INFO AC16 live: daemon pid $d0 then $d, alive $(kill -0 "$d" 2>/dev/null && echo yes || echo no); \"portal shortcuts:\" lines $nlines0 then $nlines1; new lines: $(tail -n +1 "$DLOG" | grep -E '^portal' | tail -n +$((nlines0 + 1)) | grep '^portal shortcuts:' | tr '\n' '|')"
+  if [ "$desk" = KDE ]; then
+    check "AC16 live KDE: the same daemon PID and no new \"portal shortcuts:\" line" '[ "$same" = yes ]'
+  else
+    echo "INFO AC16 GNOME live rebind: $([ "$RB_FOLLOWED" = yes ] && [ "$same" = yes ] && echo followed || echo 'not followed')"
+  fi
+
+  # --- restart: the daemon and every portal process (AC21 run 2) ---------
+  echo "== AC16 restart: a new daemon on the same profile, the portal restarted"
+  local ntr; ntr=$(python3 -I "$PR" triggers "$MONLOG" | grep -c '^')
+  portal_stop_daemon
+  local p
+  for p in $(bus_procs | cut -d' ' -f1); do kill "$p" 2>/dev/null; done
+  local end2; end2=$(deadline 5)
+  while [ "$(now_ms)" -lt "$end2" ] && [ -n "$(bus_procs)" ]; do sleep 0.2; done
+  local procs_mid; procs_mid=$(bus_procs)
+  local wmark; wmark=$(watch_read | grep -c .)
+  portal_start_daemon rebind2
+  sleep 5
+  local new2 dlg2 lines2 procs2 dlg2pid="" t2 replies2 reply2
+  new2=$(others_since "$wmark")
+  dlg2=$(dialog_now)
+  [ -n "$dlg2" ] && dlg2pid=$(cut -d'|' -f2 <<<"$dlg2")
+  [ -n "$dlg2pid" ] && ! bus_procs | cut -d' ' -f1 | grep -qxF "$dlg2pid" && dlg2="${dlg2} (not a portal process)"
+  lines2=$(bound_lines)
+  procs2=$(bus_procs)
+  t2=$(sed -nE 's/^portal shortcuts: bound drop \((.*)\)$/\1/p' <<<"$lines2" | head -1)
+  replies2=$(python3 -I "$PR" triggers "$MONLOG" | tail -n +$((ntr + 1)))
+  reply2=$(head -1 <<<"$replies2")
+  local after=""
+  if [ "$desk" = KDE ]; then
+    after=$(python3 -I "$RS" kde "$OUT_LOG-kglobalaccel-after.xml" 2>&1 | python3 -I -c 'import json, sys; print(json.loads(sys.stdin.read()).get("before_text"))' 2>&1)
+  else
+    after=$(python3 -I "$RS" gnome 2>&1 | python3 -I -c 'import json, sys; print(json.loads(sys.stdin.read()).get("before"))' 2>&1)
+  fi
+  echo "INFO AC16 restart: windows from others within 5 s: $(tr '\n' ';' <<<"${new2:-none}"); open now: ${dlg2:-none}; daemon portal lines: $(tr '\n' '|' <<<"${lines2:-none}"); new BindShortcuts replies on the bus: $(tr '\n' ';' <<<"${replies2:-none}"); the store now: $after"
+  echo "INFO AC16 restart: portal processes left after the stop: $(tr '\n' ';' <<<"${procs_mid:-none}"); after the new daemon's start: $(tr '\n' ';' <<<"${procs2:-none}")"
+  check "AC16 restart setup: the portal processes were ended and the new daemon activated new ones" \
+    '[ -z "$procs_mid" ] && grep -qE "^[0-9]+ xdg-desktop-por" <<<"$procs2"'
+  check "AC16 restart: no new window from the backend within 5 s of the new daemon's start" \
+    '[ -z "$new2" ] && { [ -z "$dlg2" ] || [[ "$dlg2" == *"(not a portal process)" ]]; }'
+  check "AC16 restart: exactly one \"portal shortcuts:\" line, \"bound drop (T)\", T the new BindShortcuts reply on the bus" \
+    '[ "$(grep -c "^portal shortcuts:" <<<"$lines2")" -eq 1 ] && grep -qE "^portal shortcuts: bound drop \(.*\)$" <<<"$lines2" && [ "$(grep -c "^" <<<"$replies2")" -ge 1 ] && [ -n "$replies2" ] && [ "$t2" = "$reply2" ]'
+  check "AC16 restart: T names Y, so the daemon's LOGO+z at the start did not undo the change (T \"$t2\")" \
+    'grep -qiE "[+>]y$" <<<"$t2"'
+  rebind_cases restart 1
+}

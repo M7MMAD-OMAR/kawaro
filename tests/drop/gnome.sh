@@ -46,7 +46,15 @@
 #   for the portal's token in the trace and the WEBP (the focus window is
 #   INFO only, manager decision 5), and
 #   the no-token control (c), instead of AC20 and AC21.
-# Usage: tests/drop/gnome.sh [smart|strict] [shortcut|portal|portal-real] [target/release]
+# S-014f4 (AC16), "smart portal-real rebind", tests/drop/portal_real.sh
+#   rebind_run: after the consent, the shortcuts key of the app's path in
+#   the private dconf (found with `dconf list`, tests/drop/rebind_store.py)
+#   gets <Super>y for drop and is read back; Super+Y, Super+Z and Super+Y
+#   held mid-drag live (an INFO line only, planner decision 6), then the same
+#   as checks after a restart of the daemon and of every portal process;
+#   AC20 and AC21 are not run in this mode. REBIND_CONTROL=1 skips the store
+#   write (the control).
+# Usage: tests/drop/gnome.sh [smart|strict] [shortcut|portal|portal-real [rebind]] [target/release]
 #   Mutter focus-new-windows, default smart
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -55,15 +63,17 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 source "$ROOT/tests/no_portal.sh"
 POLICY=smart
 MODE=""
+REBIND=""
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in smart|strict) POLICY="$a" ;; shortcut | portal | portal-real) MODE="$a" ;; *) BIN="$a" ;; esac
+  case "$a" in smart|strict) POLICY="$a" ;; shortcut | portal | portal-real) MODE="$a" ;; rebind) REBIND=1 ;; *) BIN="$a" ;; esac
 done
-TAG="gnome-$POLICY${MODE:+-$MODE}"
+[ -n "$REBIND" ] && { [ "$MODE" != portal-real ] || [ "$POLICY" != smart ]; } && { echo "rebind needs smart portal-real"; exit 2; }
+TAG="gnome-$POLICY${MODE:+-$MODE}${REBIND:+-rebind}"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
-export BIN HERE ROOT OUT POLICY MODE TAG
+export BIN HERE ROOT OUT POLICY MODE TAG REBIND
 
 inner() {
   set -u
@@ -132,8 +142,16 @@ inner() {
   local d src=""
   if [ "$MODE" = portal ] || [ "$MODE" = portal-real ]; then
     # S-014e2 hooks for tests/drop/portal_real.sh.
-    key_down() { echo "keydown Super_L" >&3; sleep 0.05; echo "keydown z" >&3; }
-    key_up() { echo "keyup z" >&3; sleep 0.05; echo "keyup Super_L" >&3; }
+    # S-014f4: KEY y presses Super+Y instead of Super+Z.
+    KEY=z
+    key_down() { echo "keydown Super_L" >&3; sleep 0.05; echo "keydown $KEY" >&3; }
+    key_up() { echo "keyup $KEY" >&3; sleep 0.05; echo "keyup Super_L" >&3; }
+    # S-014f4: a Super press that no shortcut takes may open the overview.
+    overview_hide() {
+      shell_eval 'Main.overview.visible' | grep -q true || return 0
+      echo "INFO the overview was open after a case; hidden"
+      shell_eval 'Main.overview.hide(); true' >/dev/null; sleep 0.5
+    }
     hold_motion() { :; }
     # shell_str JS: the string JS evaluates to, decoded from Shell.Eval's
     # reply (a GVariant tuple holding the JSON of the result).
@@ -226,6 +244,8 @@ if ok and v:
   elif [ "$MODE" = portal-real ]; then
     if [ "$POLICY" = strict ]; then
       ac15_real_run
+    elif [ -n "$REBIND" ]; then
+      rebind_run GNOME
     else
       real_portal_run GNOME xdg-desktop-portal-gnome
     fi
@@ -252,7 +272,7 @@ if ok and v:
 }
 export -f inner
 
-echo "== gnome $POLICY${MODE:+ $MODE}"
+echo "== gnome $POLICY${MODE:+ $MODE}${REBIND:+ rebind}"
 SANDBOX="$(mktemp -d)"
 DESK=()
 if [ "$MODE" = portal-real ]; then

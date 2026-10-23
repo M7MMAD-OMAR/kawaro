@@ -132,7 +132,14 @@
 # private KWin keeps the shortcut); the backend's dialog accepted by an
 # injected click; Super+Z held through fake_input: AC20 (a), (b), (c), then
 # a second daemon on the same profile (AC21). Super+Z is not bound by hand.
-# Usage: tests/drop/kwin.sh [level=N] [shortcut|portal-real] [target/release]
+# S-014f4 (AC16), "portal-real rebind", tests/drop/portal_real.sh rebind_run:
+# after the consent, drop is set to Meta+Y through kglobalaccel's D-Bus
+# interface on this private bus (tests/drop/rebind_store.py, the method
+# taken from Introspect) and read back; Super+Y, Super+Z and Super+Y held
+# mid-drag live, then the same after a restart of the daemon and of every
+# portal process; AC20 and AC21 are not run in this mode.
+# REBIND_CONTROL=1 skips the store write (the control).
+# Usage: tests/drop/kwin.sh [level=N] [shortcut|portal-real [rebind]] [target/release]
 #   level: focus stealing prevention 0..4, default 1 (Low)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -141,17 +148,19 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 source "$ROOT/tests/no_portal.sh"
 LEVEL=1
 MODE=""
+REBIND=""
 BIN="$ROOT/target/release"
 for a in "$@"; do
-  case "$a" in level=*) LEVEL="${a#level=}" ;; shortcut | portal-real) MODE="$a" ;; *) BIN="$a" ;; esac
+  case "$a" in level=*) LEVEL="${a#level=}" ;; shortcut | portal-real) MODE="$a" ;; rebind) REBIND=1 ;; *) BIN="$a" ;; esac
 done
-TAG="kwin-l$LEVEL${MODE:+-$MODE}"
+[ -n "$REBIND" ] && [ "$MODE" != portal-real ] && { echo "rebind needs portal-real"; exit 2; }
+TAG="kwin-l$LEVEL${MODE:+-$MODE}${REBIND:+-rebind}"
 INPUT="$HERE/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
-export BIN HERE ROOT OUT LEVEL INPUT MODE TAG
+export BIN HERE ROOT OUT LEVEL INPUT MODE TAG REBIND
 
 inner() {
   set -u
@@ -248,8 +257,11 @@ inner() {
   if [ "$MODE" = portal-real ]; then
     # S-014e2 hooks for tests/drop/portal_real.sh. Meta 125, Z 44, Return
     # 28, evdev codes through fake_input; the shell times the keys.
-    key_down() { echo "keydown 125" >&3; sleep 0.05; echo "keydown 44" >&3; }
-    key_up() { echo "keyup 44" >&3; sleep 0.05; echo "keyup 125" >&3; }
+    # S-014f4: KEY y (evdev 21) presses Super+Y instead of Super+Z.
+    KEY=z
+    keycode() { if [ "$KEY" = y ]; then echo 21; else echo 44; fi; }
+    key_down() { echo "keydown 125" >&3; sleep 0.05; echo "keydown $(keycode)" >&3; }
+    key_up() { echo "keyup $(keycode)" >&3; sleep 0.05; echo "keyup 125" >&3; }
     hold_motion() { jitter 400 500 800; }
     # kwin_js TAG CODE [keep]: runs CODE as a KWin script in this private
     # KWin (its print() goes to the KWin log); unloaded unless "keep".
@@ -851,7 +863,11 @@ inner() {
     check "AC11 setup: kglobalacceld lists the custom command shortcut component" 'grep -q sbarhive_drop <<<"$comps"'
     shortcut_shows
   elif [ "$MODE" = portal-real ]; then
-    real_portal_run KDE xdg-desktop-portal-kde
+    if [ -n "$REBIND" ]; then
+      rebind_run KDE
+    else
+      real_portal_run KDE xdg-desktop-portal-kde
+    fi
     portal_teardown
   else
   # S-021 AC4 setup: the source window alone, for the waiting shot's guard.
@@ -935,7 +951,7 @@ inner() {
 }
 export -f inner
 
-echo "== kwin level $LEVEL${MODE:+ $MODE}"
+echo "== kwin level $LEVEL${MODE:+ $MODE}${REBIND:+ rebind}"
 SANDBOX="$(mktemp -d)"
 DESK=()
 if [ "$MODE" = portal-real ]; then

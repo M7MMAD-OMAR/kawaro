@@ -55,6 +55,19 @@
 # CHANGELOG.md: one line that names S-014e (or S-014e1, e2, e3) with
 # Arabic and English text (it was under "## [Unreleased]" until the 0.3.3
 # release).
+# S-014f4 (AC28): the portal section also says, in each language, that a
+# key changed in the desktop's settings is kept by SbarHive (one sentence:
+# changed, kept, SbarHive or the daemon); that on KDE it applies at once
+# (one sentence naming KDE and not GNOME); and that on GNOME it applies at
+# the latest after logging out and back in (one sentence naming GNOME and
+# not KDE). A GNOME sentence that says "at once" (or immediately) is allowed
+# only if the last `tests/drop/gnome.sh smart portal-real rebind` run, its
+# output in $DROP_OUT or tests/drop/out (gnome-smart-portal-real-rebind.txt),
+# printed "INFO AC16 GNOME live rebind: followed". CHANGELOG.md has exactly
+# one line under "## [Unreleased]" (up to the next "## [") naming S-014f
+# (or S-014f1 to f4), with English and Arabic text. No em dash or en dash in
+# any file changed since S014F4_BASE (default 8a6623f, main before S-014f4)
+# or untracked, besides the files above.
 # Usage: tests/drop/portal_docs.sh
 # shellcheck disable=SC2016,SC2034
 set -u
@@ -130,6 +143,11 @@ SENT = {
         "live-no-restart": [[r"\bseconds?\b", r"\b(no|without|never|not)\b[^.]{0,30}\brestart"]],
         "off-manual": [[r"\boff\b", r"\b(manual|by hand)\b"]],
         "alternative": [[r"\balternative\b|\binstead\b", r"\bglobal\b"]],
+        # AC28 (S-014f4).
+        "key-kept": [[r"\bchang", r"\b(keeps?|kept)\b", r"\bSbarHive\b|\bdaemon\b"]],
+        "kde-at-once": [[r"\bKDE\b", r"\bat once\b|\bimmediately\b|\bright away\b"]],
+        "gnome-logout": [[r"\bGNOME\b", r"\b(log|sign)(ging)? out\b", r"\bback in\b|\b(log|sign)(ging)? (back )?in\b"]],
+        "gnome-at-once": [[r"\bGNOME\b", r"\bat once\b|\bimmediately\b|\bright away\b"]],
     },
     "ar": {
         "versions": [[r"GNOME 48", W("وما بعده|وما بعدها|او احدث|واحدث|فما بعد|او ما بعده"), r"(KDE|Plasma) 6"]],
@@ -146,7 +164,18 @@ SENT = {
         "live-no-restart": [[r"ثوان|ثانية", r"(دون|بلا|من غير|لا حاجة|لا تحتاج|لا يلزم)[^.]{0,30}(اعادة|تعيد|تعد) (ال)?تشغيل"]],
         "off-manual": [[r"ايقاف|وقف|تعطيل|عطل|اطفاء", r"يدوي"]],
         "alternative": [[r"بديل|بدلا", r"global"]],
+        # AC28 (S-014f4).
+        "key-kept": [[r"غير|تغيير|تغير", r"يحتفظ|تحتفظ|يبقي|يبقى|تبقى|يحافظ", r"SbarHive|صبار هايف|الخدمة"]],
+        "kde-at-once": [[r"KDE", r"فورا|في الحال|على الفور|مباشرة"]],
+        "gnome-logout": [[r"GNOME", r"الخروج", r"الدخول"]],
+        "gnome-at-once": [[r"GNOME", r"فورا|في الحال|على الفور|مباشرة"]],
     },
+}
+# AC28: a per desktop sentence must not name the other desktop.
+NOT = {
+    "kde-at-once": r"GNOME",
+    "gnome-logout": r"\b(KDE|Plasma)\b",
+    "gnome-at-once": r"\b(KDE|Plasma)\b",
 }
 LIT = {
     "hold_ms": re.compile(r"\bhold_ms\b"),
@@ -166,7 +195,8 @@ for h, a, b in spans:
     found = [k for k, r in LIT.items() if r.search(body)]
     for k, lists in SENT[lang].items():
         flags = 0 if lang == "ar" else re.I
-        if any(all(re.search(p, t, flags) for p in pats) for pats in lists for t in sentences):
+        if any(all(re.search(p, t, flags) for p in pats) and not (k in NOT and re.search(NOT[k], t, flags))
+               for pats in lists for t in sentences):
             found.append(k)
     # Answer 6: the first exec Super+Z line of the file (with --at) comes
     # before the first global line.
@@ -190,6 +220,11 @@ for line in sys.stdin:
     by.setdefault(h, set()).add(k)
 sys.exit(0 if any(want <= v for v in by.values()) else 1)' "$@"
 }
+
+# AC28: the AC16 GNOME INFO line of the last rebind run.
+GOUT="${DROP_OUT:-$HERE/out}/gnome-smart-portal-real-rebind.txt"
+GNOME_LIVE=$(sed -nE 's/^INFO AC16 GNOME live rebind: (followed|not followed)$/\1/p' "$GOUT" 2>/dev/null | tail -1)
+echo "INFO AC28: AC16 GNOME live rebind in ${GOUT#"$ROOT/"}: ${GNOME_LIVE:-no line}"
 
 for lang in en ar; do
   name=$([ $lang = ar ] && echo Arabic || echo English)
@@ -218,6 +253,17 @@ for lang in en ar; do
   hypr=$([ $lang = ar ] && echo "$HYPR_AR" || echo "$HYPR")
   check "AC22 ${hypr#"$ROOT/"} ($name): the global line, after the exec Super+Z line with --at, called the alternative (answer 6)" \
     'has $lang "$hypr" --any global-line alternative exec-first'
+  # S-014f4 (AC28).
+  check "AC28 $rel ($name): a key changed in the desktop's settings is kept by SbarHive (one sentence)" \
+    'has $lang "$doc" key-kept'
+  check "AC28 $rel ($name): on KDE the changed key applies at once (a sentence naming KDE and not GNOME)" \
+    'has $lang "$doc" kde-at-once'
+  check "AC28 $rel ($name): on GNOME the changed key applies at the latest after logging out and back in (a sentence naming GNOME and not KDE)" \
+    'has $lang "$doc" gnome-logout'
+  if has $lang "$doc" gnome-at-once; then
+    echo "INFO AC28 $rel: the GNOME sentence says at once; the last GNOME rebind run: ${GNOME_LIVE:-no output file}"
+    check "AC28 $rel ($name): GNOME \"at once\" only because the AC16 INFO line said followed" '[ "$GNOME_LIVE" = followed ]'
+  fi
 done
 
 # The S-014d and S-019 docs checks still pass.
@@ -231,5 +277,23 @@ check "AC22: no em dash or en dash in docs/drop-shortcut.md, its Arabic copy, th
 lines=$(grep -E 'S-014e[0-9]?\b' "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -cE "[A-Za-z]{4,} [A-Za-z]{2,}")
 echo "INFO AC22: CHANGELOG.md lines naming S-014e in both languages: $lines"
 check "AC22: CHANGELOG.md has one line that names S-014e, in English and in Arabic (released in 0.3.3)" '[ "$lines" -eq 1 ]'
+# AC28: one S-014f line under "## [Unreleased]", in both languages.
+unrel=$(awk '/^## \[Unreleased\]/ { on = 1; next } /^## \[/ { on = 0 } on' "$LOG")
+fl=$(grep -E 'S-014f[0-9]?\b' <<<"$unrel")
+fn=$(grep -c . <<<"$fl")
+fb=$(grep -P "[\x{0600}-\x{06FF}]" <<<"$fl" | grep -cE "[A-Za-z]{4,} [A-Za-z]{2,}")
+echo "INFO AC28: CHANGELOG.md lines under [Unreleased] naming S-014f: $fn, with English and Arabic: $fb"
+check "AC28: CHANGELOG.md has exactly one line under \"## [Unreleased]\" naming S-014f, in English and in Arabic" \
+  '[ "$fn" -eq 1 ] && [ "$fb" -eq 1 ]'
+# AC28: no long dash in any file changed in S-014f4.
+BASE=${S014F4_BASE:-8a6623f}
+changed=$(cd "$ROOT" && git diff --name-only "$BASE" -- 2>/dev/null) && changed+=$'\n'$(cd "$ROOT" && git ls-files --others --exclude-standard) || changed="(git diff against $BASE failed)"
+changed=$(sort -u <<<"$changed")
+dashed=""
+while IFS= read -r f; do
+  [ -n "$f" ] && [ -f "$ROOT/$f" ] && grep -qP "\x{2014}|\x{2013}" "$ROOT/$f" && dashed+="$f "
+done <<<"$changed"
+echo "INFO AC28: files changed since $BASE or untracked: $(grep -c . <<<"$changed"); with a long dash: ${dashed:-none}"
+check "AC28: no em dash or en dash in any file changed since $BASE (or untracked)" '[ -z "$dashed" ] && ! grep -q "^(git diff" <<<"$changed"'
 if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 [ "$FAILS" -eq 0 ]
