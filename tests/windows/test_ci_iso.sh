@@ -55,7 +55,7 @@ def say(ok, why):
 if check == "check_unchanged":
     base = load(base_path)
     say((base.get("jobs") or {}).get("check") == jobs.get("check"),
-        "job check differs from the merge base")
+        "job check differs from aa84616 (pre-Windows)")
 if check == "has_cross":
     say("windows-cross" in jobs, f"no job windows-cross (jobs: {sorted(jobs)})")
 if check == "has_native":
@@ -158,7 +158,7 @@ ac8_ci_adds_windows_cross_and_windows_native_and_leaves_check_alone () {
   diff="$(git diff -U0 "$BASE" -- "$CI_YML")"
   removed="$(printf '%s\n' "$diff" | grep -E '^-' | grep -vE '^--- ')"
   added="$(printf '%s\n' "$diff" | grep -E '^\+' | grep -vcE '^\+\+\+ ')"
-  assert_eq "AC8: no deleted line in ci.yml against the merge base" "$removed" ""
+  assert_eq "AC8: no deleted line in ci.yml against aa84616 (pre-Windows)" "$removed" ""
   check "AC8: ci.yml has added lines against aa84616 (pre-Windows) (got $added)" test "$added" -gt 0
   ci_check "AC8: job check unchanged" check_unchanged
   ci_check "AC8: windows-cross exists" has_cross
