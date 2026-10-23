@@ -684,8 +684,9 @@ mod tests {
             }
         }
 
-        /// S-014e1, manager answer 5: `portal_shortcut` has no control here
-        /// yet (S-014f), so a save keeps a remembered portal denial.
+        /// S-014e1, manager answer 5: a save that does not touch the
+        /// `portal_shortcut` switch (S-014f1) keeps a remembered portal
+        /// denial.
         #[test]
         fn s014e1_save_keeps_a_remembered_portal_denial() {
             i_slint_backend_testing::init_no_event_loop();

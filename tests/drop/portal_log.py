@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Reads the log of tests/drop/shortcuts_portal.py for tests/drop/portal.sh
-(S-014e1). Standard library only.
+(S-014e1, S-014f2). Standard library only.
 
-  portal_log.py order LOG
-      For the daemon's portal connection (the sender of the first
-      CreateSession, else of the first Register), prints
+  portal_log.py order LOG [FROM]
+      Only the lines after line FROM (default 0) count. For the daemon's
+      portal connection there (the sender of the first CreateSession, else
+      of the first Register), prints
         SENDER|FIRST|APPID|NEXT_GS|NBIND|MAXPER|BINDSESS|NSC|ID|TRIGGER|DESC
       FIRST: its first portal method call (a "call" line on an
       org.freedesktop.portal.* or org.freedesktop.host.portal.* interface;
@@ -25,6 +26,24 @@
       line FROM, or "none".
   portal_log.py held LOG
       "yes" when a "held N" line has no "response N" line after it, else "no".
+  portal_log.py senders LOG FROM
+      The number of distinct senders of "call" and "get" lines on portal
+      interfaces after line FROM.
+  portal_log.py by LOG FROM SENDER
+      The number of "call" and "get" lines of SENDER after line FROM.
+  portal_log.py first LOG FROM METHOD
+      The "[HH:MM:SS.ffffff]" stamp of the first "call" line of IFACE.METHOD
+      ending in .METHOD after line FROM, or "none".
+  portal_log.py session LOG [FROM]
+      The session_handle the first CreateSession of the daemon's portal
+      connection after line FROM was given (as for order), or "none".
+  portal_log.py closes LOG FROM TO SESSION
+      The number of org.freedesktop.portal.Session.Close calls on SESSION in
+      the lines after FROM up to TO (a line number, or "end").
+  portal_log.py sessions LOG FROM
+      "MAX FINAL": the most sessions open at once after line FROM (the
+      count at FROM when no session opened or closed after it) and the
+      count at the end, from the "opened" and "closed" lines.
   portal_log.py lang LANG TEXT
       Exit 0 when TEXT is non-empty and in LANG: "en" Latin letters and no
       Arabic letter, "ar" Arabic letters."""
@@ -58,7 +77,8 @@ def parse(path):
             e["n"], e["member"], e["sender"], args = int(c.group(1)), c.group(2), c.group(3), c.group(4)
             if kind == "call":
                 if " on /" in args:
-                    args = args.rsplit(" on /", 1)[0]
+                    args, on = args.rsplit(" on /", 1)
+                    e["on"] = "/" + on
                 try:
                     e["args"] = json.loads(args)
                 except ValueError:
@@ -73,32 +93,45 @@ def parse(path):
                     e["results"] = None
         elif kind == "held":
             e["n"] = int(rest.split()[0])
+        elif kind in ("opened", "closed"):
+            e["open"] = int(rest.split()[-1])
         out.append(e)
     return out
 
 
-def order(path):
-    ev = parse(path)
+def daemon_conn(path, frm=0):
+    """(events after FROM, the daemon connection's calls, its sessions)."""
+    ev = [e for e in parse(path) if e["line"] > frm]
     calls = [e for e in ev if e["kind"] == "call" and e["member"].startswith(PORTAL)]
     sender = next((e["sender"] for e in calls if e["member"] == GS + "CreateSession"), None)
     if sender is None:
         sender = next((e["sender"] for e in calls if e["member"].endswith(".Register")), None)
     if sender is None:
-        return "none|none|-|none|0|0|none|0|-|-|-"
+        return ev, [], []
     mine = [e for e in calls if e["sender"] == sender]
+    # Sessions this sender was given, from the Responses to its CreateSession.
+    made = [e["n"] for e in mine if e["member"] == GS + "CreateSession"]
+    sessions = []
+    for n in made:
+        for e in ev:
+            if e["kind"] == "response" and e.get("n") == n and e.get("code") == 0 and e.get("results"):
+                s = e["results"].get("session_handle")
+                if s:
+                    sessions.append(s)
+    return ev, mine, sessions
+
+
+def order(path, frm=0):
+    _ev, mine, sessions = daemon_conn(path, frm)
+    if not mine:
+        return "none|none|-|none|0|0|none|0|-|-|-"
+    sender = mine[0]["sender"]
     first = mine[0]
     appid = "-"
     if first["member"].endswith(".Register") and first["args"]:
         appid = str(first["args"][0])
     next_gs = next((e["member"][len(GS):] for e in mine[1:] if e["member"].startswith(GS)), "none")
-    # Sessions this sender was given, from the Responses to its CreateSession.
-    made = {e["n"] for e in mine if e["member"] == GS + "CreateSession"}
-    sessions = set()
-    for e in ev:
-        if e["kind"] == "response" and e.get("n") in made and e.get("code") == 0 and e.get("results"):
-            s = e["results"].get("session_handle")
-            if s:
-                sessions.add(s)
+    sessions = set(sessions)
     binds = [e for e in mine if e["member"] == GS + "BindShortcuts"]
     per = {}
     for b in binds:
@@ -123,7 +156,43 @@ def order(path):
 def main():
     cmd = sys.argv[1]
     if cmd == "order":
-        print(order(sys.argv[2]))
+        print(order(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else 0))
+    elif cmd == "senders":
+        frm = int(sys.argv[3])
+        print(len({e["sender"] for e in parse(sys.argv[2]) if e["line"] > frm and e["kind"] in ("call", "get") and e["member"].startswith(PORTAL)}))
+    elif cmd == "by":
+        frm, who = int(sys.argv[3]), sys.argv[4]
+        print(sum(1 for e in parse(sys.argv[2]) if e["line"] > frm and e["kind"] in ("call", "get") and e["sender"] == who))
+    elif cmd == "first":
+        frm, method = int(sys.argv[3]), sys.argv[4]
+        for e in parse(sys.argv[2]):
+            if e["line"] > frm and e["kind"] == "call" and e["member"].endswith("." + method):
+                print(e["stamp"])
+                return
+        print("none")
+    elif cmd == "session":
+        _ev, _mine, sessions = daemon_conn(sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else 0)
+        print(sessions[0] if sessions else "none")
+    elif cmd == "closes":
+        frm, to, sess = int(sys.argv[3]), sys.argv[4], sys.argv[5]
+        print(sum(
+            1
+            for e in parse(sys.argv[2])
+            if e["line"] > frm and (to == "end" or e["line"] <= int(to)) and e["kind"] == "call"
+            and e["member"] == "org.freedesktop.portal.Session.Close" and e.get("on") == sess
+        ))
+    elif cmd == "sessions":
+        frm = int(sys.argv[3])
+        now, most = 0, None
+        for e in parse(sys.argv[2]):
+            if "open" not in e:
+                continue
+            if e["line"] > frm and most is None:
+                most = now
+            now = e["open"]
+            if e["line"] > frm:
+                most = max(most, now)
+        print(f"{now if most is None else most} {now}")
     elif cmd == "calls":
         frm = int(sys.argv[3])
         method = sys.argv[4] if len(sys.argv) > 4 else None

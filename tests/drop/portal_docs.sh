@@ -19,6 +19,7 @@
 #   answer 5  a refusal of the dialog is remembered as
 #             `portal_shortcut = false` in config.toml, and registration can
 #             be turned back on (the settings toggle is S-014f's);
+#             check 9 as S-014f2 updated it (AC27, below);
 #   answer 6  on Hyprland the documented `exec` bind with `--at` stays the
 #             first way and the portal `global` line is the alternative: the
 #             first Super+Z exec line of the file comes before the global
@@ -41,6 +42,15 @@
 # inline code is kept, code blocks are left out); a literal (a bind line,
 # `hold_ms`, `portal_shortcut = false`) is looked for anywhere in the
 # section, code blocks included.
+#
+# S-014f2 (AC27) updates check 9: the section says that a refusal is
+# remembered as `portal_shortcut = false`; that the settings switch, its
+# label quoted in that language ("Register the drop shortcut with the
+# desktop", «تسجيل اختصار الإفلات لدى سطح المكتب», in straight, curly or
+# angle quotes), turns registration back on or off (one sentence), within
+# seconds with no restart (one sentence); and that off leaves the manual
+# bind (one sentence). No portal section has
+# `systemctl --user restart sbarhive` any more.
 #
 # CHANGELOG.md: one line that names S-014e (or S-014e1, e2, e3) with
 # Arabic and English text (it was under "## [Unreleased]" until the 0.3.3
@@ -99,6 +109,10 @@ PORTAL_HEAD = re.compile(r"portal" if lang == "en" else r"بوابة|البوا�
 GLOBAL = re.compile(r"^\s*bind\s*=\s*SUPER\s*,\s*Z\s*,\s*global\s*,\s*io\.github\.m7mmad_omar\.SbarHive:drop\s*$", re.M)
 EXEC = re.compile(r"^\s*bind[a-z]*\s*=\s*SUPER\s*,\s*Z\s*,\s*exec\s*,.*\bsbarhive drop\b.*--at\b", re.M)
 W = lambda w: r"(?<!\S)(?:" + w + r")(?!\S)"
+# AC27: the switch's label, quoted (Arabic compared as the text above, so
+# the hamza of الإفلات is read as ا).
+LABEL_EN = r"[\"“«]Register the drop shortcut with the desktop[\"”»]"
+LABEL_AR = r"[\"“«]تسجيل اختصار الافلات لدى سطح المكتب[\"”»]"
 # Sentence keys: every pattern of one list in one sentence (case ignored).
 SENT = {
     "en": {
@@ -112,7 +126,9 @@ SENT = {
         "remove-manual": [[r"\bremove\b", r"\b(manual|by hand)\b"]],
         "behind-full-screen": [[r"\bbehind\b", r"\bfull[ -]?screen\b"]],
         "refusal-remembered": [[r"\b(refus|declin|deny|denied|cancel)", r"portal_shortcut = false"]],
-        "turn-back-on": [[r"\b(back on|again|re-?enable|turn it on)\b", r"\bportal_shortcut\b|\bsettings?\b|\btrue\b|\bregist|\bconfig"]],
+        "switch-on-off": [[LABEL_EN, r"\bon\b", r"\boff\b"]],
+        "live-no-restart": [[r"\bseconds?\b", r"\b(no|without|never|not)\b[^.]{0,30}\brestart"]],
+        "off-manual": [[r"\boff\b", r"\b(manual|by hand)\b"]],
         "alternative": [[r"\balternative\b|\binstead\b", r"\bglobal\b"]],
     },
     "ar": {
@@ -126,7 +142,9 @@ SENT = {
         "remove-manual": [[r"احذف|حذف|ازل|ازالة|امسح", r"يدوي"]],
         "behind-full-screen": [[r"خلف|وراء", r"ملء الشاشة|كامل الشاشة|الشاشة الكاملة|تملا الشاشة"]],
         "refusal-remembered": [[r"رفض|الغ|ترفض", r"portal_shortcut = false"]],
-        "turn-back-on": [[r"تفعيل|اعادة|تعيد|من جديد|مرة اخرى", r"portal_shortcut|الاعدادات|true|صحيح|التسجيل|config"]],
+        "switch-on-off": [[LABEL_AR, r"تشغيل|تفعيل|تعيد", r"ايقاف|وقف|تعطيل|عطل|اطفاء"]],
+        "live-no-restart": [[r"ثوان|ثانية", r"(دون|بلا|من غير|لا حاجة|لا تحتاج|لا يلزم)[^.]{0,30}(اعادة|تعيد|تعد) (ال)?تشغيل"]],
+        "off-manual": [[r"ايقاف|وقف|تعطيل|عطل|اطفاء", r"يدوي"]],
         "alternative": [[r"بديل|بدلا", r"global"]],
     },
 }
@@ -134,6 +152,8 @@ LIT = {
     "hold_ms": re.compile(r"\bhold_ms\b"),
     "portal_shortcut": re.compile(r"\bportal_shortcut = false\b"),
     "global-line": GLOBAL,
+    # AC27: found means the section still has the restart command.
+    "restart-cmd": re.compile(r"systemctl --user restart sbarhive"),
 }
 first_exec = EXEC.search(text)
 first_global = GLOBAL.search(text)
@@ -193,8 +213,8 @@ for lang in en ar; do
     'has $lang "$doc" remove-manual'
   check "AC22 $rel ($name): on GNOME the consent dialog may open behind a full screen window (note 2026-10-22)" \
     'has $lang "$doc" behind-full-screen'
-  check "AC22 $rel ($name): a refusal is remembered as \`portal_shortcut = false\` and registration can be turned back on (answer 5)" \
-    'has $lang "$doc" portal_shortcut refusal-remembered turn-back-on'
+  check "AC27 $rel ($name): a refusal is remembered as \`portal_shortcut = false\`; the settings switch, its label quoted, turns registration back on or off within seconds with no restart; off leaves the manual bind; no \`systemctl --user restart sbarhive\` in the portal section (check 9, S-014f2)" \
+    'has $lang "$doc" portal_shortcut refusal-remembered switch-on-off live-no-restart off-manual && ! keys $lang "$doc" | grep -q "^restart-cmd "'
   hypr=$([ $lang = ar ] && echo "$HYPR_AR" || echo "$HYPR")
   check "AC22 ${hypr#"$ROOT/"} ($name): the global line, after the exec Super+Z line with --at, called the alternative (answer 6)" \
     'has $lang "$hypr" --any global-line alternative exec-first'

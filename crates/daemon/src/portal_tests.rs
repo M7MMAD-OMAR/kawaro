@@ -3,7 +3,7 @@
 //! GlobalShortcuts portal client, `crate::portal`. Its D-Bus side runs on a
 //! live session bus only and is covered by tests/drop/portal.sh.
 
-use crate::portal::{self, Reason};
+use crate::portal::{self, Reason, Reload};
 use sbarhive_core::hold::{self, Signal};
 use sbarhive_core::i18n::Lang;
 
@@ -166,5 +166,39 @@ fn ac19_only_a_denial_is_remembered() {
         Reason::Off,
     ] {
         assert!(!portal::remembers(r), "{r:?}");
+    }
+}
+
+/// S-014f2 (AC25, AC26, planner decision 2): the pure decision behind a
+/// config reload, from the `portal_shortcut` setting before and after it
+/// and whether a client thread is still running (bound, registering or
+/// closing). False to true starts a client (the caller waits for a closing
+/// one, so at most one runs); true to false stops a running one; nothing
+/// else touches the portal.
+#[test]
+fn ac25_ac26_reload_decision_from_the_setting_and_the_client() {
+    let want = [
+        // (before, after, running)
+        ((false, true, false), Reload::Start),
+        // A client still closing after an earlier off: start after it ends.
+        ((false, true, true), Reload::Start),
+        ((true, false, true), Reload::Stop),
+        // Nothing runs (it ended on a fallback reason): nothing to close.
+        ((true, false, false), Reload::Nothing),
+        // Another key changed (AC26 hold_ms), or a client that ended on
+        // no-portal or error is not retried by a poll (AC19's 30 s).
+        ((true, true, true), Reload::Nothing),
+        ((true, true, false), Reload::Nothing),
+        // A denial's own write: the key is false in memory first (decision
+        // 3), so the poll sees false to false and prints no second line.
+        ((false, false, true), Reload::Nothing),
+        ((false, false, false), Reload::Nothing),
+    ];
+    for ((before, after, running), r) in want {
+        assert_eq!(
+            portal::reload(before, after, running),
+            r,
+            "before {before} after {after} running {running}"
+        );
     }
 }

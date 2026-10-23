@@ -2,7 +2,8 @@
 # Conditions are passed to check() in single quotes and expanded by eval.
 # shellcheck disable=SC2016,SC2034,SC2329
 # S-014e1 (backlog/S-014-drop-hive.md, AC13, AC17, AC18 parts a and b, AC19,
-# and the manager's answers 4 and 5 of 2026-10-22): the daemon's
+# and the manager's answers 4 and 5 of 2026-10-22) and S-014f2 (AC25, AC26,
+# phase live): the daemon's
 # GlobalShortcuts portal client against a fake portal
 # (tests/drop/shortcuts_portal.py: Registry version 1, GlobalShortcuts
 # version 2, every call logged with a UTC stamp), in a private kwin_wayland
@@ -79,7 +80,26 @@
 #           drives hive_bench, which has no portal client), no "portal
 #           shortcuts:" line before the Response, and the bound line after
 #           it.
-# Usage: tests/drop/portal.sh [ac13] [ac17] [ac19] [hold] [target/release]
+#   live    S-014f2 (AC25, AC26): the settings switch applies live through
+#           the daemon's 2 s config poll (the path a settings Save takes),
+#           config.toml written atomically, hold_ms 500. On: a daemon
+#           started with portal_shortcut = false (setup: the off line, no
+#           call) gets portal_shortcut = true; within 3 s, same PID, one new
+#           connection makes Register, CreateSession and one BindShortcuts,
+#           and stderr gains exactly the bound line; then a 600 ms pulse
+#           gives one get_layer_surface. With fake "deny" the same write
+#           gives one "unavailable (denied)" line, portal_shortcut = false
+#           in the file again, and no other line over 30 s. Off: a daemon
+#           started bound gets portal_shortcut = false; within 3 s one
+#           Session.Close on its session, logged by the fake before the
+#           off line is seen, then exactly the off line; for 30 s no call or
+#           read, a pulse gives no portal line and no surface, and `drop
+#           --hold` and `--release` still show and close the hive. Off, on,
+#           off, on, 5 s apart: one line each, a Close at each off, a new
+#           connection at each on, at most one open session in the fake
+#           (its "opened" and "closed" lines), bound at the end; then a
+#           hold_ms write makes no call in 5 s.
+# Usage: tests/drop/portal.sh [ac13] [ac17] [ac19] [hold] [live] [target/release]
 #   (ac17 runs ac18 too; ac17 needs the ac13 daemon and starts one itself)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -87,9 +107,9 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 BIN="$ROOT/target/release"
 PHASES=""
 for a in "$@"; do
-  case "$a" in ac13 | ac17 | ac19 | hold) PHASES+="$a " ;; *) BIN="$a" ;; esac
+  case "$a" in ac13 | ac17 | ac19 | hold | live) PHASES+="$a " ;; *) BIN="$a" ;; esac
 done
-[ -n "$PHASES" ] || PHASES="ac13 ac17 ac19 hold "
+[ -n "$PHASES" ] || PHASES="ac13 ac17 ac19 hold live "
 TAG="kwin-portal"
 INPUT="$HERE/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
@@ -582,6 +602,205 @@ print("none" if any(x == "none" for x in v) or len(v) != 5 else "%.1f" % statist
     stop_all
   }
 
+  # --- S-014f2: AC25, AC26, the switch applies live -----------------------
+  # Every write is atomic (a temporary file in the same directory, then
+  # mv), as a settings Save; a truncating write could be read half done by
+  # the 2 s poll, and an empty file parses as the defaults (switch on).
+  write_config() {
+    local d="$XDG_CONFIG_HOME/sbarhive"
+    printf '%s\n' "$@" >"$d/.config.toml.live"
+    mv -f "$d/.config.toml.live" "$d/config.toml"
+  }
+  # wait_after MARK ERE SECONDS: an ERE line on the daemon's stderr after
+  # line MARK; sets SEEN_MS, the ms from the call to the line being seen
+  # (polled every 50 ms), or "none".
+  wait_after() {
+    local t0 end; t0=$(now_ms); end=$(deadline "$3"); SEEN_MS=none
+    while [ "$(now_ms)" -lt "$end" ]; do
+      if tail -n +$(($1 + 1)) "$DLOG" | grep -qE "$2"; then SEEN_MS=$(($(now_ms) - t0)); return 0; fi
+      sleep 0.05
+    done
+    return 1
+  }
+  live_lines() { tail -n +$(($1 + 1)) "$DLOG" | grep -E '^portal shortcuts:'; }
+  stamp_ms() { [ "$2" = none ] && { echo none; return; }; ms_after "$1" "[$2]"; }
+  BOUND_LINE="portal shortcuts: bound drop (Fake Super+Z)"
+  OFF_LINE="portal shortcuts: unavailable (off)"
+  # live_write true|false: writes portal_shortcut on the running daemon,
+  # hold_ms 500 kept, and waits up to 3 s for its next "portal shortcuts:"
+  # line. Sets W_DM, W_PF (the daemon's and the fake's line counts before
+  # the write), W_T (the write's UTC stamp), W_SEEN (ms to the line or
+  # none) and W_SNAP (the fake's line count when the line was seen).
+  live_write() {
+    W_DM=$(wc -l <"$DLOG"); W_PF=$(wc -l <"$PLOG"); W_T=$(date -u +%T.%6N)
+    write_config 'hold_ms = 500' "portal_shortcut = $1"
+    W_SEEN=none
+    wait_after "$W_DM" '^portal shortcuts: ' 3 && W_SEEN=$SEEN_MS
+    W_SNAP=$(wc -l <"$PLOG")
+  }
+  # live_start NAME MODE SWITCH: a fresh fake and daemon, config.toml with
+  # hold_ms 500 and portal_shortcut SWITCH; waits for the first line and
+  # then 2.5 s, so the next write is a change the poll sees.
+  live_start() {
+    stop_all; OK_UP=no
+    reset_config 'hold_ms = 500' "portal_shortcut = $3"
+    start_fake "$1" "$2"
+    start_daemon "$1" en
+    wait_line '^portal shortcuts: ' 10 || true
+    sleep 2.5
+  }
+  # live_hold_cycle LABEL GUARD: `drop --hold --at 640,400`, pointer outside
+  # the hive, then `drop --release` (hold_ms 500), as hold_cycle.
+  live_hold_cycle() {
+    local l x first d mp tp mr trel prc pms guard=$2
+    ptr_move 100 700; sleep 0.5
+    mp=$(wc -l <"$DLOG"); tp=$(date -u +%T.%6N)
+    cli_ms drop --hold --at 640,400; prc=$CLI_RC; pms=$CLI_MS
+    sleep 1
+    read -r l x first <<<"$(surfaces_by "$mp" "$tp" 1000)"
+    mr=$(wc -l <"$DLOG"); trel=$(date -u +%T.%6N)
+    cli_ms drop --release
+    sleep 0.8
+    d=$(destroyed_after "$mr" "$trel")
+    echo "INFO $1 hold: press exit $prc in $pms ms, within 1000 ms layer $l xdg $x, the first $first ms after it; release exit $CLI_RC, layer destroyed $d ms after it"
+    check "$1: after the off line, \`drop --hold\` still shows one layer surface 450 to 700 ms after the press (hold_ms 500) and \`drop --release\` destroys it within 500 ms" \
+      '[ "$guard" = yes ] && cli_ok "$prc" "$pms" && [ "$l" -eq 1 ] && [ "$x" -eq 0 ] && in_ms "$first" 450 700 && cli_ok "$CLI_RC" "$CLI_MS" && in_ms "$d" 0 500'
+    wait_gone 12 || true
+  }
+
+  phase_live() {
+    local pid o snd first appid nextgs nbind maxper bsess nsenders reg bind lines n
+    local l x fst pre sess closes cl after cfg
+
+    echo "== AC25 live on: daemon started with portal_shortcut = false, fake \"ok\""
+    live_start live-on ok false
+    pid=$DPID
+    lines=$(plines); n=$(python3 -I "$PL" calls "$PLOG" 0)
+    echo "INFO AC25 setup: daemon $pid, lines $(tr '\n' '|' <<<"$lines"), fake calls and reads since its start $n"
+    pre=no; [ "$lines" = "$OFF_LINE" ] && [ "$n" -eq 0 ] && pre=yes
+    check "AC25 setup: started with portal_shortcut = false, the daemon prints exactly \"$OFF_LINE\" and makes zero portal calls" '[ "$pre" = yes ]'
+    live_write true
+    sleep 1
+    o=$(python3 -I "$PL" order "$PLOG" "$W_PF")
+    IFS='|' read -r snd first appid nextgs nbind maxper bsess _ _ _ _ <<<"$o"
+    nsenders=$(python3 -I "$PL" senders "$PLOG" "$W_PF")
+    reg=$(stamp_ms "$W_T" "$(python3 -I "$PL" first "$PLOG" "$W_PF" Register)")
+    bind=$(stamp_ms "$W_T" "$(python3 -I "$PL" first "$PLOG" "$W_PF" BindShortcuts)")
+    lines=$(live_lines "$W_DM")
+    echo "INFO AC25 on: write at $W_T; daemon $DPID (started as $pid, alive $(kill -0 "$DPID" 2>/dev/null && echo yes || echo no)); new portal senders $nsenders ($snd): first $first ($appid), next GlobalShortcuts $nextgs, BindShortcuts x$nbind ($bsess); Register $reg ms and BindShortcuts $bind ms after the write; line seen after $W_SEEN ms; lines since the write: $(tr '\n' '|' <<<"$lines")"
+    check "AC25 on: within 3 s of writing portal_shortcut = true, the same daemon PID makes, from one new connection, Register (io.github.m7mmad_omar.SbarHive), then CreateSession, then one BindShortcuts on that session" \
+      '[ "$pre" = yes ] && kill -0 "$pid" 2>/dev/null && [ "$DPID" = "$pid" ] && [ "$nsenders" -eq 1 ] && [ "$first" = org.freedesktop.host.portal.Registry.Register ] && [ "$appid" = io.github.m7mmad_omar.SbarHive ] && [ "$nextgs" = CreateSession ] && [ "$nbind" = 1 ] && [ "$maxper" = 1 ] && [ "$bsess" = ok ] && in_ms "$reg" 0 3000 && in_ms "$bind" 0 3000'
+    check "AC25 on: stderr gains exactly one line, \"$BOUND_LINE\", within 3 s of the write" \
+      '[ "$W_SEEN" != none ] && [ "$lines" = "$BOUND_LINE" ]'
+    ptr_move 100 700; sleep 0.5
+    pulse_case live-on "pulse drop own 600" 2
+    read -r l x fst <<<"$(surfaces_by "$MARK" "$TA" 1500)"
+    echo "INFO AC25 on, held cycle: Activated at $TA, activated $NACT deactivated $NDEACT; within 1500 ms: layer $l xdg $x, the first $fst ms after Activated"
+    check "AC25 on: after the bound line, Activated then Deactivated 600 ms later gives exactly one get_layer_surface" \
+      '[ "$lines" = "$BOUND_LINE" ] && [ "$NACT" -eq 1 ] && [ "$l" -eq 1 ] && [ "$x" -eq 0 ]'
+    settle
+
+    echo "== AC26 live off: daemon started bound, fake \"ok\""
+    live_start live-off ok true
+    pid=$DPID
+    lines=$(plines)
+    sess=$(python3 -I "$PL" session "$PLOG")
+    snd=$(python3 -I "$PL" order "$PLOG" | cut -d'|' -f1)
+    pre=no; [ "$lines" = "$BOUND_LINE" ] && [ "$sess" != none ] && pre=yes
+    echo "INFO AC26 setup: daemon $pid, lines $(tr '\n' '|' <<<"$lines"), portal connection $snd, session $sess"
+    check "AC26 setup: started with portal_shortcut = true, the daemon is bound (its bound line, a session)" '[ "$pre" = yes ]'
+    live_write false
+    closes=$(python3 -I "$PL" closes "$PLOG" "$W_PF" "$W_SNAP" "$sess")
+    cl=$(stamp_ms "$W_T" "$(python3 -I "$PL" first "$PLOG" "$W_PF" Close)")
+    local t_line; t_line=$(now_ms)
+    lines=$(live_lines "$W_DM")
+    echo "INFO AC26 off: write at $W_T; Session.Close on $sess before the line was seen: $closes ($cl ms after the write); line seen after $W_SEEN ms; lines since the write: $(tr '\n' '|' <<<"$lines")"
+    check "AC26 off: within 3 s of writing portal_shortcut = false, one org.freedesktop.portal.Session.Close on the daemon's session, before the off line" \
+      '[ "$pre" = yes ] && [ "$W_SEEN" != none ] && [ "$closes" -eq 1 ] && in_ms "$cl" 0 3000'
+    check "AC26 off: then exactly one line, \"$OFF_LINE\", within 3 s, same daemon PID" \
+      '[ "$pre" = yes ] && [ "$W_SEEN" != none ] && [ "$lines" = "$OFF_LINE" ] && kill -0 "$pid" 2>/dev/null'
+    # Inside the 30 s: the fake's pulse (sent to the old session and owner
+    # on purpose) and the IPC hold cycle.
+    sleep 1
+    ptr_move 100 700; sleep 0.5
+    pulse_case live-off "pulse drop own 600" 2
+    read -r l x fst <<<"$(surfaces_by "$MARK" "$TA" 1500)"
+    echo "INFO AC26 off, pulse: Activated at $TA, activated $NACT deactivated $NDEACT; within 1500 ms: layer $l xdg $x"
+    check "AC26 off: after the off line, the fake's \`pulse drop own 600\` gives zero \"portal: activated drop\" lines and zero get_layer_surface" \
+      '[ "$lines" = "$OFF_LINE" ] && [ "$TA" != none ] && [ "$NACT" -eq 0 ] && [ "$NDEACT" -eq 0 ] && [ "$l" -eq 0 ] && [ "$x" -eq 0 ]'
+    settle
+    after=no; [ "$lines" = "$OFF_LINE" ] && after=yes
+    live_hold_cycle "AC26 off" "$after"
+    sleep "$(awk -v e="$((t_line + 30000 - $(now_ms)))" 'BEGIN { s = e / 1000; if (s < 0) s = 0; printf "%.3f\n", s }')"
+    n=$(python3 -I "$PL" calls "$PLOG" "$W_SNAP")
+    local nby; nby=$(python3 -I "$PL" by "$PLOG" "$W_SNAP" "$snd")
+    lines=$(live_lines "$W_DM")
+    echo "INFO AC26 off, 30 s: fake calls and reads after the line $n (from the old connection $nby); lines since the write: $(tr '\n' '|' <<<"$lines")"
+    check "AC26 off: for 30 s after the off line, zero portal calls or reads (nothing from that connection after the line) and no other \"portal shortcuts:\" line" \
+      '[ "$after" = yes ] && [ "$n" -eq 0 ] && [ "$nby" -eq 0 ] && [ "$lines" = "$OFF_LINE" ]'
+
+    echo "== AC26 off, on, off, on, 5 s apart, fake \"ok\""
+    live_start live-run ok true
+    pid=$DPID
+    local run_dm run_pf step want got=() seen=() ok=yes cur nsnd prev_snd="" newsnd=yes stepclose=yes
+    run_dm=$(wc -l <"$DLOG"); run_pf=$(wc -l <"$PLOG")
+    pre=no; [ "$(plines)" = "$BOUND_LINE" ] && pre=yes
+    cur=$(python3 -I "$PL" session "$PLOG"); prev_snd=$(python3 -I "$PL" order "$PLOG" | cut -d'|' -f1)
+    for step in false true false true; do
+      live_write "$step"
+      seen+=("$W_SEEN")
+      if [ "$step" = false ]; then
+        [ "$(python3 -I "$PL" closes "$PLOG" "$W_PF" "$W_SNAP" "$cur")" -eq 1 ] || stepclose=no
+      else
+        sleep 1
+        nsnd=$(python3 -I "$PL" order "$PLOG" "$W_PF" | cut -d'|' -f1)
+        { [ "$nsnd" != none ] && [ "$nsnd" != "$prev_snd" ]; } || newsnd=no
+        prev_snd=$nsnd
+        cur=$(python3 -I "$PL" session "$PLOG" "$W_PF")
+      fi
+      sleep "$(awk -v s="$W_SEEN" -v step="$step" 'BEGIN { if (s == "none") s = 3000; r = 5 - s / 1000; if (step == "true") r -= 1; if (r < 0) r = 0; printf "%.3f\n", r }')"
+    done
+    lines=$(live_lines "$run_dm" | tr '\n' '|')
+    want="$OFF_LINE|$BOUND_LINE|$OFF_LINE|$BOUND_LINE|"
+    local sessions; sessions=$(python3 -I "$PL" sessions "$PLOG" "$run_pf")
+    echo "INFO AC26 run: daemon $DPID (started as $pid); lines since the first write: $lines; ms to each line: ${seen[*]}; a Close on the open session at each off: $stepclose; a new connection at each on: $newsnd; open sessions in the fake (most, at the end): $sessions"
+    check "AC26 run: off, on, off, on, 5 s apart, gives one line per write (off, bound, off, bound), each within 3 s, same daemon PID, a Close at each off and a new connection at each on" \
+      '[ "$pre" = yes ] && [ "$lines" = "$want" ] && [ "$stepclose" = yes ] && [ "$newsnd" = yes ] && ! grep -qw none <<<"${seen[*]}" && kill -0 "$pid" 2>/dev/null'
+    check "AC26 run: it ends bound, with at most one open session in the fake at any time (and one at the end)" \
+      '[ "$lines" = "$want" ] && [ "$sessions" = "1 1" ]'
+
+    echo "== AC26 hold_ms changed while bound"
+    W_DM=$(wc -l <"$DLOG"); W_PF=$(wc -l <"$PLOG")
+    write_config 'hold_ms = 600' 'portal_shortcut = true'
+    sleep 5
+    n=$(python3 -I "$PL" calls "$PLOG" "$W_PF"); after=$(live_lines "$W_DM" | grep -c .)
+    echo "INFO AC26 hold_ms: after the run ($lines), fake calls and reads in 5 s after writing hold_ms = 600: $n; new portal shortcuts lines $after"
+    check "AC26 hold_ms: with the daemon bound live (the run above), a change of hold_ms makes zero portal calls and no \"portal shortcuts:\" line in 5 s" \
+      '[ "$lines" = "$want" ] && [ "$n" -eq 0 ] && [ "$after" -eq 0 ]'
+
+    echo "== AC25 live on, AC26 denial: fake \"deny\""
+    live_start live-deny deny false
+    pid=$DPID
+    pre=no; [ "$(plines)" = "$OFF_LINE" ] && [ "$(python3 -I "$PL" calls "$PLOG" 0)" -eq 0 ] && pre=yes
+    live_write true
+    t_line=$(now_ms)
+    sleep 1
+    reg=$(stamp_ms "$W_T" "$(python3 -I "$PL" first "$PLOG" "$W_PF" Register)")
+    lines=$(live_lines "$W_DM")
+    cfg=$(config_of)
+    echo "INFO AC25 deny: started off $pre; Register $reg ms after the write; line seen after $W_SEEN ms; lines since the write: $(tr '\n' '|' <<<"$lines"); config.toml (portal_shortcut hold_ms): $cfg"
+    check "AC25 deny: the write gives, within 3 s and on the same daemon, Register and exactly one line \"portal shortcuts: unavailable (denied)\"" \
+      '[ "$pre" = yes ] && in_ms "$reg" 0 3000 && [ "$W_SEEN" != none ] && [ "$lines" = "portal shortcuts: unavailable (denied)" ] && kill -0 "$pid" 2>/dev/null'
+    check "AC25 deny: config.toml has portal_shortcut = false again (hold_ms 500 kept)" \
+      '[ "$W_SEEN" != none ] && [ "$cfg" = "False 500" ]'
+    sleep "$(awk -v e="$((t_line + 30000 - $(now_ms)))" 'BEGIN { s = e / 1000; if (s < 0) s = 0; printf "%.3f\n", s }')"
+    lines=$(live_lines "$W_DM")
+    echo "INFO AC26 denial: lines over the 30 s after the write: $(tr '\n' '|' <<<"$lines"); config.toml $(config_of)"
+    check "AC26 denial: exactly one \"portal shortcuts:\" line over the 30 s, across the polls (the daemon's own write of false is not a switch change)" \
+      '[ "$W_SEEN" != none ] && [ "$lines" = "portal shortcuts: unavailable (denied)" ]'
+    stop_all
+  }
+
   local p
   for p in $PHASES; do
     case "$p" in
@@ -589,6 +808,7 @@ print("none" if any(x == "none" for x in v) or len(v) != 5 else "%.1f" % statist
       ac17) phase_ac17 ;;
       ac19) phase_ac19 ;;
       hold) phase_hold ;;
+      live) phase_live ;;
     esac
   done
   case "$PHASES" in *ac13*) phase_ac13_noreg ;; esac

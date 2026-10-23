@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""A fake GlobalShortcuts desktop portal for S-014e1 (AC13, AC17 to AC19),
-on the private session bus of tests/drop/portal.sh only, in the pattern of
-tests/overlay/portal.py.
+"""A fake GlobalShortcuts desktop portal for S-014e1 (AC13, AC17 to AC19)
+and S-014f2 (AC25, AC26: open sessions counted), on the private session bus
+of tests/drop/portal.sh only, in the pattern of tests/overlay/portal.py.
 
 Owns org.freedesktop.portal.Desktop and serves /org/freedesktop/portal/desktop
 with
@@ -23,6 +23,11 @@ org.freedesktop.portal.Request.Response(u, a{sv}) signal goes to the caller
 only, after the method's reply; CreateSession's result carries
 session_handle as a string ("s"); Activated and Deactivated go to the
 session's owner only.
+Sessions (S-014f2): a session is open from its CreateSession until its
+Session.Close, or until its owner leaves the bus (NameOwnerChanged to no
+owner), which closes it as xdg-desktop-portal does. "signal" and "pulse"
+still go to the last session made and its owner after it is closed, on
+purpose: a client that was told to stop must ignore them (AC26).
 
 Usage: shortcuts_portal.py CONTROL_FIFO MODE
 MODE:
@@ -62,6 +67,9 @@ Log on stdout, one line per event, each starting with the UTC time of day
   held N PATH                        call N's Response is held (hold mode)
   emit SIGNAL ID SESSION DEST        a signal sent to DEST
   skip LINE (REASON)                 a control line that did nothing
+  opened PATH SENDER OPEN            a session was made; OPEN sessions now
+  closed PATH close|vanished OPEN    a session ended by Session.Close or by
+                                     its owner leaving the bus; OPEN now
 N counts calls and reads together, from 1."""
 import datetime
 import json
@@ -149,7 +157,7 @@ if MODE not in MODES:
 
 loop = GLib.MainLoop()
 conn = None
-state = {"n": 0, "session": None, "owner": None, "bound": {}, "held": None}
+state = {"n": 0, "session": None, "owner": None, "bound": {}, "held": None, "open": {}}
 NODE = Gio.DBusNodeInfo.new_for_xml(XML)
 
 
@@ -202,12 +210,28 @@ def later(n, sender, path, code, results):
     GLib.timeout_add(30, respond, n, sender, path, code, results)
 
 
+def close_session(path, why):
+    owner, reg = state["open"].pop(path)
+    conn.unregister_object(reg)
+    log(f"closed {path} {why} {len(state['open'])}")
+    return owner
+
+
 def on_session_call(_c, sender, path, interface, method, params, inv):
     state["n"] += 1
     log(f"call {state['n']} {interface}.{method} {sender} {jdump(params.unpack())} on {path}")
     inv.return_value(None)
-    if method == "Close":
+    if method == "Close" and path in state["open"]:
         conn.emit_signal(sender, path, SESSION, "Closed", GLib.Variant("(a{sv})", ({},)))
+        close_session(path, "close")
+
+
+def on_owner_changed(_c, _sender, _path, _iface, _signal, params):
+    name, _old, new = params.unpack()
+    if new:
+        return
+    for path in [p for p, (o, _r) in state["open"].items() if o == name]:
+        close_session(path, "vanished")
 
 
 def on_call(_c, sender, _path, interface, method, params, inv):
@@ -229,7 +253,9 @@ def on_call(_c, sender, _path, interface, method, params, inv):
         token = opts.get("session_handle_token") or f"s{n}"
         spath = f"{PATH}/session/{ident(sender)}/{token}"
         try:
-            conn.register_object(spath, iface(SESSION), on_session_call, on_get, None)
+            reg = conn.register_object(spath, iface(SESSION), on_session_call, on_get, None)
+            state["open"][spath] = (sender, reg)
+            log(f"opened {spath} {sender} {len(state['open'])}")
         except GLib.Error as e:
             log(f"skip session {spath} ({e.message})")
         state["session"], state["owner"] = spath, sender
@@ -330,6 +356,15 @@ def on_bus(c, _name):
     c.register_object(PATH, iface(REGISTRY), on_call, on_get, None)
     if MODE != "no-gs":
         c.register_object(PATH, iface(GS), on_call, on_get, None)
+    c.signal_subscribe(
+        "org.freedesktop.DBus",
+        "org.freedesktop.DBus",
+        "NameOwnerChanged",
+        "/org/freedesktop/DBus",
+        None,
+        Gio.DBusSignalFlags.NONE,
+        on_owner_changed,
+    )
 
 
 def on_name(_c, name):
