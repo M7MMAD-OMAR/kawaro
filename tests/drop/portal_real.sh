@@ -397,3 +397,183 @@ portal_teardown() {
   check "teardown: the live desktop's portal processes are the same before and after (pids)" '[ "$LIVE0" = "$live1" ]'
   [ "$MODE" = portal-real ] && check "teardown: no portal process of this private bus is left" '[ -z "$left" ]'
 }
+
+# --- S-014f3 (AC15 parts b and c): gnome.sh strict portal-real -------------
+# Mutter focus-new-windows = strict, the drag source (full screen under
+# GNOME) focused. The daemon must activate its hive window with the token
+# of the portal's Activated: the trace's xdg_activation_v1.activate token
+# equals the activation_token of the last frontend to daemon Activated
+# before it (dbus-monitor, `real_portal.py last`), and the focus window,
+# read by Shell.Eval after the show's "hive surface: window" line and
+# before the drop, belongs to the daemon. The control (c) shows the hive
+# with `sbarhive drop --hold` and no token, so under strict it stays behind
+# the source: no file, the focus not the daemon's.
+# The caller (gnome.sh) also defines focus_pid: the PID of
+# global.display.focus_window, or "none".
+
+# consent_once: AC21 run 1's acceptance of the backend dialog, for the
+# strict run (real_portal_run is not run there). Sets CONSENT.
+consent_once() {
+  local end dlg="" seen="" accepted=n/a
+  end=$(deadline 20)
+  while [ "$(now_ms)" -lt "$end" ]; do
+    dlg=$(dialog_now)
+    [ -n "$dlg" ] && { seen=$dlg; break; }
+    grep -qE '^portal shortcuts: ' "$DLOG" && break
+    sleep 0.2
+  done
+  if [ -n "$seen" ]; then
+    local gx gy gw gh try cur
+    accepted=no
+    for try in 1 2 3; do
+      sleep 2
+      cur=$(dialog_now); [ -n "$cur" ] || { accepted="${accepted/no/gone}"; break; }
+      dialog_raise "$(cut -d'|' -f2 <<<"$cur")"
+      sleep 0.5
+      cur=$(dialog_now); [ -n "$cur" ] || continue
+      read -r gx gy gw gh <<<"${cur%%|*}"
+      accept_click "$gx" "$gy" "$gw" "$gh"
+      sleep 2
+      [ -z "$(dialog_now)" ] && { accepted="click (try $try)"; break; }
+      accept_key
+      sleep 2
+      [ -z "$(dialog_now)" ] && { accepted="Return (try $try)"; break; }
+    done
+  fi
+  wait_bound 10 || true
+  CONSENT="dialog $([ -n "$seen" ] && echo "yes (${seen#*|})" || echo no), accepted by $accepted"
+  CONSENT_OK=yes; [ "$accepted" = no ] && CONSENT_OK=no
+}
+
+# wait_window MARK SECONDS: a "hive surface: window" line after line MARK.
+wait_window() {
+  local end; end=$(deadline "$2")
+  while [ "$(now_ms)" -lt "$end" ]; do
+    tail -n +$(($1 + 1)) "$DLOG" | grep -qE '^hive surface: window ' && return 0
+    sleep 0.05
+  done
+  return 1
+}
+
+# config_write TEXT: config.toml replaced atomically, as a settings Save.
+config_write() {
+  local c="$XDG_CONFIG_HOME/sbarhive"
+  printf '%s\n' "$1" >"$c/.config.toml.ac15"
+  mv -f "$c/.config.toml.ac15" "$c/config.toml"
+}
+
+# ac15_real_cycle NAME FILE WAIT: a PNG drag, Super+Z held until the
+# hive's window line (at most WAIT s), the focus read, the drop on WEBP
+# with the key held, then the release. Sets AC15_OK to yes when every
+# check of the cycle held.
+ac15_real_cycle() {
+  local name=$1 file=$2 base="${2%.*}" wait=$3 smark sha mark tp f0 f1="none" shown=no geo wrote=no mime
+  AC15_OK=no
+  echo "== $name: $(basename "$file"), Super+Z held mid-drag, focus read, drop on WEBP, then release"
+  printf '%s\n' "$file" >"$NEXT"
+  smark=$(wc -l <"$SLOG")
+  sha=$(sha256sum "$file" | cut -d' ' -f1)
+  f0=$(focus_pid)
+  drag_past_threshold
+  mark=$(wc -l <"$DLOG")
+  tp=$(date -u +%T.%6N)
+  key_down
+  if wait_window "$mark" "$wait"; then
+    shown=yes
+    sleep 0.3
+    f1=$(focus_pid)
+  fi
+  geo=$(wait_geo 2)
+  [ -z "$geo" ] && geo=${AC15_GEO:-}
+  [ -n "$geo" ] && AC15_GEO=$geo
+  # shellcheck disable=SC2086
+  [ -n "$geo" ] && move_to_webp $geo
+  ptr_up
+  wait_file "$base.webp" 5 && wrote=yes
+  key_up
+  sleep 0.5
+  mime=$(file --mime-type -b "$base.webp" 2>/dev/null)
+  local seg toks n tok tstamp last prev nsig
+  seg=$(tail -n +$((mark + 1)) "$DLOG")
+  toks=$(grep -E -- '-> xdg_activation_v1[#@][0-9]+\.activate\("' <<<"$seg")
+  n=$(grep -c . <<<"$toks")
+  tok=$(head -1 <<<"$toks" | sed -nE 's/.*activate\("([^"]*)", .*/\1/p')
+  tstamp=$(head -1 <<<"$toks" | grep -oE '^\[[0-9:.]+\]' | tr -d '[]')
+  read -r last prev nsig <<<"$(python3 -I "$PR" last "$MONLOG" "$tp" "${tstamp:-23:59:59.999999}")"
+  local na; na=$(grep -cE '^portal: activated drop$' <<<"$seg")
+  echo "INFO $name: focus before the drag pid $f0 (source $src); portal activated lines $na; hive window line $shown; focus after it pid $f1 (daemon $d); activate requests $n: ${tok:-none} at ${tstamp:-none}; frontend Activated before it $nsig, the last ${last:-none} (previous ${prev:-none}); hive at ${geo:-unknown}; $(basename "$base").webp ${mime:-not written}"
+  check "$name setup: the full screen drag source has the focus before the drag" '[ "$f0" = "$src" ]'
+  check "$name: the portal's Activated reaches the daemon and its hive window is made (\"portal: activated drop\", \"hive surface: window\")" \
+    '[ "$na" -ge 1 ] && [ "$shown" = yes ]'
+  check "$name: exactly one xdg_activation_v1.activate in the show, its token the activation_token of the last frontend to daemon Activated before it (dbus-monitor)" \
+    '[ "$n" -eq 1 ] && [ -n "$tok" ] && [ "$last" != none ] && [ "$last" != - ] && [ "$tok" = "$last" ]'
+  check "$name: global.display.focus_window belongs to the daemon after the hive window line, before the drop" \
+    '[ "$shown" = yes ] && [ "$f1" = "$d" ]'
+  check "$name: $(basename "$base").webp written within 5 s of the drop (image/webp), the source reports deleted=False and the original's sha256 is unchanged" \
+    '[ "$wrote" = yes ] && [ "$mime" = image/webp ] && tail -n +$((smark + 1)) "$SLOG" | grep -q "drag-end deleted=False" && [ "$(sha256sum "$file" | cut -d" " -f1)" = "$sha" ]'
+  [ "$f0" = "$src" ] && [ "$na" -ge 1 ] && [ "$shown" = yes ] && [ "$n" -eq 1 ] && [ "$tok" = "$last" ] \
+    && [ "$f1" = "$d" ] && [ "$wrote" = yes ] && AC15_OK=yes
+  wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
+  sleep 1
+}
+
+# AC15 (b) and (c) with the real GNOME portal, focus-new-windows strict.
+ac15_real_run() {
+  echo "INFO AC15 GNOME strict: xdg-desktop-portal $(pkg_version xdg-desktop-portal), xdg-desktop-portal-gnome $(pkg_version xdg-desktop-portal-gnome), mutter $(pkg_version mutter), focus-new-windows $(gsettings get org.gnome.desktop.wm.preferences focus-new-windows)"
+  consent_once
+  local lines nb
+  lines=$(bound_lines)
+  nb=$(grep -cE '^portal shortcuts: bound drop \(.*\)$' <<<"$lines")
+  echo "INFO AC15 setup: $CONSENT; daemon portal lines: $(tr '\n' '|' <<<"${lines:-none}")"
+  check "AC15 setup: Mutter focus-new-windows is strict" \
+    '[ "$(gsettings get org.gnome.desktop.wm.preferences focus-new-windows)" = "'"'strict'"'" ]'
+  check "AC15 setup: the backend dialog is accepted and the daemon prints one \"portal shortcuts: bound drop (T)\" line" \
+    '[ "$CONSENT_OK" = yes ] && [ "$nb" -eq 1 ] && [ "$(grep -c "^portal shortcuts:" <<<"$lines")" -eq 1 ]'
+
+  # --- AC15 (b), hold_ms 400 ---------------------------------------------
+  local i ok=0
+  for i in 1 2 3; do
+    cp "$ROOT/tests/fixtures/images/alpha.png" "$W/strict $i.png"
+    ac15_real_cycle "AC15 (b) strict run $i" "$W/strict $i.png" 4
+    [ "$AC15_OK" = yes ] && ok=$((ok + 1))
+  done
+  echo "INFO AC15 (b): $ok of 3 held drops passed every check"
+  check "AC15 (b): 3 of 3 PNG drags with Super+Z held under strict write the WEBP, each with the portal's token and the daemon focused" '[ "$ok" -eq 3 ]'
+
+  # --- AC15 (b), hold_ms 2000: GNOME's key repeat sends fresh tokens ------
+  config_write 'hold_ms = 2000'
+  sleep 3
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$W/strict long.png"
+  ac15_real_cycle "AC15 (b) strict hold_ms 2000" "$W/strict long.png" 6
+  check "AC15 (b) hold_ms 2000: 1 of 1, the same token rule (the newest frontend Activated before the show)" '[ "$AC15_OK" = yes ]'
+  config_write 'hold_ms = 400'
+  sleep 3
+
+  # --- AC15 (c), the control: drop --hold with no token -------------------
+  echo "== AC15 (c) control: sbarhive drop --hold with no token, under strict"
+  local file="$W/control.png" base mark f0 f1=none shown=no geo wrote=no seg n
+  base="${file%.*}"
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$file"
+  printf '%s\n' "$file" >"$NEXT"
+  f0=$(focus_pid)
+  drag_past_threshold
+  mark=$(wc -l <"$DLOG")
+  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/sbarhive" drop --hold >>"$OUT_LOG-cli.log" 2>&1
+  if wait_window "$mark" 4; then shown=yes; sleep 0.3; f1=$(focus_pid); fi
+  geo=$(wait_geo 2)
+  [ -z "$geo" ] && geo=${AC15_GEO:-}
+  # shellcheck disable=SC2086
+  [ -n "$geo" ] && move_to_webp $geo
+  ptr_up
+  wait_file "$base.webp" 5 && wrote=yes
+  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/sbarhive" drop --release >>"$OUT_LOG-cli.log" 2>&1
+  sleep 0.5
+  seg=$(tail -n +$((mark + 1)) "$DLOG")
+  n=$(grep -cE -- '-> xdg_activation_v1[#@][0-9]+\.activate\("' <<<"$seg")
+  echo "INFO AC15 (c): focus before the drag pid $f0 (source $src); hive window line $shown; focus after it pid $f1 (daemon $d); activate requests $n; hive at ${geo:-unknown}; $(basename "$base").webp $([ "$wrote" = yes ] && echo written || echo 'not written')"
+  check "AC15 (c) setup: the source has the focus and \`drop --hold\` with no token makes the hive window (\"hive surface: window\")" \
+    '[ "$f0" = "$src" ] && [ "$shown" = yes ]'
+  check "AC15 (c): no token, so no file within 5 s of the drop on WEBP, no activate request, and the focus window is not the daemon's" \
+    '[ "$shown" = yes ] && [ "$wrote" = no ] && [ "$n" -eq 0 ] && [ "$f1" != "$d" ] && [ "$f1" != none ]'
+  wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
+}

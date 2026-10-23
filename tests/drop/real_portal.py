@@ -31,6 +31,16 @@ through tests/drop/portal_real.sh. Standard library only.
       (the BindShortcuts reply the daemon gets), one line: the
       trigger_description of "drop" in that reply, as sent (possibly
       empty). S-014e3: xdg-desktop-portal-hyprland 1.4.1 sends "".
+  real_portal.py tokens MONLOG
+      S-014f3 (AC15): as signals, with a fifth field, the activation_token
+      in the signal's options ("-" when it has none): "HH:MM:SS.ffffff SIDE
+      MEMBER SHORTCUT_ID TOKEN", in UTC.
+  real_portal.py last MONLOG FROM BEFORE
+      S-014f3 (AC15 b): the activation_token of the last frontend to client
+      ("portal" side) Activated of "drop" stamped at or after FROM and
+      before BEFORE (HH:MM:SS.ffffff), and the one before it: "TOKEN
+      PREVIOUS COUNT", "none" for what is missing, COUNT the Activated
+      signals in that span.
 """
 import datetime
 import re
@@ -80,6 +90,58 @@ def signals(path):
                 cur = None
     if cur:
         print(*cur)
+
+
+TOKEN = re.compile(r'^\s+string "activation_token"$')
+VSTR = re.compile(r'^\s+variant\s+string "(.*)"$')
+
+
+def token_signals(path):
+    """[(seconds of day, side, member, id, token or "-")] in log order."""
+    out, cur, want = [], None, False
+    with open(path, encoding="utf-8", errors="replace") as f:
+        for line in f:
+            m = HEAD.match(line)
+            if m:
+                if cur:
+                    out.append(cur)
+                t = datetime.datetime.fromtimestamp(float(m.group(1)), datetime.timezone.utc)
+                side = "impl" if ".impl." in m.group(2) else "portal"
+                cur = [t.strftime("%H:%M:%S.%f"), side, m.group(3), "-", "-"]
+                want = False
+                continue
+            if cur is None:
+                continue
+            if not line.startswith(" "):
+                out.append(cur)
+                cur = None
+                continue
+            if want:
+                v = VSTR.match(line)
+                if v:
+                    cur[4] = v.group(1)
+                want = False
+            elif TOKEN.match(line):
+                want = True
+            elif cur[3] == "-":
+                s = STR.match(line)
+                if s:
+                    cur[3] = s.group(1)
+    if cur:
+        out.append(cur)
+    return out
+
+
+def tokens(path):
+    for row in token_signals(path):
+        print(*row)
+
+
+def last(path, frm, before):
+    f, b = tod(frm), tod(before)
+    toks = [r[4] for r in token_signals(path)
+            if r[1] == "portal" and r[2] == "Activated" and r[3] == "drop" and f <= tod(r[0]) < b]
+    print(toks[-1] if toks else "none", toks[-2] if len(toks) > 1 else "none", len(toks))
 
 
 def entries(path):
@@ -170,6 +232,10 @@ def main():
         count(*args)
     elif cmd == "triggers":
         triggers(*args)
+    elif cmd == "tokens":
+        tokens(*args)
+    elif cmd == "last":
+        last(*args)
     else:
         raise SystemExit(__doc__)
 

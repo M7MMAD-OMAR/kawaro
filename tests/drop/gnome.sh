@@ -39,6 +39,12 @@
 #   GNOME; the backend's dialog accepted by an injected click; Super+Z held
 #   through RemoteDesktop: AC20 (a), (b), (c), then a second daemon on the
 #   same profile (AC21).
+# S-014f3 (AC15), tests/drop/token.sh and tests/drop/portal_real.sh:
+#   "smart portal" also runs the five fake token cases of AC15 (a) on the
+#   window path; "strict portal-real" (focus-new-windows strict) runs AC15
+#   (b), three Super+Z held drags and one with hold_ms 2000, each checked
+#   for the portal's token in the trace and the daemon's focus window, and
+#   the no-token control (c), instead of AC20 and AC21.
 # Usage: tests/drop/gnome.sh [smart|strict] [shortcut|portal|portal-real] [target/release]
 #   Mutter focus-new-windows, default smart
 set -u
@@ -159,6 +165,12 @@ if ok and v:
       shell_str "global._sbhAdded.map(([p, w]) => { let c = '', t = ''; try { c = w.get_wm_class(); t = w.get_title(); } catch (e) {} return p + '|' + c + '|' + t; }).join(String.fromCharCode(10))" | grep .
     }
     hive_shows() { grep -cE '^hive surface: window ' <<<"$1"; }
+    # S-014f3: the PID of the window that has the keyboard focus.
+    focus_pid() {
+      shell_str "(() => { const w = global.display.focus_window; return w ? String(w.get_pid()) : 'none'; })()" | grep . || echo none
+    }
+    token_motion() { :; }
+    token_settle() { wait_gone 12 || true; sleep 1; }
     screen_middle() {
       shell_str "(() => { const r = global.workspace_manager.get_active_workspace().get_work_area_for_monitor(0); return Math.round(r.x + r.width / 2) + ' ' + Math.round(r.y + r.height / 2); })()"
     }
@@ -205,9 +217,17 @@ if ok and v:
     shortcut_shows
   elif [ "$MODE" = portal ]; then
     fake_window_case
+    # S-014f3, AC15 (a) on the window path.
+    # shellcheck source=token.sh
+    source "$HERE/token.sh"
+    token_cases GNOME
     portal_teardown
   elif [ "$MODE" = portal-real ]; then
-    real_portal_run GNOME xdg-desktop-portal-gnome
+    if [ "$POLICY" = strict ]; then
+      ac15_real_run
+    else
+      real_portal_run GNOME xdg-desktop-portal-gnome
+    fi
     portal_teardown
   else
   cycle 1 "$W/photo one.png" webp 0

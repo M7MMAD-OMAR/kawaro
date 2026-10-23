@@ -28,6 +28,7 @@ tests/drop/gnome.sh smart portal-real  # S-014e2 AC20, AC21: the real GNOME port
 tests/drop/kwin.sh level=1 portal-real # S-014e2 AC20, AC21: the real KDE portal
 tests/hyprland/repro.sh --portal       # S-014e3 AC20: the real Hyprland portal
 tests/drop/portal_docs.sh      # S-014e3 AC22: portal docs, CHANGELOG, no compositor
+tests/drop/gnome.sh strict portal-real # S-014f3 AC15 b, c: token, strict focus
 ```
 
 Each prints `PASS`/`FAIL` lines, ends with `RESULT PASS` or `RESULT FAIL (n)`,
@@ -319,6 +320,19 @@ Two last cases let Super+Z go over a revealed hive, and after the drag has
 ended over the source: the layer goes within 500 ms of the key-up.
 `portal_docs.sh` reads the portal section of `docs/drop-shortcut` in both
 languages, the Hyprland README pair and CHANGELOG.md.
+
+## S-014f3: the portal's activation token (AC15)
+
+`token.sh` holds the five fake cases of AC15 (a), run by `portal.sh ac15`
+(KWin, layer path) and by `gnome.sh smart portal` (window path): a held PNG
+drag, the fake's timed presses (`seq drop own 0:A:fake-A 100:A:fake-B`) or
+`drop --hold --token X`, the hive, a drop on the centre cell, the release.
+Each counts `xdg_activation_v1.activate` in the trace of that show.
+`gnome.sh strict portal-real` runs AC15 (b) with the real portal under
+focus-new-windows strict: the trace's token against the last frontend
+`Activated` before it (`real_portal.py last`), and the focus window by
+`Shell.Eval`; then the control (c), `drop --hold` with no token.
+`portal.sh ro`: a denial whose save fails leaves memory as the file is.
 
 ## Input
 

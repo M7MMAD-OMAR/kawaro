@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""A fake GlobalShortcuts desktop portal for S-014e1 (AC13, AC17 to AC19)
-and S-014f2 (AC25, AC26: open sessions counted), on the private session bus
+"""A fake GlobalShortcuts desktop portal for S-014e1 (AC13, AC17 to AC19),
+S-014f2 (AC25, AC26: open sessions counted) and S-014f3 (AC15: the
+activation_token option of Activated), on the private session bus
 of tests/drop/portal.sh only, in the pattern of tests/overlay/portal.py.
 
 Owns org.freedesktop.portal.Desktop and serves /org/freedesktop/portal/desktop
@@ -53,6 +54,15 @@ Control lines, one per line, from CONTROL_FIFO:
   pulse ID SESSION MS [AT...]  Activated now and again at each AT ms (key
                                repeat), Deactivated at MS ms, all timed
                                here, not by the caller's sleeps
+  S-014f3 (AC15), the activation token of Activated:
+  signal Activated ID own|other token=T
+                               as signal, with the option
+                               activation_token = T (a string, as the
+                               GNOME frontend sends it); without
+                               token= the options stay empty
+  seq ID own|other STEP...     each STEP timed here from now: MS:A (an
+                               Activated without a token), MS:A:T (with the
+                               token T) or MS:D (Deactivated)
   respond                      send the held BindShortcuts Response
   quit                         stop
 
@@ -65,7 +75,9 @@ Log on stdout, one line per event, each starting with the UTC time of day
   error N NAME                       the reply of call N was that error
   response N CODE PATH RESULTS       the Response of call N (RESULTS JSON)
   held N PATH                        call N's Response is held (hold mode)
-  emit SIGNAL ID SESSION DEST        a signal sent to DEST
+  emit SIGNAL ID SESSION DEST [token=T]
+                                     a signal sent to DEST, with T its
+                                     activation_token when it has one
   skip LINE (REASON)                 a control line that did nothing
   opened PATH SENDER OPEN            a session was made; OPEN sessions now
   closed PATH close|vanished OPEN    a session ended by Session.Close or by
@@ -305,15 +317,34 @@ def on_get(_c, sender, _path, interface, prop):
     return GLib.Variant("u", 1)
 
 
-def emit(name, sid, which, line):
+def emit(name, sid, which, line, token=None):
     if state["session"] is None:
         log(f"skip {line} (no session yet)")
         return False
     spath = state["session"] if which == "own" else state["session"].rsplit("/", 1)[0] + "/sbh_other"
     ts = GLib.get_monotonic_time() // 1000
-    conn.emit_signal(state["owner"], PATH, GS, name, GLib.Variant("(osta{sv})", (spath, sid, ts, {})))
-    log(f"emit {name} {sid} {spath} {state['owner']}")
+    opts = {"activation_token": GLib.Variant("s", token)} if token is not None else {}
+    conn.emit_signal(state["owner"], PATH, GS, name, GLib.Variant("(osta{sv})", (spath, sid, ts, opts)))
+    log(f"emit {name} {sid} {spath} {state['owner']}" + (f" token={token}" if token is not None else ""))
     return False
+
+
+def seq(parts, line):
+    """seq ID own|other STEP...: STEP is MS:A, MS:A:TOKEN or MS:D."""
+    sid, which = parts[1], parts[2]
+    steps = []
+    for step in parts[3:]:
+        bits = step.split(":", 2)
+        if len(bits) < 2 or not bits[0].isdigit() or bits[1] not in ("A", "D") or (bits[1] == "D" and len(bits) == 3):
+            log(f"skip {line} (bad step {step})")
+            return
+        name = "Activated" if bits[1] == "A" else "Deactivated"
+        steps.append((int(bits[0]), name, bits[2] if len(bits) == 3 else None))
+    for at, name, token in steps:
+        if at == 0:
+            emit(name, sid, which, line, token)
+        else:
+            GLib.timeout_add(at, emit, name, sid, which, line, token)
 
 
 def command(line):
@@ -330,8 +361,12 @@ def command(line):
             n, sender, req, results = state["held"]
             respond(n, sender, req, 0, results)
             state["held"] = None
+    elif parts[0] == "signal" and len(parts) == 5 and parts[1] == "Activated" and parts[3] in ("own", "other") and parts[4].startswith("token="):
+        emit(parts[1], parts[2], parts[3], line, parts[4][len("token="):])
     elif parts[0] == "signal" and len(parts) in (3, 4) and parts[1] in ("Activated", "Deactivated"):
         emit(parts[1], parts[2], parts[3] if len(parts) == 4 else "own", line)
+    elif parts[0] == "seq" and len(parts) >= 4 and parts[2] in ("own", "other"):
+        seq(parts, line)
     elif parts[0] == "pulse" and len(parts) >= 4:
         sid, which, ms = parts[1], parts[2], int(parts[3])
         emit("Activated", sid, which, line)

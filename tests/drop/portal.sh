@@ -99,7 +99,23 @@
 #           connection at each on, at most one open session in the fake
 #           (its "opened" and "closed" lines), bound at the end; then a
 #           hold_ms write makes no call in 5 s.
-# Usage: tests/drop/portal.sh [ac13] [ac17] [ac19] [hold] [live] [target/release]
+#   ac15    S-014f3 (AC15 part a, layer path): on the "ok" daemon, hold_ms
+#           400, a held PNG drag per case (tests/drop/token.sh): the fake's
+#           Activated with activation_token fake-A gives exactly one
+#           xdg_activation_v1.activate("fake-A", ...) in that show; fake-A
+#           then fake-B 100 ms later gives fake-B only; fake-A then a press
+#           with no token gives fake-A; a fake-A tap released at 150 ms
+#           then a held press with no token gives none; `drop --hold
+#           --token X` gives X.
+#   ro      S-014f3, the manager's criterion of 2026-10-23 (S-014f2 review
+#           finding 5): fake "deny" with config.toml and its directory read
+#           only, so the denial's save fails (setup: the file unchanged and
+#           one "unavailable (denied)" line); then the file is writable
+#           again and a hold_ms edit is written: within 5 s, zero portal
+#           calls or reads and no new "portal shortcuts:" line, because the
+#           daemon's memory kept the value the file holds (no new consent
+#           dialog).
+# Usage: tests/drop/portal.sh [ac13] [ac17] [ac15] [ac19] [hold] [live] [ro] [target/release]
 #   (ac17 runs ac18 too; ac17 needs the ac13 daemon and starts one itself)
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -107,9 +123,9 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 BIN="$ROOT/target/release"
 PHASES=""
 for a in "$@"; do
-  case "$a" in ac13 | ac17 | ac19 | hold | live) PHASES+="$a " ;; *) BIN="$a" ;; esac
+  case "$a" in ac13 | ac17 | ac15 | ac19 | hold | live | ro) PHASES+="$a " ;; *) BIN="$a" ;; esac
 done
-[ -n "$PHASES" ] || PHASES="ac13 ac17 ac19 hold live "
+[ -n "$PHASES" ] || PHASES="ac13 ac17 ac15 ac19 hold live ro "
 TAG="kwin-portal"
 INPUT="$HERE/kwin-input/target/release/kwin-input"
 [ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
@@ -801,11 +817,57 @@ print("none" if any(x == "none" for x in v) or len(v) != 5 else "%.1f" % statist
     stop_all
   }
 
+  # --- AC15 (a), S-014f3 -------------------------------------------------
+  # shellcheck source=token.sh
+  source "$HERE/token.sh"
+  hive_shows() { grep -cE -- "$GLS_RE" <<<"$1"; }
+  token_motion() { jitter 400 500 1000; }
+  token_settle() { settle; }
+  phase_ac15() {
+    echo "== AC15 (a): the activation token of the fake's Activated, layer path, hold_ms 400"
+    ok_daemon
+    local bound; bound=$(grep -c '^portal shortcuts: bound drop ' "$DLOG")
+    check "AC15 (a) KWin setup: the daemon bound the shortcut on the fake" '[ "$bound" -eq 1 ]'
+    token_cases KWin
+  }
+
+  # --- S-014f3: a denial whose save fails ---------------------------------
+  phase_ro() {
+    echo "== S-014f3 (S-014f2 review finding 5): fake \"deny\", config.toml read only"
+    stop_all; OK_UP=no
+    local dir="$XDG_CONFIG_HOME/sbarhive" cfg0 cfg1 lines pf
+    reset_config 'hold_ms = 500'
+    chmod 0444 "$dir/config.toml"; chmod 0555 "$dir"
+    start_fake ro deny
+    start_daemon ro en
+    wait_line '^portal shortcuts: ' 10 || true
+    sleep 3
+    cfg0=$(config_of)
+    lines=$(plines)
+    echo "INFO ro setup: daemon lines $(tr '\n' '|' <<<"${lines:-none}"); config.toml (portal_shortcut hold_ms) $cfg0, mode $(stat -c %a "$dir/config.toml") in $(stat -c %a "$dir")"
+    check "ro setup: the denial is answered (one line, \"portal shortcuts: unavailable (denied)\") and its save failed (config.toml unchanged, no portal_shortcut)" \
+      '[ "$lines" = "portal shortcuts: unavailable (denied)" ] && [ "$cfg0" = "absent 500" ]'
+    chmod 0755 "$dir"; chmod 0644 "$dir/config.toml"
+    pf=$(wc -l <"$PLOG")
+    printf 'hold_ms = 600\n' >"$dir/.config.toml.ro"
+    mv -f "$dir/.config.toml.ro" "$dir/config.toml"
+    sleep 5
+    local ncalls; ncalls=$(python3 -I "$PL" calls "$PLOG" "$pf")
+    lines=$(plines)
+    cfg1=$(config_of)
+    echo "INFO ro: after the hold_ms edit (file: $cfg1), daemon lines $(tr '\n' '|' <<<"${lines:-none}"); fake calls and reads in 5 s: $ncalls; daemon $DPID alive $(kill -0 "$DPID" 2>/dev/null && echo yes || echo no)"
+    check "ro: memory keeps the value the file holds after a failed save, so a later edit of config.toml (hold_ms) makes zero portal calls or reads within 5 s and no new \"portal shortcuts:\" line (no second consent dialog)" \
+      '[ "$cfg0" = "absent 500" ] && [ "$ncalls" -eq 0 ] && [ "$lines" = "portal shortcuts: unavailable (denied)" ] && kill -0 "$DPID" 2>/dev/null'
+    stop_all
+  }
+
   local p
   for p in $PHASES; do
     case "$p" in
       ac13) phase_ac13 ;;
       ac17) phase_ac17 ;;
+      ac15) phase_ac15 ;;
+      ro) phase_ro ;;
       ac19) phase_ac19 ;;
       hold) phase_hold ;;
       live) phase_live ;;
