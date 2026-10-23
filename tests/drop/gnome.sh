@@ -43,7 +43,8 @@
 #   "smart portal" also runs the five fake token cases of AC15 (a) on the
 #   window path; "strict portal-real" (focus-new-windows strict) runs AC15
 #   (b), three Super+Z held drags and one with hold_ms 2000, each checked
-#   for the portal's token in the trace and the daemon's focus window, and
+#   for the portal's token in the trace and the WEBP (the focus window is
+#   INFO only, manager decision 5), and
 #   the no-token control (c), instead of AC20 and AC21.
 # Usage: tests/drop/gnome.sh [smart|strict] [shortcut|portal|portal-real] [target/release]
 #   Mutter focus-new-windows, default smart

@@ -403,11 +403,12 @@ portal_teardown() {
 # GNOME) focused. The daemon must activate its hive window with the token
 # of the portal's Activated: the trace's xdg_activation_v1.activate token
 # equals the activation_token of the last frontend to daemon Activated
-# before it (dbus-monitor, `real_portal.py last`), and the focus window,
-# read by Shell.Eval after the show's "hive surface: window" line and
-# before the drop, belongs to the daemon. The control (c) shows the hive
-# with `sbarhive drop --hold` and no token, so under strict it stays behind
-# the source: no file, the focus not the daemon's.
+# before it (dbus-monitor, `real_portal.py last`), and the WEBP is written.
+# The focus window, read by Shell.Eval after the show's "hive surface:
+# window" line and before the drop, is an INFO line only (manager decision
+# 5 of 2026-10-23). The control (c) shows the hive with `sbarhive drop
+# --hold` and no token, so under strict it stays behind the source: no
+# file and no activate request.
 # The caller (gnome.sh) also defines focus_pid: the PID of
 # global.display.focus_window, or "none".
 
@@ -511,12 +512,14 @@ ac15_real_cycle() {
     '[ "$na" -ge 1 ] && [ "$shown" = yes ]'
   check "$name: exactly one xdg_activation_v1.activate in the show, its token the activation_token of the last frontend to daemon Activated before it (dbus-monitor)" \
     '[ "$n" -eq 1 ] && [ -n "$tok" ] && [ "$last" != none ] && [ "$last" != - ] && [ "$tok" = "$last" ]'
-  check "$name: global.display.focus_window belongs to the daemon after the hive window line, before the drop" \
-    '[ "$shown" = yes ] && [ "$f1" = "$d" ]'
+  # Manager decision 5 (2026-10-23): the focus readback is INFO only; mid
+  # drag the source holds the pointer grab and Mutter leaves focus_window
+  # null even with a valid token.
+  echo "INFO $name: focus_window after the hive window line, before the drop: pid $f1 (daemon $d), $([ "$f1" = "$d" ] && echo "the daemon's" || echo "not the daemon's")"
   check "$name: $(basename "$base").webp written within 5 s of the drop (image/webp), the source reports deleted=False and the original's sha256 is unchanged" \
     '[ "$wrote" = yes ] && [ "$mime" = image/webp ] && tail -n +$((smark + 1)) "$SLOG" | grep -q "drag-end deleted=False" && [ "$(sha256sum "$file" | cut -d" " -f1)" = "$sha" ]'
   [ "$f0" = "$src" ] && [ "$na" -ge 1 ] && [ "$shown" = yes ] && [ "$n" -eq 1 ] && [ "$tok" = "$last" ] \
-    && [ "$f1" = "$d" ] && [ "$wrote" = yes ] && AC15_OK=yes
+    && [ "$wrote" = yes ] && AC15_OK=yes
   wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
   sleep 1
 }
@@ -542,7 +545,7 @@ ac15_real_run() {
     [ "$AC15_OK" = yes ] && ok=$((ok + 1))
   done
   echo "INFO AC15 (b): $ok of 3 held drops passed every check"
-  check "AC15 (b): 3 of 3 PNG drags with Super+Z held under strict write the WEBP, each with the portal's token and the daemon focused" '[ "$ok" -eq 3 ]'
+  check "AC15 (b): 3 of 3 PNG drags with Super+Z held under strict write the WEBP, each with the portal's token" '[ "$ok" -eq 3 ]'
 
   # --- AC15 (b), hold_ms 2000: GNOME's key repeat sends fresh tokens ------
   config_write 'hold_ms = 2000'
@@ -577,8 +580,9 @@ ac15_real_run() {
   echo "INFO AC15 (c): focus before the drag pid $f0 (source $src); hive window line $shown; focus after it pid $f1 (daemon $d); activate requests $n; hive at ${geo:-unknown}; $(basename "$base").webp $([ "$wrote" = yes ] && echo written || echo 'not written')"
   check "AC15 (c) setup: the source has the focus and \`drop --hold\` with no token makes the hive window (\"hive surface: window\")" \
     '[ "$f0" = "$src" ] && [ "$shown" = yes ]'
-  check "AC15 (c): no token, so no file within 5 s of the drop on WEBP, no activate request, and the focus window is not the daemon's" \
-    '[ "$shown" = yes ] && [ "$wrote" = no ] && [ "$n" -eq 0 ] && [ "$f1" != "$d" ] && [ "$f1" != none ]'
+  check "AC15 (c): no token, so no file within 5 s of the drop on WEBP and no activate request" \
+    '[ "$shown" = yes ] && [ "$wrote" = no ] && [ "$n" -eq 0 ]'
+  echo "INFO AC15 (c): focus_window after the hive window line: pid $f1 (daemon $d), INFO only (manager decision 5)"
   wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
 
   # --- Instrument check, INFO only: does a valid token move the focus? ---
