@@ -59,7 +59,7 @@ layerrule = no_anim on, match:namespace ^sbarhive$
 
 ```
 bindn = SUPER, Z, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
+bindrni = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 بصيغة Lua (الملف `hyprland.lua`)، وهي مفترضة كذلك:
@@ -68,14 +68,14 @@ bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "SbarHive: hold to drop" })
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
-    { release = true, ignore_mods = true, description = "SbarHive: release to close" })
+    { release = true, non_consuming = true, ignore_mods = true, description = "SbarHive: release to close" })
 ```
 
 لإمساك Alt الأيسر بدل Super+Z (مفترض كذلك)، بصيغة hyprlang:
 
 ```
 bindni = , ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
+bindrni = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 وبصيغة Lua:
@@ -84,8 +84,10 @@ bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, ignore_mods = true, description = "SbarHive: hold Alt to drop" })
 hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
-    { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
+    { release = true, non_consuming = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
 ```
+
+كل ربط ترك أعلاه غير مستهلِك (العلم `n` مع `r` و`i` في hyprlang، و`non_consuming` في Lua)، ويجب أن يبقى كذلك. يبتلع Hyprland ضغطة المفتاح الذي له ربط ترك مستهلِك، ولأن ربط الترك يتجاهل المُعدِّلات فهو يطابق المفتاح وحده: ربط `bindri = SUPER, Z` المستهلِك يبتلع كل حرف Z يُكتب في أي برنامج، والربط على `ALT_L` يبتلع كل ضغطة Alt. وهذا متحقق منه في مصدر Hyprland 0.56.2 (يبتلع `KeybindManager.cpp` ضغطة ربط الترك ما لم يكن غير مستهلِك) وفي جلسة حقيقية توقف فيها حرف Z عن الكتابة. وترك المفتاح دون خلية ظاهرة لا يفعل شيئاً، فلا كلفة لهذا الاستدعاء مع Z العادي.
 
 ملاحظات، ولم نتحقق من أي منها:
 - ربط الترك لا يصل إن تركت المُعدِّل قبل المفتاح الأساسي (Super قبل Z مثلاً)، فيجب أن يتجاهل المُعدِّلات: العلم `i` مع `r` في hyprlang، و`ignore_mods` في Lua.

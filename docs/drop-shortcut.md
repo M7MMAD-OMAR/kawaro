@@ -46,11 +46,11 @@ Super+Z shows the hive while you drag files that have an action; on Hyprland it 
 bind = SUPER, Z, exec, ~/.local/bin/sbarhive drop --at "$(hyprctl cursorpos)"
 ```
 
-Or hold left Alt: the hive shows after a long press (`hold_ms`, 400 ms by default) and closes when you let the key go. The press bind is non consuming (the flag `n`) so combinations such as Alt+Tab keep working, and ignores modifiers (the flag `i`) because Alt is not held yet on its own first press, so a bind that requires Alt matches only from the second press. The release bind ignores modifiers too (the flags `r` and `i`). Being non consuming, Alt still reaches the file manager and may change the drop kind there; not verified:
+Or hold left Alt: the hive shows after a long press (`hold_ms`, 400 ms by default) and closes when you let the key go. The press bind is non consuming (the flag `n`) so combinations such as Alt+Tab keep working, and ignores modifiers (the flag `i`) because Alt is not held yet on its own first press, so a bind that requires Alt matches only from the second press. The release bind ignores modifiers too, and is non consuming as well (the flags `r`, `n` and `i`): Hyprland swallows the press of any key that has a consuming release bind, so without `n` Alt would never reach applications. Being non consuming, Alt still reaches the file manager and may change the drop kind there; not verified:
 
 ```
 bindni = , ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
+bindrni = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 The release bind needs a running daemon, so start it with the session: `exec-once = ~/.local/bin/sbarhived`. The Lua form, and holding Super+Z instead of Alt, are in [the Hyprland guide](../integrations/linux/hyprland/README.md).

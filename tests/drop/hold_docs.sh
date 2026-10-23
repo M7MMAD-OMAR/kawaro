@@ -10,8 +10,9 @@
 #         English section each: a hyprlang press bind that runs
 #         `sbarhive drop --hold` with the non consuming flag n (bindn...), a
 #         hyprlang release bind that runs `sbarhive drop --release` with the
-#         flags r and i (bindri, bindir...), a Lua `hl.bind(` that runs
-#         `drop --hold` and one that runs `drop --release`, the words
+#         flags r, n and i (bindrni, bindnir...), a Lua `hl.bind(` that runs
+#         `drop --hold` and one that runs `drop --release` with
+#         `non_consuming = true`, the words
 #         `ignore_mods`, and a note that the binds are not verified yet
 #         (English "not verified", "unverified" or "assumed"; Arabic
 #         "مفترض" or "غير متحقق").
@@ -55,6 +56,12 @@
 #   "## [Unreleased]" until the 0.3.2 release).
 #   S-022 AC10: no prose line of tests/drop/README.md is longer than 80
 #   columns (characters); lines inside ``` fences are not counted.
+#   Consuming release binds: no hyprlang `bind...r...` line without the flag
+#   n, and no Lua bind with `release = true` without `non_consuming = true`,
+#   in any .md outside backlog/. Hyprland swallows the press of a key whose
+#   release bind is consuming, and the release bind ignores modifiers, so a
+#   documented `bindri = SUPER, Z` swallowed every Z typed anywhere and one
+#   on ALT_L every Alt (2026-10-23, KeybindManager.cpp in Hyprland 0.56.2).
 #   No em dash or en dash in any of these files, nor in tests/drop/README.md.
 #   Language pairs: each user doc is English NAME.md with an Arabic copy
 #   NAME.ar.md beside it. An Arabic check above reads the .ar.md copy (the
@@ -90,9 +97,9 @@ parts = re.split(r"(?m)^#{1,6} .*$", text)
 heads = re.findall(r"(?m)^#{1,6} .*$", text)
 KEYS = {
     "press-hyprlang": re.compile(r"^\s*bind[a-z]*n[a-z]*\s*=.*\bexec\s*,.*\bsbarhive drop --hold\b", re.M),
-    "release-hyprlang": re.compile(r"^\s*bind(?=[a-z]*r)(?=[a-z]*i)[a-z]*\s*=.*\bexec\s*,.*\bsbarhive drop --release\b", re.M),
+    "release-hyprlang": re.compile(r"^\s*bind(?=[a-z]*r)(?=[a-z]*n)(?=[a-z]*i)[a-z]*\s*=.*\bexec\s*,.*\bsbarhive drop --release\b", re.M),
     "press-lua": re.compile(r"hl\.bind\(.{0,300}?\bdrop --hold\b", re.S),
-    "release-lua": re.compile(r"hl\.bind\(.{0,300}?\bdrop --release\b", re.S),
+    "release-lua": re.compile(r"hl\.bind\(.{0,300}?\bdrop --release\b[^{}]{0,40}\{[^}]*\bnon_consuming = true\b", re.S),
     "ignore_mods": re.compile(r"ignore_mods"),
     "unverified": re.compile(r"not verified|unverified|assumed|مفترض|غير متحقق", re.I),
     "hold_ms": re.compile(r"hold_ms"),
@@ -157,7 +164,7 @@ doc_for() { if [ "$1" = ar ]; then echo "${2%.md}.ar.md"; else echo "$2"; fi; }
 for lang in ar en; do
   name=$([ $lang = ar ] && echo Arabic || echo English)
   hypr=$(doc_for $lang "$HYPR") readme=$(doc_for $lang "$README")
-  check "S-019 AC22: Hyprland README, one $name section with the hyprlang press bind (flag n, drop --hold) and release bind (flags r and i, drop --release)" \
+  check "S-019 AC22: Hyprland README, one $name section with the hyprlang press bind (flag n, drop --hold) and release bind (flags r, n and i, drop --release)" \
     'has "$hypr" $lang press-hyprlang release-hyprlang'
   check "S-019 AC22: Hyprland README, one $name section with the Lua press and release binds" \
     'has "$hypr" $lang press-lua release-lua'
@@ -189,6 +196,23 @@ check "S-022 AC9: CHANGELOG.md has a line that names S-022 in English and in Ara
 long=$(awk '/^```/ { f = !f; next } !f && length($0) > 80 { printf "%d:%d ", NR, length($0) }' "$HERE/README.md")
 echo "INFO S-022 AC10: tests/drop/README.md prose lines over 80 columns: ${long:-none}"
 check "S-022 AC10: no prose line of tests/drop/README.md is longer than 80 columns (outside code fences)" '[ -z "$long" ]'
+# consuming_release: "FILE:LINE" for each consuming release bind in the docs.
+consuming_release() {
+  find "$ROOT" -name '*.md' -not -path "$ROOT/backlog/*" -not -path '*/node_modules/*' \
+    -not -path '*/target/*' -not -path '*/.git/*' -not -path '*/.claude/*' -print0 | xargs -0 python3 -I -c '
+import re, sys
+for f in sys.argv[1:]:
+    t = open(f, encoding="utf-8").read()
+    for m in re.finditer(r"(?m)^\s*bind([a-z]*)\s*=", t):
+        if "r" in m.group(1) and "n" not in m.group(1):
+            print(f"{f}:{t.count(chr(10), 0, m.start()) + 1}")
+    for m in re.finditer(r"\{[^{}]*\brelease = true\b[^{}]*\}", t):
+        if not re.search(r"\bnon_consuming = true\b", m.group(0)):
+            print(f"{f}:{t.count(chr(10), 0, m.start()) + 1}")'
+}
+bad=$(consuming_release)
+echo "INFO consuming release binds in the docs: ${bad:-none}"
+check "no doc shows a consuming release bind (they swallow the key, e.g. every Z for SUPER+Z)" '[ -z "$bad" ]'
 check "S-019 AC22/AC23, S-021 AC12: no em dash or en dash in these files" \
   '! grep -nP "\x{2014}|\x{2013}" "$HYPR" "$HYPR_AR" "$README" "$README_AR" "$ARCH" "$ADR" "$LOG" "$HERE/README.md"'
 # Language pairs: both files exist and line 1 is the switch line.

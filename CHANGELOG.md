@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Fixed
+- Hyprland release binds in the docs are non consuming (`bindrni`, `non_consuming = true`): a consuming release bind that ignores modifiers makes Hyprland swallow the bare key's press, so the documented `bindri = SUPER, Z` ate every Z typed anywhere and the `ALT_L` one every Alt; `tests/drop/hold_docs.sh` now fails on any consuming release bind in the docs. «ربط الترك الموثَّق في Hyprland صار غير مستهلِك، فلم يعد يبتلع كل حرف Z وكل ضغطة Alt».
+
 ## [0.3.3] - 2026-10-23 «اختصار البوابة»
 
 ### Added

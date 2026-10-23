@@ -57,7 +57,7 @@ hyprlang form (`hyprland.conf`). These lines are assumed, not verified yet on a 
 
 ```
 bindn = SUPER, Z, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
+bindrni = SUPER, Z, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 Lua form (`hyprland.lua`), assumed as well:
@@ -66,14 +66,14 @@ Lua form (`hyprland.lua`), assumed as well:
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "SbarHive: hold to drop" })
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
-    { release = true, ignore_mods = true, description = "SbarHive: release to close" })
+    { release = true, non_consuming = true, ignore_mods = true, description = "SbarHive: release to close" })
 ```
 
 To hold left Alt instead of Super+Z (assumed as well), hyprlang form:
 
 ```
 bindni = , ALT_L, exec, ~/.local/bin/sbarhive drop --hold --at "$(hyprctl cursorpos)"
-bindri = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
+bindrni = , ALT_L, exec, ~/.local/bin/sbarhive drop --release
 ```
 
 Lua form:
@@ -82,8 +82,10 @@ Lua form:
 hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, ignore_mods = true, description = "SbarHive: hold Alt to drop" })
 hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/sbarhive drop --release"),
-    { release = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
+    { release = true, non_consuming = true, ignore_mods = true, description = "SbarHive: release Alt to close" })
 ```
+
+Every release bind above is non consuming (the flag `n` with `r` and `i` in hyprlang, `non_consuming` in Lua), and it must stay so. Hyprland swallows the press of a key whose release bind is consuming, and since the release bind ignores modifiers it matches the bare key: a consuming `bindri = SUPER, Z` swallows every Z typed in any application, and one on `ALT_L` every Alt. This is verified, in the Hyprland 0.56.2 source (`KeybindManager.cpp` suppresses the press for a `release` bind unless it is non consuming) and on a real session where Z stopped typing. A release with no hive shown does nothing, so the extra call on a plain Z costs nothing.
 
 Notes, none of them verified:
 - The release bind does not fire when the modifier is let go before the main key (Super before Z, say), so it needs to ignore modifiers: the flag `i` with `r` in hyprlang, `ignore_mods` in Lua.
