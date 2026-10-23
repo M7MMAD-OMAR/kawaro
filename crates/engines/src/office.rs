@@ -280,8 +280,18 @@ fn file_url(path: &Path) -> String {
 fn file_url_str(path: &str, windows: bool) -> String {
     let mut url = String::from("file://");
     let (path, keep): (String, &[u8]) = if windows {
-        url.push('/');
-        let path = path.strip_prefix(r"\\?\").unwrap_or(path);
+        // A UNC path, verbatim or plain, is the host form file://server/share.
+        let path = if let Some(rest) = path.strip_prefix(r"\\?\UNC\") {
+            rest
+        } else if let Some(rest) = path.strip_prefix(r"\\?\") {
+            url.push('/');
+            rest
+        } else if let Some(rest) = path.strip_prefix(r"\\") {
+            rest
+        } else {
+            url.push('/');
+            path
+        };
         (path.replace('\\', "/"), b"/-._~:")
     } else {
         (path.to_string(), b"/-._~")

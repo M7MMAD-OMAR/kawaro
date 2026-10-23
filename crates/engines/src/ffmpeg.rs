@@ -44,15 +44,24 @@ pub struct FfmpegEngine {
 }
 
 impl Default for FfmpegEngine {
-    /// Uses `ffmpeg` and `ffprobe` as `locate::find` sees them. A program
-    /// not found keeps its bare name, so the error names it.
+    /// Uses the paths from [`located`].
     fn default() -> Self {
+        let (ffmpeg, ffprobe) = located();
+        Self::with_binaries(ffmpeg.clone(), ffprobe.clone())
+    }
+}
+
+/// `ffmpeg` and `ffprobe` as `locate::find` sees them, looked up once per
+/// process. A program not found keeps its bare name, so the error names it.
+pub(crate) fn located() -> &'static (PathBuf, PathBuf) {
+    static LOCATED: OnceLock<(PathBuf, PathBuf)> = OnceLock::new();
+    LOCATED.get_or_init(|| {
         let bin = |program, name: &str| locate::find(program).unwrap_or_else(|| name.into());
-        Self::with_binaries(
+        (
             bin(Program::Ffmpeg, "ffmpeg"),
             bin(Program::Ffprobe, "ffprobe"),
         )
-    }
+    })
 }
 
 impl FfmpegEngine {

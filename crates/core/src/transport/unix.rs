@@ -1,6 +1,6 @@
 //! The Unix socket transport.
 
-use super::Bound;
+use super::{Bound, Cleanup};
 use crate::ipc::{Request, Response};
 use std::fmt;
 use std::io::{self, BufRead, BufReader, ErrorKind, Read, Write};
@@ -32,7 +32,10 @@ pub fn endpoint() -> Endpoint {
     Endpoint(crate::ipc::socket_path())
 }
 
-pub struct Listener(UnixListener);
+pub struct Listener {
+    listener: UnixListener,
+    path: PathBuf,
+}
 
 impl Listener {
     /// Listens on `e`, unless a service there answers `ping` within 500 ms.
@@ -42,11 +45,21 @@ impl Listener {
             return Ok(Bound::AlreadyRunning);
         }
         let _ = std::fs::remove_file(&e.0);
-        UnixListener::bind(&e.0).map(|l| Bound::Listening(Listener(l)))
+        UnixListener::bind(&e.0).map(|listener| {
+            Bound::Listening(Listener {
+                listener,
+                path: e.0.clone(),
+            })
+        })
     }
 
     pub fn accept(&self) -> io::Result<Stream> {
-        self.0.accept().map(|(s, _)| Stream(s))
+        self.listener.accept().map(|(s, _)| Stream(s))
+    }
+
+    /// Removes the socket file when the returned value is dropped.
+    pub fn cleanup(&self) -> Cleanup {
+        Cleanup(Some(self.path.clone()))
     }
 }
 

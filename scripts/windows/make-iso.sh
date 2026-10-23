@@ -4,7 +4,7 @@
 # `cargo test --no-run --target x86_64-pc-windows-gnu -p sbarhive-core
 # -p sbarhive-engines -p sbarhive-cli` first, with the same CARGO_TARGET_DIR.
 #   scripts/windows/make-iso.sh
-# CARGO_TARGET_DIR defaults to /home/sbarah/.cache/sbarhive-win-target. The
+# CARGO_TARGET_DIR defaults to ${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target. The
 # ISO is $CARGO_TARGET_DIR/sbarhive-win-tests.iso (genisoimage -J -R) with
 #   bin/sbarhive.exe  the release build
 #   tests/*.exe       the test programs from debug/deps
@@ -14,7 +14,7 @@
 # cargo built for the integration tests, not a test program, and is left out.
 # Stale hashes from an older build are not told apart: clean deps/ if any.
 set -eu
-target="${CARGO_TARGET_DIR:-/home/sbarah/.cache/sbarhive-win-target}"
+target="${CARGO_TARGET_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target}"
 win="$(cd "$(dirname "$0")" && pwd)"
 rel="$target/x86_64-pc-windows-gnu/release/sbarhive.exe"
 debug="$target/x86_64-pc-windows-gnu/debug"

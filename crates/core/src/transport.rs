@@ -7,6 +7,7 @@
 //! mutated on Linux; `transport/windows.rs` only calls the system with them.
 
 use std::io::{self, ErrorKind};
+use std::path::PathBuf;
 use std::time::Duration;
 
 pub mod deadline;
@@ -29,6 +30,66 @@ pub enum Bound {
     AlreadyRunning,
 }
 
+/// Removes the Unix socket file when dropped (S-028b AC7); on Windows the
+/// pipe goes with its last handle, so it removes nothing. Taken from
+/// [`Listener::cleanup`] and held by the service until it returns, because
+/// the listener itself lives on a thread that never returns.
+pub struct Cleanup(Option<PathBuf>);
+
+impl Drop for Cleanup {
+    fn drop(&mut self) {
+        if let Some(path) = &self.0 {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
+
+/// How long the accept loop waits after a failed accept (S-028b AC4).
+const ACCEPT_BACKOFF: Duration = Duration::from_millis(50);
+
+/// The pause after `consecutive_errors` failed accepts in a row: none
+/// without an error, 50 ms after any, so a failing accept does not spin.
+pub fn accept_backoff(consecutive_errors: u32) -> Duration {
+    if consecutive_errors == 0 {
+        Duration::ZERO
+    } else {
+        ACCEPT_BACKOFF
+    }
+}
+
+/// What happens to the pipe instance slot after an accept (S-028b AC5).
+#[derive(Debug)]
+pub enum NextInstance {
+    /// The fresh instance waits for the next client.
+    Fresh,
+    /// No client and no fresh instance: the old instance waits again.
+    Keep,
+    /// The client took the old instance and no fresh one could be made;
+    /// the next accept creates one first.
+    Empty,
+}
+
+/// The decision of one Windows accept.
+#[derive(Debug)]
+pub struct AcceptPlan {
+    /// The connected instance goes to the caller as a stream.
+    pub hand_over: bool,
+    pub next: NextInstance,
+}
+
+/// Decides one accept from `ConnectNamedPipe`'s result and whether a fresh
+/// instance was made. A client that connected before the call reports
+/// `ERROR_PIPE_CONNECTED` and is connected too.
+pub fn accept_plan(connected: bool, connect_error: Option<u32>, fresh_ok: bool) -> AcceptPlan {
+    let hand_over = connected || connect_error == Some(ERROR_PIPE_CONNECTED);
+    let next = match (fresh_ok, hand_over) {
+        (true, _) => NextInstance::Fresh,
+        (false, true) => NextInstance::Empty,
+        (false, false) => NextInstance::Keep,
+    };
+    AcceptPlan { hand_over, next }
+}
+
 /// The pipe name for one user (`sid`) in one session, unique per user and
 /// session and at most 256 characters for the longest SID.
 pub fn pipe_name(sid: &str, session: u32) -> String {
@@ -42,6 +103,8 @@ pub fn pipe_name(sid: &str, session: u32) -> String {
 const ERROR_FILE_NOT_FOUND: u32 = 2;
 /// `ERROR_ACCESS_DENIED`: the first instance exists, a service runs.
 const ERROR_ACCESS_DENIED: u32 = 5;
+/// `ERROR_PIPE_CONNECTED`: a client connected before `ConnectNamedPipe`.
+const ERROR_PIPE_CONNECTED: u32 = 535;
 /// `ERROR_PIPE_BUSY`: every instance is taken, wait for one.
 const ERROR_PIPE_BUSY: u32 = 231;
 /// `PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE`.

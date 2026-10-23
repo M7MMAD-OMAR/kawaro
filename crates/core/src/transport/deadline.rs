@@ -9,9 +9,10 @@ use std::thread;
 use std::time::Duration;
 
 /// Runs `read` on this thread. If it has not returned after `timeout`, the
-/// watcher calls `cancel` once and the result is `ErrorKind::TimedOut`,
-/// whatever the cancelled read returns. A read that returns first keeps its
-/// result and `cancel` is never called. No watcher outlives the call.
+/// watcher calls `cancel` once; a cancelled read that fails gives
+/// `ErrorKind::TimedOut`, and one that brings data keeps it (S-028a AC3).
+/// A read that returns first keeps its result and `cancel` is never called.
+/// No watcher outlives the call.
 pub fn read_with_deadline<T, R, C>(timeout: Duration, read: R, cancel: C) -> io::Result<T>
 where
     R: FnOnce() -> io::Result<T>,
@@ -41,9 +42,8 @@ where
     };
     drop(done);
     let _ = watcher.join();
-    if fired {
-        Err(io::Error::new(ErrorKind::TimedOut, "read deadline passed"))
-    } else {
-        result
+    match result {
+        Err(_) if fired => Err(io::Error::new(ErrorKind::TimedOut, "read deadline passed")),
+        result => result,
     }
 }

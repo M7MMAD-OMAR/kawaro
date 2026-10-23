@@ -4,19 +4,35 @@ use crate::state::{Shared, common_kind, lock};
 use crate::{notify, text, ui};
 use sbarhive_core::ipc::{Request, Response};
 use sbarhive_core::queue::Queue;
-use sbarhive_core::transport::{Listener, Stream};
-use std::io::{BufRead, BufReader, Write};
+use sbarhive_core::transport::{Listener, Stream, accept_backoff};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::sync::Arc;
 use std::time::Instant;
 
 pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
+    // Failed accepts in a row; each one pauses, so an error does not spin.
+    let mut errors: u32 = 0;
     loop {
-        let Ok(stream) = listener.accept() else {
-            continue;
-        };
-        let (state, queue) = (state.clone(), queue.clone());
-        std::thread::spawn(move || handle(stream, &state, &queue));
+        match listener.accept() {
+            Ok(stream) => {
+                errors = 0;
+                let (state, queue) = (state.clone(), queue.clone());
+                std::thread::spawn(move || handle(stream, &state, &queue));
+            }
+            Err(_) => {
+                errors = errors.saturating_add(1);
+                std::thread::sleep(accept_backoff(errors));
+            }
+        }
     }
+}
+
+/// Reads the one request line from the stream itself, so the same stream
+/// writes the reply.
+fn read_request(stream: &mut impl Read) -> io::Result<String> {
+    let mut line = String::new();
+    BufReader::new(stream).read_line(&mut line)?;
+    Ok(line)
 }
 
 fn reply(stream: &mut Stream, r: &Response) {
@@ -35,13 +51,9 @@ fn error(stream: &mut Stream, message: impl Into<String>) {
 }
 
 fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
-    let mut line = String::new();
-    let Ok(reader) = stream.try_clone() else {
+    let Ok(line) = read_request(&mut stream) else {
         return;
     };
-    if BufReader::new(reader).read_line(&mut line).is_err() {
-        return;
-    }
     let req: Request = match serde_json::from_str(&line) {
         Ok(r) => r,
         Err(e) => return error(&mut stream, format!("bad request: {e}")),

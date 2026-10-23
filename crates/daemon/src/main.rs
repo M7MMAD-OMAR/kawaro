@@ -18,7 +18,6 @@ mod portal_tests;
 use state::lock;
 
 use sbarhive_core::config::Config;
-use sbarhive_core::ipc::socket_path;
 use sbarhive_core::queue::Queue;
 use sbarhive_core::transport::{self, Bound, Listener};
 use std::process::ExitCode;
@@ -43,6 +42,8 @@ fn main() -> ExitCode {
             return ExitCode::FAILURE;
         }
     };
+    // Removes the socket file on every return below.
+    let _cleanup = listener.cleanup();
 
     let (config, warning) = Config::load();
     if let Some(w) = warning {
@@ -88,7 +89,6 @@ fn main() -> ExitCode {
 
     let result = slint::run_event_loop_until_quit();
     queue.cancel_all();
-    let _ = std::fs::remove_file(socket_path());
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {

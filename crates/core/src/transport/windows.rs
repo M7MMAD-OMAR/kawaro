@@ -14,8 +14,8 @@
 
 use super::deadline::read_with_deadline;
 use super::{
-    BindOutcome, Bound, ConnectStep, bind_result, connect_plan, dacl_sddl, open_mode, pipe_mode,
-    pipe_name, verify_owner,
+    BindOutcome, Bound, Cleanup, ConnectStep, NextInstance, accept_plan, bind_result, connect_plan,
+    dacl_sddl, open_mode, pipe_mode, pipe_name, verify_owner,
 };
 use std::fmt;
 use std::fs::{File, OpenOptions};
@@ -26,7 +26,7 @@ use std::ptr::{null, null_mut};
 use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::{
-    self as foundation, ERROR_PIPE_CONNECTED, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
+    self as foundation, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
 };
 use windows_sys::Win32::Security::Authorization::{
     ConvertSidToStringSidW, ConvertStringSecurityDescriptorToSecurityDescriptorW, SDDL_REVISION_1,
@@ -40,9 +40,9 @@ use windows_sys::Win32::Storage::FileSystem::{
 };
 use windows_sys::Win32::System::IO::CancelIoEx;
 use windows_sys::Win32::System::Pipes::{
-    ConnectNamedPipe, CreateNamedPipeW, GetNamedPipeServerProcessId, PIPE_READMODE_BYTE,
-    PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_UNLIMITED_INSTANCES, PIPE_WAIT,
-    WaitNamedPipeW,
+    ConnectNamedPipe, CreateNamedPipeW, DisconnectNamedPipe, GetNamedPipeServerProcessId,
+    PIPE_READMODE_BYTE, PIPE_REJECT_REMOTE_CLIENTS, PIPE_TYPE_BYTE, PIPE_UNLIMITED_INSTANCES,
+    PIPE_WAIT, WaitNamedPipeW,
 };
 use windows_sys::Win32::System::RemoteDesktop::ProcessIdToSessionId;
 use windows_sys::Win32::System::Threading::{
@@ -61,6 +61,7 @@ const _: () = assert!(
 const _: () = assert!(super::ERROR_ACCESS_DENIED == foundation::ERROR_ACCESS_DENIED);
 const _: () = assert!(super::ERROR_FILE_NOT_FOUND == foundation::ERROR_FILE_NOT_FOUND);
 const _: () = assert!(super::ERROR_PIPE_BUSY == foundation::ERROR_PIPE_BUSY);
+const _: () = assert!(super::ERROR_PIPE_CONNECTED == foundation::ERROR_PIPE_CONNECTED);
 
 /// The pipe buffer size each way; requests and replies are short lines.
 const BUFFER: u32 = 64 * 1024;
@@ -156,9 +157,12 @@ fn create_instance(name: &[u16], sd: &Descriptor, first: bool) -> Result<OwnedHa
 pub struct Listener {
     name: Vec<u16>,
     sd: Descriptor,
-    /// The instance the next `accept` waits on. There is always one, so a
-    /// client finds the pipe busy, never missing, between two accepts.
-    next: Mutex<OwnedHandle>,
+    /// The instance the next `accept` waits on. Normally there is one, so a
+    /// client finds the pipe busy, never missing, between two accepts. It
+    /// is empty when a client took the last instance and no fresh one could
+    /// be made: a new client then gets `ERROR_FILE_NOT_FOUND` until the next
+    /// accept creates one, within 50 ms (S-028b AC5).
+    next: Mutex<Option<OwnedHandle>>,
 }
 
 impl Listener {
@@ -172,7 +176,7 @@ impl Listener {
             (BindOutcome::Listen, Ok(handle)) => Ok(Bound::Listening(Listener {
                 name,
                 sd,
-                next: Mutex::new(handle),
+                next: Mutex::new(Some(handle)),
             })),
             (BindOutcome::AlreadyRunning, _) => Ok(Bound::AlreadyRunning),
             (BindOutcome::Failed(err), _) => Err(err),
@@ -180,22 +184,45 @@ impl Listener {
         }
     }
 
-    /// Waits for a client on the current instance, then puts a fresh
-    /// instance in its place before handing the connection over.
+    /// Waits for a client on the current instance, creating one first when
+    /// the slot is empty, then puts a fresh instance in its place as
+    /// `accept_plan` decides before handing the connection over.
     pub fn accept(&self) -> io::Result<Stream> {
         let mut next = self.next.lock().unwrap_or_else(PoisonError::into_inner);
+        let current = match next.take() {
+            Some(handle) => handle,
+            None => create_instance(&self.name, &self.sd, false)
+                .map_err(|code| io::Error::from_raw_os_error(code as i32))?,
+        };
         // SAFETY: a valid pipe handle; synchronous, so no OVERLAPPED.
-        let connected = unsafe { ConnectNamedPipe(next.as_raw_handle(), null_mut()) } != 0;
+        let connected = unsafe { ConnectNamedPipe(current.as_raw_handle(), null_mut()) } != 0;
         let failure = io::Error::last_os_error();
-        let fresh = create_instance(&self.name, &self.sd, false)
-            .map_err(|code| io::Error::from_raw_os_error(code as i32))?;
-        let taken = std::mem::replace(&mut *next, fresh);
-        // A client that connected before ConnectNamedPipe is connected too.
-        if connected || failure.raw_os_error() == Some(ERROR_PIPE_CONNECTED as i32) {
-            Ok(Stream::new(File::from(taken), None))
+        let connect_error = (!connected).then(|| failure.raw_os_error().unwrap_or(0) as u32);
+        let fresh = create_instance(&self.name, &self.sd, false).ok();
+        let plan = accept_plan(connected, connect_error, fresh.is_some());
+        let current = match plan.next {
+            NextInstance::Fresh => {
+                *next = fresh;
+                current
+            }
+            NextInstance::Keep => {
+                // SAFETY: a valid pipe handle; makes it ready for a new client.
+                unsafe { DisconnectNamedPipe(current.as_raw_handle()) };
+                *next = Some(current);
+                return Err(failure);
+            }
+            NextInstance::Empty => current,
+        };
+        if plan.hand_over {
+            Ok(Stream::new(File::from(current), None))
         } else {
             Err(failure)
         }
+    }
+
+    /// The pipe goes with its last handle, so there is nothing to remove.
+    pub fn cleanup(&self) -> Cleanup {
+        Cleanup(None)
     }
 }
 
