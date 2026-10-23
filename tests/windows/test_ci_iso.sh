@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# S-026b, light tests: no build, no VM, no network. AC8 and AC12 parse
+# S-044b, light tests: no build, no VM, no network. AC8 and AC12 parse
 # .github/workflows/ci.yml (python3 with PyYAML); AC9 runs make-iso.sh on a
 # fake build output in a temp dir and reads the ISO back with isoinfo; AC10
 # and AC11 read run-tests.cmd and the README; AC12 runs check-dlls.sh on bad
 # input and reads docs/engines.md.
 #   bash tests/windows/test_ci_iso.sh
 # The CI jobs themselves only run on a push to main or a pull request, so
-# their first green run is checked live in S-034, not here.
+# their first green run is checked live in S-052, not here.
 # The sh -c bodies below take their values as arguments, on purpose.
 # shellcheck disable=SC2016
 set -u
@@ -342,4 +342,4 @@ ac10_run_tests_cmd_is_crlf_runs_every_test_exe_and_writes_results_in_userprofile
 ac11_readme_gives_the_virsh_attach_command_in_both_languages
 ac12_check_dlls_exits_2_on_input_errors_and_docs_name_binutils_and_ubuntu_mingw
 lint_no_long_dash_and_shellcheck_for_s026b_files
-finish "S-026b windows CI, ISO and runner (light)"
+finish "S-044b windows CI, ISO and runner (light)"

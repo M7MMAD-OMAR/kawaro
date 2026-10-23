@@ -1,4 +1,4 @@
-//! S-022a AC1 to AC4 and AC6 (backlog/S-022-windows-ipc.md): the IPC
+//! S-040a AC1 to AC4 and AC6 (backlog/S-040-windows-ipc.md): the IPC
 //! transport behind one interface, tested on Linux in a temporary dir.
 //!
 //! Contract (tester, from AC1 and AC2; do not edit). In

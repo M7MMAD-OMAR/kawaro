@@ -1,4 +1,4 @@
-//! S-023 AC4 (backlog/S-023-windows-paths.md): one source for the user
+//! S-041 AC4 (backlog/S-041-windows-paths.md): one source for the user
 //! actions folder. `user_actions_dir` is gone from every crate and the
 //! daemon loads its registry from `Config::actions_dir()`.
 //!

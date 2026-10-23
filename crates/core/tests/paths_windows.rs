@@ -1,4 +1,4 @@
-//! S-023 AC5 and AC7 (backlog/S-023-windows-paths.md): the Windows files.
+//! S-041 AC5 and AC7 (backlog/S-041-windows-paths.md): the Windows files.
 //! They cannot run on Linux, so this checks the files themselves; `W` (the
 //! Windows clippy run in the story) proves they build without a warning.
 //!

@@ -1,4 +1,4 @@
-// S-025b (backlog/S-025-windows-engines.md): where each engine program is
+// S-043b (backlog/S-043-windows-engines.md): where each engine program is
 // looked up, as pure functions with the environment and the registry
 // injected, so a Linux run tests and mutates the Windows order. The test
 // module below is the tester's contract and must not change; the
@@ -90,7 +90,7 @@ pub(crate) trait Registry {
     fn subkeys(&self, key: &str) -> Vec<String>;
 }
 
-// Both keys are assumptions from ADR 0005, to be checked on Windows (S-034).
+// Both keys are assumptions from ADR 0005, to be checked on Windows (S-052).
 const LO_KEY: &str = "SOFTWARE\\LibreOffice\\UNO\\InstallPath";
 const GS_KEY: &str = "SOFTWARE\\GPL Ghostscript";
 

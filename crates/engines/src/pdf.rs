@@ -656,7 +656,7 @@ mod tests {
         assert_eq!(inherited(&doc, page, b"CropBox"), None);
     }
 
-    // S-025b: an engine without a program names Ghostscript and its
+    // S-043b: an engine without a program names Ghostscript and its
     // download page.
     #[test]
     fn ac11_ghostscript_without_program_names_it_and_link() {

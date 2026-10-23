@@ -1,9 +1,9 @@
-//! The place function on Windows (S-023 AC7, ADR 0005 section 4):
+//! The place function on Windows (S-041 AC7, ADR 0005 section 4):
 //! `MoveFileExW` with flags 0, no replace flag, so the move fails when the
 //! name is taken, even on FAT and exFAT where `hard_link` cannot run. The
 //! error code map is pure and tested in `output_impl.rs`; this file only
 //! calls the system, so it is left out of the mutants run and checked live
-//! in S-034.
+//! in S-052.
 
 use super::move_error_kind;
 use std::io;

@@ -1,4 +1,4 @@
-//! S-022b AC10 (backlog/S-022-windows-ipc.md): a read with a deadline by a
+//! S-040b AC10 (backlog/S-040-windows-ipc.md): a read with a deadline by a
 //! watcher thread that cancels the blocked read, as `CancelIoEx` does for a
 //! pipe on Windows. Tested on Linux with a fake read.
 //!

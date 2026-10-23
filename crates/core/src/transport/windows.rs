@@ -1,7 +1,7 @@
-//! The named pipe transport (S-022b, ADR 0005 section 2). Every decision is
+//! The named pipe transport (S-040b, ADR 0005 section 2). Every decision is
 //! a pure function in `transport.rs` or `transport/deadline.rs`, tested on
 //! Linux; this file only calls the system with them, so it is left out of
-//! the mutants run (`.cargo/mutants.toml`) and checked live in S-034.
+//! the mutants run (`.cargo/mutants.toml`) and checked live in S-052.
 //!
 //! - The pipe is `\\.\pipe\io.github.m7mmad_omar.SbarHive.<SID>.<session>`.
 //! - Every instance gets a DACL that grants the current user alone

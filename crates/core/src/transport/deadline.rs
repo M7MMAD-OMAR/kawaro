@@ -1,4 +1,4 @@
-//! A read with a deadline (S-022b AC10). A named pipe has no read timeout,
+//! A read with a deadline (S-040b AC10). A named pipe has no read timeout,
 //! so a watcher thread cancels the blocked read when the deadline passes
 //! (`CancelIoEx` on Windows). Pure, so it is tested and mutated on Linux.
 

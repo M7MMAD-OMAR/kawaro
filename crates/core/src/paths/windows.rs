@@ -1,7 +1,7 @@
-//! The Windows known folders (S-023 AC5, ADR 0005 section 4). The choice
+//! The Windows known folders (S-041 AC5, ADR 0005 section 4). The choice
 //! between the variable and the known folder is pure and tested in
 //! `paths.rs`; this file only asks the system, so it is left out of the
-//! mutants run (`.cargo/mutants.toml`) and checked live in S-034.
+//! mutants run (`.cargo/mutants.toml`) and checked live in S-052.
 
 use super::{Os, log_dir_with};
 use std::ffi::OsString;
@@ -47,7 +47,7 @@ fn local_app_data() -> Option<PathBuf> {
 }
 
 /// The service log folder, `%LOCALAPPDATA%\SbarHive\logs`. Writing the log
-/// there is S-027.
+/// there is S-045.
 pub fn log_dir() -> Option<PathBuf> {
     log_dir_with(Os::Windows, &|k| std::env::var_os(k), &local_app_data)
 }

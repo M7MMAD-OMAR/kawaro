@@ -1,9 +1,9 @@
-//! The IPC transport behind one interface (S-022, ADR 0005 section 2): a
+//! The IPC transport behind one interface (S-040, ADR 0005 section 2): a
 //! Unix socket at [`crate::ipc::socket_path`] on Unix, a named pipe per user
 //! and session on Windows. The protocol on top is unchanged, see
 //! [`crate::ipc`].
 //!
-//! The Windows decisions (S-022b) are pure functions here, tested and
+//! The Windows decisions (S-040b) are pure functions here, tested and
 //! mutated on Linux; `transport/windows.rs` only calls the system with them.
 
 use std::io::{self, ErrorKind};

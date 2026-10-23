@@ -1,4 +1,4 @@
-//! Where the settings, the user actions and the service log live (S-023,
+//! Where the settings, the user actions and the service log live (S-041,
 //! ADR 0005 section 4).
 //!
 //! - Linux: `XDG_CONFIG_HOME/sbarhive`, else `HOME/.config/sbarhive`; the

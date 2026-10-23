@@ -1,4 +1,4 @@
-//! S-022b AC13 and AC14 (backlog/S-022-windows-ipc.md): no new package,
+//! S-040b AC13 and AC14 (backlog/S-040-windows-ipc.md): no new package,
 //! `windows-sys 0.61.2` for core on Windows only, and its license recorded.
 //! The `cargo tree` runs (`X` and the Linux one) and the prose of
 //! `SECURITY.md` and `docs/architecture.md` stay with the reviewer.

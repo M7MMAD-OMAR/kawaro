@@ -1,10 +1,10 @@
-//! S-022a AC7 and S-022b AC8, AC10 and AC12 (backlog/S-022-windows-ipc.md):
+//! S-040a AC7 and S-040b AC8, AC10 and AC12 (backlog/S-040-windows-ipc.md):
 //! the Windows transport. It cannot run on Linux, so this checks the file
 //! itself; `W` (the Windows clippy run in the story) proves it builds without
 //! a warning, and its `const` asserts prove the flags match `windows_sys`.
 //!
-//! S-022b tester: the S-022a seed check for `ErrorKind::Unsupported` is gone,
-//! because S-022b replaces the seed with the real pipe. The exclusion from
+//! S-040b tester: the S-040a seed check for `ErrorKind::Unsupported` is gone,
+//! because S-040b replaces the seed with the real pipe. The exclusion from
 //! mutants and the ban on `todo!` stay.
 
 use std::path::{Path, PathBuf};

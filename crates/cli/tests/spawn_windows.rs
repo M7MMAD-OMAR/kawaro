@@ -1,4 +1,4 @@
-//! S-024 AC2 and AC6 (backlog/S-024-windows-daemon-spawn.md): the Windows
+//! S-042 AC2 and AC6 (backlog/S-042-windows-daemon-spawn.md): the Windows
 //! side of starting the service. It cannot run on Linux, so this checks the
 //! file itself; `W` and `B` in the story prove it builds for the target, and
 //! the `const _: () = assert!(...)` lines prove the shared flag values match

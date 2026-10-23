@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared helpers for the S-026a Windows build tests. Sourced, never executed.
+# Shared helpers for the S-044a Windows build tests. Sourced, never executed.
 # Reuses the counters and asserts of tests/integrations/lib.sh, but not its
 # HOME swapping sandbox: these tests need the real systemd user manager.
 

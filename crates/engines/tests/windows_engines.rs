@@ -1,4 +1,4 @@
-//! S-025b (backlog/S-025-windows-engines.md): engine messages when a program
+//! S-043b (backlog/S-043-windows-engines.md): engine messages when a program
 //! is missing (AC11) and the no-console flag on every ffmpeg and ffprobe
 //! command (AC13). These use only the public engine API and the source text,
 //! so they run on Linux.

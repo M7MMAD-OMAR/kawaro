@@ -1,4 +1,4 @@
-//! The registry under `HKEY_LOCAL_MACHINE` (S-025b AC9). Windows only, so
+//! The registry under `HKEY_LOCAL_MACHINE` (S-043b AC9). Windows only, so
 //! `.cargo/mutants.toml` leaves this file out; the lookup order that uses it
 //! is mutated in `locate.rs`.
 

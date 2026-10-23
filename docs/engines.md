@@ -246,13 +246,13 @@ Limitations:
 | zip 9 | pdf, ghostscript | MIT | `default-features = false` (stored only); tests add `deflate-flate2` to read LibreOffice archives |
 | libc 0.2 | office, ghostscript | MIT OR Apache-2.0 | unix only, for `killpg` |
 | tempfile 3 | office, ghostscript | MIT OR Apache-2.0 | private work directories |
-| windows-sys 0.61.2 | core (IPC transport), office, ghostscript, ffmpeg | MIT OR Apache-2.0 | Windows only, for the named pipe (S-022b), the job object (S-025a) and the registry lookup of the engines (S-025b); already in Cargo.lock through other crates |
+| windows-sys 0.61.2 | core (IPC transport), office, ghostscript, ffmpeg | MIT OR Apache-2.0 | Windows only, for the named pipe (S-040b), the job object (S-043a) and the registry lookup of the engines (S-043b); already in Cargo.lock through other crates |
 
 lopdf's own dependencies (flate2, aes, cbc, ecb, md-5, sha2, nom, indexmap,
 weezl, rangemap, stringprep, encoding_rs, brotli-decompressor) are MIT,
 Apache-2.0 or BSD-3-Clause, all compatible with GPL-3.0-or-later.
 
-## Finding the programs (S-025b)
+## Finding the programs (S-043b)
 
 `crates/engines/src/locate.rs` looks each external program up (once per process for LibreOffice and Ghostscript, once per engine for ffmpeg), in this
 order, and takes the first executable file: `PATH`, then on Windows the usual
@@ -269,11 +269,11 @@ a message with the program's name and its download page.
 | FFmpeg | `ffmpeg`, `ffprobe` | `ffmpeg.exe`, `ffprobe.exe` | `<folder of sbarhive.exe>\ffmpeg\bin` | none | https://ffmpeg.org/download.html |
 
 Within one folder the names keep their order. The two registry keys are
-assumptions from ADR 0005, checked on a real Windows install in S-034. On
+assumptions from ADR 0005, checked on a real Windows install in S-052. On
 Windows `ffmpeg` and `ffprobe` start with `CREATE_NO_WINDOW`, so no console
 window flashes.
 
-## Windows build tools (S-026)
+## Windows build tools (S-044)
 
 Used on the Fedora build host only, to cross build and check the Windows
 programs; nothing from them is shipped. `scripts/windows/check-dlls.sh`
@@ -285,7 +285,7 @@ mingw library ends up beside `sbarhive.exe`.
 | mingw64-gcc | 16.2.1 (Fedora 44, installed) | GPL-3.0-or-later with the GCC runtime exception (runtime parts LGPL and others) | `scripts/windows/build.sh`, `check.sh` | linker for `x86_64-pc-windows-gnu` |
 | mingw64-binutils | 2.46.0 (Fedora 44, installed) | GPL-3.0-or-later (some parts GPL-2.0-or-later, LGPL and BSD-3-Clause) | `scripts/windows/check-dlls.sh` | its `x86_64-w64-mingw32-objdump` reads the DLL imports |
 | mingw-w64 | Ubuntu 24.04 package, version of the runner image | GPL-3.0-or-later with the GCC runtime exception, binutils GPL-3.0-or-later | `windows-cross` job in `.github/workflows/ci.yml` | the Ubuntu package that gives the CI runner the same mingw gcc and `x86_64-w64-mingw32-objdump` |
-| genisoimage | 1.1.11 (Fedora 44, installed) | GPL-2.0-only | `scripts/windows/make-iso.sh` (S-026b) | writes the ISO that carries the test programs to the Windows test machine |
+| genisoimage | 1.1.11 (Fedora 44, installed) | GPL-2.0-only | `scripts/windows/make-iso.sh` (S-044b) | writes the ISO that carries the test programs to the Windows test machine |
 
 ## Application dependencies (daemon, CLI, UI)
 

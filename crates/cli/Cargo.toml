@@ -15,7 +15,7 @@ sbarhive-core.workspace = true
 sbarhive-engines.workspace = true
 serde_json.workspace = true
 
-# Starting the service detached and the foreground grant (S-024). Already in
+# Starting the service detached and the foreground grant (S-042). Already in
 # Cargo.lock through other crates, so no new package; features add none.
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [

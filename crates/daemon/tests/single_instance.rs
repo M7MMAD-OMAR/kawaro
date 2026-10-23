@@ -1,4 +1,4 @@
-//! S-022a AC6 (backlog/S-022-windows-ipc.md): a second `sbarhived` on the
+//! S-040a AC6 (backlog/S-040-windows-ipc.md): a second `sbarhived` on the
 //! same runtime dir finds the first one answering `ping`, prints
 //! `sbarhived: already running` and exits 0, as before the transport.
 //! The first service here is a fake on `sbarhive_core::transport`, so no

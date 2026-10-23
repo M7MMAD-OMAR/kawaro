@@ -1,4 +1,4 @@
-//! Non-Unix versions for `office` (S-025a, ADR 0005 section 3): each child
+//! Non-Unix versions for `office` (S-043a, ADR 0005 section 3): each child
 //! runs in its own kill-on-close job object, so cancelling, the timeout or
 //! the service dying kills the whole tree. Listed in `.cargo/mutants.toml`
 //! `exclude_globs`, since the Linux mutation runs never build this file; the

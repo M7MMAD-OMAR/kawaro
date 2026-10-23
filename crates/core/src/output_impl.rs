@@ -268,7 +268,7 @@ mod tests {
         assert_eq!(got, d.path().join("a (1).webp"));
     }
 
-    // S-023 AC6 and AC7 (backlog/S-023-windows-paths.md). Contract fixed by
+    // S-041 AC6 and AC7 (backlog/S-041-windows-paths.md). Contract fixed by
     // the tester:
     // - `finalize_with(temp, final_path, link: &LinkFn, place: &PlaceFn)`,
     //   where `PlaceFn` is `dyn Fn(&Path, &Path) -> std::io::Result<()>`:

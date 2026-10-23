@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S-026a, light tests: no real build. AC1 and AC3 run the real scripts with a
+# S-044a, light tests: no real build. AC1 and AC3 run the real scripts with a
 # fake cargo first on PATH (and, for CI=true, a fake systemd-run); AC2 runs
 # check-dlls.sh on the planted objdump fixtures; AC4 and AC7 read files.
 # Run from outside any memory scope (a plain terminal or the Claude app scope),
@@ -174,7 +174,7 @@ ac4_unix_only_tests_carry_cfg_unix_and_nothing_else_changes () {
   check "AC4: pdf_ghostscript.rs pdf_ghostscript_identity_and_capabilities (/bin/sh) has #[cfg(unix)]" \
     fn_has_cfg_unix crates/engines/tests/pdf_ghostscript.rs pdf_ghostscript_identity_and_capabilities
 
-  # 5be5270 is the commit S-026a starts from.
+  # 5be5270 is the commit S-044a starts from.
   local files=(crates/cli/tests/cli.rs crates/cli/tests/settings.rs crates/core/tests/output.rs
                crates/core/tests/contracts.rs crates/engines/src/office.rs
                crates/engines/tests/office_engine.rs crates/engines/tests/pdf_ghostscript.rs)
@@ -220,4 +220,4 @@ ac3_check_sh_runs_windows_clippy_all_targets_in_a_6g_scope
 ac4_unix_only_tests_carry_cfg_unix_and_nothing_else_changes
 ac7_engines_md_and_readme_document_the_build_tools
 no_long_dash_and_shell_lint_for_the_new_scripts
-finish "S-026a windows scripts (light)"
+finish "S-044a windows scripts (light)"

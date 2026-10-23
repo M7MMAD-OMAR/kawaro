@@ -1,4 +1,4 @@
-//! S-023 AC1, AC2 and AC3 (backlog/S-023-windows-paths.md): where the
+//! S-041 AC1, AC2 and AC3 (backlog/S-041-windows-paths.md): where the
 //! settings, the user actions and the service log live, per platform.
 //!
 //! Contract fixed by the tester (the implementer may not change this file):

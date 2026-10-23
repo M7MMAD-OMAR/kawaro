@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S-026b, heavy test: make-iso.sh on the real cross build output in the
+# S-044b, heavy test: make-iso.sh on the real cross build output in the
 # default target dir. Run after tests/windows/test_heavy.sh (it needs a fresh
 # release sbarhive.exe and the Windows test programs), only when
 # `pgrep -a cargo` is empty. Its one cargo call (T, incremental, so it only
@@ -56,4 +56,4 @@ if pgrep -x cargo >/dev/null || pgrep -x cargo-mutants >/dev/null; then
   exit 2
 fi
 ac9_real_make_iso_carries_exactly_the_test_programs_t_lists
-finish "S-026b windows ISO (heavy)"
+finish "S-044b windows ISO (heavy)"

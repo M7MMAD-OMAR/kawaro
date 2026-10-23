@@ -1,7 +1,8 @@
-# S-024 تشغيل الخدمة من سطر الأوامر على ويندوز ومنحها حق الواجهة
+# S-042 تشغيل الخدمة من سطر الأوامر على ويندوز ومنحها حق الواجهة
 الحالة: منتهية (PASS من المراجع 2026-10-22)، على فرع windows/0.6.0 بطلب محمد؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+Renumbered on 2026-10-23: this story was S-024 on windows/0.6.0 before the merge into main (main had already used S-022 and S-027). Commit messages and review-log hashes keep the old number.
 
-يبني على ADR 0005 القسمين 3 و5 (التركيز)، وعلى S-022b (`Stream::server_pid`). للإصدار 0.6.0. لا يلمس `crates/ui`. يوم عمل واحد أو أقل، فلا تقسيم. هذه أول قصة يُبنى فيها `sbarhive.exe` للهدف ويندوز.
+يبني على ADR 0005 القسمين 3 و5 (التركيز)، وعلى S-040b (`Stream::server_pid`). للإصدار 0.6.0. لا يلمس `crates/ui`. يوم عمل واحد أو أقل، فلا تقسيم. هذه أول قصة يُبنى فيها `sbarhive.exe` للهدف ويندوز.
 
 ## القصة
 بصفتي مستخدماً على ويندوز، أريد أن يشغّل `sbarhive open` الخدمة إن لم تعمل دون أن تموت حين أغلق الطرفية، وأن تأخذ الخلية التركيز حين تظهر، حتى أستعمل SbarHive من الطرفية كما على لينكس.
@@ -42,15 +43,15 @@
 
 تبقى خضراء: `cargo test --workspace`، و`crates/cli/tests/cli.rs` (تشغيل الخدمة على لينكس)، و`tests/e2e/run.sh`.
 
-## تحقق حي مؤجَّل إلى S-034
+## تحقق حي مؤجَّل إلى S-052
 - `sbarhive open` من طرفية Windows Terminal ثم إغلاقها: الخدمة باقية.
 - طرفية داخل مهمة تمنع الخروج منها: الإعادة دون `CREATE_BREAKAWAY_FROM_JOB` تنجح.
-- لا نافذة طرفية للخدمة (يعتمد على `windows_subsystem` في S-027).
-- الخلية تأخذ التركيز بعد `AllowSetForegroundWindow` (يعتمد على S-028).
+- لا نافذة طرفية للخدمة (يعتمد على `windows_subsystem` في S-045).
+- الخلية تأخذ التركيز بعد `AllowSetForegroundWindow` (يعتمد على S-046).
 
 ## خارج النطاق
-- وضع العميل في `sbarhived.exe open "%1"` من المستكشف، و`SetForegroundWindow` في الخدمة: S-028.
-- `Settings` لا يمنح حق الواجهة، كما يحدد ADR («قبل Open وDrop»)؛ يُراجع في S-034 إن ظهرت نافذة الإعدادات خلف غيرها.
+- وضع العميل في `sbarhived.exe open "%1"` من المستكشف، و`SetForegroundWindow` في الخدمة: S-046.
+- `Settings` لا يمنح حق الواجهة، كما يحدد ADR («قبل Open وDrop»)؛ يُراجع في S-052 إن ظهرت نافذة الإعدادات خلف غيرها.
 
 ## سجل المراجعة
 - 2026-10-22، المخطِّط: الأعلام أرقام في ملف مشترك يُطفَّر، وصحتها مقابل windows-sys تُثبت وقت الترجمة للهدف، لأن windows-sys غير متاح على لينكس.
@@ -106,7 +107,7 @@ error: could not compile `sbarhive-cli` (bin "sbarhive") due to 4 previous error
     - `X`: clap وsbarhive-core وsbarhive-engines وserde_json و`windows-sys v0.61.2` (الجديد وحده). `[[package]]` في `Cargo.lock`: 671.
     - `M` في نسخة من الشجرة في مجلد الجلسة، `CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff` على `git diff 34a3288 -- crates/cli/src/{client.rs,spawn.rs,main.rs}` مع `-p sbarhive-cli`: بعد الاستثناءين 14 طفرة، 13 ممسوكة، 1 مهلة (`replace send -> Result<(), String> with Ok(())`: العميل ينتظر ردًا لطلب لم يُكتب، فالمهلة إمساك)، 0 ناجية.
     - `scripts/design-lint.sh` نظيف. `tests/e2e/run.sh`: كله ناجح (ومعه S-019 AC7). `git diff --stat main...HEAD -- crates/ui` فارغ. لا شرطة طويلة في الفرق.
-  - للتحقق الحي في S-034: بقاء الخدمة بعد إغلاق الطرفية (README وCHANGELOG يذكرانه تصميماً)، والإعادة داخل المهمة، والتركيز. `Settings` لا يمنح حق الواجهة كما يحدد ADR.
+  - للتحقق الحي في S-052: بقاء الخدمة بعد إغلاق الطرفية (README وCHANGELOG يذكرانه تصميماً)، والإعادة داخل المهمة، والتركيز. `Settings` لا يمنح حق الواجهة كما يحدد ADR.
 - 2026-10-22، المراجع: **PASS**. كل البوابات أعيد تشغيلها داخل النطاق (`MemoryMax=6G`، `-j 2`) من شجرة `windows/0.6.0` على `2da2eab`:
   - `cargo fmt --check` نظيف. `cargo clippy -j 2 --workspace --all-targets -- -D warnings` بلا تحذير. `cargo test -j 2 --all`: 664 ناجحاً، 0 فاشلاً، 1 متجاهل، في 44 ثنائياً؛ في cli: ثنائي `sbarhive` 23 (منها اختبارات القصة الثمانية عشر)، و`spawn_windows` 4، و`cli` 32، و`settings` 2، و`no_unix_net` 1.
   - `W` (`CARGO_TARGET_DIR` المنفصل): `cargo clippy` للهدف `x86_64-pc-windows-gnu` لـ core وengines `--lib` وcli `--bins` بلا تحذير، و`cargo check -p sbarhive-cli` و`cargo check -p sbarhive-core -p sbarhive-engines --lib` للهدف نظيفان (AC7). `B`: `sbarhive.exe` (release، 8786944 بايت)؛ `objdump -p` يسرد الأسماء الأربعة (`AllowSetForegroundWindow` و`GetNamedPipeServerProcessId` و`CancelIoEx` و`WaitNamedPipeW`)، والمكتبات المستوردة كلها من النظام (bcryptprimitives وadvapi32 وapi-ms-win-core-synch وcombase وkernel32 وntdll وshell32 وuser32 وmsvcrt)، فلا libgcc_s ولا libwinpthread ولا libstdc++.
@@ -114,8 +115,8 @@ error: could not compile `sbarhive-cli` (bin "sbarhive") due to 4 previous error
   - `M`: في نسخة من الشجرة لا `--in-place`، `CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff` على `git diff c059a4d..HEAD -- crates/cli/src` مع `-p sbarhive-cli`: 14 طفرة، 13 مكتشفة، 1 مهلة (`send` بـ `Ok(())`: العميل ينتظر رداً لم يُطلب، فالمهلة إمساك)، **0 ناجية**. `--list --no-config` يثبت أن الاستثناءين الجديدين لا يحذفان إلا `client.rs:74` (`daemon_binary`) و`client.rs:122` (`exec_daemon` بـ `Ok(())`)، وأن طفرة `daemon_binary_in` باقية ومكتشفة.
   - `scripts/design-lint.sh` clean. لا شرطة طويلة في `git diff a6bd519~1..HEAD`. `git diff --stat main...HEAD -- crates/ui` فارغ. `git diff c059a4d..HEAD -- 'crates/*/tests/*'` فارغ، وفرقا الاختبارات المضمّنة في `spawn.rs` و`main.rs` من سجل المختبِر فارغان، و`main.rs` لم يتغير بعد `c059a4d`. `tests/e2e/run.sh` (بعد بناء release): 37 PASS، 0 FAIL، ومنه «open starts the daemon».
   - المعايير على الشيفرة: AC1: `start_with` يعيد مرة واحدة بـ `0x208` حين `raw_os_error() == Some(5)` وحده، وأي خطأ آخر يعود دون إعادة؛ `FIRST_FLAGS` و`RETRY_FLAGS` حرفيان يثبتهما `const assert` مقابل الثوابت. AC2: ثلاثة `const _: () = assert!` في `spawn/windows.rs` مقابل `windows_sys::Win32::System::Threading`؛ لينكس على `process_group(0).spawn()` كما كان. AC3: `wait_exit` بـ `status()`؛ `exec_daemon` على لينكس جسمه حرفياً كما كان تحت `cfg(unix)` (`exec`). AC4: `daemon_binary()` تمرّر `EXE_SUFFIX`، والمجلد الفارغ عند فشل `current_exe` يعطي الاسم المجرد كما كان. AC5: `send` يُستدعى في `request` و`stream` بعد `connect()` وحده، و`foreground_grant` أول سطر فيه قبل `serde_json` و`writeln!`، والمنح لـ `allow_foreground` تحت `cfg(windows)` وحده؛ `server_pid()` على لينكس `None` ثابتة. لا تسرب: `spawn().map(drop)` يغلق مقبضي العملية والخيط على ويندوز، والإعادة لا تحدث إلا بعد فشل `spawn` فلا ابن قبلها، ولينكس يهمل `Child` كما كان. AC9: README بالعربية والإنكليزية، وسطر CHANGELOG واحد من المنفِّذ، فلا سطر جديد من المراجع.
-  - الانحرافات مقبولة: (1) `exclude_re` لـ `daemon_binary`: غراء يقرأ `current_exe` والقرار في `daemon_binary_in` المطفَّرة، ويغطيه e2e «open starts the daemon»؛ النمط لا يطابق `daemon_binary_in`. (2) `exclude_re` لـ `exec_daemon` بـ `Ok(())` وحده: `exec` لا يعود، والجسم لم يتغير، والتوأم على ويندوز `wait_exit` مطفَّر؛ على سابقة `serve` و`run`. (3) `-p sbarhive-cli` في `M`: الفرق كله في cli، ولا crate آخر يعتمد على ثنائيها، فلا اختبار يُفقد. (4) صياغة CHANGELOG: مقبولة، والسطر يصف المقصود؛ التحقق الحي في S-034.
-  - ملاحظات غير حاجبة، لـ S-034:
-    - منخفضة، `README.md:76` و`README.md:190-192` و`CHANGELOG.md:8`: بقاء الخدمة بعد إغلاق الطرفية مكتوب حقيقةً، ولم يُتحقق منه حياً على ويندوز بعد (مؤجل إلى S-034). والإعادة بـ `0x208` تبقي الخدمة داخل مهمة الطرفية تصميماً، فإن كانت المهمة تقتل عملياتها عند الإغلاق (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) ماتت الخدمة معها؛ يختبر S-034 هذه الحالة بعينها، ويُقيَّد النص بها إن صحّت.
+  - الانحرافات مقبولة: (1) `exclude_re` لـ `daemon_binary`: غراء يقرأ `current_exe` والقرار في `daemon_binary_in` المطفَّرة، ويغطيه e2e «open starts the daemon»؛ النمط لا يطابق `daemon_binary_in`. (2) `exclude_re` لـ `exec_daemon` بـ `Ok(())` وحده: `exec` لا يعود، والجسم لم يتغير، والتوأم على ويندوز `wait_exit` مطفَّر؛ على سابقة `serve` و`run`. (3) `-p sbarhive-cli` في `M`: الفرق كله في cli، ولا crate آخر يعتمد على ثنائيها، فلا اختبار يُفقد. (4) صياغة CHANGELOG: مقبولة، والسطر يصف المقصود؛ التحقق الحي في S-052.
+  - ملاحظات غير حاجبة، لـ S-052:
+    - منخفضة، `README.md:76` و`README.md:190-192` و`CHANGELOG.md:8`: بقاء الخدمة بعد إغلاق الطرفية مكتوب حقيقةً، ولم يُتحقق منه حياً على ويندوز بعد (مؤجل إلى S-052). والإعادة بـ `0x208` تبقي الخدمة داخل مهمة الطرفية تصميماً، فإن كانت المهمة تقتل عملياتها عند الإغلاق (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) ماتت الخدمة معها؛ يختبر S-052 هذه الحالة بعينها، ويُقيَّد النص بها إن صحّت.
     - معلومة، `crates/cli/tests/settings.rs:6` و`crates/cli/tests/cli.rs`: `cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-cli --all-targets` يفشل لأنهما يستعملان `std::os::unix`؛ قائم قبل القصة (`git show 34a3288` يثبت `std::os::unix` في الملفين) وخارج `W` (`--bins`)، ويلزم قصة لاختبارات cli على ويندوز.
     - معلومة، `crates/cli/src/spawn.rs:60`: `unwrap_or(1)` لا يطفره cargo-mutants (حرفي)؛ على ويندوز `code()` دائماً `Some` فلا أثر.

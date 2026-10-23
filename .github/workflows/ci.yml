@@ -23,7 +23,7 @@ jobs:
       - run: cargo test --workspace
       - run: scripts/design-lint.sh crates/ui
 
-  # Windows cross build on Linux (S-026): the same scripts as on the Fedora
+  # Windows cross build on Linux (S-044): the same scripts as on the Fedora
   # host, run directly (CI=true) with the target dir inside the workspace.
   windows-cross:
     runs-on: ubuntu-24.04
@@ -47,7 +47,7 @@ jobs:
       - run: scripts/windows/build.sh
       - run: scripts/windows/check-dlls.sh "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release/sbarhive.exe"
 
-  # Tests on real Windows (S-026). FFmpeg is installed because the FFmpeg
+  # Tests on real Windows (S-044). FFmpeg is installed because the FFmpeg
   # engine tests require it; the office and PDF engine tests skip themselves
   # when their programs are absent, so those are not installed.
   windows-native:

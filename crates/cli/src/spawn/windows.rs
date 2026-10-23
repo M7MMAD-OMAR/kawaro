@@ -1,5 +1,5 @@
 //! The Windows side of starting the service and handing it the foreground
-//! right (S-024, ADR 0005 sections 3 and 5). Builds for Windows only; the
+//! right (S-042, ADR 0005 sections 3 and 5). Builds for Windows only; the
 //! decisions it uses stay mutated in `spawn.rs`.
 
 use super::{CREATE_BREAKAWAY_FROM_JOB, CREATE_NEW_PROCESS_GROUP, DETACHED_PROCESS, start_with};

@@ -9,9 +9,9 @@ and session. Its access list grants your user alone, it rejects clients from
 other machines (`PIPE_REJECT_REMOTE_CLIENTS`), and the client refuses to send
 anything to a pipe whose server runs as another user.
 Another local user who creates the pipe name first can stop the daemon from
-starting (a local denial of service, tracked for S-027). The Windows build is
+starting (a local denial of service, tracked for S-045). The Windows build is
 not released yet and these protections are not verified on a live Windows
-system until S-034.
+system until S-052.
 
 بالعربية: لا يعالج SbarHive الملفات إلا على جهازك، ولا يفتح أي اتصال شبكي.
 على لينكس تستمع الخدمة على مقبس Unix في `$XDG_RUNTIME_DIR` لا يقرؤه غير
@@ -19,8 +19,8 @@ system until S-034.
 صلاحياته تسمح لمستخدمك وحده، ويرفض العملاء من أجهزة أخرى، ولا يرسل العميل
 شيئاً إلى أنبوب يشغّل خادمه مستخدم آخر.
 ويستطيع مستخدم محلي آخر أن يحجز اسم الأنبوب أولاً فيمنع الخدمة من البدء
-(حرمان محلي من الخدمة، يُعالج في S-027). ونسخة ويندوز لم تصدر بعد، ولم تُختبر
-هذه الحمايات على ويندوز حي قبل S-034.
+(حرمان محلي من الخدمة، يُعالج في S-045). ونسخة ويندوز لم تصدر بعد، ولم تُختبر
+هذه الحمايات على ويندوز حي قبل S-052.
 
 ## Reporting a vulnerability
 

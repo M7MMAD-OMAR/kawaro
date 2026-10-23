@@ -1,4 +1,4 @@
-//! S-022b AC8, AC9, AC11 and AC12 (backlog/S-022-windows-ipc.md): the
+//! S-040b AC8, AC9, AC11 and AC12 (backlog/S-040-windows-ipc.md): the
 //! Windows pipe decisions as pure functions, tested and mutated on Linux.
 //!
 //! Contract (tester, from AC8 to AC12; do not edit). In

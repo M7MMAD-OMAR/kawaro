@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# S-026a, heavy tests: the real Windows build (commands S and T of the story).
+# S-044a, heavy tests: the real Windows build (commands S and T of the story).
 # Run only when `pgrep -a cargo` is empty, from outside any memory scope
 # (a plain terminal or the Claude app scope), because build.sh and check.sh
 # enter `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` by
@@ -95,4 +95,4 @@ ac1_real_build_sh_runs_in_a_6g_scope_and_produces_sbarhive_exe
 ac2_check_dlls_passes_on_the_real_sbarhive_exe
 ac3_real_check_sh_exits_0
 ac5_windows_test_binaries_build_one_exe_per_test_target
-finish "S-026a windows build (heavy)"
+finish "S-044a windows build (heavy)"

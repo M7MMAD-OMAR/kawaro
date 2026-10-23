@@ -1,4 +1,4 @@
-// S-024 (backlog/S-024-windows-daemon-spawn.md): starting the service and
+// S-042 (backlog/S-042-windows-daemon-spawn.md): starting the service and
 // handing it the foreground right. The test module below is the tester's
 // contract and must not change; the implementation goes above it.
 //
