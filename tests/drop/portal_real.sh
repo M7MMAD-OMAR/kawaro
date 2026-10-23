@@ -499,9 +499,13 @@ ac15_real_cycle() {
   n=$(grep -c . <<<"$toks")
   tok=$(head -1 <<<"$toks" | sed -nE 's/.*activate\("([^"]*)", .*/\1/p')
   tstamp=$(head -1 <<<"$toks" | grep -oE '^\[[0-9:.]+\]' | tr -d '[]')
-  read -r last prev nsig <<<"$(python3 -I "$PR" last "$MONLOG" "$tp" "${tstamp:-23:59:59.999999}")"
+  # The show: the first request that makes the hive window (the gate has
+  # handed the token out by then), else the activate request itself.
+  local wstamp; wstamp=$(grep -m1 -E -- '-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' <<<"$seg" | grep -oE '^\[[0-9:.]+\]' | tr -d '[]')
+  [ -n "$tstamp" ] && [ -n "$wstamp" ] && awk -v w="$(tod "$wstamp")" -v t="$(tod "$tstamp")" 'BEGIN { exit !(w + 0 > t + 0) }' && wstamp=$tstamp
+  read -r last prev nsig <<<"$(python3 -I "$PR" last "$MONLOG" "$tp" "${wstamp:-${tstamp:-23:59:59.999999}}")"
   local na; na=$(grep -cE '^portal: activated drop$' <<<"$seg")
-  echo "INFO $name: focus before the drag pid $f0 (source $src); portal activated lines $na; hive window line $shown; focus after it pid $f1 (daemon $d); activate requests $n: ${tok:-none} at ${tstamp:-none}; frontend Activated before it $nsig, the last ${last:-none} (previous ${prev:-none}); hive at ${geo:-unknown}; $(basename "$base").webp ${mime:-not written}"
+  echo "INFO $name: focus before the drag pid $f0 (source $src); portal activated lines $na; hive window line $shown; focus after it pid $f1 (daemon $d); hive window requested at ${wstamp:-none}; activate requests $n: ${tok:-none} at ${tstamp:-none}; frontend Activated before it $nsig, the last ${last:-none} (previous ${prev:-none}); hive at ${geo:-unknown}; $(basename "$base").webp ${mime:-not written}"
   check "$name setup: the full screen drag source has the focus before the drag" '[ "$f0" = "$src" ]'
   check "$name: the portal's Activated reaches the daemon and its hive window is made (\"portal: activated drop\", \"hive surface: window\")" \
     '[ "$na" -ge 1 ] && [ "$shown" = yes ]'
@@ -575,5 +579,40 @@ ac15_real_run() {
     '[ "$f0" = "$src" ] && [ "$shown" = yes ]'
   check "AC15 (c): no token, so no file within 5 s of the drop on WEBP, no activate request, and the focus window is not the daemon's" \
     '[ "$shown" = yes ] && [ "$wrote" = no ] && [ "$n" -eq 0 ] && [ "$f1" != "$d" ] && [ "$f1" != none ]'
+  wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
+
+  # --- Instrument check, INFO only: does a valid token move the focus? ---
+  # A Mutter launch context token, made by the shell after the drag began,
+  # passed with `drop --hold --token T` (the IPC path, which reaches the
+  # show on main). If the daemon gets the focus and the drop writes the
+  # file, a valid token works under strict mid-drag, and (b) fails on main
+  # only for the missing portal token (planner decision 5 otherwise).
+  echo "== AC15 instrument: drop --hold --token <a Mutter launch context token>, under strict"
+  local pfile="$W/probe.png" pbase ptok pf0 pf1=none pshown=no pwrote=no pseg pn ptk
+  pbase="${pfile%.*}"
+  cp "$ROOT/tests/fixtures/images/alpha.png" "$pfile"
+  printf '%s\n' "$pfile" >"$NEXT"
+  pf0=$(focus_pid)
+  drag_past_threshold
+  ptok=$(shell_str "(() => { const Gio = imports.gi.Gio; const a = Gio.DesktopAppInfo.new_from_filename('$XDG_DATA_HOME/applications/io.github.m7mmad_omar.SbarHive.desktop'); const c = global.create_app_launch_context(global.get_current_time(), -1); return c.get_startup_notify_id(a, []) || ''; })()")
+  mark=$(wc -l <"$DLOG")
+  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/sbarhive" drop --hold --token "${ptok:-none}" >>"$OUT_LOG-cli.log" 2>&1
+  local plate="" hivef=""
+  if wait_window "$mark" 4; then
+    pshown=yes; sleep 0.3; pf1=$(focus_pid); sleep 0.5; plate=$(focus_pid)
+    hivef=$(shell_str "global.get_window_actors().map(a => a.meta_window).filter(w => w.get_pid() === $d).map(w => w.get_title() + ' has_focus ' + w.has_focus() + ' appears_focused ' + w.appears_focused).join('; ')")
+  fi
+  geo=$(wait_geo 2)
+  [ -z "$geo" ] && geo=${AC15_GEO:-}
+  # shellcheck disable=SC2086
+  [ -n "$geo" ] && move_to_webp $geo
+  ptr_up
+  wait_file "$pbase.webp" 5 && pwrote=yes
+  "$BIN/sbarhive" drop --release >>"$OUT_LOG-cli.log" 2>&1
+  sleep 0.5
+  pseg=$(tail -n +$((mark + 1)) "$DLOG")
+  pn=$(grep -cE -- '-> xdg_activation_v1[#@][0-9]+\.activate\("' <<<"$pseg")
+  ptk=$(grep -m1 -E -- '-> xdg_activation_v1[#@][0-9]+\.activate\("' <<<"$pseg" | sed -nE 's/.*activate\("([^"]*)", .*/\1/p')
+  echo "INFO AC15 instrument: token from the shell \"${ptok:-none}\"; focus before the drag pid $pf0 (source $src); hive window line $pshown; activate requests $pn (${ptk:-none}); focus after it pid $pf1, 500 ms later ${plate:-none} (daemon $d); the daemon's windows: ${hivef:-none}; probe.webp $([ "$pwrote" = yes ] && echo written || echo 'not written'); verdict: $([ -n "$ptok" ] && [ "$pf1" = "$d" ] && [ "$pwrote" = yes ] && echo 'a valid token moves the focus under strict' || echo 'not shown (see the fields)')"
   wait_gone 12 || { ptr_move 1000 700; sleep 0.5; wait_gone 5; } || true
 }
