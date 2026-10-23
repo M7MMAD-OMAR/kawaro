@@ -1,91 +1,91 @@
-# S-043 المحركات الخارجية على ويندوز: شجرة العمليات والاكتشاف ورابط الملف
-الحالة: S-043a: منتهية (PASS من المراجع، 2026-10-22)؛ S-043b: منتهية (PASS من المراجع، 2026-10-22، فرع windows/0.6.0 بطلب محمد)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+# S-043 External engines on Windows: the process tree, discovery and the file URL
+Status: S-043a: done (reviewer PASS, 2026-10-22); S-043b: done (reviewer PASS, 2026-10-22, windows/0.6.0 branch at the owner's request); ADR 0005 is still proposed; merged into main locally on 2026-10-23 (not pushed)
 Renumbered on 2026-10-23: this story was S-025 on windows/0.6.0 before the merge into main (main had already used S-022 and S-027). Commit messages and review-log hashes keep the old number.
 
-يبني على ADR 0005 القسمين 3 و7. للإصدار 0.6.0. لا يلمس `crates/ui`. مستقلة عن S-040 إلى S-042 في الشيفرة.
+Builds on ADR 0005 sections 3 and 7. For release 0.6.0. Does not touch `crates/ui`. Independent of S-040 to S-042 in the code.
 
-## القصة
-بصفتي مستخدماً على ويندوز ثبّت LibreOffice أو Ghostscript أو FFmpeg، أريد أن يجدها SbarHive في أماكنها المعتادة، وأن يقتل الإلغاء كل ما شغّلته، حتى يعمل التحويل دون إعداد ولا تبقى `soffice.bin` في الخلفية.
+## Story
+As a Windows user who installed LibreOffice, Ghostscript or FFmpeg, I want SbarHive to find them in their usual places, and I want cancelling to kill everything it started, so that conversion works with no setup and no `soffice.bin` stays in the background.
 
-## التقسيم (بالترتيب، كل قصة فرعية يوم عمل أو أقل)
-| القصة | المحتوى | المعايير | الملفات |
+## Split (in order, each substory one work day or less)
+| Story | Content | Criteria | Files |
 | --- | --- | --- | --- |
-| S-043a | كائن المهمة بالتعليق ثم الإسناد ثم الاستئناف، و`is_executable` | AC1 إلى AC6 | `crates/engines/src/office.rs`، `crates/engines/src/office/{tree.rs,non_unix.rs}`، `crates/engines/Cargo.toml`، `Cargo.lock` (مصفوفة engines فقط)، `.cargo/mutants.toml`، `CHANGELOG.md` |
-| S-043b | أسماء البرامج ومساراتها والسجل، و`file_url`، ورسالة المحرك الغائب | AC7 إلى AC12 | `crates/engines/src/{locate.rs,locate/windows.rs,office.rs,pdf.rs,ffmpeg.rs}`، `crates/engines/Cargo.toml` (ميزة السجل)، `.cargo/mutants.toml`، `docs/engines.md`، `README.md`، `CHANGELOG.md` |
+| S-043a | The job object with suspend, then assign, then resume, and `is_executable` | AC1 to AC6 | `crates/engines/src/office.rs`, `crates/engines/src/office/{tree.rs,non_unix.rs}`, `crates/engines/Cargo.toml`, `Cargo.lock` (the engines array only), `.cargo/mutants.toml`, `CHANGELOG.md` |
+| S-043b | Program names, their paths and the registry, `file_url`, and the missing engine message | AC7 to AC12 | `crates/engines/src/{locate.rs,locate/windows.rs,office.rs,pdf.rs,ffmpeg.rs}`, `crates/engines/Cargo.toml` (the registry feature), `.cargo/mutants.toml`, `docs/engines.md`, `README.md`, `CHANGELOG.md` |
 
-## معايير القبول
+## Acceptance criteria
 S-043a:
-- AC1: `tree::start_in_job(ops)` في ملف مشترك يُطفَّر، و`ops` سمة مُحقنة. التسلسل المسجّل بعمليات وهمية ناجحة: `create_job`، `kill_on_close`، `spawn_suspended`، `assign`، `threads_of(pid)`، `resume(tid)` لكل خيط. إن فشل `assign`: `terminate_process` ثم يعود الخطأ، ولا `resume` (عدّاد 0)، ولا يبقى مقبض مهمة مفتوح (عدّاد إغلاق 1).
-- AC2: `tree::threads_of(pid, entries) -> Vec<u32>` صافية: `entries = [(10,1),(11,2),(10,3)]` تعطي `[1,3]` لـ 10 و`[]` لـ 12. قائمة فارغة لعملية معلّقة تعطي خطأً ولا تترك العملية (`terminate_process` مرة واحدة).
-- AC3: `spawn_suspended` يضيف `CREATE_SUSPENDED` (0x4) و`CREATE_NO_WINDOW` (0x08000000) إلى أعلام الأمر، فلا تظهر نافذة طرفية لبرنامج طرفية تشغّله خدمة بلا طرفية. الثابتان في `tree.rs`، و`non_unix.rs` يتحقق منهما وقت الترجمة مقابل `windows_sys`.
-- AC4: الإلغاء والمهلة والانتهاء الطبيعي على ويندوز تستدعي `TerminateJobObject` بدل `kill_group`، وإغلاق المقبض بـ `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. على لينكس يبقى `process_group(0)` و`killpg` كما اليوم، والاختبارات القائمة لـ `run_child` (الإلغاء يقتل المجموعة) تنجح دون تعديل في تأكيداتها.
-- AC5: `tree::has_exe_extension(&str)` صافية، دون حساسية لحالة الأحرف: `a.exe` و`A.EXE` و`soffice.Com` صحيحة، و`a.bat` و`a.cmd` و`a` و`a.exe.txt` و`.exe` خاطئة. و`is_executable` على ويندوز تساوي `is_file() && has_exe_extension`.
-- AC6: `cargo clippy -p sbarhive-engines --lib` للهدف ويندوز بلا تحذير. عدد `[[package]]` في `Cargo.lock` يبقى 671، و`X` يسرد `windows-sys v0.61.2` وحده جديداً. `non_unix.rs` باقٍ في `exclude_globs`.
+- AC1: `tree::start_in_job(ops)` in a shared file that is mutated, and `ops` is an injected trait. The sequence recorded with successful fake operations: `create_job`, `kill_on_close`, `spawn_suspended`, `assign`, `threads_of(pid)`, `resume(tid)` for each thread. If `assign` fails: `terminate_process`, then the error is returned, with no `resume` (counter 0), and no job handle is left open (close counter 1).
+- AC2: `tree::threads_of(pid, entries) -> Vec<u32>` is pure: `entries = [(10,1),(11,2),(10,3)]` gives `[1,3]` for 10 and `[]` for 12. An empty list for a suspended process gives an error and does not leave the process behind (`terminate_process` once).
+- AC3: `spawn_suspended` adds `CREATE_SUSPENDED` (0x4) and `CREATE_NO_WINDOW` (0x08000000) to the command flags, so no console window appears for a console program that a daemon with no console starts. The two constants are in `tree.rs`, and `non_unix.rs` checks them at compile time against `windows_sys`.
+- AC4: cancel, timeout and normal exit on Windows call `TerminateJobObject` instead of `kill_group`, and closing the handle uses `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. On Linux `process_group(0)` and `killpg` stay as today, and the existing `run_child` tests (cancel kills the group) pass with no change to their assertions.
+- AC5: `tree::has_exe_extension(&str)` is pure and case-insensitive: `a.exe`, `A.EXE` and `soffice.Com` are true, and `a.bat`, `a.cmd`, `a`, `a.exe.txt` and `.exe` are false. `is_executable` on Windows equals `is_file() && has_exe_extension`.
+- AC6: `cargo clippy -p sbarhive-engines --lib` for the Windows target with no warning. The `[[package]]` count in `Cargo.lock` stays 671, and `X` lists `windows-sys v0.61.2` as the only new entry. `non_unix.rs` stays in `exclude_globs`.
 
 S-043b:
-- AC7: `locate::search(os, names, path_dirs, env, exe_dir, registry)` صافية بترتيب ADR: `PATH` أولاً، ثم المسارات المعروفة، ثم السجل. على ويندوز: LibreOffice بالاسمين `soffice.com` ثم `soffice.exe` في `%ProgramFiles%\LibreOffice\program` ثم مجلد `InstallPath` من `HKLM\SOFTWARE\LibreOffice\UNO\InstallPath`؛ وGhostscript بـ `gswin64c.exe` ثم `gswin32c.exe` في أحدث `%ProgramFiles%\gs\gs*\bin` ثم السجل؛ وFFmpeg بـ `ffmpeg.exe` و`ffprobe.exe` في `PATH` ثم `<exe_dir>\ffmpeg\bin`. على لينكس النتيجة كما اليوم (`soffice` ثم `libreoffice`، و`gs`، و`ffmpeg`).
-- AC8: `locate::newest_gs(names)` صافية برقم الإصدار لا بالنص: `["gs9.56.1","gs10.04.0","gs10.10.0","gsx"]` تعطي `gs10.10.0`، و`["gs9.56.1","gs10.04.0"]` تعطي `gs10.04.0`، و`[]` تعطي `None`. والقاعدة نفسها لاختيار مفتاح الإصدار تحت `HKLM\SOFTWARE\GPL Ghostscript`.
-- AC9: `locate/windows.rs` يقرأ السجل بـ `RegGetValueW`، والملف في `exclude_globs`. `cargo clippy -p sbarhive-engines --lib` للهدف بلا تحذير، وعدد `[[package]]` يبقى 671.
-- AC10: `office::file_url_str(path: &str, windows: bool)` صافية، و`file_url` تستدعيها بـ `cfg!(windows)`. ويندوز: `C:\a b\x` تعطي `file:///C:/a%20b/x`، و`C:\ملف.docx` تعطي `file:///C:/%D9%85%D9%84%D9%81.docx`، و`\\?\C:\a` تعطي `file:///C:/a`. لينكس: `/a b/c` تعطي `file:///a%20b/c` كما اليوم، والاختبارات القائمة تنجح.
-- AC11: رسالة `EngineError::Unavailable` حين لا يوجد البرنامج تذكر اسمه ورابط موقعه: `https://www.libreoffice.org/download/`، و`https://ghostscript.com/releases/`، و`https://ffmpeg.org/download.html`. رسائل «لا مُرمِّز» في ffmpeg (`missing`) كما هي، والاختبارات التي تفحص `libx264` تنجح.
-- AC12: `docs/engines.md` يضيف عمود ويندوز (الأسماء والمسارات والسجل)، و`README.md` يذكر بالعربية والإنكليزية أين يبحث SbarHive عن المحركات على ويندوز وأنه لا ينزّلها.
-- AC13 (أضافه المدير في 2026-10-22 من ملاحظة مراجع S-043a): على ويندوز يُشغَّل ffmpeg وffprobe (`crates/engines/src/ffmpeg.rs`، كل مواضع `Command`) بالعلم `CREATE_NO_WINDOW` (القيمة 0x08000000 من `office::tree`)، فلا تومض نافذة طرفية. على لينكس لا تغيير. الإثبات: فحص نصي أن كل `Command::new` في ffmpeg.rs يمر بدالة واحدة تضيف العلم تحت `cfg(windows)`، وبناء W للهدف ويندوز نظيف.
+- AC7: `locate::search(os, names, path_dirs, env, exe_dir, registry)` is pure, in the ADR's order: `PATH` first, then the known paths, then the registry. On Windows: LibreOffice by the two names `soffice.com` then `soffice.exe` in `%ProgramFiles%\LibreOffice\program`, then the `InstallPath` folder from `HKLM\SOFTWARE\LibreOffice\UNO\InstallPath`; Ghostscript by `gswin64c.exe` then `gswin32c.exe` in the newest `%ProgramFiles%\gs\gs*\bin`, then the registry; and FFmpeg by `ffmpeg.exe` and `ffprobe.exe` in `PATH`, then `<exe_dir>\ffmpeg\bin`. On Linux the result is as today (`soffice` then `libreoffice`, `gs`, and `ffmpeg`).
+- AC8: `locate::newest_gs(names)` is pure, by version number, not by text: `["gs9.56.1","gs10.04.0","gs10.10.0","gsx"]` gives `gs10.10.0`, `["gs9.56.1","gs10.04.0"]` gives `gs10.04.0`, and `[]` gives `None`. The same rule picks the version key under `HKLM\SOFTWARE\GPL Ghostscript`.
+- AC9: `locate/windows.rs` reads the registry with `RegGetValueW`, and the file is in `exclude_globs`. `cargo clippy -p sbarhive-engines --lib` for the target with no warning, and the `[[package]]` count stays 671.
+- AC10: `office::file_url_str(path: &str, windows: bool)` is pure, and `file_url` calls it with `cfg!(windows)`. Windows: `C:\a b\x` gives `file:///C:/a%20b/x`, `C:\ملف.docx` gives `file:///C:/%D9%85%D9%84%D9%81.docx`, and `\\?\C:\a` gives `file:///C:/a`. Linux: `/a b/c` gives `file:///a%20b/c` as today, and the existing tests pass.
+- AC11: the `EngineError::Unavailable` message when the program is missing names it and gives the link to its site: `https://www.libreoffice.org/download/`, `https://ghostscript.com/releases/` and `https://ffmpeg.org/download.html`. The "no encoder" messages in ffmpeg (`missing`) stay as they are, and the tests that check `libx264` pass.
+- AC12: `docs/engines.md` adds a Windows column (names, paths and registry), and `README.md` says in Arabic and English where SbarHive looks for the engines on Windows and that it does not download them.
+- AC13 (added by the manager on 2026-10-22 from an S-043a reviewer note): on Windows, ffmpeg and ffprobe (`crates/engines/src/ffmpeg.rs`, every `Command` site) are started with the `CREATE_NO_WINDOW` flag (the value 0x08000000 from `office::tree`), so no console window flashes. No change on Linux. Proof: a text check that every `Command::new` in ffmpeg.rs goes through one function that adds the flag under `cfg(windows)`, and a clean W build for the Windows target.
 
-لكل قصة فرعية:
-- سطر واحد للقصة كلها في `CHANGELOG.md` تحت `[Unreleased]`، بالإنكليزية مع نص عربي بين «»: تضيفه S-043a، وS-025b تعدّل السطر نفسه.
-- `git diff --stat main...HEAD -- crates/ui` فارغ.
-- `C` بلا تحذير على لينكس: `start_in_job` و`threads_of` و`has_exe_extension` والثوابت في `tree.rs`، و`newest_gs` في `locate.rs`، لا يستدعيها إلا فرع ويندوز، فعليها `#[cfg_attr(not(windows), allow(dead_code))]`.
-- `M` بلا طفرة ناجية.
+For each substory:
+- One line for the whole story in `CHANGELOG.md` under `[Unreleased]`, in English with Arabic text in «»: S-043a adds it, and S-043b edits the same line.
+- `git diff --stat main...HEAD -- crates/ui` is empty.
+- `C` with no warning on Linux: `start_in_job`, `threads_of`, `has_exe_extension` and the constants in `tree.rs`, and `newest_gs` in `locate.rs`, are called only by the Windows branch, so they carry `#[cfg_attr(not(windows), allow(dead_code))]`.
+- `M` with no surviving mutant.
 
-## أوامر الفحص
-أدوات القراءة وحدها (`grep`) تعمل خارج النطاق.
+## Check commands
+Read-only tools (`grep`) run outside the scope.
 - `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
 - `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p sbarhive-engines`
 - `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-engines --lib -- -D warnings`
-- `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (الملفات المتغيرة وحدها؛ `non_unix.rs` و`locate/windows.rs` مستثنيان)
+- `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (the changed files only; `non_unix.rs` and `locate/windows.rs` are excluded)
 - `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --target x86_64-pc-windows-gnu -p sbarhive-engines -e normal --depth 1`
 
-## حالات الاختبار
-| معيار | الاختبار | النوع |
+## Test cases
+| Criterion | Test | Type |
 | --- | --- | --- |
-| AC1، AC2 | وحدة في `tree.rs` بعمليات وهمية تسجّل التسلسل وعدّادات الإغلاق والإنهاء؛ تحت `M` | وحدة |
-| AC3، AC6، AC9 | `W` بلا تحذير، والمراجع يقرأ `non_unix.rs` و`locate/windows.rs` | بناء، مراجعة |
-| AC4 | اختبارات `run_child` القائمة في `office.rs` و`crates/engines/tests/office_engine.rs` على لينكس | تكامل |
-| AC5 | وحدة بالأسماء الثمانية | وحدة |
-| AC7، AC8 | وحدة في `locate.rs` ببيئة وسجل وهميين، ومسارات مبنية بـ `Path::join`؛ تحت `M` | وحدة |
-| AC10 | وحدة بالسلاسل الأربع | وحدة |
-| AC11 | وحدة: محرك بلا برنامج يعيد رسالة فيها الاسم والرابط، لكل محرك من الثلاثة | وحدة |
-| AC6 | `grep -c '^\[\[package\]\]' Cargo.lock` يعطي 671، و`X` | مراجعة |
-| AC12 | المراجع يقرأ engines.md وREADME وCHANGELOG.md | مراجعة |
-| AC13 | فحص نصي لـ ffmpeg.rs، وW | وحدة |
+| AC1, AC2 | Unit test in `tree.rs` with fake operations that record the sequence and the close and terminate counters; under `M` | unit |
+| AC3, AC6, AC9 | `W` with no warning, and the reviewer reads `non_unix.rs` and `locate/windows.rs` | build, review |
+| AC4 | The existing `run_child` tests in `office.rs` and `crates/engines/tests/office_engine.rs` on Linux | integration |
+| AC5 | Unit test with the eight names | unit |
+| AC7, AC8 | Unit test in `locate.rs` with a fake environment and registry, and paths built with `Path::join`; under `M` | unit |
+| AC10 | Unit test with the four strings | unit |
+| AC11 | Unit test: an engine with no program returns a message with the name and the link, for each of the three engines | unit |
+| AC6 | `grep -c '^\[\[package\]\]' Cargo.lock` gives 671, and `X` | review |
+| AC12 | The reviewer reads engines.md, README and CHANGELOG.md | review |
+| AC13 | Text check of ffmpeg.rs, and W | unit |
 
-تبقى خضراء: `cargo test --workspace`، ومنها `office_engine.rs` و`pdf_ghostscript.rs` و`ffmpeg_engine.rs`.
+These stay green: `cargo test --workspace`, including `office_engine.rs`, `pdf_ghostscript.rs` and `ffmpeg_engine.rs`.
 
-## تحقق حي مؤجَّل إلى S-052
-- إلغاء تحويل مستند يقتل `soffice.exe` و`soffice.bin` معاً، وموت الخدمة يقتلهما أيضاً.
-- `soffice.com` ينتظر انتهاء التحويل (مُفترَض في ADR).
-- مفتاحا السجل لـ LibreOffice وGhostscript موجودان بالأسماء المفترضة.
-- بادئة `file:` في ffmpeg مع حرف القرص (`file:C:\...`).
-- لا نافذة طرفية تومض عند تشغيل ffmpeg أو gswin64c.
+## Live check deferred to S-052
+- Cancelling a document conversion kills `soffice.exe` and `soffice.bin` together, and the daemon dying kills them too.
+- `soffice.com` waits for the conversion to finish (assumed in the ADR).
+- The two registry keys for LibreOffice and Ghostscript exist under the assumed names.
+- The `file:` prefix in ffmpeg with a drive letter (`file:C:\...`).
+- No console window flashes when ffmpeg or gswin64c starts.
 
-## خارج النطاق
-- تنزيل المحركات عند الحاجة: لا تنزيل في 0.6.0.
-- ترجمة رسائل المحركات: تبقى بالإنكليزية كبقية أخطاء المحركات اليوم.
-- مسارات UNC في `file_url`: المحركات تعمل في مجلد مؤقت محلي.
+## Out of scope
+- Downloading engines on demand: no download in 0.6.0.
+- Translating engine messages: they stay in English, like the rest of the engine errors today.
+- UNC paths in `file_url`: the engines work in a local temporary folder.
 
-## سجل المراجعة
-- 2026-10-22، المخطِّط: `CREATE_NO_WINDOW` إضافة لا يذكرها ADR؛ بدونها يفتح كل برنامج طرفية نافذة حين تشغّله خدمة بنظام `windows`. رسالة المحرك الغائب (ADR القسم 7) لم تُسند لقصة في جدول ADR، فوُضعت في S-043b لأنها في engines وحدها.
-- 2026-10-22، المختبِر (S-043a):
-  - العقد المثبت في رأس `crates/engines/src/office/tree.rs` (الملف جديد، فيه وحدة الاختبار وحدها، والتنفيذ يُكتب فوقها): الثابتان `CREATE_SUSPENDED` و`CREATE_NO_WINDOW` من النوع `u32`؛ السمة `JobOps` بنوعين مرافقين `Job` (مقبض مملوك يُغلق عند الإسقاط) و`Child`، وطرائقها `create_job` و`kill_on_close(&Job)` و`spawn_suspended() -> io::Result<(Child, u32)>` (العملية ومعرّفها) و`assign(&Job, &Child)` و`threads_of(pid) -> io::Result<Vec<u32>>` و`resume(tid)` و`terminate_process(&Child)` بلا قيمة معادة؛ `start_in_job<O: JobOps>(ops: &mut O) -> io::Result<(O::Job, O::Child)>`؛ `threads_of(pid: u32, entries: &[(u32, u32)]) -> Vec<u32>` والأزواج (معرّف العملية المالكة، معرّف الخيط)؛ `has_exe_extension(name: &str) -> bool`. وأُضيف `mod tree;` إلى `office.rs` بلا شرط منصة، ولم يتغير شيء آخر فيه.
-  - الاختبارات في `crates/engines/src/office/tree.rs` (مكتبة `sbarhive-engines`): `ac3_flag_constants_have_the_win32_values`؛ `ac1_success_runs_the_sequence_and_keeps_the_job_open` (التسلسل كاملاً بـ `threads_of(10)` ثم `resume(1)` و`resume(3)`، ولا إنهاء، وعدّاد الإغلاق 0 ما دامت المهمة المعادة محفوظة ثم 1 بعد إسقاطها)؛ `ac1_assign_failure_terminates_returns_the_error_and_closes_the_job` (التسلسل ينتهي بـ `assign` ثم `terminate_process`، والخطأ المعاد هو خطأ `assign` برمزه 5، و`resume` صفر، والإنهاء 1، والإغلاق 1)؛ `ac2_threads_of_keeps_the_threads_of_one_pid_in_order`؛ `ac2_no_threads_is_an_error_and_terminates_the_suspended_process`؛ `ac5_has_exe_extension_for_the_nine_names`.
-  - غموض وقرارات: (1) شكل السمة لم يحدده المعيار، فاختيرت الأنواع المرافقة حتى يصلح مقبض ويندوز و`std::process::Child`، ويُعدّ الإغلاق بإسقاط `Job` لا بطريقة `close` صريحة. (2) AC2 لا يذكر عدّاد الإغلاق للقائمة الفارغة؛ الاختبار يطلب 1 كما في AC1، لأن الخطأ لا يعيد المهمة فإما أن تُغلق أو تتسرّب. (3) AC5 يقول «الأسماء التسعة» والمعيار يسرد ثمانية (`a.exe` و`A.EXE` و`soffice.Com`، و`a.bat` و`a.cmd` و`a` و`a.exe.txt` و`.exe`)، فاختُبرت الثمانية ولم يُخترع تاسع. (4) فشل `create_job` أو `kill_on_close` أو `spawn_suspended` أو `threads_of` أو `resume` أو `terminate_process` لا يذكره المعيار، فلا اختبار له. (5) `is_executable` على ويندوز وثابتا AC3 مقابل `windows_sys` وجانب ويندوز من AC4 (`TerminateJobObject` و`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) لا تُبنى على لينكس، فهي لـ `W` وللمراجع بقراءة `non_unix.rs`، ولا فحص نصي لها لأن الجدول يجعلها مراجعة.
-  - للمراجع لا للاختبار: `W`، و`X` (اليوم لا يسرد `windows-sys` لـ engines، فهو أحمر قبل التنفيذ)، وعدد `[[package]]` (671 اليوم أصلاً، فاختبار له ينجح قبل التنفيذ)، و`non_unix.rs` في `exclude_globs`، وسطر CHANGELOG.md، و`git diff --stat main...HEAD -- crates/ui`، و`C` و`M`.
-  - AC4 على لينكس: اختبارات `run_child` القائمة في وحدة اختبار `office.rs` و`crates/engines/tests/office_engine.rs` تبقى بلا تعديل. فحص `crates/*/tests/*` يغطي `office_engine.rs`؛ والوحدتان المضمّنتان يجب ألا تتغيرا بعد هذا الالتزام (فرق فارغ مطلوب، و`c3619de` التزام المختبِر):
+## Review log
+- 2026-10-22, planner: `CREATE_NO_WINDOW` is an addition the ADR does not mention; without it, every console program opens a window when a daemon with the `windows` subsystem starts it. The missing engine message (ADR section 7) was not assigned to a story in the ADR table, so it was put in S-043b, because it lives in engines alone.
+- 2026-10-22, tester (S-043a):
+  - The contract pinned at the top of `crates/engines/src/office/tree.rs` (the file is new and holds only the test module; the implementation is written above it): the two constants `CREATE_SUSPENDED` and `CREATE_NO_WINDOW` of type `u32`; the trait `JobOps` with two associated types, `Job` (an owned handle closed on drop) and `Child`, and its methods `create_job`, `kill_on_close(&Job)`, `spawn_suspended() -> io::Result<(Child, u32)>` (the process and its id), `assign(&Job, &Child)`, `threads_of(pid) -> io::Result<Vec<u32>>`, `resume(tid)` and `terminate_process(&Child)` with no return value; `start_in_job<O: JobOps>(ops: &mut O) -> io::Result<(O::Job, O::Child)>`; `threads_of(pid: u32, entries: &[(u32, u32)]) -> Vec<u32>`, where the pairs are (owning process id, thread id); `has_exe_extension(name: &str) -> bool`. `mod tree;` was added to `office.rs` with no platform condition, and nothing else changed there.
+  - The tests in `crates/engines/src/office/tree.rs` (the `sbarhive-engines` library): `ac3_flag_constants_have_the_win32_values`; `ac1_success_runs_the_sequence_and_keeps_the_job_open` (the full sequence with `threads_of(10)`, then `resume(1)` and `resume(3)`, no terminate, and the close counter 0 while the returned job is held, then 1 after it is dropped); `ac1_assign_failure_terminates_returns_the_error_and_closes_the_job` (the sequence ends with `assign` then `terminate_process`, the returned error is the `assign` error with its code 5, `resume` zero, terminate 1 and close 1); `ac2_threads_of_keeps_the_threads_of_one_pid_in_order`; `ac2_no_threads_is_an_error_and_terminates_the_suspended_process`; `ac5_has_exe_extension_for_the_nine_names`.
+  - Ambiguities and choices: (1) the criterion does not define the shape of the trait, so associated types were chosen so that both a Windows handle and `std::process::Child` fit, and closing is counted by dropping `Job`, not by an explicit `close` method. (2) AC2 does not mention the close counter for the empty list; the test asks for 1 as in AC1, because the error does not return the job, so it is either closed or leaked. (3) AC5 says "the nine names" and the criterion lists eight (`a.exe`, `A.EXE` and `soffice.Com`, and `a.bat`, `a.cmd`, `a`, `a.exe.txt` and `.exe`), so the eight were tested and no ninth was invented. (4) A failure of `create_job`, `kill_on_close`, `spawn_suspended`, `threads_of`, `resume` or `terminate_process` is not mentioned in the criterion, so it has no test. (5) `is_executable` on Windows, the two AC3 constants against `windows_sys` and the Windows side of AC4 (`TerminateJobObject` and `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) do not build on Linux, so they are for `W` and for the reviewer to read in `non_unix.rs`, with no text check, because the table makes them review.
+  - For the reviewer, not tests: `W`, `X` (today it lists no `windows-sys` for engines, so it is red before the implementation), the `[[package]]` count (already 671 today, so a test for it would pass before the implementation), `non_unix.rs` in `exclude_globs`, the CHANGELOG.md line, `git diff --stat main...HEAD -- crates/ui`, `C` and `M`.
+  - AC4 on Linux: the existing `run_child` tests in the `office.rs` test module and in `crates/engines/tests/office_engine.rs` stay unchanged. The `crates/*/tests/*` check covers `office_engine.rs`; the two inline modules must not change after this commit (an empty diff is required; `c3619de` is the tester's commit):
     `diff <(git show c3619de:crates/engines/src/office/tree.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/office/tree.rs)`
     `diff <(git show c3619de:crates/engines/src/office.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/engines/src/office.rs)`
-  - تنبيه: ثنائي اختبارات مكتبة engines لا يُبنى حتى يصل التنفيذ، فاختبارات الوحدة القائمة فيه (ومنها `run_child` في `office.rs`) حمراء حتى ذلك. اختبارات التكامل تُبنى: `office_engine` خضراء (12).
-  - تحقق من منطق الاختبارات: نسخة مؤقتة في مجلد الجلسة (حُذفت ولا تُدمج) بتطبيق مختصر للعقد نجحت فيها الاختبارات الستة، و`cargo clippy --tests -D warnings` نظيف عليها. هنا `cargo fmt --check -p sbarhive-engines` نظيف.
-  - مخرجات الفشل (كل أمر داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
+  - Note: the engines library test binary does not build until the implementation lands, so the existing unit tests in it (including `run_child` in `office.rs`) are red until then. The integration tests build: `office_engine` is green (12).
+  - Check of the test logic: a temporary copy in the session folder (deleted, not merged) with a short implementation of the contract passed the six tests, and `cargo clippy --tests -D warnings` is clean on it. Here `cargo fmt --check -p sbarhive-engines` is clean.
+  - Failing output (each command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
 ```
 $ cargo test -j 2 -p sbarhive-engines --lib
       1 error[E0405]: cannot find trait `JobOps` in this scope
@@ -97,32 +97,32 @@ $ cargo test -j 2 -p sbarhive-engines --lib
 warning: unused import: `super::*`  --> crates/engines/src/office/tree.rs:31:9
 error: could not compile `sbarhive-engines` (lib test) due to 9 previous errors; 1 warning emitted
 
-$ cargo test -j 2 -p sbarhive-engines --test office_engine      # AC4، خط الأساس
+$ cargo test -j 2 -p sbarhive-engines --test office_engine      # AC4, baseline
 test result: ok. 12 passed; 0 failed
 
-$ env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-engines --lib -- -D warnings   # W، بوابة لا اختبار
+$ env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-engines --lib -- -D warnings   # W, a gate, not a test
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
 
 $ env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --target x86_64-pc-windows-gnu -p sbarhive-engines -e normal --depth 1   # X
 ├── image v0.25.10  ├── lopdf v0.45.0  ├── miniz_oxide v0.8.9  ├── pdf-writer v0.15.0  ├── sbarhive-core v0.3.0
-├── tempfile v3.27.0  ├── thiserror v2.0.21  ├── toml v0.8.23  ├── webp v0.3.1  └── zip v9.0.5   (لا windows-sys بعد)
+├── tempfile v3.27.0  ├── thiserror v2.0.21  ├── toml v0.8.23  ├── webp v0.3.1  └── zip v9.0.5   (no windows-sys yet)
 ```
-- 2026-10-22، المنفِّذ (S-043a):
-  - التنفيذ: في `tree.rs` فوق وحدة الاختبار: الثابتان، والسمة `JobOps`، و`start_in_job` بمسار تنظيف واحد (مساعد `assign_and_resume` يُسند ثم يقرأ الخيوط ويعيد خطأً لقائمة فارغة ثم يستأنف، وعند أي خطأ بعد التشغيل: `terminate_process` ثم إغلاق المهمة ثم الخطأ)، و`threads_of`، و`has_exe_extension` (`.exe` أو `.com` بأي حالة وبعد جذع غير فارغ). كلها بـ `#[cfg_attr(not(windows), allow(dead_code))]`. في `non_unix.rs`: `WinOps` بـ `CreateJobObjectW` و`SetInformationJobObject` (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) و`creation_flags(CREATE_SUSPENDED | CREATE_NO_WINDOW)` و`AssignProcessToJobObject` ولقطة خيوط Toolhelp تمر عبر `tree::threads_of` ثم `OpenThread` و`ResumeThread`، و`TerminateProcess` عند الفشل؛ و`spawn_in_job` و`terminate_job` (`TerminateJobObject`)، ومقبض مملوك يُغلق بالإسقاط؛ و`is_executable` تساوي `is_file() && has_exe_extension`؛ وتحقق وقت الترجمة من الثابتين مقابل `windows_sys`؛ وحُذف `kill_group` غير اللينكسي. في `run_child` سطرا تشغيل وإنهاء بـ `#[cfg(not(unix))]` فقط، وأسطر لينكس كما هي. `windows-sys` 0.61 تحت `[target.'cfg(windows)'.dependencies]` لـ engines بميزات Foundation وSecurity وDiagnostics_ToolHelp وJobObjects وThreading.
-  - تصحيح نص القصة: AC5 ثمانية أسماء لا تسعة (قبِل المدير اختيار المختبِر)، فصُحّح صف جدول حالات الاختبار إلى «الثمانية»؛ اسم الاختبار `ac5_has_exe_extension_for_the_nine_names` باقٍ دون تعديل.
-  - ملاحظة لـ S-043b: على ويندوز لا يجد `find_program` الاسمين `soffice` و`libreoffice` بلا امتداد حتى تضيف S-043b أسماء `.exe` و`.com`، وهذا متوقع.
-  - البوابات (كل أمر داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%` و`-j 2`): `C` نظيف (fmt وclippy للمساحة كلها بكل الأهداف)؛ `cargo test -j 2 --all` نجح 670 وفشل 0 (`sbarhive-engines` lib 51، و`office_engine` 12، و`pdf_ghostscript` 6، و`ffmpeg_engine` 23)؛ `W` نظيف، و`cargo check --target x86_64-pc-windows-gnu -p sbarhive-engines --lib` نظيف؛ `X` يسرد `windows-sys v0.61.2` وحده جديداً؛ `grep -c '^\[\[package\]\]' Cargo.lock` يعطي 671، وفرق `Cargo.lock` سطر واحد في مصفوفة `sbarhive-engines`؛ `scripts/design-lint.sh` نظيف؛ فرقا وحدتي الاختبار المضمّنتين فارغان؛ `git diff --stat main...HEAD -- crates/ui` فارغ.
-  - `M` على نسخة منسوخة في مجلد الجلسة، بفرق `git diff c3619de -- crates/engines/src`، و`CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 -p sbarhive-engines`: 12 طفرة، 10 ممسوكة، 2 غير قابلة للبناء، ولا ناجية.
-- 2026-10-22، المراجع (S-043a): **PASS**.
-  - البوابات (كل أمر داخل `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%` و`-j 2`): `cargo fmt --check` نظيف؛ `cargo clippy --workspace --all-targets -- -D warnings` نظيف؛ `cargo test --all` نجح 670 وفشل 0 (`sbarhive-engines` lib 51، و`office_engine` 12، و`pdf_ghostscript` 6، و`ffmpeg_engine` 23)؛ `W` نظيف و`cargo check --target x86_64-pc-windows-gnu -p sbarhive-engines --lib` نظيف؛ `X` يسرد `windows-sys v0.61.2` وحده جديداً؛ `[[package]]` في `Cargo.lock` 671؛ `scripts/design-lint.sh` نظيف؛ لا شرطة طويلة في الفرق؛ `git diff --stat main...HEAD -- crates/ui` فارغ؛ `git diff f800d92..HEAD -- 'crates/*/tests/*'` فارغ، وفرقا الوحدتين المضمّنتين فارغان.
-  - `M` على نسخة منسوخة في مجلد الجلسة، `cargo mutants --in-place -p sbarhive-engines --in-diff` بفرق `f800d92..HEAD` و`CARGO_BUILD_JOBS=2`: 12 طفرة، 10 ممسوكة، 2 غير قابلة للبناء (`Default` لمقبض ونوع مرافق)، 0 ناجية، 0 مهلة.
-  - ربط المعايير: AC1 وAC2 وAC3 (الثابتان) وAC5 باختبارات `tree.rs` الستة؛ AC4 على لينكس باختبارات `run_child` و`office_engine` دون تعديل، و`run_child` اللينكسي لم يتغير إلا بإضافة `#[cfg(unix)]`؛ AC3 وAC4 لويندوز وAC6 بـ `W` و`X` والقراءة.
-  - تحقق من `non_unix.rs`: المهمة تُنشأ ويُضبط `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` قبل التشغيل؛ `CREATE_SUSPENDED | CREATE_NO_WINDOW` على الأمر، والثابتان مُتحقق منهما وقت الترجمة؛ مسار تنظيف واحد بعد التشغيل (`TerminateProcess` ثم إغلاق المهمة) لكل فشل، وإغلاق المهمة بالإسقاط عند فشل ما قبل التشغيل؛ مقبض المهمة غير قابل للوراثة (أمان افتراضي null)، فلا يمنع ابنٌ ورثه عملَ kill-on-close؛ مقبض لقطة Toolhelp يُلف بعد فحص `INVALID_HANDLE_VALUE` ويُغلق بالإسقاط؛ الاستئناف لخيوط معرّف الابن وحده عبر `tree::threads_of`، ولا إعادة استخدام للمعرّف لأن مقبض `Child` مفتوح؛ `OpenThread` بـ `THREAD_SUSPEND_RESUME`، وفشل `ResumeThread` يُفحص بـ `u32::MAX`؛ الإلغاء والمهلة والانتهاء تستدعي `TerminateJobObject`، والخروج المبكر بـ `try_wait()?` يتجاوزه لكن إسقاط المهمة يقتل الشجرة. كتل `unsafe` سليمة.
-  - لا ينطبق: لقطات الشاشة والأداء ونصوص الواجهة (لا تغيير في `crates/ui` ولا نصوص). سطر CHANGELOG.md أضافه المنفِّذ كما تطلب القصة، فلا سطر ثانٍ.
-  - ملاحظات غير مانعة:
-    - متوسطة، خارج AC1 إلى AC6: `crates/engines/src/ffmpeg.rs:148` (و`:65` و`:77` و`:92`) يشغّل ffmpeg وffprobe بلا `CREATE_NO_WINDOW` ولا مهمة، والقائمة الحية في S-052 تنتظر «لا نافذة طرفية تومض عند تشغيل ffmpeg». لا قصة تغطيه اليوم؛ يقترح المراجع إسناده إلى S-043b أو قصة جديدة بقرار المخطِّط. سطر CHANGELOG.md يذكر LibreOffice وGhostscript وحدهما فهو دقيق.
-    - منخفضة، انحراف مقبول: `crates/engines/src/office.rs:301` يشرط `mod non_unix` بـ `not(unix)` و`windows-sys` تحت `cfg(windows)`، فهدف ليس unix ولا windows لا يُبنى. لا هدف مدعوم يتأثر؛ يُقترح `cfg(windows)` لاحقاً.
-    - مقبول: `find_program` بالأسماء المجردة لا يجد `soffice` على ويندوز حتى S-043b، ولم يكن يجده قبل هذا التغيير أيضاً، فلا تراجع.
+- 2026-10-22, implementer (S-043a):
+  - Implementation: in `tree.rs` above the test module: the two constants, the `JobOps` trait, `start_in_job` with a single cleanup path (a helper `assign_and_resume` assigns, then reads the threads, returns an error for an empty list, then resumes; on any error after the start: `terminate_process`, then close the job, then the error), `threads_of`, and `has_exe_extension` (`.exe` or `.com` in any case and after a non-empty stem). All with `#[cfg_attr(not(windows), allow(dead_code))]`. In `non_unix.rs`: `WinOps` with `CreateJobObjectW`, `SetInformationJobObject` (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`), `creation_flags(CREATE_SUSPENDED | CREATE_NO_WINDOW)`, `AssignProcessToJobObject`, and a Toolhelp thread snapshot passed through `tree::threads_of`, then `OpenThread` and `ResumeThread`, and `TerminateProcess` on failure; `spawn_in_job` and `terminate_job` (`TerminateJobObject`), and an owned handle closed on drop; `is_executable` equals `is_file() && has_exe_extension`; a compile-time check of the two constants against `windows_sys`; and the non-Linux `kill_group` was removed. In `run_child`, a start line and a terminate line with `#[cfg(not(unix))]` only, and the Linux lines as they are. `windows-sys` 0.61 under `[target.'cfg(windows)'.dependencies]` for engines with the features Foundation, Security, Diagnostics_ToolHelp, JobObjects and Threading.
+  - Correction to the story text: AC5 has eight names, not nine (the manager accepted the tester's choice), so the test case table row was corrected to "the eight"; the test name `ac5_has_exe_extension_for_the_nine_names` stays unchanged.
+  - Note for S-043b: on Windows `find_program` does not find the two names `soffice` and `libreoffice` without an extension until S-043b adds the `.exe` and `.com` names, and this is expected.
+  - Gates (each command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%` and `-j 2`): `C` clean (fmt, and clippy for the whole workspace with all targets); `cargo test -j 2 --all` 670 passed and 0 failed (`sbarhive-engines` lib 51, `office_engine` 12, `pdf_ghostscript` 6 and `ffmpeg_engine` 23); `W` clean, and `cargo check --target x86_64-pc-windows-gnu -p sbarhive-engines --lib` clean; `X` lists `windows-sys v0.61.2` as the only new entry; `grep -c '^\[\[package\]\]' Cargo.lock` gives 671, and the `Cargo.lock` diff is one line in the `sbarhive-engines` array; `scripts/design-lint.sh` clean; the two inline test module diffs are empty; `git diff --stat main...HEAD -- crates/ui` is empty.
+  - `M` on a copy in the session folder, with the diff `git diff c3619de -- crates/engines/src` and `CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 -p sbarhive-engines`: 12 mutants, 10 caught, 2 unviable, and none surviving.
+- 2026-10-22, reviewer (S-043a): **PASS**.
+  - Gates (each command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%` and `-j 2`): `cargo fmt --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test --all` 670 passed and 0 failed (`sbarhive-engines` lib 51, `office_engine` 12, `pdf_ghostscript` 6 and `ffmpeg_engine` 23); `W` clean and `cargo check --target x86_64-pc-windows-gnu -p sbarhive-engines --lib` clean; `X` lists `windows-sys v0.61.2` as the only new entry; `[[package]]` in `Cargo.lock` 671; `scripts/design-lint.sh` clean; no long dash in the diff; `git diff --stat main...HEAD -- crates/ui` is empty; `git diff f800d92..HEAD -- 'crates/*/tests/*'` is empty, and the two inline module diffs are empty.
+  - `M` on a copy in the session folder, `cargo mutants --in-place -p sbarhive-engines --in-diff` with the diff `f800d92..HEAD` and `CARGO_BUILD_JOBS=2`: 12 mutants, 10 caught, 2 unviable (`Default` for a handle and an associated type), 0 surviving, 0 timeouts.
+  - Criteria mapping: AC1, AC2, AC3 (the two constants) and AC5 by the six `tree.rs` tests; AC4 on Linux by the `run_child` and `office_engine` tests with no change, and the Linux `run_child` changed only by the added `#[cfg(unix)]`; AC3 and AC4 for Windows and AC6 by `W`, `X` and reading.
+  - Check of `non_unix.rs`: the job is created and `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` is set before the start; `CREATE_SUSPENDED | CREATE_NO_WINDOW` on the command, and the two constants are checked at compile time; a single cleanup path after the start (`TerminateProcess`, then close the job) for every failure, and the job is closed by drop on a failure before the start; the job handle is not inheritable (default null security), so a child that inherited it cannot stop kill-on-close from working; the Toolhelp snapshot handle is wrapped after an `INVALID_HANDLE_VALUE` check and closed on drop; resume is only for the child id's threads, through `tree::threads_of`, and the id is not reused because the `Child` handle is open; `OpenThread` with `THREAD_SUSPEND_RESUME`, and a `ResumeThread` failure is checked with `u32::MAX`; cancel, timeout and exit call `TerminateJobObject`, and the early exit with `try_wait()?` skips it, but dropping the job kills the tree. The `unsafe` blocks are sound.
+  - Not applicable: screenshots, performance and UI strings (no change in `crates/ui` and no strings). The CHANGELOG.md line was added by the implementer as the story asks, so no second line.
+  - Non-blocking notes:
+    - Medium, outside AC1 to AC6: `crates/engines/src/ffmpeg.rs:148` (and `:65`, `:77` and `:92`) starts ffmpeg and ffprobe with no `CREATE_NO_WINDOW` and no job, and the live list in S-052 expects "No console window flashes when ffmpeg starts". No story covers it today; the reviewer suggests assigning it to S-043b or a new story, at the planner's decision. The CHANGELOG.md line mentions only LibreOffice and Ghostscript, so it is accurate.
+    - Low, accepted deviation: `crates/engines/src/office.rs:301` conditions `mod non_unix` on `not(unix)` while `windows-sys` is under `cfg(windows)`, so a target that is neither unix nor windows does not build. No supported target is affected; `cfg(windows)` is suggested later.
+    - Accepted: `find_program` with the bare names does not find `soffice` on Windows until S-043b, and it did not find it before this change either, so there is no regression.
 - 2026-10-22, tester (S-043b):
   - Tests commit `863709c`. Contract pinned at the top of `crates/engines/src/locate.rs` (new file, test module only; the implementation goes above it), and `mod locate;` added to `crates/engines/src/lib.rs` (not in the story's file list, needed to compile the module):
     - `enum Os { Unix, Windows }` and `enum Program { Office, Ghostscript, Ffmpeg, Ffprobe }` (`Clone, Copy, Debug, PartialEq`); `fn names(os, program) -> &'static [&'static str]`.

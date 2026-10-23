@@ -1,76 +1,76 @@
-# S-044 البناء المتقاطع لويندوز وبوابته وCI وصورة الاختبار
-الحالة: S-044a: منتهية (المراجع: PASS، 2026-10-22)؛ S-044b: منتهية (المراجع: PASS، 2026-10-22، فرع windows/0.6.0 بطلب محمد)؛ ADR 0005 ما زال مقترحاً، ولا دمج في main
+# S-044 The Windows cross build, its gate, CI and the test image
+Status: S-044a: done (reviewer: PASS, 2026-10-22); S-044b: done (reviewer: PASS, 2026-10-22, windows/0.6.0 branch at the owner's request); ADR 0005 is still proposed; merged into main locally on 2026-10-23 (not pushed)
 Renumbered on 2026-10-23: this story was S-026 on windows/0.6.0 before the merge into main (main had already used S-022 and S-027). Commit messages and review-log hashes keep the old number.
 
-يبني على ADR 0005 القسمين 1 و9، وعلى S-040 إلى S-043 (قبلها لا يُبنى `sbarhive.exe` للهدف). للإصدار 0.6.0. لا يلمس `crates/ui`.
+Builds on ADR 0005 sections 1 and 9, and on S-040 to S-043 (before them `sbarhive.exe` does not build for the target). For release 0.6.0. Does not touch `crates/ui`.
 
-## القصة
-بصفتي مطوّراً على Fedora دون ويندوز، أريد أمراً واحداً يبني `sbarhive.exe` وملفات الاختبار لويندوز داخل نطاق ذاكرة محدود ويرفض أي مكتبة mingw مشحونة، وأن يفحص CI الشيفرة على ويندوز حقيقي، حتى لا يصل الآلة إلا بناء نظيف.
+## Story
+As a developer on Fedora without Windows, I want one command that builds `sbarhive.exe` and the test files for Windows inside a bounded memory scope and rejects any shipped mingw library, and I want CI to check the code on real Windows, so that only a clean build reaches the machine.
 
-## التقسيم (بالترتيب، كل قصة فرعية يوم عمل أو أقل)
-ADR يجعلها قصة واحدة، وهي أكبر من يوم، فقُسمت:
-| القصة | المحتوى | المعايير | الملفات |
+## Split (in order, each substory one work day or less)
+The ADR makes it one story, and it is larger than a day, so it was split:
+| Story | Content | Criteria | Files |
 | --- | --- | --- | --- |
-| S-044a | سكربت البناء، وفحص `objdump`، وبوابة clippy للهدف بكل الأهداف، وحصر اختبارات Unix | AC1 إلى AC7 | `scripts/windows/{build.sh,check-dlls.sh,check.sh,README.md}`، `tests/windows/fixtures/{objdump-ok.txt,objdump-mingw.txt}`، `crates/cli/tests/{cli.rs,settings.rs}`، `crates/core/tests/{output.rs,contracts.rs}`، `crates/engines/src/office.rs` (وحدة الاختبار)، `crates/engines/tests/{office_engine.rs,pdf_ghostscript.rs}`، وربما `.cargo/config.toml` (AC2)، `docs/engines.md`، `CHANGELOG.md` |
-| S-044b | وظيفتا CI، وسكربت ISO، و`run-tests.cmd` | AC8 إلى AC12 | `.github/workflows/ci.yml`، `scripts/windows/{make-iso.sh,run-tests.cmd,README.md}`، `CHANGELOG.md` |
+| S-044a | The build script, the `objdump` check, the clippy gate for the target with all targets, and confining the Unix tests | AC1 to AC7 | `scripts/windows/{build.sh,check-dlls.sh,check.sh,README.md}`, `tests/windows/fixtures/{objdump-ok.txt,objdump-mingw.txt}`, `crates/cli/tests/{cli.rs,settings.rs}`, `crates/core/tests/{output.rs,contracts.rs}`, `crates/engines/src/office.rs` (the test module), `crates/engines/tests/{office_engine.rs,pdf_ghostscript.rs}`, and maybe `.cargo/config.toml` (AC2), `docs/engines.md`, `CHANGELOG.md` |
+| S-044b | The two CI jobs, the ISO script, and `run-tests.cmd` | AC8 to AC12 | `.github/workflows/ci.yml`, `scripts/windows/{make-iso.sh,run-tests.cmd,README.md}`, `CHANGELOG.md` |
 
-## معايير القبول
+## Acceptance criteria
 S-044a:
-- AC1: `scripts/windows/build.sh` خارج نطاق يعيد تشغيل نفسه داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`، وداخل CI (`CI=true`) يعمل مباشرة. يطبع أول سطر `cgroup: <المسار>`، وقيمة `memory.max` لذلك المسار تساوي `6442450944`. يبني بـ `-j 2` و`CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target` افتراضياً، وينتج `x86_64-pc-windows-gnu/release/sbarhive.exe`، ويخرج بـ 0.
-- AC2: `scripts/windows/check-dlls.sh <exe>` يقرأ أسطر `DLL Name` من `x86_64-w64-mingw32-objdump -p`، ويقبل `--text <file>` للاختبار. `objdump-ok.txt` (مكتبات النظام وحدها) يعطي 0 وسطر `dll check: ok <name> <N> imports`. و`objdump-mingw.txt` (فيه `libwinpthread-1.dll` و`libgcc_s_seh-1.dll`) يعطي 1 ويسرد الاسمين. أي اسم يطابق `^lib.*\.dll$` دون حساسية للحالة مرفوض. على `sbarhive.exe` الحقيقي يعطي 0، وإن لم يعطه يُضاف `.cargo/config.toml` بـ `-C target-feature=+crt-static` للهدف وحده، ويُسجَّل ذلك هنا.
-- AC3: `scripts/windows/check.sh` داخل النطاق نفسه يشغّل `cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines -p sbarhive-cli --all-targets -- -D warnings` ويخرج بـ 0.
-- AC4: اختبارات Unix وحدها تُحصر بـ `cfg(unix)` تهيئةً لا تغييراً في التأكيدات: على مستوى الملف `crates/cli/tests/cli.rs` و`settings.rs` (خوادم `UnixListener` و`PermissionsExt`)، وعلى مستوى الدالة اختبار الرابط المعلّق في `core/tests/output.rs:108`، و`socket_path_lives_in_the_runtime_dir` في `core/tests/contracts.rs:228`، واختبار `PermissionsExt` في `engines/src/office.rs`، واختبارات البرامج الوهمية بـ `sh` في `office_engine.rs` و`pdf_ghostscript.rs`. كل سطر مضاف في `git diff` لهذه الملفات سطر `cfg`، ولا سطر محذوف. وعدد الاختبارات الناجحة في `cargo test --workspace` على لينكس قبل التعديل وبعده متساوٍ.
-- AC5: `cargo test --no-run -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines -p sbarhive-cli` داخل النطاق ينجح، وعدد ملفات الاختبار `.exe` التي يسردها يساوي عدد أهداف الاختبار في الحزم الثلاث (يُسجَّل العدد هنا).
-- AC6: لا حزمة جديدة: عدد `[[package]]` في `Cargo.lock` يبقى 671، ولا تغيير في `Cargo.lock` في هذه القصة (`git diff --quiet -- Cargo.lock`).
-- AC7: `docs/engines.md` يسجّل أدوات البناء التي لا تُشحن: mingw64-gcc 16.2.1 وgenisoimage (مثبتان)، ورخصتيهما. `scripts/windows/README.md` يشرح الأوامر بالعربية والإنكليزية.
+- AC1: `scripts/windows/build.sh` outside a scope re-runs itself inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, and inside CI (`CI=true`) it runs directly. Its first printed line is `cgroup: <path>`, and the `memory.max` value of that path equals `6442450944`. It builds with `-j 2` and `CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target` by default, produces `x86_64-pc-windows-gnu/release/sbarhive.exe`, and exits with 0.
+- AC2: `scripts/windows/check-dlls.sh <exe>` reads the `DLL Name` lines from `x86_64-w64-mingw32-objdump -p`, and accepts `--text <file>` for testing. `objdump-ok.txt` (system libraries only) gives 0 and the line `dll check: ok <name> <N> imports`. `objdump-mingw.txt` (with `libwinpthread-1.dll` and `libgcc_s_seh-1.dll`) gives 1 and lists both names. Any name that matches `^lib.*\.dll$`, case-insensitive, is rejected. On the real `sbarhive.exe` it gives 0, and if it does not, a `.cargo/config.toml` with `-C target-feature=+crt-static` is added for the target alone, and that is recorded here.
+- AC3: `scripts/windows/check.sh`, inside the same scope, runs `cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines -p sbarhive-cli --all-targets -- -D warnings` and exits with 0.
+- AC4: the Unix-only tests are confined with `cfg(unix)`, as configuration, not as a change to the assertions: at file level `crates/cli/tests/cli.rs` and `settings.rs` (`UnixListener` servers and `PermissionsExt`), and at function level the dangling link test in `core/tests/output.rs:108`, `socket_path_lives_in_the_runtime_dir` in `core/tests/contracts.rs:228`, the `PermissionsExt` test in `engines/src/office.rs`, and the fake program tests with `sh` in `office_engine.rs` and `pdf_ghostscript.rs`. Every added line in the `git diff` of these files is a `cfg` line, and no line is deleted. The number of passing tests in `cargo test --workspace` on Linux before and after the change is equal.
+- AC5: `cargo test --no-run -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines -p sbarhive-cli` inside the scope succeeds, and the number of `.exe` test files it lists equals the number of test targets in the three packages (the number is recorded here).
+- AC6: no new package: the `[[package]]` count in `Cargo.lock` stays 671, and there is no change to `Cargo.lock` in this story (`git diff --quiet -- Cargo.lock`).
+- AC7: `docs/engines.md` records the build tools that are not shipped: mingw64-gcc 16.2.1 and genisoimage (both installed), and their licences. `scripts/windows/README.md` explains the commands in Arabic and English.
 
 S-044b:
-- AC8: `ci.yml` يضيف وظيفتين ولا يغيّر الوظيفة `check`: `git diff -U0 main...HEAD -- .github/workflows/ci.yml` فيه أسطر `+` فقط. `windows-cross` على `ubuntu-24.04` تثبّت `mingw-w64` وهدف `x86_64-pc-windows-gnu` ثم تشغّل `check.sh` و`build.sh` و`check-dlls.sh`. `windows-native` على `windows-latest` تثبّت FFmpeg (`choco install ffmpeg -y`)، لأن `ffmpeg_engine.rs:123` يؤكد وجوده ولا يتخطاه، ثم تشغّل `cargo test -p sbarhive-core -p sbarhive-engines -p sbarhive-cli`. اختبارات LibreOffice وGhostscript تتخطى نفسها حين يغيب البرنامج (`office_engine.rs:37`، `pdf_ghostscript.rs:91`)، فلا تثبيت لهما.
-- AC9: `scripts/windows/make-iso.sh` يبني بـ `genisoimage -J -R` صورة `/home/sbarah/.cache/sbarhive-win-target/sbarhive-win-tests.iso` فيها `bin/sbarhive.exe`، وملفات الاختبار في `tests/`، و`run-tests.cmd`، و`SHA256SUMS`. `isoinfo -J -f -i <iso>` يسرد كل هذه، وعدد أسطر `SHA256SUMS` يساوي عدد الملفات التنفيذية، و`sha256sum` لـ `run-tests.cmd` المستخرج بـ `isoinfo -J -x` يساوي الأصل.
-- AC10: `run-tests.cmd` بنهايات CRLF (`file` يقول `with CRLF line terminators`). يشغّل كل `tests\*.exe` بـ `--test-threads=1`، ويكتب في `%USERPROFILE%\sbarhive-tests\results.txt` سطراً `<exe> <errorlevel>` لكل ملف، وآخر سطر `total N failed F`، والمخرج الكامل في `log.txt` بجانبه. لا يكتب على القرص المضغوط.
-- AC11: `scripts/windows/README.md` يضيف بالعربية والإنكليزية أمر الإرفاق `virsh -c qemu:///session attach-disk win11 <iso> sdb --type cdrom --mode readonly` دون تشغيله في هذه القصة.
-- AC12 (أضافه المدير في 2026-10-22 من ملاحظات مراجع S-044a): `scripts/windows/check-dlls.sh` يخرج بـ 2 لكل خطأ إدخال (ملف `--text` غير موجود، أو مدخل بلا أي سطر `DLL Name`)، ويبقى 1 للرفض وحده. وظيفة `windows-cross` تضبط `CARGO_TARGET_DIR` داخل مساحة العمل. و`docs/engines.md` ينسب `x86_64-w64-mingw32-objdump` إلى mingw64-binutils بإصداره ورخصته، ويسجّل حزمة `mingw-w64` في Ubuntu. الملفان `check-dlls.sh` و`docs/engines.md` ضمن ملفات S-044b.
+- AC8: `ci.yml` adds two jobs and does not change the `check` job: `git diff -U0 main...HEAD -- .github/workflows/ci.yml` has only `+` lines. `windows-cross` on `ubuntu-24.04` installs `mingw-w64` and the `x86_64-pc-windows-gnu` target, then runs `check.sh`, `build.sh` and `check-dlls.sh`. `windows-native` on `windows-latest` installs FFmpeg (`choco install ffmpeg -y`), because `ffmpeg_engine.rs:123` asserts it is present and does not skip, then runs `cargo test -p sbarhive-core -p sbarhive-engines -p sbarhive-cli`. The LibreOffice and Ghostscript tests skip themselves when the program is missing (`office_engine.rs:37`, `pdf_ghostscript.rs:91`), so they are not installed.
+- AC9: `scripts/windows/make-iso.sh` builds with `genisoimage -J -R` the image `/home/sbarah/.cache/sbarhive-win-target/sbarhive-win-tests.iso`, holding `bin/sbarhive.exe`, the test files in `tests/`, `run-tests.cmd` and `SHA256SUMS`. `isoinfo -J -f -i <iso>` lists all of these, the number of lines in `SHA256SUMS` equals the number of executables, and the `sha256sum` of `run-tests.cmd` extracted with `isoinfo -J -x` equals the original.
+- AC10: `run-tests.cmd` has CRLF line endings (`file` says `with CRLF line terminators`). It runs every `tests\*.exe` with `--test-threads=1`, and writes to `%USERPROFILE%\sbarhive-tests\results.txt` one line `<exe> <errorlevel>` per file, with the last line `total N failed F`, and the full output in `log.txt` next to it. It does not write to the disc.
+- AC11: `scripts/windows/README.md` adds, in Arabic and English, the attach command `virsh -c qemu:///session attach-disk win11 <iso> sdb --type cdrom --mode readonly`, without running it in this story.
+- AC12 (added by the manager on 2026-10-22 from the S-044a reviewer notes): `scripts/windows/check-dlls.sh` exits with 2 for every input error (a `--text` file that does not exist, or input with no `DLL Name` line at all), and keeps 1 for rejection alone. The `windows-cross` job sets `CARGO_TARGET_DIR` inside the workspace. `docs/engines.md` attributes `x86_64-w64-mingw32-objdump` to mingw64-binutils with its version and licence, and records the `mingw-w64` package in Ubuntu. The files `check-dlls.sh` and `docs/engines.md` are among the S-044b files.
 
-لكل قصة فرعية:
-- سطر واحد للقصة كلها في `CHANGELOG.md` تحت `[Unreleased]`، بالإنكليزية مع نص عربي بين «»: تضيفه S-044a، وS-026b تعدّل السطر نفسه.
-- `git diff --stat main...HEAD -- crates/ui` فارغ، و`C` بلا تحذير على لينكس.
-- `scripts/design-lint.sh` نظيف على الملفات الجديدة (لا شرطة طويلة).
-- لا شيفرة Rust تنفيذية جديدة هنا (أسطر `cfg` في الاختبارات فقط)، فلا طفرات.
+For each substory:
+- One line for the whole story in `CHANGELOG.md` under `[Unreleased]`, in English with Arabic text in «»: S-044a adds it, and S-044b edits the same line.
+- `git diff --stat main...HEAD -- crates/ui` is empty, and `C` with no warning on Linux.
+- `scripts/design-lint.sh` is clean on the new files (no long dash).
+- No new production Rust code here (`cfg` lines in the tests only), so no mutants.
 
-## أوامر الفحص
-أدوات القراءة وحدها (`grep` و`file` و`objdump` و`isoinfo` و`sha256sum`) تعمل خارج النطاق، و`make-iso.sh` لا يبني شيئاً.
+## Check commands
+Read-only tools (`grep`, `file`, `objdump`, `isoinfo` and `sha256sum`) run outside the scope, and `make-iso.sh` builds nothing.
 - `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
 - `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 --workspace`
-- `S`: `scripts/windows/build.sh` ثم `scripts/windows/check-dlls.sh /home/sbarah/.cache/sbarhive-win-target/x86_64-pc-windows-gnu/release/sbarhive.exe` ثم `scripts/windows/check.sh` (كلها تدخل النطاق بنفسها)
+- `S`: `scripts/windows/build.sh`, then `scripts/windows/check-dlls.sh /home/sbarah/.cache/sbarhive-win-target/x86_64-pc-windows-gnu/release/sbarhive.exe`, then `scripts/windows/check.sh` (each enters the scope by itself)
 - `T`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo test --no-run -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines -p sbarhive-cli`
 
-## حالات الاختبار
-| معيار | الاختبار | النوع |
+## Test cases
+| Criterion | Test | Type |
 | --- | --- | --- |
-| AC1 | `S`: سطر `cgroup:` و`cat /sys/fs/cgroup<المسار>/memory.max` يعطي 6442450944، ووجود `sbarhive.exe` | بناء |
-| AC2 | `check-dlls.sh --text` على الملفين المزروعين برمزي خروج 0 و1 ونصيهما، ثم على `sbarhive.exe` | تكامل |
-| AC3 | `check.sh` يخرج بـ 0 | بناء |
-| AC4 | `git diff` للملفات السبعة أسطر `cfg` مضافة فقط؛ وعدد `test result: ok` في `L` قبل وبعد | مراجعة، وحدة |
-| AC5 | `T` وعدّ ملفات `.exe` | بناء |
-| AC6 | `grep -c '^\[\[package\]\]' Cargo.lock` يعطي 671، و`git diff --quiet -- Cargo.lock` | مراجعة |
-| AC8 | أمر `git diff -U0` المذكور، والمراجع يقرأ الوظيفتين | مراجعة |
-| AC9 | `make-iso.sh` ثم `isoinfo -J -f` و`isoinfo -J -x` و`sha256sum` | تكامل |
-| AC10 | `file scripts/windows/run-tests.cmd`، والمراجع يقرأ الملف | مراجعة |
-| AC7، AC11 | المراجع يقرأ engines.md وREADME وCHANGELOG.md | مراجعة |
-| AC12 | تشغيل `check-dlls.sh` على ملف مفقود ومدخل فارغ، وقراءة ci.yml وengines.md | وحدة |
+| AC1 | `S`: the `cgroup:` line, `cat /sys/fs/cgroup<path>/memory.max` gives 6442450944, and `sbarhive.exe` exists | build |
+| AC2 | `check-dlls.sh --text` on the two planted files, with exit codes 0 and 1 and their text, then on `sbarhive.exe` | integration |
+| AC3 | `check.sh` exits with 0 | build |
+| AC4 | The `git diff` of the seven files has added `cfg` lines only; and the number of `test result: ok` in `L` before and after | review, unit |
+| AC5 | `T` and counting the `.exe` files | build |
+| AC6 | `grep -c '^\[\[package\]\]' Cargo.lock` gives 671, and `git diff --quiet -- Cargo.lock` | review |
+| AC8 | The `git diff -U0` command above, and the reviewer reads the two jobs | review |
+| AC9 | `make-iso.sh`, then `isoinfo -J -f`, `isoinfo -J -x` and `sha256sum` | integration |
+| AC10 | `file scripts/windows/run-tests.cmd`, and the reviewer reads the file | review |
+| AC7, AC11 | The reviewer reads engines.md, README and CHANGELOG.md | review |
+| AC12 | Running `check-dlls.sh` on a missing file and on empty input, and reading ci.yml and engines.md | unit |
 
-## تحقق حي مؤجَّل إلى S-052
-- أول نجاح للوظيفتين في CI: `ci.yml` لا يعمل إلا عند الدفع إلى main أو طلب دمج، والدفع والدمج خارج هذه القصة ويحتاجان قرار محمد.
-- `run-tests.cmd` في الآلة: الملف والسطر الأخير، وعدد الإخفاقات.
-- إرفاق ISO بالآلة وقراءته من محرك الأقراص.
+## Live check deferred to S-052
+- The first success of the two jobs in CI: `ci.yml` runs only on a push to main or a pull request, and pushing and merging are outside this story and need the owner's decision.
+- `run-tests.cmd` in the machine: the file and its last line, and the number of failures.
+- Attaching the ISO to the machine and reading it from the disc drive.
 
-## خارج النطاق
-- `sbarhived.exe` وفحص مكتباته بـ `check-dlls.sh`: S-045 (الخدمة تعتمد على ui).
-- المثبّت والملف المضغوط المحمول: S-051.
-- wine، وأداة الضيف `qemu-guest-agent`: يحتاجان موافقة محمد.
+## Out of scope
+- `sbarhived.exe` and checking its libraries with `check-dlls.sh`: S-045 (the daemon depends on ui).
+- The installer and the portable archive: S-051.
+- wine, and the guest tool `qemu-guest-agent`: they need the owner's approval.
 
-## سجل المراجعة
-- 2026-10-22، المخطِّط: ADR يطلب فحص `objdump` على `sbarhived.exe` في أول قصة بناء، لكنه لا يُربط قبل S-045، فيُفحص هنا `sbarhive.exe` ويُضاف `sbarhived.exe` في S-045. وقائمة «ما يحتاجه المالك» تطلب الإذن بـ xorriso أو genisoimage، لكن genisoimage وisoinfo مثبتان على المضيف، فلا يلزم إذن لهذه القصة.
+## Review log
+- 2026-10-22, planner: the ADR asks for an `objdump` check on `sbarhived.exe` in the first build story, but it does not link before S-045, so `sbarhive.exe` is checked here and `sbarhived.exe` is added in S-045. The "what the owner needs" list asks for permission for xorriso or genisoimage, but genisoimage and isoinfo are installed on the host, so this story needs no permission.
 - 2026-10-22, tester (S-044a):
   - Tests, all shell, outside the cargo workspace so `cargo test` on real Windows (S-044b) never runs bash and the reviewer's `L` starts no nested build:
     - `tests/windows/test_scripts.sh` (light, no real build, a few seconds): `ac1_build_sh_reexecs_in_a_6g_scope_with_j2_and_prints_its_cgroup`, `ac2_check_dlls_accepts_system_dlls_and_rejects_lib_dlls`, `ac3_check_sh_runs_windows_clippy_all_targets_in_a_6g_scope`, `ac4_unix_only_tests_carry_cfg_unix_and_nothing_else_changes`, `ac7_engines_md_and_readme_document_the_build_tools`, `no_long_dash_and_shell_lint_for_the_new_scripts` (`bash -n`, `shellcheck`, no em or en dash in the three scripts and the README).
