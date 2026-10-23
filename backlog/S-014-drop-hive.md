@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 منتهية (المراجعة 2: PASS)؛ S-014f: approved (2026-10-23, for 0.4.0, split into S-014f1 to S-014f4); S-014f1 tests written (2026-10-23), for the implementer
+الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 منتهية (المراجعة 2: PASS)؛ S-014f: approved (2026-10-23, for 0.4.0, split into S-014f1 to S-014f4); S-014f1 implemented (2026-10-23), status review; its four new settings references await the manager's approval
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -710,3 +710,14 @@
     The candidates of this run were rendered on main, before the row exists: they are not for approval. The manager approves candidates from a run after the implementation.
   - Gates, expected to pass and passing on main: `scripts/design-lint.sh` clean (AC23's lint clause holds today; it must stay clean after the row), `cargo fmt --check` and `cargo clippy -p sbarhive-ui --all-targets -- -D warnings` exit 0.
   - Status: S-014f1 tests written, for the implementer.
+- 2026-10-23, implementer (S-014f1: AC23, AC24): no test or test script changed.
+  - Files: `crates/ui/ui/settings.slint` (field `portal-shortcut` in `SettingsText`, `in-out property <bool> portal-shortcut` on `SettingsUi`, a third `SwitchRow` after "Open the folder when done" in the same layout, the existing component unchanged, so no new colour, size or literal); `crates/ui/src/settings.rs` (the two AC23 strings; `open()` sets the switch from `config.portal_shortcut`, `save()` reads it; the `portal_shortcut` cell in `Inner` is gone, the switch is the only state). `FormState` keeps its seven fields.
+  - Run on main (`dbd83f1`; `git status crates/` showed only these two files before every build) inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, `nice -n 19`, `CARGO_BUILD_JOBS=1`, one private compositor (the snapshot script's own).
+  - Results: `cargo fmt --check` exit 0; `cargo clippy --all-targets -- -D warnings` exit 0; `cargo test --all` exit 0, 586 passed, 0 failed, 1 ignored (the settings tests in `sbarhive-ui` include `ac23_s014f1_portal_shortcut_switch` and `s014e1_save_keeps_a_remembered_portal_denial`, both pass); `scripts/design-lint.sh` clean; `cargo mutants --in-place --in-diff` on the crates diff, serial: 5 mutants, 4 caught, 1 unviable, 0 missed, 0 timeouts.
+  - `crates/ui/tests/settings_snapshots.sh`: exit 1, as expected: four of four fail with `reference predates the S-014f1 portal_shortcut row`, the only failure reason. Four candidates, 512x705 each (the old renders were 512x661), none with a retired hash:
+    - `target/settings-snapshot-candidates/settings-en-dark.png` (sha256 `a2f0b31c...`)
+    - `target/settings-snapshot-candidates/settings-en-light.png` (`8b417e48...`)
+    - `target/settings-snapshot-candidates/settings-ar-dark.png` (`ff816d48...`)
+    - `target/settings-snapshot-candidates/settings-ar-light.png` (`b6e12daa...`)
+    Looked at `en-light` and `ar-dark`: the new row is on, below "Open the folder when done", the switch on the right in English and on the left in Arabic, the labels not clipped. The references were not touched; they are the manager's to replace after approval.
+  - Status: S-014f1 for review, after the manager approves the four candidates.

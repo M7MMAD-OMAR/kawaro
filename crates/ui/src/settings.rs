@@ -128,6 +128,7 @@ fn strings(lang: Lang) -> Strings {
                 quality: "الجودة".into(),
                 notify: "إشعار عند الانتهاء".into(),
                 open_folder: "فتح المجلد عند الانتهاء".into(),
+                portal_shortcut: "تسجيل اختصار الإفلات لدى سطح المكتب".into(),
                 save: "حفظ".into(),
                 cancel: "إلغاء".into(),
             },
@@ -146,6 +147,7 @@ fn strings(lang: Lang) -> Strings {
                 quality: "Quality".into(),
                 notify: "Notify when done".into(),
                 open_folder: "Open the folder when done".into(),
+                portal_shortcut: "Register the drop shortcut with the desktop".into(),
                 save: "Save".into(),
                 cancel: "Cancel".into(),
             },
@@ -182,9 +184,6 @@ struct Inner {
     hive_surface: Cell<HiveSurface>,
     /// `hold_ms` has no control here either (S-019e AC18).
     hold_ms: Cell<u16>,
-    /// `portal_shortcut` has no control yet (S-014f): a save keeps a
-    /// remembered portal denial.
-    portal_shortcut: Cell<bool>,
 }
 
 impl Inner {
@@ -247,7 +246,7 @@ impl Inner {
         let config = Config {
             hive_surface: self.hive_surface.get(),
             hold_ms: self.hold_ms.get(),
-            portal_shortcut: self.portal_shortcut.get(),
+            portal_shortcut: self.ui.borrow().get_portal_shortcut(),
             ..self.state().to_config(self.rtl)
         };
         let f = self.on_save.borrow().clone();
@@ -286,7 +285,6 @@ impl SettingsWindow {
             on_save: RefCell::new(None),
             hive_surface: Cell::new(HiveSurface::Auto),
             hold_ms: Cell::new(HOLD_MS_DEFAULT),
-            portal_shortcut: Cell::new(true),
         });
         let ui = inner.new_ui()?;
         *inner.ui.borrow_mut() = ui;
@@ -307,7 +305,10 @@ impl SettingsWindow {
         *inner.ui.borrow_mut() = ui;
         inner.hive_surface.set(config.hive_surface);
         inner.hold_ms.set(config.hold_ms);
-        inner.portal_shortcut.set(config.portal_shortcut);
+        inner
+            .ui
+            .borrow()
+            .set_portal_shortcut(config.portal_shortcut);
         inner.set_state(&FormState::from_config(config, inner.rtl));
         inner.ui.borrow().show()
     }
