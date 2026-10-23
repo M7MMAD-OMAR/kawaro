@@ -134,3 +134,35 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    // S-028b AC6 (backlog/S-028-review-fixes.md): `read_request` reads one
+    // line from the stream itself, so the same stream writes the reply.
+    use super::read_request;
+    use std::io::{BufRead, BufReader, Cursor, Write};
+
+    #[test]
+    fn s028_ac6_read_request_reads_the_first_line_only() {
+        let mut c = Cursor::new(b"{\"cmd\":\"ping\"}\n{\"x\":1}\n".to_vec());
+        let line = read_request(&mut c).unwrap();
+        assert_eq!(line.trim_end(), "{\"cmd\":\"ping\"}");
+        assert!(
+            !line.contains("\"x\""),
+            "the second line is not read: {line}"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn s028_ac6_the_same_stream_writes_the_reply_after_read_request() {
+        let (mut server, mut client) = std::os::unix::net::UnixStream::pair().unwrap();
+        client.write_all(b"{\"cmd\":\"ping\"}\n").unwrap();
+        let line = read_request(&mut server).unwrap();
+        assert_eq!(line.trim_end(), "{\"cmd\":\"ping\"}");
+        server.write_all(b"{\"status\":\"ok\"}\n").unwrap();
+        let mut reply = String::new();
+        BufReader::new(&mut client).read_line(&mut reply).unwrap();
+        assert_eq!(reply, "{\"status\":\"ok\"}\n");
+    }
+}

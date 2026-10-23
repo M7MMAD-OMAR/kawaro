@@ -120,8 +120,8 @@ if check == "cross_target_dir":
            (not v.startswith("/") and not v.startswith("~") and not v.startswith("$HOME")))]
     say(not bad, f"CARGO_TARGET_DIR outside the workspace: {bad}")
 if check == "cross_no_home":
-    say("/home/sbarah" not in yaml.safe_dump(jobs.get("windows-cross") or {}),
-        "windows-cross names /home/sbarah")
+    say("/home/" not in yaml.safe_dump(jobs.get("windows-cross") or {}),
+        "windows-cross names a /home/ path")
 
 def is_choco(s):
     return "choco install ffmpeg -y" in str(s.get("run", ""))
@@ -260,12 +260,32 @@ ac10_run_tests_cmd_is_crlf_runs_every_test_exe_and_writes_results_in_userprofile
 
 ac11_readme_gives_the_virsh_attach_command_in_both_languages () {
   echo "== AC11: README attach command"
-  local r="$WIN/README.md" en ar re
+  # S-028c AC9: the English and Arabic READMEs are two files, not two sections.
+  local en="$WIN/README.md" ar="$WIN/README.ar.md" re
   re='virsh -c qemu:///session attach-disk win11 [^[:space:]`]+ sdb --type cdrom --mode readonly'
-  en="$(awk '/^## English/{s=1;next} /^## /{s=0} s' "$r")"
-  ar="$(awk '/^## العربية/{s=1;next} /^## /{s=0} s' "$r")"
-  check "AC11: English section has the attach command" grep -qE "$re" <<<"$en"
-  check "AC11: Arabic section has the attach command" grep -qE "$re" <<<"$ar"
+  check "AC11: README.md has the attach command" grep -qE "$re" "$en"
+  check "AC11: README.ar.md has the attach command" grep -qE "$re" "$ar"
+}
+
+# code_lines FILE: the lines inside ``` fences, the commands a README gives.
+code_lines () { awk '/^```/{s=!s;next} s' "$1"; }
+
+s028_ac9_readme_is_split_into_english_and_arabic_files () {
+  echo "== S-028 AC9: README.md and README.ar.md"
+  local en="$WIN/README.md" ar="$WIN/README.ar.md" switch
+  switch='[English](README.md) | [العربية](README.ar.md)'
+  assert_eq "S-028 AC9: README.md line 1 is the language switch" "$(head -n 1 "$en")" "$switch"
+  check "S-028 AC9: README.md has no Arabic letter after line 1" \
+    sh -c '! tail -n +2 "$1" | grep -qP "\p{Arabic}"' _ "$en"
+  if [ ! -f "$ar" ]; then fail "S-028 AC9: missing $ar"; return; fi
+  assert_eq "S-028 AC9: README.ar.md line 1 is the language switch" "$(head -n 1 "$ar")" "$switch"
+  check "S-028 AC9: README.ar.md has Arabic text after line 1" \
+    sh -c 'tail -n +2 "$1" | grep -qP "\p{Arabic}"' _ "$ar"
+  check "S-028 AC9: README.md has commands" test -n "$(code_lines "$en")"
+  assert_eq "S-028 AC9: README.ar.md gives the same commands as README.md" \
+    "$(code_lines "$ar")" "$(code_lines "$en")"
+  check "S-028 AC9: README.ar.md has the virsh attach-disk line" \
+    grep -qE 'virsh .*attach-disk' "$ar"
 }
 
 ac12_check_dlls_exits_2_on_input_errors_and_docs_name_binutils_and_ubuntu_mingw () {
@@ -308,7 +328,7 @@ EOF' _ "$out"
 
   echo "== AC12: windows-cross CARGO_TARGET_DIR"
   ci_check "AC12: windows-cross sets CARGO_TARGET_DIR inside the workspace" cross_target_dir
-  ci_check "AC12: windows-cross does not name /home/sbarah" cross_no_home
+  ci_check "AC12: windows-cross names no /home/ path (S-028 AC8)" cross_no_home
 
   echo "== AC12: engines.md"
   local e=docs/engines.md ver row
@@ -332,8 +352,8 @@ lint_no_long_dash_and_shellcheck_for_s026b_files () {
     check "lint: bash -n $s" bash -n "$WIN/$s"
     if command -v shellcheck >/dev/null; then check "lint: shellcheck $s" shellcheck "$WIN/$s"; fi
   done
-  for s in "$WIN/make-iso.sh" "$WIN/run-tests.cmd" "$WIN/README.md" "$CI_YML" docs/engines.md; do
-    [ -f "$s" ] || continue
+  for s in "$WIN/make-iso.sh" "$WIN/run-tests.cmd" "$WIN/README.md" "$WIN/README.ar.md" "$CI_YML" docs/engines.md; do
+    if [ ! -f "$s" ]; then fail "lint: missing $s"; continue; fi
     check "lint: no em or en dash in $s" sh -c '! grep -q "$2" "$1"' _ "$s" "$LONG_DASH"
   done
 }
@@ -343,5 +363,6 @@ ac9_make_iso_builds_a_joliet_rock_ridge_iso_with_exes_sums_and_runner
 ac10_run_tests_cmd_is_crlf_runs_every_test_exe_and_writes_results_in_userprofile
 ac11_readme_gives_the_virsh_attach_command_in_both_languages
 ac12_check_dlls_exits_2_on_input_errors_and_docs_name_binutils_and_ubuntu_mingw
+s028_ac9_readme_is_split_into_english_and_arabic_files
 lint_no_long_dash_and_shellcheck_for_s026b_files
 finish "S-044b windows CI, ISO and runner (light)"

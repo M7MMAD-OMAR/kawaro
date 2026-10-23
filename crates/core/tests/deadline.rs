@@ -9,8 +9,11 @@
 //! the calling thread and `C: FnOnce() + Send + 'static` is owned by the
 //! watcher.
 //! - If `read` has not returned when `timeout` passes, the watcher calls
-//!   `cancel` once; whatever the cancelled `read` then returns, the result
-//!   is `ErrorKind::TimedOut`.
+//!   `cancel` once. Changed by S-028a AC3 (backlog/S-028-review-fixes.md):
+//!   a read that then returns `Ok(v)` is returned as is, even when the
+//!   watcher fired at the same moment; a read that returns `Err` after the
+//!   cancel gives `ErrorKind::TimedOut`; an `Err` before the deadline is
+//!   returned as is.
 //! - If `read` returns first, its result is returned as is and `cancel` is
 //!   never called, not even later.
 //! - On return no watcher is alive: it has ended and dropped `cancel`.
@@ -123,4 +126,33 @@ fn ac10_a_read_error_before_the_deadline_is_returned_as_is() {
     assert_eq!(Arc::strong_count(&alive), 1);
     thread::sleep(Duration::from_millis(300));
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+#[test]
+fn s028_ac3_data_that_arrives_with_the_cancel_is_kept() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let alive = Arc::new(());
+    let (tx, rx) = mpsc::channel();
+    let cancel = cancel_probe(&calls, &alive, tx);
+    // Blocks until the cancel probe signals it, then brings its data anyway,
+    // as a pipe read that completes at its deadline does.
+    let read = move || -> io::Result<Vec<u8>> {
+        match rx.recv_timeout(Duration::from_secs(3)) {
+            Ok(()) => Ok(b"late\n".to_vec()),
+            Err(_) => Err(io::Error::other("never cancelled")),
+        }
+    };
+
+    let res = read_with_deadline(Duration::from_millis(200), read, cancel);
+
+    match res {
+        Ok(v) => assert_eq!(v, b"late\n"),
+        Err(e) => panic!("data read at the deadline must be kept, got {e:?}"),
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 1, "cancel exactly once");
+    assert_eq!(
+        Arc::strong_count(&alive),
+        1,
+        "no watcher may be alive after the return"
+    );
 }

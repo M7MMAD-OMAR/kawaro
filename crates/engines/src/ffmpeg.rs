@@ -670,6 +670,23 @@ fn supervise(
 mod tests {
     use super::*;
 
+    // S-028a AC2 (backlog/S-028-review-fixes.md): `located()` looks up
+    // ffmpeg and ffprobe once per process, and `default()` uses that result.
+
+    #[test]
+    fn s028_ac2_located_is_one_value_per_process() {
+        let a: &'static (PathBuf, PathBuf) = located();
+        let b: &'static (PathBuf, PathBuf) = located();
+        assert!(std::ptr::eq(a, b), "two calls must return the same value");
+    }
+
+    #[test]
+    fn s028_ac2_default_engine_has_the_located_paths() {
+        let e = FfmpegEngine::default();
+        assert_eq!(e.ffmpeg, located().0);
+        assert_eq!(e.ffprobe, located().1);
+    }
+
     fn all_encoders() -> Encoders {
         [
             "libx264",

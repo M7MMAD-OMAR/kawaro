@@ -1,5 +1,5 @@
 sbarhive.exe:     file format pei-x86-64
-/home/sbarah/.cache/sbarhive-win-target/x86_64-pc-windows-gnu/release/sbarhive.exe:     file format pei-x86-64
+x86_64-pc-windows-gnu/release/sbarhive.exe:     file format pei-x86-64
 
 Characteristics 0x22e
 	executable

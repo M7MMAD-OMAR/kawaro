@@ -299,3 +299,37 @@ fn ac6_a_stale_socket_file_is_removed_and_bound() {
     assert_eq!(read_line(&c).unwrap(), "again\n");
     server.join().unwrap();
 }
+
+// S-028b AC7 (backlog/S-028-review-fixes.md): `Listener::cleanup(&self) ->
+// transport::Cleanup`; dropping the `Cleanup` removes the socket file on
+// Unix, and a second one dropped after the removal does not panic.
+
+#[cfg(unix)]
+#[test]
+fn s028_ac7_dropping_cleanup_removes_the_socket_file() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("sbarhive.sock");
+    let l = listen(&Endpoint::from_path(&path));
+    assert!(path.exists(), "bind leaves the socket file");
+    let cleanup: transport::Cleanup = l.cleanup();
+    assert!(path.exists(), "taking the cleanup removes nothing yet");
+    drop(cleanup);
+    assert!(
+        !path.exists(),
+        "dropping the cleanup removes the socket file"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn s028_ac7_a_second_cleanup_dropped_after_removal_does_not_panic() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("sbarhive.sock");
+    let l = listen(&Endpoint::from_path(&path));
+    let first = l.cleanup();
+    let second = l.cleanup();
+    drop(first);
+    assert!(!path.exists());
+    drop(second);
+    assert!(!path.exists());
+}

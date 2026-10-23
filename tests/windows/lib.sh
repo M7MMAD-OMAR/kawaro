@@ -7,7 +7,8 @@
 . "$(dirname "${BASH_SOURCE[0]}")/../integrations/lib.sh"
 WIN="$REPO_ROOT/scripts/windows"
 FIX="$REPO_ROOT/tests/windows/fixtures"
-WIN_TARGET_DEFAULT=/home/sbarah/.cache/sbarhive-win-target
+# S-028c AC8: the scripts default to the XDG cache of whoever runs them.
+WIN_TARGET_DEFAULT="${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target"
 SIX_G=6442450944
 export WIN FIX WIN_TARGET_DEFAULT SIX_G
 

@@ -28,10 +28,22 @@
 //!   and the stream is dropped unwritten.
 //! - `pub fn open_mode(first: bool) -> u32` and `pub fn pipe_mode() -> u32`,
 //!   the `CreateNamedPipeW` flags.
+//!
+//! Added by S-028b AC4 and AC5 (backlog/S-028-review-fixes.md), `pub` on
+//! every platform:
+//! - `pub fn accept_backoff(consecutive_errors: u32) -> Duration`: 0 for 0,
+//!   50 ms for every value from 1 to `u32::MAX`.
+//! - `pub enum NextInstance { Fresh, Keep, Empty }`,
+//!   `pub struct AcceptPlan { pub hand_over: bool, pub next: NextInstance }`
+//!   and `pub fn accept_plan(connected: bool, connect_error: Option<u32>,
+//!   fresh_ok: bool) -> AcceptPlan`: `hand_over` is
+//!   `connected || connect_error == Some(535)`; `next` is `Fresh` when
+//!   `fresh_ok`, `Empty` when the client is handed over and the fresh
+//!   instance failed, `Keep` when there is no client and it failed.
 
 use sbarhive_core::transport::{
-    BindOutcome, ConnectStep, bind_result, connect_plan, dacl_sddl, open_mode, pipe_mode,
-    verify_owner,
+    AcceptPlan, BindOutcome, ConnectStep, NextInstance, accept_backoff, accept_plan, bind_result,
+    connect_plan, dacl_sddl, open_mode, pipe_mode, verify_owner,
 };
 use std::io::{ErrorKind, Write};
 use std::sync::Arc;
@@ -232,4 +244,86 @@ fn ac12_open_mode_later_instances_are_duplex_only() {
 #[test]
 fn ac12_pipe_mode_is_byte_wait_and_rejects_remote_clients() {
     assert_eq!(pipe_mode(), 0x8);
+}
+
+// S-028b AC4
+
+#[test]
+fn s028_ac4_accept_backoff_is_zero_without_errors() {
+    assert_eq!(accept_backoff(0), Duration::ZERO);
+}
+
+#[test]
+fn s028_ac4_accept_backoff_is_50_ms_after_any_error() {
+    for n in [1, 2, 1000, u32::MAX] {
+        assert_eq!(accept_backoff(n), ms(50), "after {n} errors in a row");
+    }
+}
+
+// S-028b AC5
+
+const ERROR_NO_DATA: u32 = 232;
+const ERROR_PIPE_CONNECTED: u32 = 535;
+
+fn next_name(n: &NextInstance) -> &'static str {
+    match n {
+        NextInstance::Fresh => "Fresh",
+        NextInstance::Keep => "Keep",
+        NextInstance::Empty => "Empty",
+    }
+}
+
+fn plan_is(p: AcceptPlan, hand_over: bool, next: &'static str, row: &str) {
+    assert_eq!(p.hand_over, hand_over, "{row}: hand_over");
+    assert_eq!(next_name(&p.next), next, "{row}: next");
+}
+
+#[test]
+fn s028_ac5_connected_with_a_fresh_instance_hands_over_and_takes_it() {
+    plan_is(
+        accept_plan(true, None, true),
+        true,
+        "Fresh",
+        "(true, None, true)",
+    );
+}
+
+#[test]
+fn s028_ac5_pipe_connected_without_a_fresh_instance_hands_over_and_empties() {
+    plan_is(
+        accept_plan(false, Some(ERROR_PIPE_CONNECTED), false),
+        true,
+        "Empty",
+        "(false, Some(535), false)",
+    );
+}
+
+#[test]
+fn s028_ac5_connected_without_a_fresh_instance_empties() {
+    plan_is(
+        accept_plan(true, None, false),
+        true,
+        "Empty",
+        "(true, None, false)",
+    );
+}
+
+#[test]
+fn s028_ac5_failed_connect_with_a_fresh_instance_takes_it() {
+    plan_is(
+        accept_plan(false, Some(ERROR_NO_DATA), true),
+        false,
+        "Fresh",
+        "(false, Some(232), true)",
+    );
+}
+
+#[test]
+fn s028_ac5_failed_connect_without_a_fresh_instance_keeps_the_old_one() {
+    plan_is(
+        accept_plan(false, Some(ERROR_NO_DATA), false),
+        false,
+        "Keep",
+        "(false, Some(232), false)",
+    );
 }

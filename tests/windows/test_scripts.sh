@@ -174,15 +174,17 @@ ac4_unix_only_tests_carry_cfg_unix_and_nothing_else_changes () {
   check "AC4: pdf_ghostscript.rs pdf_ghostscript_identity_and_capabilities (/bin/sh) has #[cfg(unix)]" \
     fn_has_cfg_unix crates/engines/tests/pdf_ghostscript.rs pdf_ghostscript_identity_and_capabilities
 
-  # 5be5270 is the commit S-044a starts from.
+  # 5be5270 is the commit S-044a starts from. The range ends at 789afb8, the
+  # last commit before S-028, which adds tests and code to office.rs on purpose.
+  local end=789afb8cd4a63bc7868a46c009866aefba2476dc
   local files=(crates/cli/tests/cli.rs crates/cli/tests/settings.rs crates/core/tests/output.rs
                crates/core/tests/contracts.rs crates/engines/src/office.rs
                crates/engines/tests/office_engine.rs crates/engines/tests/pdf_ghostscript.rs)
   local removed added_other
-  removed="$(git diff -U0 5be5270 -- "${files[@]}" | grep -E '^-' | grep -vE '^--- ')"
-  added_other="$(git diff -U0 5be5270 -- "${files[@]}" | grep -E '^\+' | grep -vE '^\+\+\+ ' \
+  removed="$(git diff -U0 5be5270 "$end" -- "${files[@]}" | grep -E '^-' | grep -vE '^--- ')"
+  added_other="$(git diff -U0 5be5270 "$end" -- "${files[@]}" | grep -E '^\+' | grep -vE '^\+\+\+ ' \
     | grep -vE '^\+[[:space:]]*#!?\[cfg(_attr)?\(.*\)\][[:space:]]*$')"
-  assert_eq "AC4: no deleted line in the seven files" "$removed" ""
+  assert_eq "AC4: no deleted line in the seven files (5be5270 to $end)" "$removed" ""
   assert_eq "AC4: every added line is a cfg line" "$added_other" ""
 }
 
@@ -196,7 +198,8 @@ ac7_engines_md_and_readme_document_the_build_tools () {
   if [ ! -f "$r" ]; then fail "AC7: missing $r"; return; fi
   local s
   for s in build.sh check-dlls.sh check.sh; do assert_contains "AC7: README names $s" "$r" "$s"; done
-  check "AC7: README has Arabic text" grep -qP '\p{Arabic}' "$r"
+  # S-028c AC9: the Arabic text moved to README.ar.md.
+  check "AC7: README.ar.md has Arabic text" grep -qP '\p{Arabic}' "$WIN/README.ar.md"
   check "AC7: README has English text" grep -qiE '\b(the|build|run)\b' "$r"
 }
 
@@ -208,10 +211,88 @@ no_long_dash_and_shell_lint_for_the_new_scripts () {
     check "lint: bash -n $s" bash -n "$WIN/$s"
     if command -v shellcheck >/dev/null; then check "lint: shellcheck $s" shellcheck "$WIN/$s"; fi
   done
-  for s in "$WIN"/build.sh "$WIN"/check-dlls.sh "$WIN"/check.sh "$WIN"/README.md; do
-    [ -f "$s" ] || continue
+  for s in "$WIN"/build.sh "$WIN"/check-dlls.sh "$WIN"/check.sh "$WIN"/README.md "$WIN"/README.ar.md; do
+    if [ ! -f "$s" ]; then fail "lint: missing $s"; continue; fi
     check "lint: no em or en dash in $s" sh -c '! grep -q "$(printf "\342\200\224\|\342\200\223")" "$1"' _ "$s"
   done
+}
+
+# S-028c AC8 (backlog/S-028-review-fixes.md): build.sh, check.sh and
+# make-iso.sh default CARGO_TARGET_DIR to
+# ${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target and keep a caller's
+# value; no committed file outside backlog/ names the maintainer's home.
+
+# s028_target_of SCRIPT: the target dir SCRIPT used in this environment. For
+# build.sh and check.sh it is what the fake cargo saw; make-iso.sh builds
+# nothing, so a fake genisoimage logs its -o path and writes nothing.
+# Runs in the caller's subshell, which sets the environment.
+s028_target_of () {
+  local call word
+  case "$1" in
+    build.sh) word=build ;;
+    check.sh) word=clippy ;;
+    make-iso.sh)
+      rm -f "$FSB/log/iso.log"
+      timeout 120 "$WIN/make-iso.sh" >/dev/null 2>&1
+      local o
+      o="$(sed -n 1p "$FSB/log/iso.log" 2>/dev/null)"
+      printf '%s\n' "${o%/*}"
+      return ;;
+  esac
+  : > "$FSB/log/cargo.log"
+  timeout 120 "$WIN/$1" >/dev/null 2>&1
+  call="$(cargo_call "$word")"
+  field 6 "$call"
+}
+
+# Each case sets its environment in its own subshell, on purpose.
+# shellcheck disable=SC2030,SC2031
+s028_ac8_scripts_default_the_target_dir_to_the_xdg_cache () {
+  echo "== S-028 AC8: target dir defaults"
+  local real_iso="$WIN_TARGET_DEFAULT/sbarhive-win-tests.iso" real_before real_after s got d
+  real_before="$(stat -c '%Y %s' "$real_iso" 2>/dev/null || echo absent)"
+  make_fakes
+  cat > "$FSB/bin/genisoimage" <<'EOF'
+#!/bin/sh
+prev=""
+for a in "$@"; do
+  [ "$prev" = -o ] && echo "$a" >> "$FSB/log/iso.log"
+  prev=$a
+done
+# Writes nothing; outside the sandbox it also fails, so make-iso.sh stops
+# before its mv and the real cache keeps its ISO.
+case "$(sed -n 1p "$FSB/log/iso.log")" in "$FSB"/*) exit 0 ;; esac
+exit 1
+EOF
+  chmod 0755 "$FSB/bin/genisoimage"
+  cp "$FSB/bin/genisoimage" "$FSB/bin/mkisofs"
+  # A fake build output where each case expects the target dir, so
+  # make-iso.sh reaches its ISO step there.
+  for d in "$FSB/x/sbarhive-win-target" "$FSB/h/.cache/sbarhive-win-target" "$FSB/caller"; do
+    mkdir -p "$d/x86_64-pc-windows-gnu/release" "$d/x86_64-pc-windows-gnu/debug/deps"
+    printf 'MZ release\n' > "$d/x86_64-pc-windows-gnu/release/sbarhive.exe"
+    printf 'MZ test\n' > "$d/x86_64-pc-windows-gnu/debug/deps/contracts-27b367aa4bb7975d.exe"
+  done
+  for s in build.sh check.sh make-iso.sh; do
+    if [ ! -x "$WIN/$s" ]; then fail "S-028 AC8: missing or not executable $WIN/$s"; continue; fi
+    got="$(unset CARGO_TARGET_DIR; export CI=true XDG_CACHE_HOME="$FSB/x" PATH="$FSB/bin:$PATH"
+      s028_target_of "$s")"
+    assert_eq "S-028 AC8: $s with XDG_CACHE_HOME set" "$got" "$FSB/x/sbarhive-win-target"
+    got="$(unset CARGO_TARGET_DIR XDG_CACHE_HOME; export CI=true HOME="$FSB/h" PATH="$FSB/bin:$PATH"
+      s028_target_of "$s")"
+    assert_eq "S-028 AC8: $s with XDG_CACHE_HOME unset" "$got" "$FSB/h/.cache/sbarhive-win-target"
+    got="$(export CI=true CARGO_TARGET_DIR="$FSB/caller" XDG_CACHE_HOME="$FSB/x" PATH="$FSB/bin:$PATH"
+      s028_target_of "$s")"
+    assert_eq "S-028 AC8: $s keeps the caller's CARGO_TARGET_DIR" "$got" "$FSB/caller"
+    check "S-028 AC8: the $s header names no /home/ path" \
+      sh -c '! grep -q "/home/" "$1"' _ "$WIN/$s"
+  done
+  drop_fakes
+  real_after="$(stat -c '%Y %s' "$real_iso" 2>/dev/null || echo absent)"
+  assert_eq "S-028 AC8: the real ISO in the cache was not touched" "$real_after" "$real_before"
+  # The name is split so this file does not match itself.
+  got="$(git grep -n '/home/''sbarah' -- ':!backlog')"
+  assert_eq "S-028 AC8: git grep for the maintainer's home outside backlog/" "$got" ""
 }
 
 ac1_build_sh_reexecs_in_a_6g_scope_with_j2_and_prints_its_cgroup
@@ -220,4 +301,5 @@ ac3_check_sh_runs_windows_clippy_all_targets_in_a_6g_scope
 ac4_unix_only_tests_carry_cfg_unix_and_nothing_else_changes
 ac7_engines_md_and_readme_document_the_build_tools
 no_long_dash_and_shell_lint_for_the_new_scripts
+s028_ac8_scripts_default_the_target_dir_to_the_xdg_cache
 finish "S-044a windows scripts (light)"

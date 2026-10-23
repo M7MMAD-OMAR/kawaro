@@ -656,6 +656,30 @@ mod tests {
         }
     }
 
+    // S-028a AC1 (backlog/S-028-review-fixes.md): a UNC path, verbatim or
+    // plain, becomes the host form `file://server/share/...` (two slashes).
+
+    #[test]
+    fn s028_ac1_file_url_str_verbatim_unc_is_host_form() {
+        assert_eq!(
+            file_url_str(r"\\?\UNC\srv\share\a b.docx", true),
+            "file://srv/share/a%20b.docx"
+        );
+    }
+
+    #[test]
+    fn s028_ac1_file_url_str_plain_unc_is_host_form() {
+        assert_eq!(file_url_str(r"\\srv\share\x", true), "file://srv/share/x");
+    }
+
+    #[test]
+    fn s028_ac1_file_url_str_verbatim_unc_arabic_name() {
+        assert_eq!(
+            file_url_str("\\\\?\\UNC\\srv\\share\\ملف.docx", true),
+            "file://srv/share/%D9%85%D9%84%D9%81.docx"
+        );
+    }
+
     #[test]
     fn ac11_office_without_program_names_libreoffice_and_link() {
         let dir = tempfile::tempdir().unwrap();
