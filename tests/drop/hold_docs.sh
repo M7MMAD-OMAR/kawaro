@@ -202,7 +202,11 @@ consuming_release() {
     -not -path '*/target/*' -not -path '*/.git/*' -not -path '*/.claude/*' -print0 | xargs -0 python3 -I -c '
 import re, sys
 for f in sys.argv[1:]:
-    t = open(f, encoding="utf-8").read()
+    try:
+        t = open(f, encoding="utf-8").read()
+    except (OSError, UnicodeDecodeError) as e:
+        print(f"{f}:unreadable {e}")
+        continue
     for m in re.finditer(r"(?m)^\s*bind([a-z]*)\s*=", t):
         if "r" in m.group(1) and "n" not in m.group(1):
             print(f"{f}:{t.count(chr(10), 0, m.start()) + 1}")

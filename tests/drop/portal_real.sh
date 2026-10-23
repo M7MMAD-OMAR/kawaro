@@ -98,7 +98,9 @@ portal_setup() {
     mkfifo "$fifo"
     python3 -I "$HERE/shortcuts_portal.py" "$fifo" ok >"$PLOG" 2>&1 &
     FAKE_PID=$!
-    exec 4>"$fifo"
+    # Read and write: the open never blocks on a fake that died before it
+    # opened its end, and a write never gets SIGPIPE.
+    exec 4<>"$fifo"
     for _ in $(seq 50); do grep -q '\] owned org.freedesktop.portal.Desktop' "$PLOG" && break; sleep 0.1; done
   fi
   watch_start
@@ -299,6 +301,9 @@ real_portal_run() { # real_portal_run DESKTOP BACKEND_PACKAGE
   # Open now and owned by a portal process of this bus (a notification
   # popup of an earlier conversion, mako under KWin, is not the backend's).
   dlg2=$(dialog_now)
+  # The windows above need the fixed 5 s; the bound line may come later on
+  # a cold portal activation.
+  wait_bound 25 || true
   local dlg2pid=""; [ -n "$dlg2" ] && dlg2pid=$(cut -d'|' -f2 <<<"$dlg2")
   [ -n "$dlg2pid" ] && ! bus_procs | cut -d' ' -f1 | grep -qxF "$dlg2pid" && dlg2="${dlg2} (not a portal process)"
   lines2=$(bound_lines)

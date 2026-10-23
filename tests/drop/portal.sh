@@ -255,7 +255,8 @@ inner() {
     rm -f "$fifo"; mkfifo "$fifo"
     python3 -I "$HERE/shortcuts_portal.py" "$fifo" "$2" >"$PLOG" 2>&1 &
     FAKE_PID=$!
-    exec 4>"$fifo"
+    # Read and write, as in portal_real.sh: no blocking open, no SIGPIPE.
+    exec 4<>"$fifo"
     for _ in $(seq 50); do grep -q '\] owned org.freedesktop.portal.Desktop' "$PLOG" && break; sleep 0.1; done
   }
   fake() { echo "$*" >&4; }
@@ -887,7 +888,8 @@ export -f inner
 echo "== kwin portal: $PHASES"
 SANDBOX="$(mktemp -d)"
 RUNDIR="$(mktemp -d)"
-trap 'rm -rf "$SANDBOX" "$RUNDIR"' EXIT
+# phase_ro makes parts of the sandbox read only: restore write first.
+trap 'chmod -R u+w "$SANDBOX" 2>/dev/null; rm -rf "$SANDBOX" "$RUNDIR"' EXIT
 # The private bus's configuration: the stock session policy, and one empty
 # service directory instead of the standard ones, so nothing is activated.
 mkdir -p "$SANDBOX/dbus-services"
