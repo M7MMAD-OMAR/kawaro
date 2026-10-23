@@ -907,3 +907,59 @@
   - Mutants exclusions: `.cargo/mutants.toml` is not in the diff. The changed code that is not mutated is `remember()` and the options reading in `portal_bus.rs` (file glob, live bus), plus the step selection in `hold_signal` and `gate_tick` (already excluded as event loop glue). Their decisions are mutated in `portal.rs`, and the step arms are covered end to end by the AC15 (a) cases: fake-A then fake-B, fake-A then none, and the tap then a press. Minor, not blocking: the comment above the `hold_signal` and `gate_tick` exclusions still lists only `kwin.sh level=1`, `budget.sh` and `repro.sh` as their coverage; it could also name `portal.sh ac15` and `gnome.sh ... portal` for the kept token.
   - No screenshots, no new UI strings and no new interactive elements in this story. No CHANGELOG line: S-014f4 owns it (AC28).
   - Status: S-014f3 done.
+- 2026-10-23, tester (S-014f4: AC16, AC28, planner decision 6): tests written from the criteria, the table and decision 6. Run on main (`8a6623f`, release binaries newer than the last crate commit, `git status crates/` clean, so no rebuild) inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, `nice -n 19`, `CARGO_BUILD_JOBS=1`, commands in a script file, one private compositor and one private bus at a time; the real portal only in the `portal-real` modes. No production code, docs or CHANGELOG touched. **AC16 passes on main on both desktops, with no daemon code: T after the restart names Y, not Z, so the known `ListShortcuts` finding of decision 6 did not occur.** S-014f4 needs only the AC28 docs and CHANGELOG work, and can then go to review. The control (no store write) fails AC16 for the right reason (below).
+  - Files: `tests/drop/rebind_store.py` (new); `tests/drop/portal_real.sh` (appended only: `rebind_cycle`, `rebind_neg`, `rebind_cases`, `rebind_run`; no existing function changed); `tests/drop/kwin.sh` and `tests/drop/gnome.sh` (the `rebind` argument after `portal-real`, tag `-rebind`; `key_down` and `key_up` press Super+`$KEY`, default `z`, so every existing mode is unchanged; gnome.sh hook `overview_hide`); `tests/drop/portal_docs.sh` (AC28); `tests/drop/README.md`.
+  - AC16, `kwin.sh level=1 portal-real rebind` and `gnome.sh smart portal-real rebind`, instead of AC20 and AC21 in that mode:
+    - Setup: the backend dialog accepted as in AC21 run 1, one `portal shortcuts: bound drop (T)`, T the bus reply and naming Z.
+    - KDE store: `rebind_store.py kde` introspects `org.kde.kglobalaccel` `/kglobalaccel` on the private bus, saves the XML (`kwin-l1-portal-real-rebind-kglobalaccel.xml`) and takes the reader `shortcutKeys (as) -> a(ai)` and the foreign setter `setForeignShortcutKeys (as, a(ai))` from it (a check that both names are in the XML). The action id comes from `allComponents` and the component's `allShortcutInfos` (introspected too): `/component/io_github_m7mmad_omar_SbarHive`, id `["io.github.m7mmad_omar.SbarHive", "drop", "SbarHive", "Show the SbarHive hive for a dragged file"]`. The keys read `[[268435546, 0, 0, 0]]` (Meta+Z); the same structure with Qt Key_Y is written, `[[268435545, 0, 0, 0]]`, and read back as Meta+Y.
+    - GNOME store: `rebind_store.py gnome` walks the private dconf with `dconf list` from `/` and finds one directory with a `shortcuts` key of type `a(sa{sv})` holding `drop`: `/org/gnome/settings-daemon/global-shortcuts/io.github.m7mmad_omar.SbarHive/`, value `[('drop', {'shortcuts': <['<Super>z']>, 'description': <'Show the SbarHive hive for a dragged file'>})]`. Only the accelerator strings of `drop` change (`<Super>y`), the other entries are kept (checked on the readback), `dconf write`, read back. A guard checks the dconf database is the throwaway profile's.
+    - Live, the same daemon: Super+Y held mid-drag, drop on WEBP (file, `deleted=False`, sha256 kept, at least one `portal: activated drop`); Super+Z held 600 ms mid-drag, then zero `portal: activated drop` and zero hive surfaces (KWin `get_layer_surface`, GNOME `hive surface: window`, plus a hive still mapped) counted over 1150 ms from the press; Super+Y again. The same PID and no new `portal shortcuts:` line. Hard checks on KDE; on GNOME one line `INFO AC16 GNOME live rebind: followed` or `not followed`.
+    - Restart, the AC21 run 2 pattern: the daemon quits, every portal process of the bus is killed, a new daemon starts on the same profile. Checks: new portal processes; no backend window within 5 s; exactly one `portal shortcuts:` line, `bound drop (T)`, T equal to the first BindShortcuts Response on the bus after the restart (not the run 1 reply); T names Y (`[+>]y$`, case ignored). Then the three cases again, hard checks on both.
+    - `REBIND_CONTROL=1` skips the store write (the control).
+  - AC28, `portal_docs.sh`, in the portal section of each language: one sentence that a key changed in the desktop's settings is kept by SbarHive (English: changed, keep or kept, SbarHive or the daemon; Arabic: غير or تغيير, يحتفظ or يبقى, صبار هايف, SbarHive or الخدمة); a sentence naming KDE and not GNOME with "at once", "immediately" or "right away" (Arabic فوراً, في الحال, على الفور, مباشرة); a sentence naming GNOME and not KDE with logging out and back in (Arabic الخروج and الدخول). A GNOME sentence with "at once" fails unless the last `gnome.sh smart portal-real rebind` output (`$DROP_OUT` or `tests/drop/out/gnome-smart-portal-real-rebind.txt`) says `followed`; on main it says `not followed`, so the docs must give GNOME the logout wording. CHANGELOG.md: exactly one line between `## [Unreleased]` and the next `## [` naming `S-014f` (or f1 to f4), with English and Arabic. Dash scan: every file changed since `8a6623f` (`S014F4_BASE`) or untracked; a failed `git diff` fails the check. A throwaway copy of the tree with sample sentences in both languages and a sample CHANGELOG line passed all AC28 checks, and failed the GNOME "at once" check without a `followed` output, so the patterns can be met.
+  - Results on main (outputs kept in `tests/drop/out/`):
+    - `kwin.sh level=1 portal-real rebind`: RESULT PASS, 17 of 17. Live: Super+Y 1 of 1 (1 activated line, the WEBP), Super+Z 0 activated and 0 hive surfaces over 1161 ms, Super+Y again 1 of 1, PID 2777944 unchanged, no new line. Restart: `portal shortcuts: bound drop (Meta+Y)`, the new reply `Meta+Y`, kglobalaccel still Meta+Y; no backend window (the open `mako` window is not a portal process); the three cases pass.
+    - `gnome.sh smart portal-real rebind`: RESULT PASS, 12 of 12. Live: `INFO AC16 GNOME live rebind: not followed` (Super+Y gave 0 activated lines and no hive, Super+Z still gave 5 activated lines and a hive window). So in this harness the provider does not follow a direct dconf write live; decision 6 calls that a harness limit, and AC28 then gives GNOME the logout wording. Restart: `portal shortcuts: bound drop (Press <Super>y)`, the new reply `Press <Super>y`, dconf unchanged; the three cases pass (Super+Y the WEBP twice, Super+Z 0 and 0 over 1166 ms).
+    - Note: after every GNOME case, positive or negative, the overview was open (the cause was not looked into); `overview_hide` closes it, with an INFO line, before the next case, and the restart cases pass with it.
+    - `portal_docs.sh`: RESULT FAIL (7), 25 PASS (every existing check passes):
+    ```
+    INFO AC28: AC16 GNOME live rebind in tests/drop/out/gnome-smart-portal-real-rebind.txt: not followed
+    FAIL AC28 docs/drop-shortcut.md (English): a key changed in the desktop's settings is kept by SbarHive (one sentence)
+    FAIL AC28 docs/drop-shortcut.md (English): on KDE the changed key applies at once (a sentence naming KDE and not GNOME)
+    FAIL AC28 docs/drop-shortcut.md (English): on GNOME the changed key applies at the latest after logging out and back in (a sentence naming GNOME and not KDE)
+    FAIL AC28 docs/drop-shortcut.ar.md (Arabic): a key changed in the desktop's settings is kept by SbarHive (one sentence)
+    FAIL AC28 docs/drop-shortcut.ar.md (Arabic): on KDE the changed key applies at once (a sentence naming KDE and not GNOME)
+    FAIL AC28 docs/drop-shortcut.ar.md (Arabic): on GNOME the changed key applies at the latest after logging out and back in (a sentence naming GNOME and not KDE)
+    INFO AC28: CHANGELOG.md lines under [Unreleased] naming S-014f: 0, with English and Arabic: 0
+    FAIL AC28: CHANGELOG.md has exactly one line under "## [Unreleased]" naming S-014f, in English and in Arabic
+    INFO AC28: files changed since 8a6623f or untracked: 6; with a long dash: none
+    PASS AC28: no em dash or en dash in any file changed since 8a6623f (or untracked)
+    RESULT FAIL (7)
+    ```
+    The dash scan passes on main because no changed file has a long dash; it is a guard for the implementer's text.
+  - Control, `REBIND_CONTROL=1` (no store write), on main:
+    - KDE: RESULT FAIL (8), 9 PASS:
+    ```
+    FAIL AC16 KDE: drop set to Meta+Y through setForeignShortcutKeys on the private bus and read back as Meta+Y
+    FAIL AC16 live: Super+Y held mid-drag gives "portal: activated drop", the hive and the WEBP (deleted=False, sha256 unchanged), 1 of 1
+    FAIL AC16 live: Super+Z held 600 ms mid-drag gives zero "portal: activated drop" and zero hive surfaces over 1150 ms
+    FAIL AC16 live: then Super+Y again, 1 of 1 (positive after the negative)
+    FAIL AC16 restart: T names Y, so the daemon's LOGO+z at the start did not undo the change (T "Meta+Z")
+    FAIL AC16 restart: Super+Y held mid-drag gives "portal: activated drop", the hive and the WEBP (deleted=False, sha256 unchanged), 1 of 1
+    FAIL AC16 restart: Super+Z held 600 ms mid-drag gives zero "portal: activated drop" and zero hive surfaces over 1150 ms
+    FAIL AC16 restart: then Super+Y again, 1 of 1 (positive after the negative)
+    RESULT FAIL (8)
+    ```
+    - GNOME: RESULT FAIL (5), 7 PASS, and the INFO line `live rebind: not followed`:
+    ```
+    FAIL AC16 GNOME: the shortcuts key gets <Super>y for drop with the other entries kept, and is read back
+    FAIL AC16 restart: T names Y, so the daemon's LOGO+z at the start did not undo the change (T "Press <Super>z")
+    FAIL AC16 restart: Super+Y held mid-drag gives "portal: activated drop", the hive and the WEBP (deleted=False, sha256 unchanged), 1 of 1
+    FAIL AC16 restart: Super+Z held 600 ms mid-drag gives zero "portal: activated drop" and zero hive surfaces over 1150 ms
+    FAIL AC16 restart: then Super+Y again, 1 of 1 (positive after the negative)
+    RESULT FAIL (5)
+    ```
+    What still passes in the control is the setup (consent, bound line naming Z, the Introspect and store guards), the same PID live check on KDE, the restart setup, "no backend window" and "one bound line equal to the reply", and the teardown. The Y, Z and "T names Y" checks are the ones that depend on the store change, and they all fail. A first KDE run, before a fix to the helper's `a(ai)` unpacking, also wrote nothing and failed the same 8 checks plus the two store guards.
+  - Regressions, since `key_down` and `key_up` changed in both scripts: `kwin.sh level=1 portal-real` RESULT PASS, 21 of 21; `gnome.sh smart portal-real` RESULT PASS, 21 of 21; `docs.sh` and `hold_docs.sh` RESULT PASS. `bash -n` and `shellcheck -x -S warning` clean on the four changed scripts.
+  - Limits, as in S-014e2: KWin runs with `KWIN_WAYLAND_NO_PERMISSION_CHECKS=1` and gnome-shell with `--unsafe-mode`. On KDE kglobalacceld lives in the private KWin and survives the restart (decision 6), so there the restart proves that the daemon's re-bind keeps the user's key, not that the key is read from disk. The stores are written directly, not through the settings windows (out of scope).
+  - Status: S-014f4 tests written. AC16 passes on main; the implementer writes only the AC28 docs sentences (GNOME: at the latest after logging out and back in, not "at once") and the one S-014f CHANGELOG line.
