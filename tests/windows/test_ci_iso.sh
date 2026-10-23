@@ -159,7 +159,7 @@ ac8_ci_adds_windows_cross_and_windows_native_and_leaves_check_alone () {
   removed="$(printf '%s\n' "$diff" | grep -E '^-' | grep -vE '^--- ')"
   added="$(printf '%s\n' "$diff" | grep -E '^\+' | grep -vcE '^\+\+\+ ')"
   assert_eq "AC8: no deleted line in ci.yml against the merge base" "$removed" ""
-  check "AC8: ci.yml has added lines against the merge base (got $added)" test "$added" -gt 0
+  check "AC8: ci.yml has added lines against aa84616 (pre-Windows) (got $added)" test "$added" -gt 0
   ci_check "AC8: job check unchanged" check_unchanged
   ci_check "AC8: windows-cross exists" has_cross
   ci_check "AC8: windows-cross on ubuntu-24.04" cross_runs_on
