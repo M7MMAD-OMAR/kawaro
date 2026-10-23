@@ -96,6 +96,27 @@ pub fn remembers(r: Reason) -> bool {
     r == Reason::Denied
 }
 
+/// What a config reload does to the portal client (S-014f2).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reload {
+    /// Start a new client, after a closing one has ended.
+    Start,
+    /// Close the running client's session and end it.
+    Stop,
+    /// Leave the portal alone.
+    Nothing,
+}
+
+/// The `portal_shortcut` setting `before` and `after` a reload, and whether
+/// a client thread is still running (bound, registering or closing).
+pub fn reload(before: bool, after: bool, running: bool) -> Reload {
+    match (before, after) {
+        (false, true) => Reload::Start,
+        (true, false) if running => Reload::Stop,
+        _ => Reload::Nothing,
+    }
+}
+
 /// Whether `XDG_CURRENT_DESKTOP` (a colon separated list) names a desktop
 /// of `list`.
 pub fn listed(desktops: &str, list: &[&str]) -> bool {

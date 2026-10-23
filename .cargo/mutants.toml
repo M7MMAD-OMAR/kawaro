@@ -77,4 +77,9 @@ exclude_re = [
   # portal client it starts (S-014e1) is covered by tests/drop/portal.sh.
   # Anchored to the daemon file: the CLI's main stays mutated.
   "crates/daemon/src/main.rs:.*replace main -> ExitCode with",
+  # The daemon's reload (S-014f2) re-reads config.toml from $HOME and
+  # rebuilds the windows and the portal client on the event loop; its
+  # portal decision stays mutated in crates/daemon/src/portal.rs, and the
+  # glue is covered by tests/drop/portal.sh live. Anchored to the daemon.
+  "crates/daemon/src/ui.rs:.*replace reload with \\(\\)",
 ]

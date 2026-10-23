@@ -2,11 +2,12 @@
 //! private thread and its own session bus connection, `Registry.Register`
 //! first, then `CreateSession` and one `BindShortcuts`, then the portal's
 //! `Activated` and `Deactivated` into the long press gate, the one that
-//! `sbarhive drop --hold` and `--release` feed. Every decision is in
-//! `portal.rs`; this file runs on a live bus only and is covered by
-//! tests/drop/portal.sh.
+//! `sbarhive drop --hold` and `--release` feed. The `portal_shortcut`
+//! switch applies live (S-014f2): a reload starts a client or stops the
+//! running one, at most one at a time. Every decision is in `portal.rs`;
+//! this file runs on a live bus only and is covered by tests/drop/portal.sh.
 
-use crate::portal::{self, Reason};
+use crate::portal::{self, Reason, Reload};
 use crate::state::{Shared, lock};
 use crate::ui;
 use ashpd::desktop::global_shortcuts::{GlobalShortcuts, NewShortcut};
@@ -14,12 +15,72 @@ use ashpd::desktop::{ResponseError, Session};
 use ashpd::zbus;
 use ashpd::zbus::zvariant::{self, OwnedObjectPath, OwnedValue};
 use futures_util::StreamExt;
+use futures_util::future::{Either, poll_fn, select};
+use futures_util::task::AtomicWaker;
 use sbarhive_core::config::Config;
 use sbarhive_core::i18n::Lang;
 use std::collections::HashMap;
+use std::pin::pin;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::task::Poll;
+use std::thread::JoinHandle;
 use std::time::Instant;
 
 const DESKTOP: &str = "org.freedesktop.portal.Desktop";
+
+/// A request to end a client: wakes its thread wherever it waits.
+#[derive(Default)]
+struct Stop {
+    set: AtomicBool,
+    waker: AtomicWaker,
+}
+
+impl Stop {
+    fn request(&self) {
+        self.set.store(true, Ordering::SeqCst);
+        self.waker.wake();
+    }
+
+    async fn wait(&self) {
+        poll_fn(|cx| {
+            self.waker.register(cx.waker());
+            if self.set.load(Ordering::SeqCst) {
+                Poll::Ready(())
+            } else {
+                Poll::Pending
+            }
+        })
+        .await
+    }
+}
+
+/// The latest client thread, running or ended.
+struct Client {
+    stop: Arc<Stop>,
+    thread: JoinHandle<()>,
+}
+
+static CLIENT: Mutex<Option<Client>> = Mutex::new(None);
+
+fn client() -> MutexGuard<'static, Option<Client>> {
+    CLIENT.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// Follows a change of `portal_shortcut` in a reload (the 2 s poll or a
+/// settings Save, both through `ui::reload`).
+pub fn follow(before: bool, after: bool, lang: Lang, state: &Shared) {
+    let running = client().as_ref().is_some_and(|c| !c.thread.is_finished());
+    match portal::reload(before, after, running) {
+        Reload::Start => start(true, lang, state.clone()),
+        Reload::Stop => {
+            if let Some(c) = client().as_ref() {
+                c.stop.request();
+            }
+        }
+        Reload::Nothing => {}
+    }
+}
 
 /// Starts the client, or prints why it does not start. `enabled` is the
 /// `portal_shortcut` setting.
@@ -31,20 +92,29 @@ pub fn start(enabled: bool, lang: Lang, state: Shared) {
     if portal::listed(&desktops, portal::NO_RELEASE) {
         return sbarhive_ui::stderr_line(&portal::unavailable_line(Reason::NoRelease));
     }
+    let mut slot = client();
+    let old = slot.take();
+    let stop = Arc::new(Stop::default());
+    let own = stop.clone();
     let spawned = std::thread::Builder::new()
         .name("sbarhive-portal".into())
         .spawn(move || {
+            // At most one client: a closing one ends first.
+            if let Some(old) = old {
+                let _ = old.thread.join();
+            }
             // No portal call after the fallback line, Session.Close
             // included: the portal drops the session with the connection.
-            if let Some(r) = zbus::block_on(run(lang, &state)) {
+            if let Some(r) = zbus::block_on(run(lang, &state, &own)) {
                 if portal::remembers(r) {
                     remember(&state);
                 }
                 sbarhive_ui::stderr_line(&portal::unavailable_line(r));
             }
         });
-    if let Err(e) = spawned {
-        eprintln!("sbarhived: portal thread: {e}");
+    match spawned {
+        Ok(thread) => *slot = Some(Client { stop, thread }),
+        Err(e) => eprintln!("sbarhived: portal thread: {e}"),
     }
 }
 
@@ -64,9 +134,31 @@ async fn present(conn: &zbus::Connection) -> bool {
         .is_ok_and(|names| names.iter().any(|n| n.as_str() == DESKTOP))
 }
 
+/// Runs the client until it falls back or `stop` is requested. A stop
+/// closes the session, if there is one, and returns `Off`; the caller
+/// prints the line once the connection is dropped.
+async fn run(lang: Lang, state: &Shared, stop: &Stop) -> Option<Reason> {
+    let mut session = None;
+    {
+        let work = pin!(serve(lang, state, &mut session));
+        if let Either::Right((r, _)) = select(pin!(stop.wait()), work).await {
+            return r;
+        }
+    }
+    if let Some(s) = &session {
+        let _ = s.close().await;
+    }
+    Some(Reason::Off)
+}
+
 /// Registers and binds, then feeds the signals to the gate until the
-/// connection ends. Returns the reason of a fallback.
-async fn run(lang: Lang, state: &Shared) -> Option<Reason> {
+/// connection ends. Returns the reason of a fallback. The session is kept
+/// in `slot` so that a stop can close it.
+async fn serve(
+    lang: Lang,
+    state: &Shared,
+    slot: &mut Option<Session<GlobalShortcuts>>,
+) -> Option<Reason> {
     let Ok(conn) = zbus::Connection::session().await else {
         return Some(Reason::NoPortal);
     };
@@ -90,9 +182,10 @@ async fn run(lang: Lang, state: &Shared) -> Option<Reason> {
     if let Some(r) = portal::interface_reason(Some(gs.version())) {
         return Some(r);
     }
-    let Ok(session) = gs.create_session(Default::default()).await else {
+    let Ok(created) = gs.create_session(Default::default()).await else {
         return Some(Reason::Error);
     };
+    let session = slot.insert(created);
     // Before the bind, so no signal after the bound line is missed. One
     // stream keeps Activated and Deactivated in their order.
     let Ok(mut signals) = gs.receive_all_signals().await else {
@@ -101,7 +194,7 @@ async fn run(lang: Lang, state: &Shared) -> Option<Reason> {
     let shortcut = NewShortcut::new(portal::SHORTCUT_ID, portal::description(lang))
         .preferred_trigger(portal::PREFERRED_TRIGGER);
     let reply = match gs
-        .bind_shortcuts(&session, &[shortcut], None, Default::default())
+        .bind_shortcuts(session, &[shortcut], None, Default::default())
         .await
     {
         Ok(request) => request.response(),
@@ -123,7 +216,7 @@ async fn run(lang: Lang, state: &Shared) -> Option<Reason> {
         .unwrap_or_default();
     sbarhive_ui::stderr_line(&portal::bound_line(&trigger));
 
-    let Some(own) = session_path(&session) else {
+    let Some(own) = session_path(session) else {
         return Some(Reason::Error);
     };
     let debug = std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some();
@@ -165,14 +258,16 @@ fn remember(state: &Shared) {
     let Some(path) = Config::path() else {
         return;
     };
+    // Decision 3: the in-memory key is false before the file is, under the
+    // lock a reload takes, so the reload of this write sees no switch change.
+    let mut st = lock(state);
     let (mut config, warning) = Config::load_from(&path);
     if warning.is_some() {
         return;
     }
+    st.config.portal_shortcut = false;
     config.portal_shortcut = false;
     if let Err(e) = config.save_to(&path) {
         eprintln!("sbarhived: cannot save {}: {e}", path.display());
-        return;
     }
-    lock(state).config.portal_shortcut = false;
 }

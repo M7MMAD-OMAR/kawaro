@@ -65,7 +65,7 @@ To change the key: on GNOME, open Settings, then Apps, choose SbarHive, then Glo
 
 The portal shortcut works by holding, not by a tap: hold Super+Z during a drag and the hive shows after the long press (`hold_ms`, 400 ms by default), then closes when you let the key go. A short tap shows nothing.
 
-If you refuse the dialog, the daemon remembers it as `portal_shortcut = false` in `~/.config/sbarhive/config.toml` and does not ask again at the next login. To turn registration back on, set `portal_shortcut = true` in that file, or delete the line, then restart the daemon: `systemctl --user restart sbarhive`. Without a systemd user session, log out and back in instead.
+If you refuse the dialog, the daemon remembers it as `portal_shortcut = false` in `~/.config/sbarhive/config.toml` and does not ask again at the next login. The settings switch "Register the drop shortcut with the desktop" turns registration back on or off. It applies within seconds, with no restart of the daemon. With the switch off, the daemon does not use the portal, and the manual bind above is the way to show the hive.
 
 Where there is no portal (an older GNOME or KDE, or another desktop), the manual bind above stays the way to set the shortcut.
 

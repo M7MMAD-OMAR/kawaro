@@ -140,14 +140,18 @@ fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) {
 }
 
 /// Re-reads settings and actions, then follows a language or theme change in
-/// the tray and the windows. Runs on the event loop thread.
+/// the tray and the windows, and a `portal_shortcut` change in the portal
+/// client (S-014f2). Runs on the event loop thread.
 pub fn reload(state: &Shared, queue: &Arc<Queue>) {
-    let (before, after) = {
+    let (before, after, portal) = {
         let mut st = lock(state);
         let before = (st.lang, st.config.theme);
+        let was = st.config.portal_shortcut;
         st.reload();
-        (before, (st.lang, st.config.theme))
+        let portal = (was, st.config.portal_shortcut);
+        (before, (st.lang, st.config.theme), portal)
     };
+    crate::portal_bus::follow(portal.0, portal.1, after.0, state);
     if before.0 != after.0 {
         crate::tray::set_lang(after.0);
     }
