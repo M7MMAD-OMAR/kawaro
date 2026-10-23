@@ -168,7 +168,15 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn s028_ac6_the_same_stream_writes_the_reply_after_read_request() {
-        let (mut server, mut client) = std::os::unix::net::UnixStream::pair().unwrap();
+        use sbarhive_core::transport::{Bound, Endpoint, Listener, Stream};
+        let dir = tempfile::tempdir().unwrap();
+        let e = Endpoint::from_path(dir.path().join("sbarhive.sock"));
+        let listener = match Listener::bind(&e).unwrap() {
+            Bound::Listening(l) => l,
+            Bound::AlreadyRunning => panic!("nothing listens yet, bind must listen"),
+        };
+        let mut client = Stream::connect(&e).unwrap();
+        let mut server = listener.accept().unwrap();
         client.write_all(b"{\"cmd\":\"ping\"}\n").unwrap();
         let line = read_request(&mut server).unwrap();
         assert_eq!(line.trim_end(), "{\"cmd\":\"ping\"}");
