@@ -1,0 +1,148 @@
+sbarhive.exe:     file format pei-x86-64
+/home/sbarah/.cache/sbarhive-win-target/x86_64-pc-windows-gnu/release/sbarhive.exe:     file format pei-x86-64
+
+Characteristics 0x22e
+	executable
+	line numbers stripped
+	symbols stripped
+	large address aware
+	debugging information removed
+
+Time/Date		Thu Oct 22 17:39:47 2026
+Magic			020b	(PE32+)
+MajorLinkerVersion	2
+MinorLinkerVersion	46
+SizeOfCode		00000000006f2200
+SizeOfInitializedData	000000000016ee00
+SizeOfUninitializedData	0000000000000400
+AddressOfEntryPoint	0000000000001400
+BaseOfCode		0000000000001000
+ImageBase		0000000140000000
+SectionAlignment	00001000
+FileAlignment		00000200
+MajorOSystemVersion	4
+MinorOSystemVersion	0
+MajorImageVersion	0
+MinorImageVersion	0
+MajorSubsystemVersion	5
+MinorSubsystemVersion	2
+Win32Version		00000000
+SizeOfImage		00868000
+SizeOfHeaders		00000400
+CheckSum		0086fc83
+Subsystem		00000003	(Windows CUI)
+DllCharacteristics	00000160
+					HIGH_ENTROPY_VA
+					DYNAMIC_BASE
+					NX_COMPAT
+SizeOfStackReserve	0000000000200000
+SizeOfStackCommit	0000000000001000
+SizeOfHeapReserve	0000000000100000
+SizeOfHeapCommit	0000000000001000
+LoaderFlags		00000000
+NumberOfRvaAndSizes	00000010
+
+The Data Directory
+Entry 0 0000000000000000 00000000 Export Directory [.edata (or where ever we found it)]
+Entry 1 0000000000860000 00001984 Import Directory [parts of .idata]
+Entry 2 0000000000000000 00000000 Resource Directory [.rsrc]
+Entry 3 00000000007f5000 0001a850 Exception Directory [.pdata]
+Entry 4 0000000000000000 00000000 Security Directory
+Entry 5 0000000000863000 00004920 Base Relocation Directory [.reloc]
+Entry 6 0000000000000000 00000000 Debug Directory
+Entry 7 0000000000000000 00000000 Description Directory
+Entry 8 0000000000000000 00000000 Special Directory
+Entry 9 00000000007ed5a0 00000028 Thread Storage Directory [.tls]
+Entry a 0000000000000000 00000000 Load Configuration Directory
+Entry b 0000000000000000 00000000 Bound Import Directory
+Entry c 0000000000860630 00000540 Import Address Table Directory
+Entry d 0000000000000000 00000000 Delay Import Directory
+Entry e 0000000000000000 00000000 CLR Runtime Header
+Entry f 0000000000000000 00000000 Reserved
+
+There is an import table in .idata at 0x140860000
+
+The Import Tables (interpreted .idata section contents)
+ vma:            Hint    Time      Forward  DLL       First
+                 Table   Stamp     Chain    Name      Thunk
+ 00860000	008600f0 00000000 00000000 00861660 00860630
+
+	DLL Name: bcryptprimitives.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860630  <none>  0000  ProcessPrng
+
+ 00860014	00860100 00000000 00000000 00861684 00860640
+
+	DLL Name: advapi32.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860640  <none>  0033  ConvertSidToStringSidW
+	00860648  <none>  0079  GetTokenInformation
+	00860650  <none>  00aa  OpenProcessToken
+
+ 00860028	00860120 00000000 00000000 008616a0 00860660
+
+	DLL Name: api-ms-win-core-synch-l1-2-0.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860660  <none>  0000  WaitOnAddress
+	00860668  <none>  0001  WakeByAddressAll
+	00860670  <none>  0002  WakeByAddressSingle
+
+ 0086003c	00860140 00000000 00000000 008616c8 00860680
+
+	DLL Name: combase.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860680  <none>  0003  CoTaskMemFree
+
+ 00860050	00860150 00000000 00000000 008617e4 00860690
+
+	DLL Name: kernel32.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860690  <none>  0015  CancelIo
+	00860698  <none>  0016  CancelIoEx
+	008606a0  <none>  0020  CloseHandle
+
+ 00860064	00860378 00000000 00000000 008617f8 008608b8
+
+	DLL Name: ntdll.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	008608b8  <none>  0002  RtlNtStatusToDosError
+
+ 00860078	00860388 00000000 00000000 00861808 008608c8
+
+	DLL Name: shell32.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	008608c8  <none>  0068  SHGetKnownFolderPath
+
+ 0086008c	00860398 00000000 00000000 00861818 008608d8
+
+	DLL Name: user32.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	008608d8  <none>  0002  AllowSetForegroundWindow
+
+ 008600b4	00860508 00000000 00000000 0086195c 00860a48
+
+	DLL Name: msvcrt.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860a48  <none>  007f  __getmainargs
+	00860a50  <none>  0080  __initenv
+	00860a58  <none>  0081  __iob_func
+
+ 008600f0	00860620 00000000 00000000 00861a10 00860b70
+
+	DLL Name: libgcc_s_seh-1.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860b70  <none>  0021  _Unwind_Resume
+
+ 00860104	00860630 00000000 00000000 00861a30 00860b80
+
+	DLL Name: libwinpthread-1.dll
+	vma:     Ordinal  Hint  Member-Name  Bound-To
+	00860b80  <none>  0049  pthread_mutex_lock
+	00860b88  <none>  004c  pthread_mutex_unlock
+
+ 008600dc	00000000 00000000 00000000 00000000 00000000
+
+
+The Function Table (interpreted .pdata section contents)
+vma:			BeginAddress	 EndAddress	  UnwindData
+ 00000001407f5000:	0000000140001000 0000000140001001 0000000140810000

@@ -4576,6 +4576,7 @@ dependencies = [
  "sbarhive-engines",
  "serde_json",
  "tempfile",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4587,6 +4588,7 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.21",
  "toml 0.8.23",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4621,6 +4623,7 @@ dependencies = [
  "thiserror 2.0.21",
  "toml 0.8.23",
  "webp",
+ "windows-sys 0.61.2",
  "zip",
 ]
 

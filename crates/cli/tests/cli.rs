@@ -1,5 +1,6 @@
 //! Runs the `sbarhive` binary with a private HOME, runtime dir and PATH. The
 //! daemon side is a fake socket server in this process, so no window opens.
+#![cfg(unix)]
 
 use sbarhive_core::ipc::{Event, Request, Response};
 use std::io::{BufRead, BufReader, Write};
@@ -384,6 +385,18 @@ fn doctor_reports_tools_found_on_path() {
     assert!(text.contains("missing ffmpeg "), "{text}");
     assert!(text.contains("ok      image"), "{text}");
     assert!(text.contains("missing sbarhived answering"), "{text}");
+}
+
+/// S-022a AC5: `sbarhive doctor` prints `transport::endpoint()`, which on
+/// Linux is the socket in the private runtime dir.
+#[test]
+fn ac5_doctor_prints_the_endpoint_in_the_runtime_dir() {
+    let env = Env::new(None);
+    let o = env.run(&["doctor"]);
+    assert!(o.status.success());
+    let text = stdout(&o);
+    let sock = env.root().join("sbarhive.sock").display().to_string();
+    assert!(text.contains(&sock), "{sock} missing from:\n{text}");
 }
 
 /// Like `fake_daemon`, but records raw JSON, so a request the protocol does

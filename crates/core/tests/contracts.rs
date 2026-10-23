@@ -224,6 +224,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
     }
 }
 
+#[cfg(unix)]
 #[test]
 fn socket_path_lives_in_the_runtime_dir() {
     let p = sbarhive_core::ipc::socket_path();

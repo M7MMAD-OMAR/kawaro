@@ -115,7 +115,7 @@ Before any code: ADR 0005 (`docs/adr/0005-windows.md`) settles the installer and
 
 Needs from the maintainer: a code signing certificate for the sparse package and the installer (without it only the legacy menu works and SmartScreen warns), and a Windows machine or VM for live checks.
 
-Stories: written after ADR 0005 is accepted, numbered from the next free story number. Out of scope: macOS.
+Stories: numbered S-040 to S-052 (a block reserved on 2026-10-23, because main had already used S-022 and S-027), per ADR 0005 (proposed): S-040 (IPC over a named pipe), S-041 (paths), S-042 (service start), S-043 (engines), S-044 (build and CI), all done on Linux and the Windows cross build; S-045 (first ui story: cfg gates and the full build), S-046 (hive window and focus), S-047 (drop), S-048 (tray and shortcut), S-049 (notifications), S-050 (Explorer integration), S-051 (installer), S-052 (live checks and the 0.6.0 tag). Out of scope: macOS.
 
 ## Work order
 

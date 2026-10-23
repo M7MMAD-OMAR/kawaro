@@ -101,6 +101,7 @@ fn ac7_input_without_extension() {
     );
 }
 
+#[cfg(unix)]
 #[test]
 fn ac7_dangling_symlink_counts_as_taken() {
     let d = tempfile::tempdir().unwrap();

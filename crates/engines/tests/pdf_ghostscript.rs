@@ -2,6 +2,7 @@
 //! `gs`; without it those tests print a notice and return early.
 
 use lopdf::{Document, Object, Stream, dictionary};
+#[cfg_attr(not(unix), allow(unused_imports))]
 use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Task};
 use sbarhive_engines::pdf::GhostscriptEngine;
 use std::io::Read;
@@ -380,6 +381,7 @@ fn pdf_ghostscript_cancel_kills_gs_and_cleans_up() {
     assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");
 }
 
+#[cfg(unix)]
 #[test]
 fn pdf_ghostscript_identity_and_capabilities() {
     let engine = GhostscriptEngine::default();

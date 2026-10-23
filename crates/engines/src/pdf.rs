@@ -11,9 +11,10 @@
 //! one ZIP (stored, no recompression: PDF pages and PNG are already
 //! compressed) holding `page-001.pdf` or `page-001.png` and so on.
 
+use crate::locate::{self, Program};
 use crate::office::{
-    failure_message, find_program, input_error, is_nonempty_file, move_file, path_dirs, run_child,
-    single_input, timeout_param, work_dir,
+    failure_message, input_error, is_nonempty_file, missing, move_file, run_child, single_input,
+    timeout_param, work_dir,
 };
 use lopdf::{Document, Object, ObjectId, dictionary};
 use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
@@ -28,6 +29,8 @@ pub const GS_DEFAULT_TIMEOUT_S: f64 = 300.0;
 /// 5000 x 7000 pixels per page.
 pub const DPI_RANGE: std::ops::RangeInclusive<i64> = 36..=600;
 pub const DEFAULT_DPI: i64 = 150;
+/// Where to get Ghostscript, for the message when it is missing.
+const GS_URL: &str = "https://ghostscript.com/releases/";
 
 /// Page attributes a page inherits from its ancestors in the page tree.
 const INHERITABLE: [&str; 4] = ["MediaBox", "CropBox", "Resources", "Rotate"];
@@ -265,16 +268,12 @@ pub struct GhostscriptEngine {
 }
 
 impl Default for GhostscriptEngine {
-    /// Uses `gs` (`gswin64c` or `gswin32c` on Windows) from `PATH`, looked up once.
+    /// Uses Ghostscript as `locate::find` sees it (`gs`, or `gswin64c` or
+    /// `gswin32c` on Windows), looked up once.
     fn default() -> Self {
         static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
-        let names: &[&str] = if cfg!(windows) {
-            &["gswin64c.exe", "gswin32c.exe"]
-        } else {
-            &["gs"]
-        };
         let program = FOUND
-            .get_or_init(|| find_program(names, &path_dirs()))
+            .get_or_init(|| locate::find(Program::Ghostscript))
             .clone();
         Self {
             program,
@@ -310,7 +309,7 @@ impl GhostscriptEngine {
         let program = self
             .program
             .clone()
-            .ok_or_else(|| EngineError::Unavailable("Ghostscript (gs)".into()))?;
+            .ok_or_else(|| missing("Ghostscript", GS_URL, None))?;
         let mut cmd = Command::new(&program);
         cmd.args(["-dSAFER", "-dBATCH", "-dNOPAUSE"])
             .args(args)
@@ -323,7 +322,7 @@ impl GhostscriptEngine {
         })
         .map_err(|e| match e {
             EngineError::Io(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                EngineError::Unavailable(format!("{} not found", program.display()))
+                missing("Ghostscript", GS_URL, Some(&program))
             }
             other => other,
         })?;
@@ -655,5 +654,35 @@ mod tests {
             d.set("Parent", mid);
         }
         assert_eq!(inherited(&doc, page, b"CropBox"), None);
+    }
+
+    // S-043b: an engine without a program names Ghostscript and its
+    // download page.
+    #[test]
+    fn ac11_ghostscript_without_program_names_it_and_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("a.pdf");
+        std::fs::write(&input, "%PDF-1.4\n").unwrap();
+        let engine = GhostscriptEngine {
+            program: None,
+            ..GhostscriptEngine::with_program("unused")
+        }
+        .temp_root(dir.path());
+        for op in ["compress", "to-images"] {
+            let t = Task {
+                action_id: format!("test.{op}"),
+                op: op.into(),
+                params: toml::from_str("").unwrap(),
+                inputs: vec![input.clone()],
+                output: dir.path().join("out"),
+            };
+            match engine.run(&t, &|_| {}, &CancelToken::new()) {
+                Err(EngineError::Unavailable(m)) => {
+                    assert!(m.contains("Ghostscript"), "{op}: {m}");
+                    assert!(m.contains("https://ghostscript.com/releases/"), "{op}: {m}");
+                }
+                other => panic!("{op}: expected Unavailable, got {other:?}"),
+            }
+        }
     }
 }

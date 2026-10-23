@@ -7,6 +7,7 @@
 //! hidden temporary name. The pure planning functions below build the whole
 //! command line, so they are unit tested without spawning anything.
 
+use crate::locate::{self, Program};
 use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
@@ -21,6 +22,8 @@ use std::time::Duration;
 pub const STDERR_TAIL: usize = 20;
 /// How often the run loop wakes up to look at the cancel token.
 const CANCEL_POLL: Duration = Duration::from_millis(50);
+/// Where to get FFmpeg, for the message when it is missing.
+const FFMPEG_URL: &str = "https://ffmpeg.org/download.html";
 
 const OPS: &[(&str, MediaKind)] = &[
     ("convert-video", MediaKind::Video),
@@ -41,8 +44,14 @@ pub struct FfmpegEngine {
 }
 
 impl Default for FfmpegEngine {
+    /// Uses `ffmpeg` and `ffprobe` as `locate::find` sees them. A program
+    /// not found keeps its bare name, so the error names it.
     fn default() -> Self {
-        Self::with_binaries("ffmpeg", "ffprobe")
+        let bin = |program, name: &str| locate::find(program).unwrap_or_else(|| name.into());
+        Self::with_binaries(
+            bin(Program::Ffmpeg, "ffmpeg"),
+            bin(Program::Ffprobe, "ffprobe"),
+        )
     }
 }
 
@@ -62,7 +71,7 @@ impl FfmpegEngine {
                 if !runs_ok(&self.ffmpeg, &["-version"]) || !runs_ok(&self.ffprobe, &["-version"]) {
                     return None;
                 }
-                let out = Command::new(&self.ffmpeg)
+                let out = command(&self.ffmpeg)
                     .args(["-hide_banner", "-encoders"])
                     .stdin(Stdio::null())
                     .stderr(Stdio::null())
@@ -74,7 +83,7 @@ impl FfmpegEngine {
     }
 
     fn probe(&self, input: &Path) -> MediaInfo {
-        let out = Command::new(&self.ffprobe)
+        let out = command(&self.ffprobe)
             .args(["-v", "error", "-show_entries"])
             .arg("format=duration:stream=codec_type,codec_name,width,height")
             .args(["-of", "flat"])
@@ -88,8 +97,21 @@ impl FfmpegEngine {
     }
 }
 
+/// Every ffmpeg and ffprobe command starts here, so none opens a console
+/// window on Windows.
+fn command(bin: &Path) -> Command {
+    #[cfg_attr(not(windows), allow(unused_mut))]
+    let mut cmd = Command::new(bin);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(crate::office::tree::CREATE_NO_WINDOW);
+    }
+    cmd
+}
+
 fn runs_ok(bin: &Path, args: &[&str]) -> bool {
-    Command::new(bin)
+    command(bin)
         .args(args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -130,7 +152,7 @@ impl Engine for FfmpegEngine {
         cancel.check()?;
         let encoders = self.encoders().ok_or_else(|| {
             EngineError::Unavailable(format!(
-                "`{}` or `{}` not found",
+                "`{}` or `{}` not found; install FFmpeg from {FFMPEG_URL}",
                 self.ffmpeg.display(),
                 self.ffprobe.display()
             ))
@@ -145,7 +167,7 @@ impl Engine for FfmpegEngine {
         let ext = sbarhive_core::media::extension(&task.output);
         let codec_args = plan(&task.op, &ext, &params, &info, encoders)?;
         let args = command_args(input, &task.output, &ext, codec_args)?;
-        let child = Command::new(&self.ffmpeg)
+        let child = command(&self.ffmpeg)
             .args(args)
             .stdin(Stdio::null())
             .stdout(Stdio::piped())

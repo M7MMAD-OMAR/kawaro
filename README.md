@@ -94,6 +94,23 @@ Open Settings from the SbarHive tray icon, or edit
 place (next to the original or in a subfolder) and quality preset. Your own
 actions go in `~/.config/sbarhive/actions/*.toml`.
 
+On Windows the settings file is `%APPDATA%\SbarHive\config.toml`, your own
+actions go in `%APPDATA%\SbarHive\actions\*.toml`. A service log in
+`%LOCALAPPDATA%\SbarHive\logs\` is planned for S-045 and not written yet.
+
+On Windows `sbarhive open` starts the service, `sbarhived.exe`, from the
+program folder when it is not running, and it is meant to keep running after
+the terminal closes. The Windows service itself is not built yet (S-045), and
+this behaviour is not verified live (S-052).
+
+SbarHive does not download the external engines on Windows. It looks for
+them in `PATH` first, then in their usual install folders: LibreOffice in
+`%ProgramFiles%\LibreOffice\program`, Ghostscript in the newest
+`%ProgramFiles%\gs\gs*\bin`, FFmpeg in the `ffmpeg\bin` folder next to
+`sbarhive.exe`, then in the Windows registry for LibreOffice and
+Ghostscript. When an engine is missing, the error names it and links to its
+download page.
+
 `hold_ms` is the long press, in milliseconds, before `sbarhive drop --hold`
 shows the hive: 400 by default, accepted from 100 to 2000; any other value
 falls back to the default with a warning in the log. It is read at every

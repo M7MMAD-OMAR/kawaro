@@ -20,13 +20,29 @@
 # session bus only, on its own thread and connection; it is covered by
 # tests/drop/portal.sh. Its decisions stay mutated in
 # crates/daemon/src/portal.rs (S-014e decision 5).
+# The Windows named pipe (S-040a seed, S-040b pipe) builds for Windows only;
+# its decisions stay mutated in transport.rs and transport/deadline.rs.
+# The Windows known folders and place function (S-041) build for Windows
+# only; the choices stay mutated in paths.rs and output_impl.rs.
+# The Windows service start and foreground grant (S-042) build for Windows
+# only; the flags, the retry and the grant stay mutated in spawn.rs.
+# The Windows job object for engine process trees (S-043a) builds for Windows
+# only; the start sequence, thread filter and exe check stay mutated in
+# office/tree.rs.
+# The Windows registry reader (S-043b) builds for Windows only; the lookup
+# order that reads it stays mutated in locate.rs.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
+  "crates/engines/src/locate/windows.rs",
   "crates/ui/src/receiver.rs",
   "crates/ui/src/layer.rs",
   "crates/ui/src/platform.rs",
   "crates/ui/src/a11y.rs",
   "crates/daemon/src/portal_bus.rs",
+  "crates/core/src/transport/windows.rs",
+  "crates/core/src/paths/windows.rs",
+  "crates/core/src/output_impl/windows.rs",
+  "crates/cli/src/spawn/windows.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
@@ -62,6 +78,16 @@ exclude_re = [
   "replace handle with \\(\\)",
   "replace build -> Result",
   "replace present with \\(\\)",
+  # The service's accept loop (S-040a) runs only inside the live daemon;
+  # tests/e2e/run.sh covers it. The transport it accepts from stays mutated.
+  "replace serve with \\(\\)",
+  # The settings watcher (S-041 changed its import and its one call to the
+  # actions folder) is an endless poll loop that posts a reload to the Slint event loop, so no unit test can
+  # run it; its stamp() stays mutated and tests/e2e/run.sh covers reload.
+  "replace run with \\(\\)$",
+  # A Unix socket has no write buffer: std's flush is already Ok(()), so
+  # this mutant is equivalent.
+  "replace <impl Write for Stream>::flush -> io::Result<\\(\\)> with Ok\\(\\(\\)\\)",
   # The long press gate's daemon side (S-019e): it posts to the Slint event
   # loop, ticks a slint::Timer and shows the live hive, so no unit test can
   # run it. The gate itself is pure and mutated in crates/core/src/hold.rs;
@@ -84,4 +110,21 @@ exclude_re = [
   # portal decision stays mutated in crates/daemon/src/portal.rs, and the
   # glue is covered by tests/drop/portal.sh live. Anchored to the daemon.
   "crates/daemon/src/ui.rs:.*replace reload with \\(\\)",
+  # The client's service binary lookup (S-042 changed it to pass the exe
+  # suffix): its choice is daemon_binary_in, mutated in spawn.rs; this glue
+  # only reads current_exe, and tests/e2e/run.sh "open starts the daemon"
+  # covers it. exec_daemon on Unix replaces the process with the service,
+  # so no test can return from it; S-042 only gated its unchanged body
+  # behind cfg(unix), and its Windows twin is wait_exit, mutated in spawn.rs.
+  "replace daemon_binary -> PathBuf with",
+  "replace exec_daemon -> Result<\\(\\), String> with Ok\\(\\(\\)\\)",
+  # The engine program lookup (S-043b): find only reads the live PATH,
+  # environment, current_exe and registry; its choice is search, mutated in
+  # locate.rs. The Office and Ghostscript tests skip when the program is
+  # absent, and ffmpeg keeps its bare name, which the OS resolves the same
+  # way, so its None mutant is not observable. The empty registry off
+  # Windows is never asked there (search stops after PATH on Unix).
+  "replace find -> Option<PathBuf> with None",
+  "replace <impl Registry for SystemRegistry>::value -> Option<String> with",
+  "replace <impl Registry for SystemRegistry>::subkeys -> Vec<String> with",
 ]

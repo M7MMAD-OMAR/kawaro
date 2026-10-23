@@ -10,6 +10,7 @@ macro_rules! out {
 
 mod client;
 mod clipboard;
+mod spawn;
 
 use clap::{Parser, Subcommand};
 use sbarhive_core::i18n::Lang;
@@ -224,19 +225,12 @@ fn engine_for(id: &str) -> Res<Arc<dyn Engine>> {
 
 fn registry() -> Registry {
     let mut reg = Registry::builtin();
-    if let Some(dir) = user_actions_dir()
+    if let Some(dir) = sbarhive_core::config::Config::actions_dir()
         && let Err(e) = reg.add_dir(&dir)
     {
         eprintln!("sbarhive: ignoring user actions: {e}");
     }
     reg
-}
-
-fn user_actions_dir() -> Option<PathBuf> {
-    let base = std::env::var_os("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
-        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-    Some(base.join("sbarhive").join("actions"))
 }
 
 fn available_ids() -> Vec<String> {
@@ -381,7 +375,7 @@ fn doctor() {
     out!(
         "  {} sbarhived answering on {}",
         mark(client::daemon_up()),
-        sbarhive_core::ipc::socket_path().display()
+        sbarhive_core::transport::endpoint()
     );
 }
 

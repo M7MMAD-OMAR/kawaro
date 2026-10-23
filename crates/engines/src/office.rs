@@ -10,6 +10,7 @@
 //! Ghostscript engine: its own process group, a timeout, and cancellation,
 //! both of which kill the whole group.
 
+use crate::locate::{self, Program};
 use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
@@ -36,12 +37,10 @@ pub struct OfficeEngine {
 }
 
 impl Default for OfficeEngine {
-    /// Uses `soffice` or `libreoffice` from `PATH`, looked up once per process.
+    /// Uses LibreOffice as `locate::find` sees it, looked up once per process.
     fn default() -> Self {
         static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
-        let program = FOUND
-            .get_or_init(|| find_program(&["soffice", "libreoffice"], &path_dirs()))
-            .clone();
+        let program = FOUND.get_or_init(|| locate::find(Program::Office)).clone();
         Self {
             program,
             prefix_args: Vec::new(),
@@ -100,7 +99,7 @@ impl Engine for OfficeEngine {
         let program = self
             .program
             .clone()
-            .ok_or_else(|| EngineError::Unavailable("LibreOffice (soffice)".into()))?;
+            .ok_or_else(|| missing("LibreOffice", OFFICE_URL, None))?;
 
         let work = work_dir(self.temp_root.as_deref(), "sbarhive-office-")?;
         let profile = work.path().join("profile");
@@ -131,7 +130,7 @@ impl Engine for OfficeEngine {
             .env("SAL_USE_VCLPLUGIN", "svp");
         let outcome = run_child(&mut cmd, cancel, timeout, &mut |_| {}).map_err(|e| match e {
             EngineError::Io(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                EngineError::Unavailable(format!("{} not found", program.display()))
+                missing("LibreOffice", OFFICE_URL, Some(&program))
             }
             other => other,
         })?;
@@ -260,12 +259,35 @@ pub(crate) fn failure_message(what: &str, status: ExitStatus, stderr: &str) -> S
     }
 }
 
-/// `file://` URL for an absolute path, percent-encoding every byte outside
-/// the unreserved set and `/`.
+/// Where to get LibreOffice, for the message when it is missing.
+const OFFICE_URL: &str = "https://www.libreoffice.org/download/";
+
+/// The error for a program that is not installed: its name, the path tried
+/// if any, and where to get it.
+pub(crate) fn missing(name: &str, url: &str, tried: Option<&Path>) -> EngineError {
+    let tried = tried.map_or(String::new(), |p| format!(" at {}", p.display()));
+    EngineError::Unavailable(format!("{name} not found{tried}; install it from {url}"))
+}
+
+/// `file://` URL for an absolute path of this system.
 fn file_url(path: &Path) -> String {
+    file_url_str(&path.to_string_lossy(), cfg!(windows))
+}
+
+/// `file://` URL for an absolute path, percent-encoding every byte outside
+/// the unreserved set and `/`. A Windows path (`C:\a`, or `\\?\C:\a`)
+/// becomes `file:///C:/a`, keeping the drive colon.
+fn file_url_str(path: &str, windows: bool) -> String {
     let mut url = String::from("file://");
-    for byte in path.to_string_lossy().bytes() {
-        if byte.is_ascii_alphanumeric() || b"/-._~".contains(&byte) {
+    let (path, keep): (String, &[u8]) = if windows {
+        url.push('/');
+        let path = path.strip_prefix(r"\\?\").unwrap_or(path);
+        (path.replace('\\', "/"), b"/-._~:")
+    } else {
+        (path.to_string(), b"/-._~")
+    };
+    for byte in path.bytes() {
+        if byte.is_ascii_alphanumeric() || keep.contains(&byte) {
             url.push(byte as char);
         } else {
             url.push_str(&format!("%{byte:02X}"));
@@ -294,12 +316,14 @@ fn is_executable(path: &Path) -> bool {
     std::fs::metadata(path).is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
 }
 
+pub(crate) mod tree;
+
 // The non-Unix versions live in their own file, so `.cargo/mutants.toml`
 // can leave them out: a Linux build never compiles them.
 #[cfg(not(unix))]
 mod non_unix;
 #[cfg(not(unix))]
-use non_unix::{is_executable, kill_group};
+use non_unix::is_executable;
 
 pub(crate) struct ChildOutcome {
     pub status: ExitStatus,
@@ -328,7 +352,11 @@ pub(crate) fn run_child(
         use std::os::unix::process::CommandExt;
         cmd.process_group(0);
     }
+    #[cfg(unix)]
     let mut child = cmd.spawn()?;
+    // On Windows a kill-on-close job holds the tree (ADR 0005 section 3).
+    #[cfg(not(unix))]
+    let (job, mut child) = non_unix::spawn_in_job(cmd)?;
     let (line_tx, lines) = mpsc::channel::<String>();
     let stdout = child.stdout.take().expect("stdout is piped");
     std::thread::spawn(move || {
@@ -378,7 +406,10 @@ pub(crate) fn run_child(
         }
     };
     // Also on success: nothing the tool left running may outlive the task.
+    #[cfg(unix)]
     kill_group(&mut child);
+    #[cfg(not(unix))]
+    non_unix::terminate_job(&job);
     let status = match stop {
         Ok(status) => status,
         Err(e) => {
@@ -462,6 +493,7 @@ mod tests {
         assert_eq!(file_url(Path::new("/ü")), "file:///%C3%BC");
     }
 
+    #[cfg(unix)]
     #[test]
     fn office_find_program_respects_name_order_and_exec_bit() {
         use std::os::unix::fs::PermissionsExt;
@@ -588,5 +620,66 @@ mod tests {
         assert!(!is_nonempty_file(&dir.path().join("missing")));
         // Rename fails into a missing directory, and the copy fallback reports it.
         assert!(move_file(&b, &dir.path().join("no/such/dir/c")).is_err());
+    }
+
+    // S-025b. `file_url_str(path: &str, windows: bool) -> String`, and an
+    // engine without a program names LibreOffice and its download page.
+
+    #[test]
+    fn ac10_file_url_str_windows_drive_letter_and_space() {
+        assert_eq!(file_url_str("C:\\a b\\x", true), "file:///C:/a%20b/x");
+    }
+
+    #[test]
+    fn ac10_file_url_str_windows_arabic_name() {
+        assert_eq!(
+            file_url_str("C:\\ملف.docx", true),
+            "file:///C:/%D9%85%D9%84%D9%81.docx"
+        );
+    }
+
+    #[test]
+    fn ac10_file_url_str_windows_drops_verbatim_prefix() {
+        assert_eq!(file_url_str("\\\\?\\C:\\a", true), "file:///C:/a");
+    }
+
+    #[test]
+    fn ac10_file_url_str_unix_unchanged() {
+        assert_eq!(file_url_str("/a b/c", false), "file:///a%20b/c");
+        assert_eq!(
+            file_url_str("/tmp/a b/p%1", false),
+            "file:///tmp/a%20b/p%251"
+        );
+        assert_eq!(file_url_str("/ü", false), "file:///%C3%BC");
+        if !cfg!(windows) {
+            assert_eq!(file_url(Path::new("/a b/c")), file_url_str("/a b/c", false));
+        }
+    }
+
+    #[test]
+    fn ac11_office_without_program_names_libreoffice_and_link() {
+        let dir = tempfile::tempdir().unwrap();
+        let input = dir.path().join("a.txt");
+        std::fs::write(&input, "x").unwrap();
+        let engine = OfficeEngine {
+            program: None,
+            ..OfficeEngine::with_program("unused", vec![])
+        }
+        .temp_root(dir.path());
+        let task = Task {
+            action_id: "test.to-pdf".into(),
+            op: "to-pdf".into(),
+            params: toml::from_str("").unwrap(),
+            inputs: vec![input],
+            output: dir.path().join("a.pdf"),
+        };
+        let r = engine.run(&task, &|_| {}, &CancelToken::new());
+        match r {
+            Err(EngineError::Unavailable(m)) => {
+                assert!(m.contains("LibreOffice"), "{m}");
+                assert!(m.contains("https://www.libreoffice.org/download/"), "{m}");
+            }
+            other => panic!("expected Unavailable, got {other:?}"),
+        }
     }
 }

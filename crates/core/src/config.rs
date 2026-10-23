@@ -1,6 +1,7 @@
-//! User settings in `~/.config/sbarhive/config.toml`. Every field has a
-//! default, unknown keys are ignored, and a broken file falls back to the
-//! defaults with a warning instead of stopping the daemon.
+//! User settings in `config.toml` inside [`crate::paths::config_dir`]
+//! (`~/.config/sbarhive` on Linux, `%APPDATA%\SbarHive` on Windows). Every
+//! field has a default, unknown keys are ignored, and a broken file falls
+//! back to the defaults with a warning instead of stopping the daemon.
 
 use crate::i18n::Lang;
 use serde::{Deserialize, Serialize};
@@ -127,10 +128,12 @@ impl Default for Config {
 
 impl Config {
     pub fn path() -> Option<PathBuf> {
-        let base = std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))?;
-        Some(base.join("sbarhive").join("config.toml"))
+        crate::paths::config_dir().map(|d| d.join("config.toml"))
+    }
+
+    /// The folder of the user's own actions, `actions/` next to `config.toml`.
+    pub fn actions_dir() -> Option<PathBuf> {
+        crate::paths::config_dir().map(|d| d.join("actions"))
     }
 
     /// Defaults when the file is missing; defaults plus a warning when it is broken.
