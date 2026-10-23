@@ -66,8 +66,10 @@ exclude_re = [
   # loop, ticks a slint::Timer and shows the live hive, so no unit test can
   # run it. The gate itself is pure and mutated in crates/core/src/hold.rs;
   # this glue is covered by tests/drop/kwin.sh level=1 (held, tap,
-  # hold-over, lone release, hold_ms), tests/drop/budget.sh 20 1 hold and
-  # tests/hyprland/repro.sh --json --quasimode.
+  # hold-over, lone release, hold_ms), tests/drop/budget.sh 20 1 hold,
+  # tests/hyprland/repro.sh --json --quasimode, and for the portal token
+  # (S-014f3) tests/drop/portal.sh ac15 and tests/drop/gnome.sh ... portal.
+  # The token rule itself is mutated in crates/daemon/src/portal.rs.
   "in hold_signal$",
   "replace hold_signal with",
   "in gate_tick$",
