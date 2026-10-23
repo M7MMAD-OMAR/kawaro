@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 منتهية (المراجعة 2: PASS)؛ S-014f: draft (2026-10-23, for 0.4.0, split into S-014f1 to S-014f4), awaiting the manager's approval
+الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 منتهية (المراجعة 2: PASS)؛ S-014f: approved (2026-10-23, for 0.4.0, split into S-014f1 to S-014f4); S-014f1 tests written (2026-10-23), for the implementer
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -679,3 +679,34 @@
     7. New key in the tests: Super+Y. No Ctrl, Alt or Shift, which change the drop action mid-drag (decision of 2026-10-20).
   - Gates for every sub-story, inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, `CARGO_BUILD_JOBS=1`, one private compositor and private bus at a time; the real portal only in the `portal-real` modes and `tests/hyprland/repro.sh --portal`: `tests/drop/portal.sh` (all phases), `tests/drop/deps.sh`, `tests/drop/gnome.sh smart portal`, `gnome.sh smart portal-real`, `kwin.sh level=1 portal-real`, `tests/hyprland/repro.sh --portal` (f2 and f3 change `portal_bus.rs`, which runs under xdph too), `tests/drop/portal_docs.sh`; `tests/overlay/focus.sh` default cases (green since S-027: 51 PASS); `crates/ui/tests/settings_snapshots.sh` (S-014f1 onward; the new references need the manager's approval); `cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all`, `cargo mutants --in-diff` on the changed files, `scripts/design-lint.sh`; one CHANGELOG line in English and Arabic, in S-014f4 for the whole of S-014f.
 - 2026-10-23, manager under the maintainer's delegation: S-014f (f1 to f4) is approved with the planner's seven decisions. Sub-stories run in order f1, f2, f3, f4. New settings snapshot references are approved by the manager after looking at them, as in S-021b.
+- 2026-10-23, tester (S-014f1 only: AC23, AC24): tests written from the criteria, the table and the manager's approval of the planner's decisions (decision 1: `SwitchRow`, the AC23 wording). Run on main (`e6bb21e`; `git status crates/` clean before the build; only the two test files below changed) inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, `CARGO_BUILD_JOBS=1`, one private compositor (the script's own `kwin_wayland --virtual` and private bus). No production code, `.slint` file or reference image touched. Both fail on main.
+  - Files: `crates/ui/src/settings.rs` (test module only: `label_of` and `ac23_s014f1_portal_shortcut_switch` in `tests::window`); `crates/ui/tests/settings_snapshots.sh` (candidates and retired references).
+  - Contract for the implementer:
+    - Strings: English "Register the drop shortcut with the desktop", Arabic «تسجيل اختصار الإفلات لدى سطح المكتب». They are the `accessible-label` of the new `Switch`, so `find_by_accessible_label` with role `Switch` finds exactly one per language, as for "Notify when done".
+    - Slint: one more `SwitchRow` (the existing component, Material 3 `Switch`), after the "Open the folder when done" row in the same layout, so its switch's y is greater. Suggested names, following the existing rows: a `portal-shortcut` field in `SettingsText` and an `in-out property <bool> portal-shortcut` on `SettingsUi`, bound to the row's `checked`.
+    - `FormState` keeps its seven fields: `form_state_of_the_defaults` builds it with an exhaustive literal, and the implementer may not edit tests. The value flows through the window: `open()` sets the switch from `config.portal_shortcut`, `save()` reads it, so a Save gives `Config { portal_shortcut: <switch>, ..the opened config }`. `s014e1_save_keeps_a_remembered_portal_denial` and its comment stay as they are.
+    - Position: the test takes the row's label as the one `Text` element, apart from the switch, whose vertical span holds the switch's centre (the `SwitchRow` `Text` has `accessible-role: none`, the switch carries the label). English: switch x greater than the label's x; Arabic: smaller. A control on the "Notify when done" row passes on main in both languages (checked by running Arabic first once), so the helper works and the failure is the missing row.
+    - Toggle paths: pointer click on the switch centre before Save (the control proves a click toggles an existing switch), `invoke_accessible_default_action` before Cancel and before Esc. The start config is not the default (`quality = Max`, `hold_ms = 1500`, `hive_surface = layer`), with `portal_shortcut` false and true, in both languages: 2 x 2 cases.
+    - Snapshots: the example `settings_snapshot` is unchanged (it opens the default config, so the switch is on). Every run of `crates/ui/tests/settings_snapshots.sh` copies the four renders to `target/settings-snapshot-candidates/` (or `$CARGO_TARGET_DIR/...`) and prints their count. A missing reference fails with `no approved reference`; a reference whose sha256 is one of the four from before S-014f1 (`725cb5de...`, `99f3bee2...`, `fa41e625...`, `92502b3f...`, listed in the script) fails with `reference predates the S-014f1 portal_shortcut row`, so the old images cannot pass by being kept or restored. The old references stay in place for comparison (removing them was not done). The new references are the manager's: after approval they replace the four files (`--update` or a copy), and then the script compares as before and exits 0.
+  - Failure output, `cargo test -p sbarhive-ui --lib settings`: 14 run, 13 pass, 1 fail (every existing settings test, `s014e1_save_keeps_a_remembered_portal_denial` included, passes):
+    ```
+    test settings::tests::window::ac23_s014f1_portal_shortcut_switch ... FAILED
+    thread 'settings::tests::window::ac23_s014f1_portal_shortcut_switch' panicked at crates/ui/src/settings.rs:589:13:
+    assertion `left == right` failed: Register the drop shortcut with the desktop Switch
+      left: 0
+     right: 1
+    test result: FAILED. 13 passed; 1 failed; 0 ignored; 0 measured; 130 filtered out
+    ```
+    With Arabic first (one throwaway run, order restored): `assertion `left == right` failed: تسجيل اختصار الإفلات لدى سطح المكتب Switch`, `left: 0`, `right: 1`. Right reason: the control row passed just before; no switch has the label.
+  - Failure output, `crates/ui/tests/settings_snapshots.sh`: exit 1, four of four fail, four candidates written (512x661 each):
+    ```
+    FAIL settings-en-dark.png: reference predates the S-014f1 portal_shortcut row (candidate: target/settings-snapshot-candidates/settings-en-dark.png, needs the manager's approval)
+    FAIL settings-en-light.png: reference predates the S-014f1 portal_shortcut row (...)
+    FAIL settings-ar-dark.png: reference predates the S-014f1 portal_shortcut row (...)
+    FAIL settings-ar-light.png: reference predates the S-014f1 portal_shortcut row (...)
+    candidates: 4 in target/settings-snapshot-candidates
+    snapshots: FAILED
+    ```
+    The candidates of this run were rendered on main, before the row exists: they are not for approval. The manager approves candidates from a run after the implementation.
+  - Gates, expected to pass and passing on main: `scripts/design-lint.sh` clean (AC23's lint clause holds today; it must stay clean after the row), `cargo fmt --check` and `cargo clippy -p sbarhive-ui --all-targets -- -D warnings` exit 0.
+  - Status: S-014f1 tests written, for the implementer.

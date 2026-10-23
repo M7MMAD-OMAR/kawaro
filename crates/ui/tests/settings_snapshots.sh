@@ -9,6 +9,12 @@
 # Usage: crates/ui/tests/settings_snapshots.sh [--update]
 #   --update  rewrites the references (review them before committing).
 # Exit code 0 when every snapshot matches.
+#
+# Every run writes the four renders as candidates to $CAND (printed below),
+# so a missing or changed reference can be looked at and approved. A missing
+# reference fails, and so does any of the four references from before
+# S-014f1 (no portal_shortcut row), retired by hash below: new references
+# replace them only after the manager approves the candidates (S-014 AC24).
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
@@ -19,7 +25,14 @@ UPDATE=0
 (cd "$ROOT" && cargo build --quiet --release -p sbarhive-ui --example settings_snapshot) || exit 2
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/settings_snapshot"
 OUT="$(mktemp -d)"
-mkdir -p "$REF"
+CAND="${CARGO_TARGET_DIR:-$ROOT/target}/settings-snapshot-candidates"
+rm -rf "$CAND"
+mkdir -p "$REF" "$CAND"
+# sha256 of the references from before the S-014f1 portal_shortcut row.
+RETIRED="725cb5de093858fde929ca847d672382bbfba77867777aaa97121a3f4c1a87bb
+99f3bee2dcbe7537576a17109d1b88a4ab14a97190f8c4398bd22ad8c47e1e92
+fa41e6257e7fd876f8275438d87e468b21dd83c55f3b4deb47c81e1f858dcc0b
+92502b3f931dc9f5338fdae616e9c5286fade274061182092ed5eff0d4718f41"
 
 inner() {
   unset DISPLAY XDG_ACTIVATION_TOKEN
@@ -35,10 +48,23 @@ inner() {
     for scheme in dark light; do
       local name="settings-$lang-$scheme.png"
       local cmp=(--compare "$REF/$name")
-      [ "$UPDATE" = 1 ] && cmp=()
+      local missing=0
+      if [ "$UPDATE" = 1 ]; then
+        cmp=()
+      elif [ ! -f "$REF/$name" ]; then
+        cmp=(); missing=1
+      elif printf '%s\n' "$RETIRED" | grep -qx "$(sha256sum "$REF/$name" | cut -d' ' -f1)"; then
+        cmp=(); missing=2
+      fi
       if ! SBARHIVE_COLOR_SCHEME=$scheme SBARHIVE_REDUCED_MOTION=1 \
           "$BIN" "$OUT/$name" --lang "$lang" "${cmp[@]}"; then
         echo "FAIL $name (actual: $OUT/$name)"; fail=1
+      fi
+      cp "$OUT/$name" "$CAND/$name" 2>/dev/null
+      if [ $missing = 1 ]; then
+        echo "FAIL $name: no approved reference (candidate: $CAND/$name, needs the manager's approval)"; fail=1
+      elif [ $missing = 2 ]; then
+        echo "FAIL $name: reference predates the S-014f1 portal_shortcut row (candidate: $CAND/$name, needs the manager's approval)"; fail=1
       fi
     done
   done
@@ -48,7 +74,7 @@ inner() {
 }
 
 export -f inner
-export BIN OUT REF UPDATE
+export BIN OUT REF UPDATE CAND RETIRED
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"
@@ -69,6 +95,7 @@ if [ "$UPDATE" = 1 ] && [ $status -eq 0 ]; then
   echo "references updated in $REF"
 fi
 rm -rf "$SANDBOX" "$RUNTIME"
+echo "candidates: $(ls "$CAND"/settings-*.png 2>/dev/null | wc -l) in $CAND"
 if [ $status -eq 0 ]; then
   rm -rf "$OUT"; echo "snapshots: ok"
 else

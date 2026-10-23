@@ -702,6 +702,146 @@ mod tests {
             }
         }
 
+        /// The label of a switch row. Its `Text` has no accessible role (the
+        /// switch carries the label), so it is found by geometry: the one
+        /// `Text` element, apart from the switch, whose vertical span holds
+        /// the switch's centre.
+        fn label_of(win: &SettingsWindow, switch: &ElementHandle) -> ElementHandle {
+            let (p, s) = (switch.absolute_position(), switch.size());
+            let (cx, cy) = (p.x + s.width / 2.0, p.y + s.height / 2.0);
+            let ui = win.inner.ui.borrow();
+            let found: Vec<ElementHandle> = ElementHandle::find_by_element_type_name(&*ui, "Text")
+                .filter(|t| {
+                    let (tp, ts) = (t.absolute_position(), t.size());
+                    ts.width > 0.0
+                        && tp.y <= cy
+                        && cy <= tp.y + ts.height
+                        && !(tp.x <= cx && cx <= tp.x + ts.width)
+                })
+                .collect();
+            assert_eq!(found.len(), 1, "one label Text in the row of {p:?}");
+            found.into_iter().next().unwrap()
+        }
+
+        /// S-014f1 AC23 (backlog/S-014-drop-hive.md): the `portal_shortcut`
+        /// switch. One `Switch` per language with the AC23 label, after
+        /// "Open the folder when done", its state from the opened config,
+        /// Save changes `portal_shortcut` only, Cancel and Esc save nothing,
+        /// and the switch sits at the row's end (right in English, left in
+        /// Arabic).
+        #[test]
+        fn ac23_s014f1_portal_shortcut_switch() {
+            i_slint_backend_testing::init_no_event_loop();
+            for lang in [Lang::En, Lang::Ar] {
+                let en = lang == Lang::En;
+                let (label, open_label, notify_label, save_label, cancel_label) = if en {
+                    (
+                        "Register the drop shortcut with the desktop",
+                        "Open the folder when done",
+                        "Notify when done",
+                        "Save",
+                        "Cancel",
+                    )
+                } else {
+                    (
+                        "تسجيل اختصار الإفلات لدى سطح المكتب",
+                        "فتح المجلد عند الانتهاء",
+                        "إشعار عند الانتهاء",
+                        "حفظ",
+                        "إلغاء",
+                    )
+                };
+                for value in [false, true] {
+                    let ctx = format!("{lang:?} portal_shortcut={value}");
+                    let (win, saved) = wired(lang);
+                    // Not the defaults, so "differs in portal_shortcut
+                    // only" also covers the kept keys.
+                    let start = Config {
+                        quality: Quality::Max,
+                        hold_ms: 1500,
+                        hive_surface: HiveSurface::Layer,
+                        portal_shortcut: value,
+                        ..Config::default()
+                    };
+
+                    // Control: the row lookup works on an existing switch
+                    // row, so a failure below is the new row's absence.
+                    win.open(&start).unwrap();
+                    let notify = find(&win, notify_label, AccessibleRole::Switch);
+                    let notify_text = label_of(&win, &notify);
+                    assert_eq!(
+                        notify.absolute_position().x > notify_text.absolute_position().x,
+                        en,
+                        "{ctx}: control row, switch x against label x"
+                    );
+                    // And a pointer click toggles a switch (twice: no change
+                    // left behind for the Save below).
+                    click(&win, &notify);
+                    assert_eq!(notify.accessible_checked(), Some(!start.notify), "{ctx}");
+                    click(&win, &notify);
+                    assert_eq!(notify.accessible_checked(), Some(start.notify), "{ctx}");
+
+                    // Found once, after "Open the folder when done", state
+                    // from the opened value, x against its label.
+                    let switch = find(&win, label, AccessibleRole::Switch);
+                    assert_eq!(switch.accessible_checked(), Some(value), "{ctx}: opened");
+                    let open = find(&win, open_label, AccessibleRole::Switch);
+                    assert!(
+                        switch.absolute_position().y > open.absolute_position().y,
+                        "{ctx}: below \"{open_label}\""
+                    );
+                    let text = label_of(&win, &switch);
+                    if en {
+                        assert!(
+                            switch.absolute_position().x > text.absolute_position().x,
+                            "{ctx}: English, switch right of its label"
+                        );
+                    } else {
+                        assert!(
+                            switch.absolute_position().x < text.absolute_position().x,
+                            "{ctx}: Arabic, switch left of its label"
+                        );
+                    }
+
+                    // Toggle by pointer, then Save: one Config, only
+                    // portal_shortcut changed.
+                    click(&win, &switch);
+                    assert_eq!(switch.accessible_checked(), Some(!value), "{ctx}: toggled");
+                    click(&win, &find(&win, save_label, AccessibleRole::Button));
+                    assert!(!win.inner.visible(), "{ctx}: Save closes");
+                    assert_eq!(
+                        *saved.borrow(),
+                        [Config {
+                            portal_shortcut: !value,
+                            ..start.clone()
+                        }],
+                        "{ctx}: Save"
+                    );
+                    saved.borrow_mut().clear();
+
+                    // Toggle, then Cancel: nothing saved.
+                    win.open(&start).unwrap();
+                    let switch = find(&win, label, AccessibleRole::Switch);
+                    assert_eq!(switch.accessible_checked(), Some(value), "{ctx}: reopened");
+                    switch.invoke_accessible_default_action();
+                    assert_eq!(switch.accessible_checked(), Some(!value), "{ctx}: toggled");
+                    click(&win, &find(&win, cancel_label, AccessibleRole::Button));
+                    assert!(!win.inner.visible(), "{ctx}: Cancel closes");
+                    assert!(saved.borrow().is_empty(), "{ctx}: Cancel saves nothing");
+
+                    // Toggle, then Esc: nothing saved.
+                    win.open(&start).unwrap();
+                    let switch = find(&win, label, AccessibleRole::Switch);
+                    switch.invoke_accessible_default_action();
+                    assert_eq!(switch.accessible_checked(), Some(!value), "{ctx}: toggled");
+                    key(&win, Key::Escape);
+                    assert!(!win.inner.visible(), "{ctx}: Esc closes");
+                    assert!(saved.borrow().is_empty(), "{ctx}: Esc saves nothing");
+                    win.close();
+                }
+            }
+        }
+
         #[test]
         fn settings_window_behaviour() {
             i_slint_backend_testing::init_no_event_loop();
