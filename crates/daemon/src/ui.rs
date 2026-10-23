@@ -2,6 +2,7 @@
 //! loop: the hive and the settings window. Other threads post work with
 //! `invoke_from_event_loop`.
 
+use crate::portal::{self, TokenStep};
 use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
 use sbarhive_core::ActionDef;
@@ -235,16 +236,29 @@ pub fn present_drop(centre: &'static str, token: Option<String>, at: Option<(f64
 /// drop hive from its timer, and passes a release on to the hive it showed.
 pub fn hold_signal(signal: Signal, token: Option<String>, now: Instant, state: Shared) {
     let _ = slint::invoke_from_event_loop(move || {
-        let (effect, started) = GATE.with(|g| {
+        let (effect, before, after) = GATE.with(|g| {
             let mut g = g.borrow_mut();
             // hold_ms is read from config.toml at every press (AC18).
             let gate = g.get_or_insert_with(|| Gate::new(|| u64::from(Config::load().0.hold_ms)));
             let before = gate.live_timers();
             let effect = gate.signal(signal, now);
-            (effect, before == 0 && gate.live_timers() == 1)
+            (effect, before, gate.live_timers())
         });
-        if started {
-            HOLD_TOKEN.with(|t| *t.borrow_mut() = token);
+        // The kept token follows the timer (AC15): a key repeat after the
+        // show stores nothing.
+        let step = match (before, after) {
+            (0, 1) => Some(TokenStep::Start(token.as_deref())),
+            (1, 1) => Some(TokenStep::Repeat(token.as_deref())),
+            (1, 0) => Some(TokenStep::End),
+            _ => None,
+        };
+        if let Some(step) = step {
+            HOLD_TOKEN.with(|t| {
+                let kept = portal::kept_token(t.borrow().as_deref(), step).0;
+                *t.borrow_mut() = kept;
+            });
+        }
+        if before == 0 && after == 1 {
             GATE_TIMER.with(|t| {
                 t.start(slint::TimerMode::Repeated, GATE_TICK, move || {
                     gate_tick(&state)
@@ -280,7 +294,11 @@ fn gate_tick(state: &Shared) {
             st.pending = None;
             st.lang
         };
-        let token = HOLD_TOKEN.with(|t| t.borrow_mut().take());
+        let token = HOLD_TOKEN.with(|t| {
+            let (kept, shown) = portal::kept_token(t.borrow().as_deref(), TokenStep::Show);
+            *t.borrow_mut() = kept;
+            shown
+        });
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
                 && let Err(e) = hive.present_drop_hold(text::drop_waiting(lang), token, at)

@@ -226,7 +226,7 @@ async fn serve(
             continue;
         };
         // ShortcutsChanged has another body and is skipped here.
-        let Ok((path, id, _, _)) =
+        let Ok((path, id, _, options)) =
             msg.body()
                 .deserialize::<(OwnedObjectPath, String, u64, HashMap<String, OwnedValue>)>()
         else {
@@ -236,7 +236,17 @@ async fn serve(
             if debug {
                 sbarhive_ui::stderr_line(portal::debug_line(s));
             }
-            ui::hold_signal(s, None, Instant::now(), state.clone());
+            // AC15: the press's activation_token, a string option, goes
+            // with it to the gate, as the IPC token of `drop --hold` does.
+            let strings: Vec<(&str, &str)> = options
+                .iter()
+                .filter_map(|(k, v)| match &**v {
+                    zvariant::Value::Str(t) => Some((k.as_str(), t.as_str())),
+                    _ => None,
+                })
+                .collect();
+            let token = portal::activation_token(&strings);
+            ui::hold_signal(s, token, Instant::now(), state.clone());
         }
     }
     None
@@ -258,16 +268,23 @@ fn remember(state: &Shared) {
     let Some(path) = Config::path() else {
         return;
     };
-    // Decision 3: the in-memory key is false before the file is, under the
-    // lock a reload takes, so the reload of this write sees no switch change.
+    // Decision 3: memory and file change together, under the lock a reload
+    // takes, so the reload of this write sees no switch change. A save that
+    // fails leaves memory equal to the file, so a later edit of another key
+    // starts no client and opens no second dialog (S-014f3).
     let mut st = lock(state);
     let (mut config, warning) = Config::load_from(&path);
     if warning.is_some() {
         return;
     }
-    st.config.portal_shortcut = false;
+    let file = config.portal_shortcut;
     config.portal_shortcut = false;
-    if let Err(e) = config.save_to(&path) {
-        eprintln!("sbarhived: cannot save {}: {e}", path.display());
-    }
+    let saved = match config.save_to(&path) {
+        Ok(()) => true,
+        Err(e) => {
+            eprintln!("sbarhived: cannot save {}: {e}", path.display());
+            false
+        }
+    };
+    st.config.portal_shortcut = portal::after_denial(file, saved);
 }

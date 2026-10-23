@@ -117,6 +117,51 @@ pub fn reload(before: bool, after: bool, running: bool) -> Reload {
     }
 }
 
+/// The in-memory `portal_shortcut` after a denial's save (S-014f3): false
+/// when the save succeeded, else the value the file still holds, so a later
+/// edit reads no switch change and no second dialog opens.
+pub fn after_denial(file: bool, saved: bool) -> bool {
+    file && !saved
+}
+
+/// The `activation_token` of an `Activated` signal's string valued options
+/// (AC15), when it is non-empty.
+pub fn activation_token(options: &[(&str, &str)]) -> Option<String> {
+    options
+        .iter()
+        .find(|(k, _)| *k == "activation_token")
+        .and_then(|(_, v)| nonempty(Some(v)))
+}
+
+fn nonempty(t: Option<&str>) -> Option<String> {
+    t.filter(|t| !t.is_empty()).map(str::to_string)
+}
+
+/// A step of the long press gate, as the kept activation token sees it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TokenStep<'a> {
+    /// A press that starts the gate's timer, with its token.
+    Start(Option<&'a str>),
+    /// A later press of the same timer, with its token.
+    Repeat(Option<&'a str>),
+    /// The gate's show.
+    Show,
+    /// The timer ended without a show.
+    End,
+}
+
+/// The token kept after `step`, and the token the show activates with
+/// (`Some` only for [`TokenStep::Show`]). The portal and IPC alike.
+pub fn kept_token(kept: Option<&str>, step: TokenStep<'_>) -> (Option<String>, Option<String>) {
+    match step {
+        TokenStep::Start(t) => (nonempty(t), None),
+        TokenStep::Repeat(Some(t)) if !t.is_empty() => (Some(t.to_string()), None),
+        TokenStep::Repeat(_) => (kept.map(str::to_string), None),
+        TokenStep::Show => (None, kept.map(str::to_string)),
+        TokenStep::End => (None, None),
+    }
+}
+
 /// Whether `XDG_CURRENT_DESKTOP` (a colon separated list) names a desktop
 /// of `list`.
 pub fn listed(desktops: &str, list: &[&str]) -> bool {
