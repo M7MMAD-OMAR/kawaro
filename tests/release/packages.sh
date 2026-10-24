@@ -61,7 +61,7 @@ DEB="$TMP/out-$PREV/sbarhive_${MAPPED}_amd64.deb"
 check "AC5 rpm file name uses the mapped version" test -f "$RPM"
 check "AC5 deb file name uses the mapped version" test -f "$DEB"
 check "AC5 no file name keeps the hyphen version" \
-  test "$(find "$TMP/out-$PREV" -name '*0.4.0-beta.1*' | wc -l)" -eq 0
+  test "$(find "$TMP/out-$PREV" -mindepth 1 -name '*0.4.0-beta.1*' | wc -l)" -eq 0
 check "AC5 rpm VERSION is 0.4.0~beta.1" \
   test "$(rpm -qp --qf '%{VERSION}' "$RPM" 2>/dev/null)" = "$MAPPED"
 CTL="$DEB.debian/control"

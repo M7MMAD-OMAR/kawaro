@@ -48,7 +48,8 @@ check "AC7 rotation section names sbarhive-update-next.pub" \
   grep -q 'sbarhive-update-next\.pub' <<<"$(section 'rotat')"
 check "AC7 leak section says users reinstall by hand" grep -Eqi 'reinstall' <<<"$(section 'leak')"
 check "AC7 the document names ADR 0006" grep -q '0006' "$DOC"
-check "AC7 no home paths in the document" ! grep -q '/home/' "$DOC"
+# shellcheck disable=SC2016
+check "AC7 no home paths in the document" bash -c '! grep -q /home/ "$1"' _ "$DOC"
 check "AC7 no em dash or en dash in the document" nodash "$DOC"
 check "AC7 the document has no Arabic letters (English only)" noarabic "$DOC"
 
