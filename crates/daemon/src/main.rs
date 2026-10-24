@@ -34,6 +34,8 @@ mod batch_tests;
 mod portal_tests;
 #[cfg(test)]
 mod server_tests;
+#[cfg(test)]
+mod shell_logic_tests;
 
 use state::lock;
 

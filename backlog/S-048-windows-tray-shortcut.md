@@ -37,3 +37,4 @@ As a Windows user, I want a tray icon that shows job progress and offers Cancel 
 
 ## Review log
 - 2026-10-24, planner: default shortcut avoids the Win key because many Win combinations are reserved (ADR 0005 open question).
+- 2026-10-24, tester: tests written from AC1 to AC8. Files: `crates/core/tests/s048_hotkey.rs` (AC1), `crates/daemon/src/shell_logic_tests.rs` (AC2, AC3, AC4, AC7; registered in main.rs as `#[cfg(test)] mod shell_logic_tests;`), `crates/daemon/tests/s048_sources.rs` (AC5, AC6, AC8). Failure output before implementation: core test does not compile (`unresolved import sbarhive_core::hotkey`, `no field shortcut on type Config`); daemon unit tests do not compile (`unresolved import crate::shell_logic`); `s048_sources` 11 of 12 fail (no shell.rs, no sbarhive.ico, no make-ico.sh, no mutants exclusion, no CHANGELOG line); the twelfth (COM not on main thread) was made to also require shell.rs so it fails too.
