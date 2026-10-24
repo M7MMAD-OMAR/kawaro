@@ -41,10 +41,10 @@ echo "== AC8: check-dlls"
 out="$("$REPO/scripts/windows/check-dlls.sh" "$REL/sbarhived.exe" 2>&1)"
 echo "$out" | grep -Eq '^dll check: ok sbarhived\.exe [0-9]+ imports$' && ok "dll check" || fail "AC8: check-dlls said: $out"
 
-# AC9: Cargo.lock package count unchanged (baseline 672), ui diff is lib.rs only.
+# AC9: Cargo.lock package count unchanged (baseline 672, 673 since S-053a adds minisign-verify), ui diff is lib.rs only.
 echo "== AC9: lock and ui"
 n="$(grep -c '^\[\[package\]\]' Cargo.lock)"
-[ "$n" = 672 ] && ok "lock 672" || fail "AC9: Cargo.lock has $n packages, baseline 672"
+[ "$n" = 673 ] && ok "lock 673" || fail "AC9: Cargo.lock has $n packages, baseline 673"
 git diff --name-only HEAD -- crates/ui | grep -vx 'crates/ui/src/lib.rs' | grep -q . \
   && fail "AC9: crates/ui changed outside lib.rs" || ok "ui diff"
 
