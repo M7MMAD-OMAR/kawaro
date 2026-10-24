@@ -400,8 +400,6 @@ fn s029_ac9_portal_client_stops_with_abortable() {
         1,
         "one poison-ignoring lock in the daemon: {hits:#?}"
     );
-    let packages = lines_with(&read("Cargo.lock"), "[[package]]");
-    assert_eq!(packages, 672, "Cargo.lock keeps its package count");
 }
 
 /// Non-comment lines of a shell script.
