@@ -410,45 +410,78 @@ mod tests {
 
     #[test]
     fn path_and_load_follow_xdg_then_home() {
-        // The only test in this binary that touches these variables.
-        let saved = (
-            std::env::var_os("XDG_CONFIG_HOME"),
-            std::env::var_os("HOME"),
-        );
-        let dir = tempfile::tempdir().unwrap();
-        let xdg = dir.path().join("xdg");
-        unsafe { std::env::set_var("XDG_CONFIG_HOME", &xdg) };
-        assert_eq!(
-            Config::path(),
-            Some(xdg.join("sbarhive").join("config.toml"))
-        );
-        Config {
-            quality: Quality::Light,
-            ..Config::default()
+        #[cfg(unix)]
+        {
+            // The only test in this binary that touches these variables.
+            let saved = (
+                std::env::var_os("XDG_CONFIG_HOME"),
+                std::env::var_os("HOME"),
+            );
+            let dir = tempfile::tempdir().unwrap();
+            let xdg = dir.path().join("xdg");
+            unsafe { std::env::set_var("XDG_CONFIG_HOME", &xdg) };
+            assert_eq!(
+                Config::path(),
+                Some(xdg.join("sbarhive").join("config.toml"))
+            );
+            Config {
+                quality: Quality::Light,
+                ..Config::default()
+            }
+            .save_to(&xdg.join("sbarhive").join("config.toml"))
+            .unwrap();
+            assert_eq!(Config::load().0.quality, Quality::Light);
+            assert!(Config::load().1.is_none());
+
+            unsafe { std::env::remove_var("XDG_CONFIG_HOME") };
+            unsafe { std::env::set_var("HOME", dir.path()) };
+            let home_path = dir
+                .path()
+                .join(".config")
+                .join("sbarhive")
+                .join("config.toml");
+            assert_eq!(Config::path(), Some(home_path));
+            assert_eq!(Config::load(), (Config::default(), None));
+
+            unsafe { std::env::remove_var("HOME") };
+            assert_eq!(Config::path(), None);
+            assert_eq!(Config::load(), (Config::default(), None));
+
+            for (k, v) in [("XDG_CONFIG_HOME", saved.0), ("HOME", saved.1)] {
+                match v {
+                    Some(v) => unsafe { std::env::set_var(k, v) },
+                    None => unsafe { std::env::remove_var(k) },
+                }
+            }
         }
-        .save_to(&xdg.join("sbarhive").join("config.toml"))
-        .unwrap();
-        assert_eq!(Config::load().0.quality, Quality::Light);
-        assert!(Config::load().1.is_none());
 
-        unsafe { std::env::remove_var("XDG_CONFIG_HOME") };
-        unsafe { std::env::set_var("HOME", dir.path()) };
-        let home_path = dir
-            .path()
-            .join(".config")
-            .join("sbarhive")
-            .join("config.toml");
-        assert_eq!(Config::path(), Some(home_path));
-        assert_eq!(Config::load(), (Config::default(), None));
+        // Windows has no XDG or HOME: the folder is %APPDATA%\SbarHive (S-058).
+        #[cfg(windows)]
+        {
+            let saved = std::env::var_os("APPDATA");
+            let dir = tempfile::tempdir().unwrap();
+            let appdata = dir.path().join("AppData");
+            unsafe { std::env::set_var("APPDATA", &appdata) };
+            let expected = appdata.join("SbarHive").join("config.toml");
+            assert_eq!(Config::path(), Some(expected.clone()));
+            Config {
+                quality: Quality::Light,
+                ..Config::default()
+            }
+            .save_to(&expected)
+            .unwrap();
+            assert_eq!(Config::load().0.quality, Quality::Light);
+            assert!(Config::load().1.is_none());
 
-        unsafe { std::env::remove_var("HOME") };
-        assert_eq!(Config::path(), None);
-        assert_eq!(Config::load(), (Config::default(), None));
+            // An unset APPDATA falls back to the roaming known folder.
+            unsafe { std::env::remove_var("APPDATA") };
+            let fallback = Config::path().expect("the known folder gives a path");
+            assert!(fallback.ends_with(std::path::Path::new("SbarHive").join("config.toml")));
+            assert!(!fallback.starts_with(dir.path()));
 
-        for (k, v) in [("XDG_CONFIG_HOME", saved.0), ("HOME", saved.1)] {
-            match v {
-                Some(v) => unsafe { std::env::set_var(k, v) },
-                None => unsafe { std::env::remove_var(k) },
+            match saved {
+                Some(v) => unsafe { std::env::set_var("APPDATA", v) },
+                None => unsafe { std::env::remove_var("APPDATA") },
             }
         }
     }
