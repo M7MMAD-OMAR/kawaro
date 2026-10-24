@@ -8,4 +8,5 @@ scripts/build-site.sh
 out="$(mktemp -d)"
 trap 'rm -rf "$out"' EXIT
 rsync -a --exclude 'build.py' --exclude '__pycache__' site/ "$out/"
+python3 scripts/site-headers.py "$out"
 npx --yes wrangler@4 pages deploy "$out" --project-name sbarhive --branch main --commit-dirty=true

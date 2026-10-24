@@ -1,5 +1,7 @@
 [English](README.md) | [العربية](README.ar.md)
 
+Website: <https://hive.sbarah.com/>
+
 # SbarHive
 
 Select files in your file manager, open SbarHive from the right-click menu,

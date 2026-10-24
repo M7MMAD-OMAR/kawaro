@@ -70,5 +70,5 @@ which reads on dark and light panels.
 ## Site assumption
 
 The landing page's canonical and Open Graph URLs assume GitHub Pages at
-`https://m7mmad-omar.github.io/sbarhive/`. Change them in `site/index.html` and
+`https://hive.sbarah.com/`. Change them in `site/index.html` and
 `site/en/index.html` if the site is hosted elsewhere.
