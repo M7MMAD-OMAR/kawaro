@@ -2,10 +2,12 @@
 //! manifest, the policy that decides what is offered, the check schedule.
 //! No network and no files; callers pass bytes and text in.
 
+pub mod apply;
 pub mod fetch;
 pub mod flow;
 pub mod manifest;
 pub mod policy;
+pub mod result;
 pub mod schedule;
 pub mod verify;
 pub mod version;

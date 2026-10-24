@@ -1,5 +1,5 @@
 # S-054a Apply a verified update on Linux and Windows
-Status: approved (manager, by delegation, 2026-10-24)
+Status: review
 
 First surface story of ADR 0006. Depends on S-053b. The Windows part needs P3 (S-045 to S-051, a per-user MSI with a stable `UpgradeCode` that relaunches the daemon); until then only its pure parts are built and tested on Linux, and its live run is an open item. Windows only files are in `exclude_globs` and are built by `scripts/windows/check.sh`. About one work day.
 
@@ -44,3 +44,4 @@ Fake `dnf`, `apt-get` and `pkexec` are shell scripts in a temp dir that append t
   - cli: `ac8_a_non_root_user_gets_exit_77_and_nothing_is_copied` and `ac8_the_refusal_comes_before_the_file_is_looked_at` FAILED: `left: Some(2) right: Some(77)`, stderr `error: unrecognized subcommand 'update'`.
   - With throwaway `todo!()` stubs (removed) all 38 + 10 core tests panic or fail on the assertion, clippy `-D warnings` is clean on the three files, and `scripts/windows/check.sh` compiles the portable file.
   - Decisions are listed at the top of `s054a_apply.rs` and `s054a_apply_privileged.rs` (installed_kind picks the manager when both exist, ShowCommand text, copy folder `sbarhive-update-*` removed on every path, JSON shape of `update-result.json`, `apply_now` and `HelperOps` seams).
+- 2026-10-24, implementer: `update/apply.rs`, `update/result.rs`, `update/apply/windows.rs` (excluded from mutants), the CLI `update --install-privileged` stub, `.cargo/mutants.toml`, CHANGELOG. No new dependency: the effective user id is read from `/proc/self/status` (pure parser `effective_uid`, an unreadable file counts as not root). `Programs::system()` uses `/usr/bin/dnf` and `/usr/bin/apt-get`. Extra small tests in `crates/core/tests/s054a_extra.rs`. Deviations: `DAEMON_EXIT_TIMEOUT` is 60 s; the Windows `apply_msi` does not ask the daemon to quit (S-054b does, then the helper waits on the pipe); `helper_main` takes the version from the package folder name and the program folder from the `SBARHIVE_PROGRAM_DIR` variable set by `apply_msi`; the `update --apply-msi` flag is not wired in the CLI (S-054c).

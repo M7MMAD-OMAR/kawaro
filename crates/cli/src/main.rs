@@ -17,6 +17,7 @@ use clap::{Parser, Subcommand};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::ipc::{Event, Request, Response};
 use sbarhive_core::queue::{self, JobEvent};
+use sbarhive_core::update::apply::PkgKind;
 use sbarhive_core::{ActionDef, CancelToken, Engine, Registry};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -64,6 +65,19 @@ enum Cmd {
         /// cancels it before it shows. Never starts the daemon.
         #[arg(long)]
         release: bool,
+    },
+    /// Update SbarHive. For now only the privileged install step that
+    /// `pkexec` runs (root only); the rest of the command comes later.
+    Update {
+        /// Install this verified package as root.
+        #[arg(long, value_name = "FILE", requires_all = ["sha256", "kind"])]
+        install_privileged: Option<PathBuf>,
+        /// The signed SHA-256 of the package, lowercase hex.
+        #[arg(long)]
+        sha256: Option<String>,
+        /// The package format.
+        #[arg(long, value_parser = parse_kind)]
+        kind: Option<PkgKind>,
     },
     /// Convert in this process, without the daemon.
     Convert {
@@ -132,6 +146,10 @@ enum IntegrationCmd {
     },
 }
 
+fn parse_kind(text: &str) -> Result<PkgKind, String> {
+    PkgKind::parse(text).ok_or_else(|| "expected rpm or deb".to_string())
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     if let Cmd::Integration { action } = cli.cmd {
@@ -139,6 +157,14 @@ fn main() -> ExitCode {
             IntegrationCmd::Install { dry_run, dir } => integration::install(dry_run, dir),
             IntegrationCmd::Uninstall { dry_run } => integration::uninstall(dry_run),
         };
+    }
+    if let Cmd::Update {
+        install_privileged,
+        sha256,
+        kind,
+    } = cli.cmd
+    {
+        return update(install_privileged, sha256, kind);
     }
     let result = match cli.cmd {
         Cmd::Open {
@@ -168,7 +194,7 @@ fn main() -> ExitCode {
         Cmd::Ping => client::request(&Request::Ping).map(|_| out!("pong")),
         Cmd::Reload => client::request(&Request::Reload).map(|_| ()),
         Cmd::Quit => client::request(&Request::Quit).map(|_| ()),
-        Cmd::Integration { .. } => unreachable!("handled above"),
+        Cmd::Integration { .. } | Cmd::Update { .. } => unreachable!("handled above"),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -176,6 +202,49 @@ fn main() -> ExitCode {
             eprintln!("sbarhive: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// `update --install-privileged`: refuses unless root (exit 77, before the
+/// file is looked at), then installs the copy of the package.
+fn update(file: Option<PathBuf>, sha256: Option<String>, kind: Option<PkgKind>) -> ExitCode {
+    let (Some(file), Some(sha256), Some(kind)) = (file, sha256, kind) else {
+        eprintln!("sbarhive: update: only --install-privileged is available so far");
+        return ExitCode::FAILURE;
+    };
+    #[cfg(unix)]
+    {
+        use sbarhive_core::update::apply::{
+            Programs, effective_uid, install_privileged, root_gate,
+        };
+        // An unreadable status counts as not root.
+        let uid = std::fs::read_to_string("/proc/self/status")
+            .ok()
+            .and_then(|s| effective_uid(&s))
+            .unwrap_or(u32::MAX);
+        if let Err(code) = root_gate(uid) {
+            eprintln!("sbarhive: update --install-privileged must run as root");
+            return ExitCode::from(code as u8);
+        }
+        match install_privileged(
+            &file,
+            &sha256,
+            kind,
+            Path::new("/var/tmp"),
+            &Programs::system(),
+        ) {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(e) => {
+                eprintln!("sbarhive: update: {e}");
+                ExitCode::FAILURE
+            }
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = (file, sha256, kind);
+        eprintln!("sbarhive: update: the privileged install exists on Linux only");
+        ExitCode::FAILURE
     }
 }
 

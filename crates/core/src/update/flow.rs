@@ -280,7 +280,7 @@ fn name_is_plain(name: &str) -> bool {
 }
 
 /// SHA-256 of a file as lowercase hex, read in 64 KiB chunks.
-fn sha256_hex(path: &Path) -> std::io::Result<String> {
+pub(super) fn sha256_hex(path: &Path) -> std::io::Result<String> {
     let mut file = File::open(path)?;
     let mut hasher = Sha256::new();
     let mut buf = vec![0u8; CHUNK];

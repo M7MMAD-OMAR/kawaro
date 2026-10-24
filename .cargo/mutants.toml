@@ -47,6 +47,9 @@
 # The reg.exe runner (S-050) builds for Windows only; the live check is
 # S-052. The command lines and the dry run stay mutated in registry.rs and
 # integration.rs.
+# The Windows update helper (S-054a): it copies and starts sbarhive.exe, waits
+# for the daemon on the pipe and runs msiexec; the live check is S-052. Its
+# order, command line and exit codes stay mutated in update/apply.rs.
 exclude_globs = [
   "crates/cli/src/integration/windows.rs",
   "crates/ui/src/win_window.rs",
@@ -65,6 +68,7 @@ exclude_globs = [
   "crates/core/src/output_impl/windows.rs",
   "crates/cli/src/spawn/windows.rs",
   "crates/core/src/win.rs",
+  "crates/core/src/update/apply/windows.rs",
   "crates/daemon/src/logfile/windows.rs",
   "crates/daemon/src/tray/windows.rs",
   # S-045 moved tray.rs here unchanged (a pure rename); it was never

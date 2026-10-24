@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- Install updates (S-054a): a verified update installs with one action: a quiet per-user installer on Windows, `pkexec` with `dnf` or `apt` on Linux, where the privileged step copies the package to a root-owned folder and checks its SHA-256 again before installing (the Windows part is built and unit tested on Linux, not yet verified on a live Windows system; S-052). «تثبيت التحديثات: بإجراء واحد، تثبيت صامت لكل مستخدم في ويندوز، وpkexec مع dnf أو apt في لينكس، وتتحقق الخطوة المميزة من البصمة من جديد على نسخة يملكها الجذر».
 - Signed update feed (S-053c): each release publishes a signed manifest, and beta packages sort below the final release. «تغذية تحديث موقّعة: كل إصدار ينشر بياناً موقّعاً، وحزم البيتا ترتّب دون الإصدار النهائي».
 - Update download (S-053b): the signed manifest is fetched with the system `curl` over https only, and a package is kept only when its size and SHA-256 match; nothing is applied yet. «تنزيل التحديث: يُجلب البيان الموقّع ولا تُحفظ الحزمة إلا إذا طابق حجمها وبصمتها».
 - Update rules (S-053a): versions, the signed manifest, channels and the check schedule are decided in code (new `update_check`, `update_channel` and `update_mode` keys in `config.toml`); nothing is downloaded yet. «قواعد التحديث: الإصدارات والبيان الموقّع والقنوات وجدول الفحص، دون تنزيل بعد».
