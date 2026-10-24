@@ -1,5 +1,5 @@
 # S-058 Make GitHub Actions CI green again on main
-Status: approved (manager, by delegation, 2026-10-25)
+Status: done
 
 CI has been red since the Windows work started (last green run: 8a6623f, 2026-10-23; latest failing run 40135440550 at 698373a) and nobody watched it. Facts from that run: `windows-native` fails in `config::tests::path_and_load_follow_xdg_then_home` (`crates/core/src/config.rs`, around line 412); `check` fails in `ac6_make_ico_regenerates_an_identical_file_twice` (`crates/daemon/tests/s048_sources.rs:142`) because `scripts/windows/make-ico.sh` needs inkscape and ImageMagick, which the runner lacks; `windows-cross` is green and must stay green. One working day, no new feature, no behaviour change on Linux.
 
@@ -100,3 +100,9 @@ windows-native must run `cargo test --no-fail-fast -p sbarhive-core -p sbarhive-
 | objdump | DLL checks | apt `binutils` |
 | inkscape, convert/magick | make-ico.sh | apt `inkscape`, `imagemagick` |
 | soffice, 7z, reg.exe | office and thumbnail tests | not installed, skip by design with a printed line |
+
+- 2026-10-25, reviewer: PASS. fmt clean, clippy -D warnings clean, `cargo test --no-fail-fast` for core, engines, cli and daemon: 0 failures. design-lint clean, `tests/release/run_all.sh` 86 checks 0 failed, shellcheck exit 0 on scripts/, scripts/windows/ and tests/release/. `scripts/ci-status.sh` for HEAD 45e4d7b: `run 40138949955 success`, check, windows-cross and windows-native all success, exit 0 (AC5, AC6, AC9). No long dashes in the diff. AC1 to AC9 each tied to tests in s058_ci.rs or the config test; AC8 diff is one added line in Working rules.
+  - Gating: every `cfg(unix)` is justified (leading-slash paths, /bin/sh, /bin/true, /bin/false, release shell scripts and minisign on s053c, XDG/HOME); each has a comment, and on Linux all of these tests still run, so no coverage is lost there. Windows count only drops by tests that could not pass there.
+  - Manager edit to the AC4 test: skips s058_ci.rs and names that are not plain program names (absolute paths, source fragments). Justified, since it only stops the scan from reading its own quoted pattern; real program names are still checked.
+  - Mutation: the changed Rust code is only `cfg` attributes and test bodies, so there is nothing to mutate; not run.
+  - Minor, non-blocking: CLAUDE.md line uses `--wait`, fine. Do not commit this log change together with S-059 or ADR 0007 files.
