@@ -78,7 +78,7 @@ def kinds(lang):
         ("تحجيم" if ar else "RESIZE", "تحجيم الصورة" if ar else "Resize image", "photo-resized.png"),
         ("تدوير" if ar else "ROTATE", "تدوير الصورة" if ar else "Rotate", "photo-rotated.png"),
         ("قلب" if ar else "FLIP", "قلب الصورة" if ar else "Flip image", "photo-flipped.png"),
-        ("رمادي" if ar else "GRAY", "رمادي: جعل الصورة رمادية" if ar else "Gray: make it gray", "photo-gray.png"),
+        ("رمادي" if ar else "GRAY", "تحويل الصورة إلى رمادي" if ar else "Gray: make it gray", "photo-gray.png"),
         ("ضغط" if ar else "SHRINK", "ضغط الصورة" if ar else "Shrink image", "photo-compressed.png"),
         ("تنظيف" if ar else "STRIP", "تنظيف: حذف البيانات الوصفية" if ar else "Strip metadata", "photo-clean.png"),
     ]
@@ -137,9 +137,9 @@ def hive_config(lang):
             "done": "تم" if ar else "Done",
             "tray": "صبار هايف" if ar else "SbarHive",
             "doneNote": "اكتمل: " if ar else "Finished: ",
-            "original": "الأصل كما هو" if ar else "Original, untouched",
+            "original": "الأصل لا يتغير" if ar else "Original, untouched",
             "fresh": "جديد" if ar else "New",
-            "stepsOn": ["١", "٢", "٣"] if ar else ["1", "2", "3"],
+            "stepsOn": ["1", "2", "3"],
         },
     }
 
@@ -221,7 +221,7 @@ def privacy_svg(lang):
 
     t_pc = "جهازك" if ar else "Your machine"
     t_net = "الإنترنت" if ar else "The internet"
-    t_none = "لا ملف يخرج" if ar else "No file leaves"
+    t_none = "لا يخرج أي ملف" if ar else "No file leaves"
     cx_pc, cx_net = mx(190), mx(520)
     out = [f'<svg class="privacy-map" viewBox="0 0 {w} {h}" role="img" aria-label="{html.escape(t_pc)}: {html.escape(t_none)}">']
     out.append(f'<path class="zone" d="{hex_path(cx_pc, 125, 112)}"/>')
@@ -302,11 +302,11 @@ AR = {
     },
     "descs": {
         "index": "محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد الملف، اختر خلية، والناتج بجانب الأصل. ملفاتك تبقى على جهازك.",
-        "download": "الإصدار التجريبي الأول من صبار هايف للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
-        "windows": "نسخة ويندوز غير موقّعة بعد. ما معنى تحذير SmartScreen، وكيف تتحقق من ملفك قبل تشغيله.",
+        "download": "أول إصدار بيتا من صبار هايف للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
+        "windows": "نسخة ويندوز غير موقّعة بعد. شرح تحذير SmartScreen وطريقة التحقق من ملفك قبل تشغيله.",
         "privacy": "لا تتبع ولا حسابات ولا رفع للملفات. الاتصال الوحيد هو فحص التحديثات الموقّعة.",
     },
-    "og_alt": "شعار صبار هايف بجانب الخلية السداسية وفيها صيغ تحويل الصور",
+    "og_alt": "شعار صبار هايف بجانب الخلية السداسية، وعلى خلاياها صيغ تحويل الصور",
     "footer_license": "برنامج حر برخصة GPLv3.",
     "footer_beta": "بيتا <bdi dir=\"ltr\">" + VERSION + "</bdi>",
     "releases": "الإصدارات",
@@ -619,7 +619,7 @@ T_HOME = {
         "how": "ثلاث خطوات",
         "steps": ["حدّد", "اختر", "خذ الناتج"],
         "privacy": "ملفاتك تبقى عندك",
-        "ticks": ["بلا رفع", "بلا تتبع", "الأصل لا يُمسّ"],
+        "ticks": ["بلا رفع", "بلا تتبع", "الأصل لا يتغير"],
         "formats": "صور وفيديو وصوت ومستندات",
         "tiles": ["صور", "فيديو", "صوت", "مستندات", "PDF"],
         "get": "نزّل صبار هايف",
@@ -730,15 +730,15 @@ def download(lang):
     ar = lang == "ar"
     win_href = page_href(lang, "download", lang, "windows")
     if ar:
-        h = page_head("نزّل صبار هايف", f"النسخة التجريبية الأولى <code>{VERSION}</code>")
+        h = page_head("نزّل صبار هايف", f"أول إصدار بيتا <code>{VERSION}</code>")
         top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot">{VERSION}</span></li><li><a href="{win_href}">ويندوز غير موقّع</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title" class="reveal" data-reveal>تحقق من الملف</h2>
-<p class="section-intro">نزّل <code>SHA256SUMS</code> إلى مجلد الحزم، وكل ملف يجب أن يقول OK.</p>
+<p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
 <div class="split"><div class="reveal" data-reveal><h3>لينكس</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
 <div class="reveal" data-reveal><h3>ويندوز</h3>{code(f"certutil -hashfile sbarhive-{VERSION}-windows-x64.msi SHA256")}</div></div>
 <p class="section-intro">وإن اختلفت القيمة فلا تشغّل الملف.</p>''', cls="alt s-verify", ident="verify", labelledby="v-title", side="start")
-        src = sec(f'''<h2 id="b-title" class="reveal" data-reveal>من الشيفرة على لينكس</h2>
+        src = sec(f'''<h2 id="b-title" class="reveal" data-reveal>البناء من الشيفرة على لينكس</h2>
 {code(f"git clone {REPO}" + chr(10) + "cd sbarhive" + chr(10) + "./scripts/install.sh")}
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
@@ -766,9 +766,9 @@ def windows(lang):
 <li class="reveal" data-reveal><span class="n">1</span><h3>تحقق من الملف</h3><p><a href="{dl}#verify">SHA256SUMS</a></p></li>
 <li class="reveal" data-reveal><span class="n">2</span><h3>More info</h3></li>
 <li class="reveal" data-reveal><span class="n">3</span><h3>Run anyway</h3></li></ol>
-<p class="section-intro">لا شهادة توقيع لدينا بعد، ولا وعد بمتجر أو بتاريخ.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
+<p class="section-intro">ليست لدينا شهادة توقيع بعد، ولا نعد بمتجر أو بموعد.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
         b = sec(f'''<h2 id="w2" class="reveal" data-reveal>لم يكتمل بعد</h2>
-<div class="grid grid-3">{card("لم يُجرَّب على ويندوز حقيقي", "", ("tag-warn", "تنبيه"))}{card("بلا خلية سحب وإفلات", "", ("tag-warn", "ناقص"))}{card("بلا إشعارات", "التقدم في تلميح الأيقونة", ("tag-warn", "ناقص"))}</div>''',
+<div class="grid grid-3">{card("لم يُجرَّب على جهاز ويندوز حقيقي", "", ("tag-warn", "تنبيه"))}{card("بلا خلية الإفلات بعد", "", ("tag-warn", "غير جاهز"))}{card("بلا إشعارات بعد", "التقدم في تلميح الأيقونة", ("tag-warn", "غير جاهز"))}</div>''',
                 cls="alt s-w2", ident="gaps", labelledby="w2", side="end")
     else:
         h = page_head("SbarHive on Windows", "Not signed yet, so SmartScreen warns you")
@@ -790,11 +790,11 @@ def privacy(lang):
         h = page_head("ملفاتك تبقى عندك")
         a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li class="reveal" data-reveal>بلا رفع</li><li class="reveal" data-reveal>بلا تتبع</li><li class="reveal" data-reveal>بلا حسابات</li></ul></div>
 <div class="reveal" data-reveal>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
-        b = sec(f'''<h2 id="p2" class="reveal" data-reveal>الاتصال الوحيد: التحديث</h2>
-<div class="grid grid-2">{card("مرة في اليوم", "يقرأ البرنامج بيانا موقّعا من إصدارات GitHub، فيرى GitHub عنوانك كما في أي تنزيل.")}{card("تحقق قبل التنزيل", "التوقيع، ثم الحجم، ثم SHA-256.")}{card("قناتان", "<code>beta</code> و<code>stable</code>.")}{card("إيقافه", "<code>update_check = false</code> في <code>config.toml</code>.")}</div>''',
+        b = sec(f'''<h2 id="p2" class="reveal" data-reveal>الاتصال الوحيد هو فحص التحديثات</h2>
+<div class="grid grid-2">{card("مرة في اليوم", "يقرأ البرنامج ملف تحديث موقّعا من صفحة إصدارات GitHub، فيرى GitHub عنوان IP الخاص بك كما في أي تنزيل.")}{card("تحقق قبل التنزيل", "التوقيع، ثم الحجم، ثم SHA-256.")}{card("قناتا التحديث", "<code>beta</code> و<code>stable</code>.")}{card("إيقاف الفحص", "<code>update_check = false</code> في <code>config.toml</code>.")}</div>''',
                 cls="alt s-p2", ident="updates", labelledby="p2", side="end")
         c = sec(f'''<h2 id="p3" class="reveal" data-reveal>الأصل لا يُمسّ</h2>
-<p class="section-intro">يُكتب الناتج في ملف مؤقت ثم يُسمّى باسمه النهائي. الشيفرة مفتوحة على <a href="{REPO}">GitHub</a>.</p>''', cls="s-p3", ident="originals", labelledby="p3", side="start")
+<p class="section-intro">يُكتب الناتج أولا في ملف مؤقت، ثم يُعاد تسميته. الشيفرة مفتوحة على <a href="{REPO}">GitHub</a>.</p>''', cls="s-p3", ident="originals", labelledby="p3", side="start")
     else:
         h = page_head("Your files stay with you")
         a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li class="reveal" data-reveal>No uploads</li><li class="reveal" data-reveal>No tracking</li><li class="reveal" data-reveal>No accounts</li></ul></div>
@@ -932,9 +932,9 @@ def formats_md(lang):
         if not acts:
             continue
         lines += [f"## {ar_name if ar else en_name}", "",
-                  "| " + ("الإجراء | الأداة | شرط" if ar else "Action | Tool | Needs") + " |", "| --- | --- | --- |"]
+                  "| " + ("الإجراء | الأداة | الشرط" if ar else "Action | Tool | Needs") + " |", "| --- | --- | --- |"]
         for a in acts:
-            tool = TOOLS.get(a["engine"], "SbarHive" if ar else "built in")
+            tool = TOOLS.get(a["engine"], "مدمجة" if ar else "built in")
             lab = a["label"]["ar" if ar else "en"]
             need = ("ملفان فأكثر" if ar else "2 or more files") if a.get("min_files", 1) > 1 else ""
             lines.append(f"| {lab} | {tool} | {need} |")
@@ -1065,19 +1065,29 @@ def docs_index(lang):
             + footer(lang, page, root))
 
 
+def ar_more(n):
+    if n == 1:
+        return "وتغيير واحد آخر في"
+    if n == 2:
+        return "وتغييران آخران في"
+    if 3 <= n <= 10:
+        return f"و{n} تغييرات أخرى في"
+    return f"و{n} تغييرا آخر في"
+
+
 def release_blocks(lang):
     ar = lang == "ar"
     out = []
     for r in parse_changelog():
         unreleased = r["version"] == "Unreleased"
         ver = VERSION if unreleased else r["version"]
-        pill = ("بيتا، قيد الإصدار" if ar else "Beta, not tagged yet") if unreleased else ("مستقر" if ar else "Stable")
+        pill = ("بيتا، لم يصدر بعد" if ar else "Beta, not tagged yet") if unreleased else ("مستقر" if ar else "Stable")
         cls = "pill pill-hot" if unreleased else "pill"
         items = "".join(f"<li>{html.escape((arx or en) if ar else en)}</li>" for en, arx in r["items"][:6])
         more = len(r["items"]) - 6
         more_html = ""
         if more > 0:
-            more_html = (f'<p class="fine">{"و" + str(more) + " تغييرا آخر في" if ar else "and " + str(more) + " more in the"} '
+            more_html = (f'<p class="fine">{ar_more(more) if ar else "and " + str(more) + " more in the"} '
                          f'<a href="{REPO}/blob/main/CHANGELOG.md">CHANGELOG</a></p>')
         tag_link = f"{RELEASES}/tag/v{ver}"
         date = f'<time>{r["date"]}</time>' if r["date"] else ""
