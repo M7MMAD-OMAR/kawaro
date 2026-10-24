@@ -286,6 +286,8 @@ mod tests {
             (Request::CancelAll, false),
             (Request::Settings, false),
             (Request::Reload, false),
+            (Request::UpdateCheck, false),
+            (Request::UpdateApply, false),
             (Request::Quit, false),
         ];
         // No wildcard: a new Request variant must be added to this list.
@@ -300,6 +302,8 @@ mod tests {
                 | Request::CancelAll
                 | Request::Settings
                 | Request::Reload
+                | Request::UpdateCheck
+                | Request::UpdateApply
                 | Request::Quit => {}
             }
         }
@@ -309,7 +313,7 @@ mod tests {
     #[test]
     fn ac5_open_and_drop_grant_the_server_pid_and_nothing_else_does() {
         let reqs = every_request();
-        assert_eq!(reqs.len(), 11);
+        assert_eq!(reqs.len(), 13);
         for (req, grants) in reqs {
             let want = if grants { Some(42) } else { None };
             assert_eq!(foreground_grant(&req, Some(42)), want, "{req:?}");

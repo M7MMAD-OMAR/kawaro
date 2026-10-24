@@ -2,7 +2,7 @@
 //! the tester from the acceptance criteria and the review log. Nothing here
 //! touches the network, `pkexec`, a package manager or the desktop: the fetcher
 //! is a fake, the manifest and signature are the throwaway fixtures of S-053a
-//! (key A, `manifest-stable-0.4.0.json`), and the notification and apply calls
+//! (key D, `s054b/manifest-stable-0.4.0.json`: 17 byte assets), and the notification and apply calls
 //! are recorders.
 //!
 //! Contract (the implementer follows it; the tests are not edited). The module
@@ -156,8 +156,8 @@ impl Fetcher for Fake {
         self.urls.borrow_mut().push(url.to_string());
         let bytes = match self.feed {
             Feed::Offline => return Err(FetchError::Offline),
-            _ if url.ends_with(".minisig") => fx("manifest-stable-0.4.0.json.minisig"),
-            _ if url.ends_with(".json") => fx("manifest-stable-0.4.0.json"),
+            _ if url.ends_with(".minisig") => fx("s054b/manifest-stable-0.4.0.json.minisig"),
+            _ if url.ends_with(".json") => fx("s054b/manifest-stable-0.4.0.json"),
             Feed::Good => GOOD.to_vec(),
             Feed::Tampered => TAMPERED.to_vec(),
         };
@@ -178,7 +178,7 @@ fn state_for(installed: &str, os: Os) -> (UpdateState, Rig) {
     fs::create_dir_all(&scratch).unwrap();
     let env = UpdateEnv {
         installed: installed.to_string(),
-        keys: vec![String::from_utf8(fx("key-a.pub")).unwrap()],
+        keys: vec![String::from_utf8(fx("s054b/key-d.pub")).unwrap()],
         platform: Platform {
             os: "linux".into(),
             arch: "x86_64".into(),

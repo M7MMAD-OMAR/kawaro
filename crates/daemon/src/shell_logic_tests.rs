@@ -13,7 +13,12 @@
 //! - `#[derive(Debug, PartialEq, Clone)] pub enum Command { CancelAll,
 //!   Settings, Quit }` and `#[derive(Debug, PartialEq, Clone)] pub enum Item
 //!   { Action { command: Command, label: String, enabled: bool }, Separator }`.
-//! - `menu(lang: Lang, active_count: usize) -> Vec<Item>`; `menu_right_to_left(lang) -> bool`.
+//! - `menu(lang: Lang, active_count: usize, update_ready: bool) -> Vec<Item>`;
+//!   `menu_right_to_left(lang) -> bool`. CHANGED BY S-054b: `Command` gains
+//!   `UpdateNow` and `menu` gains a first item `UpdateNow` (label
+//!   `text::update_now(lang)`: "Update now" / «حدّث الآن»), enabled only when
+//!   `update_ready`, then the four S-048 entries unchanged. The Windows menu
+//!   has no other way to apply an update in `ask` mode.
 //! - `pub const POLL_MS: u64 = 16;` `#[derive(Default)] pub struct HoldPoll`
 //!   with `press(&mut self)` and `tick(&mut self, key_down: bool) -> Poll`,
 //!   `#[derive(Debug, PartialEq, Clone, Copy)] pub enum Poll { Held, Released, Idle }`.
@@ -138,8 +143,9 @@ fn action(command: Command, label: &str, enabled: bool) -> Item {
 #[test]
 fn ac3_menu_order_and_labels_in_english_with_jobs() {
     assert_eq!(
-        menu(Lang::En, 2),
+        menu(Lang::En, 2, false),
         vec![
+            action(Command::UpdateNow, "Update now", false),
             action(Command::CancelAll, text::cancel_all(Lang::En), true),
             action(Command::Settings, text::settings(Lang::En), true),
             Item::Separator,
@@ -150,24 +156,25 @@ fn ac3_menu_order_and_labels_in_english_with_jobs() {
 
 #[test]
 fn ac3_cancel_all_is_disabled_without_jobs() {
-    let m = menu(Lang::En, 0);
-    assert_eq!(m.len(), 4);
+    let m = menu(Lang::En, 0, false);
+    assert_eq!(m.len(), 5);
+    assert_eq!(m[0], action(Command::UpdateNow, "Update now", false));
     assert_eq!(
-        m[0],
+        m[1],
         action(Command::CancelAll, text::cancel_all(Lang::En), false)
     );
     assert_eq!(
-        m[1],
+        m[2],
         action(Command::Settings, text::settings(Lang::En), true)
     );
-    assert_eq!(m[2], Item::Separator);
-    assert_eq!(m[3], action(Command::Quit, text::quit(Lang::En), true));
+    assert_eq!(m[3], Item::Separator);
+    assert_eq!(m[4], action(Command::Quit, text::quit(Lang::En), true));
 }
 
 #[test]
 fn ac3_one_job_enables_cancel_all() {
     assert_eq!(
-        menu(Lang::En, 1)[0],
+        menu(Lang::En, 1, false)[1],
         action(Command::CancelAll, text::cancel_all(Lang::En), true)
     );
 }
@@ -175,8 +182,9 @@ fn ac3_one_job_enables_cancel_all() {
 #[test]
 fn ac3_arabic_labels() {
     assert_eq!(
-        menu(Lang::Ar, 3),
+        menu(Lang::Ar, 3, false),
         vec![
+            action(Command::UpdateNow, "حدّث الآن", false),
             action(Command::CancelAll, text::cancel_all(Lang::Ar), true),
             action(Command::Settings, text::settings(Lang::Ar), true),
             Item::Separator,
@@ -184,6 +192,51 @@ fn ac3_arabic_labels() {
         ]
     );
     assert_ne!(text::quit(Lang::Ar), text::quit(Lang::En));
+}
+
+// S-054b: the Windows menu's "Update now".
+
+#[test]
+fn s054b_update_now_is_first_and_enabled_only_when_an_update_is_ready() {
+    for (lang, label) in [(Lang::En, "Update now"), (Lang::Ar, "حدّث الآن")] {
+        for jobs in [0, 2] {
+            let off = menu(lang, jobs, false);
+            let on = menu(lang, jobs, true);
+            assert_eq!(off[0], action(Command::UpdateNow, label, false));
+            assert_eq!(on[0], action(Command::UpdateNow, label, true));
+            assert_eq!(off.len(), 5);
+            // Nothing else depends on the update.
+            assert_eq!(off[1..], on[1..]);
+        }
+    }
+    assert_eq!(text::update_now(Lang::En), "Update now");
+    assert_eq!(text::update_now(Lang::Ar), "حدّث الآن");
+}
+
+#[test]
+fn s054b_the_windows_menu_follows_the_linux_label_list() {
+    for lang in [Lang::En, Lang::Ar] {
+        let state = crate::update::UpdateState::new(crate::update::UpdateEnv {
+            installed: String::new(),
+            keys: vec![],
+            platform: sbarhive_core::update::policy::Platform {
+                os: String::new(),
+                arch: String::new(),
+                pkg: String::new(),
+            },
+            os: sbarhive_core::paths::Os::Windows,
+            updates_dir: Default::default(),
+            scratch: Default::default(),
+        });
+        let labels: Vec<String> = menu(lang, 0, false)
+            .into_iter()
+            .filter_map(|i| match i {
+                Item::Action { label, .. } => Some(label),
+                Item::Separator => None,
+            })
+            .collect();
+        assert_eq!(labels, text::menu_labels(lang, &state));
+    }
 }
 
 #[test]
