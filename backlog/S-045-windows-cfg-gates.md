@@ -43,3 +43,13 @@ As the maintainer, I want `sbarhived.exe` and everything it depends on to build 
 
 ## Review log
 - 2026-10-24, planner: story written from ADR 0005 "Proposed stories" S-045 with the beta order.
+- 2026-10-24, tester: tests written from the acceptance criteria only. Baselines recorded: `[[package]]` count in `Cargo.lock` is 672. The Linux workspace test count before the story is to be recorded by the implementer (AC2). Files:
+  - `crates/core/tests/paths_log_file.rs`: AC6 (5 tests).
+  - `crates/daemon/tests/s045_logfile.rs`: AC7 (2 tests; includes `src/logfile.rs` by path).
+  - `crates/daemon/tests/s045_sources.rs`: AC2, AC3, AC4, AC5 source, AC8 scripts text, AC9 changelog (7 tests).
+  - `tests/windows/test_s045.sh`: AC1, AC4, AC5 subsystem values, AC8 check/build/check-dlls, AC9 lock count and ui diff.
+  Failure output (right reasons):
+  - paths_log_file: `error[E0432]: unresolved import sbarhive_core::paths::log_file_with`.
+  - s045_logfile: `error: couldn't find file crates/daemon/tests/../src/logfile.rs`.
+  - s045_sources: 7 of 7 fail: `lib.rs:244 is not inside a cfg(unix) item: fn token_hook(...)`; `ksni declared in the wrong table ... [dependencies]`; `tray.rs must pick a Windows module`; main.rs first line is `mod jobs;` not the windows_subsystem attribute; `check.sh lacks -p sbarhive-daemon`; `build.sh must build sbarhived.exe`; no `(S-045)` line under `[Unreleased]`.
+  - test_s045.sh: `FAIL: AC1: cargo check --workspace --target x86_64-pc-windows-gnu` (E0432/E0599 in sbarhive-ui and ashpd), `FAIL: AC8: check.sh` (the new test files do not compile), `FAIL: AC1/AC4: sbarhived.exe does not exist`, `FAIL: AC5: sbarhived.exe Subsystem is ''`, `FAIL: AC8: check-dlls` (no sbarhived.exe). The `sbarhive.exe` console subsystem and the lock count pass today, as a guard.
