@@ -958,3 +958,412 @@ fn manual_check_without_curl_answers_unavailable() {
     assert_eq!(st.check.schedule.last_failure, Some(BASE));
     assert_eq!(st.check.last_seen, None);
 }
+
+// ------------------------------------------------------------ REWORK 1
+//
+// Contract for the implementer (S-054b REWORK #1). Everything is pure or
+// plain IO and runs on Linux.
+//
+// - `notify::notifications_allowed(is_test: bool, no_notify_set: bool) -> bool`:
+//   true only for `(false, false)`; `show` and `finished` use it.
+// - New module `crate::progress` (`mod progress;` in main.rs), a holder that is
+//   separate from the update lock:
+//   `percent(done: u64, size: u64) -> u64` (rounded to nearest, 0 for size 0,
+//   never above 100); `Progress` (`Default`, interior `Mutex`, all methods take
+//   `&self`): `new()`, `begin(&self, version: &str, size: u64, part: &Path)`,
+//   `end(&self)`, `snapshot(&self, stat: &dyn Fn(&Path) -> Option<u64>) ->
+//   Option<Phase>`: `None` when no download is active, otherwise
+//   `Some(Phase::Downloading { version, downloaded: stat(part).unwrap_or(0),
+//   size })`. `progress::shared() -> &'static Progress` is the daemon's one.
+// - `text::tooltip_from(lang, update: Option<&UpdateState>, progress:
+//   Option<&Phase>, active: &[(String, f32)]) -> String`: a `Some(Downloading)`
+//   progress wins and shows `tooltip_text`'s download line; otherwise
+//   `tooltip_text(lang, update, active)` when the update lock was got; otherwise
+//   (lock busy, no progress) the idle text, or the job lines when jobs run.
+// - `update::request_apply_or_busy(st: Option<&mut UpdateState>) -> (Response,
+//   Vec<Effect>)`: `None` (the lock is busy) answers `Response::Error` whose
+//   message contains `no verified update to install`, no effects; `Some` is
+//   `request_apply`.
+// - `update::check_or_busy(st: Option<&mut UpdateState>, current: &str, config:
+//   &Config, fetcher: &dyn Fetcher, now: u64) -> (Response, Vec<Effect>)`: `None`
+//   answers `Response::Update { status: "downloading", current, latest: None }`,
+//   no effects, the fetcher is not called; `Some` is `check_now`.
+//   The socket server and `apply_from_menu` use `try_lock().ok()` with these.
+// - `update::write_atomic(path: &Path, text: &str) -> io::Result<()>`: creates
+//   the parent, writes a sibling temp file whose name ends in `.tmp`, renames it
+//   over `path`, removes the temp file when anything fails. `save_schedule`
+//   uses it.
+// - `update::RESTART_DELAY: Duration` = 2 s; `update::clean_exe_path(&Path) ->
+//   PathBuf` strips a trailing ` (deleted)`; `update::restart_command(exe:
+//   &Path) -> (PathBuf, Vec<String>)` = (the cleaned exe, no arguments): no
+//   shell. `restart_daemon` spawns that directly.
+
+mod rework1 {
+    use super::*;
+    use crate::notify::notifications_allowed;
+    use crate::progress::{Progress, percent};
+    use crate::update::{
+        RESTART_DELAY, check_or_busy, clean_exe_path, request_apply_or_busy, restart_command,
+        write_atomic,
+    };
+    use std::sync::Mutex;
+
+    #[test]
+    fn notifications_are_allowed_only_outside_tests_and_without_the_switch() {
+        assert!(notifications_allowed(false, false));
+        assert!(!notifications_allowed(true, false));
+        assert!(!notifications_allowed(false, true));
+        assert!(!notifications_allowed(true, true));
+    }
+
+    // ---------------------------------------------------- progress
+
+    #[test]
+    fn percent_is_rounded_and_bounded() {
+        for (done, size, want) in [
+            (0, 1000, 0),
+            (4, 1000, 0),
+            (6, 1000, 1),
+            (420, 1000, 42),
+            (421, 1000, 42),
+            (429, 1000, 43),
+            (999, 1000, 100),
+            (1000, 1000, 100),
+            (2000, 1000, 100),
+            (10, 0, 0),
+            (0, 0, 0),
+            (1, 3, 33),
+            (2, 3, 67),
+            (3_145_728 / 2, 3_145_728, 50),
+        ] {
+            assert_eq!(percent(done, size), want, "{done}/{size}");
+        }
+        // No overflow on big files.
+        assert_eq!(percent(u64::MAX / 2, u64::MAX), 50);
+    }
+
+    #[test]
+    fn progress_is_none_until_begin_and_after_end() {
+        let p = Progress::new();
+        let stat = |_: &Path| Some(10);
+        assert_eq!(p.snapshot(&stat), None);
+        p.begin("0.4.0", 1000, Path::new("/c/updates/0.4.0/x.rpm.part"));
+        assert!(p.snapshot(&stat).is_some());
+        p.end();
+        assert_eq!(p.snapshot(&stat), None);
+        assert_eq!(Progress::default().snapshot(&stat), None);
+    }
+
+    #[test]
+    fn the_snapshot_stats_the_part_file_it_was_given() {
+        let p = Progress::new();
+        p.begin("0.4.0", 1000, Path::new("/c/updates/0.4.0/x.rpm.part"));
+        let asked = RefCell::new(Vec::new());
+        let stat = |path: &Path| {
+            asked.borrow_mut().push(path.to_path_buf());
+            Some(421)
+        };
+        assert_eq!(
+            p.snapshot(&stat),
+            Some(Phase::Downloading {
+                version: "0.4.0".into(),
+                downloaded: 421,
+                size: 1000
+            })
+        );
+        assert_eq!(
+            *asked.borrow(),
+            vec![PathBuf::from("/c/updates/0.4.0/x.rpm.part")]
+        );
+        // A missing part file counts as zero bytes.
+        assert_eq!(
+            p.snapshot(&|_: &Path| None),
+            Some(Phase::Downloading {
+                version: "0.4.0".into(),
+                downloaded: 0,
+                size: 1000
+            })
+        );
+        // A second download replaces the first.
+        p.begin("0.5.0", 50, Path::new("/c/y.part"));
+        assert_eq!(
+            p.snapshot(&|_: &Path| Some(5)),
+            Some(Phase::Downloading {
+                version: "0.5.0".into(),
+                downloaded: 5,
+                size: 50
+            })
+        );
+    }
+
+    #[test]
+    fn a_real_part_file_is_measured_by_its_length() {
+        let dir = tempfile::tempdir().unwrap();
+        let part = dir.path().join("x.rpm.part");
+        fs::write(&part, vec![0u8; 421]).unwrap();
+        let p = Progress::new();
+        p.begin("0.4.0", 1000, &part);
+        let stat = |q: &Path| fs::metadata(q).ok().map(|m| m.len());
+        let snap = p.snapshot(&stat).unwrap();
+        assert_eq!(
+            text::tooltip_from(Lang::En, None, Some(&snap), &[]),
+            "Downloading update 42%"
+        );
+    }
+
+    #[test]
+    fn the_tooltip_shows_the_download_while_the_update_lock_is_not_available() {
+        let p = Progress::new();
+        p.begin("0.4.0", 1000, Path::new("/c/x.part"));
+        let snap = p.snapshot(&|_: &Path| Some(421));
+        assert_eq!(
+            text::tooltip_from(Lang::En, None, snap.as_ref(), &[]),
+            "Downloading update 42%"
+        );
+        assert_eq!(
+            text::tooltip_from(Lang::Ar, None, snap.as_ref(), &[]),
+            "تنزيل التحديث 42٪"
+        );
+        // 0 and 100 percent.
+        let zero = p.snapshot(&|_: &Path| Some(0));
+        assert_eq!(
+            text::tooltip_from(Lang::En, None, zero.as_ref(), &[]),
+            "Downloading update 0%"
+        );
+        let full = p.snapshot(&|_: &Path| Some(1000));
+        assert_eq!(
+            text::tooltip_from(Lang::Ar, None, full.as_ref(), &[]),
+            "تنزيل التحديث 100٪"
+        );
+        // After end() the tooltip is the idle text again.
+        p.end();
+        let snap = p.snapshot(&|_: &Path| Some(421));
+        for lang in ar_en() {
+            assert_eq!(
+                text::tooltip_from(lang, None, snap.as_ref(), &[]),
+                text::idle(lang)
+            );
+        }
+    }
+
+    #[test]
+    fn the_tooltip_falls_back_to_the_state_and_the_job_lines() {
+        let (mut st, _rig) = state_for("0.3.3", Os::Linux);
+        // Lock got, nothing downloading: the same as tooltip_text.
+        assert_eq!(
+            text::tooltip_from(Lang::En, Some(&st), None, &[]),
+            text::tooltip_text(Lang::En, &st, &[])
+        );
+        st.phase = Phase::Ready("0.4.0".into());
+        assert_eq!(
+            text::tooltip_from(Lang::Ar, Some(&st), None, &[]),
+            text::idle(Lang::Ar)
+        );
+        // Lock busy, no download, jobs running: the job lines.
+        let active = vec![("PDF".to_string(), 0.07)];
+        assert_eq!(text::tooltip_from(Lang::En, None, None, &active), "PDF: 7%");
+        // A download wins over the state.
+        let dl = Phase::Downloading {
+            version: "0.4.0".into(),
+            downloaded: 1,
+            size: 2,
+        };
+        assert_eq!(
+            text::tooltip_from(Lang::En, Some(&st), Some(&dl), &[]),
+            "Downloading update 50%"
+        );
+    }
+
+    // ---------------------------------------------------- busy answers
+
+    #[test]
+    fn apply_answers_at_once_when_the_update_lock_is_busy() {
+        let (st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
+        let m = Mutex::new(st);
+        let held = m.lock().unwrap();
+        let mut got = m.try_lock().ok();
+        assert!(got.is_none(), "the lock is held, try_lock must fail");
+        let (resp, effects) = request_apply_or_busy(got.as_deref_mut());
+        match resp {
+            Response::Error { message } => {
+                assert!(
+                    message.contains("no verified update to install"),
+                    "{message}"
+                )
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(effects, Vec::<Effect>::new());
+        drop(held);
+        // Free again: the real answer, even though the update is Ready.
+        let mut got = m.try_lock().ok();
+        let (resp, effects) = request_apply_or_busy(got.as_deref_mut());
+        assert_eq!(resp, Response::Ok);
+        assert_eq!(effects, vec![Effect::Apply]);
+    }
+
+    #[test]
+    fn apply_with_the_lock_gives_the_plain_answer_when_nothing_is_ready() {
+        let (mut st, _rig) = state_for("0.3.3", Os::Linux);
+        let (resp, effects) = request_apply_or_busy(Some(&mut st));
+        match resp {
+            Response::Error { message } => {
+                assert!(
+                    message.contains("no verified update to install"),
+                    "{message}"
+                )
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(effects, Vec::<Effect>::new());
+    }
+
+    #[test]
+    fn check_answers_downloading_at_once_when_the_update_lock_is_busy() {
+        let (st, _rig) = state_for("0.3.3", Os::Linux);
+        let m = Mutex::new(st);
+        let _held = m.lock().unwrap();
+        let mut got = m.try_lock().ok();
+        let fake = Fake::new(Feed::Good);
+        let (resp, effects) =
+            check_or_busy(got.as_deref_mut(), "0.3.3", &Config::default(), &fake, BASE);
+        assert_eq!(
+            status_of(&resp),
+            ("downloading".into(), "0.3.3".into(), None)
+        );
+        assert_eq!(effects, Vec::<Effect>::new());
+        assert_eq!(fake.calls(), 0, "a busy check never fetches");
+    }
+
+    #[test]
+    fn check_with_the_lock_is_the_manual_check() {
+        let (mut st, _rig) = state_for("0.4.0", Os::Linux);
+        let fake = Fake::new(Feed::Good);
+        let (resp, _) = check_or_busy(Some(&mut st), "0.4.0", &Config::default(), &fake, BASE);
+        assert_eq!(
+            status_of(&resp),
+            ("up-to-date".into(), "0.4.0".into(), Some("0.4.0".into()))
+        );
+        assert_eq!(fake.calls(), 2);
+    }
+
+    fn code_of(file: &str) -> String {
+        super::code(file)
+    }
+
+    fn body_of(src: &str, header: &str) -> String {
+        let start = src
+            .find(header)
+            .unwrap_or_else(|| panic!("{header} exists"));
+        let rest = &src[start..];
+        let end = rest.find("\n}\n").map_or(rest.len(), |e| e + 3);
+        rest[..end].to_string()
+    }
+
+    #[test]
+    fn the_server_and_the_menu_never_wait_on_the_update_lock() {
+        let server = code_of("server.rs");
+        assert!(server.contains("request_apply_or_busy("));
+        assert!(server.contains("check_or_busy("));
+        assert!(server.contains("try_lock"));
+        assert!(!server.contains("lock(crate::update_sys::shared())"));
+        assert!(!server.contains("update::request_apply(&mut"));
+        assert!(!server.contains("update::check_now("));
+
+        let sys = code_of("update_sys.rs");
+        let menu = body_of(&sys, "pub fn apply_from_menu");
+        assert!(menu.contains("request_apply_or_busy("), "{menu}");
+        assert!(menu.contains("try_lock"), "{menu}");
+        assert!(!menu.contains("lock(shared())"), "{menu}");
+        assert!(!menu.contains("request_apply(&mut"), "{menu}");
+    }
+
+    #[test]
+    fn the_tray_reads_the_progress_not_only_the_update_lock() {
+        let tray = code_of("tray/linux.rs");
+        assert!(tray.contains("tooltip_from("));
+        assert!(tray.contains("progress::"));
+    }
+
+    #[test]
+    fn the_download_publishes_its_progress() {
+        let upd = code_of("update.rs");
+        assert!(upd.contains("progress::shared()"));
+        assert!(upd.contains(".begin("));
+        assert!(upd.contains(".end()"));
+    }
+
+    // ---------------------------------------------------- schedule file
+
+    #[test]
+    fn write_atomic_leaves_one_complete_file_and_no_temp_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sub/update-state.json");
+        write_atomic(&path, "{\"failures\":0}").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{\"failures\":0}");
+        write_atomic(&path, "{\"failures\":2}").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{\"failures\":2}");
+        assert_eq!(listing(path.parent().unwrap()), vec!["update-state.json"]);
+        // A long old content is fully replaced by a short new one.
+        write_atomic(&path, "{}").unwrap();
+        assert_eq!(fs::read_to_string(&path).unwrap(), "{}");
+    }
+
+    #[test]
+    fn a_failing_rename_keeps_the_old_content_and_leaves_no_temp_file() {
+        let dir = tempfile::tempdir().unwrap();
+        // The target is a non empty directory: renaming a file over it fails.
+        let target = dir.path().join("update-state.json");
+        fs::create_dir_all(&target).unwrap();
+        fs::write(target.join("old.txt"), "old").unwrap();
+        assert!(write_atomic(&target, "{}").is_err());
+        assert_eq!(fs::read_to_string(target.join("old.txt")).unwrap(), "old");
+        assert_eq!(listing(dir.path()), vec!["update-state.json"]);
+    }
+
+    #[test]
+    fn the_schedule_is_saved_through_write_atomic_not_fs_write() {
+        let sys = code_of("update_sys.rs");
+        assert!(sys.contains("write_atomic("));
+        assert!(!sys.contains("fs::write"));
+    }
+
+    // ---------------------------------------------------- restart
+
+    #[test]
+    fn the_restart_command_runs_the_exe_directly_without_a_shell() {
+        assert_eq!(RESTART_DELAY, Duration::from_secs(2));
+        assert_eq!(
+            restart_command(Path::new("/usr/bin/sbarhived")),
+            (PathBuf::from("/usr/bin/sbarhived"), Vec::<String>::new())
+        );
+        assert_eq!(
+            restart_command(Path::new("/opt/sbar hive/sbarhived (deleted)")),
+            (
+                PathBuf::from("/opt/sbar hive/sbarhived"),
+                Vec::<String>::new()
+            )
+        );
+        assert_eq!(
+            clean_exe_path(Path::new("/usr/bin/sbarhived (deleted)")),
+            PathBuf::from("/usr/bin/sbarhived")
+        );
+        assert_eq!(
+            clean_exe_path(Path::new("/usr/bin/sbarhived")),
+            PathBuf::from("/usr/bin/sbarhived")
+        );
+        assert_eq!(
+            clean_exe_path(Path::new("/usr/bin/(deleted)/sbarhived")),
+            PathBuf::from("/usr/bin/(deleted)/sbarhived")
+        );
+    }
+
+    #[test]
+    fn update_sys_starts_no_shell() {
+        let sys = code_of("update_sys.rs");
+        for word in ["/bin/sh", "sh -c", "Command::new(\"sh\")", "\"-c\""] {
+            assert!(!sys.contains(word), "update_sys.rs must not contain {word}");
+        }
+        assert!(sys.contains("restart_command("));
+    }
+}
