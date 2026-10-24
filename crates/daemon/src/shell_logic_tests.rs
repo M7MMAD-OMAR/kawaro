@@ -77,7 +77,7 @@ fn ac2_exactly_127_units_is_kept_whole() {
 
 #[test]
 fn ac2_128_units_is_cut_to_126_plus_the_ellipsis() {
-    let label = "x".repeat(122);
+    let label = "x".repeat(123);
     let t = tooltip(&jobs(&[(&label, 0.5)]), Lang::En);
     let full = format!("{label}: 50%");
     assert_eq!(units(&full), 128);
