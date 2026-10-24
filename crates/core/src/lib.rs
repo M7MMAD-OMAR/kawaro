@@ -17,6 +17,7 @@ mod output_impl;
 pub mod paths;
 pub mod queue;
 mod queue_impl;
+pub mod registry;
 mod sync;
 pub mod transport;
 pub mod uri_list;

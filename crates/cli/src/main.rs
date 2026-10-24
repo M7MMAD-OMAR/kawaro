@@ -10,6 +10,7 @@ macro_rules! out {
 
 mod client;
 mod clipboard;
+mod integration;
 mod spawn;
 
 use clap::{Parser, Subcommand};
@@ -97,6 +98,11 @@ enum Cmd {
     Settings,
     /// Report which engines and helper tools this system has.
     Doctor,
+    /// Add or remove the Explorer right click menu (Windows).
+    Integration {
+        #[command(subcommand)]
+        action: IntegrationCmd,
+    },
     /// Start the daemon in the foreground.
     Daemon,
     /// Check that the daemon answers.
@@ -107,8 +113,33 @@ enum Cmd {
     Quit,
 }
 
+#[derive(Subcommand)]
+enum IntegrationCmd {
+    /// Add the right click menu item for the folder this program is in.
+    Install {
+        /// Print the reg.exe commands instead of running them.
+        #[arg(long)]
+        dry_run: bool,
+        /// Program folder to register (default: the executable's folder).
+        #[arg(long, hide = true)]
+        dir: Option<PathBuf>,
+    },
+    /// Remove the right click menu item.
+    Uninstall {
+        /// Print the reg.exe commands instead of running them.
+        #[arg(long)]
+        dry_run: bool,
+    },
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    if let Cmd::Integration { action } = cli.cmd {
+        return match action {
+            IntegrationCmd::Install { dry_run, dir } => integration::install(dry_run, dir),
+            IntegrationCmd::Uninstall { dry_run } => integration::uninstall(dry_run),
+        };
+    }
     let result = match cli.cmd {
         Cmd::Open {
             token,
@@ -137,6 +168,7 @@ fn main() -> ExitCode {
         Cmd::Ping => client::request(&Request::Ping).map(|_| out!("pong")),
         Cmd::Reload => client::request(&Request::Reload).map(|_| ()),
         Cmd::Quit => client::request(&Request::Quit).map(|_| ()),
+        Cmd::Integration { .. } => unreachable!("handled above"),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

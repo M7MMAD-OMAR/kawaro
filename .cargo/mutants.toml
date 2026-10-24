@@ -41,7 +41,11 @@
 # The Windows hive window and the shell glue (S-046) build for Windows only;
 # the live check is S-052. Their decisions stay mutated in monitor.rs,
 # merge.rs, args.rs, batch.rs and server.rs (focus_log).
+# The reg.exe runner (S-050) builds for Windows only; the live check is
+# S-052. The command lines and the dry run stay mutated in registry.rs and
+# integration.rs.
 exclude_globs = [
+  "crates/cli/src/integration/windows.rs",
   "crates/ui/src/win_window.rs",
   "crates/daemon/src/shell_open.rs",
   "crates/engines/src/office/non_unix.rs",
