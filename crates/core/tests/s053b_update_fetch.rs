@@ -393,7 +393,7 @@ fn ac1_curl_args_for_a_package_allow_1800_seconds() {
     );
     let deb = format!("{REL}/sbarhive_0.4.0_amd64.deb");
     assert_eq!(
-        curl_args(&deb, Path::new("/tmp/x/d"), 1)[11],
+        curl_args(&deb, Path::new("/tmp/x/d"), 1)[12],
         "1800",
         "the max-time value"
     );
