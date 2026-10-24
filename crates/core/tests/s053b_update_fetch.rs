@@ -88,10 +88,12 @@
 //!   `<cache>/updates/<version>` (DECISION: the name).
 //! - `update_state_file_with(os, env, known) -> Option<PathBuf>`:
 //!   `<config_dir>/update-state.json` (DECISION: the name).
+//!
 //! macOS has no `Os` variant yet, so it is not covered.
 //!
 //! `VerifiedPackage` having no public constructor cannot be seen at run time;
 //! `ac5_verified_package_has_no_public_constructor` reads the source.
+#![cfg(unix)]
 
 use std::cell::RefCell;
 use std::collections::BTreeSet;
@@ -429,7 +431,8 @@ fn ac1_no_cookie_header_referer_or_version_in_the_arguments() {
         }
     }
     let manifest_args = curl_args(&format!("{BASE}/stable.json"), dest, 1000);
-    for a in &manifest_args {
+    // The last argument is the url, which names the repository (M7MMAD).
+    for a in &manifest_args[..manifest_args.len() - 1] {
         assert!(
             !a.chars().any(|c| c.is_ascii_digit()) || a.parse::<u64>().is_ok(),
             "{a:?}"
