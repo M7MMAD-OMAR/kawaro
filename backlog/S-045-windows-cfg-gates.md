@@ -1,5 +1,5 @@
 # S-045 Build the whole workspace for Windows: cfg gates, daemon subsystem, log file
-Status: rework
+Status: done
 
 Builds on ADR 0005 sections 1 and 5 and on S-040 to S-044. For the Windows beta (order today: S-045, S-046, S-047, S-048, S-049, S-050, S-051, then S-052). First story that touches `crates/ui` and `crates/daemon` for the Windows target. One work day or less.
 
@@ -63,3 +63,4 @@ As the maintainer, I want `sbarhived.exe` and everything it depends on to build 
   - `crates/daemon/src/main.rs:117:5 replace log_to_file with ()`: new S-045 code, `cfg(windows)` only, so no Linux test reaches it. Needs an `exclude_re` entry (for example `"crates/daemon/src/main.rs:.*replace log_to_file with"`) with a comment pointing to the S-052 live check, or a move into a Windows only file already in `exclude_globs`.
   - 11 missed in `crates/daemon/src/tray/linux.rs` (`id`, `title`, `icon_name`, `tool_tip`, `menu`, `start`, `set_active`, `set_lang`). This file is the old `tray.rs` moved without changes, so git counts it as new. These need a decision by the manager: exclude `crates/daemon/src/tray/linux.rs` in `.cargo/mutants.toml` with a comment that the live tray is covered by tests/e2e/run.sh, or add tests.
   The first review limited the run to `crates/core/src` and `logfile.rs`, which hid both. Status stays `review` until the mutant run over the whole diff has no survivors.
+- 2026-10-24, reviewer: PASS (reviewer PASS 2026-10-24, after manager decision on mutants scope). `tray/linux.rs` is a pure move (`diff` of `tray.rs` at 768e941~1 against it is empty). Over the whole diff `git diff 768e941~1 HEAD` (no file filter): `cargo mutants --in-place --in-diff` found 4 mutants, 2 caught, 2 unviable, 0 missed. `cargo fmt --check` 0, clippy `--all-targets -D warnings` 0, `cargo test --all` all passed, `scripts/design-lint.sh` 0, `scripts/windows/check.sh` 0, `tests/windows/test_s045.sh` 0 failures. CHANGELOG line already present.
