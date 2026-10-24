@@ -873,8 +873,9 @@ fn ac7_the_server_answers_the_two_update_requests() {
     let server = code("server.rs");
     assert!(server.contains("Request::UpdateCheck"));
     assert!(server.contains("Request::UpdateApply"));
-    assert!(server.contains("request_apply("));
-    assert!(server.contains("check_now("));
+    assert!(server.contains("request_apply_or_busy("));
+    assert!(server.contains("check_or_busy("));
+    assert!(server.contains("try_lock"));
 }
 
 #[test]
@@ -882,7 +883,8 @@ fn ac5_the_linux_tray_uses_the_update_menu_and_tooltip_functions() {
     let tray = code("tray/linux.rs");
     assert!(tray.contains("menu_labels("));
     assert!(tray.contains("update_item_enabled("));
-    assert!(tray.contains("tooltip_text("));
+    assert!(tray.contains("tooltip_from("));
+    assert!(tray.contains("try_lock"));
 }
 
 // ------------------------------------------------------------ round 3: mutants

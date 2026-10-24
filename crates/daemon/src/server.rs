@@ -10,11 +10,6 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
-/// The plain calls the busy-aware `*_or_busy` ones wrap; the older source
-/// checks of `update_tests.rs` look for these names in this file.
-#[allow(dead_code)]
-const WRAPPED_CALLS: [&str; 2] = ["request_apply(", "check_now("];
-
 pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
     // Failed accepts in a row; each one pauses, so an error does not spin.
     let mut errors: u32 = 0;

@@ -10,11 +10,6 @@ use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
 use std::sync::{Arc, OnceLock, TryLockError};
 
-/// The plain call `tooltip_from` wraps; the older source check of
-/// `update_tests.rs` looks for this name in this file.
-#[allow(dead_code)]
-const WRAPPED_TOOLTIP: &str = "tooltip_text(";
-
 /// A second handle for updates that do not come from the job pump.
 static TRAY: OnceLock<Handle<SbarTray>> = OnceLock::new();
 
