@@ -129,3 +129,46 @@ fn ac2_cursor_at_the_top_right_edge_keeps_every_cell_inside_area_a() {
         );
     }
 }
+
+fn r(x: i32, y: i32) -> Rect {
+    Rect {
+        x,
+        y,
+        w: 100,
+        h: 100,
+    }
+}
+
+#[test]
+fn ac1_the_pixel_after_the_right_edge_belongs_to_the_next_monitor() {
+    let left = Rect {
+        x: 0,
+        y: 0,
+        w: 1000,
+        h: 100,
+    };
+    let right = Rect {
+        x: 1000,
+        y: 0,
+        w: 1000,
+        h: 100,
+    };
+    assert_eq!(work_area_for((1000, 50), &[left, right]), right);
+    assert_eq!(work_area_for((999, 50), &[left, right]), left);
+}
+
+#[test]
+fn ac1_distance_is_euclidean_when_the_pixel_gap_is_in_x() {
+    // Point (0, 0): `far` is 10 away in x only (100), `diag` is 7 away in
+    // both (98), so the diagonal one is nearer.
+    let far = r(10, -5);
+    let diag = r(7, 7);
+    assert_eq!(work_area_for((0, 0), &[far, diag]), diag);
+}
+
+#[test]
+fn ac1_distance_is_euclidean_when_the_pixel_gap_is_in_y() {
+    let far = r(-5, 10);
+    let diag = r(7, 7);
+    assert_eq!(work_area_for((0, 0), &[far, diag]), diag);
+}
