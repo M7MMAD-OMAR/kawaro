@@ -54,8 +54,13 @@ exclude_globs = [
   "crates/core/src/win.rs",
   "crates/daemon/src/logfile/windows.rs",
   "crates/daemon/src/tray/windows.rs",
+  # S-045 moved tray.rs here unchanged (a pure rename); it was never
+  # mutation-tested, the live tray is covered by tests/e2e/run.sh.
+  "crates/daemon/src/tray/linux.rs",
 ]
 exclude_re = [
+  # The Windows-only log redirect wiring (S-045); the live check is S-052.
+  "crates/daemon/src/main.rs:.*replace log_to_file with",
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
   "in attach_receiver$",
   "replace attach_receiver with",
