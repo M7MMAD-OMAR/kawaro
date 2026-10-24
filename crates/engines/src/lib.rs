@@ -9,6 +9,8 @@ pub mod image;
 mod locate;
 pub mod office;
 pub mod pdf;
+// S-030: one killable process tree per engine child.
+pub(crate) mod process;
 
 /// Every engine compiled into this build, available or not.
 pub fn all() -> Vec<Arc<dyn Engine>> {

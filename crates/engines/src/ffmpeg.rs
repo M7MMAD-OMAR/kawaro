@@ -1218,4 +1218,75 @@ mod tests {
         let r = e.run(&t, &|_| {}, &CancelToken::new());
         assert!(matches!(r, Err(EngineError::BadParam { .. })), "{r:?}");
     }
+
+    // S-030 helpers (backlog/S-030-process-tree.md): the tree is
+    // `sh -c 'sleep 30 & echo $! > "$1"; wait' sh <pidfile>`.
+
+    #[cfg(unix)]
+    fn s030_pidfile_tree(pidfile: &Path) -> Command {
+        let mut cmd = Command::new("/bin/sh");
+        cmd.args(["-c", "sleep 30 & echo $! > \"$1\"; wait", "sh"])
+            .arg(pidfile);
+        cmd
+    }
+
+    /// Polls `pidfile` up to 3 s for a pid.
+    #[cfg(unix)]
+    fn s030_read_pidfile(pidfile: &Path) -> Option<i32> {
+        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        loop {
+            if let Ok(text) = std::fs::read_to_string(pidfile) {
+                if let Ok(pid) = text.trim().parse() {
+                    return Some(pid);
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                return None;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    /// True when `/proc/<pid>` stays absent or a zombie within 2 s.
+    #[cfg(unix)]
+    fn s030_gone_soon(pid: i32) -> bool {
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        loop {
+            let gone = match std::fs::read_to_string(format!("/proc/{pid}/stat")) {
+                Err(_) => true,
+                Ok(stat) => stat
+                    .rsplit_once(')')
+                    .and_then(|(_, rest)| rest.split_whitespace().next())
+                    .is_some_and(|state| state == "Z"),
+            };
+            if gone {
+                return true;
+            }
+            if std::time::Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn s030_ac6_supervise_cancel_kills_the_grandchild() {
+        let dir = tempfile::tempdir().unwrap();
+        let pidfile = dir.path().join("pid");
+        let mut cmd = s030_pidfile_tree(&pidfile);
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        let tree = crate::process::ProcessTree::spawn(&mut cmd).expect("spawn the tree");
+        let grandchild = s030_read_pidfile(&pidfile).expect("no grandchild pid within 3 s");
+        let cancel = CancelToken::new();
+        cancel.cancel();
+        let r = supervise(tree, None, &|_| {}, &cancel);
+        assert!(matches!(r, Err(EngineError::Cancelled)), "{r:?}");
+        assert!(
+            s030_gone_soon(grandchild),
+            "grandchild {grandchild} survived the cancel"
+        );
+    }
 }
