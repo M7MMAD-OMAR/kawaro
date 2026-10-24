@@ -39,3 +39,8 @@ Fake `dnf`, `apt-get` and `pkexec` are shell scripts in a temp dir that append t
 
 ## Review log
 - 2026-10-24, planner: written from ADR 0006; approved by the manager under the maintainer's delegation. The privileged copy and re-hash closes the gap between checking a user-writable file and root reading it.
+- 2026-10-24, tester: tests in `crates/core/tests/s054a_apply.rs` (pure: AC1, AC2, AC4, AC5, AC6, AC7 helper and source checks, AC8 root gate), `crates/core/tests/s054a_apply_privileged.rs` (AC3, fake dnf and apt-get scripts, unix only) and `crates/cli/tests/s054a_install_privileged.rs` (AC8, unix only). Failure output before implementation:
+  - core: `error[E0432]: unresolved import sbarhive_core::update::apply` and `sbarhive_core::update::result` (both core test binaries do not compile; the modules do not exist).
+  - cli: `ac8_a_non_root_user_gets_exit_77_and_nothing_is_copied` and `ac8_the_refusal_comes_before_the_file_is_looked_at` FAILED: `left: Some(2) right: Some(77)`, stderr `error: unrecognized subcommand 'update'`.
+  - With throwaway `todo!()` stubs (removed) all 38 + 10 core tests panic or fail on the assertion, clippy `-D warnings` is clean on the three files, and `scripts/windows/check.sh` compiles the portable file.
+  - Decisions are listed at the top of `s054a_apply.rs` and `s054a_apply_privileged.rs` (installed_kind picks the manager when both exist, ShowCommand text, copy folder `sbarhive-update-*` removed on every path, JSON shape of `update-result.json`, `apply_now` and `HelperOps` seams).
