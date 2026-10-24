@@ -21,6 +21,7 @@ mod queue_impl;
 pub mod registry;
 mod sync;
 pub mod transport;
+pub mod update;
 pub mod uri_list;
 #[cfg(windows)]
 #[doc(hidden)]

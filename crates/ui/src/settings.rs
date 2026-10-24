@@ -358,6 +358,7 @@ mod tests {
                                 hold_ms: 400,
                                 portal_shortcut: true,
                                 shortcut: "Ctrl+Alt+H".into(),
+                                ..Config::default()
                             });
                         }
                     }
@@ -435,6 +436,7 @@ mod tests {
             hold_ms: 400,
             portal_shortcut: true,
             shortcut: "Ctrl+Alt+H".into(),
+            ..Config::default()
         };
         let s = FormState::from_config(&c, false);
         assert_eq!(
@@ -990,6 +992,7 @@ mod tests {
                     hold_ms: 400,
                     portal_shortcut: true,
                     shortcut: "Ctrl+Alt+H".into(),
+                    ..Config::default()
                 }]
             );
 

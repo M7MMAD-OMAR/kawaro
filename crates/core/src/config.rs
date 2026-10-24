@@ -4,6 +4,7 @@
 //! back to the defaults with a warning instead of stopping the daemon.
 
 use crate::i18n::Lang;
+use crate::update::Channel;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -48,6 +49,15 @@ pub enum Quality {
     Max,
 }
 
+/// What the daemon does with an update it found (ADR 0006).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum UpdateMode {
+    #[default]
+    Ask,
+    Auto,
+}
+
 /// Where the hive is drawn (S-019a): `auto` follows the compositor and the
 /// screen reader rule, `layer` and `window` override both.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -89,6 +99,15 @@ pub struct Config {
     /// The global shortcut that opens the hive on Windows (S-048), as
     /// `hotkey::parse` reads it.
     pub shortcut: String,
+    /// Check for updates in the background (S-053a). A manual check ignores it.
+    #[serde(rename = "update_check")]
+    pub update_check: bool,
+    /// The release line to follow, `stable` or `beta`.
+    #[serde(rename = "update_channel")]
+    pub update_channel: Channel,
+    /// `ask` or `auto` for what happens when an update is ready.
+    #[serde(rename = "update_mode")]
+    pub update_mode: UpdateMode,
 }
 
 /// The default long press threshold.
@@ -126,6 +145,9 @@ impl Default for Config {
             hold_ms: HOLD_MS_DEFAULT,
             portal_shortcut: true,
             shortcut: "Ctrl+Alt+H".into(),
+            update_check: true,
+            update_channel: Channel::Stable,
+            update_mode: UpdateMode::Ask,
         }
     }
 }
