@@ -102,7 +102,10 @@ fn s045_ac3_ksni_only_under_the_linux_target_table() {
 #[test]
 fn s045_ac4_windows_tray_module_has_the_three_functions() {
     let tray = read("crates/daemon/src/tray.rs");
-    assert!(tray.contains("windows"), "tray.rs must pick a Windows module");
+    assert!(
+        tray.contains("windows"),
+        "tray.rs must pick a Windows module"
+    );
     let win = read("crates/daemon/src/tray/windows.rs");
     for sig in ["pub fn start(", "pub fn set_active(", "pub fn set_lang("] {
         assert!(win.contains(sig), "tray/windows.rs lacks `{sig}`");
@@ -163,5 +166,8 @@ fn s045_ac9_changelog_has_the_line_under_unreleased() {
         .lines()
         .find(|l| l.starts_with("- ") && l.contains("(S-045)"))
         .expect("an S-045 line under [Unreleased]");
-    assert!(line.contains('«') && line.contains('»'), "needs Arabic in «»");
+    assert!(
+        line.contains('«') && line.contains('»'),
+        "needs Arabic in «»"
+    );
 }

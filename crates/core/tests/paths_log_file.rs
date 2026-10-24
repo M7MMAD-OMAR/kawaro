@@ -1,7 +1,7 @@
 //! S-045 AC6 (backlog/S-045-windows-cfg-gates.md): `paths::log_file_with` is
 //! pure and equals `log_dir_with(...)` joined with `sbarhived.log`.
 
-use sbarhive_core::paths::{log_dir_with, log_file_with, Os};
+use sbarhive_core::paths::{Os, log_dir_with, log_file_with};
 use std::ffi::OsString;
 use std::path::PathBuf;
 
