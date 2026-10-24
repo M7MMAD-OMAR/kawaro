@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Test shim for machines without dpkg-deb (Fedora). Builds a real .deb (an ar
+# archive) and answers `dpkg-deb -f FILE FIELD`. Only for tests/release.
+set -eu
+if [ "$1" = "-f" ]; then
+  ar p "$2" control.tar.gz | tar -xzO ./control | sed -n "s/^$3: //p" | head -1
+  exit 0
+fi
+args=()
+for a in "$@"; do case "$a" in --root-owner-group | --build) ;; *) args+=("$a") ;; esac; done
+src="${args[0]}"; dst="${args[1]}"
+w="$(mktemp -d)"
+trap 'rm -rf "$w"' EXIT
+printf '2.0\n' > "$w/debian-binary"
+tar -czf "$w/control.tar.gz" -C "$src/DEBIAN" .
+tar -czf "$w/data.tar.gz" -C "$src" --exclude=./DEBIAN .
+rm -f "$dst"
+(cd "$w" && ar rc "$w/out.deb" debian-binary control.tar.gz data.tar.gz)
+cp "$w/out.deb" "$dst"
