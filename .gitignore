@@ -11,3 +11,4 @@ tests/drop/out/
 tests/overlay/out/
 tests/hyprland/out/
 tests/drop/kwin-input/target/
+*.msi

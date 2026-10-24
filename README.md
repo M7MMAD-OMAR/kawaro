@@ -98,6 +98,8 @@ On Windows the settings file is `%APPDATA%\SbarHive\config.toml`, your own
 actions go in `%APPDATA%\SbarHive\actions\*.toml`. A service log in
 `%LOCALAPPDATA%\SbarHive\logs\` is planned for S-045 and not written yet.
 
+**Windows beta packages are unsigned.** The portable zip and the per-user MSI (S-051) carry no code signing certificate, so Windows SmartScreen shows "Windows protected your PC": click "More info", then "Run anyway". Compare the SHA-256 of the file you downloaded with the one on the release page before you run it. Neither package needs administrator rights, and neither is verified on a live Windows system yet (S-052).
+
 On Windows `sbarhive open` starts the service, `sbarhived.exe`, from the
 program folder when it is not running, and it is meant to keep running after
 the terminal closes. The Windows service itself is not built yet (S-045), and

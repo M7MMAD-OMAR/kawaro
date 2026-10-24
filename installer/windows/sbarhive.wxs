@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Per-user SbarHive package for wixl (msitools), built by scripts/windows/make-msi.sh.
+  Defines passed with -D: Version, Release (folder with the exes), Actions
+  (folder with the action TOML files), Ico (path of sbarhive.ico, optional).
+  The registry rows must equal core registry::install_commands with INSTALLDIR,
+  so a test compares them (crates/core/tests/s051_msi_registry.rs).
+  Never change UpgradeCode: it is how a newer package replaces an older one.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Product Id="*" Name="SbarHive" Language="1033" Version="$(var.Version)"
+           Manufacturer="SbarHive" UpgradeCode="6f2d5c1e-8a47-4b39-9d0e-5b1c7a3e2f84">
+    <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser"
+             Description="SbarHive, a local file converter" />
+    <Media Id="1" Cabinet="sbarhive.cab" EmbedCab="yes" />
+    <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of SbarHive is already installed." />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="LocalAppDataFolder">
+        <Directory Id="ProgramsDir" Name="Programs">
+          <Directory Id="INSTALLDIR" Name="SbarHive">
+            <Directory Id="ActionsDir" Name="actions" />
+          </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder" />
+    </Directory>
+
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="ProgramFiles" Guid="a1d4b7c2-3e5f-4a60-8b71-c2d3e4f50a61">
+        <File Id="CliExe" Name="sbarhive.exe" Source="$(var.Release)/sbarhive.exe" KeyPath="yes" />
+        <File Id="DaemonExe" Name="sbarhived.exe" Source="$(var.Release)/sbarhived.exe" />
+<?ifdef Ico?>
+        <File Id="IconFile" Name="sbarhive.ico" Source="$(var.Ico)" />
+<?endif?>
+        <RemoveFile Id="RemoveLeftovers" Name="*" On="uninstall" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ActionsDir">
+      <Component Id="ActionFiles" Guid="b2e5c8d3-4f60-4b71-9c82-d3e4f5061b72">
+        <File Id="ActionAudio" Name="audio.toml" Source="$(var.Actions)/audio.toml" KeyPath="yes" />
+        <File Id="ActionDocuments" Name="documents.toml" Source="$(var.Actions)/documents.toml" />
+        <File Id="ActionImages" Name="images.toml" Source="$(var.Actions)/images.toml" />
+        <File Id="ActionPdf" Name="pdf.toml" Source="$(var.Actions)/pdf.toml" />
+        <File Id="ActionVideo" Name="video.toml" Source="$(var.Actions)/video.toml" />
+      </Component>
+    </DirectoryRef>
+
+    <!-- The Explorer menu item, the notification identity and the start at logon. -->
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="ExplorerMenu" Guid="c3f6d9e4-5a71-4c82-8d93-e4f506172c83">
+        <RegistryValue Id="MenuVerb" Root="HKCU" Key="Software\Classes\*\shell\SbarHive" Name="MUIVerb" Type="string" Value="SbarHive" KeyPath="yes" />
+        <RegistryValue Id="MenuIcon" Root="HKCU" Key="Software\Classes\*\shell\SbarHive" Name="Icon" Type="string" Value="[INSTALLDIR]sbarhive.ico" />
+        <RegistryValue Id="MenuMulti" Root="HKCU" Key="Software\Classes\*\shell\SbarHive" Name="MultiSelectModel" Type="string" Value="Player" />
+        <RegistryValue Id="MenuCommand" Root="HKCU" Key="Software\Classes\*\shell\SbarHive\command" Type="string" Value="&quot;[INSTALLDIR]sbarhived.exe&quot; open &quot;%1&quot;" />
+        <RegistryValue Id="AumidName" Root="HKCU" Key="Software\Classes\AppUserModelId\io.github.m7mmad_omar.SbarHive" Name="DisplayName" Type="string" Value="SbarHive" />
+        <RegistryValue Id="AumidIcon" Root="HKCU" Key="Software\Classes\AppUserModelId\io.github.m7mmad_omar.SbarHive" Name="IconUri" Type="string" Value="[INSTALLDIR]sbarhive.ico" />
+        <RegistryValue Id="RunDaemon" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="SbarHive" Type="string" Value="&quot;[INSTALLDIR]sbarhived.exe&quot;" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="d4a7e0f5-6b82-4d93-9ea4-f50617283d94">
+        <Shortcut Id="StartShortcut" Name="SbarHive" Description="SbarHive, a local file converter"
+                  Target="[INSTALLDIR]sbarhived.exe" WorkingDirectory="INSTALLDIR" />
+        <RegistryValue Root="HKCU" Key="Software\SbarHive" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="Main" Title="SbarHive" Level="1">
+      <ComponentRef Id="ProgramFiles" />
+      <ComponentRef Id="ActionFiles" />
+      <ComponentRef Id="ExplorerMenu" />
+      <ComponentRef Id="StartMenuShortcut" />
+    </Feature>
+
+    <!-- Stop a running daemon so its exe can be replaced or removed, and start it
+         again once the install is done. Both are best effort. -->
+    <CustomAction Id="FindTaskkill" Property="TASKKILLEXE" Value="[SystemFolder]taskkill.exe" />
+    <CustomAction Id="StopDaemon" Property="TASKKILLEXE" Impersonate="yes" Return="ignore"
+                  ExeCommand="/F /IM sbarhived.exe" />
+    <CustomAction Id="StartDaemon" FileKey="DaemonExe" ExeCommand="" Impersonate="yes" Return="asyncNoWait" />
+    <InstallExecuteSequence>
+      <Custom Action="FindTaskkill" Before="StopDaemon"></Custom>
+      <Custom Action="StopDaemon" Before="InstallValidate"></Custom>
+      <Custom Action="StartDaemon" After="InstallFinalize">NOT (REMOVE~="ALL")</Custom>
+    </InstallExecuteSequence>
+  </Product>
+</Wix>

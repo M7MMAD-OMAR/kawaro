@@ -286,6 +286,8 @@ mingw library ends up beside `sbarhive.exe`.
 | mingw64-binutils | 2.46.0 (Fedora 44, installed) | GPL-3.0-or-later (some parts GPL-2.0-or-later, LGPL and BSD-3-Clause) | `scripts/windows/check-dlls.sh` | its `x86_64-w64-mingw32-objdump` reads the DLL imports |
 | mingw-w64 | Ubuntu 24.04 package, version of the runner image | GPL-3.0-or-later with the GCC runtime exception, binutils GPL-3.0-or-later | `windows-cross` job in `.github/workflows/ci.yml` | the Ubuntu package that gives the CI runner the same mingw gcc and `x86_64-w64-mingw32-objdump` |
 | genisoimage | 1.1.11 (Fedora 44, installed) | GPL-2.0-only | `scripts/windows/make-iso.sh` (S-044b) | writes the ISO that carries the test programs to the Windows test machine |
+| msitools | 0.106.58 (Fedora 44, installed) | LGPL-2.1-or-later (library), GPL-2.0-or-later (tools `wixl`, `msiinfo`), MS-RL (the bundled WiX schema data) | `scripts/windows/make-msi.sh` (S-051) and the S-051 tests | `wixl` builds the per-user MSI from `installer/windows/sbarhive.wxs`, `msiinfo` reads its tables; build tool only, nothing from it is shipped |
+| zip | Info-ZIP 3.0 (Fedora 44, installed) | Info-ZIP | `scripts/windows/make-zip.sh` (S-051) | writes the portable zip with fixed timestamps; build tool only |
 
 ## Application dependencies (daemon, CLI, UI)
 
