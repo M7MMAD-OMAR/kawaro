@@ -2,7 +2,7 @@
 
 ## ويندوز 10 و11 (64 بت)
 
-نزّل حزمة MSI. تُثبَّت لحسابك ولا تحتاج صلاحيات المدير. وهناك أيضا ملف ZIP محمول. البناء غير موقّع، فيظهر [تحذير SmartScreen](https://m7mmad-omar.github.io/sbarhive/windows/).
+نزّل حزمة MSI. تُثبَّت لحسابك ولا تحتاج صلاحيات المدير. وهناك أيضا ملف ZIP محمول. البناء غير موقّع، فيظهر [تحذير SmartScreen](https://hive.sbarah.com/windows/).
 
 ## لينكس (64 بت)
 
@@ -10,7 +10,7 @@
 
 ## التحقق
 
-قارن كل ملف نزّلته بـ`SHA256SUMS`. الخطوات في [صفحة التنزيل](https://m7mmad-omar.github.io/sbarhive/download/#verify).
+قارن كل ملف نزّلته بـ`SHA256SUMS`. الخطوات في [صفحة التنزيل](https://hive.sbarah.com/download/#verify).
 
 ## أدوات إضافية
 

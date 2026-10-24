@@ -2,7 +2,7 @@
 
 ## Windows 10 and 11 (64 bit)
 
-Download the MSI. It installs for your user and needs no administrator rights. A portable ZIP is also available. The build is unsigned, so [SmartScreen warns you](https://m7mmad-omar.github.io/sbarhive/en/windows/).
+Download the MSI. It installs for your user and needs no administrator rights. A portable ZIP is also available. The build is unsigned, so [SmartScreen warns you](https://hive.sbarah.com/en/windows/).
 
 ## Linux (64 bit)
 
@@ -10,7 +10,7 @@ Download the DEB for Ubuntu and Debian, or the RPM for Fedora. Nautilus needs th
 
 ## Verify
 
-Check every download against `SHA256SUMS`. The steps are on the [download page](https://m7mmad-omar.github.io/sbarhive/en/download/#verify).
+Check every download against `SHA256SUMS`. The steps are on the [download page](https://hive.sbarah.com/en/download/#verify).
 
 ## Extra tools
 

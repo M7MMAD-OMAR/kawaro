@@ -4,23 +4,23 @@
 
 ## Docs
 
-- [Quick start](https://m7mmad-omar.github.io/sbarhive/en/docs/start.md)
-- [Install](https://m7mmad-omar.github.io/sbarhive/en/docs/install.md)
-- [Use the hive](https://m7mmad-omar.github.io/sbarhive/en/docs/use.md)
-- [Formats](https://m7mmad-omar.github.io/sbarhive/en/docs/formats.md)
-- [Shortcuts](https://m7mmad-omar.github.io/sbarhive/en/docs/shortcuts.md)
-- [Settings](https://m7mmad-omar.github.io/sbarhive/en/docs/settings.md)
-- [Troubleshooting](https://m7mmad-omar.github.io/sbarhive/en/docs/troubleshoot.md)
-- [Contribute](https://m7mmad-omar.github.io/sbarhive/en/docs/contribute.md)
+- [Quick start](https://hive.sbarah.com/en/docs/start.md)
+- [Install](https://hive.sbarah.com/en/docs/install.md)
+- [Use the hive](https://hive.sbarah.com/en/docs/use.md)
+- [Formats](https://hive.sbarah.com/en/docs/formats.md)
+- [Shortcuts](https://hive.sbarah.com/en/docs/shortcuts.md)
+- [Settings](https://hive.sbarah.com/en/docs/settings.md)
+- [Troubleshooting](https://hive.sbarah.com/en/docs/troubleshoot.md)
+- [Contribute](https://hive.sbarah.com/en/docs/contribute.md)
 
 ## Project
 
-- [Download](https://m7mmad-omar.github.io/sbarhive/en/download/): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps
-- [Windows and SmartScreen](https://m7mmad-omar.github.io/sbarhive/en/windows/): the Windows build is unsigned
-- [Privacy](https://m7mmad-omar.github.io/sbarhive/en/privacy/): no tracking, signed updates only
-- [Releases](https://m7mmad-omar.github.io/sbarhive/en/releases.md)
+- [Download](https://hive.sbarah.com/en/download/): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps
+- [Windows and SmartScreen](https://hive.sbarah.com/en/windows/): the Windows build is unsigned
+- [Privacy](https://hive.sbarah.com/en/privacy/): no tracking, signed updates only
+- [Releases](https://hive.sbarah.com/en/releases.md)
 - [Source](https://github.com/M7MMAD-OMAR/sbarhive): GPL-3.0-or-later
 
 ## Arabic
 
-- [التوثيق بالعربية](https://m7mmad-omar.github.io/sbarhive/docs/)
+- [التوثيق بالعربية](https://hive.sbarah.com/docs/)

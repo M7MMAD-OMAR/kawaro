@@ -144,7 +144,7 @@ format is one TOML file in `actions/` plus a small adapter in
 
 ## Website and docs
 
-Guides, formats, releases and downloads: <https://m7mmad-omar.github.io/sbarhive/> (Arabic and English). The pages are built from `docs/guide/`, `actions/` and `CHANGELOG.md` by `scripts/build-site.sh`.
+Guides, formats, releases and downloads: <https://hive.sbarah.com/> (Arabic and English). The pages are built from `docs/guide/`, `actions/` and `CHANGELOG.md` by `scripts/build-site.sh`.
 
 ## Support
 
