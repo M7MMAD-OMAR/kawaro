@@ -1033,6 +1033,9 @@ mod tests {
         assert_eq!(muxer_for("wmv"), None);
     }
 
+    // Unix only: these paths start with a slash, which is not absolute on Windows.
+
+    #[cfg(unix)]
     #[test]
     fn command_line_uses_file_urls_and_explicit_muxer() {
         let a = command_args(
@@ -1069,6 +1072,9 @@ mod tests {
         ));
     }
 
+    // Unix only: these paths start with a slash, which is not absolute on Windows.
+
+    #[cfg(unix)]
     #[test]
     fn relative_paths_get_dot_slash() {
         assert_eq!(

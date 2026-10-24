@@ -575,6 +575,9 @@ mod tests {
 
     // AC7: Unix keeps today's PATH lookup
 
+    // Unix only: exercises the Unix PATH lookup, Windows has its own tests.
+
+    #[cfg(unix)]
     #[test]
     fn ac7_unix_searches_path_only() {
         let t = tempfile::tempdir().unwrap();

@@ -368,6 +368,9 @@ fn office_rejects_wrong_family_bad_target_and_unknown_op() {
     assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 1);
 }
 
+// Unix only: uses /bin/true as a fake program.
+
+#[cfg(unix)]
 #[test]
 fn office_reports_failure_when_no_output_is_produced() {
     let dir = tempfile::tempdir().unwrap();

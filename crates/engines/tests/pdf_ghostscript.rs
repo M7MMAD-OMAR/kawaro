@@ -244,6 +244,9 @@ fn pdf_to_images_zip_holds_one_png_per_page_sized_by_dpi() {
     assert!(is_empty_dir(&root));
 }
 
+// Unix only: uses /bin/false as a fake program.
+
+#[cfg(unix)]
 #[test]
 fn pdf_ghostscript_rejects_bad_params_and_unknown_op() {
     let dir = tempfile::tempdir().unwrap();

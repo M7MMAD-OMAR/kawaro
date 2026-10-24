@@ -239,6 +239,9 @@ fn ac2_linux_has_no_log_dir() {
 
 // AC3: the real entry points agree with config_dir().
 
+// Linux only: XDG_CONFIG_HOME and HOME do not exist on Windows (APPDATA is covered by the Windows branch tests).
+
+#[cfg(unix)]
 #[test]
 fn ac3_config_dir_follows_the_process_environment_on_linux() {
     // No env mutation: the expected value is read the way today's Linux

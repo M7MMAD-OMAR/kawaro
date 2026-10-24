@@ -8,13 +8,20 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
+      # Full history: the S-058 test reads CLAUDE.md at a base commit.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: System packages
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libwayland-dev \
             libdbus-1-dev ffmpeg ghostscript minisign jq rpm shellcheck msitools \
             inkscape imagemagick zip unzip file python3-yaml binutils dpkg
+      # Ubuntu 24.04 ships ImageMagick 6 with `convert` only; the tests also
+      # look for `magick`, so give it a link.
+      - name: magick link
+        run: sudo ln -sf "$(command -v convert)" /usr/local/bin/magick
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -55,6 +62,9 @@ jobs:
   windows-native:
     runs-on: windows-latest
     steps:
+      # Keep LF line endings: signature fixtures and source scanning tests
+      # read bytes and lines exactly as committed.
+      - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2

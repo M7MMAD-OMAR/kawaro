@@ -509,6 +509,9 @@ mod tests {
         ));
     }
 
+    // Unix only: uses /tmp paths, `sh` or shell scripts that do not exist on Windows.
+
+    #[cfg(unix)]
     #[test]
     fn office_file_url_percent_encodes() {
         assert_eq!(
@@ -550,6 +553,9 @@ mod tests {
         assert_eq!(find_program(&["adir"], &dirs), None);
     }
 
+    // Unix only: uses /tmp paths, `sh` or shell scripts that do not exist on Windows.
+
+    #[cfg(unix)]
     #[test]
     fn office_path_dirs_reads_path() {
         // Every unix PATH holds `sh`; an empty or bogus list would not find it.
@@ -588,6 +594,9 @@ mod tests {
         }
     }
 
+    // Unix only: uses /tmp paths, `sh` or shell scripts that do not exist on Windows.
+
+    #[cfg(unix)]
     #[test]
     fn office_run_child_reports_lines_status_and_stderr() {
         let mut cmd = Command::new("/bin/sh");
@@ -612,6 +621,9 @@ mod tests {
         assert!(msg.starts_with("x (") && msg.ends_with(')'), "{msg}");
     }
 
+    // Unix only: uses /tmp paths, `sh` or shell scripts that do not exist on Windows.
+
+    #[cfg(unix)]
     #[test]
     fn office_run_child_keeps_only_the_stderr_tail() {
         let mut cmd = Command::new("/bin/sh");

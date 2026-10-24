@@ -14,6 +14,9 @@
 //! Needs `minisign` and `jq` on PATH (CI installs minisign). A real key is
 //! never involved: every key is made here with `minisign -G -W`.
 
+// Unix only: drives the release shell scripts, minisign and python3.
+#![cfg(unix)]
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
