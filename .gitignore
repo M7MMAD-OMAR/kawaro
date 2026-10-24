@@ -12,3 +12,8 @@ tests/overlay/out/
 tests/hyprland/out/
 tests/drop/kwin-input/target/
 *.msi
+
+# files a cargo-mutants run of the packaging tests can leave behind (S-054a review)
+crates/core/*.rpm
+crates/core/*.deb
+crates/core/*.pkg
