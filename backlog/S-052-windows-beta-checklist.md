@@ -35,3 +35,4 @@ As the owner, I want a short checklist with one script per step group, so that I
 
 ## Review log
 - 2026-10-24, planner: replaces the ADR 0005 S-052 "live checklist and release" with a short owner-run checklist, as the owner wants the beta tomorrow.
+- 2026-10-24, tester: `tests/windows/test_checklist.sh` written, 57 checks, 55 fail for the right reason (docs/windows-beta-checklist.md, both .cmd files and the README "Windows beta" sections do not exist; no CHANGELOG line for S-052). The 2 passing checks are shellcheck on the test itself and design-lint (gates, not features). Reduced for the beta because S-047, S-048, S-049 are not built: AC2 keywords drag, shortcut, tray, toast, Open folder are not required; AC3 shortcut timing from hold_ms is not tested; AC7 toast screenshot is not required.
