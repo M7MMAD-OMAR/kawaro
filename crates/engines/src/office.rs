@@ -450,6 +450,35 @@ fn kill_group(child: &mut std::process::Child) {
 mod tests {
     use super::*;
 
+    // S-029a AC6 (backlog/S-029-review-cleanup.md): one helper turns a
+    // missing engine program into `Unavailable`; any other error stays.
+
+    #[test]
+    fn s029_ac6_not_found_is_unavailable_naming_program_name_and_url() {
+        let program = Path::new("/opt/engine/bin/soffice");
+        let e = EngineError::Io(std::io::Error::from(std::io::ErrorKind::NotFound));
+        match missing_on_not_found(e, "LibreOffice", "https://example.org/get", program) {
+            EngineError::Unavailable(m) => {
+                assert!(m.contains("LibreOffice"), "{m}");
+                assert!(m.contains("https://example.org/get"), "{m}");
+                assert!(m.contains(&program.display().to_string()), "{m}");
+            }
+            other => panic!("expected Unavailable, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn s029_ac6_permission_denied_stays_io() {
+        let program = Path::new("/opt/engine/bin/gs");
+        let e = EngineError::Io(std::io::Error::from(std::io::ErrorKind::PermissionDenied));
+        match missing_on_not_found(e, "Ghostscript", "https://example.org/gs", program) {
+            EngineError::Io(err) => {
+                assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied)
+            }
+            other => panic!("expected Io, got {other:?}"),
+        }
+    }
+
     #[test]
     fn office_plan_maps_targets_to_filters() {
         let p = Path::new("x");

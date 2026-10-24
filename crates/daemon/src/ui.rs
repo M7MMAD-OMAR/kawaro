@@ -382,6 +382,24 @@ mod tests {
         );
     }
 
+    /// S-029b AC8 (backlog/S-029-review-cleanup.md): `token_step` keeps the
+    /// hold token of this thread. A test runs on its own thread, so the
+    /// kept token starts empty.
+    #[test]
+    fn s029_ac8_token_step_keeps_the_token_of_the_timer() {
+        assert_eq!(token_step(TokenStep::Start(Some("t1"))), None);
+        assert_eq!(token_step(TokenStep::Show).as_deref(), Some("t1"));
+        assert_eq!(token_step(TokenStep::Show), None);
+
+        assert_eq!(token_step(TokenStep::Start(None)), None);
+        assert_eq!(token_step(TokenStep::Repeat(Some("t2"))), None);
+        assert_eq!(token_step(TokenStep::Show).as_deref(), Some("t2"));
+
+        assert_eq!(token_step(TokenStep::Start(Some("t3"))), None);
+        assert_eq!(token_step(TokenStep::End), None);
+        assert_eq!(token_step(TokenStep::Show), None);
+    }
+
     /// S-018 AC15: the theme setting writes the variable the UI crate reads,
     /// and `auto` puts back the value the daemon started with. One test, so
     /// no other test in this binary touches the variable meanwhile.

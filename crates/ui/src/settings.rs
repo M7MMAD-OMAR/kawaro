@@ -390,6 +390,7 @@ mod tests {
             folder: "SbarHive".into(),
             notify: true,
             open_folder: false,
+            portal_shortcut: true,
         };
         assert_eq!(FormState::from_config(&c, false), ltr);
         // Arabic: the lists are mirrored, the middle stays in the middle.
@@ -400,6 +401,22 @@ mod tests {
             ..ltr
         };
         assert_eq!(FormState::from_config(&c, true), rtl);
+    }
+
+    /// S-029b AC7 (backlog/S-029-review-cleanup.md): the form keeps the
+    /// portal switch, so `portal_shortcut: false` survives the round trip
+    /// from the config and from the form, in both directions.
+    #[test]
+    fn s029_ac7_form_round_trip_keeps_portal_shortcut_false() {
+        for rtl in [false, true] {
+            for mut c in every_config() {
+                c.portal_shortcut = false;
+                let form = FormState::from_config(&c, rtl);
+                assert!(!form.portal_shortcut, "rtl {rtl}");
+                assert_eq!(form.to_config(rtl), c, "rtl {rtl}");
+                assert_eq!(FormState::from_config(&form.to_config(rtl), rtl), form);
+            }
+        }
     }
 
     #[test]
