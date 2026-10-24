@@ -21,9 +21,12 @@ explains it and never overrides it.
 Generated outputs, never edited by hand:
 
 - Slint globals for the app (`tokens.slint`).
-- `site/tokens.css` for the landing page: `python3 scripts/tokens-to-css.py`.
-  Light values on `:root`, dark values under `prefers-color-scheme: dark`, and
-  motion set to zero under `prefers-reduced-motion: reduce`.
+- `site/tokens.css` for the website: `python3 scripts/tokens-to-css.py`.
+  Light values on `:root`, dark values under `prefers-color-scheme: dark`, a
+  `[data-scheme="light"]` and `[data-scheme="dark"]` pair so one section can pin
+  its scheme, and motion set to zero under `prefers-reduced-motion: reduce`.
+- The website pages: `python3 site/build.py` (Arabic at the root, English in
+  `site/en/`). It reads `design/tokens.json` for the hive geometry.
 
 The landing page needs larger type than the app; its sizes are multiples of
 `font-size-title` (body 1.125, h2 1.75, h1 2.375 to 3.25), so the scale still
@@ -49,7 +52,7 @@ moves with the token.
   caps and joins, black only (the app colourises them). Actions pick one by
   name with `icon = "..."` in `actions/*.toml`.
 
-The implementations: `spikes/hive/src/geometry.rs` (app) and `site/hive.py`
+The implementations: `spikes/hive/src/geometry.rs` (app) and `site/build.py` and `site/app.js`
 (landing page hero). Keep them in step.
 
 ## Icons

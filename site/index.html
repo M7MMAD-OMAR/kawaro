@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>صبار هايف: حوّل ملفاتك من قائمة النقر اليمين</title>
-<meta name="description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس. حدّد ملفاتك في مدير الملفات واختر الصيغة من الخلية، فيُحفظ الناتج بجانب الملف الأصلي، وتبقى ملفاتك على جهازك.">
+<title>صبار هايف: حوّل ملفاتك من قائمة النقر بالزر الأيمن</title>
+<meta name="description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد ملفاتك واختر الصيغة من خلية سداسية، فيُحفظ الناتج بجانب الأصل وتبقى ملفاتك على جهازك.">
 <link rel="canonical" href="https://m7mmad-omar.github.io/sbarhive/">
 <link rel="alternate" hreflang="ar" href="https://m7mmad-omar.github.io/sbarhive/">
 <link rel="alternate" hreflang="en" href="https://m7mmad-omar.github.io/sbarhive/en/">
@@ -17,260 +17,207 @@
 <meta property="og:site_name" content="صبار هايف">
 <meta property="og:locale" content="ar_AR">
 <meta property="og:locale:alternate" content="en_US">
-<meta property="og:title" content="صبار هايف: حوّل ملفاتك من قائمة النقر اليمين">
-<meta property="og:description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس. يُحفظ الناتج بجانب الملف الأصلي، وتبقى ملفاتك على جهازك.">
+<meta property="og:title" content="صبار هايف: حوّل ملفاتك من قائمة النقر بالزر الأيمن">
+<meta property="og:description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد ملفاتك واختر الصيغة من خلية سداسية، فيُحفظ الناتج بجانب الأصل وتبقى ملفاتك على جهازك.">
 <meta property="og:url" content="https://m7mmad-omar.github.io/sbarhive/">
 <meta property="og:image" content="https://m7mmad-omar.github.io/sbarhive/og.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="شعار صبار هايف بجانب الخلية السداسية وفيها صيغ تحويل الصور">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preload" href="fonts/IBMPlexSansArabic-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/IBMPlexSansArabic-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="tokens.css">
 <link rel="stylesheet" href="style.css">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"SbarHive","alternateName":"صبار هايف","applicationCategory":"UtilitiesApplication","operatingSystem":"Linux","license":"https://www.gnu.org/licenses/gpl-3.0.html","isAccessibleForFree":true,"url":"https://m7mmad-omar.github.io/sbarhive/","sameAs":"https://github.com/M7MMAD-OMAR/sbarhive","inLanguage":["ar","en"]}
+{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "SbarHive", "alternateName": "صبار هايف", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux, Windows", "softwareVersion": "0.4.0-beta.1", "isAccessibleForFree": true, "license": "https://www.gnu.org/licenses/gpl-3.0.html", "url": "https://m7mmad-omar.github.io/sbarhive/", "codeRepository": "https://github.com/M7MMAD-OMAR/sbarhive", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}
 </script>
+<script>document.documentElement.classList.add("js")</script>
 </head>
 <body>
-<a class="skip" href="#main">الانتقال إلى المحتوى</a>
-
+<a class="skip" href="#main">انتقل إلى المحتوى</a>
 <header class="site-header">
   <div class="wrap">
     <a class="brand" href="./">
       <img src="favicon.svg" alt="" width="32" height="32">
-      <span>صبار هايف</span>
+      <span>صبار هايف</span><span class="badge">تجريبي</span>
     </a>
-    <nav class="site-nav" aria-label="الأقسام">
-      <span class="nav-sections">
-        <a href="#how">طريقة العمل</a>
-        <a href="#formats">الصيغ</a>
-        <a href="#install">التثبيت</a>
-      </span>
-      <a href="en/" hreflang="en" lang="en">English</a>
+    <nav class="site-nav" aria-label="التنقل الرئيسي">
+      <a href="download/">التنزيل</a><a href="windows/">ويندوز</a><a href="privacy/">الخصوصية</a>
+      <a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>
     </nav>
   </div>
 </header>
-
 <main id="main">
-  <section class="hero" aria-labelledby="hero-title">
-    <div class="wrap">
-      <div>
-        <p class="eyebrow">مجاني ومفتوح المصدر، للينكس</p>
-        <h1 id="hero-title">حوّل ملفاتك من قائمة النقر اليمين</h1>
-        <p class="lead">حدّد ملفا أو أكثر في مدير الملفات، واختر من الخلية ما تريد. يُحفظ الناتج بجانب الملف الأصلي، وتبقى ملفاتك على جهازك.</p>
-        <div class="actions">
-          <a class="button button-primary" href="#install">التثبيت</a>
-          <a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive">الشيفرة على GitHub</a>
-        </div>
-      </div>
-      <div class="hero-visual">
-<!-- hive:start -->
-<svg class="hive" viewBox="0 0 344 317" role="img" aria-labelledby="hive-title">
-  <title id="hive-title">الخلية عند تحديد صورة واحدة: صيغ التحويل في الحلقة الأولى، وإجراءات الصورة في الحلقة الثانية</title>
-  <g aria-hidden="true">
-    <g class="cell cell-center" style="--i:0">
-      <path d="M171.9,122.4L203.1,140.4L203.1,176.4L171.9,194.4L140.7,176.4L140.7,140.4Z"/>
-      <text x="171.9" y="158.4">إلى WebP</text>
-    </g>
-    <g class="cell cell-active" style="--i:1">
-      <path d="M206.1,181.6L237.2,199.6L237.2,235.6L206.1,253.6L174.9,235.6L174.9,199.6Z"/>
-      <text x="206.1" y="217.6">WEBP</text>
-    </g>
-    <g class="cell" style="--i:2">
-      <path d="M137.7,181.6L168.9,199.6L168.9,235.6L137.7,253.6L106.5,235.6L106.5,199.6Z"/>
-      <text x="137.7" y="217.6">PNG</text>
-    </g>
-    <g class="cell" style="--i:3">
-      <path d="M103.5,122.4L134.7,140.4L134.7,176.4L103.5,194.4L72.4,176.4L72.4,140.4Z"/>
-      <text x="103.5" y="158.4">JPG</text>
-    </g>
-    <g class="cell" style="--i:4">
-      <path d="M137.7,63.2L168.9,81.2L168.9,117.2L137.7,135.2L106.5,117.2L106.5,81.2Z"/>
-      <text x="137.7" y="99.2">AVIF</text>
-    </g>
-    <g class="cell" style="--i:5">
-      <path d="M206.1,63.2L237.2,81.2L237.2,117.2L206.1,135.2L174.9,117.2L174.9,81.2Z"/>
-      <text x="206.1" y="99.2">PDF</text>
-    </g>
-    <g class="cell" style="--i:6">
-      <path d="M240.2,122.4L271.4,140.4L271.4,176.4L240.2,194.4L209.1,176.4L209.1,140.4Z"/>
-      <text x="240.2" y="158.4">GIF</text>
-    </g>
-    <g class="cell" style="--i:7">
-      <path d="M240.2,240.8L271.4,258.8L271.4,294.8L240.2,312.8L209.1,294.8L209.1,258.8Z"/>
-      <text x="240.2" y="276.8">BMP</text>
-    </g>
-    <g class="cell" style="--i:8">
-      <path d="M171.9,240.8L203.1,258.8L203.1,294.8L171.9,312.8L140.7,294.8L140.7,258.8Z"/>
-      <text x="171.9" y="276.8">TIFF</text>
-    </g>
-    <g class="cell" style="--i:9">
-      <path d="M103.5,240.8L134.7,258.8L134.7,294.8L103.5,312.8L72.4,294.8L72.4,258.8Z"/>
-      <text x="103.5" y="276.8">ICO</text>
-    </g>
-    <g class="cell" style="--i:10">
-      <path d="M69.4,181.6L100.5,199.6L100.5,235.6L69.4,253.6L38.2,235.6L38.2,199.6Z"/>
-      <text x="69.4" y="217.6">تحجيم</text>
-    </g>
-    <g class="cell" style="--i:11">
-      <path d="M35.2,122.4L66.4,140.4L66.4,176.4L35.2,194.4L4.0,176.4L4.0,140.4Z"/>
-      <text x="35.2" y="158.4">تدوير</text>
-    </g>
-    <g class="cell" style="--i:12">
-      <path d="M69.4,63.2L100.5,81.2L100.5,117.2L69.4,135.2L38.2,117.2L38.2,81.2Z"/>
-      <text x="69.4" y="99.2">قلب</text>
-    </g>
-    <g class="cell" style="--i:13">
-      <path d="M103.5,4.0L134.7,22.0L134.7,58.0L103.5,76.0L72.4,58.0L72.4,22.0Z"/>
-      <text x="103.5" y="40.0">رمادي</text>
-    </g>
-    <g class="cell" style="--i:14">
-      <path d="M171.9,4.0L203.1,22.0L203.1,58.0L171.9,76.0L140.7,58.0L140.7,22.0Z"/>
-      <text x="171.9" y="40.0">ضغط</text>
-    </g>
-    <g class="cell" style="--i:15">
-      <path d="M240.2,4.0L271.4,22.0L271.4,58.0L240.2,76.0L209.1,58.0L209.1,22.0Z"/>
-      <text x="240.2" y="40.0">تنظيف</text>
-    </g>
-    <g class="cell cell-empty" style="--i:16">
-      <path d="M274.4,63.2L305.6,81.2L305.6,117.2L274.4,135.2L243.2,117.2L243.2,81.2Z"/>
-    </g>
-    <g class="cell cell-empty" style="--i:17">
-      <path d="M308.6,122.4L339.8,140.4L339.8,176.4L308.6,194.4L277.4,176.4L277.4,140.4Z"/>
-    </g>
-    <g class="cell cell-empty" style="--i:18">
-      <path d="M274.4,181.6L305.6,199.6L305.6,235.6L274.4,253.6L243.2,235.6L243.2,199.6Z"/>
-    </g>
-  </g>
-</svg>
-<!-- hive:end -->
-      </div>
+<section class="hero sec" aria-labelledby="hero-title">
+<div class="side side-end" aria-hidden="true"></div>
+<div class="wrap hero-grid">
+  <div class="hero-copy">
+    <p class="eyebrow"><span class="pill pill-hot">0.4.0-beta.1</span> مجاني ومفتوح المصدر، للينكس وويندوز</p>
+    <h1 id="hero-title">حوّل ملفاتك من قائمة <span class="hl">النقر بالزر الأيمن</span></h1>
+    <p class="lead">حدّد ملفا أو أكثر، فتظهر خلية سداسية فيها ما يناسب هذه الملفات فقط. اختر خلية، فيُحفظ الناتج بجانب الأصل، وتبقى ملفاتك على جهازك.</p>
+    <div class="actions">
+      <a class="button button-primary" href="download/">نزّل النسخة التجريبية</a>
+      <a class="button" href="#how">كيف يعمل؟</a>
     </div>
-  </section>
+    <p class="fine">بيتا: قد تصادف بعض العيوب. بناء ويندوز غير موقّع بعد، <a href="windows/">ماذا يعني هذا؟</a>.</p>
+  </div>
+  <div class="stage" id="stage" role="group" aria-label="عرض توضيحي">
+  <ol class="stage-steps" aria-hidden="true"><li data-step="0"><span class="n">1</span>حدّد</li><li data-step="1"><span class="n">2</span>اختر</li><li data-step="2"><span class="n">3</span>خذ الناتج</li></ol>
+  <div class="kinds" role="radiogroup" aria-label="ماذا حدّدت؟" id="kinds"></div>
+  <svg class="hive" id="hive" viewBox="0 0 344 317" role="group" aria-label="الخلية السداسية: الإجراءات التي تناسب الملف المحدّد">
+    <g id="cells">
+<g class="cell cell-center" style="--i:0"><path d="M171.9,122.4L203.1,140.4L203.1,176.4L171.9,194.4L140.7,176.4L140.7,140.4Z"/><text x="171.9" y="158.4">صورة واحدة</text></g>
+<g class="cell cell-active" style="--i:1"><path d="M206.1,181.6L237.2,199.6L237.2,235.6L206.1,253.6L174.9,235.6L174.9,199.6Z"/><text x="206.1" y="217.6">WEBP</text></g>
+<g class="cell" style="--i:2"><path d="M137.7,181.6L168.9,199.6L168.9,235.6L137.7,253.6L106.5,235.6L106.5,199.6Z"/><text x="137.7" y="217.6">PNG</text></g>
+<g class="cell" style="--i:3"><path d="M103.5,122.4L134.7,140.4L134.7,176.4L103.5,194.4L72.4,176.4L72.4,140.4Z"/><text x="103.5" y="158.4">JPG</text></g>
+<g class="cell" style="--i:4"><path d="M137.7,63.2L168.9,81.2L168.9,117.2L137.7,135.2L106.5,117.2L106.5,81.2Z"/><text x="137.7" y="99.2">AVIF</text></g>
+<g class="cell" style="--i:5"><path d="M206.1,63.2L237.2,81.2L237.2,117.2L206.1,135.2L174.9,117.2L174.9,81.2Z"/><text x="206.1" y="99.2">PDF</text></g>
+<g class="cell" style="--i:6"><path d="M240.2,122.4L271.4,140.4L271.4,176.4L240.2,194.4L209.1,176.4L209.1,140.4Z"/><text x="240.2" y="158.4">GIF</text></g>
+<g class="cell" style="--i:7"><path d="M240.2,240.8L271.4,258.8L271.4,294.8L240.2,312.8L209.1,294.8L209.1,258.8Z"/><text x="240.2" y="276.8">تحجيم</text></g>
+<g class="cell" style="--i:8"><path d="M171.9,240.8L203.1,258.8L203.1,294.8L171.9,312.8L140.7,294.8L140.7,258.8Z"/><text x="171.9" y="276.8">تدوير</text></g>
+<g class="cell" style="--i:9"><path d="M103.5,240.8L134.7,258.8L134.7,294.8L103.5,312.8L72.4,294.8L72.4,258.8Z"/><text x="103.5" y="276.8">قلب</text></g>
+<g class="cell" style="--i:10"><path d="M69.4,181.6L100.5,199.6L100.5,235.6L69.4,253.6L38.2,235.6L38.2,199.6Z"/><text x="69.4" y="217.6">رمادي</text></g>
+<g class="cell" style="--i:11"><path d="M35.2,122.4L66.4,140.4L66.4,176.4L35.2,194.4L4.0,176.4L4.0,140.4Z"/><text x="35.2" y="158.4">ضغط</text></g>
+<g class="cell" style="--i:12"><path d="M69.4,63.2L100.5,81.2L100.5,117.2L69.4,135.2L38.2,117.2L38.2,81.2Z"/><text x="69.4" y="99.2">تنظيف</text></g>
+<g class="cell cell-empty" style="--i:13"><path d="M103.5,4.0L134.7,22.0L134.7,58.0L103.5,76.0L72.4,58.0L72.4,22.0Z"/></g>
+<g class="cell cell-empty" style="--i:14"><path d="M171.9,4.0L203.1,22.0L203.1,58.0L171.9,76.0L140.7,58.0L140.7,22.0Z"/></g>
+<g class="cell cell-empty" style="--i:15"><path d="M240.2,4.0L271.4,22.0L271.4,58.0L240.2,76.0L209.1,58.0L209.1,22.0Z"/></g>
+<g class="cell cell-empty" style="--i:16"><path d="M274.4,63.2L305.6,81.2L305.6,117.2L274.4,135.2L243.2,117.2L243.2,81.2Z"/></g>
+<g class="cell cell-empty" style="--i:17"><path d="M308.6,122.4L339.8,140.4L339.8,176.4L308.6,194.4L277.4,176.4L277.4,140.4Z"/></g>
+<g class="cell cell-empty" style="--i:18"><path d="M274.4,181.6L305.6,199.6L305.6,235.6L274.4,253.6L243.2,235.6L243.2,199.6Z"/></g>
+    </g>
+  </svg>
+  <div class="tray" id="tray" aria-hidden="true">
+    <img src="favicon.svg" alt="" width="20" height="20">
+    <span class="tray-name" id="tray-name"></span>
+    <span class="bar"><span class="bar-in" id="tray-bar"></span></span>
+  </div>
+  <div class="folder"><p class="folder-title">المجلد</p><ul class="files" id="files"></ul></div>
+  <p class="stage-hint" id="stage-hint">جرّب: اختر نوع الملف، ثم انقر على خلية</p>
+  <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="إيقاف الحركة" data-off="تشغيل الحركة">إيقاف الحركة</button>
+  <p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
+</div>
+</div>
+</section>
+<div class="marquee sec" aria-hidden="true"><div class="hexedge"></div><ul class="track" dir="ltr"><li>PNG</li><li>JPG</li><li>WEBP</li><li>AVIF</li><li>GIF</li><li>PDF</li><li>DOCX</li><li>ODT</li><li>MP4</li><li>WEBM</li><li>MKV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>XLSX</li><li>PPTX</li><li>TIFF</li><li>ICO</li><li>PNG</li><li>JPG</li><li>WEBP</li><li>AVIF</li><li>GIF</li><li>PDF</li><li>DOCX</li><li>ODT</li><li>MP4</li><li>WEBM</li><li>MKV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>XLSX</li><li>PPTX</li><li>TIFF</li><li>ICO</li></ul></div>
+<section class="sec s-how inv" id="how" aria-labelledby="how-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
 
-  <section id="how" class="band" aria-labelledby="how-title">
-    <div class="wrap">
-      <h2 id="how-title">ثلاث خطوات</h2>
-      <ol class="steps grid grid-3">
-        <li class="card">
-          <h3>حدّد الملفات</h3>
-          <p>حدّدها في Dolphin أو Nautilus أو Nemo أو Thunar، ثم انقر بالزر الأيمن واختر «صبار هايف».</p>
-        </li>
-        <li class="card">
-          <h3>اختر خلية</h3>
-          <p>لا تظهر إلا الإجراءات التي تناسب نوع الملفات وعددها، وتعمل بالأدوات المثبتة عندك.</p>
-        </li>
-        <li class="card">
-          <h3>خذ الناتج</h3>
-          <p>يُحفظ الناتج باسم جديد في المجلد نفسه، ويبقى الملف الأصلي كما هو.</p>
-        </li>
-      </ol>
-      <p class="section-intro">وعلى Hyprland يمكن ضبط Super مع النقر بالزر الأيمن ليفتح الخلية مباشرة.</p>
-    </div>
-  </section>
+<h2 id="how-title" class="reveal" data-reveal>ثلاث خطوات، ولا نافذة تفتحها</h2>
+<div class="journey-wrap reveal" data-reveal><svg class="journey" viewBox="0 0 720 190" aria-hidden="true" focusable="false"><line class="wire" x1="423" y1="95" x2="547" y2="95" pathLength="1"/><line class="wire" x1="173" y1="95" x2="297" y2="95" pathLength="1"/><path class="node" d="M610.0,25.0L670.6,60.0L670.6,130.0L610.0,165.0L549.4,130.0L549.4,60.0Z"/><path class="node" d="M360.0,25.0L420.6,60.0L420.6,130.0L360.0,165.0L299.4,130.0L299.4,60.0Z"/><path class="node" d="M110.0,25.0L170.6,60.0L170.6,130.0L110.0,165.0L49.4,130.0L49.4,60.0Z"/><rect class="doc" x="580" y="66" width="38" height="50" rx="6"/><rect class="doc doc-front" x="598" y="76" width="38" height="50" rx="6"/><path class="mc mc-hot" d="M360.0,80.0L373.0,87.5L373.0,102.5L360.0,110.0L347.0,102.5L347.0,87.5Z"/><path class="mc" d="M374.0,104.2L387.0,111.7L387.0,126.7L374.0,134.2L361.0,126.7L361.0,111.7Z"/><path class="mc" d="M346.0,104.2L359.0,111.7L359.0,126.7L346.0,134.2L333.0,126.7L333.0,111.7Z"/><path class="mc" d="M332.0,80.0L345.0,87.5L345.0,102.5L332.0,110.0L319.0,102.5L319.0,87.5Z"/><path class="mc" d="M346.0,55.8L359.0,63.3L359.0,78.3L346.0,85.8L333.0,78.3L333.0,63.3Z"/><path class="mc" d="M374.0,55.8L387.0,63.3L387.0,78.3L374.0,85.8L361.0,78.3L361.0,63.3Z"/><path class="mc" d="M388.0,80.0L401.0,87.5L401.0,102.5L388.0,110.0L375.0,102.5L375.0,87.5Z"/><rect class="doc" x="66" y="70" width="36" height="48" rx="6"/><rect class="doc doc-new" x="118" y="70" width="36" height="48" rx="6"/></svg></div>
+<ol class="steps grid grid-3" role="list">
+  <li class="card reveal" data-reveal><h3>حدّد الملفات</h3><p>في Dolphin أو Nautilus أو Nemo أو Thunar، أو في مستكشف ويندوز، ثم انقر بالزر الأيمن واختر «صبار هايف».</p></li>
+  <li class="card reveal" data-reveal><h3>اختر خلية</h3><p>لا تظهر إلا الإجراءات التي تناسب نوع الملفات وعددها، وتعمل بالأدوات المثبتة عندك.</p></li>
+  <li class="card reveal" data-reveal><h3>خذ الناتج</h3><p>يُحفظ الناتج باسم جديد في المجلد نفسه، ويبقى الأصل كما هو. يظهر التقدم في تلميح أيقونة صينية النظام، لا في نافذة تسرق التركيز.</p></li>
+</ol>
+<p class="section-intro">وعلى Hyprland تستطيع ربط Super مع النقر بالزر الأيمن ليفتح الخلية مباشرة.</p>
 
-  <section id="privacy" aria-labelledby="privacy-title">
-    <div class="wrap">
-      <h2 id="privacy-title">ملفاتك لا تغادر جهازك</h2>
-      <div class="grid grid-3">
-        <div class="card">
-          <h3>لا رفع للملفات</h3>
-          <p>كل تحويل يجري على جهازك. لا خادم يستقبل الملف، ولا حساب تسجّل فيه.</p>
-        </div>
-        <div class="card">
-          <h3>لا جمع بيانات</h3>
-          <p>البرنامج لا يرسل شيئا عن ملفاتك ولا عن استعمالك.</p>
-        </div>
-        <div class="card">
-          <h3>الأصل محفوظ</h3>
-          <p>يُكتب الناتج أولا في ملف مؤقت، ثم يأخذ اسمه النهائي، فلا يُمس الأصل، ولا يبقى ملف ناقص إن توقف التحويل.</p>
-        </div>
-      </div>
-    </div>
-  </section>
+</div>
+</section>
+<section class="sec s-privacy" id="privacy" aria-labelledby="privacy-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
 
-  <section id="formats" class="band" aria-labelledby="formats-title">
-    <div class="wrap">
-      <h2 id="formats-title">الصيغ</h2>
-      <div class="grid grid-3">
-        <div class="card">
-          <span class="tag">الإصدار 0.1</span>
-          <h3>الصور</h3>
-          <p>تحويل الصيغة، وتغيير الحجم، وتدوير، وقلب، وجعل الصورة رمادية، وضغط، وحذف البيانات الوصفية، وجمع عدة صور في ملف PDF واحد.</p>
-          <ul class="chips" aria-label="صيغ الصور">
-            <li>PNG</li><li>JPEG</li><li>WebP</li><li>AVIF</li><li>GIF</li><li>BMP</li><li>TIFF</li><li>ICO</li>
-          </ul>
-        </div>
-        <div class="card">
-          <span class="tag">الإصدار 0.2</span>
-          <h3>الفيديو والصوت</h3>
-          <p>تحويل الفيديو وضغطه، واستخراج الصوت منه، وتحويل الصوت بين صيغه. يحتاج FFmpeg.</p>
-          <ul class="chips" aria-label="صيغ الفيديو والصوت">
-            <li>MP4</li><li>WebM</li><li>GIF</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>Opus</li>
-          </ul>
-        </div>
-        <div class="card">
-          <span class="tag">الإصدار 0.2</span>
-          <h3>المستندات وPDF</h3>
-          <p>تحويل مستندات Office وODF إلى PDF وبين DOCX وODT، وضغط ملفات PDF ودمجها وتدويرها وتحويل صفحاتها إلى صور. يحتاج LibreOffice وGhostscript.</p>
-          <ul class="chips" aria-label="صيغ المستندات">
-            <li>DOCX</li><li>ODT</li><li>XLSX</li><li>ODS</li><li>PPTX</li><li>ODP</li><li>PDF</li>
-          </ul>
-        </div>
-      </div>
-      <p class="section-intro">الإجراء الذي يحتاج أداة غير مثبتة لا يظهر في الخلية، والأمر <code>sbarhive doctor</code> يعرض ما وُجد على جهازك وما ينقص.</p>
-    </div>
-  </section>
+<div class="split">
+  <div>
+    <h2 id="privacy-title" class="reveal" data-reveal>ملفاتك لا تغادر جهازك</h2>
+    <ul class="ticks" role="list">
+      <li class="reveal" data-reveal><strong>لا رفع.</strong> كل تحويل يجري على جهازك. لا خادم يستقبل الملف ولا حساب تسجّل به.</li>
+      <li class="reveal" data-reveal><strong>لا جمع بيانات.</strong> لا يرسل البرنامج شيئا عن ملفاتك ولا عن استعماله.</li>
+      <li class="reveal" data-reveal><strong>الأصل محفوظ.</strong> يُكتب الناتج أولا في ملف مؤقت ثم يأخذ اسمه النهائي، فلا يُمسّ الأصل ولا يبقى ملف ناقص إن توقف العمل.</li>
+    </ul>
+    <p class="fine"><a href="privacy/">التفاصيل الكاملة، وما تراه GitHub عند التحديث</a></p>
+  </div>
+  <div class="reveal" data-reveal><svg class="privacy-map" viewBox="0 0 640 250" role="img" aria-label="جهازك: لا ملف يخرج"><path class="zone" d="M450.0,13.0L547.0,69.0L547.0,181.0L450.0,237.0L353.0,181.0L353.0,69.0Z"/><text class="zone-label" x="450" y="22">جهازك</text><rect class="doc" x="380" y="100" width="28" height="38" rx="5"/><path class="hop" d="M450.0,100.0L467.3,110.0L467.3,130.0L450.0,140.0L432.7,130.0L432.7,110.0Z"/><rect class="doc doc-new" x="492" y="100" width="28" height="38" rx="5"/><line class="wire-s" x1="410" y1="119" x2="428" y2="119"/><line class="wire-s" x1="472" y1="119" x2="490" y2="119"/><path class="zone zone-off" d="M120.0,45.0L189.3,85.0L189.3,165.0L120.0,205.0L50.7,165.0L50.7,85.0Z"/><text class="zone-label" x="120" y="125">الإنترنت</text><line class="wire-off" x1="190" y1="125" x2="353" y2="125"/><g class="cross"><line x1="262" y1="116" x2="280" y2="134"/><line x1="262" y1="134" x2="280" y2="116"/></g><text class="zone-label strong" x="271" y="165">لا ملف يخرج</text></svg></div>
+</div>
 
-  <section id="install" aria-labelledby="install-title">
-    <div class="wrap">
-      <h2 id="install-title">التثبيت</h2>
-      <p class="section-intro">البرنامج قيد التطوير، ويُثبَّت حاليا ببنائه من الشيفرة المصدرية على لينكس. تحتاج Rust 1.85 أو أحدث.</p>
-      <pre><code>git clone https://github.com/M7MMAD-OMAR/sbarhive
-cd sbarhive
-./scripts/install.sh</code></pre>
-      <ul class="install-notes">
-        <li>يثبّت السكربت البرنامج لحسابك وحده دون صلاحيات المدير، ويضيف صبار هايف إلى قائمة النقر اليمين في مديري الملفات المثبتة عندك، ويشغّل الخدمة تلقائيا عند تسجيل الدخول.</li>
-        <li>يحتاج Nautilus إلى حزمة <code>nautilus-python</code>.</li>
-        <li>للإزالة: <code>./scripts/uninstall.sh</code></li>
-      </ul>
-    </div>
-  </section>
+</div>
+</section>
+<section class="sec alt s-formats" id="formats" aria-labelledby="formats-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
 
-  <section id="compare" class="band" aria-labelledby="compare-title">
-    <div class="wrap">
-      <h2 id="compare-title">وماذا عن الأدوات الأخرى؟</h2>
-      <div class="grid grid-3">
-        <div class="card">
-          <h3>File Converter</h3>
-          <p>يعمل بالطريقة نفسها من قائمة النقر اليمين، لكن على ويندوز وحده. صبار هايف يبدأ بلينكس، وويندوز في خطته.</p>
-        </div>
-        <div class="card">
-          <h3>FFmpeg وImageMagick</h3>
-          <p>يحوّلان كل شيء تقريبا من الطرفية، لمن يحفظ خياراتهما. صبار هايف يستعمل FFmpeg للفيديو والصوت، ويضع الخيارات في خلية.</p>
-        </div>
-        <div class="card">
-          <h3>تطبيقات لينكس وإضافات مديري الملفات</h3>
-          <p>كل منها يقتصر على الصور، أو على مهمة واحدة في مدير ملفات واحد. صبار هايف يتولى الصور والفيديو والصوت والمستندات من قائمة واحدة، في أربعة مديري ملفات.</p>
-        </div>
-      </div>
-    </div>
-  </section>
+<h2 id="formats-title" class="reveal" data-reveal>ما الذي يحوّله؟</h2>
+<div class="clips">
+  <figure class="clip clip-resize"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-img" x="30" y="30" width="60" height="60" rx="8"/><path class="a-corner" d="M30 52V30H52M90 68V90H68"/></svg></div></div><figcaption>الصور: تغيير الحجم والتدوير والضغط</figcaption></figure>
+  <figure class="clip clip-audio"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-bar" style="--i:0" x="20" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:1" x="32" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:2" x="44" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:3" x="56" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:4" x="68" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:5" x="80" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:6" x="92" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:7" x="104" y="35" width="7" height="50" rx="3.5"/></svg></div></div><figcaption>الفيديو والصوت: استخراج الصوت والتحويل</figcaption></figure>
+  <figure class="clip clip-merge"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-sheet a-s1" x="26" y="34" width="38" height="52" rx="6"/><rect class="a-sheet a-s2" x="56" y="34" width="38" height="52" rx="6"/><rect class="a-sheet a-merged" x="41" y="30" width="38" height="60" rx="6"/></svg></div></div><figcaption>PDF: دمج وتقسيم وضغط</figcaption></figure>
+</div>
+<p class="fine center">رسوم متحركة صُمّمت للموقع، وليست تسجيلا للتطبيق.</p>
+<div class="grid grid-3">
+  <div class="card reveal" data-reveal><span class="tag">الصور</span><h3>PNG وJPEG وWebP</h3>
+    <p>تحويل الصيغة، وتغيير الحجم، وتدوير، وقلب، وتحويل الصورة إلى الرمادي، وضغطها، وحذف البيانات الوصفية، وجمع عدة صور في PDF واحد.</p>
+    <ul class="chips" aria-label="صيغ الصور"><li>PNG</li><li>JPEG</li><li>WebP</li><li>AVIF</li><li>GIF</li><li>BMP</li><li>TIFF</li><li>ICO</li></ul></div>
+  <div class="card reveal" data-reveal><span class="tag">الفيديو والصوت</span><h3>MP4 وMP3 وأكثر</h3>
+    <p>تحويل الفيديو وضغطه، واستخراج الصوت منه، وتحويل الصوت بين صيغه. يحتاج FFmpeg.</p>
+    <ul class="chips" aria-label="صيغ الفيديو والصوت"><li>MP4</li><li>WebM</li><li>MKV</li><li>MOV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li></ul></div>
+  <div class="card reveal" data-reveal><span class="tag">المستندات وPDF</span><h3>Office وODF وPDF</h3>
+    <p>تحويل المستندات إلى PDF وبين DOCX وODT، وضغط PDF ودمجه وتدويره وتقسيمه وتحويل صفحاته إلى صور. يحتاج LibreOffice وGhostscript.</p>
+    <ul class="chips" aria-label="صيغ المستندات"><li>DOCX</li><li>ODT</li><li>XLSX</li><li>PPTX</li><li>ODP</li><li>PDF</li></ul></div>
+</div>
+<p class="section-intro">الإجراء الذي يحتاج أداة غير مثبتة لا يظهر في الخلية، والأمر <code>sbarhive doctor</code> يعرض ما وُجد على جهازك وما ينقص.</p>
 
-  <section id="license" aria-labelledby="license-title">
-    <div class="wrap">
-      <h2 id="license-title">مفتوح المصدر</h2>
-      <p class="section-intro">الرخصة GPLv3 أو أي إصدار لاحق منها. الشيفرة وبلاغات الأخطاء والمساهمات على <a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a>. ولإضافة صيغة جديدة يكفي ملف TOML ومحوّل صغير.</p>
-    </div>
-  </section>
+</div>
+</section>
+<section class="sec s-status inv" id="status" aria-labelledby="status-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="status-title" class="reveal" data-reveal>أين وصل المشروع فعلا؟</h2>
+<div class="grid grid-3">
+  <div class="card reveal" data-reveal><span class="tag tag-ok">لينكس</span><h3>مختبر على لينكس</h3>
+    <p>الخلية تعمل على Hyprland وKDE Plasma 6 وGNOME 50، وحزم RPM وDEB تُثبَّت وتعمل. على GNOME وKDE ولم يكتمل بعد اختبار تركيز نافذة الخلية على أجهزة GNOME وKDE الحقيقية.</p></div>
+  <div class="card reveal" data-reveal><span class="tag tag-warn">ويندوز</span><h3>تجريبي، غير موقّع</h3>
+    <p>MSI لكل مستخدم بلا صلاحيات المدير، وبند في قائمة النقر بالزر الأيمن، وأيقونة في صينية النظام. لم يُجرَّب على جهاز ويندوز حقيقي بعد، وفيه تحذير SmartScreen لأن لا شهادة توقيع لدينا.</p></div>
+  <div class="card reveal" data-reveal><span class="tag">لاحقا</span><h3>لم يصل بعد</h3>
+    <p>X11، وخلية السحب والإفلات والإشعارات على ويندوز، وmacOS. لا وعد بتاريخ، والخطة معلنة في المستودع.</p></div>
+</div>
+<p class="section-intro">لا نعدك بأن يتوفر البرنامج في متجر تطبيقات أو مدير حزم. المتاح الآن هو ما تراه في صفحة التنزيل.</p>
+
+</div>
+</section>
+<section class="sec s-cta" id="get" aria-labelledby="cta-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
+
+<div class="cta-card">
+  <div>
+    <h2 id="cta-title" class="reveal" data-reveal>جرّبه، وأخبرنا بما تجده</h2>
+    <p class="lead">الإصدار التجريبي الأول للينكس وويندوز. التنزيل من صفحة الإصدارات في GitHub، مع ملف SHA256SUMS للتحقق.</p>
+  </div>
+  <div class="actions">
+    <a class="button button-primary" href="download/">صفحة التنزيل</a>
+    <a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive">الشيفرة على GitHub</a>
+  </div>
+</div>
+
+</div>
+</section>
+<section class="sec alt s-compare" id="compare" aria-labelledby="compare-title">
+<div class="hexedge" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="compare-title" class="reveal" data-reveal>وماذا عن الأدوات الأخرى؟</h2>
+<div class="grid grid-3">
+  <div class="card reveal" data-reveal><h3>File Converter</h3><p>يعمل بفكرة القائمة نفسها، لكن على ويندوز وحده. صبار هايف يغطي لينكس وويندوز بنسخة واحدة.</p></div>
+  <div class="card reveal" data-reveal><h3>FFmpeg وImageMagick</h3><p>يحوّلان كل شيء تقريبا من الطرفية، لمن يحفظ خياراتهما. صبار هايف يستعمل FFmpeg للفيديو والصوت، ويضع الخيارات في خلية.</p></div>
+  <div class="card reveal" data-reveal><h3>إضافات مديري الملفات</h3><p>كل منها يقتصر على الصور أو على مهمة واحدة في مدير ملفات واحد. صبار هايف يتولى الصور والفيديو والصوت والمستندات من قائمة واحدة.</p></div>
+</div>
+
+</div>
+</section>
+<section class="sec s-license" id="license" aria-labelledby="license-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="license-title" class="reveal" data-reveal>مفتوح المصدر</h2>
+<p class="section-intro">الرخصة GPLv3 أو أي إصدار لاحق منها. الشيفرة وبلاغات الأخطاء والمساهمات على <a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a>. ولإضافة صيغة جديدة يكفي ملف TOML ومحوّل صغير.</p>
+
+</div>
+</section>
 </main>
-
-<footer class="site-footer">
+<footer class="site-footer sec inv">
+  <div class="hexedge" aria-hidden="true"></div>
   <div class="wrap">
-    <p>صبار هايف، برنامج حر برخصة GPLv3.</p>
-    <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="https://sbarah.com/support">ادعم صبارة</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <p>صبار هايف، برنامج حر برخصة GPLv3. <span class="muted">الإصدار التجريبي <bdi dir="ltr">0.4.0-beta.1</bdi></span></p>
+    <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">الإصدارات</a> · <a href="https://sbarah.com/support">ادعم صبارة</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
   </div>
 </footer>
+<script id="hive-config" type="application/json">{"rtl": true, "r": 36.0, "gap": 6, "pad": 4, "kinds": [{"key": "image", "label": "صورة", "selection": "صورة واحدة", "files": ["photo.png"], "cells": [{"c": "WEBP", "n": "تحويل إلى WebP", "o": "photo.webp"}, {"c": "PNG", "n": "تحويل إلى PNG", "o": "photo.png"}, {"c": "JPG", "n": "تحويل إلى JPG", "o": "photo.jpg"}, {"c": "AVIF", "n": "تحويل إلى AVIF", "o": "photo.avif"}, {"c": "PDF", "n": "تحويل إلى PDF", "o": "photo.pdf"}, {"c": "GIF", "n": "تحويل إلى GIF", "o": "photo.gif"}, {"c": "تحجيم", "n": "تحجيم الصورة", "o": "photo-resized.png"}, {"c": "تدوير", "n": "تدوير الصورة", "o": "photo-rotated.png"}, {"c": "قلب", "n": "قلب الصورة", "o": "photo-flipped.png"}, {"c": "رمادي", "n": "رمادي: جعل الصورة رمادية", "o": "photo-gray.png"}, {"c": "ضغط", "n": "ضغط الصورة", "o": "photo-compressed.png"}, {"c": "تنظيف", "n": "تنظيف: حذف البيانات الوصفية", "o": "photo-clean.png"}]}, {"key": "video", "label": "فيديو", "selection": "فيديو واحد", "files": ["clip.mov"], "cells": [{"c": "MP4", "n": "تحويل إلى MP4", "o": "clip.mp4"}, {"c": "WEBM", "n": "تحويل إلى WebM", "o": "clip.webm"}, {"c": "GIF", "n": "تحويل إلى GIF متحركة", "o": "clip.gif"}, {"c": "MKV", "n": "تحويل إلى MKV", "o": "clip.mkv"}, {"c": "MP3", "n": "استخراج الصوت بصيغة MP3", "o": "clip.mp3"}, {"c": "OGG", "n": "استخراج الصوت بصيغة OGG", "o": "clip.ogg"}, {"c": "ضغط", "n": "ضغط الفيديو", "o": "clip-compressed.mov"}, {"c": "M4A", "n": "استخراج الصوت بصيغة M4A", "o": "clip.m4a"}, {"c": "FLAC", "n": "استخراج الصوت بصيغة FLAC", "o": "clip.flac"}, {"c": "WAV", "n": "استخراج الصوت بصيغة WAV", "o": "clip.wav"}]}, {"key": "document", "label": "مستند", "selection": "مستند واحد", "files": ["report.docx"], "cells": [{"c": "PDF", "n": "تحويل إلى PDF", "o": "report.pdf"}, {"c": "ODT", "n": "تحويل إلى ODT", "o": "report.odt"}]}, {"key": "audio", "label": "صوت", "selection": "ملف صوتي", "files": ["song.wav"], "cells": [{"c": "MP3", "n": "تحويل إلى MP3", "o": "song.mp3"}, {"c": "M4A", "n": "تحويل إلى M4A", "o": "song.m4a"}, {"c": "OGG", "n": "تحويل إلى OGG", "o": "song.ogg"}, {"c": "FLAC", "n": "تحويل إلى FLAC", "o": "song.flac"}]}, {"key": "pdfs", "label": "ملفا PDF", "selection": "ملفان معا", "files": ["a.pdf", "b.pdf"], "cells": [{"c": "دمج", "n": "دمج الملفات في ملف واحد", "o": "a-merged.pdf"}, {"c": "ضغط", "n": "ضغط ملفات PDF", "o": "a-compressed.pdf"}, {"c": "تدوير", "n": "تدوير الصفحات 90 درجة", "o": "a-rotated.pdf"}, {"c": "صور", "n": "صور: تحويل الصفحات إلى صور PNG", "o": "a-pages.zip"}, {"c": "تقسيم", "n": "تقسيم: ملف PDF لكل صفحة", "o": "a-split.zip"}]}], "ui": {"idle": "مرّر على خلية", "working": "جارٍ التحويل", "done": "تم", "tray": "صبار هايف", "doneNote": "اكتمل: ", "original": "الأصل كما هو", "fresh": "جديد", "stepsOn": ["١", "٢", "٣"]}}</script>
+<script src="app.js" defer></script>
 </body>
 </html>

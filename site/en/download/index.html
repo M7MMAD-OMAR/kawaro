@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Download SbarHive 0.4.0-beta.1 for Linux and Windows</title>
+<meta name="description" content="The first SbarHive beta for Linux and Windows, with the SHA256SUMS steps to verify your download.">
+<link rel="canonical" href="https://m7mmad-omar.github.io/sbarhive/en/download/">
+<link rel="alternate" hreflang="en" href="https://m7mmad-omar.github.io/sbarhive/en/download/">
+<link rel="alternate" hreflang="ar" href="https://m7mmad-omar.github.io/sbarhive/download/">
+<link rel="alternate" hreflang="x-default" href="https://m7mmad-omar.github.io/sbarhive/download/">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../../favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SbarHive">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ar_AR">
+<meta property="og:title" content="Download SbarHive 0.4.0-beta.1 for Linux and Windows">
+<meta property="og:description" content="The first SbarHive beta for Linux and Windows, with the SHA256SUMS steps to verify your download.">
+<meta property="og:url" content="https://m7mmad-omar.github.io/sbarhive/en/download/">
+<meta property="og:image" content="https://m7mmad-omar.github.io/sbarhive/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The SbarHive logo next to a hexagonal hive with image formats">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="../../fonts/IBMPlexSansArabic-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../../tokens.css">
+<link rel="stylesheet" href="../../style.css">
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "SbarHive", "alternateName": "صبار هايف", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux, Windows", "softwareVersion": "0.4.0-beta.1", "isAccessibleForFree": true, "license": "https://www.gnu.org/licenses/gpl-3.0.html", "url": "https://m7mmad-omar.github.io/sbarhive/", "codeRepository": "https://github.com/M7MMAD-OMAR/sbarhive", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}
+</script>
+<script>document.documentElement.classList.add("js")</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../">
+      <img src="../../favicon.svg" alt="" width="32" height="32">
+      <span>SbarHive</span><span class="badge">beta</span>
+    </a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="./" aria-current="page">Download</a><a href="../windows/">Windows</a><a href="../privacy/">Privacy</a>
+      <a class="lang-switch" href="../../download/" hreflang="ar" lang="ar">العربية</a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+<section class="page-head sec"><div class="side side-end" aria-hidden="true"></div><div class="wrap"><h1>Download SbarHive</h1><p class="lead">The first beta, <code>0.4.0-beta.1</code>, for Linux and Windows. It works, and it has known rough edges that we list plainly.</p><p><span class="pill pill-hot">0.4.0-beta.1</span></p></div></section>
+<section class="sec s-dl" id="choose" aria-labelledby="d-title">
+<div class="wrap">
+
+<h2 id="d-title" class="reveal" data-reveal>Pick your system</h2>
+<div class="grid grid-2">
+  <div class="card reveal" data-reveal><span class="tag tag-ok">Linux</span><h3>RPM and DEB, 64 bit</h3>
+    <p>RPM for Fedora and its family, DEB for Ubuntu and Debian. Tested on Fedora 41 and later, Ubuntu 22.04 and 24.04, and Debian 12. The hive targets Wayland first.</p>
+    <div class="actions"><a class="button button-primary" href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub releases page</a></div></div>
+  <div class="card reveal" data-reveal><span class="tag tag-warn">Windows</span><h3>MSI or ZIP, Windows 10 and 11 (64 bit)</h3>
+    <p>A per-user MSI that needs no administrator rights, or a portable zip. The build is unsigned, so SmartScreen warns you. <a href="../windows/">Read what that means before installing</a>.</p>
+    <div class="actions"><a class="button button-primary" href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub releases page</a></div></div>
+</div>
+<p class="section-intro">Pick the latest beta on that page and download <code>SHA256SUMS</code> with it. Windows files are named like <code>sbarhive-*-windows-x64.msi</code> and <code>sbarhive-*-windows-x64.zip</code>.</p>
+
+</div>
+</section>
+<section class="sec alt s-verify" id="verify" aria-labelledby="v-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="v-title" class="reveal" data-reveal>Check your download before running it</h2>
+<p class="section-intro">Every release lists a <code>SHA256SUMS</code> file. Put it in the folder with the packages; every file you downloaded must say OK.</p>
+<div class="split">
+  <div class="reveal" data-reveal><h3>Linux</h3><pre><code>sha256sum -c SHA256SUMS --ignore-missing</code></pre></div>
+  <div class="reveal" data-reveal><h3>Windows (PowerShell)</h3><pre><code>certutil -hashfile sbarhive-0.4.0-beta.1-windows-x64.msi SHA256</code></pre>
+    <p class="fine">Compare the output with the matching line in <code>SHA256SUMS</code>. Use the file name you actually downloaded.</p></div>
+</div>
+<p class="section-intro">If the value differs, do not run the file, and tell us on GitHub.</p>
+
+</div>
+</section>
+<section class="sec s-build" id="build" aria-labelledby="b-title">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="b-title" class="reveal" data-reveal>Or build it from source on Linux</h2>
+<p class="section-intro">You need Rust 1.85 or newer. The script installs for your account only, without administrator rights, adds SbarHive to the right click menu and starts the service at login.</p>
+<pre><code>git clone https://github.com/M7MMAD-OMAR/sbarhive
+cd sbarhive
+./scripts/install.sh</code></pre>
+<ul class="install-notes">
+  <li>Nautilus needs the <code>nautilus-python</code> package.</li>
+  <li>To remove it: <code>./scripts/uninstall.sh</code></li>
+</ul>
+<h2 id="u-title" class="reveal" data-reveal>Updates</h2>
+<p class="section-intro">Once a day the app reads a signed manifest from the project's GitHub releases and verifies the signature against a public key built into the app before it downloads anything. More on the <a href="../privacy/">privacy page</a>.</p>
+
+</div>
+</section>
+</main>
+<footer class="site-footer sec inv">
+  <div class="hexedge" aria-hidden="true"></div>
+  <div class="wrap">
+    <p>SbarHive is free software under the GPLv3. <span class="muted">Beta 0.4.0-beta.1</span></p>
+    <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">Releases</a> · <a href="https://sbarah.com/support">Support Sbarah</a> · <a href="../../download/" hreflang="ar" lang="ar">العربية</a></p>
+  </div>
+</footer>
+<script id="hive-config" type="application/json">{"rtl": false, "r": 36.0, "gap": 6, "pad": 4, "kinds": [{"key": "image", "label": "Image", "selection": "One image", "files": ["photo.png"], "cells": [{"c": "WEBP", "n": "Convert to WebP", "o": "photo.webp"}, {"c": "PNG", "n": "Convert to PNG", "o": "photo.png"}, {"c": "JPG", "n": "Convert to JPG", "o": "photo.jpg"}, {"c": "AVIF", "n": "Convert to AVIF", "o": "photo.avif"}, {"c": "PDF", "n": "Convert to PDF", "o": "photo.pdf"}, {"c": "GIF", "n": "Convert to GIF", "o": "photo.gif"}, {"c": "RESIZE", "n": "Resize image", "o": "photo-resized.png"}, {"c": "ROTATE", "n": "Rotate", "o": "photo-rotated.png"}, {"c": "FLIP", "n": "Flip image", "o": "photo-flipped.png"}, {"c": "GRAY", "n": "Gray: make it gray", "o": "photo-gray.png"}, {"c": "SHRINK", "n": "Shrink image", "o": "photo-compressed.png"}, {"c": "STRIP", "n": "Strip metadata", "o": "photo-clean.png"}]}, {"key": "video", "label": "Video", "selection": "One video", "files": ["clip.mov"], "cells": [{"c": "MP4", "n": "Convert to MP4", "o": "clip.mp4"}, {"c": "WEBM", "n": "Convert to WebM", "o": "clip.webm"}, {"c": "GIF", "n": "Convert to animated GIF", "o": "clip.gif"}, {"c": "MKV", "n": "Convert to MKV", "o": "clip.mkv"}, {"c": "MP3", "n": "Extract audio as MP3", "o": "clip.mp3"}, {"c": "OGG", "n": "Extract audio as OGG", "o": "clip.ogg"}, {"c": "SHRINK", "n": "Shrink video", "o": "clip-compressed.mov"}, {"c": "M4A", "n": "Extract audio as M4A", "o": "clip.m4a"}, {"c": "FLAC", "n": "Extract audio as FLAC", "o": "clip.flac"}, {"c": "WAV", "n": "Extract audio as WAV", "o": "clip.wav"}]}, {"key": "document", "label": "Document", "selection": "One document", "files": ["report.docx"], "cells": [{"c": "PDF", "n": "Convert to PDF", "o": "report.pdf"}, {"c": "ODT", "n": "Convert to ODT", "o": "report.odt"}]}, {"key": "audio", "label": "Audio", "selection": "One audio file", "files": ["song.wav"], "cells": [{"c": "MP3", "n": "Convert to MP3", "o": "song.mp3"}, {"c": "M4A", "n": "Convert to M4A", "o": "song.m4a"}, {"c": "OGG", "n": "Convert to OGG", "o": "song.ogg"}, {"c": "FLAC", "n": "Convert to FLAC", "o": "song.flac"}]}, {"key": "pdfs", "label": "Two PDFs", "selection": "Two files", "files": ["a.pdf", "b.pdf"], "cells": [{"c": "MERGE", "n": "Merge into one PDF", "o": "a-merged.pdf"}, {"c": "SHRINK", "n": "Shrink PDFs", "o": "a-compressed.pdf"}, {"c": "ROTATE", "n": "Rotate pages 90 degrees", "o": "a-rotated.pdf"}, {"c": "PNGS", "n": "PNGs: pages to PNG images", "o": "a-pages.zip"}, {"c": "SPLIT", "n": "Split: one PDF per page", "o": "a-split.zip"}]}], "ui": {"idle": "Hover a cell", "working": "Working", "done": "Done", "tray": "SbarHive", "doneNote": "Finished: ", "original": "Original, untouched", "fresh": "New", "stepsOn": ["1", "2", "3"]}}</script>
+<script src="../../app.js" defer></script>
+</body>
+</html>

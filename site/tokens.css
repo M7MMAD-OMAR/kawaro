@@ -61,6 +61,78 @@
   }
 }
 
+/* A section can pin a scheme whatever the system asks for. */
+[data-scheme="light"] {
+  color-scheme: light;
+  --color-surface-0: #FAF7F0;
+  --color-surface-1: #F2EDE2;
+  --color-surface-2: #E9E1D0;
+  --color-surface-3: #DFD3BB;
+  --color-border: #D2C6AE;
+  --color-text-primary: #1F1A12;
+  --color-text-secondary: #5C5446;
+  --color-accent: #D9921A;
+  --color-accent-ink: #3A2500;
+  --color-success: #2F7D4F;
+  --color-warning: #B7791F;
+  --color-danger: #B23A31;
+  --color-progress: #D9921A;
+}
+
+[data-scheme="dark"] {
+  color-scheme: dark;
+  --color-surface-0: #15130F;
+  --color-surface-1: #1E1B16;
+  --color-surface-2: #27231C;
+  --color-surface-3: #322C23;
+  --color-border: #3E372C;
+  --color-text-primary: #F2ECE0;
+  --color-text-secondary: #B3AA99;
+  --color-accent: #F0A93B;
+  --color-accent-ink: #2A1A00;
+  --color-success: #5DBB83;
+  --color-warning: #E2A84B;
+  --color-danger: #E2685E;
+  --color-progress: #F0A93B;
+}
+
+/* .inv sections invert the page: dark on a light page, light on a dark one. */
+.inv {
+  color-scheme: dark;
+  --color-surface-0: #15130F;
+  --color-surface-1: #1E1B16;
+  --color-surface-2: #27231C;
+  --color-surface-3: #322C23;
+  --color-border: #3E372C;
+  --color-text-primary: #F2ECE0;
+  --color-text-secondary: #B3AA99;
+  --color-accent: #F0A93B;
+  --color-accent-ink: #2A1A00;
+  --color-success: #5DBB83;
+  --color-warning: #E2A84B;
+  --color-danger: #E2685E;
+  --color-progress: #F0A93B;
+}
+
+@media (prefers-color-scheme: dark) {
+  .inv {
+    color-scheme: light;
+    --color-surface-0: #FAF7F0;
+    --color-surface-1: #F2EDE2;
+    --color-surface-2: #E9E1D0;
+    --color-surface-3: #DFD3BB;
+    --color-border: #D2C6AE;
+    --color-text-primary: #1F1A12;
+    --color-text-secondary: #5C5446;
+    --color-accent: #D9921A;
+    --color-accent-ink: #3A2500;
+    --color-success: #2F7D4F;
+    --color-warning: #B7791F;
+    --color-danger: #B23A31;
+    --color-progress: #D9921A;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-hive-open: 0ms;

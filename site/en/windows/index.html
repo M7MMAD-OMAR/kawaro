@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SbarHive on Windows: the SmartScreen warning and checking your download</title>
+<meta name="description" content="The Windows build of SbarHive is not signed yet. This explains the SmartScreen warning and how to verify your file before running it.">
+<link rel="canonical" href="https://m7mmad-omar.github.io/sbarhive/en/windows/">
+<link rel="alternate" hreflang="en" href="https://m7mmad-omar.github.io/sbarhive/en/windows/">
+<link rel="alternate" hreflang="ar" href="https://m7mmad-omar.github.io/sbarhive/windows/">
+<link rel="alternate" hreflang="x-default" href="https://m7mmad-omar.github.io/sbarhive/windows/">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../../favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="SbarHive">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ar_AR">
+<meta property="og:title" content="SbarHive on Windows: the SmartScreen warning and checking your download">
+<meta property="og:description" content="The Windows build of SbarHive is not signed yet. This explains the SmartScreen warning and how to verify your file before running it.">
+<meta property="og:url" content="https://m7mmad-omar.github.io/sbarhive/en/windows/">
+<meta property="og:image" content="https://m7mmad-omar.github.io/sbarhive/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The SbarHive logo next to a hexagonal hive with image formats">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preload" href="../../fonts/IBMPlexSansArabic-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../../tokens.css">
+<link rel="stylesheet" href="../../style.css">
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "SbarHive", "alternateName": "صبار هايف", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux, Windows", "softwareVersion": "0.4.0-beta.1", "isAccessibleForFree": true, "license": "https://www.gnu.org/licenses/gpl-3.0.html", "url": "https://m7mmad-omar.github.io/sbarhive/", "codeRepository": "https://github.com/M7MMAD-OMAR/sbarhive", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}
+</script>
+<script>document.documentElement.classList.add("js")</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="../">
+      <img src="../../favicon.svg" alt="" width="32" height="32">
+      <span>SbarHive</span><span class="badge">beta</span>
+    </a>
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="../download/">Download</a><a href="./" aria-current="page">Windows</a><a href="../privacy/">Privacy</a>
+      <a class="lang-switch" href="../../windows/" hreflang="ar" lang="ar">العربية</a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+<section class="page-head sec"><div class="side side-end" aria-hidden="true"></div><div class="wrap"><h1>SbarHive on Windows</h1><p class="lead">The beta runs on Windows 10 and 11 (64 bit) but is not signed. This page explains why, and how to make sure your file is intact before you click Run.</p></div></section>
+<section class="sec s-w1" id="why" aria-labelledby="w1">
+<div class="side side-start" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="w1" class="reveal" data-reveal>Why the warning?</h2>
+<p class="section-intro">Windows SmartScreen shows "Windows protected your PC" for any program without a signature from a paid certificate. One person builds this project with no budget, and we have no code signing certificate yet. We do not promise a date, a particular signing programme or a place in any app store.</p>
+<ol class="steps grid grid-3" role="list">
+  <li class="card reveal" data-reveal><h3>Verify first</h3><p>Compare your file's hash with <code>SHA256SUMS</code> as on the <a href="../download/#verify">download page</a>.</p></li>
+  <li class="card reveal" data-reveal><h3>More info</h3><p>In the warning window click "More info" to reveal more options.</p></li>
+  <li class="card reveal" data-reveal><h3>Run anyway</h3><p>Click "Run anyway" only after the hash matched. If it did not, do not run it.</p></li>
+</ol>
+
+</div>
+</section>
+<section class="sec alt s-w2" id="gaps" aria-labelledby="w2">
+<div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="w2" class="reveal" data-reveal>What is not verified yet?</h2>
+<div class="grid grid-2">
+  <div class="card reveal" data-reveal><h3>Not run on a live machine</h3><p>It is built on Linux and tested there. The live checklist on a real Windows machine is the next step, so you may find things we do not know about.</p></div>
+  <div class="card reveal" data-reveal><h3>Missing for now</h3><p>No drop hive and no notifications yet, and job progress shows only in the tray tooltip. The helper that installs an MSI update while the app is closed has not run on a live machine.</p></div>
+  <div class="card reveal" data-reveal><h3>Installing</h3><p>The MSI installs for your account without administrator rights and adds a SbarHive entry to the right click menu plus a tray icon. A portable zip is also available.</p></div>
+  <div class="card reveal" data-reveal><h3>Updating</h3><p>The app updates itself quietly for your user after checking the signature, size and hash. You can turn the automatic check off in <code>config.toml</code>.</p></div>
+</div>
+<div class="actions"><a class="button button-primary" href="../download/">Go to the download page</a></div>
+
+</div>
+</section>
+</main>
+<footer class="site-footer sec inv">
+  <div class="hexedge" aria-hidden="true"></div>
+  <div class="wrap">
+    <p>SbarHive is free software under the GPLv3. <span class="muted">Beta 0.4.0-beta.1</span></p>
+    <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">Releases</a> · <a href="https://sbarah.com/support">Support Sbarah</a> · <a href="../../windows/" hreflang="ar" lang="ar">العربية</a></p>
+  </div>
+</footer>
+<script id="hive-config" type="application/json">{"rtl": false, "r": 36.0, "gap": 6, "pad": 4, "kinds": [{"key": "image", "label": "Image", "selection": "One image", "files": ["photo.png"], "cells": [{"c": "WEBP", "n": "Convert to WebP", "o": "photo.webp"}, {"c": "PNG", "n": "Convert to PNG", "o": "photo.png"}, {"c": "JPG", "n": "Convert to JPG", "o": "photo.jpg"}, {"c": "AVIF", "n": "Convert to AVIF", "o": "photo.avif"}, {"c": "PDF", "n": "Convert to PDF", "o": "photo.pdf"}, {"c": "GIF", "n": "Convert to GIF", "o": "photo.gif"}, {"c": "RESIZE", "n": "Resize image", "o": "photo-resized.png"}, {"c": "ROTATE", "n": "Rotate", "o": "photo-rotated.png"}, {"c": "FLIP", "n": "Flip image", "o": "photo-flipped.png"}, {"c": "GRAY", "n": "Gray: make it gray", "o": "photo-gray.png"}, {"c": "SHRINK", "n": "Shrink image", "o": "photo-compressed.png"}, {"c": "STRIP", "n": "Strip metadata", "o": "photo-clean.png"}]}, {"key": "video", "label": "Video", "selection": "One video", "files": ["clip.mov"], "cells": [{"c": "MP4", "n": "Convert to MP4", "o": "clip.mp4"}, {"c": "WEBM", "n": "Convert to WebM", "o": "clip.webm"}, {"c": "GIF", "n": "Convert to animated GIF", "o": "clip.gif"}, {"c": "MKV", "n": "Convert to MKV", "o": "clip.mkv"}, {"c": "MP3", "n": "Extract audio as MP3", "o": "clip.mp3"}, {"c": "OGG", "n": "Extract audio as OGG", "o": "clip.ogg"}, {"c": "SHRINK", "n": "Shrink video", "o": "clip-compressed.mov"}, {"c": "M4A", "n": "Extract audio as M4A", "o": "clip.m4a"}, {"c": "FLAC", "n": "Extract audio as FLAC", "o": "clip.flac"}, {"c": "WAV", "n": "Extract audio as WAV", "o": "clip.wav"}]}, {"key": "document", "label": "Document", "selection": "One document", "files": ["report.docx"], "cells": [{"c": "PDF", "n": "Convert to PDF", "o": "report.pdf"}, {"c": "ODT", "n": "Convert to ODT", "o": "report.odt"}]}, {"key": "audio", "label": "Audio", "selection": "One audio file", "files": ["song.wav"], "cells": [{"c": "MP3", "n": "Convert to MP3", "o": "song.mp3"}, {"c": "M4A", "n": "Convert to M4A", "o": "song.m4a"}, {"c": "OGG", "n": "Convert to OGG", "o": "song.ogg"}, {"c": "FLAC", "n": "Convert to FLAC", "o": "song.flac"}]}, {"key": "pdfs", "label": "Two PDFs", "selection": "Two files", "files": ["a.pdf", "b.pdf"], "cells": [{"c": "MERGE", "n": "Merge into one PDF", "o": "a-merged.pdf"}, {"c": "SHRINK", "n": "Shrink PDFs", "o": "a-compressed.pdf"}, {"c": "ROTATE", "n": "Rotate pages 90 degrees", "o": "a-rotated.pdf"}, {"c": "PNGS", "n": "PNGs: pages to PNG images", "o": "a-pages.zip"}, {"c": "SPLIT", "n": "Split: one PDF per page", "o": "a-split.zip"}]}], "ui": {"idle": "Hover a cell", "working": "Working", "done": "Done", "tray": "SbarHive", "doneNote": "Finished: ", "original": "Original, untouched", "fresh": "New", "stepsOn": ["1", "2", "3"]}}</script>
+<script src="../../app.js" defer></script>
+</body>
+</html>
