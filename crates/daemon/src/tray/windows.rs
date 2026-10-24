@@ -101,7 +101,8 @@ pub fn stop() {
 /// The icon: `sbarhive.ico` from the folder of the executable, at the size
 /// the notification area wants. The stock application icon stands in when
 /// the file is missing, so the tray still shows something.
-pub fn icon() -> HICON {
+/// The bool is true when the handle is ours to destroy (not the shared stock icon).
+pub fn icon() -> (HICON, bool) {
     let path = std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|dir| dir.join("sbarhive.ico")));
@@ -118,11 +119,14 @@ pub fn icon() -> HICON {
             )
         };
         if !h.is_null() {
-            return h as HICON;
+            return (h as HICON, true);
         }
         eprintln!("sbarhived: cannot load {}", path.display());
     }
-    unsafe { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) }
+    (
+        unsafe { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) },
+        false,
+    )
 }
 
 /// Shows the popup menu at the pointer and gives the chosen command.

@@ -27,9 +27,9 @@ use windows_sys::Win32::UI::Shell::{
     Shell_NotifyIconW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetMessageW, KillTimer, MSG,
-    PostQuitMessage, RegisterClassExW, RegisterWindowMessageW, SetTimer, TranslateMessage,
-    WM_CLOSE, WM_DESTROY, WM_HOTKEY, WM_RBUTTONUP, WM_TIMER, WNDCLASSEXW,
+    CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyWindow, DispatchMessageW, GetMessageW,
+    HICON, KillTimer, MSG, PostQuitMessage, RegisterClassExW, RegisterWindowMessageW, SetTimer,
+    TranslateMessage, WM_CLOSE, WM_DESTROY, WM_HOTKEY, WM_RBUTTONUP, WM_TIMER, WNDCLASSEXW,
 };
 
 const HOTKEY_ID: i32 = 1;
@@ -45,6 +45,8 @@ struct Ctx {
 
 thread_local! {
     static CTX: OnceCell<Ctx> = const { OnceCell::new() };
+    /// The tray icon, loaded once: handle and whether we must destroy it.
+    static ICON: OnceCell<(HICON, bool)> = const { OnceCell::new() };
     static HOLD: RefCell<HoldPoll> = RefCell::new(HoldPoll::default());
 }
 
@@ -186,6 +188,9 @@ unsafe extern "system" fn window_proc(
         }
         WM_DESTROY => {
             notify_icon(hwnd, NIM_DELETE);
+            if let Some(&(icon, true)) = ICON.with(|i| i.get().copied()).as_ref() {
+                unsafe { DestroyIcon(icon) };
+            }
             unsafe {
                 UnregisterHotKey(hwnd, HOTKEY_ID);
                 PostQuitMessage(0);
@@ -242,7 +247,7 @@ pub fn icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
     nid.uID = 1;
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid.uCallbackMessage = tray::WM_TRAY;
-    nid.hIcon = tray::icon();
+    nid.hIcon = ICON.with(|i| i.get_or_init(tray::icon).0);
     nid.szTip = tip_units();
     nid
 }
