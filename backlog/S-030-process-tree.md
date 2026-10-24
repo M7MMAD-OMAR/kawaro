@@ -1,5 +1,5 @@
 # S-030 Run every engine child in one killable process tree
-Status: approved (manager, by delegation, 2026-10-24)
+Status: review
 
 Follow-up named in S-028 "Out of scope". On Windows `ffmpeg.rs` spawns ffmpeg through its own `command()` (CREATE_NO_WINDOW only), outside the kill-on-close job that `run_child` uses, so ffmpeg.exe keeps writing the hidden temp file after the service dies. On every platform `supervise` cancel calls `child.kill()`, which spares the helpers ffmpeg started. One type, `ProcessTree`, owns the child and its tree for both engines. About one work day, so no split. Windows only files are not built by the Linux gates; `scripts/windows/check.sh` builds and lints them.
 
@@ -45,3 +45,7 @@ All new tests are `#[cfg(unix)]`: `check.sh` builds `--all-targets` for `x86_64-
   - `ffmpeg::tests::s030_ac6_supervise_cancel_kills_the_grandchild` (AC6): fails to compile, `error[E0433]: cannot find `ProcessTree` in `process` --> crates/engines/src/ffmpeg.rs:1281:36` (the new `supervise(tree: ProcessTree, ..)` signature). With the module and this test's tree swapped for a bare `cmd.spawn()` on today's `supervise`, it fails at run time: `panicked at crates/engines/src/ffmpeg.rs:1287:9: grandchild 2864292 survived the cancel`, so `child.kill()` spares the grandchild as the story says.
   - `office::tests::s030_ac5_run_child_cancel_kills_the_grandchild` (AC5 guard): passes today through `killpg` (`test office::tests::s030_ac5_run_child_cancel_kills_the_grandchild ... ok`, run with the `process` module switched off), as the story expects; `office_run_child_*` pass too.
   - Result of `cargo test -p sbarhive-engines --lib`: `error: could not compile `sbarhive-engines` (lib test) due to 3 previous errors`.
+- 2026-10-24, implementer: `ProcessTree` in `process.rs` (Unix `process_group(0)` and `killpg`) and `process/windows.rs` (job, `WinOps`); `run_child` and ffmpeg `supervise` use it; `non_unix.rs` keeps only `is_executable`; mutants exclude and CHANGELOG added. All six S-030 tests pass; `scripts/windows/check.sh` exits 0; design-lint clean; fmt clean. Two gate failures need a test edit, which the implementer may not make:
+  - `crates/core/tests/s029_sources.rs::s029_ac2_non_unix_uses_std_owned_handle` still requires `OwnedHandle` in `office/non_unix.rs`, which S-030 AC4 empties (the handle code moved to `process/windows.rs`). The S-029 test should read `process/windows.rs` now.
+  - `cargo clippy --all-targets -D warnings` fails on `collapsible_if` in the tester's `read_pid` helpers: `ffmpeg.rs:1241` and `office.rs:752`. Fix: `if let Ok(text) = .. && let Ok(pid) = ..`.
+  - `cargo mutants` not run.

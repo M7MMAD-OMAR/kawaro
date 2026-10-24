@@ -7,10 +7,11 @@
 //! directory. LibreOffice reports no progress: 0.0 at start, 1.0 at the end.
 //!
 //! This module also holds the child process runner shared with the
-//! Ghostscript engine: its own process group, a timeout, and cancellation,
-//! both of which kill the whole group.
+//! Ghostscript engine: its own process tree, a timeout, and cancellation,
+//! both of which kill the whole tree.
 
 use crate::locate::{self, Program};
+use crate::process::ProcessTree;
 use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
@@ -356,8 +357,8 @@ pub(crate) struct ChildOutcome {
 const POLL: Duration = Duration::from_millis(25);
 const STDERR_KEEP: usize = 4096;
 
-/// Runs `cmd` in its own process group, feeding each stdout line to
-/// `on_line`. Cancellation and the timeout kill the whole group, so helper
+/// Runs `cmd` in its own [`ProcessTree`], feeding each stdout line to
+/// `on_line`. Cancellation and the timeout kill the whole tree, so helper
 /// processes the tool starts die with it. A non-zero exit is returned in the
 /// outcome, not as an error.
 pub(crate) fn run_child(
@@ -369,18 +370,9 @@ pub(crate) fn run_child(
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        cmd.process_group(0);
-    }
-    #[cfg(unix)]
-    let mut child = cmd.spawn()?;
-    // On Windows a kill-on-close job holds the tree (ADR 0005 section 3).
-    #[cfg(not(unix))]
-    let (job, mut child) = non_unix::spawn_in_job(cmd)?;
+    let mut tree = ProcessTree::spawn(cmd)?;
     let (line_tx, lines) = mpsc::channel::<String>();
-    let stdout = child.stdout.take().expect("stdout is piped");
+    let stdout = tree.child_mut().stdout.take().expect("stdout is piped");
     std::thread::spawn(move || {
         for line in BufReader::new(stdout).lines().map_while(Result::ok) {
             if line_tx.send(line).is_err() {
@@ -389,7 +381,7 @@ pub(crate) fn run_child(
         }
     });
     let (err_tx, err_rx) = mpsc::channel::<String>();
-    let mut stderr = child.stderr.take().expect("stderr is piped");
+    let mut stderr = tree.child_mut().stderr.take().expect("stderr is piped");
     std::thread::spawn(move || {
         let mut tail = Vec::new();
         let mut buf = [0u8; 4096];
@@ -409,7 +401,7 @@ pub(crate) fn run_child(
         while let Ok(line) = lines.try_recv() {
             on_line(&line);
         }
-        if let Some(status) = child.try_wait()? {
+        if let Some(status) = tree.child_mut().try_wait()? {
             break Ok(status);
         }
         if cancel.is_cancelled() {
@@ -428,17 +420,9 @@ pub(crate) fn run_child(
         }
     };
     // Also on success: nothing the tool left running may outlive the task.
-    #[cfg(unix)]
-    kill_group(&mut child);
-    #[cfg(not(unix))]
-    non_unix::terminate_job(&job);
-    let status = match stop {
-        Ok(status) => status,
-        Err(e) => {
-            let _ = child.wait();
-            return Err(e);
-        }
-    };
+    tree.kill_all();
+    // On an error, dropping the tree reaps the child.
+    let status = stop?;
     // Lines still buffered after exit.
     while let Ok(line) = lines.recv_timeout(POLL) {
         on_line(&line);
@@ -447,15 +431,6 @@ pub(crate) fn run_child(
         .recv_timeout(Duration::from_secs(2))
         .unwrap_or_default();
     Ok(ChildOutcome { status, stderr })
-}
-
-#[cfg(unix)]
-fn kill_group(child: &mut std::process::Child) {
-    let pgid = child.id() as libc::pid_t;
-    // SAFETY: plain syscall on the group this function's caller created.
-    unsafe {
-        libc::killpg(pgid, libc::SIGKILL);
-    }
 }
 
 #[cfg(test)]

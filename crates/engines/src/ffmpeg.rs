@@ -8,12 +8,13 @@
 //! command line, so they are unit tested without spawning anything.
 
 use crate::locate::{self, Program};
+use crate::process::ProcessTree;
 use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::Duration;
@@ -107,7 +108,7 @@ impl FfmpegEngine {
 }
 
 /// Every ffmpeg and ffprobe command starts here, so none opens a console
-/// window on Windows.
+/// window on Windows. The conversion itself runs in a [`ProcessTree`].
 fn command(bin: &Path) -> Command {
     #[cfg_attr(not(windows), allow(unused_mut))]
     let mut cmd = Command::new(bin);
@@ -176,13 +177,14 @@ impl Engine for FfmpegEngine {
         let ext = sbarhive_core::media::extension(&task.output);
         let codec_args = plan(&task.op, &ext, &params, &info, encoders)?;
         let args = command_args(input, &task.output, &ext, codec_args)?;
-        let child = command(&self.ffmpeg)
-            .args(args)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()?;
-        supervise(child, info.duration, progress, cancel)
+        let tree = ProcessTree::spawn(
+            command(&self.ffmpeg)
+                .args(args)
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped()),
+        )?;
+        supervise(tree, info.duration, progress, cancel)
     }
 }
 
@@ -620,15 +622,16 @@ fn read_tail(stream: impl Read) -> VecDeque<String> {
     tail
 }
 
-/// Reads progress, honours cancel, and turns the exit status into a result.
+/// Reads progress, honours cancel (killing the whole tree), and turns the
+/// exit status into a result.
 fn supervise(
-    mut child: Child,
+    mut tree: ProcessTree,
     duration: Option<f64>,
     progress: Progress,
     cancel: &CancelToken,
 ) -> Result<(), EngineError> {
-    let stdout = child.stdout.take().expect("stdout is piped");
-    let stderr = child.stderr.take().expect("stderr is piped");
+    let stdout = tree.child_mut().stdout.take().expect("stdout is piped");
+    let stderr = tree.child_mut().stderr.take().expect("stderr is piped");
     let err_thread = std::thread::spawn(move || read_tail(stderr));
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
@@ -641,8 +644,8 @@ fn supervise(
     let mut last = 0.0f32;
     loop {
         if cancel.is_cancelled() {
-            let _ = child.kill();
-            let _ = child.wait();
+            tree.kill_all();
+            let _ = tree.child_mut().wait();
             return Err(EngineError::Cancelled);
         }
         match rx.recv_timeout(CANCEL_POLL) {
@@ -660,7 +663,7 @@ fn supervise(
             Err(RecvTimeoutError::Disconnected) => break,
         }
     }
-    let status = child.wait()?;
+    let status = tree.child_mut().wait()?;
     let tail = err_thread.join().unwrap_or_default();
     if status.success() {
         progress(1.0);

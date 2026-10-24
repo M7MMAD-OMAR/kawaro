@@ -26,15 +26,18 @@
 # only; the choices stay mutated in paths.rs and output_impl.rs.
 # The Windows service start and foreground grant (S-042) build for Windows
 # only; the flags, the retry and the grant stay mutated in spawn.rs.
-# The Windows job object for engine process trees (S-043a) builds for Windows
-# only; the start sequence, thread filter and exe check stay mutated in
-# office/tree.rs.
+# The Windows executable check (S-043a) builds for Windows only; the exe
+# check stays mutated in office/tree.rs.
+# The Windows job object for engine process trees (S-030 moved it from
+# office/non_unix.rs) builds for Windows only; the start sequence and thread
+# filter stay mutated in office/tree.rs.
 # The Windows registry reader (S-043b) builds for Windows only; the lookup
 # order that reads it stays mutated in locate.rs.
 # The UTF-16 helpers (S-029 AC1) build for Windows only; the files above
 # that call them are left out too.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
+  "crates/engines/src/process/windows.rs",
   "crates/engines/src/locate/windows.rs",
   "crates/ui/src/receiver.rs",
   "crates/ui/src/layer.rs",

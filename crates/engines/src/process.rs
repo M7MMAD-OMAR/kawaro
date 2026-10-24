@@ -5,6 +5,51 @@
 //! group; on Windows the child runs in a kill-on-close job object. Dropping a
 //! tree kills it and reaps the child.
 
+use std::process::Child;
+
+#[cfg(windows)]
+mod windows;
+
+pub(crate) struct ProcessTree {
+    child: Child,
+    /// Closing the kill-on-close job kills the tree, also when the service
+    /// process dies.
+    #[cfg(windows)]
+    job: std::os::windows::io::OwnedHandle,
+}
+
+impl ProcessTree {
+    pub(crate) fn child_mut(&mut self) -> &mut Child {
+        &mut self.child
+    }
+}
+
+#[cfg(unix)]
+impl ProcessTree {
+    /// Spawns `cmd` as the leader of a new process group.
+    pub(crate) fn spawn(cmd: &mut std::process::Command) -> std::io::Result<ProcessTree> {
+        use std::os::unix::process::CommandExt;
+        let child = cmd.process_group(0).spawn()?;
+        Ok(ProcessTree { child })
+    }
+
+    /// Kills every process in the group.
+    pub(crate) fn kill_all(&mut self) {
+        let pgid = self.child.id() as libc::pid_t;
+        // SAFETY: plain syscall on the group `spawn` created.
+        unsafe {
+            libc::killpg(pgid, libc::SIGKILL);
+        }
+    }
+}
+
+impl Drop for ProcessTree {
+    fn drop(&mut self) {
+        self.kill_all();
+        let _ = self.child.wait();
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // Every test here is Unix only: `scripts/windows/check.sh` builds the

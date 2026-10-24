@@ -1,0 +1,43 @@
+# S-050 Explorer right click menu: registry verb and `sbarhive integration install` and `uninstall`
+Status: approved (manager, by delegation, 2026-10-24)
+
+Builds on ADR 0005 section 6 and on S-048 (the icon) and S-049 (`APP_ID`). For the Windows beta. The command lines are built by a pure module in core and run through `reg.exe`, so the logic is tested on Linux and the Windows code is a thin runner. Half a work day.
+
+## Story
+As a Windows user who unpacked the zip file, I want one command to add SbarHive to the Explorer right click menu and one to remove it, with no administrator rights, so that I can try the beta and undo it cleanly.
+
+## Files
+`crates/core/src/registry.rs`, `crates/cli/src/{integration.rs,main.rs}`, `integrations/windows/registry/README.md` (English), `.cargo/mutants.toml`, `CHANGELOG.md`.
+
+## Acceptance criteria
+- AC1: `registry::install_commands(dir: &str, lang: Lang) -> Vec<Vec<String>>` is pure. For `dir = C:\Users\u\AppData\Local\Programs\SbarHive` it returns `reg.exe add` argument lists (`["add", KEY, "/v", NAME, "/t", "REG_SZ", "/d", DATA, "/f"]`, and `["add", KEY, "/ve", "/t", "REG_SZ", "/d", DATA, "/f"]` for the default value) for exactly these entries:
+  - `HKCU\Software\Classes\*\shell\SbarHive`: `MUIVerb` = `SbarHive` (English) or `صبار هايف` (Arabic), `Icon` = `<dir>\sbarhive.ico`, `MultiSelectModel` = `Player`.
+  - `HKCU\Software\Classes\*\shell\SbarHive\command`, default value = `"<dir>\sbarhived.exe" open "%1"` (the quotes are part of the value).
+  - `HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.SbarHive`: `DisplayName` = `SbarHive`, `IconUri` = `<dir>\sbarhive.ico`.
+  The list has exactly 6 commands, in that order.
+- AC2: `registry::uninstall_commands() -> Vec<Vec<String>>` returns exactly `["delete", "HKCU\\Software\\Classes\\*\\shell\\SbarHive", "/f"]` and `["delete", "HKCU\\Software\\Classes\\AppUserModelId\\io.github.m7mmad_omar.SbarHive", "/f"]`, and nothing else (no key outside these two trees).
+- AC3: a `dir` containing a double quote makes `install_commands` return `Err("path contains a quote")`; a `dir` with a trailing backslash is normalised (the command value has no `\\` before `sbarhived.exe`).
+- AC4: `sbarhive integration install --dry-run` prints each command as one line `reg.exe <args>` to stdout, exit 0, on any OS, with the directory taken from the executable's folder. Run from a test with `--dir /x` (a test-only override) the output has 6 lines, the 4th contains `open "%1"`.
+- AC5: `sbarhive integration install` without `--dry-run` on a non-Windows OS exits 2 and prints `integration install: available on Windows only`. `uninstall --dry-run` prints 2 lines.
+- AC6: on Windows, `install` first checks that `sbarhived.exe` and `sbarhive.ico` exist next to the executable; if one is missing it exits 1 naming the missing file and runs no `reg.exe` command (pure `missing_files(dir, exists) -> Vec<String>` with an injected `exists`). Then it runs the commands in order and stops at the first failure with that command's exit code in the message.
+- AC7: `integrations/windows/registry/README.md` lists the keys and the rule that Windows 11 shows the item under "Show more options" (Shift+F10). `W` (`scripts/windows/check.sh`) exits 0; `C`, `L` clean with baseline plus new tests; `M` has no surviving mutant in `registry.rs` and `integration.rs` (the process runner file is excluded); one CHANGELOG line.
+
+## Check commands
+`W`, `L`, `C`, `M` as in S-045 (6G scope, `-j 2`).
+
+## Test cases
+| Criterion | Test | Type |
+| --- | --- | --- |
+| AC1, AC2, AC3 | Unit tests comparing the full vectors for both languages | unit |
+| AC4, AC5 | Run the cli binary and compare stdout and exit codes | integration |
+| AC6 | Unit test with `exists` closures returning false for each file in turn | unit |
+| AC7 | Reviewer reads the README and CHANGELOG; `W` | review, build |
+
+## Live check deferred to S-052
+- After `install`, right click on one file and on ten files shows the item under "Show more options" and opens the hive; after `uninstall` the item is gone; the toast is named SbarHive.
+
+## Out of scope
+- Directory and background menus; the Windows 11 first-level menu (needs signing); autostart at logon (S-051 installer).
+
+## Review log
+- 2026-10-24, planner: `reg.exe` is used instead of registry API calls so every argument is checkable on Linux.

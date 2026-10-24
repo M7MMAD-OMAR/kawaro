@@ -31,14 +31,14 @@ use std::io;
 /// Starts the process with its main thread suspended, so it cannot start
 /// children before it joins the job.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub(super) const CREATE_SUSPENDED: u32 = 0x4;
+pub(crate) const CREATE_SUSPENDED: u32 = 0x4;
 /// No console window for a console tool started by a service with none.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// The system calls `start_in_job` makes, injected so a fake can record them.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub(super) trait JobOps {
+pub(crate) trait JobOps {
     /// An owned job handle, closed when dropped.
     type Job;
     /// The spawned process.
@@ -58,7 +58,7 @@ pub(super) trait JobOps {
 /// the whole tree. On a failure after the spawn the child is terminated and
 /// the job closed before the error returns.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub(super) fn start_in_job<O: JobOps>(ops: &mut O) -> io::Result<(O::Job, O::Child)> {
+pub(crate) fn start_in_job<O: JobOps>(ops: &mut O) -> io::Result<(O::Job, O::Child)> {
     let job = ops.create_job()?;
     ops.kill_on_close(&job)?;
     let (child, pid) = ops.spawn_suspended()?;
@@ -96,7 +96,7 @@ fn assign_and_resume<O: JobOps>(
 /// The thread ids owned by `pid`, from (owner pid, thread id) pairs, in
 /// entry order.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub(super) fn threads_of(pid: u32, entries: &[(u32, u32)]) -> Vec<u32> {
+pub(crate) fn threads_of(pid: u32, entries: &[(u32, u32)]) -> Vec<u32> {
     entries
         .iter()
         .filter(|(owner, _)| *owner == pid)
