@@ -2,6 +2,8 @@
 //! manifest, the policy that decides what is offered, the check schedule.
 //! No network and no files; callers pass bytes and text in.
 
+pub mod fetch;
+pub mod flow;
 pub mod manifest;
 pub mod policy;
 pub mod schedule;
@@ -33,6 +35,20 @@ pub enum UpdateError {
     BadSignature,
     #[error("not a minisign public key")]
     BadKey,
+    #[error("the network is not reachable")]
+    Offline,
+    #[error("no curl program was found")]
+    Unavailable,
+    #[error("the server answered HTTP {0}")]
+    Http(u16),
+    #[error("the package does not match its signed sha256")]
+    HashMismatch,
+    #[error("the package does not match its signed size")]
+    SizeMismatch,
+    #[error("the manifest has no package for this platform")]
+    NoAsset,
+    #[error("a file could not be read or written")]
+    Io,
 }
 
 /// The release line a user follows.

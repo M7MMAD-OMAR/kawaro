@@ -314,4 +314,5 @@ Not engines, recorded here because CLAUDE.md asks for every new library.
 | md-5 | 0.11.0 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): MD5 of the file URI names the cached thumbnail; already in the tree through another dependency |
 | png | 0.17.16 | MIT OR Apache-2.0 | ui | centre cell picture (S-018g): reads the `Thumb::*` text chunks of a cached thumbnail; was a dev-dependency, already in the tree |
 | minisign-verify | 0.3.0 | MIT (checked with `cargo info`, 2026-10-24) | core (S-053a) | checks the minisign signature of the update manifest (ADR 0006); no dependencies, so it adds exactly one package to `Cargo.lock`; chosen over the `ed25519-dalek` fallback (which would add six packages and a hand written parser) because it is MIT, tiny and reads the minisign file formats itself |
+| sha2 | 0.11.1 | MIT OR Apache-2.0 | core (S-053b) | SHA-256 of a downloaded update package, streamed in 64 KiB reads (ADR 0006); already in the tree, now a direct dependency of core, so no new package |
 | semver | 1.0.28 | MIT OR Apache-2.0 | core (S-053a) | version precedence for the update rules; already in the tree, now a direct dependency of core |

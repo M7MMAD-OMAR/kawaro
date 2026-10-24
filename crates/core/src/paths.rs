@@ -79,3 +79,24 @@ pub fn config_dir() -> Option<PathBuf> {
 pub fn log_file_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
     log_dir_with(os, env, known).map(|dir| dir.join("sbarhived.log"))
 }
+
+/// The cache folder: downloaded updates live under it (S-053b).
+pub fn cache_dir_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
+    match os {
+        Os::Linux => env("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .or_else(|| env("HOME").map(|h| PathBuf::from(h).join(".cache")))
+            .map(|base| base.join("sbarhive")),
+        Os::Windows => windows_base(env, "LOCALAPPDATA", known).map(|base| base.join("SbarHive")),
+    }
+}
+
+/// Where the package of one version is kept: `<cache>/updates/<version>`.
+pub fn update_dir_with(os: Os, env: EnvFn, known: KnownFn, version: &str) -> Option<PathBuf> {
+    cache_dir_with(os, env, known).map(|dir| dir.join("updates").join(version))
+}
+
+/// The check schedule file, next to `config.toml`.
+pub fn update_state_file_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
+    config_dir_with(os, env, known).map(|dir| dir.join("update-state.json"))
+}
