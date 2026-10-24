@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://m7mmad-omar.github.io/sbarhive/sitemap.xml

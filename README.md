@@ -142,6 +142,10 @@ Security reports: see `SECURITY.md`. Release history: `CHANGELOG.md`. A new
 format is one TOML file in `actions/` plus a small adapter in
 `crates/engines/`.
 
+## Website and docs
+
+Guides, formats, releases and downloads: <https://m7mmad-omar.github.io/sbarhive/> (Arabic and English). The pages are built from `docs/guide/`, `actions/` and `CHANGELOG.md` by `scripts/build-site.sh`.
+
 ## Support
 
 SbarHive is free and built in the open. If it helps you, you can support its development:

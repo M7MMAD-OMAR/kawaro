@@ -1,0 +1,26 @@
+# SbarHive
+
+> A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. First beta 0.4.0-beta.1.
+
+## Docs
+
+- [Quick start](https://m7mmad-omar.github.io/sbarhive/en/docs/start.md)
+- [Install](https://m7mmad-omar.github.io/sbarhive/en/docs/install.md)
+- [Use the hive](https://m7mmad-omar.github.io/sbarhive/en/docs/use.md)
+- [Formats](https://m7mmad-omar.github.io/sbarhive/en/docs/formats.md)
+- [Shortcuts](https://m7mmad-omar.github.io/sbarhive/en/docs/shortcuts.md)
+- [Settings](https://m7mmad-omar.github.io/sbarhive/en/docs/settings.md)
+- [Troubleshooting](https://m7mmad-omar.github.io/sbarhive/en/docs/troubleshoot.md)
+- [Contribute](https://m7mmad-omar.github.io/sbarhive/en/docs/contribute.md)
+
+## Project
+
+- [Download](https://m7mmad-omar.github.io/sbarhive/en/download/): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps
+- [Windows and SmartScreen](https://m7mmad-omar.github.io/sbarhive/en/windows/): the Windows build is unsigned
+- [Privacy](https://m7mmad-omar.github.io/sbarhive/en/privacy/): no tracking, signed updates only
+- [Releases](https://m7mmad-omar.github.io/sbarhive/en/releases.md)
+- [Source](https://github.com/M7MMAD-OMAR/sbarhive): GPL-3.0-or-later
+
+## Arabic
+
+- [التوثيق بالعربية](https://m7mmad-omar.github.io/sbarhive/docs/)

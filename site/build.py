@@ -289,7 +289,7 @@ SUPPORT = "https://sbarah.com/support"
 AR = {
     "lang": "ar", "dir": "rtl", "name": "صبار هايف", "locale": "ar_AR", "alt": "en_US",
     "nav_skip": "انتقل إلى المحتوى",
-    "nav": {"index": "الرئيسية", "download": "التنزيل", "windows": "ويندوز", "privacy": "الخصوصية"},
+    "nav": {"index": "الرئيسية", "docs": "التوثيق", "download": "التنزيل", "releases": "الإصدارات", "windows": "ويندوز", "privacy": "الخصوصية"},
     "nav_label": "التنقل الرئيسي",
     "other_lang": "English",
     "beta": "بيتا",
@@ -315,7 +315,7 @@ AR = {
 EN = {
     "lang": "en", "dir": "ltr", "name": "SbarHive", "locale": "en_US", "alt": "ar_AR",
     "nav_skip": "Skip to content",
-    "nav": {"index": "Home", "download": "Download", "windows": "Windows", "privacy": "Privacy"},
+    "nav": {"index": "Home", "docs": "Docs", "download": "Download", "releases": "Releases", "windows": "Windows", "privacy": "Privacy"},
     "nav_label": "Main navigation",
     "other_lang": "العربية",
     "beta": "beta",
@@ -347,14 +347,21 @@ def lang_pack(lang):
 # Page shell
 # ---------------------------------------------------------------------------
 
+def _parts(page):
+    p = page.split("/")
+    if p[-1] == "index":
+        p = p[:-1]
+    return p
+
+
 def rel_root(lang, page):
-    depth = (1 if lang == "en" else 0) + (0 if page == "index" else 1)
+    depth = (1 if lang == "en" else 0) + len(_parts(page))
     return "../" * depth
 
 
 def page_href(from_lang, from_page, to_lang, to_page):
-    here = (["en"] if from_lang == "en" else []) + ([] if from_page == "index" else [from_page])
-    there = (["en"] if to_lang == "en" else []) + ([] if to_page == "index" else [to_page])
+    here = (["en"] if from_lang == "en" else []) + _parts(from_page)
+    there = (["en"] if to_lang == "en" else []) + _parts(to_page)
     common = 0
     while common < min(len(here), len(there)) and here[common] == there[common]:
         common += 1
@@ -367,14 +374,14 @@ def page_href(from_lang, from_page, to_lang, to_page):
 
 
 def abs_url(lang, page):
-    parts = (["en"] if lang == "en" else []) + ([] if page == "index" else [page])
+    parts = (["en"] if lang == "en" else []) + _parts(page)
     return BASE + "/".join(parts) + ("/" if parts else "")
 
 
-def head(lang, page, root):
+def head(lang, page, root, title=None, desc=None, extra_ld=()):
     p = lang_pack(lang)
-    title = html.escape(p["titles"][page])
-    desc = html.escape(p["descs"][page])
+    title = html.escape(title or p["titles"][page])
+    desc = html.escape(desc or p["descs"][page])
     other = "en" if lang == "ar" else "ar"
     ld = {
         "@context": "https://schema.org", "@type": "SoftwareApplication",
@@ -418,6 +425,7 @@ def head(lang, page, root):
 <script type="application/ld+json">
 {json.dumps(ld, ensure_ascii=False)}
 </script>
+{"".join('<script type="application/ld+json">' + json.dumps(x, ensure_ascii=False) + '</script>' + chr(10) for x in extra_ld)}
 <script>document.documentElement.classList.add("js")</script>
 </head>
 <body class="{"home" if page == "index" else "inner"}">
@@ -438,8 +446,8 @@ def header(lang, page, root):
     p = lang_pack(lang)
     other = "en" if lang == "ar" else "ar"
     links = []
-    for key in ("download", "windows", "privacy"):
-        cur = ' aria-current="page"' if key == page else ""
+    for key in ("docs", "download", "releases"):
+        cur = ' aria-current="page"' if (key == page or page.startswith(key + "/")) else ""
         links.append(f'<a href="{page_href(lang, page, lang, key)}"{cur}>{p["nav"][key]}</a>')
     sw = (f'<a class="lang-switch" href="{page_href(lang, page, other, page)}" '
           f'hreflang="{other}" lang="{other}">{p["other_lang"]}</a>')
@@ -465,7 +473,9 @@ def footer(lang, page, root):
     other = "en" if lang == "ar" else "ar"
     links = " · ".join([
         f'<a href="{REPO}">GitHub</a>',
-        f'<a href="{RELEASES}">{p["releases"]}</a>',
+        f'<a href="{page_href(lang, page, lang, "windows")}">{p["nav"]["windows"]}</a>',
+        f'<a href="{page_href(lang, page, lang, "privacy")}">{p["nav"]["privacy"]}</a>',
+        f'<a href="{RELEASES}">GitHub {p["releases"]}</a>',
         f'<a href="{SUPPORT}">{p["support"]}</a>',
         f'<a href="{page_href(lang, page, other, page)}" hreflang="{other}" lang="{other}">{p["other_lang"]}</a>',
     ])
@@ -803,6 +813,386 @@ def render(lang, page):
     return head(lang, page, root) + header(lang, page, root) + body + footer(lang, page, root)
 
 
+# ---------------------------------------------------------------------------
+# Docs, formats, releases, search, and the files agents and crawlers read.
+# Sources: docs/guide/NAME.md and NAME.ar.md (English main, Arabic copy),
+# actions/*.toml (formats) and CHANGELOG.md (releases). Nothing is written twice.
+# ---------------------------------------------------------------------------
+
+import datetime
+import re
+import tomllib
+
+ROOT = HERE.parent
+GUIDE = ROOT / "docs" / "guide"
+GUIDE_SLUGS = ["start", "install", "use", "shortcuts", "settings", "troubleshoot", "contribute"]
+DOC_ORDER = ["start", "install", "use", "formats", "shortcuts", "settings", "troubleshoot", "contribute"]
+EDIT_BASE = REPO + "/blob/main/docs/guide/"
+TOOLS = {"ffmpeg": "FFmpeg", "ghostscript": "Ghostscript", "office": "LibreOffice"}
+GROUPS = [("images", "image", "الصور", "Images"), ("video", "video", "الفيديو", "Video"),
+          ("audio", "audio", "الصوت", "Audio"), ("documents", "document", "المستندات", "Documents"),
+          ("pdf", "pdf", "PDF", "PDF")]
+
+
+def inline(text, lang, page):
+    """Escape, then code spans, bold and links. Guide links become site links."""
+    parts = re.split(r"(`[^`]+`)", text)
+    out = []
+    for i, part in enumerate(parts):
+        if i % 2:
+            out.append(f"<code>{html.escape(part[1:-1])}</code>")
+            continue
+        part = html.escape(part, quote=False)
+        part = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", part)
+
+        def link(m):
+            label, target = m.group(1), m.group(2)
+            if target.startswith("site:"):
+                name, _, frag = target[5:].partition("#")
+                href = page_href(lang, page, lang, name) + ("#" + frag if frag else "")
+            elif re.fullmatch(r"[a-z]+(\.ar)?\.md", target):
+                slug = target.replace(".ar.md", "").replace(".md", "")
+                href = page_href(lang, page, lang, "docs/" + slug)
+            else:
+                href = target
+            return f'<a href="{href}">{label}</a>'
+
+        part = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", link, part)
+        out.append(part)
+    return "".join(out)
+
+
+def md_to_html(text, lang, page):
+    """A small Markdown subset: headings, paragraphs, lists, tables, code fences."""
+    lines = text.split("\n")
+    out, i, title = [], 0, ""
+    while i < len(lines):
+        ln = lines[i]
+        if ln.startswith("```"):
+            buf = []
+            i += 1
+            while i < len(lines) and not lines[i].startswith("```"):
+                buf.append(lines[i])
+                i += 1
+            out.append(code("\n".join(buf)))
+        elif ln.startswith("# "):
+            title = ln[2:].strip()
+            out.append(f"<h1>{inline(title, lang, page)}</h1>")
+        elif ln.startswith("## "):
+            h = ln[3:].strip()
+            slug = re.sub(r"[^\w]+", "-", h.lower(), flags=re.U).strip("-")
+            out.append(f'<h2 id="{slug}">{inline(h, lang, page)}</h2>')
+        elif ln.startswith("|"):
+            rows = []
+            while i < len(lines) and lines[i].startswith("|"):
+                rows.append([c.strip() for c in lines[i].strip().strip("|").split("|")])
+                i += 1
+            i -= 1
+            head_, body = rows[0], rows[2:]
+            th = "".join(f"<th>{inline(c, lang, page)}</th>" for c in head_)
+            tb = "".join("<tr>" + "".join(f"<td>{inline(c, lang, page)}</td>" for c in r) + "</tr>" for r in body)
+            out.append(f'<div class="table-wrap"><table><thead><tr>{th}</tr></thead><tbody>{tb}</tbody></table></div>')
+        elif re.match(r"(\d+\.|-) ", ln):
+            ordered = ln[0].isdigit()
+            items = []
+            while i < len(lines) and re.match(r"(\d+\.|-) ", lines[i]):
+                items.append(re.sub(r"^(\d+\.|-) ", "", lines[i]))
+                i += 1
+            i -= 1
+            tag = "ol" if ordered else "ul"
+            out.append(f"<{tag}>" + "".join(f"<li>{inline(x, lang, page)}</li>" for x in items) + f"</{tag}>")
+        elif ln.strip():
+            para = [ln]
+            while i + 1 < len(lines) and lines[i + 1].strip() and not re.match(r"(#|```|\||\d+\. |- )", lines[i + 1]):
+                i += 1
+                para.append(lines[i])
+            out.append(f"<p>{inline(' '.join(para), lang, page)}</p>")
+        i += 1
+    return title, "\n".join(out)
+
+
+def read_guide(slug, lang):
+    path = GUIDE / (f"{slug}.ar.md" if lang == "ar" else f"{slug}.md")
+    text = path.read_text(encoding="utf-8")
+    return text.split("\n", 2)[2] if text.startswith("[English]") else text
+
+
+def formats_md(lang):
+    """Formats page source, generated from the action files so it never drifts."""
+    ar = lang == "ar"
+    allowed = {}
+    for f in sorted((ROOT / "actions").glob("*.toml")):
+        for a in tomllib.loads(f.read_text(encoding="utf-8"))["action"]:
+            allowed.setdefault(a["accepts"][0], []).append(a)
+    lines = ["# " + ("الصيغ والإجراءات" if ar else "Formats and actions"), "",
+             "ما تفعله الخلية لكل نوع ملف. الإجراء الذي تغيب أداته لا يظهر." if ar
+             else "What the hive does for each kind of file. An action whose tool is missing does not appear.", ""]
+    for _, kind, ar_name, en_name in GROUPS:
+        acts = sorted(allowed.get(kind, []), key=lambda a: (a.get("ring", 1), a.get("order", 0)))
+        if not acts:
+            continue
+        lines += [f"## {ar_name if ar else en_name}", "",
+                  "| " + ("الإجراء | الأداة | شرط" if ar else "Action | Tool | Needs") + " |", "| --- | --- | --- |"]
+        for a in acts:
+            tool = TOOLS.get(a["engine"], "SbarHive" if ar else "built in")
+            lab = a["label"]["ar" if ar else "en"]
+            need = ("ملفان فأكثر" if ar else "2 or more files") if a.get("min_files", 1) > 1 else ""
+            lines.append(f"| {lab} | {tool} | {need} |")
+        lines.append("")
+    return "\n".join(lines)
+
+
+def parse_changelog():
+    """Releases from CHANGELOG.md: [{version, date, name, items: [(en, ar)]}]."""
+    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    rels, cur = [], None
+    for ln in text.split("\n"):
+        m = re.match(r"## \[([^\]]+)\](?: - (\d{4}-\d{2}-\d{2}))?(?: «([^»]+)»)?", ln)
+        if m:
+            cur = {"version": m.group(1), "date": m.group(2) or "", "name": m.group(3) or "", "items": []}
+            rels.append(cur)
+        elif cur is not None and ln.startswith("- "):
+            body = ln[2:]
+            arm = re.search(r"«([^»]+)»\s*$", body)
+            ar_text = arm.group(1) if arm else ""
+            en = body[: arm.start()].strip() if arm else body
+            title = en.split(":")[0].strip() if ":" in en[:140] else en[:90]
+            cur["items"].append((title, ar_text))
+    return rels
+
+
+def releases_md(lang):
+    ar = lang == "ar"
+    lines = ["# " + ("الإصدارات" if ar else "Releases"), ""]
+    for r in parse_changelog():
+        name = VERSION if r["version"] == "Unreleased" else r["version"]
+        lines.append(f"## {name}" + (f" ({r['date']})" if r["date"] else ""))
+        for en, arx in r["items"][:6]:
+            lines.append("- " + ((arx or en) if ar else en))
+        lines.append("")
+    return "\n".join(lines)
+
+
+SEARCH = {
+    "ar": ("ابحث في التوثيق", "لا نتائج", "بحث"),
+    "en": ("Search the docs", "No results", "Search"),
+}
+
+
+def search_box(lang, root):
+    ph, none, lab = SEARCH[lang]
+    return (f'<form class="search" role="search" data-pagefind-ignore data-js="{root}pagefind/pagefind.js" data-none="{none}">'
+            f'<label class="sr-only" for="q">{lab}</label>'
+            f'<input id="q" type="search" placeholder="{ph}" autocomplete="off">'
+            f'<ul class="results" id="results" aria-live="polite"></ul></form>')
+
+
+def docs_nav(lang, page, current):
+    ar = lang == "ar"
+    items = []
+    for slug in DOC_ORDER:
+        title = doc_title(slug, lang)
+        cur = ' aria-current="page"' if slug == current else ""
+        items.append(f'<li><a href="{page_href(lang, page, lang, "docs/" + slug)}"{cur}>{html.escape(title)}</a></li>')
+    return f'<nav class="docs-nav" aria-label="{"التوثيق" if ar else "Documentation"}"><ul role="list">{"".join(items)}</ul></nav>'
+
+
+_titles = {}
+
+
+def doc_title(slug, lang):
+    key = (slug, lang)
+    if key not in _titles:
+        if slug == "formats":
+            _titles[key] = "الصيغ" if lang == "ar" else "Formats"
+        else:
+            t, _ = md_to_html(read_guide(slug, lang), lang, "docs/" + slug)
+            _titles[key] = t
+    return _titles[key]
+
+
+def breadcrumb_ld(lang, crumbs):
+    return {"@context": "https://schema.org", "@type": "BreadcrumbList",
+            "itemListElement": [{"@type": "ListItem", "position": i + 1, "name": n, "item": abs_url(lang, p)}
+                                for i, (n, p) in enumerate(crumbs)]}
+
+
+def docs_page(lang, slug):
+    ar = lang == "ar"
+    page = "docs/" + slug
+    root = rel_root(lang, page)
+    src = formats_md(lang) if slug == "formats" else read_guide(slug, lang)
+    title, body = md_to_html(src, lang, page)
+    p = lang_pack(lang)
+    desc = re.sub(r"<[^>]+>", "", re.search(r"<p>(.*?)</p>", body, re.S).group(1)) if "<p>" in body else title
+    desc = html.unescape(desc)[:160]
+    full_title = f"{title} | {p['name']}"
+    crumbs = [(p["name"], "index"), (p["nav"]["docs"], "docs/index"), (title, page)]
+    ld = [breadcrumb_ld(lang, [(n, "index" if q == "docs/index" and False else q) for n, q in crumbs]),
+          {"@context": "https://schema.org", "@type": "TechArticle", "headline": title, "inLanguage": lang,
+           "url": abs_url(lang, page), "author": {"@type": "Organization", "name": "SbarHive"}}]
+    edit = ""
+    if slug != "formats":
+        fn = f"{slug}.ar.md" if ar else f"{slug}.md"
+        edit = (f'<p class="edit"><a href="{EDIT_BASE}{fn}">{"عدّل هذه الصفحة على GitHub" if ar else "Edit this page on GitHub"}</a> · '
+                f'<a href="{REPO}/issues">{"بلّغ عن مشكلة" if ar else "Report an issue"}</a> · '
+                f'<a href="{slug}.md">Markdown</a></p>')
+    else:
+        edit = (f'<p class="edit"><a href="{REPO}/tree/main/actions">{"ملفات الإجراءات على GitHub" if ar else "Action files on GitHub"}</a> · '
+                f'<a href="{slug}.md">Markdown</a></p>')
+    inner = (f'<div class="docs-layout"><aside>{search_box(lang, root)}{docs_nav(lang, page, slug)}</aside>'
+             f'<article class="prose" data-pagefind-body data-pagefind-meta="title:{html.escape(title)}">{body}{edit}</article></div>')
+    html_out = (head(lang, page, root, full_title, desc, ld) + header(lang, page, root)
+                + sec(inner, cls="s-docs", edge=False, side="end") + footer(lang, page, root))
+    return html_out, src
+
+
+def docs_index(lang):
+    ar = lang == "ar"
+    page = "docs/index"
+    root = rel_root(lang, page)
+    p = lang_pack(lang)
+    title = "التوثيق" if ar else "Documentation"
+    desc = "ابدأ بالتثبيت، ثم الخلية، ثم الصيغ والإعدادات." if ar else "Start with install, then the hive, then formats and settings."
+    tiles = []
+    for n, slug in enumerate(DOC_ORDER, 1):
+        tiles.append(f'<a class="doc-tile reveal" data-reveal href="{page_href(lang, page, lang, "docs/" + slug)}">'
+                     f'<span class="n">{n}</span><span class="t">{html.escape(doc_title(slug, lang))}</span></a>')
+    inner = (f'<h1>{title}</h1>{search_box(lang, root)}<div class="doc-tiles">{"".join(tiles)}</div>')
+    ld = [breadcrumb_ld(lang, [(p["name"], "index"), (title, page)])]
+    return (head(lang, page, root, f"{title} | {p['name']}", desc, ld) + header(lang, page, root)
+            + sec(f'<div data-pagefind-body data-pagefind-meta="title:{title}">{inner}</div>', cls="s-docs-index", edge=False, side="start")
+            + footer(lang, page, root))
+
+
+def release_blocks(lang):
+    ar = lang == "ar"
+    out = []
+    for r in parse_changelog():
+        unreleased = r["version"] == "Unreleased"
+        ver = VERSION if unreleased else r["version"]
+        pill = ("بيتا، قيد الإصدار" if ar else "Beta, not tagged yet") if unreleased else ("مستقر" if ar else "Stable")
+        cls = "pill pill-hot" if unreleased else "pill"
+        items = "".join(f"<li>{html.escape((arx or en) if ar else en)}</li>" for en, arx in r["items"][:6])
+        more = len(r["items"]) - 6
+        more_html = ""
+        if more > 0:
+            more_html = (f'<p class="fine">{"و" + str(more) + " تغييرا آخر في" if ar else "and " + str(more) + " more in the"} '
+                         f'<a href="{REPO}/blob/main/CHANGELOG.md">CHANGELOG</a></p>')
+        tag_link = f"{RELEASES}/tag/v{ver}"
+        date = f'<time>{r["date"]}</time>' if r["date"] else ""
+        name = f' <span class="muted">{html.escape(r["name"])}</span>' if r["name"] and ar else ""
+        out.append(f'<article class="release reveal" data-reveal><h2 id="v{ver.replace(".", "-")}"><span dir="ltr">{ver}</span>{name}</h2>'
+                   f'<p class="meta"><span class="{cls}">{pill}</span> {date} '
+                   f'<a href="{tag_link}">GitHub</a></p><ul>{items}</ul>{more_html}</article>')
+    return "".join(out)
+
+
+def releases_page(lang):
+    ar = lang == "ar"
+    page = "releases"
+    root = rel_root(lang, page)
+    p = lang_pack(lang)
+    title = "الإصدارات" if ar else "Releases"
+    desc = "كل إصدارات صبار هايف وما تغيّر فيها." if ar else "Every SbarHive release and what changed."
+    latest = (f'<div class="latest"><span class="pill pill-hot">{VERSION}</span>'
+              f'<div class="actions">{dl_buttons(lang, "win")}{dl_buttons(lang, "linux")}</div>'
+              f'<p class="fine"><a href="{page_href(lang, page, lang, "download")}#verify">{"تحقق من الملف" if ar else "Verify the file"}</a> · '
+              f'<a href="{page_href(lang, page, lang, "windows")}">{"ويندوز غير موقّع" if ar else "Windows is unsigned"}</a> · '
+              f'<a href="feed.xml">{"موجز الإصدارات" if ar else "Feed"}</a></p></div>')
+    inner = f'<h1>{title}</h1>{latest}<div class="releases" data-pagefind-body data-pagefind-meta="title:{title}">{release_blocks(lang)}</div>'
+    ld = [breadcrumb_ld(lang, [(p["name"], "index"), (title, page)])]
+    return (head(lang, page, root, f"{title} | {p['name']}", desc, ld) + header(lang, page, root)
+            + sec(inner, cls="s-releases", edge=False, side="end") + footer(lang, page, root))
+
+
+def feed_xml(lang):
+    ar = lang == "ar"
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    entries = []
+    for r in parse_changelog():
+        ver = VERSION if r["version"] == "Unreleased" else r["version"]
+        upd = (r["date"] + "T00:00:00Z") if r["date"] else now
+        summary = "; ".join(html.escape((arx or en) if ar else en) for en, arx in r["items"][:6])
+        entries.append(f"<entry><title>SbarHive {ver}</title><id>{RELEASES}/tag/v{ver}</id>"
+                       f'<link href="{RELEASES}/tag/v{ver}"/><updated>{upd}</updated><summary>{summary}</summary></entry>')
+    return (f'<?xml version="1.0" encoding="utf-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="{lang}">'
+            f'<title>{"إصدارات صبار هايف" if ar else "SbarHive releases"}</title><id>{abs_url(lang, "releases")}</id>'
+            f'<link href="{abs_url(lang, "releases")}"/><updated>{now}</updated>{"".join(entries)}</feed>\n')
+
+
+ALL_PAGES = (["index", "download", "windows", "privacy", "releases", "docs/index"]
+             + ["docs/" + s for s in DOC_ORDER])
+
+
+def sitemap():
+    today = datetime.date.today().isoformat()
+    urls = []
+    for page in ALL_PAGES:
+        for lang in ("ar", "en"):
+            other = "en" if lang == "ar" else "ar"
+            urls.append(f"<url><loc>{abs_url(lang, page)}</loc><lastmod>{today}</lastmod>"
+                        f'<xhtml:link rel="alternate" hreflang="{lang}" href="{abs_url(lang, page)}"/>'
+                        f'<xhtml:link rel="alternate" hreflang="{other}" href="{abs_url(other, page)}"/></url>')
+    return ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+            'xmlns:xhtml="http://www.w3.org/1999/xhtml">' + "".join(urls) + "</urlset>\n")
+
+
+def llms_files(sources):
+    """llms.txt (index) and llms-full.txt (all English docs), for agents."""
+    idx = ["# SbarHive", "",
+           "> A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. First beta " + VERSION + ".",
+           "", "## Docs", ""]
+    for slug in DOC_ORDER:
+        idx.append(f"- [{doc_title(slug, 'en')}]({BASE}en/docs/{slug}.md)")
+    idx += ["", "## Project", "",
+            f"- [Download]({abs_url('en', 'download')}): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps",
+            f"- [Windows and SmartScreen]({abs_url('en', 'windows')}): the Windows build is unsigned",
+            f"- [Privacy]({abs_url('en', 'privacy')}): no tracking, signed updates only",
+            f"- [Releases]({BASE}en/releases.md)",
+            f"- [Source]({REPO}): GPL-3.0-or-later",
+            "", "## Arabic", "",
+            f"- [التوثيق بالعربية]({abs_url('ar', 'docs/index')})", ""]
+    full = ["# SbarHive documentation (English)", ""]
+    for slug in DOC_ORDER:
+        full += [sources[("en", slug)].strip(), "", "---", ""]
+    return "\n".join(idx), "\n".join(full)
+
+
+ROBOTS = f"User-agent: *\nAllow: /\n\nSitemap: {BASE}sitemap.xml\n"
+
+
+def build_extras():
+    """Docs pages, releases, feeds, markdown twins, sitemap, robots, llms files."""
+    sources = {}
+    for lang in ("ar", "en"):
+        base = HERE if lang == "ar" else HERE / "en"
+        for slug in DOC_ORDER:
+            out, src = docs_page(lang, slug)
+            d = base / "docs" / slug
+            d.mkdir(parents=True, exist_ok=True)
+            (d / "index.html").write_text(out, encoding="utf-8")
+            twin = re.sub(r"\(site:([a-z]+)(#[^)]*)?\)", lambda m: f"({abs_url(lang, m.group(1))}{m.group(2) or ''})", src)
+            twin = twin.replace(".ar.md)", ".md)")
+            (base / "docs" / f"{slug}.md").write_text(twin.strip() + "\n", encoding="utf-8")
+            sources[(lang, slug)] = src
+        d = base / "docs"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "index.html").write_text(docs_index(lang), encoding="utf-8")
+        r = base / "releases"
+        r.mkdir(parents=True, exist_ok=True)
+        (r / "index.html").write_text(releases_page(lang), encoding="utf-8")
+        (r / "feed.xml").write_text(feed_xml(lang), encoding="utf-8")
+        (base / "releases.md").write_text(releases_md(lang), encoding="utf-8")
+    (HERE / "sitemap.xml").write_text(sitemap(), encoding="utf-8")
+    (HERE / "robots.txt").write_text(ROBOTS, encoding="utf-8")
+    llms, full = llms_files(sources)
+    (HERE / "llms.txt").write_text(llms, encoding="utf-8")
+    (HERE / "llms-full.txt").write_text(full, encoding="utf-8")
+    (HERE / ".nojekyll").write_text("", encoding="utf-8")
+    print("wrote docs, releases, feeds, sitemap, robots, llms files")
+
+
 def main():
     for lang in ("ar", "en"):
         for page in PAGES:
@@ -811,6 +1201,7 @@ def main():
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(render(lang, page), encoding="utf-8")
             print("wrote", out.relative_to(HERE.parent))
+    build_extras()
 
 
 if __name__ == "__main__":

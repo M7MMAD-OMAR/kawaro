@@ -17,3 +17,4 @@ tests/drop/kwin-input/target/
 crates/core/*.rpm
 crates/core/*.deb
 crates/core/*.pkg
+site/pagefind/

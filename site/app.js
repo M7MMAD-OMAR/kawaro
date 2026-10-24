@@ -215,6 +215,49 @@
   const os = ua.includes("windows") ? "win" : ua.includes("linux") && !ua.includes("android") ? "linux" : "";
   if (os) doc.querySelectorAll(`.dl-card[data-card="${os}"]`).forEach((c) => c.classList.add("rec"));
 
+
+  /* Docs search with Pagefind. The index loads only when the box is used. */
+  const form = doc.querySelector("form.search");
+  if (form) {
+    const input = form.querySelector("input");
+    const list = form.querySelector(".results");
+    let pf = null;
+    let seq = 0;
+    const load = () => pf || (pf = import(new URL(form.dataset.js, location.href).href).then((m) => (m.init && m.init(), m)));
+    const run = async () => {
+      const q = input.value.trim();
+      const my = ++seq;
+      list.textContent = "";
+      if (!q) return;
+      try {
+        const api = await load();
+        const res = await api.search(q);
+        const top = await Promise.all(res.results.slice(0, 6).map((r) => r.data()));
+        if (my !== seq) return;
+        if (!top.length) {
+          const li = doc.createElement("li");
+          li.textContent = form.dataset.none;
+          list.appendChild(li);
+          return;
+        }
+        top.forEach((d) => {
+          const li = doc.createElement("li");
+          const a = doc.createElement("a");
+          a.href = d.url;
+          a.textContent = (d.meta && d.meta.title) || d.url;
+          const p = doc.createElement("p");
+          p.innerHTML = d.excerpt;
+          li.append(a, p);
+          list.appendChild(li);
+        });
+      } catch (e) {
+        list.textContent = "";
+      }
+    };
+    input.addEventListener("input", run);
+    form.addEventListener("submit", (e) => e.preventDefault());
+  }
+
   /* Reveal on scroll. */
   const revealers = [...doc.querySelectorAll("[data-reveal], .hexedge, .side, .journey-wrap")];
   doc.querySelectorAll(".grid, .ticks, .steps").forEach((g) => {

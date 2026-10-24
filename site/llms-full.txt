@@ -1,0 +1,196 @@
+# SbarHive documentation (English)
+
+# Quick start
+
+1. [Install](install.md) SbarHive.
+2. Select one or more files in your file manager.
+3. Right click and choose **SbarHive**. The hive opens.
+4. Click a cell. The result is saved next to the original, which is never changed.
+
+Progress shows in the tray tooltip. Only actions that fit your files, and the tools you have installed, appear.
+
+Next: [Use the hive](use.md) and [Formats](formats.md).
+
+---
+
+# Install
+
+## Windows 10 and 11 (64 bit)
+
+Download the MSI. It installs for your user and needs no administrator rights. A portable ZIP is also available. The build is unsigned, so [SmartScreen warns you](site:windows).
+
+## Linux (64 bit)
+
+Download the DEB for Ubuntu and Debian, or the RPM for Fedora. Nautilus needs the `nautilus-python` package.
+
+## Verify
+
+Check every download against `SHA256SUMS`. The steps are on the [download page](site:download#verify).
+
+## Extra tools
+
+Video and audio need FFmpeg. Documents and PDF need LibreOffice and Ghostscript. An action whose tool is missing does not appear in the hive. Run `sbarhive doctor` to see what was found.
+
+## From source (Linux)
+
+```
+git clone https://github.com/M7MMAD-OMAR/sbarhive
+cd sbarhive
+./scripts/install.sh
+```
+
+Needs Rust 1.85 or newer. To remove it: `./scripts/uninstall.sh`.
+
+---
+
+# Use the hive
+
+- **Open it:** select files, right click, choose SbarHive. On Linux you can also hold the drop shortcut while dragging ([shortcuts](shortcuts.md)).
+- **Read it:** the centre cell shows the full name of the cell under your pointer.
+- **Pick:** click a cell. Cells that do not fit your selection are not drawn.
+- **Result:** saved next to the original under a new name, or in a subfolder if you change `output` in [settings](settings.md).
+- **Progress:** in the tray tooltip. On Windows, the tray menu has Cancel all.
+- **Many files:** actions that combine files, such as merging PDFs, appear when you select two or more.
+
+On Hyprland you can bind Super plus right click to open the hive. See the [Hyprland guide](https://github.com/M7MMAD-OMAR/sbarhive/blob/main/integrations/linux/hyprland/README.md).
+
+---
+
+# Formats and actions
+
+What the hive does for each kind of file. An action whose tool is missing does not appear.
+
+## Images
+
+| Action | Tool | Needs |
+| --- | --- | --- |
+| Convert to WebP | built in |  |
+| Convert to PNG | built in |  |
+| Convert to JPG | built in |  |
+| Convert to AVIF | built in |  |
+| Combine into one PDF | built in |  |
+| Convert to ICO | built in |  |
+| Resize to 50% | built in |  |
+| Fit to 1920 px | built in |  |
+| Rotate 90° | built in |  |
+| Flip horizontally | built in |  |
+| Grayscale | built in |  |
+| Compress | built in |  |
+| Remove metadata | built in |  |
+| Convert to GIF | built in |  |
+| Convert to TIFF | built in |  |
+| Convert to BMP | built in |  |
+
+## Video
+
+| Action | Tool | Needs |
+| --- | --- | --- |
+| Convert to MP4 | FFmpeg |  |
+| Convert to WebM | FFmpeg |  |
+| Convert to animated GIF | FFmpeg |  |
+| Extract audio as MP3 | FFmpeg |  |
+| Compress video | FFmpeg |  |
+| Convert to MKV | FFmpeg |  |
+| Convert to MOV | FFmpeg |  |
+| Extract audio as OGG | FFmpeg |  |
+| Extract audio as M4A | FFmpeg |  |
+| Extract audio as FLAC | FFmpeg |  |
+| Extract audio as WAV | FFmpeg |  |
+
+## Audio
+
+| Action | Tool | Needs |
+| --- | --- | --- |
+| Convert to MP3 | FFmpeg |  |
+| Convert to M4A | FFmpeg |  |
+| Convert to OGG | FFmpeg |  |
+| Convert to FLAC | FFmpeg |  |
+| Convert to Opus | FFmpeg |  |
+| Convert to WAV | FFmpeg |  |
+
+## Documents
+
+| Action | Tool | Needs |
+| --- | --- | --- |
+| Convert to PDF | LibreOffice |  |
+| Convert to DOCX | LibreOffice |  |
+| Convert to ODT | LibreOffice |  |
+| Convert to XLSX | LibreOffice |  |
+| Convert to ODS | LibreOffice |  |
+| Convert to PPTX | LibreOffice |  |
+| Convert to ODP | LibreOffice |  |
+
+## PDF
+
+| Action | Tool | Needs |
+| --- | --- | --- |
+| Compress PDF | Ghostscript |  |
+| Merge PDFs into one | built in | 2 or more files |
+| Convert pages to PNG images | Ghostscript |  |
+| Rotate pages 90 degrees | built in |  |
+| Split into one PDF per page | built in |  |
+
+---
+
+# Shortcuts
+
+## Linux: the drop shortcut
+
+Hold **Super+Z** while dragging files and the hive appears. Let go and it closes. A short tap shows nothing.
+
+- GNOME 48 and later, KDE 6: SbarHive registers the shortcut through the desktop portal. The first time, the desktop asks you to allow it.
+- Older desktops and Hyprland: bind `sbarhive drop` yourself. The steps are in the [full guide](https://github.com/M7MMAD-OMAR/sbarhive/blob/main/docs/drop-shortcut.md).
+- Change the hold time with `hold_ms` in [settings](settings.md).
+
+## Windows
+
+**Ctrl+Alt+H** shows the hive. Change it with `shortcut` in [settings](settings.md). The drop hive is not in the beta yet.
+
+---
+
+# Settings
+
+The file is `config.toml`: `~/.config/sbarhive/` on Linux, `%APPDATA%\SbarHive\` on Windows. Every key is optional, unknown keys are ignored, and a broken file falls back to the defaults.
+
+| Key | Values | Default |
+| --- | --- | --- |
+| `language` | `auto`, `ar`, `en` | `auto` |
+| `theme` | `auto`, `light`, `dark` | `auto` |
+| `output` | `beside`, `subfolder` | `beside` |
+| `output_folder` | folder name for `subfolder` | `SbarHive` |
+| `quality` | `light`, `balanced`, `max` | `balanced` |
+| `open_folder_when_done` | `true`, `false` | `false` |
+| `notify` | `true`, `false` | `true` |
+| `hive_surface` | `auto`, `layer`, `window` | `auto` |
+| `hold_ms` | 100 to 2000 | `400` |
+| `portal_shortcut` | `true`, `false` | `true` |
+| `shortcut` | Windows hotkey | `Ctrl+Alt+H` |
+| `update_check` | `true`, `false` | `true` |
+| `update_channel` | `stable`, `beta` | `stable` (`beta` in a beta build) |
+| `update_mode` | `ask`, `auto` | `ask` |
+
+---
+
+# Troubleshooting
+
+- **An action is missing:** its tool is not installed. Run `sbarhive doctor`.
+- **Windows warns "Windows protected your PC":** the build is unsigned. [Verify the file](site:download#verify), then choose More info and Run anyway.
+- **The hive opens without keyboard focus (GNOME, KDE):** focus tests on real desktops are not finished. Report it with your desktop and version.
+- **Nothing happens on right click:** run `sbarhive ping`. If the service does not answer, run `sbarhive daemon` and try again.
+- **Updates:** set `update_check = false` to stop the daily check ([settings](settings.md)).
+
+Report a problem on [GitHub](https://github.com/M7MMAD-OMAR/sbarhive/issues).
+
+---
+
+# Contribute
+
+- Add a format: one TOML file in `actions/` plus a small adapter in `crates/engines/`. No action logic in the UI.
+- Never modify the original file. Engines write a temporary file, and the queue renames it.
+- Every user string in Arabic and English, with right to left layout.
+- Colours, sizes and durations come from `design/tokens.json`.
+- Read [CONTRIBUTING](https://github.com/M7MMAD-OMAR/sbarhive/blob/main/CONTRIBUTING.md) and open an issue before a large change.
+
+The code is GPL-3.0-or-later: [github.com/M7MMAD-OMAR/sbarhive](https://github.com/M7MMAD-OMAR/sbarhive).
+
+---
