@@ -160,8 +160,8 @@ fn ac1_neighbours_of_the_known_codes_and_negatives_are_failed() {
 
 // ------------------------------------------------------------ AC2
 
-const DNF_REPO: &str = "pkexec dnf upgrade -y sbarhive";
-const APT_REPO: &str = "pkexec apt-get install -y --only-upgrade sbarhive";
+const DNF_REPO: &str = "/usr/bin/pkexec dnf upgrade -y sbarhive";
+const APT_REPO: &str = "/usr/bin/pkexec apt-get install -y --only-upgrade sbarhive";
 
 fn facts(dnf: bool, apt: bool, pkexec: bool, repo: bool, kind: Option<PkgKind>) -> Facts {
     Facts {
@@ -379,7 +379,7 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
     .unwrap();
     assert_eq!(
         *r.calls.borrow(),
-        vec![s(&["pkexec", "dnf", "upgrade", "-y", "sbarhive"])]
+        vec![s(&["/usr/bin/pkexec", "dnf", "upgrade", "-y", "sbarhive"])]
     );
 
     let r = Recorder::new(0);
@@ -395,7 +395,7 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
     assert_eq!(
         *r.calls.borrow(),
         vec![s(&[
-            "pkexec",
+            "/usr/bin/pkexec",
             "apt-get",
             "install",
             "-y",
