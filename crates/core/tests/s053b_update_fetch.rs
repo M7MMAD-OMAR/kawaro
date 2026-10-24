@@ -345,6 +345,7 @@ const PKG_URL: &str =
 
 fn expected(url: &str, dest: &str, max: &str, time: &str) -> Vec<String> {
     [
+        "--disable",
         "--silent",
         "--show-error",
         "--fail",

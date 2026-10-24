@@ -58,7 +58,10 @@ pub fn curl_args(url: &str, dest: &Path, max_bytes: u64) -> Vec<String> {
     } else {
         PACKAGE_TIMEOUT
     };
+    // `--disable` must be first: it stops curl from reading ~/.curlrc, which
+    // could add a proxy, headers, cookies or `--insecure`.
     let mut args: Vec<String> = [
+        "--disable",
         "--silent",
         "--show-error",
         "--fail",
