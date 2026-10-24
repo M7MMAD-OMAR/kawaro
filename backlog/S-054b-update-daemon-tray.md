@@ -39,3 +39,5 @@ The scheduler uses an injected clock and the fake `Fetcher` of S-053b, so no tes
 
 ## Review log
 - 2026-10-24, planner: written from ADR 0006; approved by the manager under the maintainer's delegation. Notifications are counted through the existing `sbarhived: notify:` line.
+
+- 2026-10-24, manager, carried from the S-053b review (non blocking, handle in this story): (1) curl still inherits proxy and CA environment variables (`https_proxy`, `CURL_CA_BUNDLE`, `SSL_CERT_FILE`); consider `env_clear` with a minimal environment when the daemon spawns curl; (2) if `<cache>/updates` is itself a symlink, `remove_other_versions` would delete sibling folders in its target; add a `symlink_metadata` check on the parent. Also from S-053a: the beta default channel needs to know whether `update_channel` was set explicitly (make it an `Option<Channel>` or read the key presence).
