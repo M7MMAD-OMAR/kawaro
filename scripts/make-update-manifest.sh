@@ -19,7 +19,9 @@ set -euo pipefail
 
 die() { echo "make-update-manifest: $2" >&2; exit "$1"; }
 
-[ "$#" -eq 6 ] && [ "$1" = "--dist" ] || die 2 "usage: $0 --dist DIR CHANNEL VERSION ASSETS_JSON OUT_JSON"
+if [ "$#" -ne 6 ] || [ "$1" != "--dist" ]; then
+  die 2 "usage: $0 --dist DIR CHANNEL VERSION ASSETS_JSON OUT_JSON"
+fi
 DIST="$2"; CHANNEL="$3"; VERSION="$4"; ASSETS="$5"; OUT="$6"
 
 [ -d "$DIST" ] || die 2 "not a directory: $DIST"
