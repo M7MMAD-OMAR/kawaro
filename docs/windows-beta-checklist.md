@@ -46,7 +46,7 @@ Do: convert a .png to WEBP from the hive.
 Expect: a new .webp file appears next to the original within 10 s; the original is unchanged (same size and date).
 Result: PASS | FAIL
 W09 Arabic
-Do: set the language to Arabic in the settings file, open the hive, then convert a file whose name is Arabic.
+Do: in `%APPDATA%\SbarHive\config.toml` set the line `language = "ar"`, then restart the service (end `sbarhived.exe` in Task Manager, start it again from the Start menu or by opening a file). Open the hive, then convert a file whose name is Arabic.
 Expect: Arabic labels, layout mirrored right to left, the result is saved next to the original with the Arabic name intact.
 Result: PASS | FAIL
 W10 LibreOffice and cancel
@@ -66,7 +66,7 @@ Do: uninstall from Settings, Apps. Right click a .png again; look at Task Manage
 Expect: the SbarHive entry is gone from the menu and no sbarhived.exe runs; files you converted are still there.
 Result: PASS | FAIL
 W14 Not in this build (skipped, not failed)
-Do: skip the drag-drop hive (S-047), tray icon, shortcut and icon (S-048) and toast notifications (S-049). Write SKIPPED beside this id.
+Do: nothing. This step is skipped, not a failure: the drag-drop hive (S-047), tray icon, shortcut and icon (S-048) and toast notifications (S-049) are not built. Write SKIPPED beside this id.
 Expect: nothing to check; do not mark FAIL.
 Result: PASS | FAIL
 
@@ -78,5 +78,7 @@ Run `scripts\windows\collect-logs.cmd`, then send back from `%USERPROFILE%\sbarh
 - `smoke.txt`,
 - the log, `report\sbarhived.log`, and `report\config.toml`,
 - screenshots only of the hive; nothing else on screen.
+
+Before you send anything, open `sbarhived.log` and `config.toml` and glance for personal paths, user names or machine names; remove them or leave the file out.
 
 Send no other files, and no personal names or machine names.

@@ -79,7 +79,9 @@ A Windows 10 (22H2) and Windows 11 beta is ready to try. It is for testers: the 
 
 **Install.** Download `sbarhive-<version>-windows-x64.msi` (per user, no administrator rights) or `sbarhive-<version>-windows-x64.zip` (portable) from the release page. Both are unsigned, so Windows SmartScreen asks first: click "More info", then "Run anyway". On Windows 11 the SbarHive item is under "Show more options" in the right-click menu; on Windows 10 it is in the menu directly.
 
-**Engines are not bundled.** LibreOffice, Ghostscript and FFmpeg are not bundled; install the ones you need (see Settings above for where SbarHive looks). A missing engine gives an error that names it.
+**Engines are not bundled.** LibreOffice, Ghostscript and FFmpeg are not bundled; install the ones you need (see Settings below for where SbarHive looks). A missing engine gives an error that names it.
+
+**Settings.** The settings file is `%APPDATA%\SbarHive\config.toml` on Windows (`~/.config/sbarhive/config.toml` on Linux).
 
 **Report back.** Run `scripts\windows\beta-smoke.cmd` and `scripts\windows\collect-logs.cmd`; results go to `%USERPROFILE%\sbarhive-beta-test`. Nothing is uploaded.
 

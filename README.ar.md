@@ -65,6 +65,8 @@ cd sbarhive
 
 **المحركات غير مضمّنة.** محركات LibreOffice وGhostscript وFFmpeg غير مضمّنة، فثبّت ما تحتاجه منها. وإن غاب محرك ذكرت رسالة الخطأ اسمه.
 
+**الإعدادات.** ملف الإعدادات على ويندوز هو `%APPDATA%\SbarHive\config.toml` (وعلى لينكس `~/.config/sbarhive/config.toml`).
+
 **أرسل نتائجك.** شغّل `scripts\windows\beta-smoke.cmd` ثم `scripts\windows\collect-logs.cmd`، وتجد النتائج في `%USERPROFILE%\sbarhive-beta-test`. لا يُرفع شيء.
 
 ## سطر الأوامر
