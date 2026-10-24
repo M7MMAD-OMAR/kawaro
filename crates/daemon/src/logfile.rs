@@ -13,17 +13,10 @@ pub fn open_append(path: &Path) -> io::Result<File> {
     OpenOptions::new().create(true).append(true).open(path)
 }
 
-/// Points the process's stderr at `file`, so every `eprintln!` lands in the
-/// log. The service has no console on Windows. The file stays open for the
-/// life of the process.
+// The Windows only stderr redirect lives in its own file so Linux mutation
+// runs leave it out (.cargo/mutants.toml); S-052 checks it live.
 #[cfg(windows)]
-pub fn redirect_stderr(file: File) -> io::Result<()> {
-    use std::os::windows::io::IntoRawHandle;
-    use windows_sys::Win32::System::Console::{STD_ERROR_HANDLE, SetStdHandle};
-    let handle = file.into_raw_handle();
-    // SAFETY: `handle` is a valid, open file handle that is never closed.
-    if unsafe { SetStdHandle(STD_ERROR_HANDLE, handle) } == 0 {
-        return Err(io::Error::last_os_error());
-    }
-    Ok(())
-}
+#[path = "logfile/windows.rs"]
+mod windows;
+#[cfg(windows)]
+pub use windows::redirect_stderr;

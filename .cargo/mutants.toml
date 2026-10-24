@@ -35,6 +35,9 @@
 # order that reads it stays mutated in locate.rs.
 # The UTF-16 helpers (S-029 AC1) build for Windows only; the files above
 # that call them are left out too.
+# The Windows stderr redirect (S-045) and the Windows tray stub (S-045, real
+# icon in S-046) build for Windows only; the live check is S-052. The log
+# file opener stays mutated in crates/daemon/src/logfile.rs.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/engines/src/process/windows.rs",
@@ -49,6 +52,8 @@ exclude_globs = [
   "crates/core/src/output_impl/windows.rs",
   "crates/cli/src/spawn/windows.rs",
   "crates/core/src/win.rs",
+  "crates/daemon/src/logfile/windows.rs",
+  "crates/daemon/src/tray/windows.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
