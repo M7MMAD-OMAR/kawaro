@@ -12,7 +12,9 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 BIN_DIR="$(cd "$1" && pwd)"
 mkdir -p "$2"
 OUT="$(cd "$2" && pwd)"
-VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/Cargo.toml" | head -1)"
+# A hyphen means a prerelease in Cargo but a final release in rpm and dpkg;
+# a tilde sorts below the plain version in both (0.4.0~beta.1 < 0.4.0).
+VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' "$ROOT/Cargo.toml" | head -1 | tr - '~')"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
@@ -39,7 +41,7 @@ Architecture: amd64
 Maintainer: MUHMAD HAJ HMDO <73592103+M7MMAD-OMAR@users.noreply.github.com>
 Installed-Size: $(du -sk "$D/usr" | cut -f1)
 Depends: libc6 (>= $GLIBC), libgcc-s1, libfontconfig1, libfreetype6
-Recommends: ffmpeg, ghostscript, libreoffice-writer | libreoffice-core, wl-clipboard
+Recommends: ffmpeg, ghostscript, libreoffice-writer | libreoffice-core, wl-clipboard, curl
 Suggests: python3-nautilus
 Section: utils
 Priority: optional

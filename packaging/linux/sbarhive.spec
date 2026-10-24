@@ -12,6 +12,7 @@ Recommends:     (ffmpeg-free or ffmpeg)
 Recommends:     ghostscript
 Recommends:     (libreoffice-writer or libreoffice-core)
 Recommends:     wl-clipboard
+Recommends:     curl
 Suggests:       nautilus-python
 
 %global debug_package %{nil}

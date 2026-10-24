@@ -13,7 +13,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-            libdbus-1-dev ffmpeg ghostscript
+            libdbus-1-dev ffmpeg ghostscript minisign jq rpm shellcheck
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -22,6 +22,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets -- -D warnings
       - run: cargo test --workspace
       - run: scripts/design-lint.sh crates/ui
+      - run: tests/release/run_all.sh
 
   # Windows cross build on Linux (S-044): the same scripts as on the Fedora
   # host, run directly (CI=true) with the target dir inside the workspace.

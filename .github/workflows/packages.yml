@@ -76,3 +76,61 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "${GITHUB_REF_NAME}" dist/* --clobber -R "${GITHUB_REPOSITORY}"
+
+  # Signed update feed (S-053c, ADR 0006). The only job that sees the signing
+  # secrets; they are whole env values here and nowhere else.
+  update-manifest:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/sbarhive'
+    runs-on: ubuntu-22.04
+    environment: release-signing
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y minisign jq
+      - uses: actions/download-artifact@v4
+        with:
+          name: packages
+          path: dist
+      - name: Manifests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p feed
+          version="${GITHUB_REF_NAME#v}"
+          gh release view "${GITHUB_REF_NAME}" --json assets -R "${GITHUB_REPOSITORY}" > assets.json
+          scripts/make-update-manifest.sh --dist dist beta "${version}" assets.json feed/beta.json
+          case "${version}" in
+            *-*) ;;
+            *) scripts/make-update-manifest.sh --dist dist stable "${version}" assets.json feed/stable.json ;;
+          esac
+      - name: Sign
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          UPDATE_SIGNING_PASSWORD: ${{ secrets.UPDATE_SIGNING_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          printf '%s' "$UPDATE_SIGNING_KEY" > "${RUNNER_TEMP}/update.key"
+          for f in feed/*.json; do
+            scripts/sign-update-manifest.sh "${RUNNER_TEMP}/update.key" "$f"
+          done
+          rm -f "${RUNNER_TEMP}/update.key"
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view updates -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            gh release create updates --prerelease --latest=false \
+              --title "Update feed" --notes "Signed update manifests (ADR 0006)." \
+              -R "${GITHUB_REPOSITORY}"
+          fi
+          case "${GITHUB_REF_NAME}" in
+            *-*) files=(feed/beta.json feed/beta.json.minisig) ;;
+            *) files=(feed/stable.json feed/stable.json.minisig feed/beta.json feed/beta.json.minisig) ;;
+          esac
+          gh release upload updates "${files[@]}" --clobber -R "${GITHUB_REPOSITORY}"
