@@ -67,11 +67,11 @@ fn ac1_only_the_verb_name_differs_between_languages() {
 fn ac1_default_value_command_keeps_its_quotes() {
     let got = install_commands(r"C:\Program Files\SbarHive", Lang::En).unwrap();
     assert_eq!(
-        got[3][7],
+        got[3][6],
         r#""C:\Program Files\SbarHive\sbarhived.exe" open "%1""#
     );
     assert_eq!(got[3][2], "/ve");
-    assert_eq!(got[3].len(), 9);
+    assert_eq!(got[3].len(), 8);
 }
 
 #[test]
@@ -132,8 +132,8 @@ fn ac3_quote_error_wins_over_trailing_backslash() {
 fn ac3_trailing_backslash_is_normalised() {
     let with = install_commands(&format!(r"{DIR}\"), Lang::En).unwrap();
     assert_eq!(with, install_commands(DIR, Lang::En).unwrap());
-    assert_eq!(with[3][7], format!(r#""{DIR}\sbarhived.exe" open "%1""#));
-    assert!(!with[3][7].contains(r"\\"));
+    assert_eq!(with[3][6], format!(r#""{DIR}\sbarhived.exe" open "%1""#));
+    assert!(!with[3][6].contains(r"\\"));
     assert_eq!(with[1][7], format!(r"{DIR}\sbarhive.ico"));
     assert_eq!(with[5][7], format!(r"{DIR}\sbarhive.ico"));
 }
