@@ -825,8 +825,8 @@ import tomllib
 
 ROOT = HERE.parent
 GUIDE = ROOT / "docs" / "guide"
-GUIDE_SLUGS = ["start", "install", "use", "shortcuts", "settings", "troubleshoot", "contribute"]
-DOC_ORDER = ["start", "install", "use", "formats", "shortcuts", "settings", "troubleshoot", "contribute"]
+GUIDE_SLUGS = ["start", "install", "use", "how", "shortcuts", "settings", "troubleshoot", "contribute"]
+DOC_ORDER = ["start", "install", "use", "how", "formats", "shortcuts", "settings", "troubleshoot", "contribute"]
 EDIT_BASE = REPO + "/blob/main/docs/guide/"
 TOOLS = {"ffmpeg": "FFmpeg", "ghostscript": "Ghostscript", "office": "LibreOffice"}
 GROUPS = [("images", "image", "الصور", "Images"), ("video", "video", "الفيديو", "Video"),
@@ -875,6 +875,12 @@ def md_to_html(text, lang, page):
                 buf.append(lines[i])
                 i += 1
             out.append(code("\n".join(buf)))
+        elif ln.startswith("![") and "(diagram:" in ln:
+            alt, name = re.match(r"!\[([^\]]*)\]\(diagram:([a-z]+)\)", ln).groups()
+            r_ = rel_root(lang, page)
+            out.append(f'<figure class="diagram"><picture>'
+                       f'<source media="(prefers-color-scheme: dark)" srcset="{r_}diagrams/{name}.{lang}.dark.svg">'
+                       f'<img src="{r_}diagrams/{name}.{lang}.light.svg" alt="{html.escape(alt)}" loading="lazy"></picture></figure>')
         elif ln.startswith("# "):
             title = ln[2:].strip()
             out.append(f"<h1>{inline(title, lang, page)}</h1>")
@@ -1184,6 +1190,7 @@ def build_extras():
             (d / "index.html").write_text(out, encoding="utf-8")
             twin = re.sub(r"\(site:([a-z]+)(#[^)]*)?\)", lambda m: f"({abs_url(lang, m.group(1))}{m.group(2) or ''})", src)
             twin = twin.replace(".ar.md)", ".md)")
+            twin = re.sub(r"\(diagram:([a-z]+)\)", lambda m: f"({BASE}diagrams/{m.group(1)}.{lang}.light.svg)", twin)
             (base / "docs" / f"{slug}.md").write_text(twin.strip() + "\n", encoding="utf-8")
             sources[(lang, slug)] = src
         d = base / "docs"
@@ -1200,6 +1207,10 @@ def build_extras():
     (HERE / "llms.txt").write_text(llms, encoding="utf-8")
     (HERE / "llms-full.txt").write_text(full, encoding="utf-8")
     (HERE / ".nojekyll").write_text("", encoding="utf-8")
+    import shutil
+    (HERE / "diagrams").mkdir(exist_ok=True)
+    for f in (ROOT / "docs" / "diagrams").glob("*.svg"):
+        shutil.copy(f, HERE / "diagrams" / f.name)
     print("wrote docs, releases, feeds, sitemap, robots, llms files")
 
 

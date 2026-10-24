@@ -1,12 +1,12 @@
 # Releases
 
 ## 0.4.0-beta.1
+- Website on Cloudflare Pages
 - Docs and releases on the website (S-057)
 - Public website (S-056)
 - First public beta (S-055)
 - Tests never notify the desktop (S-054b)
 - Update in the tray (S-054b)
-- Install updates (S-054a)
 
 ## 0.3.3 (2026-10-23)
 - Drop shortcut through the global shortcuts portal (S-014e)

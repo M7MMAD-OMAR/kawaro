@@ -7,6 +7,7 @@
 - [Quick start](https://hive.sbarah.com/en/docs/start.md)
 - [Install](https://hive.sbarah.com/en/docs/install.md)
 - [Use the hive](https://hive.sbarah.com/en/docs/use.md)
+- [How it works](https://hive.sbarah.com/en/docs/how.md)
 - [Formats](https://hive.sbarah.com/en/docs/formats.md)
 - [Shortcuts](https://hive.sbarah.com/en/docs/shortcuts.md)
 - [Settings](https://hive.sbarah.com/en/docs/settings.md)

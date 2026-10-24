@@ -8,7 +8,9 @@
 
 يعمل كل شيء على جهازك: لا رفع ولا خوادم ولا جمع بيانات.
 
-![الخلية فوق سطح مكتب GNOME لصورة واحدة](docs/screenshots/hive-gnome.png)
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/hero.ar.dark.svg"><img src="docs/diagrams/hero.ar.light.svg" alt="خلية صبار هايف لصورة واحدة: الخلية المركزية تسمّي التحديد، والحلقة الأولى فيها صيغ الهدف، والثانية إجراءات الصورة" width="900"></picture>
+
+رسم مأخوذ من هندسة التطبيق نفسها ورموز التصميم.
 
 ## ماذا يفعل
 
@@ -17,6 +19,18 @@
 - **المستندات وPDF** (الإصدار 0.2، يحتاج LibreOffice وGhostscript): تحويل مستندات Office وODF إلى PDF، والتحويل بين DOCX وODT في الاتجاهين، وضغط ملفات PDF ودمجها وتدويرها، وتحويل صفحاتها إلى صور.
 
 لا تعرض الخلية إلا ما يناسب الملفات المحددة: نوعها، وعددها، والأدوات المثبتة على جهازك.
+
+## كيف يعمل
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/flow.ar.dark.svg"><img src="docs/diagrams/flow.ar.light.svg" alt="سبع خطوات من تحديد الملفات إلى الناتج بجانب الأصل" width="860"></picture>
+
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/overview.ar.dark.svg"><img src="docs/diagrams/overview.ar.light.svg" alt="مدير الملفات يستدعي سطر الأوامر الذي يكلّم عبر مقبس محلي الخدمة التي تضم الخلية والطابور والصينية والسجل والمحركات" width="860"></picture>
+
+- **خدمة واحدة تعرض الواجهة.** `sbarhived` فيها الخلية وطابور المهام والصينية والمحركات، و`sbarhive` عميل خفيف.
+- **المحركات الثقيلة عمليات منفصلة** (FFmpeg وLibreOffice وGhostscript)، وتُقتل مع شجرتها كاملة عند الإلغاء.
+- **صيغة جديدة تعني ملف TOML واحدا** في `actions/` ومحوّلا صغيرا ([مخطط](docs/diagrams/extend.ar.light.svg)).
+- **تختار الخلية سطحها** عند كل عرض ([مخطط](docs/diagrams/surface.ar.light.svg))، و**التحديثات موقّعة** ([مخطط](docs/diagrams/updates.ar.light.svg)).
+- المخططات تُولَّد بالأمر `python3 design/diagrams/build.py` من `design/tokens.json`. والعقود الكاملة في [`docs/architecture.md`](docs/architecture.md).
 
 ## حالة الدعم
 

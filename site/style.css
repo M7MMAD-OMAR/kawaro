@@ -573,3 +573,6 @@ td code, th code { white-space: nowrap; }
   .docs-nav ul { flex-direction: column; flex-wrap: nowrap; gap: var(--space-1); }
   .doc-tiles { grid-template-columns: repeat(2, 1fr); }
 }
+
+.diagram { margin: var(--space-5) 0; }
+.diagram img { display: block; width: 100%; height: auto; border-radius: var(--radius-lg); border: var(--border-default) solid var(--color-border); }
