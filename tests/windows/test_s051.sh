@@ -218,7 +218,7 @@ ac4_msi_properties_and_install_folder () {
   check "AC4: file says composite document" bash -c 'file -b "$1" | grep -q "Composite Document File V2 Document"' _ "$MSI"
   check "AC4: file says MSI Installer" bash -c 'file -b "$1" | grep -q "MSI Installer"' _ "$MSI"
   ver="$(table "$MSI" Property | awk -F'\t' '$1=="ProductVersion"{print $2}')"
-  assert_eq "AC4: ProductVersion" "$ver" "$VERSION"
+  assert_eq "AC4: ProductVersion (numeric part only, an MSI version has no prerelease)" "$ver" "${VERSION%%[-+]*}"
   assert_eq "AC4: no ALLUSERS=1 row" "$(table "$MSI" Property | awk -F'\t' '$1=="ALLUSERS" && $2=="1"' | grep -c .)" "0"
   assert_eq "AC4: the install folder is LocalAppDataFolder\\Programs\\SbarHive" \
     "$(dirpath "$MSI" INSTALLDIR)" 'LocalAppDataFolder\Programs\SbarHive'
@@ -231,7 +231,7 @@ ac4_msi_from_the_real_cross_built_exes () {
   build_msi 4r "$real"
   assert_eq "AC4: exit code with the real exes" "$RC" "0"
   check "AC4: MSI from the real exes written" test -n "$MSI"
-  assert_eq "AC4: ProductVersion with the real exes" "$(table "$MSI" Property | awk -F'\t' '$1=="ProductVersion"{print $2}')" "$VERSION"
+  assert_eq "AC4: ProductVersion with the real exes" "$(table "$MSI" Property | awk -F'\t' '$1=="ProductVersion"{print $2}')" "${VERSION%%[-+]*}"
 }
 
 ac5_registry_rows_match_s050 () {

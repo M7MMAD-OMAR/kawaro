@@ -71,6 +71,8 @@ dry() { # dry OUT_NAME VERSION [args]  -> RC in $TMP/rc-NAME, stdout $TMP/out-NA
   echo $((SECONDS - s)) > "$TMP/secs-$n"
 }
 status_before="$(git status --porcelain)"
+worktrees_before="$(git worktree list)"
+branches_before="$(git branch --list)"
 
 # ---- success: a prerelease version
 dry beta "$V" --no-build
@@ -94,7 +96,7 @@ check "AC7 stdout has 6 ok lines from check-versions (Cargo.toml RPM DEB MSI nam
 check "AC7 stdout has no FAIL line" bash -c '! grep -q "^FAIL " "$1"' _ "$TMP/out-beta.txt"
 check "AC7 no network, gh or git push call was attempted" test ! -s "$NETLOG"
 check "AC7 the source tree is unchanged (git status same as before)" test "$(git status --porcelain)" = "$status_before"
-check "AC7 no branch or worktree was created" test "$(git worktree list | wc -l)" -eq 1
+check "AC7 no branch or worktree was created" test "$(git worktree list)" = "$worktrees_before" -a "$(git branch --list)" = "$branches_before"
 
 B="$TMP/beta"
 check "AC9 SHA256SUMS has exactly 4 lines (rpm, deb, zip, msi)" test "$(wc -l < "$B/SHA256SUMS")" -eq 4
