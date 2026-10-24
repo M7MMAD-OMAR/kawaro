@@ -40,3 +40,10 @@ As a Windows user, I want to select files in Explorer, choose SbarHive from the 
 
 ## Review log
 - 2026-10-24, planner: written from ADR 0005 S-046; client mode and merging are pure so Linux tests cover them.
+- 2026-10-24, tester: tests written from the criteria only. Failure output before implementation (`L`, 6G scope, -j 2):
+  - `crates/core/tests/s046_merge.rs` (AC7, 8 tests): `error[E0432]: unresolved import sbarhive_core::merge`.
+  - `crates/ui/src/monitor_tests.rs` (AC1, AC2, 10 tests): `error[E0432]: unresolved import crate::monitor`.
+  - `crates/daemon/src/args_tests.rs` (AC5, 6 tests) and `batch_tests.rs` (AC4, AC8, 5 tests): `unresolved import crate::args`, `crate::batch`, `crate::server::focus_log`.
+  - `crates/daemon/tests/s046_client.rs` (AC6, AC5 exit codes): both FAILED; AC6 left `["{\"cmd\":\"ping\"}"]`, right the one `open` line.
+  - `crates/daemon/tests/s046_sources.rs` (AC3, AC4, AC9): 6 of 6 FAILED (win_window.rs, shell_open.rs missing; mutants.toml and CHANGELOG lack S-046).
+  - Contracts for the implementer (names the tests fix): `monitor::Rect {x,y,w,h: i32}`; `merge::{Collector::new, push(u64, PathBuf) -> Push::{First,Merged}, files()}`; `args::Mode::{Daemon, Open(Vec<String>)}`; `server::focus_log`; `batch::{OpenBatch::new(cells_for), push(u64, PathBuf) -> Step::{Show,Rebuild}{files, cells}}`. Not covered: the "no daemon, becomes the daemon" branch of AC6 (needs a display; S-052 live check), AC9 clippy for Windows and mutants (gates).

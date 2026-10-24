@@ -21,6 +21,10 @@ mod ui;
 mod watch;
 
 #[cfg(test)]
+mod args_tests;
+#[cfg(test)]
+mod batch_tests;
+#[cfg(test)]
 mod portal_tests;
 
 use state::lock;
