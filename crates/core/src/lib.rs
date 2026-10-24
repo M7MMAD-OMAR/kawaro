@@ -16,8 +16,12 @@ mod output_impl;
 pub mod paths;
 pub mod queue;
 mod queue_impl;
+mod sync;
 pub mod transport;
 pub mod uri_list;
+#[cfg(windows)]
+#[doc(hidden)]
+pub mod win;
 
 pub use action::{ActionDef, OutputMode, Registry};
 pub use engine::{CancelToken, Engine, EngineError, Progress, Task};

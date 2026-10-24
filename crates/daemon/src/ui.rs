@@ -144,23 +144,30 @@ fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) {
 /// the tray and the windows, and a `portal_shortcut` change in the portal
 /// client (S-014f2). Runs on the event loop thread.
 pub fn reload(state: &Shared, queue: &Arc<Queue>) {
-    let (before, after, portal) = {
+    let (was_lang, was_theme, was_portal, lang, theme, portal) = {
         let mut st = lock(state);
-        let before = (st.lang, st.config.theme);
-        let was = st.config.portal_shortcut;
+        let (was_lang, was_theme) = (st.lang, st.config.theme);
+        let was_portal = st.config.portal_shortcut;
         st.reload();
-        let portal = (was, st.config.portal_shortcut);
-        (before, (st.lang, st.config.theme), portal)
+        let (lang, theme) = (st.lang, st.config.theme);
+        (
+            was_lang,
+            was_theme,
+            was_portal,
+            lang,
+            theme,
+            st.config.portal_shortcut,
+        )
     };
-    crate::portal_bus::follow(portal.0, portal.1, after.0, state);
-    if before.0 != after.0 {
-        crate::tray::set_lang(after.0);
+    crate::portal_bus::follow(was_portal, portal, lang, state);
+    if was_lang != lang {
+        crate::tray::set_lang(lang);
     }
-    if before != after {
+    if (was_lang, was_theme) != (lang, theme) {
         // Rebuild after the settings window's own callback has returned.
         let (state, queue) = (state.clone(), queue.clone());
         slint::Timer::single_shot(std::time::Duration::ZERO, move || {
-            if let Err(e) = build(after.0, after.1, &state, &queue) {
+            if let Err(e) = build(lang, theme, &state, &queue) {
                 eprintln!("sbarhived: cannot rebuild windows: {e}");
             }
         });
@@ -252,13 +259,11 @@ pub fn hold_signal(signal: Signal, token: Option<String>, now: Instant, state: S
             (1, 0) => Some(TokenStep::End),
             _ => None,
         };
+        let start = matches!(step, Some(TokenStep::Start(_)));
         if let Some(step) = step {
-            HOLD_TOKEN.with(|t| {
-                let kept = portal::kept_token(t.borrow().as_deref(), step).0;
-                *t.borrow_mut() = kept;
-            });
+            token_step(step);
         }
-        if before == 0 && after == 1 {
+        if start {
             GATE_TIMER.with(|t| {
                 t.start(slint::TimerMode::Repeated, GATE_TICK, move || {
                     gate_tick(&state)
@@ -275,6 +280,16 @@ pub fn hold_signal(signal: Signal, token: Option<String>, now: Instant, state: S
             });
         }
     });
+}
+
+/// One step of the kept activation token of this thread (AC15): stores the
+/// token kept after `step` and returns the one a show activates with.
+fn token_step(step: TokenStep<'_>) -> Option<String> {
+    HOLD_TOKEN.with(|t| {
+        let (kept, shown) = portal::kept_token(t.borrow().as_deref(), step);
+        *t.borrow_mut() = kept;
+        shown
+    })
 }
 
 /// The gate's timer: shows the drop hive in hold mode once the threshold
@@ -294,11 +309,7 @@ fn gate_tick(state: &Shared) {
             st.pending = None;
             st.lang
         };
-        let token = HOLD_TOKEN.with(|t| {
-            let (kept, shown) = portal::kept_token(t.borrow().as_deref(), TokenStep::Show);
-            *t.borrow_mut() = kept;
-            shown
-        });
+        let token = token_step(TokenStep::Show);
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
                 && let Err(e) = hive.present_drop_hold(text::drop_waiting(lang), token, at)

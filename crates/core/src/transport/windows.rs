@@ -15,15 +15,17 @@
 use super::deadline::read_with_deadline;
 use super::{
     BindOutcome, Bound, Cleanup, ConnectStep, NextInstance, accept_plan, bind_result, connect_plan,
-    dacl_sddl, open_mode, pipe_mode, pipe_name, verify_owner,
+    dacl_sddl, open_mode, os_error, pipe_mode, pipe_name, verify_owner,
 };
+use crate::sync::lock;
+use crate::win::{from_wide_ptr, wide};
 use std::fmt;
 use std::fs::{File, OpenOptions};
 use std::io::{self, ErrorKind, Read, Write};
 use std::os::windows::fs::OpenOptionsExt;
 use std::os::windows::io::{AsRawHandle, FromRawHandle, OwnedHandle};
 use std::ptr::{null, null_mut};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::{
     self as foundation, GetLastError, HANDLE, INVALID_HANDLE_VALUE, LocalFree,
@@ -87,11 +89,6 @@ pub fn endpoint() -> Endpoint {
     Endpoint(pipe_name(&sid, session))
 }
 
-/// A NUL terminated UTF-16 copy of `s` for the wide API.
-fn wide(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(Some(0)).collect()
-}
-
 /// The security descriptor built from `dacl_sddl`, freed on drop.
 struct Descriptor(PSECURITY_DESCRIPTOR);
 
@@ -101,7 +98,7 @@ unsafe impl Send for Descriptor {}
 
 impl Descriptor {
     fn for_user(sid: &str) -> io::Result<Descriptor> {
-        let sddl = wide(&dacl_sddl(sid));
+        let sddl = wide(dacl_sddl(sid));
         let mut sd: PSECURITY_DESCRIPTOR = null_mut();
         // SAFETY: `sddl` is NUL terminated and `sd` is a valid out pointer.
         let ok = unsafe {
@@ -171,16 +168,16 @@ impl Listener {
     pub fn bind(e: &Endpoint) -> io::Result<Bound> {
         let sd = Descriptor::for_user(&current_sid()?)?;
         let name = wide(&e.0);
-        let first = create_instance(&name, &sd, true);
-        match (bind_result(first.as_ref().err().copied()), first) {
-            (BindOutcome::Listen, Ok(handle)) => Ok(Bound::Listening(Listener {
+        match create_instance(&name, &sd, true) {
+            Ok(handle) => Ok(Bound::Listening(Listener {
                 name,
                 sd,
                 next: Mutex::new(Some(handle)),
             })),
-            (BindOutcome::AlreadyRunning, _) => Ok(Bound::AlreadyRunning),
-            (BindOutcome::Failed(err), _) => Err(err),
-            (BindOutcome::Listen, Err(code)) => Err(io::Error::from_raw_os_error(code as i32)),
+            Err(code) => match bind_result(Some(code)) {
+                BindOutcome::AlreadyRunning => Ok(Bound::AlreadyRunning),
+                _ => Err(os_error(code)),
+            },
         }
     }
 
@@ -188,11 +185,10 @@ impl Listener {
     /// the slot is empty, then puts a fresh instance in its place as
     /// `accept_plan` decides before handing the connection over.
     pub fn accept(&self) -> io::Result<Stream> {
-        let mut next = self.next.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut next = lock(&self.next);
         let current = match next.take() {
             Some(handle) => handle,
-            None => create_instance(&self.name, &self.sd, false)
-                .map_err(|code| io::Error::from_raw_os_error(code as i32))?,
+            None => create_instance(&self.name, &self.sd, false).map_err(os_error)?,
         };
         // SAFETY: a valid pipe handle; synchronous, so no OVERLAPPED.
         let connected = unsafe { ConnectNamedPipe(current.as_raw_handle(), null_mut()) } != 0;
@@ -292,7 +288,7 @@ impl Stream {
                 "cannot set a 0 duration timeout",
             ));
         }
-        *self.timeout.lock().unwrap_or_else(PoisonError::into_inner) = timeout;
+        *lock(&self.timeout) = timeout;
         Ok(())
     }
 
@@ -312,7 +308,7 @@ impl Stream {
 
 impl Read for Stream {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let timeout = *self.timeout.lock().unwrap_or_else(PoisonError::into_inner);
+        let timeout = *lock(&self.timeout);
         let Some(timeout) = timeout else {
             return self.file.read(buf);
         };
@@ -393,13 +389,8 @@ fn token_sid(process: HANDLE) -> io::Result<String> {
         return Err(io::Error::last_os_error());
     }
     // SAFETY: `text` is a NUL terminated string from the call above.
-    let sid = unsafe {
-        let mut n = 0;
-        while *text.add(n) != 0 {
-            n += 1;
-        }
-        String::from_utf16_lossy(std::slice::from_raw_parts(text, n))
-    };
+    let wide_sid = unsafe { from_wide_ptr(text) };
+    let sid = wide_sid.to_string_lossy().into_owned();
     // SAFETY: allocated by ConvertSidToStringSidW.
     unsafe { LocalFree(text.cast()) };
     Ok(sid)

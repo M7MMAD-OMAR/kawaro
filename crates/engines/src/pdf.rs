@@ -13,8 +13,8 @@
 
 use crate::locate::{self, Program};
 use crate::office::{
-    failure_message, input_error, is_nonempty_file, missing, move_file, run_child, single_input,
-    timeout_param, work_dir,
+    failure_message, input_error, is_nonempty_file, missing, missing_on_not_found, move_file,
+    run_child, single_input, timeout_param, work_dir,
 };
 use lopdf::{Document, Object, ObjectId, dictionary};
 use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
@@ -320,12 +320,7 @@ impl GhostscriptEngine {
                 progress(fraction);
             }
         })
-        .map_err(|e| match e {
-            EngineError::Io(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                missing("Ghostscript", GS_URL, Some(&program))
-            }
-            other => other,
-        })?;
+        .map_err(|e| missing_on_not_found(e, "Ghostscript", GS_URL, &program))?;
         if !outcome.status.success() {
             return Err(EngineError::Failed(failure_message(
                 "Ghostscript failed",

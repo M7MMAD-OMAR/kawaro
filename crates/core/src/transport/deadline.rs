@@ -3,8 +3,9 @@
 //! (`CancelIoEx` on Windows). Pure, so it is tested and mutated on Linux.
 
 use std::io::{self, ErrorKind};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering::SeqCst};
 use std::sync::mpsc::{self, RecvTimeoutError};
-use std::sync::{Arc, Mutex, PoisonError};
 use std::thread;
 use std::time::Duration;
 
@@ -19,27 +20,18 @@ where
     C: FnOnce() + Send + 'static,
 {
     // Set once, by whichever comes first: the watcher firing or the read.
-    let closed = Arc::new(Mutex::new(false));
+    let closed = Arc::new(AtomicBool::new(false));
     let (done, wake) = mpsc::channel::<()>();
     let watch = closed.clone();
     let watcher = thread::spawn(move || {
-        if wake.recv_timeout(timeout) == Err(RecvTimeoutError::Timeout) {
-            let mut closed = watch.lock().unwrap_or_else(PoisonError::into_inner);
-            if !*closed {
-                *closed = true;
-                drop(closed);
-                cancel();
-            }
+        if wake.recv_timeout(timeout) == Err(RecvTimeoutError::Timeout) && !watch.swap(true, SeqCst)
+        {
+            cancel();
         }
     });
 
     let result = read();
-    let fired = {
-        let mut closed = closed.lock().unwrap_or_else(PoisonError::into_inner);
-        let fired = *closed;
-        *closed = true;
-        fired
-    };
+    let fired = closed.swap(true, SeqCst);
     drop(done);
     let _ = watcher.join();
     match result {

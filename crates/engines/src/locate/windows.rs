@@ -3,6 +3,7 @@
 //! is mutated in `locate.rs`.
 
 use super::Registry;
+use sbarhive_core::win::wide;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::{ERROR_SUCCESS, FILETIME};
 use windows_sys::Win32::System::Registry::{
@@ -12,11 +13,6 @@ use windows_sys::Win32::System::Registry::{
 
 /// The live registry.
 pub(super) struct SystemRegistry;
-
-/// `s` as a nul terminated UTF-16 string.
-fn wide(s: &str) -> Vec<u16> {
-    s.encode_utf16().chain(std::iter::once(0)).collect()
-}
 
 /// The text before the first nul.
 fn until_nul(buf: &[u16]) -> String {

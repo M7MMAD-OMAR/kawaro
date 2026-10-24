@@ -6,8 +6,8 @@
 //! in S-052.
 
 use super::move_error_kind;
+use crate::win::wide;
 use std::io;
-use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
 use windows_sys::Win32::Foundation::GetLastError;
 use windows_sys::Win32::Storage::FileSystem::{MOVE_FILE_FLAGS, MoveFileExW};
@@ -15,10 +15,6 @@ use windows_sys::Win32::Storage::FileSystem::{MOVE_FILE_FLAGS, MoveFileExW};
 /// No flag: never replace, never copy across volumes (the temp file sits
 /// next to the output, so it is always the same volume).
 const FLAGS: MOVE_FILE_FLAGS = 0;
-
-fn wide(p: &Path) -> Vec<u16> {
-    p.as_os_str().encode_wide().chain(Some(0)).collect()
-}
 
 /// Moves `from` to `to`; `AlreadyExists` when `to` is taken.
 pub(super) fn place_no_replace(from: &Path, to: &Path) -> io::Result<()> {

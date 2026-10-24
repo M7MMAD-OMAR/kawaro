@@ -9,12 +9,13 @@ use crate::engine::{CancelToken, Engine, EngineError, Task};
 use crate::output::{finalize, temp_path};
 use crate::output_impl::final_path_with;
 use crate::queue::{JobEvent, JobId, Queue};
+use crate::sync::lock;
 use std::collections::HashMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{Receiver, Sender, channel};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 
 type Jobs = Arc<Mutex<HashMap<JobId, CancelToken>>>;
@@ -32,12 +33,6 @@ pub(crate) struct Inner {
     next: AtomicU64,
     tx: Mutex<Option<Sender<Submitted>>>,
     workers: Vec<JoinHandle<()>>,
-}
-
-/// Locks ignoring poison: every critical section here is a plain map or
-/// value update that cannot leave the data half written.
-fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
-    m.lock().unwrap_or_else(|e| e.into_inner())
 }
 
 impl Drop for Inner {

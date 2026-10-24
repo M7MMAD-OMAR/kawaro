@@ -15,56 +15,27 @@ use ashpd::desktop::{ResponseError, Session};
 use ashpd::zbus;
 use ashpd::zbus::zvariant::{self, OwnedObjectPath, OwnedValue};
 use futures_util::StreamExt;
-use futures_util::future::{Either, poll_fn, select};
-use futures_util::task::AtomicWaker;
+use futures_util::future::{AbortHandle, AbortRegistration, Abortable};
 use sbarhive_core::config::Config;
 use sbarhive_core::i18n::Lang;
 use std::collections::HashMap;
-use std::pin::pin;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::task::Poll;
+use std::sync::{Mutex, MutexGuard};
 use std::thread::JoinHandle;
 use std::time::Instant;
 
 const DESKTOP: &str = "org.freedesktop.portal.Desktop";
 
-/// A request to end a client: wakes its thread wherever it waits.
-#[derive(Default)]
-struct Stop {
-    set: AtomicBool,
-    waker: AtomicWaker,
-}
-
-impl Stop {
-    fn request(&self) {
-        self.set.store(true, Ordering::SeqCst);
-        self.waker.wake();
-    }
-
-    async fn wait(&self) {
-        poll_fn(|cx| {
-            self.waker.register(cx.waker());
-            if self.set.load(Ordering::SeqCst) {
-                Poll::Ready(())
-            } else {
-                Poll::Pending
-            }
-        })
-        .await
-    }
-}
-
-/// The latest client thread, running or ended.
+/// The latest client thread, running or ended. `stop` ends it wherever it
+/// waits.
 struct Client {
-    stop: Arc<Stop>,
+    stop: AbortHandle,
     thread: JoinHandle<()>,
 }
 
 static CLIENT: Mutex<Option<Client>> = Mutex::new(None);
 
 fn client() -> MutexGuard<'static, Option<Client>> {
-    CLIENT.lock().unwrap_or_else(|e| e.into_inner())
+    lock(&CLIENT)
 }
 
 /// Follows a change of `portal_shortcut` in a reload (the 2 s poll or a
@@ -75,7 +46,7 @@ pub fn follow(before: bool, after: bool, lang: Lang, state: &Shared) {
         Reload::Start => start(true, lang, state.clone()),
         Reload::Stop => {
             if let Some(c) = client().as_ref() {
-                c.stop.request();
+                c.stop.abort();
             }
         }
         Reload::Nothing => {}
@@ -94,8 +65,7 @@ pub fn start(enabled: bool, lang: Lang, state: Shared) {
     }
     let mut slot = client();
     let old = slot.take();
-    let stop = Arc::new(Stop::default());
-    let own = stop.clone();
+    let (stop, own) = AbortHandle::new_pair();
     let spawned = std::thread::Builder::new()
         .name("sbarhive-portal".into())
         .spawn(move || {
@@ -105,7 +75,7 @@ pub fn start(enabled: bool, lang: Lang, state: Shared) {
             }
             // No portal call after the fallback line, Session.Close
             // included: the portal drops the session with the connection.
-            if let Some(r) = zbus::block_on(run(lang, &state, &own)) {
+            if let Some(r) = zbus::block_on(run(lang, &state, own)) {
                 if portal::remembers(r) {
                     remember(&state);
                 }
@@ -137,13 +107,10 @@ async fn present(conn: &zbus::Connection) -> bool {
 /// Runs the client until it falls back or `stop` is requested. A stop
 /// closes the session, if there is one, and returns `Off`; the caller
 /// prints the line once the connection is dropped.
-async fn run(lang: Lang, state: &Shared, stop: &Stop) -> Option<Reason> {
+async fn run(lang: Lang, state: &Shared, stop: AbortRegistration) -> Option<Reason> {
     let mut session = None;
-    {
-        let work = pin!(serve(lang, state, &mut session));
-        if let Either::Right((r, _)) = select(pin!(stop.wait()), work).await {
-            return r;
-        }
+    if let Ok(r) = Abortable::new(serve(lang, state, &mut session), stop).await {
+        return r;
     }
     if let Some(s) = &session {
         let _ = s.close().await;

@@ -14,7 +14,9 @@
 # cargo built for the integration tests, not a test program, and is left out.
 # Stale hashes from an older build are not told apart: clean deps/ if any.
 set -eu
-target="${CARGO_TARGET_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target}"
+# shellcheck source=/dev/null
+. "$(dirname "$0")/scope.sh"
+target="${CARGO_TARGET_DIR:-$SBARHIVE_WIN_TARGET_DEFAULT}"
 win="$(cd "$(dirname "$0")" && pwd)"
 rel="$target/x86_64-pc-windows-gnu/release/sbarhive.exe"
 debug="$target/x86_64-pc-windows-gnu/debug"

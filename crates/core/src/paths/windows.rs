@@ -4,8 +4,7 @@
 //! mutants run (`.cargo/mutants.toml`) and checked live in S-052.
 
 use super::{Os, log_dir_with};
-use std::ffi::OsString;
-use std::os::windows::ffi::OsStringExt;
+use crate::win::from_wide_ptr;
 use std::path::PathBuf;
 use std::ptr::null_mut;
 use windows_sys::Win32::System::Com::CoTaskMemFree;
@@ -22,11 +21,7 @@ fn known_folder(id: &GUID) -> Option<PathBuf> {
     let hr = unsafe { SHGetKnownFolderPath(id, KF_FLAG_DEFAULT as u32, null_mut(), &mut raw) };
     let path = if hr >= 0 && !raw.is_null() {
         // SAFETY: on success `raw` is a NUL terminated wide string.
-        let wide = unsafe {
-            let len = (0..).take_while(|&i| *raw.add(i) != 0).count();
-            std::slice::from_raw_parts(raw, len)
-        };
-        Some(PathBuf::from(OsString::from_wide(wide)))
+        Some(PathBuf::from(unsafe { from_wide_ptr(raw) }))
     } else {
         None
     };

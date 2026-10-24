@@ -34,7 +34,8 @@ pub struct State {
 
 pub type Shared = Arc<Mutex<State>>;
 
-pub fn lock(s: &Shared) -> MutexGuard<'_, State> {
+/// Locks ignoring poison, for the state and the daemon's other mutexes.
+pub fn lock<T>(s: &Mutex<T>) -> MutexGuard<'_, T> {
     s.lock().unwrap_or_else(|e| e.into_inner())
 }
 

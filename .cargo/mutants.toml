@@ -31,6 +31,8 @@
 # office/tree.rs.
 # The Windows registry reader (S-043b) builds for Windows only; the lookup
 # order that reads it stays mutated in locate.rs.
+# The UTF-16 helpers (S-029 AC1) build for Windows only; the files above
+# that call them are left out too.
 exclude_globs = [
   "crates/engines/src/office/non_unix.rs",
   "crates/engines/src/locate/windows.rs",
@@ -43,6 +45,7 @@ exclude_globs = [
   "crates/core/src/paths/windows.rs",
   "crates/core/src/output_impl/windows.rs",
   "crates/cli/src/spawn/windows.rs",
+  "crates/core/src/win.rs",
 ]
 exclude_re = [
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",
@@ -110,6 +113,10 @@ exclude_re = [
   # portal decision stays mutated in crates/daemon/src/portal.rs, and the
   # glue is covered by tests/drop/portal.sh live. Anchored to the daemon.
   "crates/daemon/src/ui.rs:.*replace reload with \\(\\)",
+  # Its comparisons of the values before and after (S-029 AC8) reach only
+  # the tray, the windows and the portal client on a live session; covered
+  # by tests/drop/portal.sh and tests/e2e/run.sh.
+  "crates/daemon/src/ui.rs:.*in reload$",
   # The client's service binary lookup (S-042 changed it to pass the exe
   # suffix): its choice is daemon_binary_in, mutated in spawn.rs; this glue
   # only reads current_exe, and tests/e2e/run.sh "open starts the daemon"

@@ -70,6 +70,7 @@ struct FormState {
     folder: String,
     notify: bool,
     open_folder: bool,
+    portal_shortcut: bool,
 }
 
 impl FormState {
@@ -82,6 +83,7 @@ impl FormState {
             folder: c.output_folder.clone(),
             notify: c.notify,
             open_folder: c.open_folder_when_done,
+            portal_shortcut: c.portal_shortcut,
         }
     }
 
@@ -102,7 +104,7 @@ impl FormState {
             notify: self.notify,
             hive_surface: HiveSurface::Auto,
             hold_ms: HOLD_MS_DEFAULT,
-            portal_shortcut: true,
+            portal_shortcut: self.portal_shortcut,
         }
     }
 }
@@ -221,6 +223,7 @@ impl Inner {
             folder: ui.get_folder().into(),
             notify: ui.get_notify(),
             open_folder: ui.get_open_folder(),
+            portal_shortcut: ui.get_portal_shortcut(),
         }
     }
 
@@ -233,6 +236,7 @@ impl Inner {
         ui.set_folder(s.folder.as_str().into());
         ui.set_notify(s.notify);
         ui.set_open_folder(s.open_folder);
+        ui.set_portal_shortcut(s.portal_shortcut);
     }
 
     fn visible(&self) -> bool {
@@ -246,7 +250,6 @@ impl Inner {
         let config = Config {
             hive_surface: self.hive_surface.get(),
             hold_ms: self.hold_ms.get(),
-            portal_shortcut: self.ui.borrow().get_portal_shortcut(),
             ..self.state().to_config(self.rtl)
         };
         let f = self.on_save.borrow().clone();
@@ -305,10 +308,6 @@ impl SettingsWindow {
         *inner.ui.borrow_mut() = ui;
         inner.hive_surface.set(config.hive_surface);
         inner.hold_ms.set(config.hold_ms);
-        inner
-            .ui
-            .borrow()
-            .set_portal_shortcut(config.portal_shortcut);
         inner.set_state(&FormState::from_config(config, inner.rtl));
         inner.ui.borrow().show()
     }

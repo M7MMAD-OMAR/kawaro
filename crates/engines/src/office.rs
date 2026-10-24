@@ -128,12 +128,8 @@ impl Engine for OfficeEngine {
             .arg(&copy)
             .current_dir(work.path())
             .env("SAL_USE_VCLPLUGIN", "svp");
-        let outcome = run_child(&mut cmd, cancel, timeout, &mut |_| {}).map_err(|e| match e {
-            EngineError::Io(err) if err.kind() == std::io::ErrorKind::NotFound => {
-                missing("LibreOffice", OFFICE_URL, Some(&program))
-            }
-            other => other,
-        })?;
+        let outcome = run_child(&mut cmd, cancel, timeout, &mut |_| {})
+            .map_err(|e| missing_on_not_found(e, "LibreOffice", OFFICE_URL, &program))?;
 
         let produced = out_dir.join(format!("in.{out_ext}"));
         if !is_nonempty_file(&produced) {
@@ -267,6 +263,22 @@ const OFFICE_URL: &str = "https://www.libreoffice.org/download/";
 pub(crate) fn missing(name: &str, url: &str, tried: Option<&Path>) -> EngineError {
     let tried = tried.map_or(String::new(), |p| format!(" at {}", p.display()));
     EngineError::Unavailable(format!("{name} not found{tried}; install it from {url}"))
+}
+
+/// `e` as [`missing`] for `program` when the program could not be started
+/// because it is not there; any other error unchanged.
+pub(crate) fn missing_on_not_found(
+    e: EngineError,
+    name: &str,
+    url: &str,
+    program: &Path,
+) -> EngineError {
+    match e {
+        EngineError::Io(err) if err.kind() == std::io::ErrorKind::NotFound => {
+            missing(name, url, Some(program))
+        }
+        other => other,
+    }
 }
 
 /// `file://` URL for an absolute path of this system.

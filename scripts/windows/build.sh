@@ -6,11 +6,10 @@
 #   scripts/windows/build.sh
 # CARGO_TARGET_DIR defaults to ${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target.
 set -eu
-if [ "${CI:-}" != true ] && [ -z "${SBARHIVE_WIN_SCOPE:-}" ]; then
-  exec systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200% \
-    env SBARHIVE_WIN_SCOPE=1 "$0" "$@"
-fi
+# shellcheck source=/dev/null
+. "$(dirname "$0")/scope.sh"
+win_scope "$@"
 echo "cgroup: $(cut -d: -f3 /proc/self/cgroup | head -n 1)"
-export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target}"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$SBARHIVE_WIN_TARGET_DEFAULT}"
 cd "$(dirname "$0")/../.."
 exec cargo build -j 2 --release --target x86_64-pc-windows-gnu -p sbarhive-cli
