@@ -884,3 +884,77 @@ fn ac5_the_linux_tray_uses_the_update_menu_and_tooltip_functions() {
     assert!(tray.contains("update_item_enabled("));
     assert!(tray.contains("tooltip_text("));
 }
+
+// ------------------------------------------------------------ round 3: mutants
+
+#[test]
+fn update_manual_texts_are_exact_in_both_languages() {
+    assert_eq!(
+        text::update_manual(Lang::En, "sudo dnf upgrade -y sbarhive"),
+        "To install the update, run: sudo dnf upgrade -y sbarhive"
+    );
+    assert_eq!(
+        text::update_manual(Lang::Ar, "sudo dnf upgrade -y sbarhive"),
+        "لتثبيت التحديث نفّذ: sudo dnf upgrade -y sbarhive"
+    );
+    assert_eq!(
+        text::update_manual(Lang::En, "https://example.org/releases"),
+        "To install the update, run: https://example.org/releases"
+    );
+    assert_eq!(text::update_manual(Lang::Ar, ""), "لتثبيت التحديث نفّذ: ");
+}
+
+#[test]
+fn tick_due_pins_every_boundary() {
+    use crate::update::tick_due;
+    let h = 3600;
+    // Never ticked: due, whatever the clock says.
+    assert!(tick_due(None, 0, false));
+    assert!(tick_due(None, BASE, false));
+    // The hour: one second before is not due, exactly at and after is.
+    assert!(!tick_due(Some(BASE), BASE, false));
+    assert!(!tick_due(Some(BASE), BASE + 1, false));
+    assert!(!tick_due(Some(BASE), BASE + h - 1, false));
+    assert!(tick_due(Some(BASE), BASE + h, false));
+    assert!(tick_due(Some(BASE), BASE + h + 1, false));
+    assert!(tick_due(Some(BASE), BASE + 24 * h, false));
+    // A clock that went backwards is due, by one second or by a lot.
+    assert!(tick_due(Some(BASE), BASE - 1, false));
+    assert!(tick_due(Some(BASE), 0, false));
+    // A waiting install is due at any time, even right after a tick.
+    assert!(tick_due(Some(BASE), BASE, true));
+    assert!(tick_due(Some(BASE), BASE + 1, true));
+    assert!(tick_due(None, BASE, true));
+    assert!(tick_due(Some(BASE), BASE + h, true));
+    // Small numbers: the subtraction must not be confused with other operators.
+    assert!(!tick_due(Some(10), 20, false));
+    assert!(!tick_due(Some(1), 3600, false));
+    assert!(tick_due(Some(1), 3601, false));
+    assert_eq!(TICK_INTERVAL.as_secs(), h);
+}
+
+struct Unavailable(RefCell<usize>);
+
+impl Fetcher for Unavailable {
+    fn get(&self, _url: &str, _dest: &Path, _max: u64) -> Result<(), FetchError> {
+        *self.0.borrow_mut() += 1;
+        Err(FetchError::Unavailable)
+    }
+}
+
+#[test]
+fn manual_check_without_curl_answers_unavailable() {
+    let (mut st, _rig) = state_for("0.3.3", Os::Linux);
+    let fake = Unavailable(RefCell::new(0));
+    let (resp, effects) = check_now(&mut st, &Config::default(), &fake, BASE);
+    assert_eq!(
+        status_of(&resp),
+        ("unavailable".into(), "0.3.3".into(), None)
+    );
+    assert_eq!(effects, Vec::<Effect>::new());
+    assert_eq!(*fake.0.borrow(), 1);
+    assert_eq!(st.phase, Phase::Idle);
+    assert_eq!(st.check.schedule.failures, 1);
+    assert_eq!(st.check.schedule.last_failure, Some(BASE));
+    assert_eq!(st.check.last_seen, None);
+}
