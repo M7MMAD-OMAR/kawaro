@@ -28,9 +28,7 @@ mod watch;
 
 #[cfg(test)]
 mod args_tests;
-// The tester's header comment is a list rustdoc wants indented.
 #[cfg(test)]
-#[allow(clippy::doc_lazy_continuation)]
 mod batch_tests;
 #[cfg(test)]
 mod portal_tests;

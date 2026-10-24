@@ -6,7 +6,7 @@
 //!   when `SetForegroundWindow` succeeded, else
 //!   `Some("sbarhived: foreground refused")`.
 //! - `crate::batch::OpenBatch::new(cells_for: impl Fn(&[PathBuf]) -> Vec<String>
-//!   + 'static)`, where `cells_for` gives the cell ids for a file set (the
+//!   and 'static)`, where `cells_for` gives the cell ids for a file set (the
 //!   daemon passes the registry; the `Actions` response is built the same
 //!   way). `push(&mut self, at_ms: u64, path: PathBuf) -> Step`, with
 //!   `#[derive(Debug, PartialEq)] pub enum Step { Show { files: Vec<PathBuf>,
