@@ -1,5 +1,5 @@
 # S-052 Windows beta: live checklist the owner runs, and the release notes
-Status: approved (manager, by delegation, 2026-10-24)
+Status: review
 
 Builds on every Windows story S-040 to S-051 and collects their "live check deferred" items. For the Linux and Windows beta. This story writes files only (a checklist, small scripts, release notes); the owner runs the checklist on a real Windows machine. Half a work day.
 
@@ -36,3 +36,4 @@ As the owner, I want a short checklist with one script per step group, so that I
 ## Review log
 - 2026-10-24, planner: replaces the ADR 0005 S-052 "live checklist and release" with a short owner-run checklist, as the owner wants the beta tomorrow.
 - 2026-10-24, tester: `tests/windows/test_checklist.sh` written, 57 checks, 55 fail for the right reason (docs/windows-beta-checklist.md, both .cmd files and the README "Windows beta" sections do not exist; no CHANGELOG line for S-052). The 2 passing checks are shellcheck on the test itself and design-lint (gates, not features). Reduced for the beta because S-047, S-048, S-049 are not built: AC2 keywords drag, shortcut, tray, toast, Open folder are not required; AC3 shortcut timing from hold_ms is not tested; AC7 toast screenshot is not required.
+- 2026-10-24, implementer: checklist (14 steps, 56 step lines), both .cmd files (CRLF), README sections in English and Arabic and the CHANGELOG line written; test_checklist.sh 84 checks, 0 failed; unbuilt features (S-047, S-048, S-049) marked as not in this build.
