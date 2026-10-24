@@ -10,6 +10,9 @@
 # SHA-256 is computed from the file of the same name in DIR. Only .msi, .rpm
 # and .deb assets become entries, in input order.
 #
+# Every asset url must start with https://github.com/M7MMAD-OMAR/sbarhive/releases/download/
+# (the client enforces the same prefix, ADR 0006), otherwise exit 2.
+#
 # Exit codes: 0 ok; 2 bad usage or bad input; 3 a package has no local file in
 # DIR; 4 no package asset. On a non zero exit OUT_JSON is not created.
 set -euo pipefail
@@ -30,10 +33,12 @@ fi
 jq -e '(.assets | type) == "array"' "$ASSETS" >/dev/null 2>&1 || die 2 "$ASSETS has no assets array"
 
 # One tab separated row per package asset, validated by jq.
-ROWS="$(jq -r '
+PREFIX="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/"
+ROWS="$(jq -r --arg prefix "$PREFIX" '
   .assets[] | select(.name | type == "string" and test("\\.(msi|rpm|deb)$"))
   | if (.size | type) == "number" and .size > 0 and .size == (.size | floor)
-         and (.url | type) == "string" and (.name | test("[\t\n]") | not)
+         and (.url | type) == "string" and (.url | startswith($prefix))
+         and (.name | test("[\t\n]") | not)
     then [.name, .url, (.size | tostring)] | @tsv
     else error("bad asset " + .name) end' "$ASSETS" 2>/dev/null)" || die 2 "invalid package asset in $ASSETS"
 [ -n "$ROWS" ] || die 4 "no .msi, .rpm or .deb asset in $ASSETS"

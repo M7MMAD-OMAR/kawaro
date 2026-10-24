@@ -12,6 +12,7 @@ The original planning document was never exported, so this plan rebuilds it from
 | 0.3.1 | Released 2026-10-22: the drop hive only during a real drag of files with an action (S-021) |
 | 0.3.2 | Released 2026-10-22: the opening animation plays on the layer path, and drop follow-ups (S-022) |
 | 0.3.3 | Released 2026-10-23: the drop shortcut registers through the global shortcuts portal on GNOME and KDE (S-014e), and the layer hive keeps off the keyboard at KDE Extreme without a token (S-027). S-014f, S-016 and S-017 remain for 0.4.0 |
+| 0.4.0-beta.1 | In preparation 2026-10-24: the first public beta for Linux and Windows, a GitHub prerelease with RPM, DEB, zip, MSI and `SHA256SUMS`, built by CI on a `v0.4.0-beta.1` tag (S-055). Updates from inside the app (ADR 0006); Windows unsigned; no drop hive or notifications on Windows yet |
 | 0.4.0 "Portal and look" | Next: S-014f, S-016, S-017 |
 | 0.5.0 "X11" | Planned: S-015 |
 | 0.6.0 "Windows" | Planned: starts with ADR 0005 |

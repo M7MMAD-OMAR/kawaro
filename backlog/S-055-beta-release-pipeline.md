@@ -1,5 +1,5 @@
 # S-055 Beta release pipeline: 0.4.0-beta.1 for Linux and Windows
-Status: approved (manager, by delegation, 2026-10-24)
+Status: review
 
 First public beta, tag `v0.4.0-beta.1`, a GitHub prerelease. Depends on S-053c (signed manifest job, `~` package versions), S-051 (zip and MSI scripts) and the updater stories S-053a to S-054b. One work day: the workflow job, the notes and the dry-run script are small; the version bump is mechanical. If S-054a or S-054b is not done when this starts, the notes say "updates are check only" and the story still ships.
 
@@ -58,3 +58,6 @@ As the maintainer, I want one tag push to build, check and publish the Linux pac
   - beta_notes: 2 of 2 fail (both notes files missing).
   - beta_dryrun: 2 of 2 fail (scripts/release/dry-run.sh and check-versions.sh missing; the remaining 84 checks were validated against a throwaway prototype outside the repo, where they pass).
   Contract decisions are in the header comment of each test file.
+
+- 2026-10-24, implementer: done, status review. Added `scripts/release/check-versions.sh` and `dry-run.sh`, the `windows` job and the changed `release` and `update-manifest` jobs in `packages.yml` (top-level permissions read only, `contents: write` on `release` and `update-manifest`), msitools in `ci.yml`, the url prefix check in `make-update-manifest.sh`, both release notes, the bump to 0.4.0-beta.1 (Cargo.toml, Cargo.lock, metainfo), the CHANGELOG line, PLAN row, README note, engines.md rows and the CLAUDE.md Status section. No test was edited. Notes: (1) `beta_dryrun.sh` check "no branch or worktree was created" asserts `git worktree list` has one line, so it fails on a checkout that has other worktrees (this machine has four under `.claude/worktrees`, which were not touched); it passes in a clean clone and in CI. (2) The manual update check has no menu entry or command yet (S-054c is still planned), so the notes say so.
+- 2026-10-24, implementer, test problem (not edited, for the manager): `tests/windows/test_s051.sh` lines 220-221 and 234 compare the MSI `ProductVersion` with the whole workspace version (`VERSION` read at line 39). With the version 0.4.0-beta.1 the script gives `ProductVersion` 0.4.0, which is required by S-055 AC1 and AC6 and by the header of `scripts/windows/make-msi.sh` (MSI versions are numeric), so the test fails 2 of 91 checks ("AC4: ProductVersion: got [0.4.0] want [0.4.0-beta.1]", same with the real exes). The expected value should be `${VERSION%%[-+]*}`. The production script is right; the test needs that one change.

@@ -71,6 +71,8 @@ Either way, Nautilus needs `nautilus-python` (Fedora) or `python3-nautilus`
 (Ubuntu), and opening from the clipboard needs `wl-clipboard` on Wayland or
 `xclip` on X11.
 
+**Beta:** the first public beta, 0.4.0-beta.1, is a prerelease on the [releases page](https://github.com/M7MMAD-OMAR/sbarhive/releases) for Linux and Windows, with a `SHA256SUMS` file to verify your download. Read its [release notes](docs/release-notes-0.4.0-beta.1.md) first, including the known gaps.
+
 ## Windows beta
 
 A Windows 10 (22H2) and Windows 11 beta is ready to try. It is for testers: the checklist is in [docs/windows-beta-checklist.md](docs/windows-beta-checklist.md).

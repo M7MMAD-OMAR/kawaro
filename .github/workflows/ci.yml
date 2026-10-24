@@ -13,7 +13,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-            libdbus-1-dev ffmpeg ghostscript minisign jq rpm shellcheck
+            libdbus-1-dev ffmpeg ghostscript minisign jq rpm shellcheck msitools
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy

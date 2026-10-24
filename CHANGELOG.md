@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- First public beta (S-055): 0.4.0-beta.1 for Linux and Windows, built and checked by CI, published as a prerelease. «أول إصدار تجريبي علني: 0.4.0-beta.1 للينكس وويندوز، يُبنى ويُفحص في CI ويُنشر كإصدار تجريبي».
 - Tests never notify the desktop (S-054b): the daemon sends no real notification in a test build or when `SBARHIVE_NO_NOTIFY` is set, which `.cargo/config.toml` and the compositor test scripts set. «لا إشعارات من الاختبارات: لا يرسل الخادم إشعاراً حقيقياً في بناء الاختبار أو عند ضبط SBARHIVE_NO_NOTIFY».
 - Update in the tray (S-054b): the app checks once a day, downloads in the background, and offers "Update now" in the tray with one notification. «التحديث من الدرج: يفحص التطبيق مرة في اليوم وينزّل في الخلفية ويعرض «حدّث الآن» في الدرج مع إشعار واحد».
 - Install updates (S-054a): a verified update installs with one action: a quiet per-user installer on Windows, `pkexec` with `dnf` or `apt` on Linux, where the privileged step copies the package to a root-owned folder and checks its SHA-256 again before installing (the Windows part is built and unit tested on Linux, not yet verified on a live Windows system; S-052). «تثبيت التحديثات: بإجراء واحد، تثبيت صامت لكل مستخدم في ويندوز، وpkexec مع dnf أو apt في لينكس، وتتحقق الخطوة المميزة من البصمة من جديد على نسخة يملكها الجذر».

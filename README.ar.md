@@ -55,6 +55,8 @@ cd sbarhive
 
 في الطريقتين يحتاج Nautilus إلى `nautilus-python` (Fedora) أو `python3-nautilus` (Ubuntu)، ويحتاج الفتح من الحافظة إلى `wl-clipboard` على Wayland أو `xclip` على X11.
 
+**النسخة التجريبية:** أول إصدار تجريبي علني، 0.4.0-beta.1، إصدار ما قبل النهائي في [صفحة الإصدارات](https://github.com/M7MMAD-OMAR/sbarhive/releases) للينكس وويندوز، ومعه ملف `SHA256SUMS` للتحقق من تنزيلك. اقرأ [ملاحظات الإصدار](docs/release-notes-0.4.0-beta.1.ar.md) أولاً بما فيها الثغرات المعروفة.
+
 ## Windows beta: النسخة التجريبية
 
 نسخة تجريبية لـ Windows 10 (الإصدار 22H2) وWindows 11 جاهزة للتجربة، وهي للمختبِرين. قائمة الفحص في [docs/windows-beta-checklist.md](docs/windows-beta-checklist.md) (بالإنجليزية).
