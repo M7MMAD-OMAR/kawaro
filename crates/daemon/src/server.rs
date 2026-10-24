@@ -158,6 +158,36 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         }
         // Taken by the gate above.
         Request::DropRelease => reply(&mut stream, &Response::Ok),
+        Request::UpdateCheck => {
+            let (config, jobs, hive_open) = crate::update_sys::snapshot(state);
+            let lang = lock(state).lang;
+            let (response, effects) = {
+                let mut update = lock(crate::update_sys::shared());
+                update.running_jobs = jobs;
+                update.hive_open = hive_open;
+                crate::update::check_now(
+                    &mut update,
+                    &config,
+                    &sbarhive_core::update::fetch::CurlFetcher::system(),
+                    crate::update_sys::unix_now(),
+                )
+            };
+            reply(&mut stream, &response);
+            crate::tray::refresh();
+            crate::update_sys::run_effects(effects, lang);
+        }
+        Request::UpdateApply => {
+            let (_, jobs, hive_open) = crate::update_sys::snapshot(state);
+            let lang = lock(state).lang;
+            let (response, effects) = {
+                let mut update = lock(crate::update_sys::shared());
+                update.running_jobs = jobs;
+                update.hive_open = hive_open;
+                crate::update::request_apply(&mut update)
+            };
+            reply(&mut stream, &response);
+            crate::update_sys::run_effects(effects, lang);
+        }
         Request::Quit => {
             reply(&mut stream, &Response::Ok);
             ui::quit();

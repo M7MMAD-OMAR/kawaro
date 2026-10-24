@@ -72,3 +72,11 @@ pub fn default_channel(installed: &str) -> Result<Channel, UpdateError> {
         Channel::Beta
     })
 }
+
+/// The channel to follow: the configured one, otherwise the default for the
+/// installed version, and `Stable` when that is not a version.
+pub fn effective_channel(configured: Option<Channel>, installed: &str) -> Channel {
+    configured
+        .or_else(|| default_channel(installed).ok())
+        .unwrap_or_default()
+}

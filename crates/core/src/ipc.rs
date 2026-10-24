@@ -60,15 +60,33 @@ pub enum Request {
     /// Re-read config and action files.
     Reload,
     Quit,
+    /// Check for an update now, whatever `update_check` says (S-054b).
+    UpdateCheck,
+    /// Install the verified update that is ready (S-054b).
+    UpdateApply,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "status", rename_all = "kebab-case")]
 pub enum Response {
     Ok,
-    Error { message: String },
-    Actions { actions: Vec<ActionSummary> },
-    Event { event: Event },
+    Error {
+        message: String,
+    },
+    Actions {
+        actions: Vec<ActionSummary>,
+    },
+    Event {
+        event: Event,
+    },
+    /// The answer to `UpdateCheck`. The JSON key is `state` because the
+    /// response is tagged with `status` (S-054b ruling).
+    Update {
+        #[serde(rename = "state")]
+        status: String,
+        current: String,
+        latest: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

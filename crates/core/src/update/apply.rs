@@ -23,6 +23,9 @@ pub use windows::{apply_msi, helper_main};
 /// The page that lists the packages, shown when nothing else can install.
 pub const RELEASE_PAGE_URL: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/latest";
 
+/// `pkexec` by absolute path, never found through `PATH`.
+pub const PKEXEC: &str = "/usr/bin/pkexec";
+
 /// The exit code of the privileged step when it is not run by root.
 pub const EXIT_NOT_ROOT: i32 = 77;
 
@@ -213,7 +216,7 @@ pub fn linux_plan(f: &Facts) -> Plan {
         (true, true) => f.installed_kind.unwrap_or(PkgKind::Rpm),
     };
     match (f.repo_configured, f.has_pkexec) {
-        (true, true) => Plan::RepoUpgrade(repo_command("pkexec", kind)),
+        (true, true) => Plan::RepoUpgrade(repo_command(PKEXEC, kind)),
         (true, false) => Plan::ShowCommand(repo_command("sudo", kind)),
         (false, true) => Plan::Local(kind),
         (false, false) => Plan::ShowCommand(local_command(kind)),
@@ -264,7 +267,7 @@ pub trait CommandRunner {
 /// The command that asks `pkexec` to run the privileged step.
 pub fn privileged_argv(exe: &Path, file: &Path, sha256: &str, kind: PkgKind) -> Vec<String> {
     vec![
-        "pkexec".to_string(),
+        PKEXEC.to_string(),
         exe.to_string_lossy().into_owned(),
         "update".to_string(),
         "--install-privileged".to_string(),
@@ -274,6 +277,29 @@ pub fn privileged_argv(exe: &Path, file: &Path, sha256: &str, kind: PkgKind) -> 
         "--kind".to_string(),
         kind.as_str().to_string(),
     ]
+}
+
+/// True when root owns the program and neither the group nor others can
+/// write it, so a user cannot swap what `pkexec` runs as root.
+pub fn exe_is_trusted(owner_uid: u32, mode: u32) -> bool {
+    owner_uid == 0 && mode & 0o022 == 0
+}
+
+/// [`privileged_argv`] for an `exe` that passes [`exe_is_trusted`]; any other
+/// program (or one that cannot be read) is refused with `Io`.
+#[cfg(unix)]
+pub fn privileged_argv_checked(
+    exe: &Path,
+    file: &Path,
+    sha256: &str,
+    kind: PkgKind,
+) -> Result<Vec<String>, UpdateError> {
+    use std::os::unix::fs::MetadataExt;
+    let meta = std::fs::metadata(exe).map_err(|_| UpdateError::Io)?;
+    if !exe_is_trusted(meta.uid(), meta.mode()) {
+        return Err(UpdateError::Io);
+    }
+    Ok(privileged_argv(exe, file, sha256, kind))
 }
 
 /// Runs the plan after an explicit "Update now". The only place that builds

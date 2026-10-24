@@ -7,10 +7,20 @@ use ksni::blocking::{Handle, TrayMethods};
 use ksni::menu::{MenuItem, StandardItem};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, TryLockError};
 
 /// A second handle for updates that do not come from the job pump.
 static TRAY: OnceLock<Handle<SbarTray>> = OnceLock::new();
+
+/// Runs `f` on the update state; while a check or download holds it, on an
+/// idle one, so the tray never waits on the network.
+fn with_update<R>(f: impl FnOnce(&crate::update::UpdateState) -> R) -> R {
+    match crate::update_sys::shared().try_lock() {
+        Ok(update) => f(&update),
+        Err(TryLockError::Poisoned(p)) => f(&p.into_inner()),
+        Err(TryLockError::WouldBlock) => f(crate::update_sys::idle_view()),
+    }
+}
 
 pub struct SbarTray {
     lang: Lang,
@@ -39,15 +49,13 @@ impl ksni::Tray for SbarTray {
         }
     }
     fn tool_tip(&self) -> ksni::ToolTip {
-        let description = if self.active.is_empty() {
-            text::idle(self.lang).to_string()
-        } else {
-            self.active
-                .iter()
-                .map(|(label, f)| format!("{label}: {}%", (f * 100.0).round() as i32))
-                .collect::<Vec<_>>()
-                .join("\n")
-        };
+        let description = with_update(|update| {
+            let mut description = text::tooltip_text(self.lang, update, &self.active);
+            if text::update_item_enabled(update) {
+                description = format!("{description}\n{}", text::update_now_hint(self.lang));
+            }
+            description
+        });
         ksni::ToolTip {
             title: text::app_name(self.lang).into(),
             description,
@@ -63,9 +71,25 @@ impl ksni::Tray for SbarTray {
         }
     }
     fn menu(&self) -> Vec<MenuItem<Self>> {
+        let (labels, update_enabled) = with_update(|update| {
+            (
+                text::menu_labels(self.lang, update),
+                text::update_item_enabled(update),
+            )
+        });
         vec![
             StandardItem {
-                label: text::cancel_all(self.lang).into(),
+                label: labels[0].clone(),
+                enabled: update_enabled,
+                icon_name: "software-update-available".into(),
+                activate: Box::new(|t: &mut Self| {
+                    crate::update_sys::apply_from_menu(t.state.clone())
+                }),
+                ..Default::default()
+            }
+            .into(),
+            StandardItem {
+                label: labels[1].clone(),
                 enabled: !self.active.is_empty(),
                 icon_name: "process-stop".into(),
                 activate: Box::new(|t: &mut Self| t.queue.cancel_all()),
@@ -73,7 +97,7 @@ impl ksni::Tray for SbarTray {
             }
             .into(),
             StandardItem {
-                label: text::settings(self.lang).into(),
+                label: labels[2].clone(),
                 icon_name: "preferences-system".into(),
                 activate: Box::new(|t: &mut Self| {
                     let config = lock(&t.state).config.clone();
@@ -84,7 +108,7 @@ impl ksni::Tray for SbarTray {
             .into(),
             MenuItem::Separator,
             StandardItem {
-                label: text::quit(self.lang).into(),
+                label: labels[3].clone(),
                 icon_name: "application-exit".into(),
                 activate: Box::new(|_| crate::ui::quit()),
                 ..Default::default()
@@ -124,5 +148,12 @@ pub fn set_active(tray: &TrayHandle, active: Vec<(String, f32)>) {
 pub fn set_lang(lang: Lang) {
     if let Some(h) = TRAY.get() {
         h.update(|t| t.lang = lang);
+    }
+}
+
+/// Redraws the menu and tooltip after the update state changed.
+pub fn refresh() {
+    if let Some(h) = TRAY.get() {
+        h.update(|_| {});
     }
 }

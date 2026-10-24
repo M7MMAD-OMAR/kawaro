@@ -25,3 +25,7 @@ no_real_portal() {
     >"$svc/org.freedesktop.portal.Desktop.service"
   printf 'portal_shortcut = false\n' >"$1/.config/sbarhive/config.toml"
 }
+
+# No test daemon may send a real desktop notification (notify.rs reads this);
+# every compositor script that starts the daemon sources this file.
+export SBARHIVE_NO_NOTIFY=1

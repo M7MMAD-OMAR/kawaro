@@ -39,6 +39,7 @@ pub fn tooltip(active: &[(String, f32)], lang: Lang) -> String {
 /// What a tray menu item does.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command {
+    UpdateNow,
     CancelAll,
     Settings,
     Quit,
@@ -55,15 +56,17 @@ pub enum Item {
     Separator,
 }
 
-/// The tray menu, as the Linux tray has it: Cancel all (disabled with no
-/// running job), Settings, a separator, Quit.
-pub fn menu(lang: Lang, active_count: usize) -> Vec<Item> {
+/// The tray menu, as the Linux tray has it: Update now (enabled only when a
+/// verified update is ready), Cancel all (disabled with no running job),
+/// Settings, a separator, Quit.
+pub fn menu(lang: Lang, active_count: usize, update_ready: bool) -> Vec<Item> {
     let action = |command, label: &str, enabled| Item::Action {
         command,
         label: label.to_string(),
         enabled,
     };
     vec![
+        action(Command::UpdateNow, text::update_now(lang), update_ready),
         action(Command::CancelAll, text::cancel_all(lang), active_count > 0),
         action(Command::Settings, text::settings(lang), true),
         Item::Separator,

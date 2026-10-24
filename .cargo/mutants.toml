@@ -50,7 +50,13 @@
 # The Windows update helper (S-054a): it copies and starts sbarhive.exe, waits
 # for the daemon on the pipe and runs msiexec; the live check is S-052. Its
 # order, command line and exit codes stay mutated in update/apply.rs.
+# The update daemon's system side (S-054b): the real state, the saved
+# schedule, the installer call and the daemon restart in update_sys.rs, and
+# the thread glue (start, run) in update.rs; the live check is S-052 and
+# tests/e2e/run.sh. The rules (tick, check_now, request_apply, tick_due,
+# apply_waiting) stay mutated in update.rs.
 exclude_globs = [
+  "crates/daemon/src/update_sys.rs",
   "crates/cli/src/integration/windows.rs",
   "crates/ui/src/win_window.rs",
   "crates/daemon/src/shell_open.rs",
@@ -76,6 +82,13 @@ exclude_globs = [
   "crates/daemon/src/tray/linux.rs",
 ]
 exclude_re = [
+  # The production notification wrappers (S-054b) talk to the desktop, which
+  # no test may reach (SBARHIVE_NO_NOTIFY); their rules stay mutated in
+  # notify_update_with and report_update_result_with.
+  "crates/daemon/src/notify.rs:.*replace <impl UpdateSink for Desktop>::",
+  "crates/daemon/src/notify.rs:.*replace (notify_update|report_update_result) with",
+  "crates/daemon/src/update.rs:.*replace start with \\(\\)",
+  "crates/daemon/src/update.rs:.*replace run with \\(\\)",
   # Windows-only window handle (S-046); the live check is S-052.
   "replace Hive::hwnd -> Option<isize> with",
   # The Windows-only log redirect wiring (S-045); the live check is S-052.

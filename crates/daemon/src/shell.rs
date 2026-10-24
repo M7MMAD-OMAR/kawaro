@@ -216,9 +216,11 @@ fn show_menu(hwnd: HWND) {
         return;
     };
     let lang = tray::lang();
-    let items = crate::shell_logic::menu(lang, tray::active().len());
+    let update_ready = crate::update_sys::update_ready();
+    let items = crate::shell_logic::menu(lang, tray::active().len(), update_ready);
     let rtl = menu_right_to_left(lang);
     match tray::track_menu(hwnd, &items, rtl) {
+        Some(Command::UpdateNow) => crate::update_sys::apply_from_menu(state.clone()),
         Some(Command::CancelAll) => queue.cancel_all(),
         Some(Command::Settings) => {
             let config = lock(&state).config.clone();

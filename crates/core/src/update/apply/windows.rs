@@ -3,12 +3,14 @@
 //! the steps are decided in `apply.rs`, and the live check is S-052 once the
 //! per-user MSI exists. Left out of the mutants run (`.cargo/mutants.toml`).
 
+use std::io::Write;
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use super::{Daemon, HelperOps, UpdateError, UpdateResult, helper_args, msiexec_path, run_helper};
+use crate::ipc::Request;
 use crate::paths;
 use crate::transport::{Stream, endpoint};
 use crate::update::result::write_result;
@@ -35,8 +37,20 @@ pub fn apply_msi(msi: &Path) -> Result<(), UpdateError> {
         .env(PROGRAM_DIR_VAR, program_dir)
         .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
         .spawn()
-        .map(drop)
-        .map_err(|_| UpdateError::Io)
+        .map_err(|_| UpdateError::Io)?;
+    ask_daemon_to_quit();
+    Ok(())
+}
+
+/// Asks the running daemon to quit over IPC; the helper copy waits for it.
+/// A daemon that cannot be reached is already gone, so errors are ignored.
+fn ask_daemon_to_quit() {
+    let Ok(mut stream) = Stream::connect(&endpoint()) else {
+        return;
+    };
+    if let Ok(line) = serde_json::to_string(&Request::Quit) {
+        let _ = writeln!(stream, "{line}");
+    }
 }
 
 /// What the helper copy runs for `update --apply-msi <msi>`. The version is

@@ -118,6 +118,7 @@
 # Usage: tests/drop/portal.sh [ac13] [ac17] [ac15] [ac19] [hold] [live] [ro] [target/release]
 #   (ac17 runs ac18 too; ac17 needs the ac13 daemon and starts one itself)
 set -u
+export SBARHIVE_NO_NOTIFY=1
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 BIN="$ROOT/target/release"

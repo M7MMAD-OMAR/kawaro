@@ -1,5 +1,7 @@
 //! Daemon strings in Arabic and English.
 
+use crate::notify::UpdateKind;
+use crate::update::{Phase, UpdateState};
 use sbarhive_core::MediaKind;
 use sbarhive_core::i18n::Lang;
 
@@ -120,6 +122,101 @@ pub fn app_name(lang: Lang) -> &'static str {
     match lang {
         Lang::Ar => "صبار هايف",
         Lang::En => "SbarHive",
+    }
+}
+
+/// The notification text of an update (S-054b).
+pub fn update_message(lang: Lang, kind: UpdateKind, version: &str) -> String {
+    match (lang, kind) {
+        (Lang::Ar, UpdateKind::Ready) => {
+            format!("التحديث {version} جاهز. اختر «حدّث الآن» من قائمة الدرج.")
+        }
+        (Lang::Ar, UpdateKind::Updated) => format!("تم تحديث صبار هايف إلى {version}."),
+        (Lang::Ar, UpdateKind::Failed) => {
+            format!("تعذّر التحديث {version}. النسخة الحالية لم تتغير.")
+        }
+        (Lang::En, UpdateKind::Ready) => {
+            format!("Update {version} is ready. Choose Update now in the tray menu.")
+        }
+        (Lang::En, UpdateKind::Updated) => format!("SbarHive was updated to {version}."),
+        (Lang::En, UpdateKind::Failed) => {
+            format!("Update {version} failed. The current version is unchanged.")
+        }
+    }
+}
+
+/// The tray entry that installs a ready update.
+pub fn update_now(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "حدّث الآن",
+        Lang::En => "Update now",
+    }
+}
+
+/// What the tray entry does, for the tooltip next to it.
+pub fn update_now_hint(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "ثبّت التحديث الذي نُزّل ثم أعد تشغيل صبار هايف",
+        Lang::En => "Install the downloaded update and restart SbarHive",
+    }
+}
+
+/// What to tell the user when the update cannot be installed from here:
+/// `how` is the command to run or the page to open.
+pub fn update_manual(lang: Lang, how: &str) -> String {
+    match lang {
+        Lang::Ar => format!("لتثبيت التحديث نفّذ: {how}"),
+        Lang::En => format!("To install the update, run: {how}"),
+    }
+}
+
+/// The tray menu labels in order. The first is always the update entry;
+/// `update_item_enabled` says whether it can be chosen.
+pub fn menu_labels(lang: Lang, _update: &UpdateState) -> Vec<String> {
+    [update_now, cancel_all, settings, quit]
+        .iter()
+        .map(|label| label(lang).to_string())
+        .collect()
+}
+
+/// The update entry is enabled only when a verified package is ready.
+pub fn update_item_enabled(update: &UpdateState) -> bool {
+    matches!(update.phase, Phase::Ready(_))
+}
+
+/// The percentage of a download, rounded, never above 100.
+fn percent(downloaded: u64, size: u64) -> u64 {
+    if size == 0 {
+        return 0;
+    }
+    let done = u128::from(downloaded.min(size));
+    let size = u128::from(size);
+    ((done * 100 + size / 2) / size) as u64
+}
+
+/// The tray tooltip: the download progress of an update, then one line per
+/// running job; the idle text when there is nothing to show.
+pub fn tooltip_text(lang: Lang, update: &UpdateState, active: &[(String, f32)]) -> String {
+    let mut lines = Vec::new();
+    if let Phase::Downloading {
+        downloaded, size, ..
+    } = update.phase
+    {
+        let pct = percent(downloaded, size);
+        lines.push(match lang {
+            Lang::Ar => format!("تنزيل التحديث {pct}٪"),
+            Lang::En => format!("Downloading update {pct}%"),
+        });
+    }
+    lines.extend(
+        active
+            .iter()
+            .map(|(label, f)| format!("{label}: {}%", (f * 100.0).round() as i32)),
+    );
+    if lines.is_empty() {
+        idle(lang).to_string()
+    } else {
+        lines.join("\n")
     }
 }
 

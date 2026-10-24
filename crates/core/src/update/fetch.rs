@@ -99,6 +99,20 @@ pub fn curl_candidates(os: Os, env: EnvFn) -> Vec<PathBuf> {
     }
 }
 
+/// The only environment curl gets (after `env_clear`), so a proxy, a CA file
+/// or a preload variable of the caller never reaches it (S-054b ruling).
+/// Linux: `LC_ALL=C`. Windows: `SystemRoot`, which Windows needs to load.
+pub fn curl_env(os: Os, env: EnvFn) -> Vec<(String, String)> {
+    match os {
+        Os::Linux => vec![("LC_ALL".to_string(), "C".to_string())],
+        Os::Windows => env("SystemRoot")
+            .filter(|v| !v.is_empty())
+            .map(|v| ("SystemRoot".to_string(), v.to_string_lossy().into_owned()))
+            .into_iter()
+            .collect(),
+    }
+}
+
 /// Runs a curl program. An empty program path means none was found.
 #[derive(Clone, Debug)]
 pub struct CurlFetcher {
@@ -144,6 +158,8 @@ impl Fetcher for CurlFetcher {
         let mut command = Command::new(&self.program);
         command
             .args(curl_args(url, dest, max_bytes))
+            .env_clear()
+            .envs(curl_env(CURRENT, &|k| std::env::var_os(k)))
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::piped());

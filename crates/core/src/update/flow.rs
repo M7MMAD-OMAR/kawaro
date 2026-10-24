@@ -20,7 +20,7 @@ use crate::paths::{CURRENT, Os, cache_dir_with};
 /// Where the manifests are published.
 const FEED: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/updates";
 /// Automatic checks run at most this often.
-const INTERVAL_SECS: u64 = 86_400;
+pub const INTERVAL_SECS: u64 = 86_400;
 /// Package files are hashed in reads of this size.
 const CHUNK: usize = 65_536;
 
@@ -349,6 +349,10 @@ fn remove_other_versions(dir: &Path) {
     else {
         return;
     };
+    // A symlinked `updates` would send the deletion into its target.
+    if !fs::symlink_metadata(parent).is_ok_and(|m| m.is_dir()) {
+        return;
+    }
     let Ok(entries) = fs::read_dir(parent) else {
         return;
     };

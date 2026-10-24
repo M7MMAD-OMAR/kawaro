@@ -70,7 +70,7 @@ pub fn start(lang: Lang, queue: Arc<Queue>, state: Shared) -> TrayHandle {
     }
 }
 
-fn refresh() {
+pub fn refresh() {
     let hwnd = HWND_SHELL.load(Ordering::SeqCst);
     if hwnd != 0 {
         unsafe { PostMessageW(hwnd as _, WM_REFRESH, 0, 0) };

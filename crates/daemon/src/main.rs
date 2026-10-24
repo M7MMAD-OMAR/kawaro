@@ -29,6 +29,8 @@ mod state;
 mod text;
 mod tray;
 mod ui;
+mod update;
+mod update_sys;
 mod watch;
 
 #[cfg(test)]
@@ -134,6 +136,8 @@ fn main() -> ExitCode {
         let (state, queue) = (state.clone(), queue.clone());
         std::thread::spawn(move || watch::run(state, queue));
     }
+    // After the bind: the thread sleeps 30 s before its first check.
+    update::start(state.clone());
     // No service answered: this process is the service and shows the hive
     // for the files it was started with.
     if let Some(files) = open_files

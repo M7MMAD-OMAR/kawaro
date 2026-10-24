@@ -69,7 +69,7 @@ pub enum HiveSurface {
     Window,
 }
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct Config {
     pub language: LangSetting,
@@ -108,6 +108,36 @@ pub struct Config {
     /// `ask` or `auto` for what happens when an update is ready.
     #[serde(rename = "update_mode")]
     pub update_mode: UpdateMode,
+    /// True when the loaded file had an `update_channel` key. It lets the
+    /// beta default for a prerelease build survive a save from the settings
+    /// window (S-054b). Not part of the file and not part of equality.
+    #[serde(skip)]
+    pub update_channel_present: bool,
+}
+
+impl PartialEq for Config {
+    /// Every setting; `update_channel_present` only describes where the
+    /// values came from, so two configs with the same settings are equal.
+    fn eq(&self, o: &Self) -> bool {
+        [
+            self.language == o.language,
+            self.theme == o.theme,
+            self.output == o.output,
+            self.output_folder == o.output_folder,
+            self.quality == o.quality,
+            self.open_folder_when_done == o.open_folder_when_done,
+            self.notify == o.notify,
+            self.hive_surface == o.hive_surface,
+            self.hold_ms == o.hold_ms,
+            self.portal_shortcut == o.portal_shortcut,
+            self.shortcut == o.shortcut,
+            self.update_check == o.update_check,
+            self.update_channel == o.update_channel,
+            self.update_mode == o.update_mode,
+        ]
+        .iter()
+        .all(|same| *same)
+    }
 }
 
 /// The default long press threshold.
@@ -148,6 +178,7 @@ impl Default for Config {
             update_check: true,
             update_channel: Channel::Stable,
             update_mode: UpdateMode::Ask,
+            update_channel_present: false,
         }
     }
 }
@@ -167,11 +198,35 @@ impl Config {
         match std::fs::read_to_string(path) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (Self::default(), None),
             Err(e) => (Self::default(), Some(format!("{}: {e}", path.display()))),
-            Ok(text) => match toml::from_str(&text) {
-                Ok(c) => (c, None),
+            Ok(text) => match toml::from_str::<Config>(&text) {
+                Ok(c) => (
+                    Config {
+                        update_channel_present: Self::explicit_update_channel(&text).is_some(),
+                        ..c
+                    },
+                    None,
+                ),
                 Err(e) => (Self::default(), Some(format!("{}: {e}", path.display()))),
             },
         }
+    }
+
+    /// The `update_channel` written in a config file text; `None` when the
+    /// key is missing, is not `stable` or `beta`, or the text is not TOML.
+    pub fn explicit_update_channel(text: &str) -> Option<Channel> {
+        let table: toml::Table = toml::from_str(text).ok()?;
+        match table.get("update_channel")?.as_str()? {
+            "stable" => Some(Channel::Stable),
+            "beta" => Some(Channel::Beta),
+            _ => None,
+        }
+    }
+
+    /// The channel the user chose: the file's value when it had the key or
+    /// it is not the default, otherwise none.
+    pub fn configured_update_channel(&self) -> Option<Channel> {
+        (self.update_channel_present || self.update_channel != Channel::Stable)
+            .then_some(self.update_channel)
     }
 
     pub fn load() -> (Self, Option<String>) {
@@ -186,7 +241,13 @@ impl Config {
         if let Some(dir) = path.parent() {
             std::fs::create_dir_all(dir)?;
         }
-        let text = toml::to_string_pretty(self).map_err(std::io::Error::other)?;
+        let mut table = toml::Table::try_from(self).map_err(std::io::Error::other)?;
+        // An unset channel stays unset, so the beta default of a prerelease
+        // build survives a save (S-054b).
+        if !self.update_channel_present && self.update_channel == Channel::Stable {
+            table.remove("update_channel");
+        }
+        let text = toml::to_string_pretty(&table).map_err(std::io::Error::other)?;
         let tmp = path.with_extension(format!("toml.{}.tmp", std::process::id()));
         std::fs::write(&tmp, text)?;
         std::fs::rename(&tmp, path)

@@ -1,21 +1,122 @@
 //! Desktop notifications. They never take focus; the only one per job is
 //! sent when it ends.
 
-use crate::state::JobInfo;
+use crate::state::{JobInfo, lock};
 use crate::text;
 use notify_rust::Notification;
 use sbarhive_core::i18n::Lang;
+use sbarhive_core::update::result::{Outcome, take_result};
 use std::path::Path;
+use std::sync::Mutex;
+
+/// What an update notification is about (S-054b).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum UpdateKind {
+    Ready,
+    Updated,
+    Failed,
+}
+
+/// Where an update notification goes: a log line and a desktop popup.
+pub trait UpdateSink {
+    fn log(&mut self, line: &str);
+    fn show(&mut self, summary: &str, body: &str);
+}
+
+/// The (kind, version) pairs already shown, so each is shown once.
+#[derive(Default)]
+pub struct Sent {
+    pairs: Vec<(UpdateKind, String)>,
+}
+
+/// One log line and one notification for a kind and version, once.
+pub fn notify_update_with(
+    sink: &mut dyn UpdateSink,
+    sent: &mut Sent,
+    lang: Lang,
+    kind: UpdateKind,
+    version: &str,
+) {
+    if sent.pairs.iter().any(|(k, v)| *k == kind && v == version) {
+        return;
+    }
+    sent.pairs.push((kind, version.to_string()));
+    let message = text::update_message(lang, kind, version);
+    sink.log(&format!("sbarhived: notify: {message}"));
+    sink.show(text::app_name(lang), &message);
+}
+
+/// Reports the result a helper process left (`update-result.json`), once.
+pub fn report_update_result_with(
+    sink: &mut dyn UpdateSink,
+    sent: &mut Sent,
+    lang: Lang,
+    dir: &Path,
+) {
+    let Some(result) = take_result(dir) else {
+        return;
+    };
+    let kind = match result.outcome {
+        Outcome::Installed => UpdateKind::Updated,
+        Outcome::Failed(_) => UpdateKind::Failed,
+    };
+    notify_update_with(sink, sent, lang, kind, &result.version);
+}
+
+/// The desktop: stderr for the log line, a notification that takes no focus.
+struct Desktop;
+
+impl UpdateSink for Desktop {
+    fn log(&mut self, line: &str) {
+        eprintln!("{line}");
+    }
+    fn show(&mut self, summary: &str, body: &str) {
+        show(
+            Notification::new()
+                .appname(summary)
+                .summary(summary)
+                .body(body)
+                .icon("sbarhive"),
+        );
+    }
+}
+
+static SENT: Mutex<Sent> = Mutex::new(Sent { pairs: Vec::new() });
+
+/// The production call: the real desktop, one notification per kind and
+/// version for the life of the daemon.
+pub fn notify_update(lang: Lang, kind: UpdateKind, version: &str) {
+    notify_update_with(&mut Desktop, &mut lock(&SENT), lang, kind, version);
+}
+
+/// At start: the result of an install that ran in another process.
+pub fn report_update_result(lang: Lang) {
+    if let Some(dir) = sbarhive_core::paths::config_dir() {
+        report_update_result_with(&mut Desktop, &mut lock(&SENT), lang, &dir);
+    }
+}
+
+/// The one gate in front of every real desktop notification. A unit test
+/// build never sends one, and `SBARHIVE_NO_NOTIFY` (any value) turns them off
+/// for any build, so no test run can reach a live session's notification
+/// service. The `sbarhived: notify:` log line is written either way.
+fn show(n: &Notification) -> Option<notify_rust::NotificationHandle> {
+    if cfg!(test) || std::env::var_os("SBARHIVE_NO_NOTIFY").is_some() {
+        return None;
+    }
+    n.show().ok()
+}
 
 pub fn info(lang: Lang, body: &str) {
     // One log line per notification, so tests can count them.
     eprintln!("sbarhived: notify: {body}");
-    let _ = Notification::new()
-        .appname(text::app_name(lang))
-        .summary(text::app_name(lang))
-        .body(body)
-        .icon("sbarhive")
-        .show();
+    show(
+        Notification::new()
+            .appname(text::app_name(lang))
+            .summary(text::app_name(lang))
+            .body(body)
+            .icon("sbarhive"),
+    );
 }
 
 pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
@@ -50,7 +151,7 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
     if folder.is_some() {
         n.action("default", text::open_folder(lang));
     }
-    let Ok(handle) = n.show() else { return };
+    let Some(handle) = show(&n) else { return };
     if let Some(folder) = folder {
         // Waiting blocks until the notification closes, so it gets its own thread.
         std::thread::spawn(move || {
