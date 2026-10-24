@@ -41,3 +41,6 @@ As a Windows user who unpacked the zip file, I want one command to add SbarHive 
 
 ## Review log
 - 2026-10-24, planner: `reg.exe` is used instead of registry API calls so every argument is checkable on Linux.
+- 2026-10-24, tester: tests written from the ACs only, in `crates/core/tests/explorer_registry.rs` (AC1, AC2, AC3, AC6 `missing_files`) and `crates/cli/tests/integration.rs` (AC4, AC5). Assumed API: `sbarhive_core::registry::{install_commands, uninstall_commands, missing_files}`, `missing_files(dir: &str, exists: impl Fn(&str) -> bool) -> Vec<String>` returning file names in the order `sbarhived.exe`, `sbarhive.ico`, calling `exists` with `<dir>\<name>`. Deferred or reduced: the AppUserModelId is the literal string of AC1 (S-049 `APP_ID` not used); the icon is only a file name (S-048 not needed); the AC6 runner (stop at first failure, exit 1) and AC7 (README, `W`, `M`, CHANGELOG) have no test here. Failing output (before implementation):
+  - core: `error[E0432]: unresolved import sbarhive_core::registry` (module absent).
+  - cli: 7 of 7 fail: `ac4_*` with `left: Some(2) right: Some(0)` and `ac5_*` with clap `error: unrecognized subcommand 'integration'` (exit 2 matches by accident, so the tests also check the exact stderr text).
