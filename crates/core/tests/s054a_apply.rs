@@ -344,7 +344,8 @@ fn ac4_privileged_argv_is_pkexec_then_the_sbarhive_update_call() {
     assert_eq!(
         argv,
         s(&[
-            "pkexec",
+            // S-054b ruling: the absolute path, never found through PATH.
+            "/usr/bin/pkexec",
             "/usr/bin/sbarhive",
             "update",
             "--install-privileged",
