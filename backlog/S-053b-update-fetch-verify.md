@@ -38,3 +38,11 @@ The fake `Fetcher` serves the S-053a fixtures from memory and counts calls. The 
 
 ## Review log
 - 2026-10-24, planner: written from ADR 0006; approved by the manager under the maintainer's delegation. `.part` removal on failure is asserted by listing the folder, not by the absence of an error.
+- 2026-10-24, tester: 61 tests in `crates/core/tests/s053b_update_fetch.rs` plus fixtures in `tests/fixtures/update/s053b/` (throwaway key C, signed manifests; the real key was not touched). The contract and every gap decision are in the file header. Run (CARGO_BUILD_JOBS=2, in the 6G scope) fails to compile, for the right reason, only new S-053b items are missing:
+```
+error[E0432]: unresolved imports `sbarhive_core::paths::cache_dir_with`, `sbarhive_core::paths::update_dir_with`, `sbarhive_core::paths::update_state_file_with`
+error[E0432]: unresolved import `sbarhive_core::update::fetch`
+error[E0432]: unresolved import `sbarhive_core::update::flow`
+error: could not compile `sbarhive-core` (test "s053b_update_fetch") due to 3 previous errors
+```
+Against a throwaway compile-only stub (not committed) with empty bodies: 55 failed, 6 passed. The 6 are legitimate or stub shaped: FetchError equality, empty program is Unavailable, Disabled with 0 calls, the source check for VerifiedPackage fields, the "writes nothing" case, and select_asset returning the first duplicate (an S-053a behaviour kept as a regression guard).
