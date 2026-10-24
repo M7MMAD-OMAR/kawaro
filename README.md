@@ -71,6 +71,18 @@ Either way, Nautilus needs `nautilus-python` (Fedora) or `python3-nautilus`
 (Ubuntu), and opening from the clipboard needs `wl-clipboard` on Wayland or
 `xclip` on X11.
 
+## Windows beta
+
+A Windows 10 (22H2) and Windows 11 beta is ready to try. It is for testers: the checklist is in [docs/windows-beta-checklist.md](docs/windows-beta-checklist.md).
+
+**What works:** the right-click menu entry in Explorer, the hive window at the pointer, conversions with the engines below, and the service starting at logon. **What does not exist yet:** the drop hive, the tray icon, the global shortcut and notifications. There is no tray icon yet, so stop the service from Task Manager (end `sbarhived.exe`) or uninstall SbarHive.
+
+**Install.** Download `sbarhive-<version>-windows-x64.msi` (per user, no administrator rights) or `sbarhive-<version>-windows-x64.zip` (portable) from the release page. Both are unsigned, so Windows SmartScreen asks first: click "More info", then "Run anyway". On Windows 11 the SbarHive item is under "Show more options" in the right-click menu; on Windows 10 it is in the menu directly.
+
+**Engines are not bundled.** LibreOffice, Ghostscript and FFmpeg are not bundled; install the ones you need (see Settings above for where SbarHive looks). A missing engine gives an error that names it.
+
+**Report back.** Run `scripts\windows\beta-smoke.cmd` and `scripts\windows\collect-logs.cmd`; results go to `%USERPROFILE%\sbarhive-beta-test`. Nothing is uploaded.
+
 ## Command line
 
 ```bash

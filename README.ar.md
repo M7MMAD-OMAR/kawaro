@@ -55,6 +55,18 @@ cd sbarhive
 
 في الطريقتين يحتاج Nautilus إلى `nautilus-python` (Fedora) أو `python3-nautilus` (Ubuntu)، ويحتاج الفتح من الحافظة إلى `wl-clipboard` على Wayland أو `xclip` على X11.
 
+## Windows beta: النسخة التجريبية
+
+نسخة تجريبية لـ Windows 10 (الإصدار 22H2) وWindows 11 جاهزة للتجربة، وهي للمختبِرين. قائمة الفحص في [docs/windows-beta-checklist.md](docs/windows-beta-checklist.md) (بالإنجليزية).
+
+**ما يعمل:** بند قائمة الزر الأيمن في المستكشف، ونافذة الخلية عند المؤشر، والتحويل بالمحركات المذكورة أدناه، وتشغيل الخدمة عند تسجيل الدخول. **ما لم يُبنَ بعد:** خلية الإفلات وأيقونة شريط النظام والاختصار العام والإشعارات. ولا توجد أيقونة في شريط النظام بعد، فأوقف الخدمة من مدير المهام (أنهِ `sbarhived.exe`) أو أزل تثبيت صبار هايف.
+
+**التثبيت.** نزّل من صفحة الإصدار `sbarhive-<version>-windows-x64.msi` (للمستخدم الحالي دون صلاحيات المدير) أو `sbarhive-<version>-windows-x64.zip` (محمول). كلتاهما غير موقّعة، فتسألك SmartScreen أولاً: اضغط «More info» ثم «Run anyway». وعلى Windows 11 يظهر بند صبار هايف تحت «Show more options» (إظهار خيارات إضافية) في قائمة الزر الأيمن، وعلى Windows 10 يظهر في القائمة مباشرة.
+
+**المحركات غير مضمّنة.** محركات LibreOffice وGhostscript وFFmpeg غير مضمّنة، فثبّت ما تحتاجه منها. وإن غاب محرك ذكرت رسالة الخطأ اسمه.
+
+**أرسل نتائجك.** شغّل `scripts\windows\beta-smoke.cmd` ثم `scripts\windows\collect-logs.cmd`، وتجد النتائج في `%USERPROFILE%\sbarhive-beta-test`. لا يُرفع شيء.
+
 ## سطر الأوامر
 
 ```bash
