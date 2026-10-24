@@ -271,7 +271,10 @@ a message with the program's name and its download page.
 Within one folder the names keep their order. The two registry keys are
 assumptions from ADR 0005, checked on a real Windows install in S-052. On
 Windows `ffmpeg` and `ffprobe` start with `CREATE_NO_WINDOW`, so no console
-window flashes.
+window flashes. Every engine child, FFmpeg included, runs in one
+`ProcessTree` (`crates/engines/src/process.rs`, S-030): its own process
+group on Unix, a kill-on-close job object on Windows, so cancelling, the
+timeout or the service dying ends the whole tree.
 
 ## Windows build tools (S-044)
 

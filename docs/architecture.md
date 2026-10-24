@@ -26,10 +26,17 @@ file manager entry ──▶ sbarhive open ──▶ (Unix socket, JSON lines) �
     `PIPE_REJECT_REMOTE_CLIENTS`; the client checks that the server process
     runs as the same user before it writes, waits up to 2000 ms for a busy
     pipe, and a read timeout is a watcher thread that calls `CancelIoEx`.
+  - After a failed accept the serve loop waits 50 ms before the next one
+    (`transport::accept_backoff`). On Windows a client that connected is
+    handed over even when the next instance cannot be created; creating it
+    is retried on the next accept (`transport::accept_plan`).
+  - At exit the daemon drops the guard from `Listener::cleanup`, which
+    removes the Unix socket file; on Windows it does nothing.
 - `sbarhive` (crates/cli) is a thin client, plus `convert` which runs engines
   in-process with no daemon.
 - Engines (crates/engines) run inside the daemon. Heavy external tools
-  (FFmpeg, LibreOffice, Ghostscript, v0.2) run as child processes.
+  (FFmpeg, LibreOffice, Ghostscript, v0.2) run as child processes, each in
+  a `ProcessTree` that kills the child and everything it started (S-030).
 
 ## Core contracts (crates/core)
 

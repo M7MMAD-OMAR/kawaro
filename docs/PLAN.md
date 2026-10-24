@@ -109,7 +109,7 @@ Before any code: ADR 0005 (`docs/adr/0005-windows.md`) settles the installer and
 | --- | --- |
 | core and daemon | IPC on a named pipe instead of a Unix socket, config and temp paths in `%APPDATA%` and `%TEMP%`, tray icon and notifications on Windows |
 | ui | The hive as a frameless window at the pointer that takes focus, drop through an OLE receiver, the global shortcut |
-| engines | The image engine as is; FFmpeg, LibreOffice and Ghostscript from Windows paths or downloaded on demand; kill the process tree on cancel (start in `crates/engines/src/office/non_unix.rs`) |
+| engines | The image engine as is; FFmpeg, LibreOffice and Ghostscript from Windows paths or downloaded on demand; kill the process tree on cancel (`crates/engines/src/process.rs` since S-030) |
 | integrations/windows | The legacy registry menu first (unsigned), then the Windows 11 menu with IExplorerCommand and a signed sparse package |
 | Distribution | An installer attached to the GitHub release, built in CI on a Windows runner |
 
