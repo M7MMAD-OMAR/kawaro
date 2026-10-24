@@ -36,3 +36,36 @@ Read-only tools (`unzip`, `msiinfo`, `sha256sum`, `file`) run outside the scope.
 
 ## Review log
 - 2026-10-24, planner: sizes the beta so the zip alone is shippable; the registry rows are compared with S-050 to keep one source of truth.
+- 2026-10-24, tester: tests written from the ACs only. Files: `tests/windows/test_s051.sh` (AC1 to AC7, run inside the 6G scope with `CARGO_BUILD_JOBS=2`) and `crates/core/tests/s051_msi_registry.rs` (AC5, ignored in a plain `cargo test` because CI has no msitools; the shell test builds the MSI, exports the Registry table and runs it with `--ignored`). Contracts fixed by the tests: release tree is `$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release`; outputs land in the working directory, the repo root or the target dir (the test finds the new file by name); one common prefix inside the zip; the missing `sbarhived.exe` case exits 2 with no cargo call (AC1 wins over the "Check commands" note that says build.sh runs first). Deferred until S-048/S-049: the icon content and its listing in the zip and the MSI File table; a placeholder `design/brand/sbarhive.ico` is created for the run when absent. The Icon and IconUri registry rows are still compared with `install_commands`. Test side mapping for AC5: `[INSTALLDIR]\` becomes `[INSTALLDIR]` (the MSI property already ends in a backslash). The tests were also run against a throwaway reference wxs and scripts outside the repo (all pass except the cargo step that needs the real repo; the 4 Rust checks pass on its export, and a deliberate umask leak in the reference was caught by the AC2 reproducibility check).
+- Failure output before implementation (30 of 40 checks fail, all because `make-zip.sh`, `make-msi.sh`, the wxs, README-windows.txt and the docs do not exist):
+        FAIL: AC1: scripts/windows/make-zip.sh is executable
+        FAIL: AC1: exit code: got [127] want [0]
+        FAIL: AC1: sbarhive-0.3.3-windows-x64.zip written (/tmp/sbarhive-s051.yJYqcG/err1.txt)
+        FAIL: AC1: exit code without sbarhived.exe: got [127] want [2]
+        FAIL: AC1: the message names sbarhived.exe
+        FAIL: AC2: first zip written
+        FAIL: AC3: installer/windows/README-windows.txt exists
+        FAIL: AC4: scripts/windows/make-msi.sh is executable
+        FAIL: AC4: installer/windows/sbarhive.wxs exists
+        FAIL: AC4: exit code: got [127] want [0]
+        FAIL: AC4: sbarhive-0.3.3-windows-x64.msi written (/tmp/sbarhive-s051.yJYqcG/err4.txt)
+        FAIL: AC4: exit code with the real exes: got [127] want [0]
+        FAIL: AC4: MSI from the real exes written
+        FAIL: AC4: ProductVersion with the real exes: got [] want [0.3.3]
+        FAIL: AC5: MSI written
+        FAIL: AC6: MSI written
+        FAIL: AC7: docs/engines.md names msitools
+        FAIL: AC7: msitools version 0.106.58
+        FAIL: AC7: msitools licence LGPL-2.1-or-later
+        FAIL: AC7: msitools licence GPL-2.0-or-later
+        FAIL: AC7: msitools licence MS-RL
+        FAIL: AC7: states build tool only
+        FAIL: AC7: README.md unsigned warning with the SHA-256 note, about Windows
+        FAIL: AC7: README.ar.md unsigned warning with the SHA-256 note
+        FAIL: AC7: one CHANGELOG line for S-051: got [0] want [1]
+        FAIL: AC7: that line also has the Arabic sentence
+        FAIL: AC7: scripts/windows/make-zip.sh exists without a long dash
+        FAIL: AC7: scripts/windows/make-msi.sh exists without a long dash
+        FAIL: AC7: installer/windows/sbarhive.wxs exists without a long dash
+        FAIL: AC7: installer/windows/README-windows.txt exists without a long dash
+      FAIL S-051 windows installer (30 of 40 checks failed)
