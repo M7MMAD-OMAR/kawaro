@@ -16,7 +16,7 @@ use std::path::PathBuf;
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
-pub use windows::log_dir;
+pub use windows::log_file;
 
 /// The platforms whose folders differ.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -73,4 +73,9 @@ pub fn config_dir() -> Option<PathBuf> {
     #[cfg(not(windows))]
     let known = || None;
     config_dir_with(CURRENT, &|k| std::env::var_os(k), &known)
+}
+
+/// The service log file: [`log_dir_with`] joined with `sbarhived.log`.
+pub fn log_file_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
+    log_dir_with(os, env, known).map(|dir| dir.join("sbarhived.log"))
 }

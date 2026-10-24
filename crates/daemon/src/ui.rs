@@ -10,7 +10,9 @@ use sbarhive_core::config::{Config, Theme};
 use sbarhive_core::hold::{Effect, Gate, Signal};
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::queue::Queue;
-use sbarhive_ui::{Hive, HiveCell, SettingsWindow, thumb};
+#[cfg(unix)]
+use sbarhive_ui::thumb;
+use sbarhive_ui::{Hive, HiveCell, SettingsWindow};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -59,8 +61,11 @@ pub fn build(
 ) -> Result<(), slint::PlatformError> {
     apply_theme(theme);
     let hive = Hive::new(lang)?;
-    let (thumbnails, globs) = preview_source();
-    hive.set_preview_source(thumbnails, globs);
+    #[cfg(unix)]
+    {
+        let (thumbnails, globs) = preview_source();
+        hive.set_preview_source(thumbnails, globs);
+    }
     {
         let (state, queue) = (state.clone(), queue.clone());
         hive.on_choose(move |id| {
@@ -159,7 +164,10 @@ pub fn reload(state: &Shared, queue: &Arc<Queue>) {
             st.config.portal_shortcut,
         )
     };
+    #[cfg(unix)]
     crate::portal_bus::follow(was_portal, portal, lang, state);
+    #[cfg(not(unix))]
+    let _ = (was_portal, portal);
     if was_lang != lang {
         crate::tray::set_lang(lang);
     }
@@ -198,6 +206,7 @@ pub fn cell(a: &ActionDef, lang: Lang) -> HiveCell {
 /// Where the hive finds thumbnails and file kinds, from this process's
 /// environment (S-018h): the freedesktop thumbnail cache and the
 /// shared-mime-info globs of the XDG data directories.
+#[cfg(unix)]
 fn preview_source() -> (PathBuf, thumb::Globs) {
     let home = std::env::var_os("HOME")
         .map(PathBuf::from)
@@ -215,9 +224,19 @@ fn preview_source() -> (PathBuf, thumb::Globs) {
 pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token: Option<String>) {
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
-            if let Some(hive) = h.borrow().as_ref()
-                && let Err(e) = hive.present_files(&centre, &files, cells, token)
-            {
+            #[cfg(unix)]
+            let shown = h
+                .borrow()
+                .as_ref()
+                .map(|hive| hive.present_files(&centre, &files, cells, token));
+            #[cfg(not(unix))]
+            let shown = {
+                let _ = &files;
+                h.borrow()
+                    .as_ref()
+                    .map(|hive| hive.present(&centre, cells, token))
+            };
+            if let Some(Err(e)) = shown {
                 eprintln!("sbarhived: cannot show the hive: {e}");
             }
         })

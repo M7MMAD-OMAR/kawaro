@@ -1,12 +1,20 @@
+#![cfg_attr(windows, windows_subsystem = "windows")]
 //! `sbarhived`: the SbarHive background service. Owns the hive window, the
 //! job queue, the tray icon and the socket in `$XDG_RUNTIME_DIR`.
 
 mod jobs;
+#[cfg(windows)]
+mod logfile;
 mod notify;
+// Only the D-Bus side (portal_bus) uses it, and that is Unix only.
+#[cfg_attr(not(unix), allow(dead_code))]
 mod portal;
+#[cfg(unix)]
 mod portal_bus;
 mod server;
 mod state;
+// The tray menu text is used by the Windows tray from S-046 on.
+#[cfg_attr(windows, allow(dead_code))]
 mod text;
 mod tray;
 mod ui;
@@ -30,6 +38,8 @@ fn workers() -> usize {
 }
 
 fn main() -> ExitCode {
+    #[cfg(windows)]
+    log_to_file();
     let endpoint = transport::endpoint();
     let listener = match Listener::bind(&endpoint) {
         Ok(Bound::Listening(l)) => l,
@@ -84,8 +94,11 @@ fn main() -> ExitCode {
         let (state, queue) = (state.clone(), queue.clone());
         std::thread::spawn(move || watch::run(state, queue));
     }
-    let portal_shortcut = lock(&state).config.portal_shortcut;
-    portal_bus::start(portal_shortcut, lang, state.clone());
+    #[cfg(unix)]
+    {
+        let portal_shortcut = lock(&state).config.portal_shortcut;
+        portal_bus::start(portal_shortcut, lang, state.clone());
+    }
 
     let result = slint::run_event_loop_until_quit();
     queue.cancel_all();
@@ -95,5 +108,16 @@ fn main() -> ExitCode {
             eprintln!("sbarhived: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// The service has no console on Windows: stderr goes to the log file.
+#[cfg(windows)]
+fn log_to_file() {
+    let Some(path) = sbarhive_core::paths::log_file() else {
+        return;
+    };
+    if let Ok(file) = logfile::open_append(&path) {
+        let _ = logfile::redirect_stderr(file);
     }
 }

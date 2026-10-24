@@ -1,5 +1,5 @@
 # S-045 Build the whole workspace for Windows: cfg gates, daemon subsystem, log file
-Status: approved (manager, by delegation, 2026-10-24)
+Status: review
 
 Builds on ADR 0005 sections 1 and 5 and on S-040 to S-044. For the Windows beta (order today: S-045, S-046, S-047, S-048, S-049, S-050, S-051, then S-052). First story that touches `crates/ui` and `crates/daemon` for the Windows target. One work day or less.
 
@@ -53,3 +53,6 @@ As the maintainer, I want `sbarhived.exe` and everything it depends on to build 
   - s045_logfile: `error: couldn't find file crates/daemon/tests/../src/logfile.rs`.
   - s045_sources: 7 of 7 fail: `lib.rs:244 is not inside a cfg(unix) item: fn token_hook(...)`; `ksni declared in the wrong table ... [dependencies]`; `tray.rs must pick a Windows module`; main.rs first line is `mod jobs;` not the windows_subsystem attribute; `check.sh lacks -p sbarhive-daemon`; `build.sh must build sbarhived.exe`; no `(S-045)` line under `[Unreleased]`.
   - test_s045.sh: `FAIL: AC1: cargo check --workspace --target x86_64-pc-windows-gnu` (E0432/E0599 in sbarhive-ui and ashpd), `FAIL: AC8: check.sh` (the new test files do not compile), `FAIL: AC1/AC4: sbarhived.exe does not exist`, `FAIL: AC5: sbarhived.exe Subsystem is ''`, `FAIL: AC8: check-dlls` (no sbarhived.exe). The `sbarhive.exe` console subsystem and the lock count pass today, as a guard.
+- 2026-10-24, implementer: done, status review. Linux `cargo test --workspace` passes 779 tests; the 14 new S-045 tests (5 + 2 + 7) are included, so the baseline before the story is 765 (AC2). `[[package]]` count in `Cargo.lock` is 672, unchanged (`windows-sys 0.61.2` was already a package). `tests/windows/test_s045.sh`: 0 failures. Clippy `-D warnings` is clean on Linux and for `x86_64-pc-windows-gnu`; `design-lint` clean.
+  - Beyond the listed files, ashpd and futures-util moved to `[target.'cfg(unix)'.dependencies]` (ashpd does not build on Windows), `portal_bus` is Unix only, and `crates/daemon/src/ui.rs` uses `Hive::present` and skips the preview source on Windows. Dead code allowances (`cfg_attr`) on Windows for `portal`, `text` and the UI crate (`lib.rs` only).
+  - `cargo fmt --check` reports differences only in the tester's files (`crates/core/tests/paths_log_file.rs`, `crates/daemon/tests/s045_logfile.rs`, `crates/daemon/tests/s045_sources.rs`); tests are not edited by the implementer. The reviewer or tester should run `cargo fmt` on them.

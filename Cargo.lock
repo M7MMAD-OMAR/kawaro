@@ -4605,6 +4605,7 @@ dependencies = [
  "serde_json",
  "slint",
  "tempfile",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

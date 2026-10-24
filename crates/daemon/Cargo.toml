@@ -10,17 +10,26 @@ name = "sbarhived"
 path = "src/main.rs"
 
 [dependencies]
-# The GlobalShortcuts portal client (S-014e1 AC14): no tokio, the zbus of
-# crates/ui.
-ashpd = { version = "=0.13.13", default-features = false, features = ["global_shortcuts", "async-io"] }
-futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
-ksni = { version = "0.3.6", default-features = false, features = ["blocking", "async-io"] }
 notify-rust = "4.18.2"
 sbarhive-core.workspace = true
 sbarhive-engines.workspace = true
 sbarhive-ui.workspace = true
 serde_json.workspace = true
 slint.workspace = true
+
+# The GlobalShortcuts portal client (S-014e1 AC14, no tokio, the zbus of
+# crates/ui). It talks D-Bus, so it is Unix only (S-045).
+[target.'cfg(unix)'.dependencies]
+ashpd = { version = "=0.13.13", default-features = false, features = ["global_shortcuts", "async-io"] }
+futures-util = { version = "0.3.34", default-features = false, features = ["std"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+ksni = { version = "0.3.6", default-features = false, features = ["blocking", "async-io"] }
+
+# Redirects stderr to the log file (S-045). Already in Cargo.lock through
+# other crates, so no new package.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
 
 [dev-dependencies]
 tempfile.workspace = true

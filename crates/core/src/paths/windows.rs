@@ -3,7 +3,7 @@
 //! `paths.rs`; this file only asks the system, so it is left out of the
 //! mutants run (`.cargo/mutants.toml`) and checked live in S-052.
 
-use super::{Os, log_dir_with};
+use super::{Os, log_file_with};
 use crate::win::from_wide_ptr;
 use std::path::PathBuf;
 use std::ptr::null_mut;
@@ -41,8 +41,7 @@ fn local_app_data() -> Option<PathBuf> {
     known_folder(&FOLDERID_LocalAppData)
 }
 
-/// The service log folder, `%LOCALAPPDATA%\SbarHive\logs`. Writing the log
-/// there is S-045.
-pub fn log_dir() -> Option<PathBuf> {
-    log_dir_with(Os::Windows, &|k| std::env::var_os(k), &local_app_data)
+/// The service log file, `%LOCALAPPDATA%\SbarHive\logs\sbarhived.log`.
+pub fn log_file() -> Option<PathBuf> {
+    log_file_with(Os::Windows, &|k| std::env::var_os(k), &local_app_data)
 }

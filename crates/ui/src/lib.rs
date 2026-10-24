@@ -13,6 +13,9 @@
 //! - `SBARHIVE_REDUCED_MOTION=1|0` forces reduced motion on or off (otherwise
 //!   KDE or GNOME settings, see the `motion` module).
 
+// Windows has no drop receiver or preview yet, so some items are unused there.
+#![cfg_attr(not(unix), allow(dead_code))]
+
 // Some events (Cancel, Escape, ClickOutside) are only fed by its tests so far.
 #[cfg(target_os = "linux")]
 mod a11y;
@@ -241,6 +244,7 @@ fn frame_presented() {
 }
 
 /// Hands a pending activation token to a new winit window.
+#[cfg(unix)]
 fn token_hook(attrs: winit::window::WindowAttributes) -> winit::window::WindowAttributes {
     use winit::platform::startup_notify::WindowAttributesExtStartupNotify;
     use winit::window::ActivationToken;
@@ -259,7 +263,7 @@ fn token_hook(attrs: winit::window::WindowAttributes) -> winit::window::WindowAt
 /// platform that puts every hive build on a layer-shell overlay (S-018b,
 /// ADR 0004); other windows stay winit's.
 pub fn init() -> Result<(), slint::PlatformError> {
-    #[cfg(target_os = "linux")]
+    #[cfg(all(unix, target_os = "linux"))]
     if layer::start() {
         let winit = i_slint_backend_winit::Backend::builder()
             .with_renderer_name("software")
@@ -269,10 +273,12 @@ pub fn init() -> Result<(), slint::PlatformError> {
         return slint::platform::set_platform(Box::new(platform::Wrap { winit }))
             .map_err(slint::PlatformError::SetPlatformError);
     }
-    slint::BackendSelector::new()
+    let selector = slint::BackendSelector::new()
         .backend_name("winit".into())
-        .renderer_name("software".into())
-        .with_winit_window_attributes_hook(token_hook)
+        .renderer_name("software".into());
+    #[cfg(unix)]
+    let selector = selector.with_winit_window_attributes_hook(token_hook);
+    selector
         .with_winit_custom_application_handler(FocusWatcher)
         .select()
 }
@@ -531,6 +537,7 @@ impl Inner {
         let plan = layer::replan(&cells);
         #[cfg(not(target_os = "linux"))]
         let plan = None;
+        #[cfg_attr(not(target_os = "linux"), allow(clippy::unnecessary_literal_unwrap))]
         let plan = plan.unwrap_or_else(|| layout::plan_rings(cells, self.rtl, 2));
         self.apply(&centre, plan);
         // The dragged files in the centre, by the S-018h rules (S-019f).
