@@ -162,9 +162,9 @@ fn s029_ac1_one_utf16_helper_in_core_win() {
 
 #[test]
 fn s029_ac2_non_unix_uses_std_owned_handle() {
-    let f = read("crates/engines/src/office/non_unix.rs");
+    let f = read("crates/engines/src/process/windows.rs");
     for word in ["struct Handle", "impl Drop", "CloseHandle"] {
-        assert_eq!(lines_with(&f, word), 0, "non_unix.rs has no {word}");
+        assert_eq!(lines_with(&f, word), 0, "process/windows.rs has no {word}");
     }
     assert!(
         f.contains("OwnedHandle"),

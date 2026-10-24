@@ -749,10 +749,10 @@ mod tests {
     fn s030_read_pidfile(pidfile: &Path) -> Option<i32> {
         let deadline = std::time::Instant::now() + Duration::from_secs(3);
         loop {
-            if let Ok(text) = std::fs::read_to_string(pidfile) {
-                if let Ok(pid) = text.trim().parse() {
-                    return Some(pid);
-                }
+            if let Ok(text) = std::fs::read_to_string(pidfile)
+                && let Ok(pid) = text.trim().parse()
+            {
+                return Some(pid);
             }
             if std::time::Instant::now() >= deadline {
                 return None;
