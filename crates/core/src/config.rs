@@ -86,6 +86,9 @@ pub struct Config {
     /// is.
     #[serde(rename = "portal_shortcut")]
     pub portal_shortcut: bool,
+    /// The global shortcut that opens the hive on Windows (S-048), as
+    /// `hotkey::parse` reads it.
+    pub shortcut: String,
 }
 
 /// The default long press threshold.
@@ -122,6 +125,7 @@ impl Default for Config {
             hive_surface: HiveSurface::Auto,
             hold_ms: HOLD_MS_DEFAULT,
             portal_shortcut: true,
+            shortcut: "Ctrl+Alt+H".into(),
         }
     }
 }

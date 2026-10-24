@@ -1,5 +1,5 @@
 # S-048 Tray icon, menu in Arabic and English, and the global shortcut on Windows
-Status: approved (manager, by delegation, 2026-10-24)
+Status: review
 
 Builds on ADR 0005 section 5 (shell thread, tray, shortcut) and on S-045 (empty tray module). For the Windows beta. Pure logic is in `crates/daemon/src/shell_logic.rs` and `crates/core/src/hotkey.rs` (Linux tests); Win32 is in `crates/daemon/src/tray/windows.rs` and `shell.rs`, excluded from mutation. COM is not initialised on the main thread. One work day or less.
 
@@ -34,6 +34,7 @@ As a Windows user, I want a tray icon that shows job progress and offers Cancel 
 
 ## Out of scope
 - A settings UI for the shortcut; `--at` for Windows (the daemon reads the pointer itself).
+- Follow-up: saving from the Settings window resets `shortcut` to its default, because the save builds the config with `..Config::default()`; a user-edited `shortcut` in `config.toml` is lost on save. Fix in a later story by starting from the loaded config.
 
 ## Review log
 - 2026-10-24, planner: default shortcut avoids the Win key because many Win combinations are reserved (ADR 0005 open question).

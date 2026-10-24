@@ -8,6 +8,7 @@ mod action_impl;
 pub mod config;
 pub mod engine;
 pub mod hold;
+pub mod hotkey;
 pub mod i18n;
 pub mod ipc;
 pub mod media;

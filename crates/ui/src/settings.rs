@@ -105,6 +105,7 @@ impl FormState {
             hive_surface: HiveSurface::Auto,
             hold_ms: HOLD_MS_DEFAULT,
             portal_shortcut: self.portal_shortcut,
+            ..Config::default()
         }
     }
 }
@@ -356,6 +357,7 @@ mod tests {
                                 hive_surface: HiveSurface::Auto,
                                 hold_ms: 400,
                                 portal_shortcut: true,
+                                shortcut: "Ctrl+Alt+H".into(),
                             });
                         }
                     }
@@ -432,6 +434,7 @@ mod tests {
             hive_surface: HiveSurface::Auto,
             hold_ms: 400,
             portal_shortcut: true,
+            shortcut: "Ctrl+Alt+H".into(),
         };
         let s = FormState::from_config(&c, false);
         assert_eq!(
@@ -986,6 +989,7 @@ mod tests {
                     hive_surface: HiveSurface::Auto,
                     hold_ms: 400,
                     portal_shortcut: true,
+                    shortcut: "Ctrl+Alt+H".into(),
                 }]
             );
 

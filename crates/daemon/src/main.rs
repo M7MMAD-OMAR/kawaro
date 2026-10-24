@@ -17,6 +17,11 @@ mod portal;
 mod portal_bus;
 mod server;
 #[cfg(windows)]
+mod shell;
+// Its tests run everywhere; only the Windows shell uses it.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod shell_logic;
+#[cfg(windows)]
 mod shell_open;
 mod state;
 // The tray menu text is used by the Windows tray from S-046 on.
@@ -142,6 +147,8 @@ fn main() -> ExitCode {
 
     let result = slint::run_event_loop_until_quit();
     queue.cancel_all();
+    #[cfg(windows)]
+    tray::stop();
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
