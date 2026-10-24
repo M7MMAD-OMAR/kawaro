@@ -280,7 +280,7 @@ ac7_docs_changelog_and_lint () {
   check "AC7: README.md unsigned warning with the SHA-256 note, about Windows" \
     perl -CSD -00 -ne 'BEGIN{$f=0} $f=1 if /unsigned/i && /SHA-?256/i && /Windows/; END{exit !$f}' README.md
   check "AC7: README.ar.md unsigned warning with the SHA-256 note" \
-    perl -CSD -00 -ne 'BEGIN{$f=0} $f=1 if /(غير موقّع|غير موقع|غير موقعة|غير موقّعة|بدون توقيع)/ && /SHA-?256/i && /(ويندوز|Windows)/; END{exit !$f}' README.ar.md
+    perl -CSD -Mutf8 -00 -ne 'BEGIN{$f=0} $f=1 if /(غير موقّع|غير موقع|غير موقعة|غير موقّعة|بدون توقيع)/ && /SHA-?256/i && /(ويندوز|Windows)/; END{exit !$f}' README.ar.md
   assert_eq "AC7: one CHANGELOG line for S-051" "$(grep -c 'S-051' CHANGELOG.md)" "1"
   check "AC7: that line also has the Arabic sentence" bash -c 'grep "S-051" CHANGELOG.md | perl -CSD -ne "BEGIN{\$f=0} \$f=1 if /[\x{0600}-\x{06FF}]/; END{exit !\$f}"'
   assert_eq "AC7: design-lint exit code" "$(scripts/design-lint.sh >/dev/null 2>&1; echo $?)" "0"
