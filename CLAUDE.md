@@ -107,6 +107,7 @@ A new format is a TOML file in `actions/` plus a small adapter. Never put action
 - Write an ADR before any major architectural decision.
 - Tests for every engine adapter, with small test files in `tests/fixtures`.
 - Check the licence of any new library before adding it and record it in `docs/engines.md`.
+- After every push to main, read `scripts/ci-status.sh --wait`. Red CI blocks the next story.
 
 ## Agent chain (mandatory for every task)
 

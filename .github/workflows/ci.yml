@@ -13,7 +13,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libxkbcommon-dev libwayland-dev \
-            libdbus-1-dev ffmpeg ghostscript minisign jq rpm shellcheck msitools
+            libdbus-1-dev ffmpeg ghostscript minisign jq rpm shellcheck msitools \
+            inkscape imagemagick zip unzip file python3-yaml binutils dpkg
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -59,4 +60,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: FFmpeg
         run: choco install ffmpeg -y
-      - run: cargo test -p sbarhive-core -p sbarhive-engines -p sbarhive-cli
+      - run: cargo test --no-fail-fast -p sbarhive-core -p sbarhive-engines -p sbarhive-cli

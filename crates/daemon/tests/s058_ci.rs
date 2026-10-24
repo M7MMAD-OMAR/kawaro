@@ -436,6 +436,15 @@ fn ac4_every_tool_the_tests_need_is_installed_by_ci_or_skips_by_design() {
             let text = std::fs::read_to_string(&p).unwrap();
             for part in text.split("Command::new(\"").skip(1) {
                 let name = part.split('"').next().unwrap();
+                // Absolute paths and source fragments inside string literals
+                // are not program names; this file quotes the pattern itself.
+                let plain = !name.is_empty()
+                    && name
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || "-_.".contains(c));
+                if p.file_name().is_some_and(|f| f == "s058_ci.rs") || !plain {
+                    continue;
+                }
                 if !known(name) {
                     unknown.push(format!("{}: {name}", p.display()));
                 }
