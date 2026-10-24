@@ -22,7 +22,7 @@
 #     next to it.
 # shellcheck disable=SC2016,SC2012
 set -u
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 S="$REPO_ROOT/scripts/make-update-manifest.sh"
 V="0.4.0-beta.1"

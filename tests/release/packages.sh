@@ -12,7 +12,7 @@
 # line is rewritten, with copies of /usr/bin/true as the two binaries.
 # shellcheck disable=SC2016
 set -u
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 SPEC="$REPO_ROOT/packaging/linux/sbarhive.spec"

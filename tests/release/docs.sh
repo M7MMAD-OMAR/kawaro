@@ -10,7 +10,7 @@
 # the base64 prefix of an encrypted secret key body, both built from pieces so
 # this file does not contain them.
 set -u
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$REPO_ROOT" || exit 1
 DOC=docs/update-signing.md

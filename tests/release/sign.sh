@@ -16,7 +16,7 @@
 #     secret line, on success or failure; the script has no xtrace.
 # shellcheck disable=SC2016,SC2012
 set -u
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 S="$REPO_ROOT/scripts/sign-update-manifest.sh"
 PW="S3ntinel-Pass-9f2c41"

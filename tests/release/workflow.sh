@@ -16,8 +16,14 @@
 #     also holds `umask 077`.
 #   - the job has an actions/checkout step, installs minisign, and calls
 #     scripts/make-update-manifest.sh and scripts/sign-update-manifest.sh.
-#   - exactly one step's run text holds `gh release upload`; it is the publish
-#     step. It reads GITHUB_REF_NAME, expects stable.json, stable.json.minisig,
+#   - the job downloads the build artifact: an actions/download-artifact@ step
+#     with `name: packages` (the manifest needs the local files). Some run text
+#     calls `gh release view` with `--json assets` (asset names and urls come
+#     from the real release, ADR 0006 section 2).
+#   - DECISION: exactly one step's run text holds `gh release upload`; it is a
+#     separate publish step (a single combined step would also satisfy AC4,
+#     but the test needs a run text it can execute with a fake gh). It is the
+#     publish step. It reads GITHUB_REF_NAME, expects stable.json, stable.json.minisig,
 #     beta.json and beta.json.minisig to exist (anywhere; only base names are
 #     compared), runs `gh release create updates ... --prerelease --latest=false`
 #     only when `gh release view updates ...` fails, and uploads the right
@@ -25,7 +31,7 @@
 #     with a fake gh.
 # shellcheck disable=SC2016
 set -u
-# shellcheck source=lib.sh
+# shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 WF="$REPO_ROOT/.github/workflows/packages.yml"
 
@@ -69,6 +75,7 @@ ok("AC4 every secrets. reference is a whole value under env: " + ",".join(bad), 
 
 steps = job.get("steps", [])
 runs = [s.get("run", "") for s in steps if isinstance(s, dict)]
+alltext = "\n".join(runs)
 ok("AC4 no ${{ inside any run text of the job", not any("${{" in r for r in runs))
 ok("AC4 no set -x, xtrace or bash -x anywhere in the workflow",
    not re.search(r"set\s+-[a-z]*x|xtrace|bash\s+-[a-z]*x", raw))
@@ -81,7 +88,10 @@ ok("AC4 umask 077 before the key file",
 ok("AC4 no echo of a secret", not any(re.search(r"echo[^\n]*UPDATE_SIGNING", r) for r in runs))
 ok("AC4 the job checks out the repository",
    any(str(s.get("uses", "")).startswith("actions/checkout@") for s in steps))
-alltext = "\n".join(runs)
+ok("AC4 the job downloads the packages artifact",
+   any(str(s.get("uses", "")).startswith("actions/download-artifact@") and (s.get("with") or {}).get("name") == "packages" for s in steps))
+ok("AC4 the job reads the real asset list with gh release view --json assets",
+   re.search(r"gh release view[^\n]*--json assets", alltext) is not None)
 ok("AC4 the job installs minisign", re.search(r"apt-get install[^\n]*\bminisign\b", alltext) is not None
    or ("minisign" in alltext and "sha256sum" in alltext))
 ok("AC4 the job calls make-update-manifest.sh for both channels",
@@ -102,6 +112,14 @@ done
 P=$(grep -c '^PASS' "$TMP/py.out"); F=$(grep -vc '^PASS' "$TMP/py.out")
 CHECKS=$((CHECKS + P + F)); FAILS=$((FAILS + F))
 
+# CI wiring: the Rust half and run_all.sh need minisign, jq and rpm in CI
+CI="$REPO_ROOT/.github/workflows/ci.yml"
+APT="$(sed ':a;/\\$/{N;s/\\\n//;ba}' "$CI" | grep 'apt-get install')"
+for pkg in minisign jq rpm; do
+  check "AC3 ci.yml installs $pkg with apt-get" grep -Eqw "$pkg" <<<"$APT"
+done
+check "AC3 ci.yml runs tests/release/run_all.sh" grep -q 'tests/release/run_all.sh' "$CI"
+
 # the rest runs the publish step, which must exist
 if [ ! -s "$TMP/publish.sh" ]; then fail "AC4 no publish step to run"; finish; exit 1; fi
 
@@ -111,6 +129,11 @@ mkdir -p "$FAKE"
 cat > "$FAKE/gh" <<'FAKE_EOF'
 #!/usr/bin/env bash
 printf 'gh %s\n' "$*" >> "$FAKE_LOG"
+if [ "$1 $2" = "release upload" ]; then
+  for a in "$@"; do
+    case "$a" in *.json|*.minisig) [ -f "$a" ] || { echo "gh: no such file $a" >&2; exit 1; } ;; esac
+  done
+fi
 case "$1 $2" in
   "release view")
     case "$*" in
@@ -125,6 +148,10 @@ chmod +x "$FAKE/gh"
 run_publish() { # run_publish TAG [EXISTS]  -> log in $TMP/log-TAG-EXISTS
   local tag="$1" ex="${2:-}" w
   w="$(mktemp -d -p "$TMP")"
+  for d in . feed out dist; do
+    mkdir -p "$w/$d"
+    for f in stable.json stable.json.minisig beta.json beta.json.minisig; do echo stub > "$w/$d/$f"; done
+  done
   : > "$TMP/log-$tag-$ex"
   if [ -s "$TMP/publish.sh" ]; then
     (cd "$w" && PATH="$FAKE:$PATH" FAKE_LOG="$TMP/log-$tag-$ex" FAKE_UPDATES_EXISTS="$ex" \
