@@ -67,8 +67,8 @@ fn ac2_percent_is_rounded_and_clamped() {
 
 #[test]
 fn ac2_exactly_127_units_is_kept_whole() {
-    // "x: 50%" is 6 units, so a 121 character label fills 127.
-    let label = "x".repeat(121);
+    // ": 50%" is 5 units, so a 122 character label fills 127.
+    let label = "x".repeat(122);
     let t = tooltip(&jobs(&[(&label, 0.5)]), Lang::En);
     assert_eq!(units(&t), 127);
     assert_eq!(t, format!("{label}: 50%"));
