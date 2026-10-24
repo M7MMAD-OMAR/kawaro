@@ -77,6 +77,144 @@
     el.appendChild(s2);
   });
 
+  /* Hex field: under every section, cells near the pointer change colour and
+     rise a little; a click lifts one higher. Drawn on a canvas, only while the
+     section is on screen and something is moving. */
+  const secs = [...doc.querySelectorAll(".sec:not(.marquee)")];
+  const FR = 28, FGAP = 6, FS = FR + FGAP / SQ;
+  const fields = [];
+  const pointer = { x: -1e4, y: -1e4, on: false };
+  const popAt = [];
+  secs.forEach((sec) => {
+    const cv = doc.createElement("canvas");
+    cv.className = "hexfield";
+    cv.setAttribute("aria-hidden", "true");
+    sec.insertBefore(cv, sec.firstChild.nextSibling || sec.firstChild);
+    fields.push({ sec, cv, ctx: cv.getContext("2d"), cells: new Map(), seen: false, w: 0, h: 0, colors: null });
+  });
+  const fieldIO = "IntersectionObserver" in window ? new IntersectionObserver((es) => {
+    es.forEach((e) => { const f = fields.find((x) => x.sec === e.target); if (f) { f.seen = e.isIntersecting; if (f.seen) kick(); } });
+  }) : null;
+  fields.forEach((f) => fieldIO && fieldIO.observe(f.sec));
+  let raf = 0;
+  const kick = () => { if (!raf) raf = requestAnimationFrame(frame); };
+  const readColors = (f) => {
+    const cs = getComputedStyle(f.sec);
+    const g = (n) => cs.getPropertyValue(n).trim();
+    f.colors = { accent: g("--color-accent"), ink: g("--color-accent-ink"), s2: g("--color-surface-2"), s3: g("--color-surface-3"), border: g("--color-border"), bg: g("--sec-bg") };
+  };
+  const size = (f) => {
+    const r = f.sec.getBoundingClientRect();
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    if (f.w !== r.width || f.h !== r.height) {
+      f.w = r.width; f.h = r.height;
+      f.cv.width = Math.round(r.width * dpr); f.cv.height = Math.round(r.height * dpr);
+      f.dpr = dpr;
+    }
+    return r;
+  };
+  const hexAt = (ctx, cx, cy, r) => {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = ((-90 + 60 * i) * Math.PI) / 180;
+      const x = cx + r * Math.cos(a), y = cy + r * Math.sin(a);
+      i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+    }
+    ctx.closePath();
+  };
+  const frame = () => {
+    raf = 0;
+    let busy = false;
+    const now = performance.now();
+    const motion = !reduce.matches;
+    fields.forEach((f) => {
+      if (!f.seen) return;
+      const r = size(f);
+      if (!f.colors) readColors(f);
+      const ctx = f.ctx;
+      ctx.setTransform(f.dpr, 0, 0, f.dpr, 0, 0);
+      ctx.clearRect(0, 0, f.w, f.h);
+      const px = pointer.x - r.left, py = pointer.y - r.top;
+      const reach = FS * SQ * 2.7;
+      const inside = pointer.on && px > -reach && px < f.w + reach && py > -reach && py < f.h + reach;
+      const rp = Math.round(py / (FS * 1.5));
+      const seen = new Set();
+      const draw = [];
+      const consider = (q, rr) => {
+        const x = FS * SQ * (q + rr / 2), y = FS * 1.5 * rr;
+        const d = Math.hypot(x - px, y - py);
+        const key = q + "," + rr;
+        let lvl = 0;
+        if (inside) lvl = d < FS * SQ * 0.55 ? 3 : d < FS * SQ * 1.2 ? 2 : d < FS * SQ * 1.9 ? 1 : d < reach ? 0.5 : 0;
+        const st = f.cells.get(key) || { lift: 0 };
+        const popping = popAt.find((p) => p.key === key + "|" + f.sec.id + secs.indexOf(f.sec));
+        let target = motion ? [0, 1, 3, 6][Math.min(3, Math.ceil(lvl))] * (lvl ? 1 : 0) : 0;
+        if (popping) {
+          const t = (now - popping.t0) / 700;
+          if (t < 1) target += 22 * Math.sin(Math.PI * t) ;
+        }
+        st.lift += (target - st.lift) * 0.25;
+        if (Math.abs(target - st.lift) > 0.2) busy = true;
+        if (lvl || st.lift > 0.3) { f.cells.set(key, st); draw.push({ x, y, lvl, lift: st.lift, popping: !!popping }); seen.add(key); }
+        else f.cells.delete(key);
+      };
+      if (inside) {
+        for (let rr = rp - 4; rr <= rp + 4; rr++) {
+          const qc = Math.round(px / (FS * SQ) - rr / 2);
+          for (let q = qc - 4; q <= qc + 4; q++) consider(q, rr);
+        }
+      }
+      f.cells.forEach((st, key) => {
+        if (seen.has(key)) return;
+        const [q, rr] = key.split(",").map(Number);
+        consider(q, rr);
+      });
+      draw.sort((a, b) => a.y - b.y);
+      const c = f.colors;
+      draw.forEach((d) => {
+        const fill = d.popping || d.lvl >= 3 ? c.accent : d.lvl >= 2 ? c.s3 : c.s2;
+        if (d.lift > 0.5) {
+          ctx.fillStyle = c.border;
+          for (let k = Math.ceil(d.lift); k >= 1; k -= 1) { hexAt(ctx, d.x, d.y - k + d.lift, FR); ctx.fill(); }
+        }
+        hexAt(ctx, d.x, d.y - d.lift, FR);
+        ctx.fillStyle = d.lvl >= 1 || d.lift > 0.5 ? fill : c.bg;
+        if (d.lvl < 1 && d.lift <= 0.5) { ctx.strokeStyle = c.s3; ctx.lineWidth = 1; ctx.stroke(); return; }
+        ctx.fill();
+        ctx.strokeStyle = c.border;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+    });
+    for (let i = popAt.length - 1; i >= 0; i--) if (now - popAt[i].t0 > 700) popAt.splice(i, 1); else busy = true;
+    if (busy || pointer.on) { if (busy) kick(); }
+  };
+  addEventListener("pointermove", (e) => { pointer.x = e.clientX; pointer.y = e.clientY; pointer.on = true; kick(); }, { passive: true });
+  doc.addEventListener("pointerleave", () => { pointer.on = false; kick(); });
+  addEventListener("scroll", () => { if (pointer.on) kick(); }, { passive: true });
+  addEventListener("resize", () => { fields.forEach((f) => { f.w = 0; }); kick(); });
+  addEventListener("pointerdown", (e) => {
+    pointer.x = e.clientX; pointer.y = e.clientY; pointer.on = true;
+    fields.forEach((f, i) => {
+      const r = f.sec.getBoundingClientRect();
+      const px = e.clientX - r.left, py = e.clientY - r.top;
+      if (px < 0 || py < 0 || px > r.width || py > r.height) return;
+      const rr = Math.round(py / (FS * 1.5));
+      const q = Math.round(px / (FS * SQ) - rr / 2);
+      popAt.push({ key: q + "," + rr + "|" + f.sec.id + i, t0: performance.now() });
+    });
+    kick();
+  }, { passive: true });
+  darkQueryRefresh();
+  function darkQueryRefresh() {
+    matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { fields.forEach((f) => { f.colors = null; }); kick(); });
+  }
+
+  /* Highlight the download card that matches the visitor's system. */
+  const ua = (navigator.userAgent || "").toLowerCase();
+  const os = ua.includes("windows") ? "win" : ua.includes("linux") && !ua.includes("android") ? "linux" : "";
+  if (os) doc.querySelectorAll(`.dl-card[data-card="${os}"]`).forEach((c) => c.classList.add("rec"));
+
   /* Reveal on scroll. */
   const revealers = [...doc.querySelectorAll("[data-reveal], .hexedge, .side, .journey-wrap")];
   doc.querySelectorAll(".grid, .ticks, .steps").forEach((g) => {
@@ -99,6 +237,10 @@
   const parallax = () => {
     ticking = false;
     if (reduce.matches) return;
+    if (hiveEl && !reduce.matches && innerWidth >= 960) {
+      const p = Math.min(1, Math.max(0, scrollY / innerHeight));
+      hiveEl.style.transform = `translate3d(0, ${(p * 60).toFixed(1)}px, 0) scale(${(1 - p * 0.12).toFixed(3)})`;
+    }
     const rects = sides.map((el) => el.parentElement.getBoundingClientRect());
     sides.forEach((el, i) => {
       const r = rects[i];
@@ -107,6 +249,7 @@
       el.style.transform = `translate3d(0, ${(-t * 0.06).toFixed(1)}px, 0)`;
     });
   };
+  const hiveEl = doc.getElementById("hive");
   addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(parallax); } }, { passive: true });
   parallax();
 
@@ -131,9 +274,10 @@
   const steps = [...stage.querySelectorAll(".stage-steps li")];
   const R = cfg.r, GAP = cfg.gap, PAD = cfg.pad;
   const S = R + GAP / SQ;
-  const halfW = S * SQ * 2 + (R * SQ) / 2 + PAD;
-  const halfH = S * 1.5 * 2 + R + PAD;
-  const pos = spiral(2).map(([q, r]) => {
+  const RINGS = 3;
+  const halfW = S * SQ * RINGS + (R * SQ) / 2 + PAD;
+  const halfH = S * 1.5 * RINGS + R + PAD;
+  const pos = spiral(RINGS).map(([q, r]) => {
     let x = S * (SQ * q + (SQ / 2) * r);
     if (cfg.rtl) x = -x;
     return [halfW + x, halfH + S * 1.5 * r];
@@ -306,21 +450,24 @@
   let visible = false;
   const loop = () => {
     if (!autoplay) return;
-    if (!visible || hovering || running) { laterAuto(loop, unit() * 10 || 1200); return; }
-    const u = unit();
-    setActive(0);
-    run(0);
+    if (!visible || hovering || running) { laterAuto(loop, 600); return; }
+    const u = unit() || 100;
+    const n = Math.min(kind.cells.length, 6);
+    for (let i = 0; i < n; i++) {
+      later(() => { if (autoplay && !running) { setActive(i); setCenter(kind.cells[i].n); } }, u * 3 * (i + 1));
+    }
+    later(() => run(0), u * 3 * (n + 1));
     laterAuto(() => {
       if (!autoplay) return;
       const next = cfg.kinds[(cfg.kinds.indexOf(kind) + 1) % cfg.kinds.length];
       renderKind(next);
       setActive(0);
-      laterAuto(loop, u * 18);
-    }, u * 11 + u * 14 + u * 18);
+      laterAuto(loop, u * 8);
+    }, u * 3 * (n + 1) + u * 26);
   };
   if (autoplay && "IntersectionObserver" in window) {
-    new IntersectionObserver((e) => { visible = e[0].isIntersecting; }, { threshold: 0.5 }).observe(stage);
-    laterAuto(loop, unit() * 25 || 3000);
+    new IntersectionObserver((e) => { visible = e[0].isIntersecting; }, { threshold: 0.3 }).observe(stage);
+    laterAuto(loop, 1200);
   }
   reduce.addEventListener("change", () => {
     if (!reduce.matches) return;

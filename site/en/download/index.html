@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Download SbarHive 0.4.0-beta.1 for Linux and Windows</title>
-<meta name="description" content="The first SbarHive beta for Linux and Windows, with the SHA256SUMS steps to verify your download.">
+<meta name="description" content="The first SbarHive beta for Linux and Windows, with the SHA256SUMS steps to verify it.">
 <link rel="canonical" href="https://m7mmad-omar.github.io/sbarhive/en/download/">
 <link rel="alternate" hreflang="en" href="https://m7mmad-omar.github.io/sbarhive/en/download/">
 <link rel="alternate" hreflang="ar" href="https://m7mmad-omar.github.io/sbarhive/download/">
@@ -18,7 +18,7 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="ar_AR">
 <meta property="og:title" content="Download SbarHive 0.4.0-beta.1 for Linux and Windows">
-<meta property="og:description" content="The first SbarHive beta for Linux and Windows, with the SHA256SUMS steps to verify your download.">
+<meta property="og:description" content="The first SbarHive beta for Linux and Windows, with the SHA256SUMS steps to verify it.">
 <meta property="og:url" content="https://m7mmad-omar.github.io/sbarhive/en/download/">
 <meta property="og:image" content="https://m7mmad-omar.github.io/sbarhive/og.png">
 <meta property="og:image:width" content="1200">
@@ -33,7 +33,7 @@
 </script>
 <script>document.documentElement.classList.add("js")</script>
 </head>
-<body>
+<body class="inner">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-header">
   <div class="wrap">
@@ -43,64 +43,46 @@
     </a>
     <nav class="site-nav" aria-label="Main navigation">
       <a href="./" aria-current="page">Download</a><a href="../windows/">Windows</a><a href="../privacy/">Privacy</a>
+      <a class="button button-support button-sm" href="https://sbarah.com/support"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg><span>Support Sbarah</span></a>
       <a class="lang-switch" href="../../download/" hreflang="ar" lang="ar">العربية</a>
     </nav>
   </div>
 </header>
 <main id="main">
-<section class="page-head sec"><div class="side side-end" aria-hidden="true"></div><div class="wrap"><h1>Download SbarHive</h1><p class="lead">The first beta, <code>0.4.0-beta.1</code>, for Linux and Windows. It works, and it has known rough edges that we list plainly.</p><p><span class="pill pill-hot">0.4.0-beta.1</span></p></div></section>
-<section class="sec s-dl" id="choose" aria-labelledby="d-title">
+<section class="page-head sec"><div class="side side-end" aria-hidden="true"></div><div class="wrap"><h1>Download SbarHive</h1><p class="lead">First beta, <code>0.4.0-beta.1</code></p></div></section>
+<section class="sec s-dl" id="choose">
 <div class="wrap">
-
-<h2 id="d-title" class="reveal" data-reveal>Pick your system</h2>
-<div class="grid grid-2">
-  <div class="card reveal" data-reveal><span class="tag tag-ok">Linux</span><h3>RPM and DEB, 64 bit</h3>
-    <p>RPM for Fedora and its family, DEB for Ubuntu and Debian. Tested on Fedora 41 and later, Ubuntu 22.04 and 24.04, and Debian 12. The hive targets Wayland first.</p>
-    <div class="actions"><a class="button button-primary" href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub releases page</a></div></div>
-  <div class="card reveal" data-reveal><span class="tag tag-warn">Windows</span><h3>MSI or ZIP, Windows 10 and 11 (64 bit)</h3>
-    <p>A per-user MSI that needs no administrator rights, or a portable zip. The build is unsigned, so SmartScreen warns you. <a href="../windows/">Read what that means before installing</a>.</p>
-    <div class="actions"><a class="button button-primary" href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub releases page</a></div></div>
-</div>
-<p class="section-intro">Pick the latest beta on that page and download <code>SHA256SUMS</code> with it. Windows files are named like <code>sbarhive-*-windows-x64.msi</code> and <code>sbarhive-*-windows-x64.zip</code>.</p>
-
+<div class="dl-grid">
+  <div class="dl-card" data-card="win"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="6" y="6" width="17" height="17" rx="3"/><rect x="25" y="6" width="17" height="17" rx="3"/><rect x="6" y="25" width="17" height="17" rx="3"/><rect x="25" y="25" width="17" height="17" rx="3"/></svg><h3>Windows</h3><p class="dl-sub">10 and 11, 64 bit</p>
+    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.msi" data-os="win">Download MSI</a><a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.zip">Portable ZIP</a></div></div>
+  <div class="dl-card" data-card="linux"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="5" y="9" width="38" height="30" rx="5" class="line"/><path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg><h3>Linux</h3><p class="dl-sub">Fedora, Ubuntu, Debian, 64 bit</p>
+    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive_0.4.0%7Ebeta.1_amd64.deb" data-os="linux">Download DEB</a><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0%7Ebeta.1-1.x86_64.rpm" data-os="linux">Download RPM</a></div></div>
+</div><ul class="facts" role="list"><li><span class="pill pill-hot">0.4.0-beta.1</span></li><li><a href="../windows/">Windows is unsigned</a></li><li><a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">All releases</a></li></ul>
 </div>
 </section>
 <section class="sec alt s-verify" id="verify" aria-labelledby="v-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
-
-<h2 id="v-title" class="reveal" data-reveal>Check your download before running it</h2>
-<p class="section-intro">Every release lists a <code>SHA256SUMS</code> file. Put it in the folder with the packages; every file you downloaded must say OK.</p>
-<div class="split">
-  <div class="reveal" data-reveal><h3>Linux</h3><pre><code>sha256sum -c SHA256SUMS --ignore-missing</code></pre></div>
-  <div class="reveal" data-reveal><h3>Windows (PowerShell)</h3><pre><code>certutil -hashfile sbarhive-0.4.0-beta.1-windows-x64.msi SHA256</code></pre>
-    <p class="fine">Compare the output with the matching line in <code>SHA256SUMS</code>. Use the file name you actually downloaded.</p></div>
-</div>
-<p class="section-intro">If the value differs, do not run the file, and tell us on GitHub.</p>
-
+<h2 id="v-title" class="reveal" data-reveal>Verify the file</h2>
+<p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>
+<div class="split"><div class="reveal" data-reveal><h3>Linux</h3><pre><code>sha256sum -c SHA256SUMS --ignore-missing</code></pre></div>
+<div class="reveal" data-reveal><h3>Windows</h3><pre><code>certutil -hashfile sbarhive-0.4.0-beta.1-windows-x64.msi SHA256</code></pre></div></div>
+<p class="section-intro">If a value differs, do not run the file.</p>
 </div>
 </section>
 <section class="sec s-build" id="build" aria-labelledby="b-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
-
-<h2 id="b-title" class="reveal" data-reveal>Or build it from source on Linux</h2>
-<p class="section-intro">You need Rust 1.85 or newer. The script installs for your account only, without administrator rights, adds SbarHive to the right click menu and starts the service at login.</p>
+<h2 id="b-title" class="reveal" data-reveal>From source on Linux</h2>
 <pre><code>git clone https://github.com/M7MMAD-OMAR/sbarhive
 cd sbarhive
 ./scripts/install.sh</code></pre>
-<ul class="install-notes">
-  <li>Nautilus needs the <code>nautilus-python</code> package.</li>
-  <li>To remove it: <code>./scripts/uninstall.sh</code></li>
-</ul>
-<h2 id="u-title" class="reveal" data-reveal>Updates</h2>
-<p class="section-intro">Once a day the app reads a signed manifest from the project's GitHub releases and verifies the signature against a public key built into the app before it downloads anything. More on the <a href="../privacy/">privacy page</a>.</p>
-
+<p class="section-intro">Needs Rust 1.85 or newer. To remove: <code>./scripts/uninstall.sh</code></p>
 </div>
 </section>
 </main>
 <footer class="site-footer sec inv">
   <div class="hexedge" aria-hidden="true"></div>
   <div class="wrap">
-    <p>SbarHive is free software under the GPLv3. <span class="muted">Beta 0.4.0-beta.1</span></p>
+    <p>Free software under the GPLv3. <span class="muted">Beta 0.4.0-beta.1</span></p>
     <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">Releases</a> · <a href="https://sbarah.com/support">Support Sbarah</a> · <a href="../../download/" hreflang="ar" lang="ar">العربية</a></p>
   </div>
 </footer>

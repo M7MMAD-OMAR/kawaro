@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>صبار هايف: حوّل ملفاتك من قائمة النقر بالزر الأيمن</title>
-<meta name="description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد ملفاتك واختر الصيغة من خلية سداسية، فيُحفظ الناتج بجانب الأصل وتبقى ملفاتك على جهازك.">
+<title>صبار هايف: حوّل أي ملف بنقرة يمين</title>
+<meta name="description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد الملف، اختر خلية، والناتج بجانب الأصل. ملفاتك تبقى على جهازك.">
 <link rel="canonical" href="https://m7mmad-omar.github.io/sbarhive/">
 <link rel="alternate" hreflang="ar" href="https://m7mmad-omar.github.io/sbarhive/">
 <link rel="alternate" hreflang="en" href="https://m7mmad-omar.github.io/sbarhive/en/">
@@ -17,8 +17,8 @@
 <meta property="og:site_name" content="صبار هايف">
 <meta property="og:locale" content="ar_AR">
 <meta property="og:locale:alternate" content="en_US">
-<meta property="og:title" content="صبار هايف: حوّل ملفاتك من قائمة النقر بالزر الأيمن">
-<meta property="og:description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد ملفاتك واختر الصيغة من خلية سداسية، فيُحفظ الناتج بجانب الأصل وتبقى ملفاتك على جهازك.">
+<meta property="og:title" content="صبار هايف: حوّل أي ملف بنقرة يمين">
+<meta property="og:description" content="محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد الملف، اختر خلية، والناتج بجانب الأصل. ملفاتك تبقى على جهازك.">
 <meta property="og:url" content="https://m7mmad-omar.github.io/sbarhive/">
 <meta property="og:image" content="https://m7mmad-omar.github.io/sbarhive/og.png">
 <meta property="og:image:width" content="1200">
@@ -33,179 +33,148 @@
 </script>
 <script>document.documentElement.classList.add("js")</script>
 </head>
-<body>
+<body class="home">
 <a class="skip" href="#main">انتقل إلى المحتوى</a>
 <header class="site-header">
   <div class="wrap">
     <a class="brand" href="./">
       <img src="favicon.svg" alt="" width="32" height="32">
-      <span>صبار هايف</span><span class="badge">تجريبي</span>
+      <span>صبار هايف</span><span class="badge">بيتا</span>
     </a>
     <nav class="site-nav" aria-label="التنقل الرئيسي">
       <a href="download/">التنزيل</a><a href="windows/">ويندوز</a><a href="privacy/">الخصوصية</a>
+      <a class="button button-support button-sm" href="https://sbarah.com/support"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg><span>ادعم صبارة</span></a>
       <a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>
     </nav>
   </div>
 </header>
 <main id="main">
-<section class="hero sec" aria-labelledby="hero-title">
-<div class="side side-end" aria-hidden="true"></div>
+<section class="hero sec full" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
   <div class="hero-copy">
-    <p class="eyebrow"><span class="pill pill-hot">0.4.0-beta.1</span> مجاني ومفتوح المصدر، للينكس وويندوز</p>
-    <h1 id="hero-title">حوّل ملفاتك من قائمة <span class="hl">النقر بالزر الأيمن</span></h1>
-    <p class="lead">حدّد ملفا أو أكثر، فتظهر خلية سداسية فيها ما يناسب هذه الملفات فقط. اختر خلية، فيُحفظ الناتج بجانب الأصل، وتبقى ملفاتك على جهازك.</p>
-    <div class="actions">
-      <a class="button button-primary" href="download/">نزّل النسخة التجريبية</a>
-      <a class="button" href="#how">كيف يعمل؟</a>
+    <p class="eyebrow"><span class="pill pill-hot">0.4.0-beta.1</span> مجاني ومفتوح المصدر</p>
+    <h1 id="hero-title">حوّل أي ملف بنقرة <span class="hl">يمين</span></h1>
+    <p class="lead">حدّد الملف. اختر خلية. الناتج بجانب الأصل.</p>
+    <div class="actions hero-actions">
+      <a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.msi" data-os="win">ويندوز MSI</a>
+      <a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive_0.4.0%7Ebeta.1_amd64.deb" data-os="linux">لينكس DEB</a>
+      <a class="button button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0%7Ebeta.1-1.x86_64.rpm" data-os="linux">لينكس RPM</a>
     </div>
-    <p class="fine">بيتا: قد تصادف بعض العيوب. بناء ويندوز غير موقّع بعد، <a href="windows/">ماذا يعني هذا؟</a>.</p>
+    <ul class="facts" role="list"><li><span class="pill pill-hot">0.4.0-beta.1</span></li><li><a href="windows/">ويندوز غير موقّع</a></li><li><a href="download/#verify">تحقق من الملف</a></li></ul>
   </div>
   <div class="stage" id="stage" role="group" aria-label="عرض توضيحي">
-  <ol class="stage-steps" aria-hidden="true"><li data-step="0"><span class="n">1</span>حدّد</li><li data-step="1"><span class="n">2</span>اختر</li><li data-step="2"><span class="n">3</span>خذ الناتج</li></ol>
-  <div class="kinds" role="radiogroup" aria-label="ماذا حدّدت؟" id="kinds"></div>
-  <svg class="hive" id="hive" viewBox="0 0 344 317" role="group" aria-label="الخلية السداسية: الإجراءات التي تناسب الملف المحدّد">
+  <svg class="hive" id="hive" viewBox="0 0 480 435" role="group" aria-label="الخلية السداسية: الإجراءات التي تناسب الملف المحدّد">
     <g id="cells">
-<g class="cell cell-center" style="--i:0"><path d="M171.9,122.4L203.1,140.4L203.1,176.4L171.9,194.4L140.7,176.4L140.7,140.4Z"/><text x="171.9" y="158.4">صورة واحدة</text></g>
-<g class="cell cell-active" style="--i:1"><path d="M206.1,181.6L237.2,199.6L237.2,235.6L206.1,253.6L174.9,235.6L174.9,199.6Z"/><text x="206.1" y="217.6">WEBP</text></g>
-<g class="cell" style="--i:2"><path d="M137.7,181.6L168.9,199.6L168.9,235.6L137.7,253.6L106.5,235.6L106.5,199.6Z"/><text x="137.7" y="217.6">PNG</text></g>
-<g class="cell" style="--i:3"><path d="M103.5,122.4L134.7,140.4L134.7,176.4L103.5,194.4L72.4,176.4L72.4,140.4Z"/><text x="103.5" y="158.4">JPG</text></g>
-<g class="cell" style="--i:4"><path d="M137.7,63.2L168.9,81.2L168.9,117.2L137.7,135.2L106.5,117.2L106.5,81.2Z"/><text x="137.7" y="99.2">AVIF</text></g>
-<g class="cell" style="--i:5"><path d="M206.1,63.2L237.2,81.2L237.2,117.2L206.1,135.2L174.9,117.2L174.9,81.2Z"/><text x="206.1" y="99.2">PDF</text></g>
-<g class="cell" style="--i:6"><path d="M240.2,122.4L271.4,140.4L271.4,176.4L240.2,194.4L209.1,176.4L209.1,140.4Z"/><text x="240.2" y="158.4">GIF</text></g>
-<g class="cell" style="--i:7"><path d="M240.2,240.8L271.4,258.8L271.4,294.8L240.2,312.8L209.1,294.8L209.1,258.8Z"/><text x="240.2" y="276.8">تحجيم</text></g>
-<g class="cell" style="--i:8"><path d="M171.9,240.8L203.1,258.8L203.1,294.8L171.9,312.8L140.7,294.8L140.7,258.8Z"/><text x="171.9" y="276.8">تدوير</text></g>
-<g class="cell" style="--i:9"><path d="M103.5,240.8L134.7,258.8L134.7,294.8L103.5,312.8L72.4,294.8L72.4,258.8Z"/><text x="103.5" y="276.8">قلب</text></g>
-<g class="cell" style="--i:10"><path d="M69.4,181.6L100.5,199.6L100.5,235.6L69.4,253.6L38.2,235.6L38.2,199.6Z"/><text x="69.4" y="217.6">رمادي</text></g>
-<g class="cell" style="--i:11"><path d="M35.2,122.4L66.4,140.4L66.4,176.4L35.2,194.4L4.0,176.4L4.0,140.4Z"/><text x="35.2" y="158.4">ضغط</text></g>
-<g class="cell" style="--i:12"><path d="M69.4,63.2L100.5,81.2L100.5,117.2L69.4,135.2L38.2,117.2L38.2,81.2Z"/><text x="69.4" y="99.2">تنظيف</text></g>
-<g class="cell cell-empty" style="--i:13"><path d="M103.5,4.0L134.7,22.0L134.7,58.0L103.5,76.0L72.4,58.0L72.4,22.0Z"/></g>
-<g class="cell cell-empty" style="--i:14"><path d="M171.9,4.0L203.1,22.0L203.1,58.0L171.9,76.0L140.7,58.0L140.7,22.0Z"/></g>
-<g class="cell cell-empty" style="--i:15"><path d="M240.2,4.0L271.4,22.0L271.4,58.0L240.2,76.0L209.1,58.0L209.1,22.0Z"/></g>
-<g class="cell cell-empty" style="--i:16"><path d="M274.4,63.2L305.6,81.2L305.6,117.2L274.4,135.2L243.2,117.2L243.2,81.2Z"/></g>
-<g class="cell cell-empty" style="--i:17"><path d="M308.6,122.4L339.8,140.4L339.8,176.4L308.6,194.4L277.4,176.4L277.4,140.4Z"/></g>
-<g class="cell cell-empty" style="--i:18"><path d="M274.4,181.6L305.6,199.6L305.6,235.6L274.4,253.6L243.2,235.6L243.2,199.6Z"/></g>
+<g class="cell cell-center" style="--i:0"><path d="M240.2,181.6L271.4,199.6L271.4,235.6L240.2,253.6L209.1,235.6L209.1,199.6Z"/><text x="240.2" y="217.6">صورة واحدة</text></g>
+<g class="cell cell-active" style="--i:1"><path d="M274.4,240.8L305.6,258.8L305.6,294.8L274.4,312.8L243.2,294.8L243.2,258.8Z"/><text x="274.4" y="276.8">WEBP</text></g>
+<g class="cell" style="--i:2"><path d="M206.1,240.8L237.2,258.8L237.2,294.8L206.1,312.8L174.9,294.8L174.9,258.8Z"/><text x="206.1" y="276.8">PNG</text></g>
+<g class="cell" style="--i:3"><path d="M171.9,181.6L203.1,199.6L203.1,235.6L171.9,253.6L140.7,235.6L140.7,199.6Z"/><text x="171.9" y="217.6">JPG</text></g>
+<g class="cell" style="--i:4"><path d="M206.1,122.4L237.2,140.4L237.2,176.4L206.1,194.4L174.9,176.4L174.9,140.4Z"/><text x="206.1" y="158.4">AVIF</text></g>
+<g class="cell" style="--i:5"><path d="M274.4,122.4L305.6,140.4L305.6,176.4L274.4,194.4L243.2,176.4L243.2,140.4Z"/><text x="274.4" y="158.4">PDF</text></g>
+<g class="cell" style="--i:6"><path d="M308.6,181.6L339.8,199.6L339.8,235.6L308.6,253.6L277.4,235.6L277.4,199.6Z"/><text x="308.6" y="217.6">GIF</text></g>
+<g class="cell" style="--i:7"><path d="M308.6,300.0L339.8,318.0L339.8,354.0L308.6,372.0L277.4,354.0L277.4,318.0Z"/><text x="308.6" y="336.0">تحجيم</text></g>
+<g class="cell" style="--i:8"><path d="M240.2,300.0L271.4,318.0L271.4,354.0L240.2,372.0L209.1,354.0L209.1,318.0Z"/><text x="240.2" y="336.0">تدوير</text></g>
+<g class="cell" style="--i:9"><path d="M171.9,300.0L203.1,318.0L203.1,354.0L171.9,372.0L140.7,354.0L140.7,318.0Z"/><text x="171.9" y="336.0">قلب</text></g>
+<g class="cell" style="--i:10"><path d="M137.7,240.8L168.9,258.8L168.9,294.8L137.7,312.8L106.5,294.8L106.5,258.8Z"/><text x="137.7" y="276.8">رمادي</text></g>
+<g class="cell" style="--i:11"><path d="M103.5,181.6L134.7,199.6L134.7,235.6L103.5,253.6L72.4,235.6L72.4,199.6Z"/><text x="103.5" y="217.6">ضغط</text></g>
+<g class="cell" style="--i:12"><path d="M137.7,122.4L168.9,140.4L168.9,176.4L137.7,194.4L106.5,176.4L106.5,140.4Z"/><text x="137.7" y="158.4">تنظيف</text></g>
+<g class="cell cell-empty" style="--i:13"><path d="M171.9,63.2L203.1,81.2L203.1,117.2L171.9,135.2L140.7,117.2L140.7,81.2Z"/></g>
+<g class="cell cell-empty" style="--i:14"><path d="M240.2,63.2L271.4,81.2L271.4,117.2L240.2,135.2L209.1,117.2L209.1,81.2Z"/></g>
+<g class="cell cell-empty" style="--i:15"><path d="M308.6,63.2L339.8,81.2L339.8,117.2L308.6,135.2L277.4,117.2L277.4,81.2Z"/></g>
+<g class="cell cell-empty" style="--i:16"><path d="M342.8,122.4L373.9,140.4L373.9,176.4L342.8,194.4L311.6,176.4L311.6,140.4Z"/></g>
+<g class="cell cell-empty" style="--i:17"><path d="M376.9,181.6L408.1,199.6L408.1,235.6L376.9,253.6L345.8,235.6L345.8,199.6Z"/></g>
+<g class="cell cell-empty" style="--i:18"><path d="M342.8,240.8L373.9,258.8L373.9,294.8L342.8,312.8L311.6,294.8L311.6,258.8Z"/></g>
+<g class="cell cell-empty" style="--i:19"><path d="M342.8,359.2L373.9,377.2L373.9,413.2L342.8,431.2L311.6,413.2L311.6,377.2Z"/></g>
+<g class="cell cell-empty" style="--i:20"><path d="M274.4,359.2L305.6,377.2L305.6,413.2L274.4,431.2L243.2,413.2L243.2,377.2Z"/></g>
+<g class="cell cell-empty" style="--i:21"><path d="M206.1,359.2L237.2,377.2L237.2,413.2L206.1,431.2L174.9,413.2L174.9,377.2Z"/></g>
+<g class="cell cell-empty" style="--i:22"><path d="M137.7,359.2L168.9,377.2L168.9,413.2L137.7,431.2L106.5,413.2L106.5,377.2Z"/></g>
+<g class="cell cell-empty" style="--i:23"><path d="M103.5,300.0L134.7,318.0L134.7,354.0L103.5,372.0L72.4,354.0L72.4,318.0Z"/></g>
+<g class="cell cell-empty" style="--i:24"><path d="M69.4,240.8L100.5,258.8L100.5,294.8L69.4,312.8L38.2,294.8L38.2,258.8Z"/></g>
+<g class="cell cell-empty" style="--i:25"><path d="M35.2,181.6L66.4,199.6L66.4,235.6L35.2,253.6L4.0,235.6L4.0,199.6Z"/></g>
+<g class="cell cell-empty" style="--i:26"><path d="M69.4,122.4L100.5,140.4L100.5,176.4L69.4,194.4L38.2,176.4L38.2,140.4Z"/></g>
+<g class="cell cell-empty" style="--i:27"><path d="M103.5,63.2L134.7,81.2L134.7,117.2L103.5,135.2L72.4,117.2L72.4,81.2Z"/></g>
+<g class="cell cell-empty" style="--i:28"><path d="M137.7,4.0L168.9,22.0L168.9,58.0L137.7,76.0L106.5,58.0L106.5,22.0Z"/></g>
+<g class="cell cell-empty" style="--i:29"><path d="M206.1,4.0L237.2,22.0L237.2,58.0L206.1,76.0L174.9,58.0L174.9,22.0Z"/></g>
+<g class="cell cell-empty" style="--i:30"><path d="M274.4,4.0L305.6,22.0L305.6,58.0L274.4,76.0L243.2,58.0L243.2,22.0Z"/></g>
+<g class="cell cell-empty" style="--i:31"><path d="M342.8,4.0L373.9,22.0L373.9,58.0L342.8,76.0L311.6,58.0L311.6,22.0Z"/></g>
+<g class="cell cell-empty" style="--i:32"><path d="M376.9,63.2L408.1,81.2L408.1,117.2L376.9,135.2L345.8,117.2L345.8,81.2Z"/></g>
+<g class="cell cell-empty" style="--i:33"><path d="M411.1,122.4L442.3,140.4L442.3,176.4L411.1,194.4L379.9,176.4L379.9,140.4Z"/></g>
+<g class="cell cell-empty" style="--i:34"><path d="M445.3,181.6L476.5,199.6L476.5,235.6L445.3,253.6L414.1,235.6L414.1,199.6Z"/></g>
+<g class="cell cell-empty" style="--i:35"><path d="M411.1,240.8L442.3,258.8L442.3,294.8L411.1,312.8L379.9,294.8L379.9,258.8Z"/></g>
+<g class="cell cell-empty" style="--i:36"><path d="M376.9,300.0L408.1,318.0L408.1,354.0L376.9,372.0L345.8,354.0L345.8,318.0Z"/></g>
     </g>
   </svg>
-  <div class="tray" id="tray" aria-hidden="true">
-    <img src="favicon.svg" alt="" width="20" height="20">
-    <span class="tray-name" id="tray-name"></span>
-    <span class="bar"><span class="bar-in" id="tray-bar"></span></span>
+  <div class="stage-bar">
+    <div class="kinds" role="radiogroup" aria-label="نوع الملف" id="kinds"></div>
+    <div class="tray" id="tray" aria-hidden="true">
+      <img src="favicon.svg" alt="" width="20" height="20">
+      <span class="tray-name" id="tray-name"></span>
+      <span class="bar"><span class="bar-in" id="tray-bar"></span></span>
+    </div>
+    <ul class="files" id="files" aria-label="المجلد"></ul>
+    <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="إيقاف الحركة" data-off="تشغيل الحركة">إيقاف الحركة</button>
   </div>
-  <div class="folder"><p class="folder-title">المجلد</p><ul class="files" id="files"></ul></div>
-  <p class="stage-hint" id="stage-hint">جرّب: اختر نوع الملف، ثم انقر على خلية</p>
-  <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="إيقاف الحركة" data-off="تشغيل الحركة">إيقاف الحركة</button>
   <p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
 </div>
 </div>
 </section>
 <div class="marquee sec" aria-hidden="true"><div class="hexedge"></div><ul class="track" dir="ltr"><li>PNG</li><li>JPG</li><li>WEBP</li><li>AVIF</li><li>GIF</li><li>PDF</li><li>DOCX</li><li>ODT</li><li>MP4</li><li>WEBM</li><li>MKV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>XLSX</li><li>PPTX</li><li>TIFF</li><li>ICO</li><li>PNG</li><li>JPG</li><li>WEBP</li><li>AVIF</li><li>GIF</li><li>PDF</li><li>DOCX</li><li>ODT</li><li>MP4</li><li>WEBM</li><li>MKV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>XLSX</li><li>PPTX</li><li>TIFF</li><li>ICO</li></ul></div>
-<section class="sec s-how inv" id="how" aria-labelledby="how-title">
+<section class="sec s-how full inv" id="how" aria-labelledby="how-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
 
-<h2 id="how-title" class="reveal" data-reveal>ثلاث خطوات، ولا نافذة تفتحها</h2>
+<h2 id="how-title" class="reveal" data-reveal>ثلاث خطوات</h2>
 <div class="journey-wrap reveal" data-reveal><svg class="journey" viewBox="0 0 720 190" aria-hidden="true" focusable="false"><line class="wire" x1="423" y1="95" x2="547" y2="95" pathLength="1"/><line class="wire" x1="173" y1="95" x2="297" y2="95" pathLength="1"/><path class="node" d="M610.0,25.0L670.6,60.0L670.6,130.0L610.0,165.0L549.4,130.0L549.4,60.0Z"/><path class="node" d="M360.0,25.0L420.6,60.0L420.6,130.0L360.0,165.0L299.4,130.0L299.4,60.0Z"/><path class="node" d="M110.0,25.0L170.6,60.0L170.6,130.0L110.0,165.0L49.4,130.0L49.4,60.0Z"/><rect class="doc" x="580" y="66" width="38" height="50" rx="6"/><rect class="doc doc-front" x="598" y="76" width="38" height="50" rx="6"/><path class="mc mc-hot" d="M360.0,80.0L373.0,87.5L373.0,102.5L360.0,110.0L347.0,102.5L347.0,87.5Z"/><path class="mc" d="M374.0,104.2L387.0,111.7L387.0,126.7L374.0,134.2L361.0,126.7L361.0,111.7Z"/><path class="mc" d="M346.0,104.2L359.0,111.7L359.0,126.7L346.0,134.2L333.0,126.7L333.0,111.7Z"/><path class="mc" d="M332.0,80.0L345.0,87.5L345.0,102.5L332.0,110.0L319.0,102.5L319.0,87.5Z"/><path class="mc" d="M346.0,55.8L359.0,63.3L359.0,78.3L346.0,85.8L333.0,78.3L333.0,63.3Z"/><path class="mc" d="M374.0,55.8L387.0,63.3L387.0,78.3L374.0,85.8L361.0,78.3L361.0,63.3Z"/><path class="mc" d="M388.0,80.0L401.0,87.5L401.0,102.5L388.0,110.0L375.0,102.5L375.0,87.5Z"/><rect class="doc" x="66" y="70" width="36" height="48" rx="6"/><rect class="doc doc-new" x="118" y="70" width="36" height="48" rx="6"/></svg></div>
-<ol class="steps grid grid-3" role="list">
-  <li class="card reveal" data-reveal><h3>حدّد الملفات</h3><p>في Dolphin أو Nautilus أو Nemo أو Thunar، أو في مستكشف ويندوز، ثم انقر بالزر الأيمن واختر «صبار هايف».</p></li>
-  <li class="card reveal" data-reveal><h3>اختر خلية</h3><p>لا تظهر إلا الإجراءات التي تناسب نوع الملفات وعددها، وتعمل بالأدوات المثبتة عندك.</p></li>
-  <li class="card reveal" data-reveal><h3>خذ الناتج</h3><p>يُحفظ الناتج باسم جديد في المجلد نفسه، ويبقى الأصل كما هو. يظهر التقدم في تلميح أيقونة صينية النظام، لا في نافذة تسرق التركيز.</p></li>
+<ol class="step-words" role="list">
+  <li class="reveal" data-reveal><span class="n">1</span><h3>حدّد</h3></li>
+  <li class="reveal" data-reveal><span class="n">2</span><h3>اختر</h3></li>
+  <li class="reveal" data-reveal><span class="n">3</span><h3>خذ الناتج</h3></li>
 </ol>
-<p class="section-intro">وعلى Hyprland تستطيع ربط Super مع النقر بالزر الأيمن ليفتح الخلية مباشرة.</p>
 
 </div>
 </section>
-<section class="sec s-privacy" id="privacy" aria-labelledby="privacy-title">
+<section class="sec s-privacy full" id="privacy" aria-labelledby="privacy-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
 
 <div class="split">
   <div>
-    <h2 id="privacy-title" class="reveal" data-reveal>ملفاتك لا تغادر جهازك</h2>
-    <ul class="ticks" role="list">
-      <li class="reveal" data-reveal><strong>لا رفع.</strong> كل تحويل يجري على جهازك. لا خادم يستقبل الملف ولا حساب تسجّل به.</li>
-      <li class="reveal" data-reveal><strong>لا جمع بيانات.</strong> لا يرسل البرنامج شيئا عن ملفاتك ولا عن استعماله.</li>
-      <li class="reveal" data-reveal><strong>الأصل محفوظ.</strong> يُكتب الناتج أولا في ملف مؤقت ثم يأخذ اسمه النهائي، فلا يُمسّ الأصل ولا يبقى ملف ناقص إن توقف العمل.</li>
-    </ul>
-    <p class="fine"><a href="privacy/">التفاصيل الكاملة، وما تراه GitHub عند التحديث</a></p>
+    <h2 id="privacy-title" class="reveal" data-reveal>ملفاتك تبقى عندك</h2>
+    <ul class="ticks" role="list"><li class="reveal" data-reveal>بلا رفع</li><li class="reveal" data-reveal>بلا تتبع</li><li class="reveal" data-reveal>الأصل لا يُمسّ</li></ul>
   </div>
   <div class="reveal" data-reveal><svg class="privacy-map" viewBox="0 0 640 250" role="img" aria-label="جهازك: لا ملف يخرج"><path class="zone" d="M450.0,13.0L547.0,69.0L547.0,181.0L450.0,237.0L353.0,181.0L353.0,69.0Z"/><text class="zone-label" x="450" y="22">جهازك</text><rect class="doc" x="380" y="100" width="28" height="38" rx="5"/><path class="hop" d="M450.0,100.0L467.3,110.0L467.3,130.0L450.0,140.0L432.7,130.0L432.7,110.0Z"/><rect class="doc doc-new" x="492" y="100" width="28" height="38" rx="5"/><line class="wire-s" x1="410" y1="119" x2="428" y2="119"/><line class="wire-s" x1="472" y1="119" x2="490" y2="119"/><path class="zone zone-off" d="M120.0,45.0L189.3,85.0L189.3,165.0L120.0,205.0L50.7,165.0L50.7,85.0Z"/><text class="zone-label" x="120" y="125">الإنترنت</text><line class="wire-off" x1="190" y1="125" x2="353" y2="125"/><g class="cross"><line x1="262" y1="116" x2="280" y2="134"/><line x1="262" y1="134" x2="280" y2="116"/></g><text class="zone-label strong" x="271" y="165">لا ملف يخرج</text></svg></div>
 </div>
 
 </div>
 </section>
-<section class="sec alt s-formats" id="formats" aria-labelledby="formats-title">
+<section class="sec alt s-formats full" id="formats" aria-labelledby="formats-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
 
-<h2 id="formats-title" class="reveal" data-reveal>ما الذي يحوّله؟</h2>
-<div class="clips">
-  <figure class="clip clip-resize"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-img" x="30" y="30" width="60" height="60" rx="8"/><path class="a-corner" d="M30 52V30H52M90 68V90H68"/></svg></div></div><figcaption>الصور: تغيير الحجم والتدوير والضغط</figcaption></figure>
-  <figure class="clip clip-audio"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-bar" style="--i:0" x="20" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:1" x="32" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:2" x="44" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:3" x="56" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:4" x="68" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:5" x="80" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:6" x="92" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:7" x="104" y="35" width="7" height="50" rx="3.5"/></svg></div></div><figcaption>الفيديو والصوت: استخراج الصوت والتحويل</figcaption></figure>
-  <figure class="clip clip-merge"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-sheet a-s1" x="26" y="34" width="38" height="52" rx="6"/><rect class="a-sheet a-s2" x="56" y="34" width="38" height="52" rx="6"/><rect class="a-sheet a-merged" x="41" y="30" width="38" height="60" rx="6"/></svg></div></div><figcaption>PDF: دمج وتقسيم وضغط</figcaption></figure>
-</div>
-<p class="fine center">رسوم متحركة صُمّمت للموقع، وليست تسجيلا للتطبيق.</p>
-<div class="grid grid-3">
-  <div class="card reveal" data-reveal><span class="tag">الصور</span><h3>PNG وJPEG وWebP</h3>
-    <p>تحويل الصيغة، وتغيير الحجم، وتدوير، وقلب، وتحويل الصورة إلى الرمادي، وضغطها، وحذف البيانات الوصفية، وجمع عدة صور في PDF واحد.</p>
-    <ul class="chips" aria-label="صيغ الصور"><li>PNG</li><li>JPEG</li><li>WebP</li><li>AVIF</li><li>GIF</li><li>BMP</li><li>TIFF</li><li>ICO</li></ul></div>
-  <div class="card reveal" data-reveal><span class="tag">الفيديو والصوت</span><h3>MP4 وMP3 وأكثر</h3>
-    <p>تحويل الفيديو وضغطه، واستخراج الصوت منه، وتحويل الصوت بين صيغه. يحتاج FFmpeg.</p>
-    <ul class="chips" aria-label="صيغ الفيديو والصوت"><li>MP4</li><li>WebM</li><li>MKV</li><li>MOV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li></ul></div>
-  <div class="card reveal" data-reveal><span class="tag">المستندات وPDF</span><h3>Office وODF وPDF</h3>
-    <p>تحويل المستندات إلى PDF وبين DOCX وODT، وضغط PDF ودمجه وتدويره وتقسيمه وتحويل صفحاته إلى صور. يحتاج LibreOffice وGhostscript.</p>
-    <ul class="chips" aria-label="صيغ المستندات"><li>DOCX</li><li>ODT</li><li>XLSX</li><li>PPTX</li><li>ODP</li><li>PDF</li></ul></div>
-</div>
-<p class="section-intro">الإجراء الذي يحتاج أداة غير مثبتة لا يظهر في الخلية، والأمر <code>sbarhive doctor</code> يعرض ما وُجد على جهازك وما ينقص.</p>
+<h2 id="formats-title" class="reveal" data-reveal>صور وفيديو وصوت ومستندات</h2>
+<div class="bento"><div class="tile tile-a reveal" data-reveal><div class="clip clip-resize"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-img" x="30" y="30" width="60" height="60" rx="8"/><path class="a-corner" d="M30 52V30H52M90 68V90H68"/></svg></div></div></div><h3>صور</h3><ul class="chips" aria-hidden="true"><li>PNG</li><li>JPG</li><li>WEBP</li><li>AVIF</li></ul></div><div class="tile tile-b reveal" data-reveal><div class="clip clip-film"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-film" x="20" y="34" width="80" height="52" rx="8"/><path class="a-play" d="M52 49L72 60L52 71Z"/></svg></div></div></div><h3>فيديو</h3><ul class="chips" aria-hidden="true"><li>MP4</li><li>WEBM</li><li>MKV</li><li>GIF</li></ul></div><div class="tile tile-c reveal" data-reveal><div class="clip clip-audio"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-bar" style="--i:0" x="20" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:1" x="32" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:2" x="44" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:3" x="56" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:4" x="68" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:5" x="80" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:6" x="92" y="35" width="7" height="50" rx="3.5"/><rect class="a-bar" style="--i:7" x="104" y="35" width="7" height="50" rx="3.5"/></svg></div></div></div><h3>صوت</h3><ul class="chips" aria-hidden="true"><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li></ul></div><div class="tile tile-d reveal" data-reveal><div class="clip clip-docs"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-sheet" x="22" y="30" width="38" height="52" rx="6"/><rect class="a-sheet a-docnew" x="60" y="38" width="38" height="52" rx="6"/><path class="a-arrow" d="M44 92H76M68 84L76 92L68 100"/></svg></div></div></div><h3>مستندات</h3><ul class="chips" aria-hidden="true"><li>DOCX</li><li>ODT</li><li>XLSX</li><li>PPTX</li></ul></div><div class="tile tile-e reveal" data-reveal><div class="clip clip-merge"><div class="hexframe"><div class="hexframe-in"><svg viewBox="0 0 120 120" aria-hidden="true" focusable="false"><rect class="a-sheet a-s1" x="26" y="34" width="38" height="52" rx="6"/><rect class="a-sheet a-s2" x="56" y="34" width="38" height="52" rx="6"/><rect class="a-sheet a-merged" x="41" y="30" width="38" height="60" rx="6"/></svg></div></div></div><h3>PDF</h3><ul class="chips" aria-hidden="true"><li>PDF</li></ul></div></div>
 
 </div>
 </section>
-<section class="sec s-status inv" id="status" aria-labelledby="status-title">
+<section class="sec s-get full inv" id="download" aria-labelledby="get-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
 
-<h2 id="status-title" class="reveal" data-reveal>أين وصل المشروع فعلا؟</h2>
-<div class="grid grid-3">
-  <div class="card reveal" data-reveal><span class="tag tag-ok">لينكس</span><h3>مختبر على لينكس</h3>
-    <p>الخلية تعمل على Hyprland وKDE Plasma 6 وGNOME 50، وحزم RPM وDEB تُثبَّت وتعمل. على GNOME وKDE ولم يكتمل بعد اختبار تركيز نافذة الخلية على أجهزة GNOME وKDE الحقيقية.</p></div>
-  <div class="card reveal" data-reveal><span class="tag tag-warn">ويندوز</span><h3>تجريبي، غير موقّع</h3>
-    <p>MSI لكل مستخدم بلا صلاحيات المدير، وبند في قائمة النقر بالزر الأيمن، وأيقونة في صينية النظام. لم يُجرَّب على جهاز ويندوز حقيقي بعد، وفيه تحذير SmartScreen لأن لا شهادة توقيع لدينا.</p></div>
-  <div class="card reveal" data-reveal><span class="tag">لاحقا</span><h3>لم يصل بعد</h3>
-    <p>X11، وخلية السحب والإفلات والإشعارات على ويندوز، وmacOS. لا وعد بتاريخ، والخطة معلنة في المستودع.</p></div>
+<h2 id="get-title" class="reveal" data-reveal>نزّل صبار هايف</h2>
+<div class="dl-grid">
+  <div class="dl-card" data-card="win"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="6" y="6" width="17" height="17" rx="3"/><rect x="25" y="6" width="17" height="17" rx="3"/><rect x="6" y="25" width="17" height="17" rx="3"/><rect x="25" y="25" width="17" height="17" rx="3"/></svg><h3>ويندوز</h3><p class="dl-sub">10 و11، 64 بت</p>
+    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.msi" data-os="win">تنزيل MSI</a><a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.zip">ZIP محمول</a></div></div>
+  <div class="dl-card" data-card="linux"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="5" y="9" width="38" height="30" rx="5" class="line"/><path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg><h3>لينكس</h3><p class="dl-sub">فيدورا وأوبونتو وديبيان، 64 بت</p>
+    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive_0.4.0%7Ebeta.1_amd64.deb" data-os="linux">تنزيل DEB</a><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0%7Ebeta.1-1.x86_64.rpm" data-os="linux">تنزيل RPM</a></div></div>
 </div>
-<p class="section-intro">لا نعدك بأن يتوفر البرنامج في متجر تطبيقات أو مدير حزم. المتاح الآن هو ما تراه في صفحة التنزيل.</p>
+<ul class="facts" role="list"><li><span class="pill pill-hot">0.4.0-beta.1</span></li><li><a href="windows/">ويندوز غير موقّع</a></li><li><a href="download/#verify">تحقق من الملف</a></li></ul>
 
 </div>
 </section>
-<section class="sec s-cta" id="get" aria-labelledby="cta-title">
+<section class="sec s-open" id="open" aria-labelledby="open-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
 
-<div class="cta-card">
-  <div>
-    <h2 id="cta-title" class="reveal" data-reveal>جرّبه، وأخبرنا بما تجده</h2>
-    <p class="lead">الإصدار التجريبي الأول للينكس وويندوز. التنزيل من صفحة الإصدارات في GitHub، مع ملف SHA256SUMS للتحقق.</p>
-  </div>
-  <div class="actions">
-    <a class="button button-primary" href="download/">صفحة التنزيل</a>
-    <a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive">الشيفرة على GitHub</a>
-  </div>
+<h2 id="open-title" class="reveal" data-reveal>مجاني ومفتوح</h2>
+<div class="actions">
+  <a class="button button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive">الشيفرة على GitHub</a>
+  <a class="button button-support button-lg" href="https://sbarah.com/support"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg><span>ادعم صبارة</span></a>
 </div>
-
-</div>
-</section>
-<section class="sec alt s-compare" id="compare" aria-labelledby="compare-title">
-<div class="hexedge" aria-hidden="true"></div><div class="wrap">
-
-<h2 id="compare-title" class="reveal" data-reveal>وماذا عن الأدوات الأخرى؟</h2>
-<div class="grid grid-3">
-  <div class="card reveal" data-reveal><h3>File Converter</h3><p>يعمل بفكرة القائمة نفسها، لكن على ويندوز وحده. صبار هايف يغطي لينكس وويندوز بنسخة واحدة.</p></div>
-  <div class="card reveal" data-reveal><h3>FFmpeg وImageMagick</h3><p>يحوّلان كل شيء تقريبا من الطرفية، لمن يحفظ خياراتهما. صبار هايف يستعمل FFmpeg للفيديو والصوت، ويضع الخيارات في خلية.</p></div>
-  <div class="card reveal" data-reveal><h3>إضافات مديري الملفات</h3><p>كل منها يقتصر على الصور أو على مهمة واحدة في مدير ملفات واحد. صبار هايف يتولى الصور والفيديو والصوت والمستندات من قائمة واحدة.</p></div>
-</div>
-
-</div>
-</section>
-<section class="sec s-license" id="license" aria-labelledby="license-title">
-<div class="hexedge" aria-hidden="true"></div><div class="side side-end" aria-hidden="true"></div><div class="wrap">
-
-<h2 id="license-title" class="reveal" data-reveal>مفتوح المصدر</h2>
-<p class="section-intro">الرخصة GPLv3 أو أي إصدار لاحق منها. الشيفرة وبلاغات الأخطاء والمساهمات على <a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a>. ولإضافة صيغة جديدة يكفي ملف TOML ومحوّل صغير.</p>
 
 </div>
 </section>
@@ -213,7 +182,7 @@
 <footer class="site-footer sec inv">
   <div class="hexedge" aria-hidden="true"></div>
   <div class="wrap">
-    <p>صبار هايف، برنامج حر برخصة GPLv3. <span class="muted">الإصدار التجريبي <bdi dir="ltr">0.4.0-beta.1</bdi></span></p>
+    <p>برنامج حر برخصة GPLv3. <span class="muted">بيتا <bdi dir="ltr">0.4.0-beta.1</bdi></span></p>
     <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">الإصدارات</a> · <a href="https://sbarah.com/support">ادعم صبارة</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
   </div>
 </footer>
