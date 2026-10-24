@@ -15,6 +15,7 @@ mod notify;
 mod portal;
 #[cfg(unix)]
 mod portal_bus;
+mod progress;
 mod server;
 #[cfg(windows)]
 mod shell;
@@ -83,7 +84,10 @@ fn main() -> ExitCode {
         }
         args::Mode::Daemon => None,
     };
-    let listener = match Listener::bind(&endpoint) {
+    // A daemon the updater started waits for the old one to free the socket.
+    let bound =
+        update_sys::wait_for_old_daemon(Listener::bind(&endpoint), || Listener::bind(&endpoint));
+    let listener = match bound {
         Ok(Bound::Listening(l)) => l,
         Ok(Bound::AlreadyRunning) => {
             eprintln!("sbarhived: already running");

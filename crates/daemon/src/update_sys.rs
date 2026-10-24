@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use sbarhive_core::config::Config;
 use sbarhive_core::i18n::Lang;
 use sbarhive_core::paths::{CURRENT, cache_dir_with, update_state_file_with};
+use sbarhive_core::transport::Bound;
 use sbarhive_core::update::flow::platform_with;
 use sbarhive_core::update::schedule::State as Schedule;
 use sbarhive_core::update::verify::UPDATE_KEYS;
@@ -54,6 +55,11 @@ pub fn idle_view() -> &'static UpdateState {
     IDLE.get_or_init(|| UpdateState::new(env()))
 }
 
+/// The length of a part file, for the progress snapshot.
+pub fn part_len(path: &std::path::Path) -> Option<u64> {
+    std::fs::metadata(path).ok().map(|m| m.len())
+}
+
 pub fn unix_now() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -72,10 +78,7 @@ pub fn load_schedule() {
 
 pub fn save_schedule(schedule: &Schedule) {
     if let Some(path) = schedule_file() {
-        if let Some(dir) = path.parent() {
-            let _ = std::fs::create_dir_all(dir);
-        }
-        let _ = std::fs::write(path, schedule.to_json());
+        let _ = crate::update::write_atomic(&path, &schedule.to_json());
     }
 }
 
@@ -101,10 +104,13 @@ pub fn apply_from_menu(state: Shared) {
         let (_, jobs, hive_open) = snapshot(&state);
         let lang = lock(&state).lang;
         let (response, effects) = {
-            let mut update = lock(shared());
-            update.running_jobs = jobs;
-            update.hive_open = hive_open;
-            crate::update::request_apply(&mut update)
+            // Never waits for a download that holds the update lock.
+            let mut guard = shared().try_lock().ok();
+            if let Some(update) = guard.as_mut() {
+                update.running_jobs = jobs;
+                update.hive_open = hive_open;
+            }
+            crate::update::request_apply_or_busy(guard.as_deref_mut())
         };
         if let sbarhive_core::ipc::Response::Error { message } = response {
             eprintln!("sbarhived: update: {message}");
@@ -219,19 +225,50 @@ fn install(lang: Lang, path: &std::path::Path, sha256: &str, kind: &str) -> Resu
 #[cfg(unix)]
 fn daemon_exe() -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
-    let text = exe.to_string_lossy();
-    Some(PathBuf::from(
-        text.strip_suffix(" (deleted)").unwrap_or(&text),
-    ))
+    Some(crate::update::clean_exe_path(&exe))
 }
 
-/// Starts the new daemon a moment after this one quits and frees the socket.
+/// The variable the updater sets on the daemon it starts, so that daemon
+/// waits for the old one to free the socket.
+const RESTARTED: &str = "SBARHIVE_RESTARTED";
+/// Retries of the restarted daemon, an eighth of `RESTART_DELAY` apart.
+const RESTART_TRIES: u32 = 20;
+
+/// A normal start returns `first` at once. A start the updater made retries
+/// the bind while the old daemon still owns the socket.
+pub fn wait_for_old_daemon<E>(
+    first: Result<Bound, E>,
+    mut again: impl FnMut() -> Result<Bound, E>,
+) -> Result<Bound, E> {
+    if std::env::var_os(RESTARTED).is_none() {
+        return first;
+    }
+    let mut bound = first;
+    for _ in 0..RESTART_TRIES {
+        if !matches!(bound, Ok(Bound::AlreadyRunning)) {
+            break;
+        }
+        std::thread::sleep(crate::update::RESTART_DELAY / 8);
+        bound = again();
+    }
+    bound
+}
+
+/// Starts the new daemon directly (no shell), in its own process group with
+/// no terminal, and quits. The new one waits for the socket by itself.
 #[cfg(unix)]
 fn restart_daemon() {
+    use std::os::unix::process::CommandExt;
+    use std::process::Stdio;
     if let Some(exe) = daemon_exe() {
-        let _ = std::process::Command::new("/bin/sh")
-            .args(["-c", "sleep 2; exec \"$0\""])
-            .arg(exe)
+        let (program, args) = crate::update::restart_command(&exe);
+        let _ = std::process::Command::new(program)
+            .args(args)
+            .env(RESTARTED, "1")
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .process_group(0)
             .spawn();
     }
     crate::ui::quit();

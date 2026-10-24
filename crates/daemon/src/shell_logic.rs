@@ -20,6 +20,12 @@ pub fn tooltip(active: &[(String, f32)], lang: Lang) -> String {
         .map(|(label, f)| format!("{label}: {}%", (f * 100.0).round().clamp(0.0, 100.0) as u32))
         .collect::<Vec<_>>()
         .join("\n");
+    fit_tip(full)
+}
+
+/// Cuts a tooltip to what the tray can show: more than 127 UTF-16 units
+/// keep the first 126 and an ellipsis.
+pub fn fit_tip(full: String) -> String {
     if full.encode_utf16().count() <= TIP_UNITS {
         return full;
     }

@@ -6,7 +6,7 @@
 //! S-052; the decisions are in `shell_logic.rs` and `core::hotkey`.
 
 use crate::shell_logic::{
-    Command, HoldPoll, POLL_MS, Poll, menu_right_to_left, shortcut_error_line, tooltip,
+    Command, HoldPoll, POLL_MS, Poll, fit_tip, menu_right_to_left, shortcut_error_line, tooltip,
 };
 use crate::state::{Shared, lock};
 use crate::tray::windows::{self as tray, WM_REFRESH};
@@ -234,7 +234,13 @@ fn show_menu(hwnd: HWND) {
 /// The tooltip as the fixed 128 unit array of the notification data.
 pub fn tip_units() -> [u16; 128] {
     let mut tip = [0u16; 128];
-    let text = tooltip(&tray::active(), tray::lang());
+    let (active, lang) = (tray::active(), tray::lang());
+    // A running download shows its percentage (S-054b), read without the
+    // update lock.
+    let text = match crate::progress::shared().snapshot(&crate::update_sys::part_len) {
+        Some(phase) => fit_tip(crate::text::tooltip_from(lang, None, Some(&phase), &active)),
+        None => tooltip(&active, lang),
+    };
     for (slot, u) in tip.iter_mut().zip(text.encode_utf16().take(127)) {
         *slot = u;
     }

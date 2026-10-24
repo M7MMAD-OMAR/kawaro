@@ -6,6 +6,7 @@
 //! fetcher and a counted list of effects. The system side (the real state,
 //! notifications, the installer) is in `update_sys.rs`.
 
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use sbarhive_core::config::Config;
@@ -21,6 +22,7 @@ use sbarhive_core::update::flow::{
 use sbarhive_core::update::policy::Platform;
 
 use crate::notify::UpdateKind;
+use crate::progress::{self, Progress};
 use crate::state::{Shared, lock};
 use crate::update_sys;
 
@@ -56,9 +58,9 @@ pub struct UpdateEnv {
     pub platform: Platform,
     pub os: Os,
     /// `<cache>/updates`; a version lives in `<updates_dir>/<version>`.
-    pub updates_dir: std::path::PathBuf,
+    pub updates_dir: PathBuf,
     /// Where the manifest and the signature land while a check runs.
-    pub scratch: std::path::PathBuf,
+    pub scratch: PathBuf,
 }
 
 pub struct UpdateState {
@@ -126,6 +128,15 @@ fn check_step(
     (outcome, effects)
 }
 
+/// Ends the published progress when the download function returns.
+struct Download<'a>(&'a Progress);
+
+impl Drop for Download<'_> {
+    fn drop(&mut self) {
+        self.0.end();
+    }
+}
+
 /// Downloads and verifies `update` unless that version is already ready.
 fn download_step(
     st: &mut UpdateState,
@@ -146,6 +157,11 @@ fn download_step(
     st.package = None;
     st.ready = None;
     let dir = st.env.updates_dir.join(&version);
+    // The tray reads the progress without the update lock, from the size of
+    // the part file; the guard ends it on every path out of this function.
+    let part = dir.join(format!("{}.part", update.asset.name));
+    progress::shared().begin(&version, update.asset.size, &part);
+    let _download = Download(progress::shared());
     match download_verified(update, &dir, fetcher) {
         Ok(package) => {
             st.phase = Phase::Ready(version.clone());
@@ -199,6 +215,41 @@ pub fn request_apply(st: &mut UpdateState) -> (Response, Vec<Effect>) {
     }
 }
 
+/// `UpdateApply` when the update lock may be busy (`None`, a check or a
+/// download holds it): there is nothing verified to install yet, so answer
+/// at once instead of waiting.
+pub fn request_apply_or_busy(st: Option<&mut UpdateState>) -> (Response, Vec<Effect>) {
+    match st {
+        Some(st) => request_apply(st),
+        None => {
+            let message = "no verified update to install".to_string();
+            (Response::Error { message }, Vec::new())
+        }
+    }
+}
+
+/// `UpdateCheck` when the update lock may be busy: the answer is the status
+/// word `downloading` with the running version, and nothing is fetched.
+pub fn check_or_busy(
+    st: Option<&mut UpdateState>,
+    current: &str,
+    config: &Config,
+    fetcher: &dyn Fetcher,
+    now: u64,
+) -> (Response, Vec<Effect>) {
+    match st {
+        Some(st) => check_now(st, config, fetcher, now),
+        None => {
+            let response = Response::Update {
+                status: "downloading".to_string(),
+                current: current.to_string(),
+                latest: None,
+            };
+            (response, Vec::new())
+        }
+    }
+}
+
 /// `UpdateCheck`: a check the user asked for, which `update_check = false`
 /// does not stop.
 pub fn check_now(
@@ -228,6 +279,41 @@ pub fn check_now(
 /// last one, or an install waits for a quiet moment.
 pub fn tick_due(last: Option<u64>, now: u64, apply_is_waiting: bool) -> bool {
     apply_is_waiting || last.is_none_or(|t| now < t || now - t >= TICK_INTERVAL.as_secs())
+}
+
+/// Writes `text` to a sibling temporary file and renames it over `path`, so
+/// a crash never leaves a half written file; the temporary file is removed
+/// when anything fails.
+pub fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(format!(".{}.tmp", std::process::id()));
+    let tmp = path.with_file_name(name);
+    let done = std::fs::write(&tmp, text).and_then(|()| std::fs::rename(&tmp, path));
+    if done.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    done
+}
+
+/// How long a restarted daemon waits for the old one to free the socket (it
+/// retries about every eighth of it, for ten times this).
+pub const RESTART_DELAY: Duration = Duration::from_secs(2);
+
+/// `/proc/self/exe` ends in ` (deleted)` after a package replaced the file.
+#[cfg_attr(windows, allow(dead_code))]
+pub fn clean_exe_path(exe: &Path) -> PathBuf {
+    let text = exe.to_string_lossy();
+    PathBuf::from(text.strip_suffix(" (deleted)").unwrap_or(&text))
+}
+
+/// The program that starts the new daemon, and its arguments (none: the new
+/// daemon learns it was restarted from the environment, never from a shell).
+#[cfg_attr(windows, allow(dead_code))]
+pub fn restart_command(exe: &Path) -> (PathBuf, Vec<String>) {
+    (clean_exe_path(exe), Vec::new())
 }
 
 /// Starts the update thread. Called after the socket is bound; the thread

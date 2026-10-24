@@ -1,6 +1,7 @@
 //! Daemon strings in Arabic and English.
 
 use crate::notify::UpdateKind;
+use crate::progress::percent;
 use crate::update::{Phase, UpdateState};
 use sbarhive_core::MediaKind;
 use sbarhive_core::i18n::Lang;
@@ -184,25 +185,16 @@ pub fn update_item_enabled(update: &UpdateState) -> bool {
     matches!(update.phase, Phase::Ready(_))
 }
 
-/// The percentage of a download, rounded, never above 100.
-fn percent(downloaded: u64, size: u64) -> u64 {
-    if size == 0 {
-        return 0;
-    }
-    let done = u128::from(downloaded.min(size));
-    let size = u128::from(size);
-    ((done * 100 + size / 2) / size) as u64
-}
-
-/// The tray tooltip: the download progress of an update, then one line per
-/// running job; the idle text when there is nothing to show.
-pub fn tooltip_text(lang: Lang, update: &UpdateState, active: &[(String, f32)]) -> String {
+/// The tooltip lines: the download progress of an update (only a
+/// `Downloading` phase counts), then one line per running job; the idle text
+/// when there is nothing to show.
+fn tooltip_lines(lang: Lang, phase: Option<&Phase>, active: &[(String, f32)]) -> String {
     let mut lines = Vec::new();
-    if let Phase::Downloading {
+    if let Some(Phase::Downloading {
         downloaded, size, ..
-    } = update.phase
+    }) = phase
     {
-        let pct = percent(downloaded, size);
+        let pct = percent(*downloaded, *size);
         lines.push(match lang {
             Lang::Ar => format!("تنزيل التحديث {pct}٪"),
             Lang::En => format!("Downloading update {pct}%"),
@@ -217,6 +209,29 @@ pub fn tooltip_text(lang: Lang, update: &UpdateState, active: &[(String, f32)]) 
         idle(lang).to_string()
     } else {
         lines.join("\n")
+    }
+}
+
+/// The tray tooltip from the update state.
+pub fn tooltip_text(lang: Lang, update: &UpdateState, active: &[(String, f32)]) -> String {
+    tooltip_lines(lang, Some(&update.phase), active)
+}
+
+/// The tray tooltip when the update lock may be busy: a running download
+/// (`progress`) wins; otherwise the state when the lock was got; otherwise
+/// only the job lines or the idle text.
+pub fn tooltip_from(
+    lang: Lang,
+    update: Option<&UpdateState>,
+    progress: Option<&Phase>,
+    active: &[(String, f32)],
+) -> String {
+    match progress {
+        Some(phase) => tooltip_lines(lang, Some(phase), active),
+        None => update.map_or_else(
+            || tooltip_lines(lang, None, active),
+            |update| tooltip_text(lang, update, active),
+        ),
     }
 }
 

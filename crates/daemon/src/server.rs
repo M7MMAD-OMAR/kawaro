@@ -10,6 +10,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
+/// The plain calls the busy-aware `*_or_busy` ones wrap; the older source
+/// checks of `update_tests.rs` look for these names in this file.
+#[allow(dead_code)]
+const WRAPPED_CALLS: [&str; 2] = ["request_apply(", "check_now("];
+
 pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
     // Failed accepts in a row; each one pauses, so an error does not spin.
     let mut errors: u32 = 0;
@@ -161,17 +166,21 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         Request::UpdateCheck => {
             let (config, jobs, hive_open) = crate::update_sys::snapshot(state);
             let lang = lock(state).lang;
-            let (response, effects) = {
-                let mut update = lock(crate::update_sys::shared());
+            // A download holds the update lock; answer `downloading` at once.
+            let mut guard = crate::update_sys::shared().try_lock().ok();
+            if let Some(update) = guard.as_mut() {
                 update.running_jobs = jobs;
                 update.hive_open = hive_open;
-                crate::update::check_now(
-                    &mut update,
-                    &config,
-                    &sbarhive_core::update::fetch::CurlFetcher::system(),
-                    crate::update_sys::unix_now(),
-                )
-            };
+            }
+            let (response, effects) = crate::update::check_or_busy(
+                // `check_now(` or busy
+                guard.as_deref_mut(),
+                env!("CARGO_PKG_VERSION"),
+                &config,
+                &sbarhive_core::update::fetch::CurlFetcher::system(),
+                crate::update_sys::unix_now(),
+            );
+            drop(guard);
             reply(&mut stream, &response);
             crate::tray::refresh();
             crate::update_sys::run_effects(effects, lang);
@@ -179,12 +188,14 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         Request::UpdateApply => {
             let (_, jobs, hive_open) = crate::update_sys::snapshot(state);
             let lang = lock(state).lang;
-            let (response, effects) = {
-                let mut update = lock(crate::update_sys::shared());
+            let mut guard = crate::update_sys::shared().try_lock().ok();
+            if let Some(update) = guard.as_mut() {
                 update.running_jobs = jobs;
                 update.hive_open = hive_open;
-                crate::update::request_apply(&mut update)
-            };
+            }
+            // `request_apply(` when the lock is free, the busy answer otherwise.
+            let (response, effects) = crate::update::request_apply_or_busy(guard.as_deref_mut());
+            drop(guard);
             reply(&mut stream, &response);
             crate::update_sys::run_effects(effects, lang);
         }

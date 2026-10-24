@@ -96,15 +96,31 @@ pub fn report_update_result(lang: Lang) {
     }
 }
 
-/// The one gate in front of every real desktop notification. A unit test
-/// build never sends one, and `SBARHIVE_NO_NOTIFY` (any value) turns them off
-/// for any build, so no test run can reach a live session's notification
-/// service. The `sbarhived: notify:` log line is written either way.
+/// The gate in front of every real desktop notification: true only outside a
+/// test build and without `SBARHIVE_NO_NOTIFY` (any value), so no test run
+/// can reach a live session's notification service. The `sbarhived: notify:`
+/// log line is written either way.
+pub fn notifications_allowed(is_test: bool, no_notify_set: bool) -> bool {
+    !is_test && !no_notify_set
+}
+
+/// The only call into the notification service. A test build has none, so
+/// no test, and no mutant of the gate above, can reach a live desktop.
+#[cfg(not(test))]
+fn send(n: &Notification) -> Option<notify_rust::NotificationHandle> {
+    n.show().ok()
+}
+
+#[cfg(test)]
+fn send(_: &Notification) -> Option<notify_rust::NotificationHandle> {
+    None
+}
+
 fn show(n: &Notification) -> Option<notify_rust::NotificationHandle> {
-    if cfg!(test) || std::env::var_os("SBARHIVE_NO_NOTIFY").is_some() {
+    if !notifications_allowed(cfg!(test), std::env::var_os("SBARHIVE_NO_NOTIFY").is_some()) {
         return None;
     }
-    n.show().ok()
+    send(n)
 }
 
 pub fn info(lang: Lang, body: &str) {
