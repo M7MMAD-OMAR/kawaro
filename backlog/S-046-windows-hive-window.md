@@ -1,5 +1,5 @@
 # S-046 The hive window on Windows: pointer position, focus, client mode, merged selections
-Status: review
+Status: done
 
 Builds on ADR 0005 sections 5 and 6 and on S-045 (the daemon builds for Windows) and S-042 (`AllowSetForegroundWindow`). For the Windows beta. Pure logic is in shared modules and tested on Linux; Win32 calls live in `crates/ui/src/win_window.rs` and `crates/daemon/src/shell_open.rs`, excluded from mutation. One work day or less; if it grows, split into the window (AC1 to AC4) and the client mode (AC5 to AC8).
 
@@ -55,3 +55,4 @@ As a Windows user, I want to select files in Explorer, choose SbarHive from the 
   4. `crates/ui/src/lib.rs:859`: four mutants of `Hive::hwnd` (None, Some(0), Some(1), Some(-1)) survive. The function is `#[cfg(windows)]`, so Linux never compiles the mutant and no test can kill it. Fix: add an exclude_re entry in `.cargo/mutants.toml` with a pointer to S-052 ("replace Hive::hwnd -> Option<isize> with"), like the other Windows glue; the decision stays in `win_window.rs`/`monitor.rs`.
   The mutants run was stopped early, so after the fixes rerun it fully: more survivors may be behind the 14 not yet run (monitor.rs, merge.rs, batch.rs, server.rs focus_log).
   Required for rework (new tests for 1 to 3 by the tester, config edit for 4 by the implementer); CHANGELOG already has the S-046 line. Status stays `review`.
+- 2026-10-24, reviewer (second review): PASS. Gates in the 6G scope with -j 2: `cargo fmt --check` clean; `cargo clippy --all-targets -- -D warnings` clean; `cargo test --all` all green, no failures; `scripts/design-lint.sh` clean; `scripts/windows/check.sh` exit 0. `cargo mutants --in-place --in-diff` over the whole `git diff 339a299~1 HEAD`, no filter, no -j: 43 mutants, 37 caught, 6 unviable, 0 missed, 0 timeout (working tree clean afterwards). Linux e2e: `tests/e2e/run.sh` (private headless KWin, throwaway HOME) after a fresh `cargo build --release`: "e2e: all passed" and "e2e S-019 AC7: all passed", idle memory 38 MB, so Linux behaviour is unchanged by the main.rs argument handling and the `server::open` extraction. Every AC is tied to a test (table above); the Windows live check stays with S-052. The three review points of REWORK 1 are covered by the new tests and the `Hive::hwnd` exclusion.
