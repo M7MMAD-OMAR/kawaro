@@ -77,3 +77,25 @@ fn ac5_open_without_a_file_exits_nonzero_and_says_why() {
     assert!(matches!(code, Some(c) if c != 0), "code {code:?}");
     assert!(err.contains("open needs at least one file"), "{err}");
 }
+
+#[test]
+fn ac6_open_prints_the_error_of_the_daemon_and_exits_1() {
+    let dir = tempfile::tempdir().unwrap();
+    let endpoint = Endpoint::from_path(dir.path().join("sbarhive.sock"));
+    let Bound::Listening(listener) = Listener::bind(&endpoint).unwrap() else {
+        panic!("fresh socket must bind");
+    };
+    std::thread::spawn(move || {
+        while let Ok(stream) = listener.accept() {
+            let mut reader = BufReader::new(stream.try_clone().unwrap());
+            let mut line = String::new();
+            let _ = reader.read_line(&mut line);
+            let mut stream = stream;
+            let _ = stream.write_all(b"{\"status\":\"error\",\"message\":\"no fitting action\"}\n");
+        }
+    });
+
+    let (code, err) = run(dir.path(), &["open", "a.xyz"]);
+    assert_eq!(code, Some(1), "stderr: {err}");
+    assert!(err.contains("sbarhived: no fitting action"), "{err}");
+}

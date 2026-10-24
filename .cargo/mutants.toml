@@ -64,6 +64,8 @@ exclude_globs = [
   "crates/daemon/src/tray/linux.rs",
 ]
 exclude_re = [
+  # Windows-only window handle (S-046); the live check is S-052.
+  "replace Hive::hwnd -> Option<isize> with",
   # The Windows-only log redirect wiring (S-045); the live check is S-052.
   "crates/daemon/src/main.rs:.*replace log_to_file with",
   "<impl CustomApplicationHandler for FocusWatcher>::window_event",

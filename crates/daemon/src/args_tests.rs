@@ -44,3 +44,19 @@ fn ac5_an_unknown_word_is_an_error() {
 fn ac5_a_file_named_open_after_the_command_is_a_path() {
     assert_eq!(parse(&v(&["open", "open"])), Ok(Mode::Open(v(&["open"]))));
 }
+
+#[test]
+fn ac5_an_unknown_word_alone_is_an_unknown_argument() {
+    assert_eq!(
+        parse(&v(&["bogus"])),
+        Err("sbarhived: unknown argument `bogus`".to_string())
+    );
+}
+
+#[test]
+fn ac5_an_unknown_word_with_files_is_not_open() {
+    assert_eq!(
+        parse(&v(&["bogus", "x"])),
+        Err("sbarhived: unknown argument `bogus`".to_string())
+    );
+}
