@@ -38,7 +38,12 @@
 # The Windows stderr redirect (S-045) and the Windows tray stub (S-045, real
 # icon in S-046) build for Windows only; the live check is S-052. The log
 # file opener stays mutated in crates/daemon/src/logfile.rs.
+# The Windows hive window and the shell glue (S-046) build for Windows only;
+# the live check is S-052. Their decisions stay mutated in monitor.rs,
+# merge.rs, args.rs, batch.rs and server.rs (focus_log).
 exclude_globs = [
+  "crates/ui/src/win_window.rs",
+  "crates/daemon/src/shell_open.rs",
   "crates/engines/src/office/non_unix.rs",
   "crates/engines/src/process/windows.rs",
   "crates/engines/src/locate/windows.rs",

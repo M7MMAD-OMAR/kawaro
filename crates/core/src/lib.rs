@@ -11,6 +11,7 @@ pub mod hold;
 pub mod i18n;
 pub mod ipc;
 pub mod media;
+pub mod merge;
 pub mod output;
 mod output_impl;
 pub mod paths;

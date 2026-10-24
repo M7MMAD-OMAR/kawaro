@@ -29,7 +29,7 @@ ksni = { version = "0.3.6", default-features = false, features = ["blocking", "a
 # Redirects stderr to the log file (S-045). Already in Cargo.lock through
 # other crates, so no new package.
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Console", "Win32_UI_WindowsAndMessaging"] }
 
 [dev-dependencies]
 tempfile.workspace = true

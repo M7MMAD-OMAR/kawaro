@@ -239,6 +239,11 @@ pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token:
             if let Some(Err(e)) = shown {
                 eprintln!("sbarhived: cannot show the hive: {e}");
             }
+            // The hive takes keyboard focus at once (S-046 AC4).
+            #[cfg(windows)]
+            if let Some(hwnd) = h.borrow().as_ref().and_then(|hive| hive.hwnd()) {
+                crate::shell_open::foreground(hwnd);
+            }
         })
     });
 }

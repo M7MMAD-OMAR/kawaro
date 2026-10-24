@@ -1,5 +1,5 @@
 # S-046 The hive window on Windows: pointer position, focus, client mode, merged selections
-Status: approved (manager, by delegation, 2026-10-24)
+Status: review
 
 Builds on ADR 0005 sections 5 and 6 and on S-045 (the daemon builds for Windows) and S-042 (`AllowSetForegroundWindow`). For the Windows beta. Pure logic is in shared modules and tested on Linux; Win32 calls live in `crates/ui/src/win_window.rs` and `crates/daemon/src/shell_open.rs`, excluded from mutation. One work day or less; if it grows, split into the window (AC1 to AC4) and the client mode (AC5 to AC8).
 
@@ -47,3 +47,4 @@ As a Windows user, I want to select files in Explorer, choose SbarHive from the 
   - `crates/daemon/tests/s046_client.rs` (AC6, AC5 exit codes): both FAILED; AC6 left `["{\"cmd\":\"ping\"}"]`, right the one `open` line.
   - `crates/daemon/tests/s046_sources.rs` (AC3, AC4, AC9): 6 of 6 FAILED (win_window.rs, shell_open.rs missing; mutants.toml and CHANGELOG lack S-046).
   - Contracts for the implementer (names the tests fix): `monitor::Rect {x,y,w,h: i32}`; `merge::{Collector::new, push(u64, PathBuf) -> Push::{First,Merged}, files()}`; `args::Mode::{Daemon, Open(Vec<String>)}`; `server::focus_log`; `batch::{OpenBatch::new(cells_for), push(u64, PathBuf) -> Step::{Show,Rebuild}{files, cells}}`. Not covered: the "no daemon, becomes the daemon" branch of AC6 (needs a display; S-052 live check), AC9 clippy for Windows and mutants (gates).
+- 2026-10-24, implementer: all S-046 tests pass on Linux, `scripts/windows/check.sh` and design-lint are clean. Deviations: (1) a Rebuild step presents the hive again (the window is replaced) instead of editing the cells in place; (2) DPI comes from `GetDpiForSystem`, not per monitor, to avoid the shcore import (S-052 checks 150% scale); (3) `#[allow(clippy::doc_lazy_continuation)]` on the `batch_tests` module line in `main.rs`, because the tester's header comment trips clippy and tests are not edited; (4) `OpenBatch::new` also requires `Send` so it can live in a static.

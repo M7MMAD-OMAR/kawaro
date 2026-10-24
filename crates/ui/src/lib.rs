@@ -30,6 +30,9 @@ mod layer;
 pub use layer::after_catcher_ready;
 mod layout;
 mod motion;
+// Only the Windows window picks a monitor; the tests run everywhere.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod monitor;
 pub mod overlay;
 #[cfg(target_os = "linux")]
 mod platform;
@@ -40,6 +43,8 @@ mod receiver;
 mod settings;
 #[cfg(unix)]
 pub mod thumb;
+#[cfg(windows)]
+mod win_window;
 mod tokens {
     include!(concat!(env!("OUT_DIR"), "/tokens.rs"));
 }
@@ -278,6 +283,8 @@ pub fn init() -> Result<(), slint::PlatformError> {
         .renderer_name("software".into());
     #[cfg(unix)]
     let selector = selector.with_winit_window_attributes_hook(token_hook);
+    #[cfg(windows)]
+    let selector = selector.with_winit_window_attributes_hook(win_window::attributes);
     selector
         .with_winit_custom_application_handler(FocusWatcher)
         .select()
@@ -758,6 +765,9 @@ impl Hive {
         files: &[PathBuf],
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
+        #[cfg(windows)]
+        let (plan, win_at) = win_window::plan(cells.clone(), inner.rtl, min_rings);
+        #[cfg(not(windows))]
         let plan = layout::plan_rings(cells.clone(), inner.rtl, min_rings);
         if inner.visible() {
             // Hide first so the old surface goes away before the new one.
@@ -832,11 +842,21 @@ impl Hive {
         // A probing show opens at its reveal, in `Inner::drag` (S-022).
         let probing = inner.machine.borrow().state() == dnd::State::Probing;
         ui.set_opened(false);
+        #[cfg(windows)]
+        ui.window().set_position(win_at);
         ui.show()?;
+        #[cfg(windows)]
+        win_window::square_corners(ui.window());
         if !probing {
             inner.open();
         }
         Ok(())
+    }
+
+    /// The native handle of the shown hive window, for the foreground call.
+    #[cfg(windows)]
+    pub fn hwnd(&self) -> Option<isize> {
+        win_window::hwnd(self.inner.ui.borrow().window())
     }
 
     /// Hides the hive without firing any callback.
@@ -884,7 +904,11 @@ fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError
     // Every hive build goes through the surface decision (S-018 AC5).
     #[cfg(target_os = "linux")]
     platform::building_hive(true);
+    #[cfg(windows)]
+    win_window::set_building(true);
     let ui = HiveWindow::new();
+    #[cfg(windows)]
+    win_window::set_building(false);
     #[cfg(target_os = "linux")]
     platform::building_hive(false);
     let ui = ui?;

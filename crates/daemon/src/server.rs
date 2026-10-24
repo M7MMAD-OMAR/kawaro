@@ -6,6 +6,7 @@ use sbarhive_core::ipc::{Request, Response};
 use sbarhive_core::queue::Queue;
 use sbarhive_core::transport::{Listener, Stream, accept_backoff};
 use std::io::{self, BufRead, BufReader, Read, Write};
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -25,6 +26,39 @@ pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
             }
         }
     }
+}
+
+/// The log line for a refused `SetForegroundWindow` (S-046 AC4); nothing
+/// when the call worked.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn focus_log(ok: bool) -> Option<&'static str> {
+    (!ok).then_some("sbarhived: foreground refused")
+}
+
+/// Shows the hive for `files`. On Windows Explorer sends one file per
+/// process, so the files of requests closer than the merge window share one
+/// hive (S-046 AC8).
+pub fn open(state: &Shared, files: Vec<PathBuf>, token: Option<String>) -> Result<(), String> {
+    #[cfg(windows)]
+    let (files, actions) = crate::shell_open::selection(state, files);
+    let mut st = lock(state);
+    #[cfg(not(windows))]
+    let actions = st.matching(&files);
+    let lang = st.lang;
+    if actions.is_empty() {
+        drop(st);
+        notify::info(lang, text::no_actions(lang));
+        return Err(text::no_actions(lang).to_string());
+    }
+    let centre = text::selection(lang, files.len(), common_kind(&files));
+    let cells = actions
+        .iter()
+        .map(|a| ui::cell(a, lang))
+        .collect::<Vec<_>>();
+    st.pending = Some(files.clone());
+    drop(st);
+    ui::present(centre, files, cells, token);
+    Ok(())
 }
 
 /// Reads the one request line from the stream itself, so the same stream
@@ -71,26 +105,10 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     }
     match req {
         Request::Ping => reply(&mut stream, &Response::Ok),
-        Request::Open { files, token } => {
-            let mut st = lock(state);
-            let actions = st.matching(&files);
-            if actions.is_empty() {
-                let lang = st.lang;
-                drop(st);
-                notify::info(lang, text::no_actions(lang));
-                return error(&mut stream, text::no_actions(lang));
-            }
-            let lang = st.lang;
-            let centre = text::selection(lang, files.len(), common_kind(&files));
-            let cells = actions
-                .iter()
-                .map(|a| ui::cell(a, lang))
-                .collect::<Vec<_>>();
-            st.pending = Some(files.clone());
-            drop(st);
-            ui::present(centre, files, cells, token);
-            reply(&mut stream, &Response::Ok);
-        }
+        Request::Open { files, token } => match open(state, files, token) {
+            Ok(()) => reply(&mut stream, &Response::Ok),
+            Err(message) => error(&mut stream, message),
+        },
         Request::Drop { token, at, .. } => {
             // The files come with the drag, when it enters the hive.
             let lang = {

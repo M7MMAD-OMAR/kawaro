@@ -31,6 +31,11 @@ wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
 # accesskit and the daemon's tray already pull in, so no new packages.
 zbus = { version = "5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
 
+# The Windows hive window (S-046): cursor, monitors, DPI and the corner
+# attribute. Already in Cargo.lock through other crates, so no new package.
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
+
 [build-dependencies]
 slint-build.workspace = true
 serde_json.workspace = true
