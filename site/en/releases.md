@@ -1,7 +1,7 @@
 # Releases
 
 ## 0.4.0-beta.1
-- Hero film (S-067)
+- Hero film (S-068)
 - Rename to Kawaro / كوارو (S-066)
 - Home page focus and motion (S-065)
 - Website deploy hardening (S-059)

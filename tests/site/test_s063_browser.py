@@ -80,7 +80,7 @@ class AC3Sharp(unittest.TestCase):
     JS = """() => {
       const bad = [];
       for (const e of document.querySelectorAll('body, body *')) {
-        if (e.tagName === 'SOURCE') continue; // S-067: not rendered, so it has no computed style
+        if (e.tagName === 'SOURCE') continue; // S-068: not rendered, so it has no computed style
         const s = getComputedStyle(e);
         const id = e.tagName + '.' + (e.getAttribute('class') || '');
         for (const k of ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius'])

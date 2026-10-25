@@ -37,7 +37,7 @@ csp = "; ".join([
     "frame-ancestors 'none'",
     "upgrade-insecure-requests",
 ])
-# autoplay stays allowed for this origin: the muted hero film needs it (S-067).
+# autoplay stays allowed for this origin: the muted hero film needs it (S-068).
 permissions = ", ".join(("autoplay=(self)" if p == "autoplay" else f"{p}=()") for p in (
     "accelerometer", "autoplay", "browsing-topics", "camera", "clipboard-read",
     "display-capture", "geolocation", "gyroscope", "magnetometer", "microphone",

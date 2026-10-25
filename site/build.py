@@ -685,7 +685,7 @@ FILM_LABEL = "فيديو قصير بلا صوت: يسحب المستخدم مل�
 
 
 def hero_film(lang):
-    """The Arabic hero picture: the product film (S-067), silent, looping, one
+    """The Arabic hero picture: the product film (S-068), silent, looping, one
     file per format in media/. The poster is the demo scene, so a visitor who
     prefers reduced motion, or whose browser blocks autoplay, still sees the product."""
     label = html.escape(FILM_LABEL)
