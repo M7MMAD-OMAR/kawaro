@@ -248,7 +248,7 @@ AR = {
         "privacy": "لا تتبع ولا حسابات ولا رفع للملفات. الاتصال الوحيد هو فحص التحديثات الموقّعة.",
     },
     "og_alt": "شعار صبار هايف بجانب الخلية السداسية، وعلى خلاياها صيغ تحويل الصور",
-    "footer_license": "برنامج حر برخصة GPLv3.",
+    "footer_license": "برنامج حر برخصة <bdi dir=\"ltr\">GPLv3</bdi>.",
     "footer_beta": "بيتا <bdi dir=\"ltr\">" + VERSION + "</bdi>",
     "releases": "الإصدارات",
 }
@@ -1287,9 +1287,10 @@ def releases_page(lang):
     desc = "كل إصدارات صبار هايف وما تغيّر فيها." if ar else "Every SbarHive release and what changed."
     latest = (f'<div class="latest"><span class="pill pill-hot"><bdi>{VERSION}</bdi></span>'
               f'<div class="actions">{dl_buttons(lang, "win")}{dl_buttons(lang, "linux")}</div>'
-              f'<p class="fine"><a href="{page_href(lang, page, lang, "download")}#verify">{"تحقق من الملف" if ar else "Verify the file"}</a> · '
-              f'<a href="{page_href(lang, page, lang, "windows")}">{"ويندوز غير موقّع" if ar else "Windows is unsigned"}</a> · '
-              f'<a href="feed.xml">{"موجز الإصدارات" if ar else "Feed"}</a></p></div>')
+              f'<ul class="fine fine-links" role="list">'
+              f'<li><a href="{page_href(lang, page, lang, "download")}#verify">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
+              f'<li><a href="{page_href(lang, page, lang, "windows")}">{"ويندوز غير موقّع" if ar else "Windows is unsigned"}</a></li>'
+              f'<li><a href="feed.xml">{"موجز الإصدارات" if ar else "Feed"}</a></li></ul></div>')
     inner = f'<h1>{title}</h1>{latest}<div class="releases" data-pagefind-body data-pagefind-meta="title:{title}">{release_blocks(lang)}</div>'
     ld = [breadcrumb_ld(lang, [(p["name"], "index"), (title, page)])]
     return (head(lang, page, root, f"{title} | {p['name']}", desc, ld) + header(lang, page, root)

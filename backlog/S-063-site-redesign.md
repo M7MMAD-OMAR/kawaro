@@ -167,3 +167,26 @@ Visual defects, ranked:
 - ar releases: an English only changelog line is its own `dir="ltr"` item.
 - Left as is: `support-sbarah-dark.svg` (an old test needs the file; unused on the page) and the rounded owner badge `support-sbarah-light.svg` (the owner's own artwork).
 - Test change: `tests/site/lib.py` page timeout 3000 to 15000 ms (load flakiness only).
+
+### Reviewer 2, fresh context (2026-10-25): REWORK
+
+Gates: fmt clean, design-lint clean, S-063 static 26 and browser 19 green, old static suites green (contrast skipped as superseded), full run_all browser suites green (no timeouts with the 15 s goto), two `build-site.sh --no-search` builds identical (`diff -r`). The modified `tests/site/__pycache__/lib.cpython-314.pyc` is pre-existing (tracked since S-061, rewritten by every test run), not part of this story; it should be restored or untracked, not committed with S-063.
+
+First REWORK defects: scene size and mobile overlap fixed (full stage at 1280, whole word labels at 375); hero art replaced by a sharp drawn SVG and the highlight no longer overlaps; privacy art regenerated; formats rows no longer crowd the heading; ar releases English lines are separate LTR items (partly, see 5).
+
+Open defects:
+1. Blocker, #sim at 375 (en and ar): the hive after a pick has tiny cells; SHRINK, RESIZE, ROTATE labels are clipped by their hexagons and the centre label breaks mid word ("imag/e", "Conv/ert/to"). Same family as the first REWORK defect 1, now in the demo. Open #sim, pick photo.png, scroll to the hive at 375.
+2. Blocker, reduced motion (and by the same path JS off) at 1280: the picked WEBP cell is ink filled with ink text, so the label is an unreadable outline. Emulate prefers-reduced-motion and look at #scene.
+3. Polish, reduced motion at 1280: step 5 caption wraps to four lines and touches the viewport edge.
+4. Polish, formats art (art-formats.webp): hand drawn wobbly strokes and a faded, clipped panel edge; reads as a raster sketch next to the crisp hexagons. Idle #sim at 1280 has a large empty gap under the intro and a hive placeholder larger than the drop zone.
+5. Polish, ar releases at 375: the footer line of links (verify file, Windows unsigned, summary) still breaks punctuation oddly.
+6. Polish: stated weak spots confirmed: mobile scene hive labels are small (about 13 px), flying cells in state 3 stop between folder and hive rather than starting from the file; ghost hive is visible but faint (acceptable).
+
+### Implementer, rework after Reviewer 2 (2026-10-25)
+
+- Try it at 375: ring one only (first six cells, whole word codes), cell pitch about 106 px, cell and centre labels 18 px, centre label wraps at spaces only (`overflow-wrap: normal`). Idle block: the hive placeholder is the drop zone height, the stage no longer reserves hive height until a file is picked.
+- Scene static end state (reduced motion and JS off): the picked WEBP cell is amber with ink text. The 3 by 2 caption grid keeps step 5 to two lines at 1280. Mobile name labels are 18 px.
+- Flying cells: `js/scene.js` measures the original tile, the ghost cells and the result on load, fonts ready and resize (never on scroll) and writes `--sx`, `--sy` per cell and `--rx`, `--ry` on the result; cells now start at the original file tile and the result starts at the picked cell. Only transform and opacity change.
+- ar releases: the link line is a list of separate items; the footer GPLv3 fragment is isolated with bdi.
+- art-formats.webp: the fal output was wobbly, so it is now drawn by us (straight polygons, rendered to a lossless transparent WebP, 5 KB) instead of spending more generation calls.
+- Gates: S-063 static 26 and browser 19 green, run_heavy green, design-lint clean, fmt clean, two builds identical.

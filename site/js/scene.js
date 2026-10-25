@@ -18,6 +18,9 @@
   };
   const original = scene.querySelector(".scene-original");
   const picked = scene.querySelector(".scene-cell[data-pick]");
+  const result = scene.querySelector(".scene-result");
+  const ghosts = [...scene.querySelectorAll(".scene-ghost")];
+  const cells = [...scene.querySelectorAll(".scene-cell")];
   let last = "";
   let queued = false;
 
@@ -42,6 +45,33 @@
     }
   };
 
+  /* Where each cell starts (the original file tile) and where the result starts (the
+     picked cell), as pixel distances from the real rects. Ghost cells sit at the cell
+     slots and carry no transform, so they give the resting places. Run on load and
+     resize only, never on scroll. */
+  const centre = (el) => {
+    const r = el.getBoundingClientRect();
+    return [r.left + r.width / 2, r.top + r.height / 2];
+  };
+  const measure = () => {
+    if (!original || !ghosts.length) return;
+    const [ox, oy] = centre(original);
+    cells.forEach((cell, i) => {
+      if (!ghosts[i]) return;
+      const [gx, gy] = centre(ghosts[i]);
+      cell.style.setProperty("--sx", (ox - gx).toFixed(1) + "px");
+      cell.style.setProperty("--sy", (oy - gy).toFixed(1) + "px");
+    });
+    if (result && ghosts[1]) {
+      result.style.transform = "none";
+      const [rx, ry] = centre(result);
+      result.style.removeProperty("transform");
+      const [px, py] = centre(ghosts[1]);
+      result.style.setProperty("--rx", (px - rx).toFixed(1) + "px");
+      result.style.setProperty("--ry", (py - ry).toFixed(1) + "px");
+    }
+  };
+
   const request = () => {
     if (!queued) {
       queued = true;
@@ -50,6 +80,9 @@
   };
 
   addEventListener("scroll", request, { passive: true });
-  addEventListener("resize", request);
+  addEventListener("resize", () => { measure(); request(); });
+  addEventListener("load", measure);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+  measure();
   request();
 })();

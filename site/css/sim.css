@@ -73,19 +73,20 @@ html:not(.js) .sim-board { display: none; }
 .sim-files li.fresh { background: var(--color-accent); color: var(--color-accent-ink); }
 .sim-files li.fresh .note { color: var(--color-accent-ink); font-weight: var(--font-weight-semibold); }
 
-.sim-stage { position: relative; display: grid; place-items: center; min-height: calc(var(--cw) * 5.4); }
+.sim-stage { position: relative; display: grid; place-items: center; }
+.sim-stage.open { min-height: calc(var(--cw) * 5.4); }
 .sim-idle {
   position: relative;
   isolation: isolate;
   display: none;
   align-content: center;
   justify-items: center;
-  width: calc(var(--cw) * 3.6);
-  height: calc(var(--cw) * 3.6 * 1.1547);
+  width: calc(var(--space-9) * 2 / 1.1547);
+  height: calc(var(--space-9) * 2);
   margin: 0;
-  padding-inline: 22%;
+  padding-inline: var(--space-4);
   text-align: center;
-  font-size: var(--fs-lead);
+  font-size: var(--fs-body);
   font-weight: var(--font-weight-semibold);
 }
 .sim-idle::before,
@@ -98,13 +99,13 @@ html:not(.js) .sim-board { display: none; }
 .sim-hive[data-rings="1"] { width: calc(var(--cw) * 3.3); height: calc(var(--cw) * 3.1); }
 .sim-hive[hidden] { display: none; }
 @media (max-width: 719px) {
-  .sim-board { --cw: calc((100vw - var(--space-6)) / 5.4); --edge: var(--border-edge); }
-  .sim-board .hx { font-size: calc(var(--type-small) * 0.75); }
-  .sim-centre { font-size: calc(var(--type-small) * 0.6); }
+  .sim-board { --cw: calc((100vw - var(--space-6)) / 3.3); --edge: var(--border-edge); }
+  .sim-board .hx { font-size: var(--type-small); }
+  .sim-board .sim-centre { font-size: var(--type-small); padding-inline: var(--space-3); }
   .sim-samples { grid-template-columns: 1fr; }
   .sim-file { min-height: var(--target-min); padding-block: var(--space-2); }
   .sim-file .ico { width: var(--space-5); height: var(--space-5); }
-  .sim-idle { font-size: var(--fs-body); }
+  .sim-stage.open { min-height: calc(var(--cw) * 3.4); }
 }
 .sim-cell, .sim-centre {
   grid-area: 1 / 1;
@@ -150,7 +151,8 @@ html:not(.js) .sim-board { display: none; }
   font-weight: var(--font-weight-semibold);
   line-height: 1.15;
   text-wrap: balance;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 .sim-static { display: grid; justify-items: center; gap: var(--space-3); margin-block-start: var(--space-5); }
 .js .sim-static { display: none; }

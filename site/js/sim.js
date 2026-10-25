@@ -36,6 +36,7 @@
     const byKey = (k) => cfg.kinds.find((x) => x.key === k);
     const unitX = (cfg.r + cfg.gap / SQ) / cfg.r;
     const slots = spiral(2);
+    const narrow = window.matchMedia("(max-width: 719px)");
     let cur = null, shown = false, results = [], dragKey = "", quiet = false, centre = null;
 
     const place = (el, i) => {
@@ -71,7 +72,7 @@
       zone.classList.toggle("full", list.children.length > 0);
     };
     const pick = (i, btn) => {
-      const c = cur.cells[i];
+      const c = cur.shown[i];
       if (!results.includes(c)) results.push(c);
       btn.classList.add("done");
       renderFolder();
@@ -85,14 +86,17 @@
       results = [];
       samples.forEach((b) => b.classList.toggle("on", b.dataset.kind === key));
       hive.textContent = "";
-      hive.dataset.rings = k.cells.length > 6 ? "2" : "1";
+      /* Narrow screens show ring one only: whole word labels in big cells. */
+      const cells = narrow.matches ? k.cells.slice(0, 6) : k.cells;
+      k.shown = cells;
+      hive.dataset.rings = cells.length > 6 ? "2" : "1";
       centre = doc.createElement("div");
       centre.id = "sim-centre";
       centre.className = "sim-centre";
       centre.textContent = k.selection;
       place(centre, 0);
       hive.appendChild(centre);
-      k.cells.forEach((c, i) => {
+      cells.forEach((c, i) => {
         const b = doc.createElement("button");
         b.type = "button";
         b.className = "sim-cell";
@@ -114,7 +118,7 @@
       hive.hidden = false;
       stageEl.classList.add("open");
       renderFolder();
-      live.textContent = k.selection + ": " + cfg.ui.actions.replace("{n}", k.cells.length);
+      live.textContent = k.selection + ": " + cfg.ui.actions.replace("{n}", cells.length);
       if (focusFirst) {
         quiet = true;
         hive.querySelector(".sim-cell").focus();

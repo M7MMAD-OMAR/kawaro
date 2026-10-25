@@ -9,14 +9,13 @@
    and no-preference. Positions are logical, and x is multiplied by --dir.
 
    Sizes follow the viewport: --cw is the hive cell pitch, --tw the file tile width.
-   --fx and --fy are the (approximate) distance from the hive centre to the original
-   file, the point the cells fly out of. */
+   js/scene.js measures the real rects and writes --sx and --sy on each cell (the
+   distance to the original file tile, where the cell starts) and --rx and --ry on
+   the result (the distance to the picked cell). */
 
 .scene {
   --cw: min(25vw, 14svh);
   --tw: calc((100vw - var(--space-9) + var(--space-4)) / 3);
-  --fx: calc(var(--tw) * 1.1);
-  --fy: calc(var(--cw) * 1.4 + var(--tw) * 1.1 + var(--space-6));
   --head-gap: 0;
   --head-mark: none;
   background: var(--color-surface-1);
@@ -227,7 +226,7 @@
   white-space: nowrap;
 }
 .scene-hit-label { color: var(--color-paper); }
-.scene-cell[data-pick] .scene-cell-hit { opacity: 1; }
+.scene-cell[data-pick] { --cell-fill: var(--color-accent); }
 
 /* Steps: five numbered lines. Static by default. */
 .scene-steps {
@@ -238,6 +237,7 @@
   grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-10) * 1.6), 1fr));
   gap: var(--space-4) var(--space-5);
 }
+@media (min-width: 960px) { .scene-steps { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .scene-steps li { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-body); line-height: 1.25; }
 .scene-steps .num {
   flex: none;
@@ -286,7 +286,7 @@
 
 /* Wider than a phone: ring two appears, the hive grows. */
 @media (min-width: 600px) {
-  .scene { --cw: min(14vw, 9.5svh); --tw: min(20vw, 18svh); --fx: calc(var(--tw) * 1.1); --fy: calc(var(--cw) * 2.4 + var(--tw) * 0.7 + var(--space-5)); }
+  .scene { --cw: min(14vw, 9.5svh); --tw: min(20vw, 18svh); }
   .scene-pip { --pip: var(--space-7); }
   .scene-files { gap: var(--space-4); }
   .scene-folder { --cut: var(--space-6); padding: var(--space-5); }
@@ -295,7 +295,6 @@
   .scene-cell[data-ring="2"],
   .scene-ghost[data-ring="2"] { display: none; }
   .scene-hive { width: calc(var(--cw) * 3.3); height: calc(var(--cw) * 3.1); }
-  .scene-name { font-size: calc(var(--type-small) * 0.85); }
   .scene-ext { font-size: var(--fs-lead); }
 }
 
@@ -304,8 +303,6 @@
   .scene {
     --cw: min(9.4vw, 14.6svh);
     --tw: min(16vw, 26svh);
-    --fx: calc(var(--cw) * 2.65 + var(--tw) * 1.5 + var(--space-9));
-    --fy: calc(var(--tw) * 0.44 + var(--space-2));
   }
   .scene-stage { padding-inline: var(--space-6); }
   .scene-visual { grid-template-columns: max-content max-content; gap: var(--space-7); }
@@ -370,7 +367,7 @@
     opacity: calc(clamp(0, var(--c) * 3, 1) * (1 - var(--pck) * 0.45 - var(--res) * 0.35));
     transform:
       var(--pos)
-      translate(calc(var(--dir) * var(--fx) * -1 * (1 - var(--c))), calc(var(--fy) * -1 * (1 - var(--c))))
+      translate(calc(var(--sx, 0px) * (1 - var(--c))), calc(var(--sy, 0px) * (1 - var(--c))))
       scale(calc(0.3 + var(--c) * 0.7));
   }
   /* Pick: the chosen cell inverts to ink on paper and grows. */
@@ -378,9 +375,10 @@
     opacity: clamp(0, var(--c) * 3, 1);
     transform:
       var(--pos)
-      translate(calc(var(--dir) * var(--fx) * -1 * (1 - var(--c))), calc(var(--fy) * -1 * (1 - var(--c))))
+      translate(calc(var(--sx, 0px) * (1 - var(--c))), calc(var(--sy, 0px) * (1 - var(--c))))
       scale(calc(0.3 + var(--c) * 0.7 + var(--pck) * 0.25));
   }
+  .js .scene-cell[data-pick] { --cell-fill: var(--color-paper); }
   .js .scene-cell-hit { opacity: 0; }
   .js .scene-cell[data-pick] .scene-cell-hit { opacity: var(--pck); }
   .js .scene-cell[data-pick] .scene-cell-label { opacity: calc(1 - var(--pck)); }
@@ -389,7 +387,7 @@
   .js .scene-result {
     opacity: clamp(0, var(--rin) * 3, 1);
     transform:
-      translate(calc(var(--dir) * (var(--cw) * 2.65 + var(--tw) * 0.5 + var(--space-9)) * (1 - var(--rin))), calc(var(--fy) * (1 - var(--rin))))
+      translate(calc(var(--rx, 0px) * (1 - var(--rin))), calc(var(--ry, 0px) * (1 - var(--rin))))
       scale(calc(0.35 + var(--rin) * 0.65));
   }
   .js .scene-halo { opacity: var(--rin); transform: scale(calc(0.7 + var(--rin) * 0.3)); }
