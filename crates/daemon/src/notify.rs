@@ -3,9 +3,9 @@
 
 use crate::state::{JobInfo, lock};
 use crate::text;
+use kawaro_core::i18n::Lang;
+use kawaro_core::update::result::{Outcome, take_result};
 use notify_rust::Notification;
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::update::result::{Outcome, take_result};
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -42,7 +42,7 @@ pub fn notify_update_with(
     }
     sent.pairs.push((kind, version.to_string()));
     let message = text::update_message(lang, kind, version);
-    sink.log(&format!("sbarhived: notify: {message}"));
+    sink.log(&format!("kawarod: notify: {message}"));
     sink.show(text::app_name(lang), &message);
 }
 
@@ -76,7 +76,7 @@ impl UpdateSink for Desktop {
                 .appname(summary)
                 .summary(summary)
                 .body(body)
-                .icon("sbarhive"),
+                .icon("kawaro"),
         );
     }
 }
@@ -91,14 +91,14 @@ pub fn notify_update(lang: Lang, kind: UpdateKind, version: &str) {
 
 /// At start: the result of an install that ran in another process.
 pub fn report_update_result(lang: Lang) {
-    if let Some(dir) = sbarhive_core::paths::config_dir() {
+    if let Some(dir) = kawaro_core::paths::config_dir() {
         report_update_result_with(&mut Desktop, &mut lock(&SENT), lang, &dir);
     }
 }
 
 /// The gate in front of every real desktop notification: true only outside a
-/// test build and without `SBARHIVE_NO_NOTIFY` (any value), so no test run
-/// can reach a live session's notification service. The `sbarhived: notify:`
+/// test build and without `KAWARO_NO_NOTIFY` (any value), so no test run
+/// can reach a live session's notification service. The `kawarod: notify:`
 /// log line is written either way.
 pub fn notifications_allowed(is_test: bool, no_notify_set: bool) -> bool {
     !is_test && !no_notify_set
@@ -117,7 +117,7 @@ fn send(_: &Notification) -> Option<notify_rust::NotificationHandle> {
 }
 
 fn show(n: &Notification) -> Option<notify_rust::NotificationHandle> {
-    if !notifications_allowed(cfg!(test), std::env::var_os("SBARHIVE_NO_NOTIFY").is_some()) {
+    if !notifications_allowed(cfg!(test), std::env::var_os("KAWARO_NO_NOTIFY").is_some()) {
         return None;
     }
     send(n)
@@ -125,13 +125,13 @@ fn show(n: &Notification) -> Option<notify_rust::NotificationHandle> {
 
 pub fn info(lang: Lang, body: &str) {
     // One log line per notification, so tests can count them.
-    eprintln!("sbarhived: notify: {body}");
+    eprintln!("kawarod: notify: {body}");
     show(
         Notification::new()
             .appname(text::app_name(lang))
             .summary(text::app_name(lang))
             .body(body)
-            .icon("sbarhive"),
+            .icon("kawaro"),
     );
 }
 
@@ -153,7 +153,7 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
             .unwrap_or_default();
         (text::done(lang, job.ok), name)
     };
-    eprintln!("sbarhived: notify: {summary}");
+    eprintln!("kawarod: notify: {summary}");
     let folder = job
         .first_output
         .as_deref()
@@ -163,7 +163,7 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
     n.appname(text::app_name(lang))
         .summary(&summary)
         .body(&body)
-        .icon("sbarhive");
+        .icon("kawaro");
     if folder.is_some() {
         n.action("default", text::open_folder(lang));
     }

@@ -18,7 +18,7 @@ import lib  # noqa: E402
 
 REPO = lib.REPO
 TMP = lib.TMP
-DOMAIN = "hive.sbarah.com"
+DOMAIN = "kawaro.sbarah.com"
 CHECK = "scripts/site/check-deploy.sh"
 
 

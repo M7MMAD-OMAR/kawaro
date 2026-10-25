@@ -14,7 +14,7 @@
 //!
 //! S-019e (backlog/S-019-hive-at-pointer.md, AC12 as amended 2026-10-21, and
 //! the manager's decision 3): `Event::Show` gains `hold: bool` (a drop show
-//! made by `sbarhive drop --hold` after its threshold, AC17) and a new
+//! made by `kawaro drop --hold` after its threshold, AC17) and a new
 //! `Event::Release` (the key of that show was released). The S-014 literals
 //! above take `hold: false`; their assertions are unchanged.
 //!
@@ -516,7 +516,7 @@ fn ac1_pointer_enter_hides_a_probing_show() {
 fn ac1_release_hides_a_probing_hold_show_only() {
     let (mut m, t0) = layer_show(true);
     assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Hidden);
-    // A show without hold (`sbarhive drop`, `SUPER+Z`) ignores the release.
+    // A show without hold (`kawaro drop`, `SUPER+Z`) ignores the release.
     let (mut m, t0) = layer_show(false);
     assert_eq!(m.handle(Event::Release, at(t0, 0.5)), State::Probing);
 }

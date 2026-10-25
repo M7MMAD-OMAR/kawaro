@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# S-014d AC12 (second half): the user docs explain how to bind `sbarhive drop`
+# S-014d AC12 (second half): the user docs explain how to bind `kawaro drop`
 # to a key by hand. No compositor.
 #   - docs/ (any .md outside docs/adr/ and docs/PLAN.md) has, in Arabic and in
 #     English, a section on each of:
-#       GNOME     Settings, Keyboard, custom shortcut, command `sbarhive drop`
-#       KDE       System Settings, Shortcuts, command `sbarhive drop`
-#       Hyprland  a Super+Z bind line that runs `sbarhive drop`, and a left
-#                 Alt bind line (key ALT_L) that runs sbarhive (the maintainer's
+#       GNOME     Settings, Keyboard, custom shortcut, command `kawaro drop`
+#       KDE       System Settings, Shortcuts, command `kawaro drop`
+#       Hyprland  a Super+Z bind line that runs `kawaro drop`, and a left
+#                 Alt bind line (key ALT_L) that runs kawaro (the maintainer's
 #                 two binds, S-014 log), hyprlang or Lua syntax
 #     and names Super+Z, the default the maintainer chose.
 #   - integrations/linux/hyprland/README.md, where Hyprland users look, gives
@@ -17,7 +17,7 @@
 #     only sections of the other files. Both files of each pair checked here
 #     (docs/drop-shortcut and the Hyprland README) exist and start with the
 #     switch line "[English](NAME.md) | [العربية](NAME.ar.md)".
-#   - every program a documented bind line runs is `sbarhive` or a helper
+#   - every program a documented bind line runs is `kawaro` or a helper
 #     shipped in integrations/ or scripts/ (it must exist); no /home/ paths.
 #   - no em dash or en dash in those files.
 # A section is the text between two headings (any level); its language is
@@ -51,12 +51,12 @@ HAMZA = str.maketrans("أإآ", "ااا")
 HYPR_WORD = sys.argv[1] == "--hyprland-word"
 FILES = sys.argv[2:]
 SUPERZ = [
-    re.compile(r"^\s*bind[a-z]*\s*=\s*SUPER\s*,\s*Z\s*,\s*exec\s*,.*\bsbarhive drop\b", re.M | re.I),
-    re.compile(r"hl\.bind\(\s*\"SUPER \+ Z\".{0,300}?\bsbarhive drop\b", re.S | re.I),
+    re.compile(r"^\s*bind[a-z]*\s*=\s*SUPER\s*,\s*Z\s*,\s*exec\s*,.*\bkawaro drop\b", re.M | re.I),
+    re.compile(r"hl\.bind\(\s*\"SUPER \+ Z\".{0,300}?\bkawaro drop\b", re.S | re.I),
 ]
 ALT = [
-    re.compile(r"^\s*bind[a-z]*\s*=\s*(ALT)?\s*,\s*ALT_L\s*,\s*exec\s*,.*\bsbarhive", re.M | re.I),
-    re.compile(r"hl\.bind\(\s*\"(ALT \+ )?ALT_L\".{0,300}?\bsbarhive", re.S | re.I),
+    re.compile(r"^\s*bind[a-z]*\s*=\s*(ALT)?\s*,\s*ALT_L\s*,\s*exec\s*,.*\bkawaro", re.M | re.I),
+    re.compile(r"hl\.bind\(\s*\"(ALT \+ )?ALT_L\".{0,300}?\bkawaro", re.S | re.I),
 ]
 def norm(s):
     return DIAC.sub("", s).translate(HAMZA).lower()
@@ -64,10 +64,10 @@ def has(text, *words):
     t = norm(text)
     return all(norm(w) in t for w in words)
 KEYS = {
-    "gnome": lambda t, l: has(t, "GNOME", "sbarhive drop") and (
+    "gnome": lambda t, l: has(t, "GNOME", "kawaro drop") and (
         has(t, "الإعدادات", "لوحة المفاتيح", "اختصار") if l == "ar"
         else has(t, "Settings", "Keyboard", "Custom Shortcut")),
-    "kde": lambda t, l: has(t, "KDE", "sbarhive drop") and (
+    "kde": lambda t, l: has(t, "KDE", "kawaro drop") and (
         has(t, "إعدادات النظام", "اختصار") if l == "ar"
         else has(t, "System Settings", "Shortcuts")),
     "hypr-superz": lambda t, l: (has(t, "Hyprland") or not HYPR_WORD) and any(r.search(t) for r in SUPERZ),
@@ -99,7 +99,7 @@ for path in FILES:
         text = "\n".join(sec)
         for k, f in KEYS.items():
             if f(text, lang):
-                print(k, lang, f"{path.split('/sbarhive/')[-1]}:{start}")
+                print(k, lang, f"{path.split('/kawaro/')[-1]}:{start}")
 PY
 }
 
@@ -115,10 +115,10 @@ has_key() {
 }
 for k in gnome kde hypr-superz hypr-alt superz; do
   case $k in
-    gnome) what='GNOME: Settings, Keyboard, custom shortcut running `sbarhive drop`' ;;
-    kde) what='KDE: System Settings, Shortcuts, command `sbarhive drop`' ;;
-    hypr-superz) what='Hyprland: a Super+Z bind line running `sbarhive drop`' ;;
-    hypr-alt) what='Hyprland: a left Alt (ALT_L) bind line running sbarhive' ;;
+    gnome) what='GNOME: Settings, Keyboard, custom shortcut running `kawaro drop`' ;;
+    kde) what='KDE: System Settings, Shortcuts, command `kawaro drop`' ;;
+    hypr-superz) what='Hyprland: a Super+Z bind line running `kawaro drop`' ;;
+    hypr-alt) what='Hyprland: a left Alt (ALT_L) bind line running kawaro' ;;
     superz) what='names the default shortcut Super+Z' ;;
   esac
   check "AC12: docs/ in Arabic: $what" 'has_key "$k" ar "$found"'
@@ -135,7 +135,7 @@ done
 
 # Programs the documented Super+Z and ALT_L bind lines run: the first word
 # after exec (hyprlang) or inside exec_cmd( (Lua), with ~, $HOME and HOME ..
-# prefixes and quotes removed. Each must be sbarhive or a file in the repo.
+# prefixes and quotes removed. Each must be kawaro or a file in the repo.
 # shellcheck disable=SC2086
 progs=$(cat $DOCS "$HYPR" "$HYPR_AR" 2>/dev/null | python3 -I -c '
 import re, sys
@@ -158,11 +158,11 @@ missing=""
 while IFS= read -r p; do
   [ -z "$p" ] && continue
   b=$(basename "$p")
-  [ "$b" = sbarhive ] && continue
+  [ "$b" = kawaro ] && continue
   grep -qxF "$b" <<<"$shipped" || missing="$missing $p"
 done <<<"$progs"
 check "AC12: the documented binds run programs that exist (a bind was found)" '[ -n "$progs" ]'
-check "AC12: every program a documented bind runs is sbarhive or a helper shipped in integrations/ or scripts/" '[ -n "$progs" ] && [ -z "$missing" ]'
+check "AC12: every program a documented bind runs is kawaro or a helper shipped in integrations/ or scripts/" '[ -n "$progs" ] && [ -z "$missing" ]'
 echo "INFO not shipped:${missing:- none}"
 # shellcheck disable=SC2086
 check "AC12: no /home/ path in the docs" '! grep -n "/home/" $DOCS "$HYPR" "$HYPR_AR"'

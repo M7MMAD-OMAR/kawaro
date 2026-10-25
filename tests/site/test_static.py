@@ -275,7 +275,7 @@ class AC6Downloads(unittest.TestCase):
         self.assertGreaterEqual(len(anchors), 4)
         kinds = set()
         for f, a in anchors:
-            self.assertRegex(a.attrs["href"], r"^" + re.escape(RELEASES) + r"/download/" + lib.TAG + r"/sbarhive[-_].*\.(msi|zip|deb|rpm)$")
+            self.assertRegex(a.attrs["href"], r"^" + re.escape(RELEASES) + r"/download/" + lib.TAG + r"/kawaro[-_].*\.(msi|zip|deb|rpm)$")
             kinds.add(a.attrs["data-dl"])
         self.assertEqual(kinds, {"msi", "zip", "deb", "rpm"})
 

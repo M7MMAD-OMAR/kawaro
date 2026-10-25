@@ -5,7 +5,7 @@ Renumbered on 2026-10-23: this story was S-022 on windows/0.6.0 before the merge
 Builds on ADR 0005 section 2. For release 0.6.0. Does not touch `crates/ui`.
 
 ## Story
-As a user on Windows, I want `sbarhive.exe` and `sbarhived.exe` to talk over a pipe that no one else can open, so that the hive works as on Linux without another user or another machine sending commands to my daemon.
+As a user on Windows, I want `kawaro.exe` and `kawarod.exe` to talk over a pipe that no one else can open, so that the hive works as on Linux without another user or another machine sending commands to my daemon.
 
 ## Split (in order, each substory a working day or less)
 | Story | Content | Criteria | Files |
@@ -15,13 +15,13 @@ As a user on Windows, I want `sbarhive.exe` and `sbarhived.exe` to talk over a p
 
 ## Acceptance criteria
 S-040a:
-- AC1: `sbarhive_core::transport` provides the full interface (the names are proposals that the tester fixes): `endpoint() -> Endpoint`, `Listener::bind(&Endpoint) -> io::Result<Bound>` where `Bound` is either `Listening(Listener)` or `AlreadyRunning`, `Listener::accept()`, `Stream::connect(&Endpoint)`, `Stream::set_read_timeout(Option<Duration>)`, `Stream::try_clone()`, `Stream::server_pid() -> Option<u32>` (returns `None` on Unix), and `Stream` implements `Read` and `Write`. `ipc::socket_path()` and `SOCKET_NAME` keep their signature and value.
-- AC2: `transport::pipe_name(sid: &str, session: u32) -> String` is a pure function: `pipe_name("S-1-5-21-1-2-3-1001", 1)` equals exactly `\\.\pipe\io.github.m7mmad_omar.SbarHive.S-1-5-21-1-2-3-1001.1`. A different SID or a different session gives a different name, and the longest possible SID (`S-1-5-21-4294967295-4294967295-4294967295-4294967295`) with session `4294967295` gives 256 characters or fewer.
+- AC1: `kawaro_core::transport` provides the full interface (the names are proposals that the tester fixes): `endpoint() -> Endpoint`, `Listener::bind(&Endpoint) -> io::Result<Bound>` where `Bound` is either `Listening(Listener)` or `AlreadyRunning`, `Listener::accept()`, `Stream::connect(&Endpoint)`, `Stream::set_read_timeout(Option<Duration>)`, `Stream::try_clone()`, `Stream::server_pid() -> Option<u32>` (returns `None` on Unix), and `Stream` implements `Read` and `Write`. `ipc::socket_path()` and `SOCKET_NAME` keep their signature and value.
+- AC2: `transport::pipe_name(sid: &str, session: u32) -> String` is a pure function: `pipe_name("S-1-5-21-1-2-3-1001", 1)` equals exactly `\\.\pipe\io.github.m7mmad_omar.Kawaro.S-1-5-21-1-2-3-1001.1`. A different SID or a different session gives a different name, and the longest possible SID (`S-1-5-21-4294967295-4294967295-4294967295-4294967295`) with session `4294967295` gives 256 characters or fewer.
 - AC3: on Linux, `Listener` and `Stream` in a temporary directory: the line `{"cmd":"ping"}` from the client reaches the server as is, and its reply `{"status":"ok"}` reaches the client. Two lines written from a `Stream` and from its `try_clone` copy arrive in the same order.
 - AC4: read timeout on Linux: a server that accepts and does not write, and the client with `set_read_timeout(Some(200 ms))`: `read_line` returns an error of kind `ErrorKind::TimedOut` (not `WouldBlock`) after 180 ms to 1000 ms. With `None`, a reply written after 300 ms is read.
-- AC5: no `std::os::unix::net` in `crates/cli/src` or `crates/daemon/src`: `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src` returns 0 lines. `State::subscribers` has type `HashMap<JobId, Vec<transport::Stream>>`, and `sbarhive doctor` (`main.rs:384`) prints `endpoint()`.
-- AC6: the daemon: `bind` gives `AlreadyRunning` when a daemon answers `ping` within 500 ms, so it prints `sbarhived: already running` and exits with 0, as today. An old socket file that does not answer is removed and then bound.
-- AC7: the Windows seed `transport/windows.rs`: every function in it returns `ErrorKind::Unsupported`, and the file is in `exclude_globs`. `cargo clippy -p sbarhive-core --lib` for the Windows target has no warning.
+- AC5: no `std::os::unix::net` in `crates/cli/src` or `crates/daemon/src`: `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src` returns 0 lines. `State::subscribers` has type `HashMap<JobId, Vec<transport::Stream>>`, and `kawaro doctor` (`main.rs:384`) prints `endpoint()`.
+- AC6: the daemon: `bind` gives `AlreadyRunning` when a daemon answers `ping` within 500 ms, so it prints `kawarod: already running` and exits with 0, as today. An old socket file that does not answer is removed and then bound.
+- AC7: the Windows seed `transport/windows.rs`: every function in it returns `ErrorKind::Unsupported`, and the file is in `exclude_globs`. `cargo clippy -p kawaro-core --lib` for the Windows target has no warning.
 
 S-040b:
 - AC8: `transport::dacl_sddl(sid) -> String` is pure: `dacl_sddl("S-1-5-21-1-2-3-1001")` equals `D:P(A;;GA;;;S-1-5-21-1-2-3-1001)`, and contains neither `WD` nor `AN` nor `BU`. `windows.rs` builds the descriptor from it (`ConvertStringSecurityDescriptorToSecurityDescriptorW`) and passes it to every `CreateNamedPipeW`.
@@ -29,8 +29,8 @@ S-040b:
 - AC10: `transport::deadline::read_with_deadline(timeout, read, cancel)` runs a watchdog thread: a fake read that blocks until `cancel` is called returns `ErrorKind::TimedOut` after 180 ms to 1000 ms for a 200 ms timeout, and `cancel` is called exactly once. A read that finishes within 50 ms returns its data, `cancel` is called 0 times, and no watchdog thread is left alive after returning (a counter in the test). On Windows, `cancel` is `CancelIoEx` on the pipe handle.
 - AC11: `transport::connect_plan(results)` is pure, for connection attempts: `ERROR_FILE_NOT_FOUND` (2) gives `NotFound` at once without waiting, and `ERROR_PIPE_BUSY` (231) gives "wait with `WaitNamedPipeW`, then retry" up to 2000 ms, then `TimedOut`. And the result of the owner check: a server SID different from the client SID gives `PermissionDenied` and no byte is sent (a write counter in the test is 0).
 - AC12: the creation flags are two pure functions in `transport.rs`: `open_mode(first: bool)` gives `0x00080003` for the first instance (`PIPE_ACCESS_DUPLEX` with `FILE_FLAG_FIRST_PIPE_INSTANCE`) and `0x3` for later ones, so later instances do not fail with `ERROR_ACCESS_DENIED`. And `pipe_mode()` gives `0x8` (`PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT` has value 0, with `PIPE_REJECT_REMOTE_CLIENTS`). `windows.rs` passes them to `CreateNamedPipeW`, and checks every constant at compile time against `windows_sys` (`const _: () = assert!(...)`), so `W` fails if a value differs. The owner check uses `GetNamedPipeServerProcessId`, then the process token, and `endpoint()` comes from `ProcessIdToSessionId` and the SID from `GetTokenInformation(TokenUser)`. The import check on the client executable comes in S-042 AC6.
-- AC13: no new crate: the count of `[[package]]` in `Cargo.lock` stays 671, `cargo tree --target x86_64-pc-windows-gnu -p sbarhive-core -e normal --depth 1` lists `windows-sys v0.61.2` as the only new one, and `cargo tree -p sbarhive-core -e normal --depth 1` on Linux does not list it.
-- AC14: `cargo check` and `cargo clippy -p sbarhive-core -p sbarhive-engines --lib` for the Windows target have no warning. `SECURITY.md` describes the pipe (the user alone, no remote clients) in English and Arabic, `docs/architecture.md` describes the single instance on both platforms, and `docs/engines.md` records windows-sys 0.61.2 (MIT OR Apache-2.0).
+- AC13: no new crate: the count of `[[package]]` in `Cargo.lock` stays 671, `cargo tree --target x86_64-pc-windows-gnu -p kawaro-core -e normal --depth 1` lists `windows-sys v0.61.2` as the only new one, and `cargo tree -p kawaro-core -e normal --depth 1` on Linux does not list it.
+- AC14: `cargo check` and `cargo clippy -p kawaro-core -p kawaro-engines --lib` for the Windows target have no warning. `SECURITY.md` describes the pipe (the user alone, no remote clients) in English and Arabic, `docs/architecture.md` describes the single instance on both platforms, and `docs/engines.md` records windows-sys 0.61.2 (MIT OR Apache-2.0).
 
 For each substory:
 - One line for the whole story in `CHANGELOG.md` under `[Unreleased]`, in English with Arabic text in «»: S-040a adds it, and S-040b edits the same line and adds no other.
@@ -41,10 +41,10 @@ For each substory:
 ## Check commands
 Read-only tools alone (`grep`, `file`, `objdump` and `isoinfo`) run outside the scope.
 - `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
-- `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p sbarhive-core -p sbarhive-cli -p sbarhive-daemon`
-- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core --lib -- -D warnings` (and `-p sbarhive-engines` is added in S-040b)
+- `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p kawaro-core -p kawaro-cli -p kawaro-daemon`
+- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core --lib -- -D warnings` (and `-p kawaro-engines` is added in S-040b)
 - `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (the changed files only; Windows files are excluded by `exclude_globs`)
-- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --target x86_64-pc-windows-gnu -p sbarhive-core -e normal --depth 1`
+- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-core -e normal --depth 1`
 
 ## Test cases
 | Criterion | Test | Type |
@@ -52,17 +52,17 @@ Read-only tools alone (`grep`, `file`, `objdump` and `isoinfo`) run outside the 
 | AC1, AC3 | `crates/core/tests/transport.rs`: bind, connect, the `ping` round trip and the order of the two lines through `try_clone`, and `server_pid()` equals `None`; `L` | integration |
 | AC2, AC8, AC9, AC11, AC12 | Unit tests with the literal values, the codes 2, 5 and 231, and the `open_mode` and `pipe_mode` values, under `M`; and `W` proves the constants match | unit, build |
 | AC4, AC10 | Unit tests with the stated times, the `cancel` counter and the thread counter | unit |
-| AC5 | The stated `grep` command returns 0 lines; `sbarhive doctor` in `crates/cli/tests/cli.rs` prints the path in the temporary directory | review, integration |
+| AC5 | The stated `grep` command returns 0 lines; `kawaro doctor` in `crates/cli/tests/cli.rs` prints the path in the temporary directory | review, integration |
 | AC6 | Two daemons on one `XDG_RUNTIME_DIR`: the second exits with 0 and its text is `already running`; and an old socket is replaced | integration |
 | AC7, AC14 | `W` with no warning; the reviewer reads the three documents | build, review |
-| AC13 | `grep -c '^\[\[package\]\]' Cargo.lock` gives 671, and `X`, and `cargo tree -p sbarhive-core -e normal --depth 1` inside the same scope on Linux | review |
+| AC13 | `grep -c '^\[\[package\]\]' Cargo.lock` gives 671, and `X`, and `cargo tree -p kawaro-core -e normal --depth 1` inside the same scope on Linux | review |
 
 Stay green: `cargo test --workspace`, `crates/cli/tests/cli.rs` and `settings.rs` with their fake servers on `UnixListener` without modification (evidence that the protocol did not change), and `tests/e2e/run.sh`.
 
 ## Live verification deferred to S-052
 - A second Windows user cannot open the pipe (`ERROR_ACCESS_DENIED`).
 - A connection from another machine through `\\<host>\pipe\...` is rejected.
-- A second `sbarhived.exe` exits with 0 at once, and ten instances together leave one server.
+- A second `kawarod.exe` exits with 0 at once, and ten instances together leave one server.
 - The client rejects a process from another account that grabbed the name first.
 - The 10 s timeout in the client and the 500 ms timeout in the daemon check work with `CancelIoEx`.
 
@@ -79,28 +79,28 @@ Stay green: `cargo test --workspace`, `crates/cli/tests/cli.rs` and `settings.rs
     - `crates/core/tests/transport_seed.rs`: `ac7_windows_seed_is_unsupported_and_excluded_from_mutants` (the file exists, contains `ErrorKind::Unsupported` and no `todo!`, and is listed in `exclude_globs`). The Windows build itself is proved by `W` at the reviewer; it passes today because the module does not exist.
     - `crates/cli/tests/no_unix_net.rs`: `ac5_no_std_os_unix_net_in_cli_or_daemon_sources` (the same `grep` command as a test).
     - `crates/cli/tests/cli.rs`: `ac5_doctor_prints_the_endpoint_in_the_runtime_dir`. No import of `transport` was added to this file, and its fake servers stay on `UnixListener` as the story requires.
-    - `crates/daemon/tests/single_instance.rs`: `ac6_second_daemon_on_the_same_runtime_dir_says_already_running_and_exits_0`. The first daemon is a fake server on `transport::Listener`, and the second is the real `sbarhived` with no display variables, with a 5 s timeout, then a kill.
+    - `crates/daemon/tests/single_instance.rs`: `ac6_second_daemon_on_the_same_runtime_dir_says_already_running_and_exits_0`. The first daemon is a fake server on `transport::Listener`, and the second is the real `kawarod` with no display variables, with a 5 s timeout, then a kill.
   - Passes before implementation on purpose: `ac5_doctor_prints_the_endpoint_in_the_runtime_dir`, because `doctor` prints the socket path today, and Linux behaviour must not change. It is a regression guard, not evidence of implementation. Likewise, the AC6 behaviour exists today, and what makes its test fail is the fake server built on `transport`.
   - For the reviewer, not for tests: the type of `State::subscribers` (`HashMap<JobId, Vec<transport::Stream>>`), because the daemon is a binary crate and a text check is fragile, and `W` for AC7.
   - Ambiguity: a socket with a listener that accepts and does not answer `ping` within 500 ms: is it considered stale and removed? AC6 does not say, so it was not tested.
-  - Check of the daemon test's logic: an uncommitted temporary copy with a fake server on `UnixListener` passed on the current `sbarhived` (0.02 s), so no display or icon blocks it. `cargo clippy -D warnings` is clean on `sbarhive-cli --tests` and `transport_seed`; `transport.rs` and `single_instance.rs` cannot be checked before the interface exists, so any warning in them comes from the test, not the implementation.
+  - Check of the daemon test's logic: an uncommitted temporary copy with a fake server on `UnixListener` passed on the current `kawarod` (0.02 s), so no display or icon blocks it. `cargo clippy -D warnings` is clean on `kawaro-cli --tests` and `transport_seed`; `transport.rs` and `single_instance.rs` cannot be checked before the interface exists, so any warning in them comes from the test, not the implementation.
   - Failure output (`L` inside the scope, `-j 2`):
 ```
-$ cargo test -j 2 -p sbarhive-core --test transport
-error[E0432]: unresolved import `sbarhive_core::transport`
+$ cargo test -j 2 -p kawaro-core --test transport
+error[E0432]: unresolved import `kawaro_core::transport`
   --> crates/core/tests/transport.rs:28:20
    |
-28 | use sbarhive_core::transport::{self, Bound, Endpoint, Listener, Stream};
-   |                    ^^^^^^^^^ could not find `transport` in `sbarhive_core`
-error: could not compile `sbarhive-core` (test "transport") due to 1 previous error
+28 | use kawaro_core::transport::{self, Bound, Endpoint, Listener, Stream};
+   |                    ^^^^^^^^^ could not find `transport` in `kawaro_core`
+error: could not compile `kawaro-core` (test "transport") due to 1 previous error
 
-$ cargo test -j 2 -p sbarhive-core --test transport_seed
+$ cargo test -j 2 -p kawaro-core --test transport_seed
 ---- ac7_windows_seed_is_unsupported_and_excluded_from_mutants stdout ----
 panicked at crates/core/tests/transport_seed.rs:12:29:
 .../crates/core/src/transport/windows.rs must exist: No such file or directory (os error 2)
 test result: FAILED. 0 passed; 1 failed
 
-$ cargo test -j 2 -p sbarhive-cli --test no_unix_net --test cli -- ac5
+$ cargo test -j 2 -p kawaro-cli --test no_unix_net --test cli -- ac5
 test ac5_doctor_prints_the_endpoint_in_the_runtime_dir ... ok
 ---- ac5_no_std_os_unix_net_in_cli_or_daemon_sources stdout ----
 4 lines:
@@ -110,20 +110,20 @@ crates/daemon/src/server.rs:8: use std::os::unix::net::{UnixListener, UnixStream
 crates/daemon/src/state.rs:10: use std::os::unix::net::UnixStream;
 test result: FAILED. 0 passed; 1 failed
 
-$ cargo test -j 2 -p sbarhive-daemon --test single_instance
-error[E0432]: unresolved import `sbarhive_core::transport`
+$ cargo test -j 2 -p kawaro-daemon --test single_instance
+error[E0432]: unresolved import `kawaro_core::transport`
  --> crates/daemon/tests/single_instance.rs:8:20
   |
-8 | use sbarhive_core::transport::{Bound, Endpoint, Listener};
-  |                    ^^^^^^^^^ could not find `transport` in `sbarhive_core`
-error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 previous error
+8 | use kawaro_core::transport::{Bound, Endpoint, Listener};
+  |                    ^^^^^^^^^ could not find `transport` in `kawaro_core`
+error: could not compile `kawaro-daemon` (test "single_instance") due to 1 previous error
 ```
 - 2026-10-22, implementer (S-040a): the module `crates/core/src/transport.rs` (`Bound`, `pipe_name` and per-platform dispatch), `transport/unix.rs` (the socket with a wrapper that turns `WouldBlock` into `TimedOut` in `Read`, and `bind` sends `ping` with a 500 ms timeout as `already_running()` did in the daemon), and `transport/windows.rs`, a seed that returns `ErrorKind::Unsupported` and whose `endpoint()` has an empty name until S-040b. The client (`client.rs`), the daemon (`main.rs`, `server.rs` and `state.rs`) and `doctor` moved onto it. No test was modified.
   - Manager decision on the ambiguity: a listener that accepts and does not answer `ping` within 500 ms stays exactly as today: it is considered not running, so the file is removed and bound. Likewise a reply other than `ok`, or a failed write.
   - Removing the file when the daemon exits stays on `ipc::socket_path()` as before.
   - `C`: `cargo fmt --check` clean, and `cargo clippy -j 2 --workspace --all-targets -- -D warnings` with no warning (including `transport.rs` and `single_instance.rs` in the tests).
-  - `W`: `cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-core --lib -- -D warnings` with no warning.
-  - `L`: `cargo test -j 2 -p sbarhive-core -p sbarhive-cli -p sbarhive-daemon`: 210 passed, 0 failed (of which 14 in `transport.rs`, 1 each in `transport_seed.rs`, `no_unix_net.rs` and `single_instance.rs`, and 32 in `cli.rs`).
+  - `W`: `cargo clippy --target x86_64-pc-windows-gnu -p kawaro-core --lib -- -D warnings` with no warning.
+  - `L`: `cargo test -j 2 -p kawaro-core -p kawaro-cli -p kawaro-daemon`: 210 passed, 0 failed (of which 14 in `transport.rs`, 1 each in `transport_seed.rs`, `no_unix_net.rs` and `single_instance.rs`, and 32 in `cli.rs`).
   - AC5: `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src` returns 0 lines. `git diff --stat main...HEAD -- crates/ui` is empty.
   - `M` on the diff from `20502bc`: 26 mutants, 14 caught, 8 unviable, 2 timeouts (`read` and `write` with `Ok(1)`, an endless loop caught by the timeout), and 2 survivors excluded in `exclude_re` with the reason: `replace serve with ()` (the accept loop in the live daemon, covered by `tests/e2e/run.sh` like the `handle` precedent), and `flush -> Ok(())` in `unix.rs` (an equivalent mutant: `flush` for the socket in std does nothing). After the exclusion `cargo mutants --list` lists 24 mutants, and no known survivor is among them.
   - `scripts/design-lint.sh`: clean. CHANGELOG line under `[Unreleased]`.
@@ -131,7 +131,7 @@ error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 pre
   - About `M`: with the two timeouts `cargo mutants` exits with code 3, not 0. The two timeouts are `read` and `write` with `Ok(1)`; the tests catch them by spinning until the timeout, and catching them faster is not possible without modifying the tests.
 - 2026-10-22, reviewer (S-040a): **PASS**. All gates were rerun inside the scope (`MemoryMax=6G`, `-j 2`) from the `windows/0.6.0` tree:
   - `C`: `cargo fmt --check` clean, and `cargo clippy -j 2 --workspace --all-targets -- -D warnings` ended with `Finished` with no warning.
-  - `W`: `cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-core --lib -- -D warnings` after touching `lib.rs` to force the check: exit code 0, no warning.
+  - `W`: `cargo clippy --target x86_64-pc-windows-gnu -p kawaro-core --lib -- -D warnings` after touching `lib.rs` to force the check: exit code 0, no warning.
   - `cargo test -j 2 --all`: 581 passed, 0 failed, 1 ignored. The seventeen AC1 to AC7 tests all pass, and each criterion has at least one test (AC5 through the type of `State::subscribers` and AC7 through `W`, both verified by the reviewer in the code).
   - `M`: `cargo mutants --jobs 1 --in-diff` on `git diff 20502bc..HEAD -- crates` with `CARGO_BUILD_JOBS=2`: 24 mutants, 14 caught, 8 unviable, 2 timeouts, **0 survivors** (`missed.txt` empty). The two timeouts `read` and `write` with `Ok(1)` at `unix.rs:103` and `unix.rs:109`: the tests spin until the timeout and fail, so they are not survivors, and exit code 3 is caused by the timeouts alone.
   - `scripts/design-lint.sh`: clean. No long dash in the `main...HEAD` diff. One CHANGELOG line for the story under `[Unreleased]` in English with Arabic text. `git diff --stat main...HEAD -- crates/ui` is empty. `Cargo.lock`: 671 `[[package]]` as in `main`, and no change in any `Cargo.toml`. `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src`: 0 lines.
@@ -140,7 +140,7 @@ error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 pre
   - Accepted deviations: (1) `replace serve with ()` in `exclude_re` on the `handle` precedent; the reviewer did not rerun `tests/e2e/run.sh`, so the acceptance rests on the precedent and the implementer's log. (2) `flush -> Ok(())` is equivalent: `flush` for a Unix socket in std returns `Ok(())` (the std source is not installed locally to quote from). (3) `endpoint()`, `server_pid()` and `Display` in the Windows seed cannot return `Unsupported` with the AC1 signatures, so the empty name and `None` are forced; every function that returns `io::Result` returns `Unsupported`. (4) `handle()` reads through `try_clone` because `Read` is not implemented for `&Stream`; behaviour on Linux is as before, and a failed clone closes the connection with no reply.
   - Small notes for later: `crates/daemon/src/main.rs:84` still removes `socket_path()` directly, not through the transport (for S-040b or S-045). And `flush` in `exclude_re` matches any `<impl Write for Stream>` in the repository; today there is only `unix.rs` and the excluded `windows.rs`.
   - No new CHANGELOG line from the reviewer: the single line for the whole story was added by S-040a, and S-040b edits it.
-- 2026-10-22, tester (S-040b): tests for AC8 to AC14 written in new files so that an unresolved import does not break the fourteen S-040a tests in `transport.rs`. The contract the tester fixed at the top of `crates/core/tests/transport_plan.rs` and `deadline.rs` (not to be modified), all `pub` in `sbarhive_core::transport` on all platforms:
+- 2026-10-22, tester (S-040b): tests for AC8 to AC14 written in new files so that an unresolved import does not break the fourteen S-040a tests in `transport.rs`. The contract the tester fixed at the top of `crates/core/tests/transport_plan.rs` and `deadline.rs` (not to be modified), all `pub` in `kawaro_core::transport` on all platforms:
   - `dacl_sddl(&str) -> String`.
   - `enum BindOutcome { Listen, AlreadyRunning, Failed(io::Error) }` and `bind_result(Option<u32>) -> BindOutcome`: `None` is listening, `Some(5)` is `AlreadyRunning`, and anything else is `Failed` with its code in `raw_os_error()`.
   - `enum ConnectStep { Connected, Wait(Duration), Fail(io::Error) }` and `connect_plan(open_error: Option<u32>, elapsed: Duration) -> ConnectStep`, one step of the connection loop with time as an input and no real sleep: `None` is connected, `Some(2)` is `NotFound` at any time without waiting, `Some(231)` before 2000 ms is `Wait(2000 ms - elapsed)`, which is the `WaitNamedPipeW` timeout, and at 2000 ms or later is `TimedOut` (the boundary: 2000 itself is an expired timeout), and any other code is `Fail` with its code.
@@ -151,26 +151,26 @@ error: could not compile `sbarhive-daemon` (test "single_instance") due to 1 pre
     - `crates/core/tests/transport_plan.rs`: `ac8_dacl_sddl_is_the_exact_literal`, `ac8_dacl_sddl_grants_no_one_else`, `ac8_dacl_sddl_embeds_the_given_sid` (the longest SID, so that a constant value does not survive `M`), `ac9_bind_result_none_listens`, `ac9_bind_result_access_denied_is_already_running`, `ac9_bind_result_other_codes_fail_with_the_same_code` (2, 231, 1, 87 and `0xFFFFFFF0`), `ac11_connect_plan_no_error_is_connected`, `ac11_connect_plan_file_not_found_is_not_found_at_once`, `ac11_connect_plan_pipe_busy_waits_for_the_rest_of_2000_ms` (0, 1, 750 and 1999 ms), `ac11_connect_plan_pipe_busy_times_out_at_2000_ms` (2000, 2001 and 10000), `ac11_connect_plan_other_codes_fail_with_the_same_code`, `ac11_another_users_server_is_permission_denied_and_gets_no_byte`, `ac11_own_server_hands_the_stream_back_for_writing` (kills the "always reject" mutant), `ac12_open_mode_first_instance_is_duplex_and_first_pipe_instance`, `ac12_open_mode_later_instances_are_duplex_only`, `ac12_pipe_mode_is_byte_wait_and_rejects_remote_clients`.
     - `crates/core/tests/deadline.rs`: `ac10_blocked_read_times_out_between_180_and_1000_ms_with_one_cancel` (the fake read blocks with a 3 s `recv_timeout` so that a mutant that does not cancel does not hang `M`, and after cancellation returns an error that is not `TimedOut`, so the test proves the conversion), `ac10_read_done_within_50_ms_returns_its_data_and_never_cancels` (returns before 150 ms, and `cancel` is not called up to 400 ms after the return), `ac10_a_read_error_before_the_deadline_is_returned_as_is`.
     - `crates/core/tests/transport_seed.rs` (modified by the tester): the `ErrorKind::Unsupported` check was removed because S-040b replaces the seed with the real pipe and the implementer may not modify the test; the `exclude_globs` check and the `todo!` ban remain under the name `ac7_windows_transport_is_excluded_from_mutants_and_has_no_todo`. Text checks on `windows.rs` required by AC8, AC10 and AC12 were added: `ac8_windows_builds_the_descriptor_from_dacl_sddl`, `ac10_windows_cancels_the_read_with_cancel_io_ex`, `ac9_ac11_ac12_windows_uses_the_pure_decisions` (calls `open_mode(`, `pipe_mode(`, `bind_result(`, `connect_plan(`, `verify_owner(` and `WaitNamedPipeW`), `ac12_windows_asserts_every_flag_against_windows_sys_at_compile_time` (`const _: () = assert!` and the names of the nine constants), `ac12_windows_checks_the_owner_and_names_the_endpoint_from_the_token`, and `ac10_deadline_rs_is_mutated_on_linux` (the file exists and is not in `exclude_globs`).
-    - `crates/core/tests/transport_deps.rs`: `ac13_cargo_lock_keeps_671_packages`, `ac13_core_depends_on_windows_sys_0_61_2_in_the_lock` (the `sbarhive-core` entry in `Cargo.lock` lists `"windows-sys 0.61.2"`), `ac13_core_declares_windows_sys_for_windows_only` (in `[target.'cfg(windows)'.dependencies]` of `crates/core/Cargo.toml` with version 0.61, and nowhere else), `ac14_engines_md_records_windows_sys_and_its_license` (the name, the version and `MIT OR Apache-2.0` within eight lines).
+    - `crates/core/tests/transport_deps.rs`: `ac13_cargo_lock_keeps_671_packages`, `ac13_core_depends_on_windows_sys_0_61_2_in_the_lock` (the `kawaro-core` entry in `Cargo.lock` lists `"windows-sys 0.61.2"`), `ac13_core_declares_windows_sys_for_windows_only` (in `[target.'cfg(windows)'.dependencies]` of `crates/core/Cargo.toml` with version 0.61, and nowhere else), `ac14_engines_md_records_windows_sys_and_its_license` (the name, the version and `MIT OR Apache-2.0` within eight lines).
   - Passes before implementation on purpose: `ac13_cargo_lock_keeps_671_packages` (a regression guard; `windows-sys 0.61.2` is in the lock already), and `ac7_windows_transport_is_excluded_from_mutants_and_has_no_todo` (a guard from S-040a).
-  - For the reviewer, not for tests: `X` and `cargo tree` on Linux, `W` with `-p sbarhive-engines`, the text of `SECURITY.md` in Arabic and English and `docs/architecture.md`, that every `CreateNamedPipeW` takes the descriptor (the text check proves presence, not every call), and the edit of the same CHANGELOG line.
+  - For the reviewer, not for tests: `X` and `cargo tree` on Linux, `W` with `-p kawaro-engines`, the text of `SECURITY.md` in Arabic and English and `docs/architecture.md`, that every `CreateNamedPipeW` takes the descriptor (the text check proves presence, not every call), and the edit of the same CHANGELOG line.
   - Check of the tests' logic: a temporary copy outside the repository (a crate in the session's temporary directory, deleted and not merged) with a short implementation of the contract passed the sixteen `transport_plan.rs` tests and the three `deadline.rs` tests, and `cargo clippy --tests -D warnings` is clean on it and on `transport_seed` and `transport_deps` here. `cargo fmt --check` is clean, and the S-040a tests in `transport.rs` still pass, 14 of them.
   - Ambiguity: (1) AC11 names `connect_plan(results)` in the plural; it was fixed as a single step with time as an input so that the test does not sleep 2 s under `M`, and the loop itself is in `windows.rs`. (2) The "wait, then retry" case when `WaitNamedPipeW` returns success early and the pipe then stays busy: the elapsed time is measured by the clock in the loop, so it was not tested outside the function. (3) Codes other than 2 and 231 on connect were not specified by AC11; the tester fixed them as in AC9: the same code in `raw_os_error()`.
-  - Failure output (`cargo test -j 2 -p sbarhive-core` inside the scope):
+  - Failure output (`cargo test -j 2 -p kawaro-core` inside the scope):
 ```
-$ cargo test -j 2 -p sbarhive-core --test transport_plan
-error[E0432]: unresolved imports `sbarhive_core::transport::BindOutcome`, `sbarhive_core::transport::ConnectStep`, `sbarhive_core::transport::bind_result`, `sbarhive_core::transport::connect_plan`, `sbarhive_core::transport::dacl_sddl`, `sbarhive_core::transport::open_mode`, `sbarhive_core::transport::pipe_mode`, `sbarhive_core::transport::verify_owner`
-error: could not compile `sbarhive-core` (test "transport_plan") due to 1 previous error
+$ cargo test -j 2 -p kawaro-core --test transport_plan
+error[E0432]: unresolved imports `kawaro_core::transport::BindOutcome`, `kawaro_core::transport::ConnectStep`, `kawaro_core::transport::bind_result`, `kawaro_core::transport::connect_plan`, `kawaro_core::transport::dacl_sddl`, `kawaro_core::transport::open_mode`, `kawaro_core::transport::pipe_mode`, `kawaro_core::transport::verify_owner`
+error: could not compile `kawaro-core` (test "transport_plan") due to 1 previous error
 
-$ cargo test -j 2 -p sbarhive-core --test deadline
-error[E0432]: unresolved import `sbarhive_core::transport::deadline`
+$ cargo test -j 2 -p kawaro-core --test deadline
+error[E0432]: unresolved import `kawaro_core::transport::deadline`
   --> crates/core/tests/deadline.rs:18:31
    |
-18 | use sbarhive_core::transport::deadline::read_with_deadline;
+18 | use kawaro_core::transport::deadline::read_with_deadline;
    |                               ^^^^^^^^ could not find `deadline` in `transport`
-error: could not compile `sbarhive-core` (test "deadline") due to 1 previous error
+error: could not compile `kawaro-core` (test "deadline") due to 1 previous error
 
-$ cargo test -j 2 -p sbarhive-core --test transport_seed
+$ cargo test -j 2 -p kawaro-core --test transport_seed
 test ac7_windows_transport_is_excluded_from_mutants_and_has_no_todo ... ok
 ---- ac10_deadline_rs_is_mutated_on_linux ----
 .../crates/core/src/transport/deadline.rs must exist
@@ -186,25 +186,25 @@ windows.rs lacks ["dacl_sddl(", "ConvertStringSecurityDescriptorToSecurityDescri
 windows.rs lacks ["open_mode(", "pipe_mode(", "bind_result(", "connect_plan(", "verify_owner(", "WaitNamedPipeW"]: windows.rs must call the tested pure functions (AC9, AC11, AC12)
 test result: FAILED. 1 passed; 6 failed
 
-$ cargo test -j 2 -p sbarhive-core --test transport_deps
+$ cargo test -j 2 -p kawaro-core --test transport_deps
 test ac13_cargo_lock_keeps_671_packages ... ok
 ---- ac13_core_declares_windows_sys_for_windows_only ----
 crates/core/Cargo.toml needs [target.'cfg(windows)'.dependencies]
 ---- ac14_engines_md_records_windows_sys_and_its_license ----
 docs/engines.md must record windows-sys 0.61.2 (MIT OR Apache-2.0)
 ---- ac13_core_depends_on_windows_sys_0_61_2_in_the_lock ----
-sbarhive-core must use windows-sys 0.61.2:
-name = "sbarhive-core" ... dependencies = [ "serde", "serde_json", "tempfile", "thiserror 2.0.21", "toml 0.8.23" ]
+kawaro-core must use windows-sys 0.61.2:
+name = "kawaro-core" ... dependencies = [ "serde", "serde_json", "tempfile", "thiserror 2.0.21", "toml 0.8.23" ]
 test result: FAILED. 1 passed; 3 failed
 ```
 - 2026-10-22, implementer (S-040b): no test was modified (`git diff 80345be -- crates/*/tests` is empty). The manager accepted the tester's six choices as they are.
   - `transport.rs`: `dacl_sddl`, `BindOutcome`/`bind_result`, `ConnectStep`/`connect_plan`, `verify_owner` and `open_mode`/`pipe_mode`, with the values as private literal constants (`OPEN_MODE_FIRST`, `OPEN_MODE_LATER`, `PIPE_MODE` and the three error codes) so that `|` does not produce equivalent mutants; `windows.rs` checks them with `const _: () = assert!` against `windows_sys`. Code 2 has no arm in `connect_plan`: it passes through as a raw code, and std reads it as `NotFound` on Windows (and on Linux, because 2 is `ENOENT`), so there is no arm whose deletion would yield a surviving mutant; its constant `ERROR_FILE_NOT_FOUND` carries `cfg_attr(not(windows), allow(dead_code))` and is used in the compile-time check.
   - `transport/deadline.rs`: a watchdog thread with `recv_timeout` and one lock that decides who came first (the cancellation or the read), then `join` before returning, so `cancel` is never called after the read returns and no watchdog stays alive.
   - `transport/windows.rs`: a single place for `CreateNamedPipeW` (`create_instance`) that takes the descriptor built from `dacl_sddl` with `ConvertStringSecurityDescriptorToSecurityDescriptorW`, so every instance gets it; the descriptor lives with `Listener` and is freed with `LocalFree`. `accept` creates the next instance before handing over the connection, so the client finds the pipe busy rather than missing, and `ERROR_PIPE_CONNECTED` is success. The client opens with `OpenOptions` with `security_qos_flags(SECURITY_IDENTIFICATION)` and loops on `connect_plan` and `WaitNamedPipeW` (the timeout at least 1 ms, because 0 means the default timeout), then `GetNamedPipeServerProcessId`, `OpenProcess`, `GetTokenInformation(TokenUser)` and `verify_owner`; any failure to determine the owner gives an empty SID, so it is rejected (fails closed). The timeout is shared across `try_clone` as on Unix, and the read with a timeout is `read_with_deadline` with `CancelIoEx` on the same read handle. No `DisconnectNamedPipe` on close, so that an unread reply is not lost. `endpoint()` comes from `ProcessIdToSessionId` and the token SID, and `server_pid()` returns the server pid on the client stream.
-  - `crates/core/Cargo.toml`: `windows-sys = { version = "0.61", features = [...] }` under `[target.'cfg(windows)'.dependencies]` only. `Cargo.lock`: one line in the `sbarhive-core` entry (`"windows-sys 0.61.2"`), and 671 `[[package]]`.
+  - `crates/core/Cargo.toml`: `windows-sys = { version = "0.61", features = [...] }` under `[target.'cfg(windows)'.dependencies]` only. `Cargo.lock`: one line in the `kawaro-core` entry (`"windows-sys 0.61.2"`), and 671 `[[package]]`.
   - `C`: `cargo fmt --check` clean, and `cargo clippy -j 2 --workspace --all-targets -- -D warnings` with no warning.
-  - `W`: `cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines --lib -- -D warnings` with no warning, and `cargo check` with the same flags with no warning.
-  - `X`: lists serde, serde_json, thiserror, toml and `windows-sys v0.61.2`; and `cargo tree -p sbarhive-core -e normal --depth 1` on Linux does not list it.
+  - `W`: `cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines --lib -- -D warnings` with no warning, and `cargo check` with the same flags with no warning.
+  - `X`: lists serde, serde_json, thiserror, toml and `windows-sys v0.61.2`; and `cargo tree -p kawaro-core -e normal --depth 1` on Linux does not list it.
   - `cargo test -j 2 --all`: 610 passed, 0 failed, 1 ignored (581 before, and 29 new: 16 in `transport_plan.rs`, 3 in `deadline.rs`, 7 in `transport_seed.rs` where there was 1, and 4 in `transport_deps.rs`).
   - `M`: `cargo mutants --jobs 1 --in-diff` on `git diff 80345be -- crates` with `CARGO_BUILD_JOBS=2`: 21 mutants, 15 caught, 6 unviable, 0 timeouts, **0 survivors**, exit code 0. Nothing added to `exclude_re`; only the `exclude_globs` comment for `windows.rs` was edited.
   - `scripts/design-lint.sh`: clean. No long dash in the diff. `git diff --stat main...HEAD -- crates/ui` is empty.
@@ -213,7 +213,7 @@ test result: FAILED. 1 passed; 3 failed
   - For S-045: `crates/daemon/src/main.rs` still removes `ipc::socket_path()` directly on exit; left because the S-040b criteria do not require it and the daemon is not built for Windows before S-045.
 - 2026-10-22, reviewer (S-040b): **PASS**. All gates were rerun inside the scope (`MemoryMax=6G`, `-j 2`) from the `windows/0.6.0` tree at `78fe2c5`:
   - `cargo fmt --check` clean. `cargo clippy -j 2 --workspace --all-targets -- -D warnings` with no warning. `cargo test -j 2 --all`: 610 passed, 0 failed, 1 ignored.
-  - `W` (after `touch` to force a recheck, with the separate `CARGO_TARGET_DIR`): `cargo check` and `cargo clippy --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines --lib -- -D warnings` with no warning.
+  - `W` (after `touch` to force a recheck, with the separate `CARGO_TARGET_DIR`): `cargo check` and `cargo clippy --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines --lib -- -D warnings` with no warning.
   - `X`: Windows lists serde, serde_json, thiserror, toml and `windows-sys v0.61.2`; Linux does not list it. `Cargo.lock` has 671 `[[package]]`.
   - `M`: `cargo mutants --jobs 1 --in-diff` on `git diff 80345be -- crates` with `CARGO_BUILD_JOBS=2`: 21 mutants, 15 caught, 6 unviable, 0 timeouts, **0 survivors**; matches the implementer's log.
   - `scripts/design-lint.sh` clean. No long dash in `git diff da12857..HEAD` (with a positive control check). `git diff --stat main...HEAD -- crates/ui` is empty. The tests have not changed since `80345be`: note, the path `crates/*/tests` gives empty output even on the tester's own diff, so the correct check is `crates/*/tests/*`, which is empty on `80345be..HEAD` and lists the four files on `da12857..80345be`.

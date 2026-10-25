@@ -3,7 +3,7 @@
 //! clock: every call takes `now`, the gate never reads the time.
 //!
 //! Two inputs, a press ([`Signal::Hold`]) and a release
-//! ([`Signal::Release`]), from any source: `sbarhive drop --hold` and
+//! ([`Signal::Release`]), from any source: `kawaro drop --hold` and
 //! `--release` over IPC ([`from_request`]), or a GlobalShortcuts portal's
 //! `Activated` and `Deactivated` ([`from_portal`]). One more, by manager
 //! decision 14: [`Gate::hive_closed`], so a hive closed without its key
@@ -105,7 +105,7 @@ impl Gate {
     }
 }
 
-/// The IPC side: `sbarhive drop --hold` is a press, `drop --release` a
+/// The IPC side: `kawaro drop --hold` is a press, `drop --release` a
 /// release. A plain `drop` is the immediate show, not the gate.
 pub fn from_request(r: &Request) -> Option<Signal> {
     match r {

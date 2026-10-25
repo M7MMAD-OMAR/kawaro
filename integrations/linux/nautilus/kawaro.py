@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""SbarHive entry in the Nautilus context menu (nautilus-python, Nautilus 4.x).
+"""Kawaro entry in the Nautilus context menu (nautilus-python, Nautilus 4.x).
 
 Install to ~/.local/share/nautilus-python/extensions/ and restart Nautilus
 (`nautilus -q`). The extension only collects the selected local paths and
-an xdg-activation token, then runs `sbarhive open` detached. No logic lives
+an xdg-activation token, then runs `kawaro open` detached. No logic lives
 here, and nothing may block Nautilus.
 """
 
@@ -28,12 +28,12 @@ except (ImportError, ValueError):
     Gdk = None
 
 # scripts/install.sh rewrites this line with the absolute installed path.
-SBARHIVE_BIN = "sbarhive"
+KAWARO_BIN = "kawaro"
 
-LABEL_EN = "SbarHive"
-LABEL_AR = "صبار هايف"
-TIP_EN = "Open the selected files in SbarHive"
-TIP_AR = "افتح الملفات المحددة في صبار هايف"
+LABEL_EN = "Kawaro"
+LABEL_AR = "كوارو"
+TIP_EN = "Open the selected files in Kawaro"
+TIP_AR = "افتح الملفات المحددة في كوارو"
 
 
 def is_arabic_locale(env=None):
@@ -51,10 +51,10 @@ def is_arabic_locale(env=None):
 
 
 def resolve_binary():
-    if os.path.isabs(SBARHIVE_BIN) and os.access(SBARHIVE_BIN, os.X_OK):
-        return SBARHIVE_BIN
-    found = shutil.which(os.path.basename(SBARHIVE_BIN))
-    return found or SBARHIVE_BIN
+    if os.path.isabs(KAWARO_BIN) and os.access(KAWARO_BIN, os.X_OK):
+        return KAWARO_BIN
+    found = shutil.which(os.path.basename(KAWARO_BIN))
+    return found or KAWARO_BIN
 
 
 def local_paths(files):
@@ -105,7 +105,7 @@ def _reap(proc):
 
 
 def launch(paths):
-    """Start `sbarhive open` detached and return at once."""
+    """Start `kawaro open` detached and return at once."""
     try:
         proc = subprocess.Popen(
             build_command(paths, activation_token()),
@@ -122,7 +122,7 @@ def launch(paths):
     return proc
 
 
-class SbarHiveMenuProvider(GObject.GObject, Nautilus.MenuProvider):
+class KawaroMenuProvider(GObject.GObject, Nautilus.MenuProvider):
     def _on_activate(self, _item, paths):
         launch(paths)
 
@@ -134,10 +134,10 @@ class SbarHiveMenuProvider(GObject.GObject, Nautilus.MenuProvider):
             return []
         arabic = is_arabic_locale()
         item = Nautilus.MenuItem(
-            name="SbarHive::open",
+            name="Kawaro::open",
             label=LABEL_AR if arabic else LABEL_EN,
             tip=TIP_AR if arabic else TIP_EN,
-            icon="sbarhive",
+            icon="kawaro",
         )
         item.connect("activate", self._on_activate, paths)
         return [item]

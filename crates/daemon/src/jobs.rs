@@ -3,9 +3,9 @@
 
 use crate::state::{JobInfo, Shared, State, lock};
 use crate::{notify, tray};
-use sbarhive_core::ActionDef;
-use sbarhive_core::ipc::Event;
-use sbarhive_core::queue::{JobEvent, JobId, Queue};
+use kawaro_core::ActionDef;
+use kawaro_core::ipc::Event;
+use kawaro_core::queue::{JobEvent, JobId, Queue};
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
 

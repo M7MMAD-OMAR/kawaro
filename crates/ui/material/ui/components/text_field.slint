@@ -22,7 +22,7 @@ export component TextField {
     out property <bool> has_focus: input.has_focus;
     in_out property <string> text <=> input.text;
     in property <InputType> input-type <=> input.input-type;
-    // SbarHive: text and label alignment, so right-to-left forms align right.
+    // Kawaro: text and label alignment, so right-to-left forms align right.
     in property <TextHorizontalAlignment> horizontal_alignment: left;
 
     callback leading_icon_clicked();
@@ -48,7 +48,7 @@ export component TextField {
         spacing: MaterialStyleMetrics.spacing_4;
 
         background_layer := Rectangle {
-            // SbarHive: a full rounded border replaces the bottom-only
+            // Kawaro: a full rounded border replaces the bottom-only
             // active indicator (no one-sided borders in our design).
             border_radius: MaterialStyleMetrics.border_radius_4;
             border_width: MaterialStyleMetrics.size_1;

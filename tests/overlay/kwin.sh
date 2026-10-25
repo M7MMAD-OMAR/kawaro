@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # S-018b and S-018c on KWin: the hive as a zwlr_layer_shell_v1 overlay.
-# The daemon runs with WAYLAND_DEBUG=1 and SBARHIVE_DEBUG_FOCUS=1 over a full
+# The daemon runs with WAYLAND_DEBUG=1 and KAWARO_DEBUG_FOCUS=1 over a full
 # screen GTK window (other.py); input comes from org_kde_kwin_fake_input
 # (tests/drop/kwin-input). The trace is cut per show with line marks.
 # Modes (one private compositor each):
@@ -10,14 +10,14 @@
 #                    (100, 700), S-021, and ends at its 10 s bound). AC4,
 #                    AC5 (layer requests per show), AC11 (diagnostic lines
 #                    against the trace and a ScreenShot2 box).
-#   window           the same shows with SBARHIVE_SURFACE=window (AC6, AC11),
+#   window           the same shows with KAWARO_SURFACE=window (AC6, AC11),
 #                    plus a click on the GTK window: focus loss still closes
 #                    the hive on the window path (AC9).
 #   input            AC8 and AC9, KWin focus follows mouse at level Low: a
 #                    click on the ring-1 cell right of the centre, a click on
 #                    the catcher at (100, 700), Right then Enter with the
 #                    pointer over the GTK window, Esc after the pointer roams
-#                    over 5 points, and `sbarhive settings` while shown.
+#                    over 5 points, and `kawaro settings` while shown.
 #   token            AC10: three shows with `open --token T<n>`, each sends
 #                    xdg_activation_v1.activate(T<n>, <catcher>) and closes
 #                    with Esc; a fourth show without a token sends none.
@@ -29,20 +29,20 @@
 #                    two: the reader leaves the bus with the flag still true,
 #                    and two shows are layers; the reader comes back, and two
 #                    shows are windows. The daemon runs without
-#                    SBARHIVE_DEBUG_FOCUS here, and each change prints one
+#                    KAWARO_DEBUG_FOCUS here, and each change prints one
 #                    "hive surface choice: KIND ... REASON" line.
 #   drop             AC13 (S-018d), revised by S-021 (decision 6: KWin
 #                    sends wl_pointer.enter to a catcher bound under a still
 #                    pointer, which hides a drop show with no drag): drop1
 #                    and drop3 are a PNG drag (tests/drop/source.py) held
-#                    still, `sbarhive drop`, then moved into the centred hive
+#                    still, `kawaro drop`, then moved into the centred hive
 #                    and released over its centre; drop2 has no drag and a
 #                    press with no motion right after the bind: "hive probe:
 #                    hidden (pointer)", one destroy within 500 ms of the
 #                    catcher's wl_pointer.enter, no attach on the hive, and
 #                    no "hive anchor" or "hive surface" line when that enter
 #                    came before the position (S-021 AC3); drop4, with the
-#                    source gone, is `sbarhive drop --at 640,400` with the
+#                    source gone, is `kawaro drop --at 640,400` with the
 #                    pointer at (100, 700): the catcher takes no keyboard,
 #                    its input region is the hive rectangle (S-020), the
 #                    click at (100, 700) reaches the GTK window once, the
@@ -58,9 +58,9 @@
 #                    cell color.dark.surface-3, SettingChanged to 2 while the
 #                    hive is hidden makes the next show light, and back to 1
 #                    dark. theme = "light" or "dark" in config.toml, and then
-#                    SBARHIVE_COLOR_SCHEME (daemon restarted with it), win
+#                    KAWARO_COLOR_SCHEME (daemon restarted with it), win
 #                    over the portal. Every show is a layer.
-#   anchor           S-019c (S-019 AC5, AC6): `sbarhive open` while a 1 px
+#   anchor           S-019c (S-019 AC5, AC6): `kawaro open` while a 1 px
 #                    pointer jitter around P (every 10 ms for 600 ms) runs,
 #                    started before the command, for P = (400, 500),
 #                    (100, 700), (1200, 80) and (0, 0); then a show with the
@@ -102,7 +102,7 @@
 # is 1280x800 logical (the story names (960, 600), the physical middle).
 # S-019d: in drop mode the click at (100, 700) waits for the show's
 # "hive anchor" line, and show 2 presses and releases with no motion right
-# after `sbarhive drop`, during or just after the anchor phase (S-019 AC8: a
+# after `kawaro drop`, during or just after the anchor phase (S-019 AC8: a
 # click there does not close the hive).
 # The layer mode also checks S-019 AC5 (one "hive anchor" line before the
 # "hive surface" line of every show) and the window mode S-019 AC7 (no
@@ -116,13 +116,13 @@
 #                    output by a CaptureWorkspace shot (shot.py workspace)
 #                    against one taken before, so the check does not trust
 #                    the daemon's trace for the output:
-#                      open on Virtual-1: `sbarhive open` while a 1 px
+#                      open on Virtual-1: `kawaro open` while a 1 px
 #                        pointer jitter runs at global (1580, 200), that is
 #                        (300, 200) on Virtual-1;
 #                      open on Virtual-0: the same at global (300, 200), the
 #                        same output-local point on the other output;
 #                      drop --at on Virtual-1: a PNG drag (source.py)
-#                        held still at (1580, 200) and `sbarhive drop --at
+#                        held still at (1580, 200) and `kawaro drop --at
 #                        1580,200` (global logical coordinates, decision 1),
 #                        then a 1 px drag motion there so the drag enters
 #                        and the hive is drawn (S-021); its before shot is
@@ -148,7 +148,7 @@ for a in "$@"; do
   case "$a" in window|input|token|a11y|drop|scheme|1.5|anchor|outputs) MODE=$a ;; *) BIN="$a" ;; esac
 done
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${OVERLAY_OUT:-$HERE/out}"
 mkdir -p "$OUT"
@@ -156,13 +156,13 @@ export BIN HERE ROOT OUT MODE INPUT
 
 inner() {
   set -u
-  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE SBARHIVE_SURFACE SBARHIVE_COLOR_SCHEME
+  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE KAWARO_SURFACE KAWARO_COLOR_SCHEME
   # The 1.5 mode runs twice: PHASE=ref at scale 1, then PHASE=main at 1.5.
   local log="$OUT/kwin-$MODE${PHASE:+-$PHASE}"
   local FAILS=0
   check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
   : >"$log-cli.log"
-  mkdir -p "$XDG_CONFIG_HOME/sbarhive"
+  mkdir -p "$XDG_CONFIG_HOME/kawaro"
   if [ "$MODE" = input ]; then
     # AC9: keyboard exclusivity under focus follows mouse, level Low.
     printf '[Windows]\nFocusPolicy=FocusFollowsMouse\nFocusStealingPreventionLevel=1\n' >"$XDG_CONFIG_HOME/kwinrc"
@@ -177,19 +177,19 @@ inner() {
   # English and light to start with; shows 4 and 5 of layer/window change them.
   # The scheme mode follows the system (AC15) until it changes the theme.
   if [ "$MODE" = scheme ]; then
-    printf 'language = "en"\ntheme = "auto"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'language = "en"\ntheme = "auto"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
   elif [ "$MODE" = anchor ]; then
-    printf 'language = "en"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'language = "en"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
     # S-019 AC6 asks for 18 cells: a PNG gets 15 built-in image actions, and
     # three more ring 1 user actions make 18.
-    mkdir -p "$XDG_CONFIG_HOME/sbarhive/actions"
+    mkdir -p "$XDG_CONFIG_HOME/kawaro/actions"
     local xa
     for xa in xa xb xc; do
       printf '[[action]]\nid = "extra.%s"\nengine = "image"\nop = "convert"\nring = 1\norder = 900\naccepts = ["image"]\noutput = { mode = "per-file", ext = "webp" }\ncode = { ar = "%s", en = "%s" }\nlabel = { ar = "%s", en = "%s" }\nicon = "image"\n\n' \
         "$xa" "${xa^^}" "${xa^^}" "${xa^^}" "${xa^^}"
-    done >"$XDG_CONFIG_HOME/sbarhive/actions/extra.toml"
+    done >"$XDG_CONFIG_HOME/kawaro/actions/extra.toml"
   else
-    printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
   fi
   # Lets shot.py (python3) use org.kde.KWin.ScreenShot2 in this private KWin only.
   mkdir -p "$XDG_DATA_HOME/applications"
@@ -262,13 +262,13 @@ JSON
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo.png"
   local DLOG="$log-daemon.log"
   local env=()
-  [ "$MODE" = window ] && env=(SBARHIVE_SURFACE=window)
+  [ "$MODE" = window ] && env=(KAWARO_SURFACE=window)
   # S-019a AC2: the surface choice line needs no environment variable.
-  local dbg=(SBARHIVE_DEBUG_FOCUS=1)
+  local dbg=(KAWARO_DEBUG_FOCUS=1)
   [ "$MODE" = a11y ] && dbg=()
-  env -u SBARHIVE_DEBUG_FOCUS "${env[@]}" "${dbg[@]}" WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  env -u KAWARO_DEBUG_FOCUS "${env[@]}" "${dbg[@]}" WAYLAND_DEBUG=1 "$BIN/kawarod" >"$DLOG" 2>&1 &
   local d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
 
   shot() { timeout 10 python3 "$HERE/shot.py" "$1" >/dev/null 2>>"$log-shot.err"; }
 
@@ -366,24 +366,24 @@ PY
       fi
       esc; sleep 1
     }
-    show plain "$BIN/sbarhive" open "$W/photo.png"
-    show token "$BIN/sbarhive" open --token sbh-test-token "$W/photo.png"
-    if [ "$MODE" = layer ]; then show drop "$BIN/sbarhive" drop --at 640,400
-    else show drop "$BIN/sbarhive" drop; fi
+    show plain "$BIN/kawaro" open "$W/photo.png"
+    show token "$BIN/kawaro" open --token sbh-test-token "$W/photo.png"
+    if [ "$MODE" = layer ]; then show drop "$BIN/kawaro" drop --at 640,400
+    else show drop "$BIN/kawaro" drop; fi
     # Drop mode may have no keyboard (S-018d): it closes 10 s after showing
     # without a drag entering it (S-014a AC3).
     sleep 10
-    printf 'language = "ar"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
-    show language "$BIN/sbarhive" open "$W/photo.png"
-    printf 'language = "ar"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
-    show theme "$BIN/sbarhive" open "$W/photo.png"
+    printf 'language = "ar"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"; sleep 3
+    show language "$BIN/kawaro" open "$W/photo.png"
+    printf 'language = "ar"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"; sleep 3
+    show theme "$BIN/kawaro" open "$W/photo.png"
     local nshows=${#names[@]}
     if [ "$MODE" = window ]; then
       # AC9 window path guard: a click on the GTK window takes the focus from
       # the hive, and focus loss still closes it there (S-001 AC4, S-014 AC3).
       centre_ptr
       begin focusloss
-      "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+      "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1
       sleep 1.5
       click 100 700; sleep 1.5
     fi
@@ -401,7 +401,7 @@ PY
       local seg; seg=$(seg_of "$i")
       local gl gl3 anc anc_bad ez ez_bad kb kb_bad sub xs
       gl=$(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$seg")
-      gl3=$(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(.*, 3, "sbarhive"\)' "$seg")
+      gl3=$(count 'zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(.*, 3, "kawaro"\)' "$seg")
       anc=$(count 'zwlr_layer_surface_v1[#@][0-9]+\.set_anchor\(15\)' "$seg")
       anc_bad=$(count 'zwlr_layer_surface_v1[#@][0-9]+\.set_anchor\([^1]|zwlr_layer_surface_v1[#@][0-9]+\.set_anchor\(1[^5]' "$seg")
       ez=$(count 'zwlr_layer_surface_v1[#@][0-9]+\.set_exclusive_zone\(-1\)' "$seg")
@@ -410,7 +410,7 @@ PY
       kb_bad=$(count 'zwlr_layer_surface_v1[#@][0-9]+\.set_keyboard_interactivity\([^1]' "$seg")
       sub=$(count 'wl_subcompositor[#@][0-9]+\.get_subsurface\(' "$seg")
       xs=$(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$seg")
-      echo "INFO show $n ($name): get_layer_surface $gl (layer 3 \"sbarhive\" $gl3), set_anchor(15) $anc, set_exclusive_zone(-1) $ez, set_keyboard_interactivity(1) $kb, get_subsurface $sub, get_xdg_surface $xs"
+      echo "INFO show $n ($name): get_layer_surface $gl (layer 3 \"kawaro\" $gl3), set_anchor(15) $anc, set_exclusive_zone(-1) $ez, set_keyboard_interactivity(1) $kb, get_subsurface $sub, get_xdg_surface $xs"
 
       # AC11: one "hive surface: KIND X Y W H" line per show, and the focus
       # lines follow the keyboard events of the trace. A leave with a nil
@@ -427,7 +427,7 @@ PY
 
       if [ "$MODE" = layer ]; then
         check "AC5 show $n ($name): exactly one get_layer_surface" '[ "$gl" -eq 1 ]'
-        check "AC4 show $n ($name): the layer surface is on layer 3 (overlay) with namespace sbarhive" '[ "$gl3" -eq 1 ]'
+        check "AC4 show $n ($name): the layer surface is on layer 3 (overlay) with namespace kawaro" '[ "$gl3" -eq 1 ]'
         check "AC4 show $n ($name): anchors 15 (all edges)" '[ "$anc" -ge 1 ] && [ "$anc_bad" -eq 0 ]'
         check "AC4 show $n ($name): exclusive_zone -1" '[ "$ez" -ge 1 ] && [ "$ez_bad" -eq 0 ]'
         # Drop mode gives the catcher no keyboard (AC13, S-018d), so only the
@@ -461,7 +461,7 @@ PY
           '[ "$(grep -c . <<<"$al")" -eq 1 ] && grep -qE "^hive anchor: (none|-?[0-9.]+ -?[0-9.]+)$" <<<"$al" && [ -n "$sln" ] && [ "$aln" -lt "$sln" ]'
       else
         check "S-019 AC7 show $n ($name): the window path prints no \"hive anchor\" line" '! grep -qE "^hive anchor" <<<"$seg"'
-        check "AC6 show $n ($name): no get_layer_surface with SBARHIVE_SURFACE=window" '[ "$gl" -eq 0 ]'
+        check "AC6 show $n ($name): no get_layer_surface with KAWARO_SURFACE=window" '[ "$gl" -eq 0 ]'
         # The first show can reuse the toplevel winit made when the daemon
         # started (tests/drop/lib.sh), so search up to the end of this show.
         local upto; upto=$(head -n "${marks[i + 1]}" "$DLOG")
@@ -591,7 +591,7 @@ PY
     ;;
 
   input)
-    local r1; r1=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | awk -F'\t' '$2 == 1 { print $1 }')
+    local r1; r1=$("$BIN/kawaro" actions "$W/photo.png" 2>/dev/null | awk -F'\t' '$2 == 1 { print $1 }')
     local first_ext second_ext
     first_ext=$(sed -n 1p <<<"$r1"); first_ext=${first_ext##*.to-}
     second_ext=$(sed -n 2p <<<"$r1"); second_ext=${second_ext##*.to-}
@@ -601,7 +601,7 @@ PY
     # 1. AC8: a click on the ring-1 cell right of the centre chooses it.
     centre_ptr
     begin cell
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     click $((640 + RIGHT_DX)) 400
     wait_file "$W/photo.$second_ext" 10; local cell_ok=$?
     sleep 0.5
@@ -610,7 +610,7 @@ PY
     # 2. AC8: a click at (100, 700) lands on the catcher, not the GTK window.
     centre_ptr
     begin outside
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     outside_before=$(nfiles)
     click 100 700; sleep 1.5
     local outside_files; outside_files=$(nfiles)
@@ -618,7 +618,7 @@ PY
     # 3. AC9: pointer over the GTK window, Right then Enter.
     centre_ptr
     begin keys
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     echo "move 100 700" >&3; sleep 0.5
     key 106; sleep 0.3; key 28
     wait_file "$W/photo.$first_ext" 10; local keys_ok=$?
@@ -627,7 +627,7 @@ PY
     # 4. AC9: the pointer roams over 5 points (no click), then Esc.
     centre_ptr
     begin roam
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     roam_before=$(nfiles)
     local p
     for p in "100 700" "1200 80" "640 400" "$((640 + RIGHT_DX)) 400" "60 60"; do
@@ -639,9 +639,9 @@ PY
     # 5. AC9: opening the settings while the hive is shown does not close it.
     centre_ptr
     begin settings
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5
     local s1; s1=$(lines "$DLOG")
-    "$BIN/sbarhive" settings >>"$log-cli.log" 2>&1; sleep 3
+    "$BIN/kawaro" settings >>"$log-cli.log" 2>&1; sleep 3
     local s2; s2=$(lines "$DLOG")
     esc; sleep 1
     click 100 700; sleep 1
@@ -699,7 +699,7 @@ PY
     local during; during=$(between "$s1" "$s2")
     echo "INFO settings: get_xdg_surface after the command $(count 'xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$during"), layer destroys in the 3 s after it $(layer_destroys "$during")"
     check "AC9 settings: the hive is a layer surface" '[ "$(count "zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(" "$seg")" -eq 1 ]'
-    check "AC9 settings: \`sbarhive settings\` while shown does not close the hive (no destroy in 3 s)" \
+    check "AC9 settings: \`kawaro settings\` while shown does not close the hive (no destroy in 3 s)" \
       '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$during")" -ge 1 ] && [ "$(layer_destroys "$during")" -eq 0 ]'
     check "AC8/AC9: no protocol error in the daemon log" 'no_protocol_error'
     ;;
@@ -709,12 +709,12 @@ PY
     for n in 1 2 3; do
       centre_ptr
       begin "token$n"
-      "$BIN/sbarhive" open --token "sbh-token-$n" "$W/photo.png" >>"$log-cli.log" 2>&1
+      "$BIN/kawaro" open --token "sbh-token-$n" "$W/photo.png" >>"$log-cli.log" 2>&1
       sleep 1.5; esc; sleep 1
     done
     centre_ptr
     begin plain
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1
     sleep 1.5; esc; sleep 1
     finish
     local i
@@ -743,7 +743,7 @@ PY
     ;;
 
   a11y)
-    open_esc() { centre_ptr; "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5; esc; sleep 1.5; }
+    open_esc() { centre_ptr; "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1; sleep 1.5; esc; sleep 1.5; }
     # Each segment starts before its bus change, so a choice line printed
     # when the change arrives (not at the next show) falls inside it.
     begin reader-on
@@ -759,7 +759,7 @@ PY
     begin reader-off
     echo off >&4; sleep 1.5
     centre_ptr
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1
     sleep 1.5; esc; sleep 1
     finish
     local on flag again off upto
@@ -803,13 +803,13 @@ PY
     # shellcheck source=../drop/layer.sh
     source "$ROOT/tests/drop/layer.sh"
     # S-021: the drop shows. drop1 and drop3 are a PNG drag held still at
-    # (210, 180) on tests/drop/source.py, `sbarhive drop`, then (after the
+    # (210, 180) on tests/drop/source.py, `kawaro drop`, then (after the
     # catcher's 300 ms full region phase) the drag moves into the centred
     # hive and is released over its centre cell (refused). drop2 is no drag:
-    # the pointer still in the middle, `sbarhive drop`, and a press and
+    # the pointer still in the middle, `kawaro drop`, and a press and
     # release with no motion as soon as the catcher exists. drop4, with the
     # source gone so other.py is under the hive: the pointer at (100, 700),
-    # `sbarhive drop --at 640,400` (the catcher's region is the centred hive
+    # `kawaro drop --at 640,400` (the catcher's region is the centred hive
     # rectangle from its first commit), and a click at (100, 700).
     local SNEXT="$XDG_RUNTIME_DIR/next" SRC_LOG="$log-source.log" srcp
     cp "$ROOT/tests/fixtures/images/alpha.png" "$W/held.png"
@@ -831,7 +831,7 @@ PY
       if [ "$n" = 2 ]; then
         centre_ptr
         begin "drop$n"
-        "$BIN/sbarhive" drop >>"$log-cli.log" 2>&1
+        "$BIN/kawaro" drop >>"$log-cli.log" 2>&1
         # S-019 AC8 setup kept: a press and release with no motion as soon
         # as the catcher exists (20 ms for KWin to configure and map it).
         local k2; for k2 in $(seq 200); do
@@ -842,7 +842,7 @@ PY
       else
         held_drag
         begin "drop$n"
-        "$BIN/sbarhive" drop >>"$log-cli.log" 2>&1
+        "$BIN/kawaro" drop >>"$log-cli.log" 2>&1
         wait_anchor
         sleep 0.5
         echo "move 400 300" >&3; echo "sleep 100" >&3; echo "move 600 380" >&3; echo "sleep 100" >&3; echo "move 640 400" >&3
@@ -854,7 +854,7 @@ PY
     kill "$srcp" 2>/dev/null; sleep 1
     echo "move 100 700" >&3; sleep 0.5
     begin drop4
-    "$BIN/sbarhive" drop --at 640,400 >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --at 640,400 >>"$log-cli.log" 2>&1
     wait_anchor
     sleep 1.5
     # AC13: in drop mode a click outside the hive passes to the window below.
@@ -939,7 +939,7 @@ PY
     # at (200, 200) and not drawn in ScreenShot2 shots.
     shot "$log-before.png"
     local nact
-    nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    nact=$("$BIN/kawaro" actions "$W/photo.png" 2>/dev/null | grep -c .)
     echo "INFO anchor: photo.png has $nact actions (15 built-in and 3 user ones expected)"
     check "S-019 AC6 setup: photo.png has 18 actions, so the hive shows 18 cells" '[ "$nact" -eq 18 ]'
     local px=() py=()
@@ -953,7 +953,7 @@ PY
         # The motion starts before the command and lasts 600 ms (AC6).
         jitter "$2" "$3" 600
       fi
-      "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+      "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1
       sleep 1.5
       shot "$log-$1.png"
       esc; sleep 1
@@ -1060,7 +1060,7 @@ PY
     check "S-019 outputs setup: kscreen-doctor lists Virtual-0 at 0,0 and Virtual-1 at 1280,0, both 1280x800" \
       'grep -qE "Virtual-0 [^ ]+ Geometry: 0,0 1280x800" <<<"$outputs" && grep -qE "Virtual-1 [^ ]+ Geometry: 1280,0 1280x800" <<<"$outputs"'
     local nact
-    nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    nact=$("$BIN/kawaro" actions "$W/photo.png" 2>/dev/null | grep -c .)
     shot_ws() { timeout 10 python3 "$HERE/shot.py" "$1" workspace >/dev/null 2>>"$log-shot.err"; }
     echo "move 200 200" >&3; sleep 0.5
     shot_ws "$log-before.png"
@@ -1070,7 +1070,7 @@ PY
       if [ "$2" = at ]; then
         # S-021: a drop show with no drag is hidden, never drawn, when the
         # pointer is inside the hive. So the show is a PNG drag (source.py
-        # on Virtual-0) held still at the point, `sbarhive drop --at`, then
+        # on Virtual-0) held still at the point, `kawaro drop --at`, then
         # a 1 px drag motion there: the drag enters and the hive is drawn.
         # The before shot for its box is taken with the drag held, so the
         # source window is in both shots.
@@ -1086,13 +1086,13 @@ PY
         echo "move $3 $4" >&3; sleep 2.5
         shot_ws "$log-$1-before.png"
         begin "$1"
-        "$BIN/sbarhive" drop --at "$3,$4" >>"$log-cli.log" 2>&1
+        "$BIN/kawaro" drop --at "$3,$4" >>"$log-cli.log" 2>&1
         sleep 0.5
         jitter "$3" "$4" 200
       else
         begin "$1"
         jitter "$3" "$4" 600
-        "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+        "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1
       fi
       sleep 1.5
       shot_ws "$log-$1.png"
@@ -1158,17 +1158,17 @@ print(400 - round(0.72 * r))
 PY
 )
     restart_daemon() { # restart_daemon [VAR=VALUE...]: a new daemon, same log
-      "$BIN/sbarhive" quit >/dev/null 2>&1
+      "$BIN/kawaro" quit >/dev/null 2>&1
       timeout 5 tail --pid="$d" -f /dev/null || kill "$d" 2>/dev/null
-      env "$@" SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+      env "$@" KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >>"$DLOG" 2>&1 &
       d=$!
-      for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+      for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
     }
     local want=()
     sshow() { # sshow NAME EXPECTED: one show, a screenshot, closed with Esc
       centre_ptr
       begin "$1"; want+=("$2")
-      "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+      "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1
       sleep 1.5
       shot "$log-$1.png"
       esc; sleep 1
@@ -1178,16 +1178,16 @@ PY
     sshow changed-to-2 light
     echo 1 >&5; sleep 1.5
     sshow changed-to-1 dark
-    printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"; sleep 3
     sshow config-light-portal-1 light
     echo 2 >&5
-    printf 'language = "en"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
+    printf 'language = "en"\ntheme = "dark"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"; sleep 3
     sshow config-dark-portal-2 dark
-    printf 'language = "en"\ntheme = "auto"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; sleep 3
-    restart_daemon SBARHIVE_COLOR_SCHEME=dark
+    printf 'language = "en"\ntheme = "auto"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"; sleep 3
+    restart_daemon KAWARO_COLOR_SCHEME=dark
     sshow env-dark-portal-2 dark
     echo 1 >&5; sleep 0.5
-    restart_daemon SBARHIVE_COLOR_SCHEME=light
+    restart_daemon KAWARO_COLOR_SCHEME=light
     sshow env-light-portal-1 light
     finish
     echo "INFO portal: $(grep -cE '^call ' "$log-portal.log") call(s), $(grep -E '^SettingChanged' "$log-portal.log" | tr '\n' ' ')"
@@ -1213,7 +1213,7 @@ PY
     centre_ptr
     shot "$log-before.png"
     begin "scale-${PHASE}"
-    "$BIN/sbarhive" open "$W/photo.png" >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" open "$W/photo.png" >>"$log-cli.log" 2>&1
     sleep 1.5
     shot "$log-shown.png"
     esc; sleep 1
@@ -1277,7 +1277,7 @@ PY
   exec 3>&-
   [ -n "$a11y" ] && { echo quit >&4; exec 4>&-; }
   [ -n "$portal" ] && { echo quit >&5; exec 5>&-; }
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   sleep 0.5
   kill $other $d $a11y $portal 2>/dev/null
   kill $kwin 2>/dev/null

@@ -9,8 +9,8 @@
 //! OUT.png is still written. Needs a Wayland compositor: run it through
 //! crates/ui/tests/settings_snapshots.sh, which starts a private headless one.
 
-use sbarhive_core::config::{Config, OutputPlace};
-use sbarhive_ui::Lang;
+use kawaro_core::config::{Config, OutputPlace};
+use kawaro_ui::Lang;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -80,8 +80,8 @@ fn diff_pixels(a: &[u8], b: &[u8]) -> usize {
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let o = parse(&args)?;
-    sbarhive_ui::init()?;
-    let win = std::rc::Rc::new(sbarhive_ui::SettingsWindow::new(o.lang)?);
+    kawaro_ui::init()?;
+    let win = std::rc::Rc::new(kawaro_ui::SettingsWindow::new(o.lang)?);
     let config = Config {
         output: OutputPlace::Subfolder,
         ..Config::default()
@@ -100,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     result.replace(Ok(())).map_err(Into::into)
 }
 
-fn snapshot(win: &sbarhive_ui::SettingsWindow, o: &Opts) -> Result<(), String> {
+fn snapshot(win: &kawaro_ui::SettingsWindow, o: &Opts) -> Result<(), String> {
     let buf = win.take_snapshot().map_err(|e| e.to_string())?;
     let (w, h) = (buf.width(), buf.height());
     write_png(&o.out, w, h, buf.as_bytes()).map_err(|e| e.to_string())?;

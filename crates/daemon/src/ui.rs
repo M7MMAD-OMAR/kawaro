@@ -5,14 +5,14 @@
 use crate::portal::{self, TokenStep};
 use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
-use sbarhive_core::ActionDef;
-use sbarhive_core::config::{Config, Theme};
-use sbarhive_core::hold::{Effect, Gate, Signal};
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::queue::Queue;
+use kawaro_core::ActionDef;
+use kawaro_core::config::{Config, Theme};
+use kawaro_core::hold::{Effect, Gate, Signal};
+use kawaro_core::i18n::Lang;
+use kawaro_core::queue::Queue;
 #[cfg(unix)]
-use sbarhive_ui::thumb;
-use sbarhive_ui::{Hive, HiveCell, SettingsWindow};
+use kawaro_ui::thumb;
+use kawaro_ui::{Hive, HiveCell, SettingsWindow};
 use std::cell::RefCell;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
@@ -24,7 +24,7 @@ thread_local! {
     /// What the settings window needs when it is first opened. Creating it
     /// lazily avoids an empty unmapped toplevel for a window rarely opened.
     static SETTINGS_ARGS: RefCell<Option<(Lang, Shared, Arc<Queue>)>> = const { RefCell::new(None) };
-    /// The long press gate of `sbarhive drop --hold` (S-019e AC17), on the
+    /// The long press gate of `kawaro drop --hold` (S-019e AC17), on the
     /// event loop thread like the hive it shows.
     static GATE: RefCell<Option<Gate>> = const { RefCell::new(None) };
     /// The activation token of the press that started the gate's timer.
@@ -37,17 +37,17 @@ thread_local! {
 const GATE_TICK: Duration = Duration::from_millis(5);
 
 /// The colour scheme override the UI crate reads when a window is created.
-/// `theme = "auto"` keeps the `SBARHIVE_COLOR_SCHEME` the daemon started
+/// `theme = "auto"` keeps the `KAWARO_COLOR_SCHEME` the daemon started
 /// with, so it still decides ahead of the portal (S-018 AC15).
 fn apply_theme(theme: Theme) {
     static INHERITED: OnceLock<Option<String>> = OnceLock::new();
-    let inherited = INHERITED.get_or_init(|| std::env::var("SBARHIVE_COLOR_SCHEME").ok());
+    let inherited = INHERITED.get_or_init(|| std::env::var("KAWARO_COLOR_SCHEME").ok());
     // Only the main thread reads or writes this variable, before creating windows.
     match (theme, inherited) {
-        (Theme::Auto, Some(v)) => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", v) },
-        (Theme::Auto, None) => unsafe { std::env::remove_var("SBARHIVE_COLOR_SCHEME") },
-        (Theme::Light, _) => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "light") },
-        (Theme::Dark, _) => unsafe { std::env::set_var("SBARHIVE_COLOR_SCHEME", "dark") },
+        (Theme::Auto, Some(v)) => unsafe { std::env::set_var("KAWARO_COLOR_SCHEME", v) },
+        (Theme::Auto, None) => unsafe { std::env::remove_var("KAWARO_COLOR_SCHEME") },
+        (Theme::Light, _) => unsafe { std::env::set_var("KAWARO_COLOR_SCHEME", "light") },
+        (Theme::Dark, _) => unsafe { std::env::set_var("KAWARO_COLOR_SCHEME", "dark") },
     }
 }
 
@@ -75,7 +75,7 @@ pub fn build(
                 Some(action) if !files.is_empty() => {
                     jobs::submit(&mut st, &queue, action, files);
                 }
-                _ => eprintln!("sbarhived: nothing to run for `{id}`"),
+                _ => eprintln!("kawarod: nothing to run for `{id}`"),
             }
             drop(st);
             gate_hive_closed();
@@ -96,8 +96,8 @@ pub fn build(
             let mut st = lock(&state);
             let lang = st.lang;
             let actions = st.matching(&files);
-            if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
-                sbarhive_ui::stderr_line(&drop_cells_line(&actions));
+            if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
+                kawaro_ui::stderr_line(&drop_cells_line(&actions));
             }
             if actions.is_empty() {
                 st.pending = None;
@@ -135,11 +135,11 @@ fn settings_window() -> Result<(), slint::PlatformError> {
 /// (settings callback).
 fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) {
     let Some(path) = Config::path() else {
-        eprintln!("sbarhived: no HOME, settings not saved");
+        eprintln!("kawarod: no HOME, settings not saved");
         return;
     };
     if let Err(e) = config.save_to(&path) {
-        eprintln!("sbarhived: cannot save {}: {e}", path.display());
+        eprintln!("kawarod: cannot save {}: {e}", path.display());
         return;
     }
     reload(state, queue);
@@ -176,7 +176,7 @@ pub fn reload(state: &Shared, queue: &Arc<Queue>) {
         let (state, queue) = (state.clone(), queue.clone());
         slint::Timer::single_shot(std::time::Duration::ZERO, move || {
             if let Err(e) = build(lang, theme, &state, &queue) {
-                eprintln!("sbarhived: cannot rebuild windows: {e}");
+                eprintln!("kawarod: cannot rebuild windows: {e}");
             }
         });
     }
@@ -237,7 +237,7 @@ pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token:
                     .map(|hive| hive.present(&centre, cells, token))
             };
             if let Some(Err(e)) = shown {
-                eprintln!("sbarhived: cannot show the hive: {e}");
+                eprintln!("kawarod: cannot show the hive: {e}");
             }
             // The hive takes keyboard focus at once (S-046 AC4).
             #[cfg(windows)]
@@ -248,7 +248,7 @@ pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token:
     });
 }
 
-/// Shows the hive that waits for a dragged file (`sbarhive drop`), at the
+/// Shows the hive that waits for a dragged file (`kawaro drop`), at the
 /// pointer position `at` when the caller knows it.
 pub fn present_drop(centre: &'static str, token: Option<String>, at: Option<(f64, f64)>) {
     let _ = slint::invoke_from_event_loop(move || {
@@ -256,7 +256,7 @@ pub fn present_drop(centre: &'static str, token: Option<String>, at: Option<(f64
             if let Some(hive) = h.borrow().as_ref()
                 && let Err(e) = hive.present_drop_at(centre, token, at)
             {
-                eprintln!("sbarhived: cannot show the drop hive: {e}");
+                eprintln!("kawarod: cannot show the drop hive: {e}");
             }
         })
     });
@@ -338,7 +338,7 @@ fn gate_tick(state: &Shared) {
             if let Some(hive) = h.borrow().as_ref()
                 && let Err(e) = hive.present_drop_hold(text::drop_waiting(lang), token, at)
             {
-                eprintln!("sbarhived: cannot show the drop hive: {e}");
+                eprintln!("kawarod: cannot show the drop hive: {e}");
             }
         });
     }
@@ -358,14 +358,14 @@ fn gate_hive_closed() {
 pub fn open_settings(config: Config) {
     let _ = slint::invoke_from_event_loop(move || {
         if let Err(e) = settings_window() {
-            eprintln!("sbarhived: cannot create settings: {e}");
+            eprintln!("kawarod: cannot create settings: {e}");
             return;
         }
         SETTINGS.with(|s| {
             if let Some(w) = s.borrow().as_ref()
                 && let Err(e) = w.open(&config)
             {
-                eprintln!("sbarhived: cannot open settings: {e}");
+                eprintln!("kawarod: cannot open settings: {e}");
             }
         })
     });
@@ -385,7 +385,7 @@ mod tests {
     /// after the colon when no action matches.
     #[test]
     fn drop_cells_line_lists_the_ids_in_order() {
-        let reg = sbarhive_core::Registry::builtin();
+        let reg = kawaro_core::Registry::builtin();
         let a = reg.get("image.rotate-90").unwrap().clone();
         let mut b = a.clone();
         b.id = "x.second".into();
@@ -398,7 +398,7 @@ mod tests {
 
     #[test]
     fn cell_carries_the_action_fields_in_the_chosen_language() {
-        let reg = sbarhive_core::Registry::builtin();
+        let reg = kawaro_core::Registry::builtin();
         let a = reg.get("image.rotate-90").unwrap();
         assert_eq!(
             cell(a, Lang::Ar),
@@ -440,7 +440,7 @@ mod tests {
     /// no other test in this binary touches the variable meanwhile.
     #[test]
     fn ac15_theme_sets_the_colour_scheme_and_auto_restores_the_inherited_value() {
-        const VAR: &str = "SBARHIVE_COLOR_SCHEME";
+        const VAR: &str = "KAWARO_COLOR_SCHEME";
         let original = std::env::var_os(VAR);
         // SAFETY: only this test reads or writes this variable in this
         // binary, and it does so from one thread.

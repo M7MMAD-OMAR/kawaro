@@ -1,8 +1,8 @@
-//! Socket client for the daemon protocol in `sbarhive_core::ipc`.
+//! Socket client for the daemon protocol in `kawaro_core::ipc`.
 
 use crate::spawn;
-use sbarhive_core::ipc::{Request, Response};
-use sbarhive_core::transport::{self, Stream};
+use kawaro_core::ipc::{Request, Response};
+use kawaro_core::transport::{self, Stream};
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -97,7 +97,7 @@ pub fn ensure_daemon() -> Result<(), String> {
     };
     #[cfg(windows)]
     let started = spawn::start_detached(&mut cmd);
-    started.map_err(|e| format!("cannot start sbarhived: {e}"))?;
+    started.map_err(|e| format!("cannot start kawarod: {e}"))?;
     let t0 = Instant::now();
     while t0.elapsed() < START_TIMEOUT {
         if daemon_up() {
@@ -105,14 +105,14 @@ pub fn ensure_daemon() -> Result<(), String> {
         }
         std::thread::sleep(Duration::from_millis(25));
     }
-    Err("sbarhived did not start within 2 seconds".into())
+    Err("kawarod did not start within 2 seconds".into())
 }
 
 #[cfg(unix)]
 pub fn exec_daemon() -> Result<(), String> {
     use std::os::unix::process::CommandExt;
     let err = Command::new(daemon_binary()).exec();
-    Err(format!("cannot run sbarhived: {err}"))
+    Err(format!("cannot run kawarod: {err}"))
 }
 
 /// Windows has no `exec`: the service runs in the foreground and its exit

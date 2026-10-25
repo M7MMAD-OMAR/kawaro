@@ -14,7 +14,7 @@
 # fake running nothing owns org.freedesktop.portal.Desktop. Never touches
 # the live desktop, its bus or the real portal.
 #
-# The daemon runs with SBARHIVE_DEBUG_FOCUS=1 and WAYLAND_DEBUG=1, and the
+# The daemon runs with KAWARO_DEBUG_FOCUS=1 and WAYLAND_DEBUG=1, and the
 # contract is its stderr (tester entry of 2026-10-22 in the story):
 #   portal shortcuts: bound drop (T)        T the trigger_description of the
 #                                           BindShortcuts reply ("Fake
@@ -32,7 +32,7 @@
 #
 # Phases, in this order (all by default):
 #   ac13    fake "ok": the daemon's portal connection makes Registry.Register
-#           (io.github.m7mmad_omar.SbarHive) its first portal method call
+#           (io.github.m7mmad_omar.Kawaro) its first portal method call
 #           (property reads are not method calls), then CreateSession, then
 #           one BindShortcuts on that session with one shortcut: id drop,
 #           preferred_trigger LOGO+z, an English description; one line,
@@ -54,7 +54,7 @@
 #           exactly one such line. (b) a PNG drag held, its drag moving
 #           around (400, 500), Activated, the hive, the drop on the WEBP
 #           cell before Deactivated: "hive reveal: N" with N the lines of
-#           `sbarhive actions` for the file (tests/drop/layer.sh
+#           `kawaro actions` for the file (tests/drop/layer.sh
 #           probe_checks), the WEBP written within 5 s, and every "hive
 #           anchor:" line "none" or within 2 px of the first drag enter on
 #           the catcher in the trace.
@@ -73,7 +73,7 @@
 #           even Register) and prints "portal shortcuts: unavailable (off)";
 #           with portal_shortcut = true written back, the next daemon
 #           registers again.
-#   hold    fake "hold" keeps the BindShortcuts Response: five `sbarhive
+#   hold    fake "hold" keeps the BindShortcuts Response: five `kawaro
 #           open` shows while it is held, the median from a UTC stamp before
 #           the command to the hive's first attach(wl_buffer) in the trace
 #           under 150 ms (the real daemon's path; crates/ui/tests/measure.sh
@@ -118,7 +118,7 @@
 # Usage: tests/drop/portal.sh [ac13] [ac17] [ac15] [ac19] [hold] [live] [ro] [target/release]
 #   (ac17 runs ac18 too; ac17 needs the ac13 daemon and starts one itself)
 set -u
-export SBARHIVE_NO_NOTIFY=1
+export KAWARO_NO_NOTIFY=1
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 BIN="$ROOT/target/release"
@@ -129,7 +129,7 @@ done
 [ -n "$PHASES" ] || PHASES="ac13 ac17 ac15 ac19 hold live ro "
 TAG="kwin-portal"
 INPUT="$HERE/kwin-input/target/release/kwin-input"
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
@@ -155,7 +155,7 @@ inner() {
     'grep -q "org.freedesktop.DBus" <<<"$act" && ! grep -qiE "portal|notif" <<<"$act"'
   if grep -qi portal <<<"$act"; then summary; return 1; fi
 
-  mkdir -p "$XDG_CONFIG_HOME/sbarhive"
+  mkdir -p "$XDG_CONFIG_HOME/kawaro"
   printf '[Windows]\nFocusStealingPreventionLevel=1\n\n[Plugins]\nscaleEnabled=false\n' >"$XDG_CONFIG_HOME/kwinrc"
   KWIN_WAYLAND_NO_PERMISSION_CHECKS=1 QT_FORCE_STDERR_LOGGING=1 \
     kwin_wayland --virtual --no-lockscreen --socket "$WAYLAND_DISPLAY" --width 1280 --height 800 >"$OUT_LOG-kwin.log" 2>&1 &
@@ -203,7 +203,7 @@ inner() {
   # The time helpers of tests/drop/kwin.sh (S-019e).
   cli_ms() {
     local t0; t0=$(now_ms)
-    "$BIN/sbarhive" "$@" >>"$OUT_LOG-cli.log" 2>&1
+    "$BIN/kawaro" "$@" >>"$OUT_LOG-cli.log" 2>&1
     CLI_RC=$?
     CLI_MS=$(($(now_ms) - t0))
   }
@@ -235,14 +235,14 @@ inner() {
   DPID="" FAKE_PID="" PLOG="$OUT_LOG-none-portal.log"; : >"$PLOG"
   start_daemon() { # start_daemon NAME [LANG]
     DLOG="$OUT_LOG-$1-daemon.log"
-    SBARHIVE_LANG=${2:-en} SBARHIVE_COLOR_SCHEME=light SBARHIVE_REDUCED_MOTION=1 \
-      SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+    KAWARO_LANG=${2:-en} KAWARO_COLOR_SCHEME=light KAWARO_REDUCED_MOTION=1 \
+      KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$DLOG" 2>&1 &
     DPID=$!
-    for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+    for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
   }
   stop_daemon() {
     [ -n "$DPID" ] || return 0
-    "$BIN/sbarhive" quit >/dev/null 2>&1
+    "$BIN/kawaro" quit >/dev/null 2>&1
     timeout 5 tail --pid="$DPID" -f /dev/null || kill "$DPID" 2>/dev/null
     DPID=""
   }
@@ -269,7 +269,7 @@ inner() {
     for _ in $(seq 50); do owned || break; sleep 0.1; done
   }
   stop_all() { stop_daemon; stop_fake; sleep 0.5; }
-  reset_config() { printf '%s\n' "$@" >"$XDG_CONFIG_HOME/sbarhive/config.toml"; }
+  reset_config() { printf '%s\n' "$@" >"$XDG_CONFIG_HOME/kawaro/config.toml"; }
   wait_line() { # wait_line ERE SECONDS: on the daemon's stderr
     local end; end=$(deadline "$2")
     while [ "$(now_ms)" -lt "$end" ]; do
@@ -286,7 +286,7 @@ try:
     c = tomllib.load(open(sys.argv[1], "rb"))
 except (OSError, ValueError) as e:
     print("unreadable unreadable"); sys.exit()
-print(c.get("portal_shortcut", "absent"), c.get("hold_ms", "absent"))' "$XDG_CONFIG_HOME/sbarhive/config.toml"
+print(c.get("portal_shortcut", "absent"), c.get("hold_ms", "absent"))' "$XDG_CONFIG_HOME/kawaro/config.toml"
   }
 
   # --- AC13 -------------------------------------------------------------
@@ -309,8 +309,8 @@ print(c.get("portal_shortcut", "absent"), c.get("hold_ms", "absent"))' "$XDG_CON
     IFS='|' read -r snd first appid nextgs nbind maxper bsess nsc scid trig desc <<<"$o"
     lines=$(plines)
     echo "INFO AC13 ok: portal connection $snd: first portal method $first ($appid), next GlobalShortcuts $nextgs, BindShortcuts x$nbind (most on one session $maxper, session $bsess), shortcuts $nsc: id $scid, preferred_trigger $trig, description \"$desc\"; daemon lines: $(tr '\n' '|' <<<"$lines")"
-    check "AC13 ok: the first portal method call of the daemon's portal connection is org.freedesktop.host.portal.Registry.Register with io.github.m7mmad_omar.SbarHive" \
-      '[ "$first" = org.freedesktop.host.portal.Registry.Register ] && [ "$appid" = io.github.m7mmad_omar.SbarHive ]'
+    check "AC13 ok: the first portal method call of the daemon's portal connection is org.freedesktop.host.portal.Registry.Register with io.github.m7mmad_omar.Kawaro" \
+      '[ "$first" = org.freedesktop.host.portal.Registry.Register ] && [ "$appid" = io.github.m7mmad_omar.Kawaro ]'
     check "AC13 ok: its next GlobalShortcuts method call is CreateSession" '[ "$nextgs" = CreateSession ]'
     check "AC13 ok: exactly one BindShortcuts, on the session CreateSession gave (at most one per session)" \
       '[ "$nbind" = 1 ] && [ "$maxper" = 1 ] && [ "$bsess" = ok ]'
@@ -354,7 +354,7 @@ portal shortcuts: bound drop (Fake Super+Z)" ]'
     NDEACT=$(grep -cE '^portal: deactivated drop$' <<<"$SEG")
     NPORTAL=$(grep -cE '^portal: ' <<<"$SEG")
   }
-  settle() { wait_gone 12 || true; "$BIN/sbarhive" drop --release >/dev/null 2>&1; sleep 1; }
+  settle() { wait_gone 12 || true; "$BIN/kawaro" drop --release >/dev/null 2>&1; sleep 1; }
   phase_ac17() {
     echo "== AC17, AC18 (a): portal signals on the \"ok\" daemon, hold_ms 400"
     ok_daemon
@@ -433,7 +433,7 @@ portal shortcuts: bound drop (Fake Super+Z)" ]'
     local file="$W/portal drag.png" geo="" wrote=no mime nact
     cp "$ROOT/tests/fixtures/images/alpha.png" "$file"
     printf '%s\n' "$file" >"$NEXT"
-    nact=$("$BIN/sbarhive" actions "$file" 2>/dev/null | grep -c .)
+    nact=$("$BIN/kawaro" actions "$file" 2>/dev/null | grep -c .)
     drag_past_threshold
     MARK=$(wc -l <"$DLOG")
     jitter 400 500 1000
@@ -451,7 +451,7 @@ portal shortcuts: bound drop (Fake Super+Z)" ]'
     mime=$(file --mime-type -b "$W/portal drag.webp" 2>/dev/null)
     probe_checks "AC18 (b)" "$SEG" reveal
     IFS='|' read -r _ _ _ n _ <<<"$PROBE"
-    check "AC18 (b): \"hive reveal: N\" with N the $nact lines of \`sbarhive actions\` for the PNG" '[ "$n" != none ] && [ "$nact" -ge 1 ] && [ "$n" -eq "$nact" ]'
+    check "AC18 (b): \"hive reveal: N\" with N the $nact lines of \`kawaro actions\` for the PNG" '[ "$n" != none ] && [ "$nact" -ge 1 ] && [ "$n" -eq "$nact" ]'
     check "AC18 (b): the drop on the WEBP cell before Deactivated writes portal drag.webp within 5 s (image/webp)" '[ "$wrote" = yes ] && [ "$mime" = image/webp ]'
     local cat ent ex="" ey="" anchors bad=0 a
     cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$SEG" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
@@ -582,7 +582,7 @@ portal shortcuts: bound drop (Fake Super+Z)" ]'
     [ -n "$a" ] && ms_after "$2" "$a" || echo none
   }
   phase_hold() {
-    echo "== AC19 hold: the fake holds the BindShortcuts Response, five \`sbarhive open\`"
+    echo "== AC19 hold: the fake holds the BindShortcuts Response, five \`kawaro open\`"
     stop_all; OK_UP=no
     reset_config 'hold_ms = 400'
     start_fake hold hold
@@ -592,7 +592,7 @@ portal shortcuts: bound drop (Fake Super+Z)" ]'
     local i m t0 seg ms shown=0 dts=()
     for i in 1 2 3 4 5; do
       m=$(wc -l <"$DLOG"); t0=$(date -u +%T.%6N)
-      "$BIN/sbarhive" open "$W/open me.png" >>"$OUT_LOG-cli.log" 2>&1
+      "$BIN/kawaro" open "$W/open me.png" >>"$OUT_LOG-cli.log" 2>&1
       wait_geo 3 >/dev/null && shown=$((shown + 1))
       sleep 0.3
       seg=$(tail -n +$((m + 1)) "$DLOG")
@@ -608,7 +608,7 @@ portal shortcuts: bound drop (Fake Super+Z)" ]'
 v = [l.strip() for l in sys.stdin if l.strip()]
 print("none" if any(x == "none" for x in v) or len(v) != 5 else "%.1f" % statistics.median(float(x) for x in v))')
     echo "INFO AC19 hold: BindShortcuts held ${held_at} before the shows, still held after them $still, portal shortcuts lines before the Response $before; shows $shown of 5, ms from the command to the first frame: ${dts[*]} (median $median)"
-    check "AC19 hold: while the fake holds the BindShortcuts Response (held before the shows and after them, no \"portal shortcuts:\" line yet), \`sbarhive open\` shows the hive 5 of 5 times" \
+    check "AC19 hold: while the fake holds the BindShortcuts Response (held before the shows and after them, no \"portal shortcuts:\" line yet), \`kawaro open\` shows the hive 5 of 5 times" \
       '[ "$held_at" = yes ] && [ "$still" = yes ] && [ "$before" -eq 0 ] && [ "$shown" -eq 5 ]'
     check "AC19 hold: the median of the 5 shows from the request to the first frame is under 150 ms" \
       '[ "$held_at" = yes ] && [ "$median" != none ] && awk -v m="$median" "BEGIN { exit !(m + 0 < 150) }"'
@@ -625,7 +625,7 @@ print("none" if any(x == "none" for x in v) or len(v) != 5 else "%.1f" % statist
   # mv), as a settings Save; a truncating write could be read half done by
   # the 2 s poll, and an empty file parses as the defaults (switch on).
   write_config() {
-    local d="$XDG_CONFIG_HOME/sbarhive"
+    local d="$XDG_CONFIG_HOME/kawaro"
     printf '%s\n' "$@" >"$d/.config.toml.live"
     mv -f "$d/.config.toml.live" "$d/config.toml"
   }
@@ -706,8 +706,8 @@ print("none" if any(x == "none" for x in v) or len(v) != 5 else "%.1f" % statist
     bind=$(stamp_ms "$W_T" "$(python3 -I "$PL" first "$PLOG" "$W_PF" BindShortcuts)")
     lines=$(live_lines "$W_DM")
     echo "INFO AC25 on: write at $W_T; daemon $DPID (started as $pid, alive $(kill -0 "$DPID" 2>/dev/null && echo yes || echo no)); new portal senders $nsenders ($snd): first $first ($appid), next GlobalShortcuts $nextgs, BindShortcuts x$nbind ($bsess); Register $reg ms and BindShortcuts $bind ms after the write; line seen after $W_SEEN ms; lines since the write: $(tr '\n' '|' <<<"$lines")"
-    check "AC25 on: within 3 s of writing portal_shortcut = true, the same daemon PID makes, from one new connection, Register (io.github.m7mmad_omar.SbarHive), then CreateSession, then one BindShortcuts on that session" \
-      '[ "$pre" = yes ] && kill -0 "$pid" 2>/dev/null && [ "$DPID" = "$pid" ] && [ "$nsenders" -eq 1 ] && [ "$first" = org.freedesktop.host.portal.Registry.Register ] && [ "$appid" = io.github.m7mmad_omar.SbarHive ] && [ "$nextgs" = CreateSession ] && [ "$nbind" = 1 ] && [ "$maxper" = 1 ] && [ "$bsess" = ok ] && in_ms "$reg" 0 3000 && in_ms "$bind" 0 3000'
+    check "AC25 on: within 3 s of writing portal_shortcut = true, the same daemon PID makes, from one new connection, Register (io.github.m7mmad_omar.Kawaro), then CreateSession, then one BindShortcuts on that session" \
+      '[ "$pre" = yes ] && kill -0 "$pid" 2>/dev/null && [ "$DPID" = "$pid" ] && [ "$nsenders" -eq 1 ] && [ "$first" = org.freedesktop.host.portal.Registry.Register ] && [ "$appid" = io.github.m7mmad_omar.Kawaro ] && [ "$nextgs" = CreateSession ] && [ "$nbind" = 1 ] && [ "$maxper" = 1 ] && [ "$bsess" = ok ] && in_ms "$reg" 0 3000 && in_ms "$bind" 0 3000'
     check "AC25 on: stderr gains exactly one line, \"$BOUND_LINE\", within 3 s of the write" \
       '[ "$W_SEEN" != none ] && [ "$lines" = "$BOUND_LINE" ]'
     ptr_move 100 700; sleep 0.5
@@ -837,7 +837,7 @@ print("none" if any(x == "none" for x in v) or len(v) != 5 else "%.1f" % statist
   phase_ro() {
     echo "== S-014f3 (S-014f2 review finding 5): fake \"deny\", config.toml read only"
     stop_all; OK_UP=no
-    local dir="$XDG_CONFIG_HOME/sbarhive" cfg0 cfg1 lines pf
+    local dir="$XDG_CONFIG_HOME/kawaro" cfg0 cfg1 lines pf
     reset_config 'hold_ms = 500'
     chmod 0444 "$dir/config.toml"; chmod 0555 "$dir"
     start_fake ro deny

@@ -3,7 +3,7 @@
 //! is mutated in `locate.rs`.
 
 use super::Registry;
-use sbarhive_core::win::wide;
+use kawaro_core::win::wide;
 use std::ptr::{null, null_mut};
 use windows_sys::Win32::Foundation::{ERROR_SUCCESS, FILETIME};
 use windows_sys::Win32::System::Registry::{

@@ -3,10 +3,10 @@
 
 use std::fs;
 
-use sbarhive_core::config::{
+use kawaro_core::config::{
     Config, HiveSurface, LangSetting, OutputPlace, Quality, Theme, UpdateMode,
 };
-use sbarhive_core::update::Channel;
+use kawaro_core::update::Channel;
 
 #[test]
 fn equal_configs_are_equal_and_every_setting_breaks_equality() {
@@ -173,7 +173,7 @@ fn configured_update_channel_covers_every_branch() {
 
 #[test]
 fn a_configured_channel_decides_the_effective_channel_and_none_follows_the_build() {
-    use sbarhive_core::update::effective_channel;
+    use kawaro_core::update::effective_channel;
     let none = Config::default().configured_update_channel();
     assert_eq!(effective_channel(none, "0.4.0-beta.1"), Channel::Beta);
     assert_eq!(effective_channel(none, "0.4.0"), Channel::Stable);

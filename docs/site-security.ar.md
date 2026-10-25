@@ -2,11 +2,11 @@
 
 # أمان الموقع
 
-كيف يُستضاف `https://hive.sbarah.com` وكيف يبقى آمنا. القرارات في `docs/adr/0007-site-hosting-cloudflare.md`، وهذه الصفحة ملخص التشغيل (S-059). القيم التي تكشف الحساب تظهر هنا كعناصر نائبة: `<ACCOUNT_ID>` و`<ZONE_ID>` و`<EXPIRY_DATE>`، والقيم الحقيقية تبقى خارج المستودع.
+كيف يُستضاف `https://kawaro.sbarah.com` وكيف يبقى آمنا. القرارات في `docs/adr/0007-site-hosting-cloudflare.md`، وهذه الصفحة ملخص التشغيل (S-059). القيم التي تكشف الحساب تظهر هنا كعناصر نائبة: `<ACCOUNT_ID>` و`<ZONE_ID>` و`<EXPIRY_DATE>`، والقيم الحقيقية تبقى خارج المستودع.
 
 ## الاستضافة
 
-الموقع Worker على Cloudflare باسم `sbarhive-site` بملفات ثابتة ودون سكربت Worker (لا يوجد `main` في `wrangler.jsonc`)، فلا شيفرة خادم يمكن مهاجمتها. يبني `scripts/prepare-site-deploy.sh` الموقع ويجهز مجموعة الرفع في `.deploy-out/` دون `build.py` أو ملفات مؤقتة، ثم يفحصها `scripts/site/check-deploy.sh` بمطابق خاص به: قائمة امتدادات مسموحة، ولا مجلدات ممنوعة، ولا ملف أكبر من 25 MiB، ولا مفتاح خاص، وعشرون ألف ملف كحد أقصى. ويبقى `site/.assetsignore` طبقة ثانية يقرؤها Wrangler.
+الموقع Worker على Cloudflare باسم `kawaro-site` بملفات ثابتة ودون سكربت Worker (لا يوجد `main` في `wrangler.jsonc`)، فلا شيفرة خادم يمكن مهاجمتها. يبني `scripts/prepare-site-deploy.sh` الموقع ويجهز مجموعة الرفع في `.deploy-out/` دون `build.py` أو ملفات مؤقتة، ثم يفحصها `scripts/site/check-deploy.sh` بمطابق خاص به: قائمة امتدادات مسموحة، ولا مجلدات ممنوعة، ولا ملف أكبر من 25 MiB، ولا مفتاح خاص، وعشرون ألف ملف كحد أقصى. ويبقى `site/.assetsignore` طبقة ثانية يقرؤها Wrangler.
 
 ## لا أسرار في GitHub
 

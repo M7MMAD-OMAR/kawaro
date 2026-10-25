@@ -33,10 +33,10 @@ fn ac13_cargo_lock_keeps_673_packages() {
 
 #[test]
 fn ac13_core_depends_on_windows_sys_0_61_2_in_the_lock() {
-    let entry = lock_entry(&read("Cargo.lock"), "sbarhive-core");
+    let entry = lock_entry(&read("Cargo.lock"), "kawaro-core");
     assert!(
         entry.contains("\"windows-sys 0.61.2\""),
-        "sbarhive-core must use windows-sys 0.61.2:\n{entry}"
+        "kawaro-core must use windows-sys 0.61.2:\n{entry}"
     );
 }
 

@@ -17,7 +17,7 @@ for a in "$@"; do
   case "$a" in notoken|token|bogus) CASES+=("$a") ;; level=*) LEVEL="${a#level=}" ;; *) BIN="$a" ;; esac
 done
 [ ${#CASES[@]} -eq 0 ] && CASES=(notoken token)
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$ROOT/tests/drop/kwin-input/target/release/kwin-input" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${FOCUS_OUT:-$HERE/out}"
 mkdir -p "$OUT"
@@ -64,9 +64,9 @@ EOF
   local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   ffmpeg -loglevel error -f lavfi -i testsrc=size=80x60:rate=1 -frames:v 1 "$W/b.jpg"
 
-  SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$log-daemon.log" 2>&1 &
+  KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$log-daemon.log" 2>&1 &
   local d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
   # Injected input through org_kde_kwin_fake_input (this private KWin only,
   # KWIN_WAYLAND_NO_PERMISSION_CHECKS above): the warm-up Esc and, in the
   # token case, the click on the client.
@@ -76,7 +76,7 @@ EOF
   # Warm-up show, so the measured show is not the slow first one (ADR 0001, 8).
   # NO_WARMUP=1 skips it, so the measured show is the first one.
   if [ -z "${NO_WARMUP:-}" ]; then
-    "$BIN/sbarhive" open "$W/b.jpg"; sleep 10
+    "$BIN/kawaro" open "$W/b.jpg"; sleep 10
     echo "warm-up: $(state)"
     # S-018c: on the layer path focus loss no longer closes the hive, so the
     # warm-up hive is closed with Esc, then a pause so the key is not recent
@@ -85,7 +85,7 @@ EOF
     sleep 3
   fi
 
-  # The client takes focus. notoken and bogus: it launches `sbarhive open`
+  # The client takes focus. notoken and bogus: it launches `kawaro open`
   # 3 s later. token: it is maximized, one primary click is injected on it at
   # the screen centre about 3 s after start, and it launches on the release
   # with a token carrying that click's serial, as a file manager does after
@@ -94,10 +94,10 @@ EOF
   # is newer than a token taken with no click (serial 0).
   local mark; mark=$(wc -l <"$log-daemon.log")
   if [ "$CASE" = token ]; then
-    CLIENT_CLICK=1 CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" WAYLAND_DEBUG=client \
+    CLIENT_CLICK=1 CLIENT_AUTO="$CASE" KAWARO="$BIN/kawaro" WAYLAND_DEBUG=client \
       python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>"$log-client-wayland.log" &
   else
-    CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>&1 &
+    CLIENT_AUTO="$CASE" KAWARO="$BIN/kawaro" python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>&1 &
   fi
   local client=$!
   sleep 2
@@ -114,7 +114,7 @@ EOF
   kill $client 2>/dev/null
   exec 3>&-
 
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   sleep 0.5
   kill $d 2>/dev/null
   kill $kwin 2>/dev/null

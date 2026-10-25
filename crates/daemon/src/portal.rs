@@ -3,12 +3,12 @@
 //! manual bind, and which portal signals reach the long press gate. The
 //! D-Bus side is `portal_bus.rs`.
 
-use sbarhive_core::hold::{self, Signal};
-use sbarhive_core::i18n::Lang;
+use kawaro_core::hold::{self, Signal};
+use kawaro_core::i18n::Lang;
 
 /// The id the daemon registers with the portal's Registry: the name of
-/// `packaging/io.github.m7mmad_omar.SbarHive.desktop`.
-pub const APP_ID: &str = "io.github.m7mmad_omar.SbarHive";
+/// `packaging/io.github.m7mmad_omar.Kawaro.desktop`.
+pub const APP_ID: &str = "io.github.m7mmad_omar.Kawaro";
 /// The one shortcut the daemon binds.
 pub const SHORTCUT_ID: &str = "drop";
 /// Super+Z in the shortcuts specification's form: modifiers joined by `+`
@@ -56,8 +56,8 @@ impl Reason {
 /// The shortcut's description in the portal's dialog and settings.
 pub fn description(lang: Lang) -> &'static str {
     match lang {
-        Lang::Ar => "إظهار خلية صبار هايف لملف مسحوب",
-        Lang::En => "Show the SbarHive hive for a dragged file",
+        Lang::Ar => "إظهار خلية كوارو لملف مسحوب",
+        Lang::En => "Show the Kawaro hive for a dragged file",
     }
 }
 

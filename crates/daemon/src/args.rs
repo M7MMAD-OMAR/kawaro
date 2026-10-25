@@ -1,4 +1,4 @@
-//! The command line of `sbarhived` (S-046 AC5).
+//! The command line of `kawarod` (S-046 AC5).
 
 /// What the process was asked to be.
 #[derive(Debug, PartialEq)]
@@ -16,11 +16,11 @@ pub fn parse(args: &[String]) -> Result<Mode, String> {
         None => Ok(Mode::Daemon),
         Some((cmd, files)) if cmd == "open" => {
             if files.is_empty() {
-                Err("sbarhived: open needs at least one file".to_string())
+                Err("kawarod: open needs at least one file".to_string())
             } else {
                 Ok(Mode::Open(files.to_vec()))
             }
         }
-        Some((other, _)) => Err(format!("sbarhived: unknown argument `{other}`")),
+        Some((other, _)) => Err(format!("kawarod: unknown argument `{other}`")),
     }
 }

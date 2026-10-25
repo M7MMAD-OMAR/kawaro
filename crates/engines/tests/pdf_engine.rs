@@ -1,9 +1,9 @@
 //! Pure Rust PDF engine tests (S-010): merge, rotate, split. Fixtures are
 //! generated with lopdf inside each test.
 
+use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Task};
+use kawaro_engines::pdf::PdfEngine;
 use lopdf::{Document, Object, ObjectId, Stream, dictionary};
-use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Task};
-use sbarhive_engines::pdf::PdfEngine;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;

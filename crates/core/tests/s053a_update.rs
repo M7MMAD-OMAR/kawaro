@@ -2,7 +2,7 @@
 //! the pure update rules. Written by the tester from the acceptance criteria.
 //!
 //! Contract (do not edit these tests; the implementer follows it):
-//! - `sbarhive_core::update` (crate::update, `crates/core/src/update/mod.rs`) holds
+//! - `kawaro_core::update` (crate::update, `crates/core/src/update/mod.rs`) holds
 //!   `UpdateError`, `Channel` and the sub modules `version`, `manifest`, `policy`,
 //!   `verify`, `schedule`, all `pub`.
 //! - `UpdateError`: `Debug + Clone + PartialEq + Eq`, unit variants `BadVersion`,
@@ -44,17 +44,17 @@
 
 use std::path::{Path, PathBuf};
 
-use sbarhive_core::config::{Config, UpdateMode};
-use sbarhive_core::update::manifest::Manifest;
-use sbarhive_core::update::policy::{Decision, Platform, evaluate, select_asset};
-use sbarhive_core::update::schedule::{State, allowed, due};
-use sbarhive_core::update::verify::{UPDATE_KEYS, parse_key, verify_manifest};
-use sbarhive_core::update::version::is_newer;
-use sbarhive_core::update::{Channel, UpdateError, default_channel};
+use kawaro_core::config::{Config, UpdateMode};
+use kawaro_core::update::manifest::Manifest;
+use kawaro_core::update::policy::{Decision, Platform, evaluate, select_asset};
+use kawaro_core::update::schedule::{State, allowed, due};
+use kawaro_core::update::verify::{UPDATE_KEYS, parse_key, verify_manifest};
+use kawaro_core::update::version::is_newer;
+use kawaro_core::update::{Channel, UpdateError, default_channel};
 
 const HOUR: u64 = 3600;
 const DAY: u64 = 86_400;
-const URL_PREFIX: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/";
+const URL_PREFIX: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/";
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -161,7 +161,7 @@ fn ac2_valid_manifest_gives_three_assets_with_exact_values() {
     assert_eq!(m.published, "2026-10-24T12:00:00Z");
     assert_eq!(
         m.notes_url,
-        "https://github.com/M7MMAD-OMAR/sbarhive/releases/tag/v0.4.0"
+        "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.0"
     );
     assert_eq!(m.assets.len(), 3);
     let a = &m.assets;
@@ -169,10 +169,10 @@ fn ac2_valid_manifest_gives_three_assets_with_exact_values() {
         (a[0].kind.as_str(), a[0].os.as_str(), a[0].arch.as_str()),
         ("msi", "windows", "x86_64")
     );
-    assert_eq!(a[0].name, "SbarHive-0.4.0-x86_64.msi");
+    assert_eq!(a[0].name, "Kawaro-0.4.0-x86_64.msi");
     assert_eq!(
         a[0].url,
-        format!("{URL_PREFIX}v0.4.0/SbarHive-0.4.0-x86_64.msi")
+        format!("{URL_PREFIX}v0.4.0/Kawaro-0.4.0-x86_64.msi")
     );
     assert_eq!(a[0].size, 4_194_304);
     assert_eq!(a[0].sha256, "1".repeat(64));
@@ -180,7 +180,7 @@ fn ac2_valid_manifest_gives_three_assets_with_exact_values() {
         (a[1].kind.as_str(), a[1].os.as_str(), a[1].arch.as_str()),
         ("rpm", "linux", "x86_64")
     );
-    assert_eq!(a[1].name, "sbarhive-0.4.0-1.x86_64.rpm");
+    assert_eq!(a[1].name, "kawaro-0.4.0-1.x86_64.rpm");
     assert_eq!(a[1].size, 3_145_728);
     assert_eq!(
         a[1].sha256,
@@ -190,7 +190,7 @@ fn ac2_valid_manifest_gives_three_assets_with_exact_values() {
         (a[2].kind.as_str(), a[2].os.as_str(), a[2].arch.as_str()),
         ("deb", "linux", "x86_64")
     );
-    assert_eq!(a[2].name, "sbarhive_0.4.0_amd64.deb");
+    assert_eq!(a[2].name, "kawaro_0.4.0_amd64.deb");
     assert_eq!(a[2].size, 2_097_152);
     assert_eq!(
         a[2].sha256,
@@ -419,14 +419,14 @@ fn ac3_bad_manifest_version_is_bad_version() {
 #[test]
 fn ac3_every_asset_url_must_start_with_the_release_prefix() {
     let bad_urls = [
-        "http://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0/x.msi",
-        "https://github.com.evil.example/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0/x.msi",
-        "https://github.com/M7MMAD-OMAR/sbarhive/releases/download",
-        "https://github.com/M7MMAD-OMAR/sbarhive-evil/releases/download/v0.4.0/x.msi",
-        "https://GitHub.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0/x.msi",
-        "https://github.com/m7mmad-omar/sbarhive/releases/download/v0.4.0/x.msi",
-        " https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0/x.msi",
-        "https://evil.example/https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0/x.msi",
+        "http://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0/x.msi",
+        "https://github.com.evil.example/M7MMAD-OMAR/kawaro/releases/download/v0.4.0/x.msi",
+        "https://github.com/M7MMAD-OMAR/kawaro/releases/download",
+        "https://github.com/M7MMAD-OMAR/kawaro-evil/releases/download/v0.4.0/x.msi",
+        "https://GitHub.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0/x.msi",
+        "https://github.com/m7mmad-omar/kawaro/releases/download/v0.4.0/x.msi",
+        " https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0/x.msi",
+        "https://evil.example/https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0/x.msi",
         "",
     ];
     for bad in bad_urls {
@@ -464,19 +464,19 @@ fn ac4_three_platforms_return_the_expected_asset() {
         select_asset(&m, plat("windows", "x86_64", "msi"))
             .unwrap()
             .name,
-        "SbarHive-0.4.0-x86_64.msi"
+        "Kawaro-0.4.0-x86_64.msi"
     );
     assert_eq!(
         select_asset(&m, plat("linux", "x86_64", "rpm"))
             .unwrap()
             .name,
-        "sbarhive-0.4.0-1.x86_64.rpm"
+        "kawaro-0.4.0-1.x86_64.rpm"
     );
     assert_eq!(
         select_asset(&m, plat("linux", "x86_64", "deb"))
             .unwrap()
             .name,
-        "sbarhive_0.4.0_amd64.deb"
+        "kawaro_0.4.0_amd64.deb"
     );
 }
 
@@ -505,20 +505,20 @@ fn ac4_missing_kind_gives_none_and_the_right_arch_wins() {
         let arr = v["assets"].as_array_mut().unwrap();
         let mut arm = arr[1].clone();
         arm["arch"] = "aarch64".into();
-        arm["name"] = "sbarhive-0.4.0-1.aarch64.rpm".into();
+        arm["name"] = "kawaro-0.4.0-1.aarch64.rpm".into();
         arr.insert(0, arm);
     });
     assert_eq!(
         select_asset(&two, plat("linux", "x86_64", "rpm"))
             .unwrap()
             .name,
-        "sbarhive-0.4.0-1.x86_64.rpm"
+        "kawaro-0.4.0-1.x86_64.rpm"
     );
     assert_eq!(
         select_asset(&two, plat("linux", "aarch64", "rpm"))
             .unwrap()
             .name,
-        "sbarhive-0.4.0-1.aarch64.rpm"
+        "kawaro-0.4.0-1.aarch64.rpm"
     );
     // The os is part of the key too: a windows rpm entry is not a linux one.
     let win_first = edited(|v| {
@@ -532,7 +532,7 @@ fn ac4_missing_kind_gives_none_and_the_right_arch_wins() {
         select_asset(&win_first, plat("linux", "x86_64", "rpm"))
             .unwrap()
             .name,
-        "sbarhive-0.4.0-1.x86_64.rpm"
+        "kawaro-0.4.0-1.x86_64.rpm"
     );
 }
 
@@ -651,7 +651,7 @@ fn ac6_update_keys_is_not_empty_and_every_entry_parses() {
 #[test]
 fn ac6_the_first_update_key_is_the_committed_public_key() {
     let committed =
-        std::fs::read_to_string(root().join("packaging/keys/sbarhive-update.pub")).unwrap();
+        std::fs::read_to_string(root().join("packaging/keys/kawaro-update.pub")).unwrap();
     assert_eq!(UPDATE_KEYS[0].trim(), committed.trim());
     assert_eq!(parse_key(&committed), Ok(()));
 }

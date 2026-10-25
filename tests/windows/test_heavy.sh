@@ -13,11 +13,11 @@ set -u
 . "$(dirname "$0")/lib.sh"
 cd "$REPO_ROOT" || exit 2
 SCOPE=(systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%)
-EXE="$WIN_TARGET_DEFAULT/x86_64-pc-windows-gnu/release/sbarhive.exe"
-WORK="$(mktemp -d "${TMPDIR:-/tmp}/sbarhive-winheavy.XXXXXX")"
+EXE="$WIN_TARGET_DEFAULT/x86_64-pc-windows-gnu/release/kawaro.exe"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/kawaro-winheavy.XXXXXX")"
 trap 'rm -rf -- "$WORK"' EXIT
 
-ac1_real_build_sh_runs_in_a_6g_scope_and_produces_sbarhive_exe () {
+ac1_real_build_sh_runs_in_a_6g_scope_and_produces_kawaro_exe () {
   echo "== AC1: real build.sh (S)"
   if [ ! -x "$WIN/build.sh" ]; then fail "AC1: missing or not executable $WIN/build.sh"; return; fi
   # The scope's cgroup disappears when the build ends, so memory.max is read
@@ -36,13 +36,13 @@ ac1_real_build_sh_runs_in_a_6g_scope_and_produces_sbarhive_exe () {
   check "AC1: first line is 'cgroup: <path>' (got [$first])" grep -qE '^cgroup: /.+' <<<"$first"
   assert_eq "AC1: memory.max of the printed cgroup, read during the build" "$mm" "$SIX_G"
   check "AC1: $EXE exists" test -f "$EXE"
-  check "AC1: sbarhive.exe is a PE32+ x86-64 Windows executable" \
+  check "AC1: kawaro.exe is a PE32+ x86-64 Windows executable" \
     sh -c 'file -b "$1" | grep -q "PE32+ executable.*x86-64"' _ "$EXE"
   if [ "$rc" != 0 ]; then tail -n 30 "$WORK/build.err" >&2; fi
 }
 
-ac2_check_dlls_passes_on_the_real_sbarhive_exe () {
-  echo "== AC2: check-dlls.sh on the real sbarhive.exe"
+ac2_check_dlls_passes_on_the_real_kawaro_exe () {
+  echo "== AC2: check-dlls.sh on the real kawaro.exe"
   if [ ! -x "$WIN/check-dlls.sh" ]; then fail "AC2: missing or not executable $WIN/check-dlls.sh"; return; fi
   local out rc
   out="$("$WIN/check-dlls.sh" "$EXE" 2>&1)"; rc=$?
@@ -64,14 +64,14 @@ ac5_windows_test_binaries_build_one_exe_per_test_target () {
   echo "== AC5: cargo test --no-run for Windows (T)"
   local rc want got
   "${SCOPE[@]}" env CARGO_TARGET_DIR="$WIN_TARGET_DEFAULT" cargo test --no-run -j 2 \
-    --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines -p sbarhive-cli \
+    --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines -p kawaro-cli \
     > "$WORK/t.out" 2>&1; rc=$?
   assert_eq "AC5: exit code" "$rc" "0"
   "${SCOPE[@]}" cargo metadata --no-deps --format-version 1 > "$WORK/meta.json" 2>/dev/null
   want="$(python3 -I -c '
 import json, sys
 m = json.load(open(sys.argv[1]))
-pk = {"sbarhive-core", "sbarhive-engines", "sbarhive-cli"}
+pk = {"kawaro-core", "kawaro-engines", "kawaro-cli"}
 print(sum(1 for p in m["packages"] if p["name"] in pk
           for t in p["targets"]
           if t.get("test") and set(t["kind"]) & {"lib", "bin", "test"}))
@@ -91,8 +91,8 @@ if pgrep -x cargo >/dev/null || pgrep -x cargo-mutants >/dev/null; then
   echo "another cargo run is active; run this when pgrep -a cargo is empty" >&2
   exit 2
 fi
-ac1_real_build_sh_runs_in_a_6g_scope_and_produces_sbarhive_exe
-ac2_check_dlls_passes_on_the_real_sbarhive_exe
+ac1_real_build_sh_runs_in_a_6g_scope_and_produces_kawaro_exe
+ac2_check_dlls_passes_on_the_real_kawaro_exe
 ac3_real_check_sh_exits_0
 ac5_windows_test_binaries_build_one_exe_per_test_target
 finish "S-044a windows build (heavy)"

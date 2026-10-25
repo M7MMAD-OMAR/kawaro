@@ -376,7 +376,7 @@ impl OverlayAdapter {
             &catcher,
             None,
             Layer::Overlay,
-            "sbarhive".into(),
+            "kawaro".into(),
             &qh,
             (),
         );
@@ -596,7 +596,7 @@ fn reader(conn: Connection, pending: Arc<AtomicBool>, id: usize) {
 }
 
 fn shm_buffer(shm: &WlShm, qh: &QueueHandle<Wl>, w: u32, h: u32, px: &[Bgra]) -> WlBuffer {
-    let fd = rustix::fs::memfd_create("sbarhive-overlay", rustix::fs::MemfdFlags::CLOEXEC)
+    let fd = rustix::fs::memfd_create("kawaro-overlay", rustix::fs::MemfdFlags::CLOEXEC)
         .expect("memfd");
     let mut file = std::fs::File::from(fd);
     // SAFETY: Bgra is four plain bytes with no padding.

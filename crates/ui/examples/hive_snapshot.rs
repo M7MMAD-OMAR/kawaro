@@ -98,8 +98,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let lang = common::lang_from_args(&args);
     let o = parse(&args)?;
-    sbarhive_ui::init()?;
-    let hive = std::rc::Rc::new(sbarhive_ui::Hive::new(lang)?);
+    kawaro_ui::init()?;
+    let hive = std::rc::Rc::new(kawaro_ui::Hive::new(lang)?);
     let files = common::files_from_args(&args);
     if files.is_empty() {
         hive.present(common::centre_text(lang), common::image_actions(lang), None)?;
@@ -123,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     result.replace(Ok(())).map_err(Into::into)
 }
 
-fn snapshot(hive: &sbarhive_ui::Hive, o: &Opts) -> Result<(), String> {
+fn snapshot(hive: &kawaro_ui::Hive, o: &Opts) -> Result<(), String> {
     let buf = hive.take_snapshot().map_err(|e| e.to_string())?;
     let (w, h) = (buf.width(), buf.height());
     write_png(&o.out, w, h, buf.as_bytes()).map_err(|e| e.to_string())?;

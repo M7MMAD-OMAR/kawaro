@@ -1,9 +1,9 @@
 //! Fake engine shared by the queue tests.
 #![allow(dead_code)]
 
-use sbarhive_core::MediaKind;
-use sbarhive_core::action::{ActionDef, Localized, OutputMode, OutputSpec};
-use sbarhive_core::engine::{CancelToken, Engine, EngineError, Progress, Task};
+use kawaro_core::MediaKind;
+use kawaro_core::action::{ActionDef, Localized, OutputMode, OutputSpec};
+use kawaro_core::engine::{CancelToken, Engine, EngineError, Progress, Task};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;

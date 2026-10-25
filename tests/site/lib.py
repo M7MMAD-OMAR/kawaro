@@ -22,7 +22,7 @@ atexit.register(lambda: None if os.environ.get("S061_KEEP") else shutil.rmtree(T
 
 VERSION = "0.4.0-beta.1"
 TAG = "v" + VERSION
-RELEASES = "https://github.com/M7MMAD-OMAR/sbarhive/releases"
+RELEASES = "https://github.com/M7MMAD-OMAR/kawaro/releases"
 SUPPORT = "https://sbarah.com/support"
 LANGS = ("ar", "en")
 WIDTHS = (375, 768, 1280)

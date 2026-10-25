@@ -4,7 +4,7 @@
 //! the key still held, not at the press.
 //!
 //! Contract (written by the tester from the acceptance criteria; do not edit):
-//! - The gate is pure and lives in `sbarhive_core::hold`, so the daemon (the
+//! - The gate is pure and lives in `kawaro_core::hold`, so the daemon (the
 //!   service, AC17: not the UI), `hive_bench` (AC20, `measure.sh`) and a later
 //!   GlobalShortcuts portal (AC21) share it. Its clock is injected: every call
 //!   takes `now`, and it never reads the time itself.
@@ -39,9 +39,9 @@
 //! - The daemon may add more (a `deadline()` for its timer, say); these tests
 //!   do not need it.
 
-use sbarhive_core::config::Config;
-use sbarhive_core::hold::{self, Effect, Gate, Signal};
-use sbarhive_core::ipc::Request;
+use kawaro_core::config::Config;
+use kawaro_core::hold::{self, Effect, Gate, Signal};
+use kawaro_core::ipc::Request;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
@@ -358,8 +358,7 @@ struct ConfigFile(PathBuf);
 
 impl ConfigFile {
     fn new(test: &str) -> Self {
-        let dir =
-            std::env::temp_dir().join(format!("sbarhive-s019e-{test}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kawaro-s019e-{test}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         Self(dir.join("config.toml"))

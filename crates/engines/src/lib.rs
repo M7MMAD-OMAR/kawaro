@@ -1,6 +1,6 @@
-//! Engine adapters. Each module implements [`sbarhive_core::Engine`].
+//! Engine adapters. Each module implements [`kawaro_core::Engine`].
 
-use sbarhive_core::Engine;
+use kawaro_core::Engine;
 use std::sync::Arc;
 
 pub mod ffmpeg;

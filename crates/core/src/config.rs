@@ -1,5 +1,5 @@
 //! User settings in `config.toml` inside [`crate::paths::config_dir`]
-//! (`~/.config/sbarhive` on Linux, `%APPDATA%\SbarHive` on Windows). Every
+//! (`~/.config/kawaro` on Linux, `%APPDATA%\Kawaro` on Windows). Every
 //! field has a default, unknown keys are ignored, and a broken file falls
 //! back to the defaults with a warning instead of stopping the daemon.
 
@@ -84,7 +84,7 @@ pub struct Config {
     /// Spelled with an underscore in the file, as S-019 AC1 writes it.
     #[serde(rename = "hive_surface")]
     pub hive_surface: HiveSurface,
-    /// The long press threshold of `sbarhive drop --hold` in milliseconds
+    /// The long press threshold of `kawaro drop --hold` in milliseconds
     /// (S-019e AC18), [`HOLD_MS_MIN`] to [`HOLD_MS_MAX`]. Spelled with an
     /// underscore, as `hive_surface` is.
     #[serde(rename = "hold_ms", deserialize_with = "hold_ms_in_range")]
@@ -167,7 +167,7 @@ impl Default for Config {
             language: LangSetting::Auto,
             theme: Theme::Auto,
             output: OutputPlace::Beside,
-            output_folder: "SbarHive".into(),
+            output_folder: "Kawaro".into(),
             quality: Quality::Balanced,
             open_folder_when_done: false,
             notify: true,
@@ -272,7 +272,7 @@ impl Config {
                 if safe {
                     dir.join(name)
                 } else {
-                    dir.join("SbarHive")
+                    dir.join("Kawaro")
                 }
             }
         }
@@ -356,7 +356,7 @@ mod tests {
             c.output_folder = bad.into();
             assert_eq!(
                 c.output_dir(input),
-                PathBuf::from("/home/u/pics/SbarHive"),
+                PathBuf::from("/home/u/pics/Kawaro"),
                 "{bad:?}"
             );
         }
@@ -420,15 +420,12 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let xdg = dir.path().join("xdg");
             unsafe { std::env::set_var("XDG_CONFIG_HOME", &xdg) };
-            assert_eq!(
-                Config::path(),
-                Some(xdg.join("sbarhive").join("config.toml"))
-            );
+            assert_eq!(Config::path(), Some(xdg.join("kawaro").join("config.toml")));
             Config {
                 quality: Quality::Light,
                 ..Config::default()
             }
-            .save_to(&xdg.join("sbarhive").join("config.toml"))
+            .save_to(&xdg.join("kawaro").join("config.toml"))
             .unwrap();
             assert_eq!(Config::load().0.quality, Quality::Light);
             assert!(Config::load().1.is_none());
@@ -438,7 +435,7 @@ mod tests {
             let home_path = dir
                 .path()
                 .join(".config")
-                .join("sbarhive")
+                .join("kawaro")
                 .join("config.toml");
             assert_eq!(Config::path(), Some(home_path));
             assert_eq!(Config::load(), (Config::default(), None));
@@ -455,14 +452,14 @@ mod tests {
             }
         }
 
-        // Windows has no XDG or HOME: the folder is %APPDATA%\SbarHive (S-058).
+        // Windows has no XDG or HOME: the folder is %APPDATA%\Kawaro (S-058).
         #[cfg(windows)]
         {
             let saved = std::env::var_os("APPDATA");
             let dir = tempfile::tempdir().unwrap();
             let appdata = dir.path().join("AppData");
             unsafe { std::env::set_var("APPDATA", &appdata) };
-            let expected = appdata.join("SbarHive").join("config.toml");
+            let expected = appdata.join("Kawaro").join("config.toml");
             assert_eq!(Config::path(), Some(expected.clone()));
             Config {
                 quality: Quality::Light,
@@ -476,7 +473,7 @@ mod tests {
             // An unset APPDATA falls back to the roaming known folder.
             unsafe { std::env::remove_var("APPDATA") };
             let fallback = Config::path().expect("the known folder gives a path");
-            assert!(fallback.ends_with(std::path::Path::new("SbarHive").join("config.toml")));
+            assert!(fallback.ends_with(std::path::Path::new("Kawaro").join("config.toml")));
             assert!(!fallback.starts_with(dir.path()));
 
             match saved {

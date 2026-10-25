@@ -1,7 +1,7 @@
 {
-  "name": "sbarhive-site",
+  "name": "kawaro-site",
   "compatibility_date": "2026-10-01",
   "assets": { "directory": "./.deploy-out", "html_handling": "auto-trailing-slash", "not_found_handling": "404-page" },
-  "routes": [ { "pattern": "hive.sbarah.com", "custom_domain": true } ],
+  "routes": [ { "pattern": "kawaro.sbarah.com", "custom_domain": true } ],
   "workers_dev": false
 }

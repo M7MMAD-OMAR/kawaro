@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Add or remove the SbarHive custom action in Thunar's uca.xml.
+"""Add or remove the Kawaro custom action in Thunar's uca.xml.
 
     merge_uca.py add    [--file F] [--snippet S] [--command CMD] [--seed SYS]
     merge_uca.py remove [--file F] [--seed SYS]
 
-The action is keyed by <unique-id>sbarhive</unique-id>. Other actions and
+The action is keyed by <unique-id>kawaro</unique-id>. Other actions and
 comments are kept. Both commands are idempotent: a run that changes nothing
 does not rewrite the file. A file that does not parse is never rewritten.
 
@@ -25,9 +25,9 @@ import sys
 import tempfile
 import xml.etree.ElementTree as ET
 
-UNIQUE_ID = "sbarhive"
+UNIQUE_ID = "kawaro"
 HERE = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_SNIPPET = os.path.join(HERE, "sbarhive-uca.xml")
+DEFAULT_SNIPPET = os.path.join(HERE, "kawaro-uca.xml")
 DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>\n'
 
 
@@ -137,7 +137,7 @@ def cmd_remove(args):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Merge the SbarHive action into Thunar's uca.xml.")
+    parser = argparse.ArgumentParser(description="Merge the Kawaro action into Thunar's uca.xml.")
     sub = parser.add_subparsers(dest="command_name", required=True)
     for name in ("add", "remove"):
         p = sub.add_parser(name)

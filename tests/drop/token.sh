@@ -10,7 +10,7 @@
 #
 # Every case drags a PNG and holds the drag, so the show is a real drop
 # hive on both paths (on the layer path a hold with no drag only probes and
-# hides); then the fake's timed presses (or `sbarhive drop --hold --token
+# hides); then the fake's timed presses (or `kawaro drop --hold --token
 # X`), the hive, a drop on the centre cell (no file, the hive closes), and
 # only then the release, as a key still held over the drop.
 #
@@ -52,7 +52,7 @@ token_case() {
   token_motion
   case "$how" in
     seq\ *) fake "seq drop own ${how#seq }" ;;
-    cli\ *) env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/sbarhive" drop --hold --token "${how#cli }" >>"$OUT_LOG-cli.log" 2>&1 ;;
+    cli\ *) env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/kawaro" drop --hold --token "${how#cli }" >>"$OUT_LOG-cli.log" 2>&1 ;;
   esac
   local geo; geo=$(wait_geo 4)
   sleep 0.8
@@ -66,7 +66,7 @@ token_case() {
   sleep 0.5
   case "$how" in
     seq\ *) fake "signal Deactivated drop" ;;
-    cli\ *) "$BIN/sbarhive" drop --release >>"$OUT_LOG-cli.log" 2>&1 ;;
+    cli\ *) "$BIN/kawaro" drop --release >>"$OUT_LOG-cli.log" 2>&1 ;;
   esac
   sleep 1
   token_settle

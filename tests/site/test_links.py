@@ -24,8 +24,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib  # noqa: E402
 
 SCRIPT = lib.REPO / "scripts/site/check-links.sh"
-U = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v9.9.9/sbarhive-9.9.9-linux.deb"
-V = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v9.9.9/sbarhive-9.9.9-windows-x64.msi"
+U = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/v9.9.9/kawaro-9.9.9-linux.deb"
+V = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/v9.9.9/kawaro-9.9.9-windows-x64.msi"
 
 
 def run(root, *args):
@@ -93,7 +93,7 @@ class AC6Links(unittest.TestCase):
         self.assertEqual(run(d).returncode, 0)
 
     def test_AC6_online_404_fails_and_prints_url(self):
-        srv, base = server(["/M7MMAD-OMAR/sbarhive/releases/download/v9.9.9/sbarhive-9.9.9-windows-x64.msi"])
+        srv, base = server(["/M7MMAD-OMAR/kawaro/releases/download/v9.9.9/kawaro-9.9.9-windows-x64.msi"])
         try:
             r = run(mkroot(tag="v9.9.9"), "--online", "--base", base)
         finally:
@@ -110,9 +110,9 @@ class AC6Links(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
 
     def test_AC6_online_checks_readme_urls(self):
-        srv, base = server(["/M7MMAD-OMAR/sbarhive/releases/download/v7/readme.deb"])
+        srv, base = server(["/M7MMAD-OMAR/kawaro/releases/download/v7/readme.deb"])
         try:
-            d = mkroot(tag="v9.9.9", readme_url="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v7/readme.deb")
+            d = mkroot(tag="v9.9.9", readme_url="https://github.com/M7MMAD-OMAR/kawaro/releases/download/v7/readme.deb")
             r = run(d, "--online", "--base", base)
         finally:
             srv.shutdown()

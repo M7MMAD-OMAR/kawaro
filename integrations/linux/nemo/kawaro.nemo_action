@@ -1,0 +1,13 @@
+# Kawaro action for Nemo. Install to ~/.local/share/nemo/actions/.
+# scripts/install.sh replaces the bare `kawaro` in Exec with an absolute
+# path. Nemo gives no activation token; the CLI falls back to the
+# environment.
+[Nemo Action]
+Name=Kawaro
+Name[ar]=كوارو
+Comment=Open the selected files in Kawaro
+Comment[ar]=افتح الملفات المحددة في كوارو
+Exec=kawaro open -- %F
+Icon-Name=kawaro
+Selection=notnone
+Extensions=any;

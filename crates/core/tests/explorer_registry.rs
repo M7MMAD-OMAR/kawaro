@@ -3,14 +3,14 @@
 //! not available yet, so the AppUserModelId is the literal string of the
 //! acceptance criteria and the icon is only a file name inside `dir`.
 
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::registry::{install_commands, missing_files, uninstall_commands};
+use kawaro_core::i18n::Lang;
+use kawaro_core::registry::{install_commands, missing_files, uninstall_commands};
 use std::cell::RefCell;
 
-const DIR: &str = r"C:\Users\u\AppData\Local\Programs\SbarHive";
-const SHELL: &str = r"HKCU\Software\Classes\*\shell\SbarHive";
-const CMD_KEY: &str = r"HKCU\Software\Classes\*\shell\SbarHive\command";
-const AUMID: &str = r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.SbarHive";
+const DIR: &str = r"C:\Users\u\AppData\Local\Programs\Kawaro";
+const SHELL: &str = r"HKCU\Software\Classes\*\shell\Kawaro";
+const CMD_KEY: &str = r"HKCU\Software\Classes\*\shell\Kawaro\command";
+const AUMID: &str = r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.Kawaro";
 
 fn v(args: &[&str]) -> Vec<String> {
     args.iter().map(|s| s.to_string()).collect()
@@ -21,7 +21,7 @@ fn add_named(key: &str, name: &str, data: &str) -> Vec<String> {
 }
 
 fn expected(verb: &str, dir: &str) -> Vec<Vec<String>> {
-    let ico = format!(r"{dir}\sbarhive.ico");
+    let ico = format!(r"{dir}\kawaro.ico");
     vec![
         add_named(SHELL, "MUIVerb", verb),
         add_named(SHELL, "Icon", &ico),
@@ -33,10 +33,10 @@ fn expected(verb: &str, dir: &str) -> Vec<Vec<String>> {
             "/t",
             "REG_SZ",
             "/d",
-            &format!(r#""{dir}\sbarhived.exe" open "%1""#),
+            &format!(r#""{dir}\kawarod.exe" open "%1""#),
             "/f",
         ]),
-        add_named(AUMID, "DisplayName", "SbarHive"),
+        add_named(AUMID, "DisplayName", "Kawaro"),
         add_named(AUMID, "IconUri", &ico),
     ]
 }
@@ -45,14 +45,14 @@ fn expected(verb: &str, dir: &str) -> Vec<Vec<String>> {
 fn ac1_install_commands_english_exact() {
     let got = install_commands(DIR, Lang::En).unwrap();
     assert_eq!(got.len(), 6);
-    assert_eq!(got, expected("SbarHive", DIR));
+    assert_eq!(got, expected("Kawaro", DIR));
 }
 
 #[test]
 fn ac1_install_commands_arabic_exact() {
     let got = install_commands(DIR, Lang::Ar).unwrap();
     assert_eq!(got.len(), 6);
-    assert_eq!(got, expected("صبار هايف", DIR));
+    assert_eq!(got, expected("كوارو", DIR));
 }
 
 #[test]
@@ -65,10 +65,10 @@ fn ac1_only_the_verb_name_differs_between_languages() {
 
 #[test]
 fn ac1_default_value_command_keeps_its_quotes() {
-    let got = install_commands(r"C:\Program Files\SbarHive", Lang::En).unwrap();
+    let got = install_commands(r"C:\Program Files\Kawaro", Lang::En).unwrap();
     assert_eq!(
         got[3][6],
-        r#""C:\Program Files\SbarHive\sbarhived.exe" open "%1""#
+        r#""C:\Program Files\Kawaro\kawarod.exe" open "%1""#
     );
     assert_eq!(got[3][2], "/ve");
     assert_eq!(got[3].len(), 8);
@@ -79,10 +79,10 @@ fn ac2_uninstall_commands_exact() {
     assert_eq!(
         uninstall_commands(),
         vec![
-            v(&["delete", r"HKCU\Software\Classes\*\shell\SbarHive", "/f"]),
+            v(&["delete", r"HKCU\Software\Classes\*\shell\Kawaro", "/f"]),
             v(&[
                 "delete",
-                r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.SbarHive",
+                r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.Kawaro",
                 "/f"
             ]),
         ]
@@ -132,10 +132,10 @@ fn ac3_quote_error_wins_over_trailing_backslash() {
 fn ac3_trailing_backslash_is_normalised() {
     let with = install_commands(&format!(r"{DIR}\"), Lang::En).unwrap();
     assert_eq!(with, install_commands(DIR, Lang::En).unwrap());
-    assert_eq!(with[3][6], format!(r#""{DIR}\sbarhived.exe" open "%1""#));
+    assert_eq!(with[3][6], format!(r#""{DIR}\kawarod.exe" open "%1""#));
     assert!(!with[3][6].contains(r"\\"));
-    assert_eq!(with[1][7], format!(r"{DIR}\sbarhive.ico"));
-    assert_eq!(with[5][7], format!(r"{DIR}\sbarhive.ico"));
+    assert_eq!(with[1][7], format!(r"{DIR}\kawaro.ico"));
+    assert_eq!(with[5][7], format!(r"{DIR}\kawaro.ico"));
 }
 
 fn probe(present: &'static [&'static str]) -> (Vec<String>, Vec<String>) {
@@ -149,27 +149,24 @@ fn probe(present: &'static [&'static str]) -> (Vec<String>, Vec<String>) {
 
 #[test]
 fn ac6_nothing_missing_when_both_exist() {
-    let (missing, calls) = probe(&["sbarhived.exe", "sbarhive.ico"]);
+    let (missing, calls) = probe(&["kawarod.exe", "kawaro.ico"]);
     assert_eq!(missing, Vec::<String>::new());
     assert_eq!(
         calls,
-        vec![
-            format!(r"{DIR}\sbarhived.exe"),
-            format!(r"{DIR}\sbarhive.ico")
-        ]
+        vec![format!(r"{DIR}\kawarod.exe"), format!(r"{DIR}\kawaro.ico")]
     );
 }
 
 #[test]
 fn ac6_missing_service_exe_is_named() {
-    let (missing, _) = probe(&["sbarhive.ico"]);
-    assert_eq!(missing, vec!["sbarhived.exe".to_string()]);
+    let (missing, _) = probe(&["kawaro.ico"]);
+    assert_eq!(missing, vec!["kawarod.exe".to_string()]);
 }
 
 #[test]
 fn ac6_missing_icon_is_named() {
-    let (missing, _) = probe(&["sbarhived.exe"]);
-    assert_eq!(missing, vec!["sbarhive.ico".to_string()]);
+    let (missing, _) = probe(&["kawarod.exe"]);
+    assert_eq!(missing, vec!["kawaro.ico".to_string()]);
 }
 
 #[test]
@@ -177,7 +174,7 @@ fn ac6_both_missing_are_named_in_order() {
     let (missing, _) = probe(&[]);
     assert_eq!(
         missing,
-        vec!["sbarhived.exe".to_string(), "sbarhive.ico".to_string()]
+        vec!["kawarod.exe".to_string(), "kawaro.ico".to_string()]
     );
 }
 
@@ -190,9 +187,6 @@ fn ac6_trailing_backslash_does_not_double_the_separator() {
     });
     assert_eq!(
         seen.into_inner(),
-        vec![
-            format!(r"{DIR}\sbarhived.exe"),
-            format!(r"{DIR}\sbarhive.ico")
-        ]
+        vec![format!(r"{DIR}\kawarod.exe"), format!(r"{DIR}\kawaro.ico")]
     );
 }

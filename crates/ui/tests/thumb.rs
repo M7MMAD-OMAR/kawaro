@@ -1,7 +1,7 @@
 //! S-018g: the pure lookups behind the centre cell picture
 //! (backlog/S-018-hive-overlay.md, AC21 to AC23).
 //!
-//! Contract these tests fix, in `sbarhive_ui::thumb` (a `pub mod`):
+//! Contract these tests fix, in `kawaro_ui::thumb` (a `pub mod`):
 //! - `pub fn file_uri(path: &Path) -> String`: the URI exactly as
 //!   `Gio.File.get_uri()` writes it.
 //! - `pub fn kio_uri(path: &Path) -> String`: the form Qt and KIO write, the
@@ -23,7 +23,7 @@
 //!   -> Option<String>`.
 //! - `pub enum Kind { Image, Video, Audio, Pdf, Document, Sheet, Slides, Text,
 //!   File }` (`Clone, Copy, Debug, PartialEq, Eq`) with `pub fn icon(self)
-//!   -> &'static str`, an icon name of `sbarhive_ui::icon_names()`.
+//!   -> &'static str`, an icon name of `kawaro_ui::icon_names()`.
 //! - `pub fn kind_of(mime: &str) -> Kind`, `pub fn kind_for(globs: &Globs,
 //!   file_name: &str) -> Kind`, `pub fn common_kind<I: IntoIterator<Item = Kind>>(kinds: I)
 //!   -> Kind` and `pub fn format_code(file_name: &str) -> Option<String>`.
@@ -31,7 +31,7 @@
 //! Every fixture is built here, in `CARGO_TARGET_TMPDIR`; the owner's real
 //! thumbnail cache and data directories are never read.
 
-use sbarhive_ui::thumb::{
+use kawaro_ui::thumb::{
     Globs, Kind, SEARCH_ORDER, Size, common_kind, data_dirs, file_uri, find_thumbnail, format_code,
     kind_for, kind_of, kio_uri, thumbnail_path, thumbnails_dir,
 };
@@ -661,7 +661,7 @@ fn ac23_kind_icons_are_our_monoline_set() {
         (Kind::Text, "text"),
         (Kind::File, "file"),
     ];
-    let ours: Vec<&str> = sbarhive_ui::icon_names().collect();
+    let ours: Vec<&str> = kawaro_ui::icon_names().collect();
     for (kind, name) in want {
         assert_eq!(kind.icon(), name, "{kind:?}");
         assert!(

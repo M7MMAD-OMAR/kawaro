@@ -67,9 +67,9 @@ immutable = "public, max-age=31536000, immutable"
 expires = datetime.datetime.now(datetime.timezone.utc).date() + datetime.timedelta(days=180)
 wk = out / ".well-known"
 wk.mkdir(exist_ok=True)
-(wk / "security.txt").write_text(f"""Contact: https://github.com/M7MMAD-OMAR/sbarhive/security/advisories/new
+(wk / "security.txt").write_text(f"""Contact: https://github.com/M7MMAD-OMAR/kawaro/security/advisories/new
 Expires: {expires.isoformat()}T00:00:00Z
 Preferred-Languages: en, ar
-Canonical: https://hive.sbarah.com/.well-known/security.txt
-Policy: https://github.com/M7MMAD-OMAR/sbarhive/blob/main/SECURITY.md
+Canonical: https://kawaro.sbarah.com/.well-known/security.txt
+Policy: https://github.com/M7MMAD-OMAR/kawaro/blob/main/SECURITY.md
 """, encoding="utf-8")

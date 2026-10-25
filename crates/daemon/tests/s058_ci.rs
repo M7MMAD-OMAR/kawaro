@@ -101,7 +101,7 @@ fn check_apt_packages() -> BTreeSet<String> {
 #[test]
 fn ac2_windows_native_runs_every_test_binary_with_no_fail_fast() {
     let lines = job_lines("windows-native");
-    let want = "cargo test --no-fail-fast -p sbarhive-core -p sbarhive-engines -p sbarhive-cli";
+    let want = "cargo test --no-fail-fast -p kawaro-core -p kawaro-engines -p kawaro-cli";
     assert!(
         lines.iter().any(|l| l.contains(want)),
         "windows-native must run `{want}`, cargo otherwise stops at the first failing binary"
@@ -133,7 +133,7 @@ fn path_with(tools: &[&str]) -> tempfile::TempDir {
 }
 
 /// A sandbox copy of the repo parts make-ico.sh needs, so the committed
-/// design/brand/sbarhive.ico is never touched by these tests.
+/// design/brand/kawaro.ico is never touched by these tests.
 fn ico_sandbox() -> tempfile::TempDir {
     let d = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(d.path().join("scripts/windows")).unwrap();
@@ -144,8 +144,8 @@ fn ico_sandbox() -> tempfile::TempDir {
     )
     .unwrap();
     std::fs::copy(
-        root().join("design/brand/sbarhive.svg"),
-        d.path().join("design/brand/sbarhive.svg"),
+        root().join("design/brand/kawaro.svg"),
+        d.path().join("design/brand/kawaro.svg"),
     )
     .unwrap();
     d
@@ -182,7 +182,7 @@ fn ac3_make_ico_falls_back_to_convert_and_is_deterministic() {
     let path = path_with(&tools);
     assert!(!path.path().join("magick").exists());
     let sb = ico_sandbox();
-    let ico = sb.path().join("design/brand/sbarhive.ico");
+    let ico = sb.path().join("design/brand/kawaro.ico");
     let o1 = run_ico(sb.path(), path.path());
     assert_eq!(o1.status.code(), Some(0), "run 1: {:?}", out_text(&o1));
     let first = std::fs::read(&ico).unwrap();
@@ -204,7 +204,7 @@ fn ac3_make_ico_still_prefers_magick_when_present() {
     let sb = ico_sandbox();
     let o = run_ico(sb.path(), path.path());
     assert_eq!(o.status.code(), Some(0), "{:?}", out_text(&o));
-    assert!(sb.path().join("design/brand/sbarhive.ico").exists());
+    assert!(sb.path().join("design/brand/kawaro.ico").exists());
 }
 
 #[test]
@@ -216,7 +216,7 @@ fn ac3_make_ico_exits_2_naming_the_missing_tool_when_both_are_hidden() {
     assert_eq!(o.status.code(), Some(2), "{err}");
     assert!(err.contains("missing tool: "), "{err}");
     assert!(
-        !sb.path().join("design/brand/sbarhive.ico").exists(),
+        !sb.path().join("design/brand/kawaro.ico").exists(),
         "nothing may be written when a tool is missing"
     );
 }
@@ -290,7 +290,7 @@ fn ac1_config_path_test_windows_branch_checks_appdata_with_three_assertions() {
         win.contains("APPDATA"),
         "the Windows branch must use APPDATA"
     );
-    assert!(win.contains("SbarHive"), "expected folder SbarHive");
+    assert!(win.contains("Kawaro"), "expected folder Kawaro");
     assert!(win.contains("config.toml"));
     assert!(
         win.contains("Quality::Light"),

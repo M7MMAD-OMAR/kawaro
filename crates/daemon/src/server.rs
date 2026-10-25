@@ -1,10 +1,10 @@
-//! Socket server: one request per connection, see `sbarhive_core::ipc`.
+//! Socket server: one request per connection, see `kawaro_core::ipc`.
 
 use crate::state::{Shared, common_kind, lock};
 use crate::{notify, text, ui};
-use sbarhive_core::ipc::{Request, Response};
-use sbarhive_core::queue::Queue;
-use sbarhive_core::transport::{Listener, Stream, accept_backoff};
+use kawaro_core::ipc::{Request, Response};
+use kawaro_core::queue::Queue;
+use kawaro_core::transport::{Listener, Stream, accept_backoff};
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -32,7 +32,7 @@ pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
 /// when the call worked.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn focus_log(ok: bool) -> Option<&'static str> {
-    (!ok).then_some("sbarhived: foreground refused")
+    (!ok).then_some("kawarod: foreground refused")
 }
 
 /// Shows the hive for `files`. On Windows Explorer sends one file per
@@ -94,7 +94,7 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     };
     // The held drop key (S-019e): the gate on the event loop decides when
     // the hive shows, so the client returns at once.
-    if let Some(signal) = sbarhive_core::hold::from_request(&req) {
+    if let Some(signal) = kawaro_core::hold::from_request(&req) {
         let token = if let Request::Drop { token, .. } = req {
             token
         } else {
@@ -172,7 +172,7 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
                 guard.as_deref_mut(),
                 env!("CARGO_PKG_VERSION"),
                 &config,
-                &sbarhive_core::update::fetch::CurlFetcher::system(),
+                &kawaro_core::update::fetch::CurlFetcher::system(),
                 crate::update_sys::unix_now(),
             );
             drop(guard);
@@ -222,9 +222,9 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn s028_ac6_the_same_stream_writes_the_reply_after_read_request() {
-        use sbarhive_core::transport::{Bound, Endpoint, Listener, Stream};
+        use kawaro_core::transport::{Bound, Endpoint, Listener, Stream};
         let dir = tempfile::tempdir().unwrap();
-        let e = Endpoint::from_path(dir.path().join("sbarhive.sock"));
+        let e = Endpoint::from_path(dir.path().join("kawaro.sock"));
         let listener = match Listener::bind(&e).unwrap() {
             Bound::Listening(l) => l,
             Bound::AlreadyRunning => panic!("nothing listens yet, bind must listen"),

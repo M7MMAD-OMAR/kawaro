@@ -22,7 +22,7 @@ REF="$HERE/snapshots"
 UPDATE=0
 [ "${1:-}" = "--update" ] && UPDATE=1
 
-(cd "$ROOT" && cargo build --quiet --release -p sbarhive-ui --example settings_snapshot) || exit 2
+(cd "$ROOT" && cargo build --quiet --release -p kawaro-ui --example settings_snapshot) || exit 2
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/settings_snapshot"
 OUT="$(mktemp -d)"
 CAND="${CARGO_TARGET_DIR:-$ROOT/target}/settings-snapshot-candidates"
@@ -56,7 +56,7 @@ inner() {
       elif printf '%s\n' "$RETIRED" | grep -qx "$(sha256sum "$REF/$name" | cut -d' ' -f1)"; then
         cmp=(); missing=2
       fi
-      if ! SBARHIVE_COLOR_SCHEME=$scheme SBARHIVE_REDUCED_MOTION=1 \
+      if ! KAWARO_COLOR_SCHEME=$scheme KAWARO_REDUCED_MOTION=1 \
           "$BIN" "$OUT/$name" --lang "$lang" "${cmp[@]}"; then
         echo "FAIL $name (actual: $OUT/$name)"; fail=1
       fi

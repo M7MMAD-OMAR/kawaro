@@ -3,7 +3,7 @@
 mod image_common;
 use image_common::*;
 
-use sbarhive_core::EngineError;
+use kawaro_core::EngineError;
 use std::path::PathBuf;
 use tempfile::tempdir;
 
@@ -144,7 +144,7 @@ fn bad_input_in_the_middle_names_that_file() {
 fn cancel_between_pages() {
     let d = tempdir().unwrap();
     let out = d.path().join("o.pdf");
-    let token = sbarhive_core::CancelToken::new();
+    let token = kawaro_core::CancelToken::new();
     let t = task(
         "to-pdf",
         vec![fixture("alpha.png"), fixture("sample.gif")],
@@ -156,8 +156,8 @@ fn cancel_between_pages() {
             token.cancel();
         }
     };
-    let res = sbarhive_core::Engine::run(
-        &sbarhive_engines::image::ImageEngine::default(),
+    let res = kawaro_core::Engine::run(
+        &kawaro_engines::image::ImageEngine::default(),
         &t,
         &progress,
         &token,

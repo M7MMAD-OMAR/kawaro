@@ -13,7 +13,7 @@ mod platform;
 mod thumb;
 
 use overlay::log;
-use sbarhive_ui::{Hive, HiveCell, Lang};
+use kawaro_ui::{Hive, HiveCell, Lang};
 use slint::ComponentHandle;
 use std::path::PathBuf;
 use std::rc::Rc;
@@ -176,7 +176,7 @@ fn preview(files: Vec<PathBuf>) -> PreviewWindow {
 
 slint::slint! {
     export component SettingsStandIn inherits Window {
-        title: "SbarHive settings (stand-in)";
+        title: "Kawaro settings (stand-in)";
         width: 360px;
         height: 200px;
         Text { text: "Normal xdg-toplevel window from winit"; }

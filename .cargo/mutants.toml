@@ -47,7 +47,7 @@
 # The reg.exe runner (S-050) builds for Windows only; the live check is
 # S-052. The command lines and the dry run stay mutated in registry.rs and
 # integration.rs.
-# The Windows update helper (S-054a): it copies and starts sbarhive.exe, waits
+# The Windows update helper (S-054a): it copies and starts kawaro.exe, waits
 # for the daemon on the pipe and runs msiexec; the live check is S-052. Its
 # order, command line and exit codes stay mutated in update/apply.rs.
 # The update daemon's system side (S-054b): the real state, the saved
@@ -83,7 +83,7 @@ exclude_globs = [
 ]
 exclude_re = [
   # The production notification wrappers (S-054b) talk to the desktop, which
-  # no test may reach (SBARHIVE_NO_NOTIFY); their rules stay mutated in
+  # no test may reach (KAWARO_NO_NOTIFY); their rules stay mutated in
   # notify_update_with and report_update_result_with.
   "crates/daemon/src/notify.rs:.*replace <impl UpdateSink for Desktop>::",
   # The gate in front of notify-rust (S-054b rework 1): the rule is the pure

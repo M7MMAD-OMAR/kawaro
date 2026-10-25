@@ -354,8 +354,7 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(test: &str) -> Self {
-        let dir =
-            std::env::temp_dir().join(format!("sbarhive-s018h-{test}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kawaro-s018h-{test}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("files")).unwrap();
         Self(dir)

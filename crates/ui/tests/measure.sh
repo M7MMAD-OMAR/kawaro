@@ -9,12 +9,12 @@
 #   SHOW_TOKEN=T  passes an activation token with every show, which takes the
 #             path that builds a fresh hive window (S-013).
 #   DROP=1    every show is a drop-mode show (S-014 AC12): hive_bench gets
-#             "show --drop", which presents the hive the way `sbarhive drop`
+#             "show --drop", which presents the hive the way `kawaro drop`
 #             does (Hive::present_drop), and prints "mode=drop" in its line.
 #   HOLD=1    S-019e AC20: every show is a drop show in hold mode, the way
 #             the daemon makes one after the long press threshold:
 #             hive_bench gets "show --drop --hold"; its daemon passes the
-#             request through the long press gate (sbarhive_core::hold,
+#             request through the long press gate (kawaro_core::hold,
 #             threshold 400 ms) and shows the hive when the gate's timer
 #             gives the show. The show line then carries "mode=hold",
 #             "hold_ms=400", "catcher_ms=A" timed from the threshold's end
@@ -38,7 +38,7 @@ RUNS="${1:-20}"
 IDLE="${2:-60}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-(cd "$ROOT" && cargo build --quiet --release -p sbarhive-ui --example hive_bench) || exit 2
+(cd "$ROOT" && cargo build --quiet --release -p kawaro-ui --example hive_bench) || exit 2
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/hive_bench"
 OUT="$(mktemp -d)"
 PIN=()
@@ -71,7 +71,7 @@ inner() {
   echo "== daemon"
   "${PIN[@]}" "$BIN" daemon "${files[@]}" 2>"$OUT/daemon.log" &
   local dpid=$!
-  for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/sbarhive-ui-bench.sock" ] && break; sleep 0.1; done
+  for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/kawaro-ui-bench.sock" ] && break; sleep 0.1; done
   sleep 1
   local tok=(); [ -n "${SHOW_TOKEN:-}" ] && tok=(--token "$SHOW_TOKEN")
   [ -n "${DROP:-}${HOLD:-}" ] && tok+=(--drop)

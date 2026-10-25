@@ -1,8 +1,8 @@
 //! Office engine tests (S-009). Real conversions run LibreOffice; when it is
 //! not installed those tests print a notice and return early.
 
-use sbarhive_core::{CancelToken, Engine, EngineError, Task};
-use sbarhive_engines::office::OfficeEngine;
+use kawaro_core::{CancelToken, Engine, EngineError, Task};
+use kawaro_engines::office::OfficeEngine;
 #[cfg(unix)]
 use std::ffi::OsString;
 use std::io::{Read, Write};
@@ -181,7 +181,7 @@ fn office_text_to_odt_and_markdown_to_pdf() {
         return;
     };
     let txt = dir.path().join("-notes.txt");
-    std::fs::write(&txt, "Hello from SbarHive\n").unwrap();
+    std::fs::write(&txt, "Hello from Kawaro\n").unwrap();
     let odt = dir.path().join("notes.odt");
     run(
         &engine,
@@ -578,6 +578,6 @@ fn office_capabilities_list_the_four_ops_for_documents() {
         ["to-pdf", "convert-doc", "convert-sheet", "convert-slides"]
     );
     for (_, kinds) in engine.capabilities() {
-        assert_eq!(kinds, [sbarhive_core::MediaKind::Document]);
+        assert_eq!(kinds, [kawaro_core::MediaKind::Document]);
     }
 }

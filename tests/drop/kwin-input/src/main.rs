@@ -34,7 +34,7 @@ fn main() {
     let mut s = S(None);
     q.roundtrip(&mut s).expect("roundtrip");
     let f = s.0.clone().expect("no org_kde_kwin_fake_input");
-    f.authenticate("sbarhive-drop-test".into(), "test".into());
+    f.authenticate("kawaro-drop-test".into(), "test".into());
     q.roundtrip(&mut s).expect("roundtrip");
     eprintln!("kwin-input: ready");
     for line in std::io::stdin().lock().lines() {

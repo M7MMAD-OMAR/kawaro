@@ -1,6 +1,6 @@
-# SbarHive (صبار هايف): a local, open source file converter with a honeycomb UI
+# Kawaro (كوارو): a local, open source file converter with a honeycomb UI
 
-The name is fixed: SbarHive in Latin script, «صبار هايف» in Arabic. Releases and the plan are in `docs/PLAN.md`, changes in `CHANGELOG.md`.
+The name is fixed: Kawaro in Latin script, «كوارو» in Arabic (from «كوّارة», an old Arabic word for a beehive; `docs/adr/0008-name-kawaro.md`). The mark is a domed beehive inside one hexagon cell. Releases and the plan are in `docs/PLAN.md`, changes in `CHANGELOG.md`.
 
 ## What it is
 
@@ -11,7 +11,7 @@ Platform order: Linux on Wayland first (GNOME and KDE), then X11, then Windows, 
 ## Non-negotiable principles
 
 - No file leaves the user's machine. No processing servers, no telemetry.
-- The hive appears less than 150 ms after it is invoked. On the long press path (`sbarhive drop --hold`) "invoked" means the `hold_ms` threshold has elapsed, not the key press.
+- The hive appears less than 150 ms after it is invoked. On the long press path (`kawaro drop --hold`) "invoked" means the `hold_ms` threshold has elapsed, not the key press.
 - The base install is light. Extra engines are downloaded only when needed, or taken from the system when present.
 - The original file is never modified. Write to a temporary file, then rename atomically to the final name.
 - Arabic and English from day one, with full RTL.

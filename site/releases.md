@@ -27,7 +27,7 @@
 - Drop hive waiting text (S-014c)
 
 ## 0.2.2 (2026-10-20)
-- SbarHive shows in app launchers (search «sbar» or «صبار»); opening it starts the service a
+- Kawaro shows in app launchers (search «kawaro» or «كوارو»); opening it starts the service a
 
 ## 0.2.1 (2026-10-20)
 - RPM and DEB packages, built on Ubuntu 22.04 and test-installed on Fedora 41, current Fedor
@@ -37,7 +37,7 @@
 - Settings window (S-011)
 - Office and PDF engines (S-009, S-010)
 - FFmpeg engine (S-008)
-- `sbarhive doctor` and `sbarhive reload`; the service also reloads settings and user action
+- `kawaro doctor` and `kawaro reload`; the service also reloads settings and user action
 - Brand
 
 ## 0.1.0 (2026-10-20)

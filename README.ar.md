@@ -1,16 +1,16 @@
 [English](README.md) | [العربية](README.ar.md)
 
-الموقع: <https://hive.sbarah.com/>
+الموقع: <https://kawaro.sbarah.com/>
 
 <div dir="rtl">
 
-# صبار هايف
+# كوارو
 
-حدّد ملفاتك في مدير الملفات، وافتح صبار هايف من قائمة النقر اليمين، ثم اختر من الخلية ما تريد. يُحفظ الناتج بجانب الملف الأصلي، ولا يُمس الأصل.
+حدّد ملفاتك في مدير الملفات، وافتح كوارو من قائمة النقر اليمين، ثم اختر من الخلية ما تريد. يُحفظ الناتج بجانب الملف الأصلي، ولا يُمس الأصل.
 
 يعمل كل شيء على جهازك: لا رفع ولا خوادم ولا جمع بيانات.
 
-<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/hero.ar.dark.svg"><img src="docs/diagrams/hero.ar.light.svg" alt="خلية صبار هايف لصورة واحدة: الخلية المركزية تسمّي التحديد، والحلقة الأولى فيها صيغ الهدف، والثانية إجراءات الصورة" width="900"></picture>
+<picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/hero.ar.dark.svg"><img src="docs/diagrams/hero.ar.light.svg" alt="خلية كوارو لصورة واحدة: الخلية المركزية تسمّي التحديد، والحلقة الأولى فيها صيغ الهدف، والثانية إجراءات الصورة" width="900"></picture>
 
 رسم مأخوذ من هندسة التطبيق نفسها ورموز التصميم.
 
@@ -22,13 +22,17 @@
 
 لا تعرض الخلية إلا ما يناسب الملفات المحددة: نوعها، وعددها، والأدوات المثبتة على جهازك.
 
+## الاسم
+
+«كوارو» (Kawaro) مأخوذ من «كوّارة»، وهي كلمة عربية قديمة لخلية النحل. التطبيق خلية من الإجراءات، فاختصرنا الكلمة إلى اسم يُقرأ بالعربية واللاتينية بالطريقة نفسها: كوارو. والشعار كوّارة تقليدية مقبّبة داخل خلية سداسية واحدة.
+
 ## كيف يعمل
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/flow.ar.dark.svg"><img src="docs/diagrams/flow.ar.light.svg" alt="سبع خطوات من تحديد الملفات إلى الناتج بجانب الأصل" width="860"></picture>
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="docs/diagrams/overview.ar.dark.svg"><img src="docs/diagrams/overview.ar.light.svg" alt="مدير الملفات يستدعي سطر الأوامر الذي يكلّم عبر مقبس محلي الخدمة التي تضم الخلية والطابور والصينية والسجل والمحركات" width="860"></picture>
 
-- **خدمة واحدة تعرض الواجهة.** `sbarhived` فيها الخلية وطابور المهام والصينية والمحركات، و`sbarhive` عميل خفيف.
+- **خدمة واحدة تعرض الواجهة.** `kawarod` فيها الخلية وطابور المهام والصينية والمحركات، و`kawaro` عميل خفيف.
 - **المحركات الثقيلة عمليات منفصلة** (FFmpeg وLibreOffice وGhostscript)، وتُقتل مع شجرتها كاملة عند الإلغاء.
 - **صيغة جديدة تعني ملف TOML واحدا** في `actions/` ومحوّلا صغيرا ([مخطط](docs/diagrams/extend.ar.light.svg)).
 - **تختار الخلية سطحها** عند كل عرض ([مخطط](docs/diagrams/surface.ar.light.svg))، و**التحديثات موقّعة** ([مخطط](docs/diagrams/updates.ar.light.svg)).
@@ -50,68 +54,68 @@
 
 يعمل الإصدار الحالي على لينكس (64 بت).
 
-**الأسهل:** نزّل الحزمة المناسبة لنظامك من [صفحة آخر إصدار](https://github.com/M7MMAD-OMAR/sbarhive/releases/latest) وافتحها بمثبّت البرامج، أو من الطرفية:
+**الأسهل:** نزّل الحزمة المناسبة لنظامك من [صفحة آخر إصدار](https://github.com/M7MMAD-OMAR/kawaro/releases/latest) وافتحها بمثبّت البرامج، أو من الطرفية:
 
 ```bash
-sudo dnf install ./sbarhive-*.x86_64.rpm     # Fedora
-sudo apt install ./sbarhive_*_amd64.deb      # Ubuntu وDebian
+sudo dnf install ./kawaro-*.x86_64.rpm     # Fedora
+sudo apt install ./kawaro_*_amd64.deb      # Ubuntu وDebian
 ```
 
-تضيف الحزمة صبار هايف إلى قائمة النقر اليمين في Dolphin وNautilus وNemo، وتشغّل الخدمة مع كل جلسة. أعد فتح مدير الملفات بعد التثبيت. أما Thunar فاستعمل له سكربت التثبيت أدناه.
+تضيف الحزمة كوارو إلى قائمة النقر اليمين في Dolphin وNautilus وNemo، وتشغّل الخدمة مع كل جلسة. أعد فتح مدير الملفات بعد التثبيت. أما Thunar فاستعمل له سكربت التثبيت أدناه.
 
 **من المصدر:** تحتاج Rust 1.85 أو أحدث.
 
 ```bash
-git clone https://github.com/M7MMAD-OMAR/sbarhive
-cd sbarhive
+git clone https://github.com/M7MMAD-OMAR/kawaro
+cd kawaro
 ./scripts/install.sh
 ```
 
-يثبّت السكربت البرنامج لحسابك وحده دون صلاحيات المدير، ويضيف صبار هايف إلى قائمة النقر اليمين في مديري الملفات الموجودين عندك (Dolphin وNautilus وNemo وThunar)، ويشغّل الخدمة مع الجلسة. للإزالة: `./scripts/uninstall.sh`.
+يثبّت السكربت البرنامج لحسابك وحده دون صلاحيات المدير، ويضيف كوارو إلى قائمة النقر اليمين في مديري الملفات الموجودين عندك (Dolphin وNautilus وNemo وThunar)، ويشغّل الخدمة مع الجلسة. للإزالة: `./scripts/uninstall.sh`.
 
 في الطريقتين يحتاج Nautilus إلى `nautilus-python` (Fedora) أو `python3-nautilus` (Ubuntu)، ويحتاج الفتح من الحافظة إلى `wl-clipboard` على Wayland أو `xclip` على X11.
 
-**النسخة التجريبية:** أول إصدار تجريبي علني، 0.4.0-beta.1، إصدار ما قبل النهائي في [صفحة الإصدارات](https://github.com/M7MMAD-OMAR/sbarhive/releases) للينكس وويندوز، ومعه ملف `SHA256SUMS` للتحقق من تنزيلك. اقرأ [ملاحظات الإصدار](docs/release-notes-0.4.0-beta.1.ar.md) أولاً بما فيها الثغرات المعروفة.
+**النسخة التجريبية:** أول إصدار تجريبي علني، 0.4.0-beta.1، إصدار ما قبل النهائي في [صفحة الإصدارات](https://github.com/M7MMAD-OMAR/kawaro/releases) للينكس وويندوز، ومعه ملف `SHA256SUMS` للتحقق من تنزيلك. اقرأ [ملاحظات الإصدار](docs/release-notes-0.4.0-beta.1.ar.md) أولاً بما فيها الثغرات المعروفة.
 
 ## Windows beta: النسخة التجريبية
 
 نسخة تجريبية لـ Windows 10 (الإصدار 22H2) وWindows 11 جاهزة للتجربة، وهي للمختبِرين. قائمة الفحص في [docs/windows-beta-checklist.md](docs/windows-beta-checklist.md) (بالإنجليزية).
 
-**ما يعمل:** بند قائمة الزر الأيمن في المستكشف، ونافذة الخلية عند المؤشر، والتحويل بالمحركات المذكورة أدناه، وتشغيل الخدمة عند تسجيل الدخول. **ما لم يُبنَ بعد:** خلية الإفلات وأيقونة شريط النظام والاختصار العام والإشعارات. ولا توجد أيقونة في شريط النظام بعد، فأوقف الخدمة من مدير المهام (أنهِ `sbarhived.exe`) أو أزل تثبيت صبار هايف.
+**ما يعمل:** بند قائمة الزر الأيمن في المستكشف، ونافذة الخلية عند المؤشر، والتحويل بالمحركات المذكورة أدناه، وتشغيل الخدمة عند تسجيل الدخول. **ما لم يُبنَ بعد:** خلية الإفلات وأيقونة شريط النظام والاختصار العام والإشعارات. ولا توجد أيقونة في شريط النظام بعد، فأوقف الخدمة من مدير المهام (أنهِ `kawarod.exe`) أو أزل تثبيت كوارو.
 
-**التثبيت.** نزّل من صفحة الإصدار `sbarhive-<version>-windows-x64.msi` (للمستخدم الحالي دون صلاحيات المدير) أو `sbarhive-<version>-windows-x64.zip` (محمول). كلتاهما غير موقّعة، فتسألك SmartScreen أولاً: اضغط «More info» ثم «Run anyway». وعلى Windows 11 يظهر بند صبار هايف تحت «Show more options» (إظهار خيارات إضافية) في قائمة الزر الأيمن، وعلى Windows 10 يظهر في القائمة مباشرة.
+**التثبيت.** نزّل من صفحة الإصدار `kawaro-<version>-windows-x64.msi` (للمستخدم الحالي دون صلاحيات المدير) أو `kawaro-<version>-windows-x64.zip` (محمول). كلتاهما غير موقّعة، فتسألك SmartScreen أولاً: اضغط «More info» ثم «Run anyway». وعلى Windows 11 يظهر بند كوارو تحت «Show more options» (إظهار خيارات إضافية) في قائمة الزر الأيمن، وعلى Windows 10 يظهر في القائمة مباشرة.
 
 **المحركات غير مضمّنة.** محركات LibreOffice وGhostscript وFFmpeg غير مضمّنة، فثبّت ما تحتاجه منها. وإن غاب محرك ذكرت رسالة الخطأ اسمه.
 
-**الإعدادات.** ملف الإعدادات على ويندوز هو `%APPDATA%\SbarHive\config.toml` (وعلى لينكس `~/.config/sbarhive/config.toml`).
+**الإعدادات.** ملف الإعدادات على ويندوز هو `%APPDATA%\Kawaro\config.toml` (وعلى لينكس `~/.config/kawaro/config.toml`).
 
-**أرسل نتائجك.** شغّل `scripts\windows\beta-smoke.cmd` ثم `scripts\windows\collect-logs.cmd`، وتجد النتائج في `%USERPROFILE%\sbarhive-beta-test`. لا يُرفع شيء.
+**أرسل نتائجك.** شغّل `scripts\windows\beta-smoke.cmd` ثم `scripts\windows\collect-logs.cmd`، وتجد النتائج في `%USERPROFILE%\kawaro-beta-test`. لا يُرفع شيء.
 
 ## سطر الأوامر
 
 ```bash
-sbarhive convert --to webp صورة.png        # تحويل مباشر دون الخدمة
-sbarhive actions *.jpg                     # ما تعرضه الخلية لهذه الملفات
-sbarhive open --from-clipboard             # فتح الخلية للملفات المنسوخة
+kawaro convert --to webp صورة.png        # تحويل مباشر دون الخدمة
+kawaro actions *.jpg                     # ما تعرضه الخلية لهذه الملفات
+kawaro open --from-clipboard             # فتح الخلية للملفات المنسوخة
 ```
 
 على Hyprland يمكنك ربط Super مع النقر اليمين لتفتح الخلية للملفات المحددة مباشرة، والطريقة في [دليل Hyprland](integrations/linux/hyprland/README.ar.md).
 
-ولتظهر الخلية وأنت تسحب ملفاً، اربط الأمر `sbarhive drop` باختصار، والافتراضي Super+Z. خطوات GNOME وKDE وHyprland في [اختصار الإفلات](docs/drop-shortcut.ar.md).
+ولتظهر الخلية وأنت تسحب ملفاً، اربط الأمر `kawaro drop` باختصار، والافتراضي Super+Z. خطوات GNOME وKDE وHyprland في [اختصار الإفلات](docs/drop-shortcut.ar.md).
 
 ## الإعدادات
 
-افتح الإعدادات من أيقونة صبار هايف في شريط النظام، أو عدّل الملف `~/.config/sbarhive/config.toml` مباشرة، وفيه اللغة والمظهر ومكان الناتج (بجانب الأصل أو في مجلد فرعي) ومستوى الجودة. وإجراءاتك الخاصة تضعها في ملفات TOML داخل `~/.config/sbarhive/actions/`.
+افتح الإعدادات من أيقونة كوارو في شريط النظام، أو عدّل الملف `~/.config/kawaro/config.toml` مباشرة، وفيه اللغة والمظهر ومكان الناتج (بجانب الأصل أو في مجلد فرعي) ومستوى الجودة. وإجراءاتك الخاصة تضعها في ملفات TOML داخل `~/.config/kawaro/actions/`.
 
-على ويندوز يكون ملف الإعدادات في `%APPDATA%\SbarHive\config.toml`، والإجراءات الخاصة في `%APPDATA%\SbarHive\actions\`. أما سجل الخدمة في `%LOCALAPPDATA%\SbarHive\logs\` فمخطَّط لقصة لاحقة (S-045) ولا يُكتب بعد.
+على ويندوز يكون ملف الإعدادات في `%APPDATA%\Kawaro\config.toml`، والإجراءات الخاصة في `%APPDATA%\Kawaro\actions\`. أما سجل الخدمة في `%LOCALAPPDATA%\Kawaro\logs\` فمخطَّط لقصة لاحقة (S-045) ولا يُكتب بعد.
 
 **حزم ويندوز التجريبية غير موقّعة.** الملف المضغوط المحمول وحزمة MSI للمستخدم الحالي (S-051) بلا شهادة توقيع، فتعرض SmartScreen في ويندوز عبارة «Windows protected your PC»: اضغط «More info» ثم «Run anyway». قارن قيمة SHA-256 للملف الذي نزّلته بالقيمة المنشورة في صفحة الإصدار قبل تشغيله. لا تحتاج أي حزمة إلى صلاحيات المدير، ولم يُتحقق من أي منهما على ويندوز حقيقي بعد (S-052).
 
-وعلى ويندوز يشغّل `sbarhive open` الخدمة `sbarhived.exe` من مجلد البرنامج إن لم تكن تعمل، والمقصود أن تبقى تعمل بعد إغلاق الطرفية. نسخة ويندوز من الخدمة لم تُبنَ بعد (S-045)، ولم يُتحقق من هذا السلوك حياً (S-052).
+وعلى ويندوز يشغّل `kawaro open` الخدمة `kawarod.exe` من مجلد البرنامج إن لم تكن تعمل، والمقصود أن تبقى تعمل بعد إغلاق الطرفية. نسخة ويندوز من الخدمة لم تُبنَ بعد (S-045)، ولم يُتحقق من هذا السلوك حياً (S-052).
 
-ولا ينزّل صبار هايف المحركات الخارجية على ويندوز، بل يبحث عنها في `PATH` أولاً، ثم في مجلدات تثبيتها المعتادة: LibreOffice في `%ProgramFiles%\LibreOffice\program`، وGhostscript في أحدث `%ProgramFiles%\gs\gs*\bin`، وFFmpeg في المجلد `ffmpeg\bin` بجانب `sbarhive.exe`، ثم في سجل ويندوز لـ LibreOffice وGhostscript. وإن لم يجد محركاً ذكرت رسالة الخطأ اسمه ورابط تنزيله.
+ولا ينزّل كوارو المحركات الخارجية على ويندوز، بل يبحث عنها في `PATH` أولاً، ثم في مجلدات تثبيتها المعتادة: LibreOffice في `%ProgramFiles%\LibreOffice\program`، وGhostscript في أحدث `%ProgramFiles%\gs\gs*\bin`، وFFmpeg في المجلد `ffmpeg\bin` بجانب `kawaro.exe`، ثم في سجل ويندوز لـ LibreOffice وGhostscript. وإن لم يجد محركاً ذكرت رسالة الخطأ اسمه ورابط تنزيله.
 
-المفتاح `hold_ms` مدة الضغط المطوّل بالملي ثانية قبل أن تظهر الخلية مع `sbarhive drop --hold`: الافتراضي 400، والمقبول من 100 إلى 2000، وأي قيمة أخرى تعيد الافتراضي مع تحذير في السجل. يُقرأ عند كل ضغطة، فيسري تعديله دون إعادة تشغيل الخدمة. ولا تعرضه نافذة الإعدادات، فعدّله في الملف.
+المفتاح `hold_ms` مدة الضغط المطوّل بالملي ثانية قبل أن تظهر الخلية مع `kawaro drop --hold`: الافتراضي 400، والمقبول من 100 إلى 2000، وأي قيمة أخرى تعيد الافتراضي مع تحذير في السجل. يُقرأ عند كل ضغطة، فيسري تعديله دون إعادة تشغيل الخدمة. ولا تعرضه نافذة الإعدادات، فعدّله في الملف.
 
 ## المساهمة
 
@@ -119,7 +123,7 @@ sbarhive open --from-clipboard             # فتح الخلية للملفات 
 
 ## الدعم
 
-صبار هايف مجاني ويُبنى بشكل مفتوح. إن أفادك، يمكنك دعم تطويره:
+كوارو مجاني ويُبنى بشكل مفتوح. إن أفادك، يمكنك دعم تطويره:
 
 <a href="https://sbarah.com/support"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/support-sbarah-dark.svg"><img src="docs/assets/support-sbarah-light.svg" alt="ادعم صبارة" width="380"></picture></a>
 

@@ -1,21 +1,21 @@
-//! S-040a AC6 (backlog/S-040-windows-ipc.md): a second `sbarhived` on the
+//! S-040a AC6 (backlog/S-040-windows-ipc.md): a second `kawarod` on the
 //! same runtime dir finds the first one answering `ping`, prints
-//! `sbarhived: already running` and exits 0, as before the transport.
-//! The first service here is a fake on `sbarhive_core::transport`, so no
+//! `kawarod: already running` and exits 0, as before the transport.
+//! The first service here is a fake on `kawaro_core::transport`, so no
 //! window opens; the child gets no display variables either.
 
-use sbarhive_core::ipc::{Request, Response};
-use sbarhive_core::transport::{Bound, Endpoint, Listener};
+use kawaro_core::ipc::{Request, Response};
+use kawaro_core::transport::{Bound, Endpoint, Listener};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-const BIN: &str = env!("CARGO_BIN_EXE_sbarhived");
+const BIN: &str = env!("CARGO_BIN_EXE_kawarod");
 
 #[test]
 fn ac6_second_daemon_on_the_same_runtime_dir_says_already_running_and_exits_0() {
     let dir = tempfile::tempdir().unwrap();
-    let e = Endpoint::from_path(dir.path().join("sbarhive.sock"));
+    let e = Endpoint::from_path(dir.path().join("kawaro.sock"));
     let l = match Listener::bind(&e).unwrap() {
         Bound::Listening(l) => l,
         Bound::AlreadyRunning => panic!("the temp dir is empty"),
@@ -54,7 +54,7 @@ fn ac6_second_daemon_on_the_same_runtime_dir_says_already_running_and_exits_0() 
             let _ = child.kill();
             let out = child.wait_with_output().unwrap();
             panic!(
-                "sbarhived did not exit within 5 s; stderr:\n{}",
+                "kawarod did not exit within 5 s; stderr:\n{}",
                 String::from_utf8_lossy(&out.stderr)
             );
         }
@@ -67,9 +67,9 @@ fn ac6_second_daemon_on_the_same_runtime_dir_says_already_running_and_exits_0() 
         String::from_utf8_lossy(&out.stderr)
     );
     assert_eq!(status.code(), Some(0), "{text}");
-    assert!(text.contains("sbarhived: already running"), "{text}");
+    assert!(text.contains("kawarod: already running"), "{text}");
     assert!(
-        dir.path().join("sbarhive.sock").exists(),
+        dir.path().join("kawaro.sock").exists(),
         "the first service keeps its socket"
     );
 }

@@ -17,9 +17,9 @@
 use std::fs;
 use std::path::Path;
 
-use sbarhive_core::config::{Config, UpdateMode};
-use sbarhive_core::update::Channel;
-use sbarhive_core::update::apply::{Facts, PkgKind, Plan, linux_plan};
+use kawaro_core::config::{Config, UpdateMode};
+use kawaro_core::update::Channel;
+use kawaro_core::update::apply::{Facts, PkgKind, Plan, linux_plan};
 
 fn load(dir: &Path, text: &str) -> Config {
     let p = dir.join("config.toml");
@@ -151,10 +151,10 @@ fn the_repo_upgrade_plan_uses_the_absolute_pkexec() {
     };
     assert_eq!(
         linux_plan(&facts(true, false, PkgKind::Rpm)),
-        Plan::RepoUpgrade("/usr/bin/pkexec dnf upgrade -y sbarhive".to_string())
+        Plan::RepoUpgrade("/usr/bin/pkexec dnf upgrade -y kawaro".to_string())
     );
     assert_eq!(
         linux_plan(&facts(false, true, PkgKind::Deb)),
-        Plan::RepoUpgrade("/usr/bin/pkexec apt-get install -y --only-upgrade sbarhive".to_string())
+        Plan::RepoUpgrade("/usr/bin/pkexec apt-get install -y --only-upgrade kawaro".to_string())
     );
 }

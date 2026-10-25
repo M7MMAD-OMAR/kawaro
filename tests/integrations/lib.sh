@@ -57,7 +57,7 @@ ini_get () {
 # make_sandbox: creates $SB with home/, fakebin/, log/, release/ and exports
 # HOME and every XDG base directory into it. PATH starts with the fakes.
 make_sandbox () {
-  SB="$(mktemp -d "${TMPDIR:-/tmp}/sbarhive-test.XXXXXX")"
+  SB="$(mktemp -d "${TMPDIR:-/tmp}/kawaro-test.XXXXXX")"
   case "$SB" in /tmp/*|"${TMPDIR:-/nonexistent}"/*) ;; *) echo "bad sandbox $SB" >&2; exit 2 ;; esac
   mkdir -p "$SB/home" "$SB/fakebin" "$SB/log" "$SB/release"
   export SB
@@ -68,7 +68,7 @@ make_sandbox () {
   export XDG_STATE_HOME="$HOME/.local/state"
   export FAKE_LOG="$SB/log"
   unset PREFIX DESTDIR WAYLAND_DISPLAY DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID
-  unset SBARHIVE_FILE_MANAGERS SBARHIVE_HYPRLAND SBARHIVE_SYSTEMD SBARHIVE_BRAND_DIR SBARHIVE_THUNAR_SYSTEM_UCA
+  unset KAWARO_FILE_MANAGERS KAWARO_HYPRLAND KAWARO_SYSTEMD KAWARO_BRAND_DIR KAWARO_THUNAR_SYSTEM_UCA
   export PATH="$SB/fakebin:/usr/bin:/bin"
 
   cat > "$SB/fakebin/systemctl" <<'EOF'
@@ -84,9 +84,9 @@ EOF
 echo "hyprctl $*" >> "$FAKE_LOG/calls.log"
 exit 0
 EOF
-  cat > "$SB/fakebin/sbarhive" <<'EOF'
+  cat > "$SB/fakebin/kawaro" <<'EOF'
 #!/bin/sh
-echo "sbarhive $*" >> "$FAKE_LOG/calls.log"
+echo "kawaro $*" >> "$FAKE_LOG/calls.log"
 exit 0
 EOF
   for b in kbuildsycoca6 gtk-update-icon-cache update-desktop-database nautilus thunar nemo dolphin; do
@@ -95,14 +95,14 @@ EOF
   done
   chmod 0755 "$SB/fakebin/"*
 
-  printf '#!/bin/sh\necho fake sbarhive\n' > "$SB/release/sbarhive"
-  printf '#!/bin/sh\necho fake sbarhived\n' > "$SB/release/sbarhived"
+  printf '#!/bin/sh\necho fake kawaro\n' > "$SB/release/kawaro"
+  printf '#!/bin/sh\necho fake kawarod\n' > "$SB/release/kawarod"
   chmod 0755 "$SB/release/"*
-  export SBARHIVE_BIN_DIR="$SB/release"
+  export KAWARO_BIN_DIR="$SB/release"
 }
 
 drop_sandbox () {
-  case "${SB:-}" in /tmp/sbarhive-test.*|"${TMPDIR:-/nonexistent}"/sbarhive-test.*) rm -rf -- "$SB" ;; esac
+  case "${SB:-}" in /tmp/kawaro-test.*|"${TMPDIR:-/nonexistent}"/kawaro-test.*) rm -rf -- "$SB" ;; esac
 }
 
 # snapshot DIR: one line per entry with type, mode, path and, for files,

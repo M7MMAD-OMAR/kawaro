@@ -217,7 +217,7 @@ fn ac12_s019e_key_release_closes_a_hold_show_once() {
     assert_eq!(log.dismissed.get(), dismissed, "no dismiss after the drop");
     assert_eq!(log.chosen.borrow().len(), 1);
 
-    // A drop show without hold (`sbarhive drop`) ignores it.
+    // A drop show without hold (`kawaro drop`) ignores it.
     hive.present_drop("", None).unwrap();
     hive.key_released();
     assert!(hive.inner.visible());
@@ -249,8 +249,7 @@ struct Scratch(PathBuf);
 
 impl Scratch {
     fn new(test: &str) -> Self {
-        let dir =
-            std::env::temp_dir().join(format!("sbarhive-s019f-{test}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("kawaro-s019f-{test}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("files")).unwrap();
         Self(dir)
@@ -661,7 +660,7 @@ fn ac9_s021a_two_hides_without_a_drag_then_a_held_png_drag_reveals() {
 //   `on_dismiss` (decision 8). `show()` replaces a visible hive through it,
 //   and layer.rs prints `hive probe: hidden (replaced)` for `Some`.
 // - Reduced motion is read once, by `Hive::new`, from
-//   `SBARHIVE_REDUCED_MOTION`, so one test builds both hives with the
+//   `KAWARO_REDUCED_MOTION`, so one test builds both hives with the
 //   variable set, then removes it (the environment is shared by threads).
 
 fn opened(hive: &Hive) -> bool {
@@ -680,14 +679,14 @@ fn turn() {
     i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(1));
 }
 
-/// A hive built with `SBARHIVE_REDUCED_MOTION` set to `value`, wired as
+/// A hive built with `KAWARO_REDUCED_MOTION` set to `value`, wired as
 /// `probing_hive` is (the platform is installed by the caller, once).
 fn hive_with_motion(value: &str) -> (Hive, Rc<Log>) {
     // SAFETY: the variable is read by `Hive::new` only, set and removed in
     // this one test, which builds every hive that depends on it.
-    unsafe { std::env::set_var("SBARHIVE_REDUCED_MOTION", value) };
+    unsafe { std::env::set_var("KAWARO_REDUCED_MOTION", value) };
     let hive = Hive::new(Lang::En);
-    unsafe { std::env::remove_var("SBARHIVE_REDUCED_MOTION") };
+    unsafe { std::env::remove_var("KAWARO_REDUCED_MOTION") };
     let hive = hive.unwrap();
     let log = Rc::new(Log::default());
     let l = log.clone();

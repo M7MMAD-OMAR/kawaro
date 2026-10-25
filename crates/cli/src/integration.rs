@@ -1,9 +1,9 @@
-//! `sbarhive integration install|uninstall`: the Explorer right click menu
-//! (S-050). The command lines come from `sbarhive_core::registry`; only the
+//! `kawaro integration install|uninstall`: the Explorer right click menu
+//! (S-050). The command lines come from `kawaro_core::registry`; only the
 //! Windows runner in `integration/windows.rs` calls `reg.exe`.
 
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::registry;
+use kawaro_core::i18n::Lang;
+use kawaro_core::registry;
 use std::path::PathBuf;
 use std::process::ExitCode;
 
@@ -19,7 +19,7 @@ fn print_all(commands: &[Vec<String>]) {
 /// Exit code 2: this OS has no Explorer menu to change.
 #[cfg(not(windows))]
 fn windows_only(what: &str) -> ExitCode {
-    eprintln!("sbarhive: integration {what}: available on Windows only");
+    eprintln!("kawaro: integration {what}: available on Windows only");
     ExitCode::from(2)
 }
 
@@ -40,7 +40,7 @@ pub fn install(dry_run: bool, dir: Option<PathBuf>) -> ExitCode {
     let dir = match program_dir(dir) {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("sbarhive: {e}");
+            eprintln!("kawaro: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -51,7 +51,7 @@ pub fn install(dry_run: bool, dir: Option<PathBuf>) -> ExitCode {
                 ExitCode::SUCCESS
             }
             Err(e) => {
-                eprintln!("sbarhive: {e}");
+                eprintln!("kawaro: {e}");
                 ExitCode::FAILURE
             }
         };

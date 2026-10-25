@@ -1,6 +1,6 @@
 //! The system side of the update scheduler (S-054b): the real state, the
 //! saved schedule, notifications and the installer. Nothing here is decided;
-//! the rules are in `update.rs` and `sbarhive_core::update`. Covered live by
+//! the rules are in `update.rs` and `kawaro_core::update`. Covered live by
 //! tests/e2e/run.sh and the S-052 live check, so it is left out of the
 //! mutants run (`.cargo/mutants.toml`).
 
@@ -8,13 +8,13 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use sbarhive_core::config::Config;
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::paths::{CURRENT, cache_dir_with, update_state_file_with};
-use sbarhive_core::transport::Bound;
-use sbarhive_core::update::flow::platform_with;
-use sbarhive_core::update::schedule::State as Schedule;
-use sbarhive_core::update::verify::UPDATE_KEYS;
+use kawaro_core::config::Config;
+use kawaro_core::i18n::Lang;
+use kawaro_core::paths::{CURRENT, cache_dir_with, update_state_file_with};
+use kawaro_core::transport::Bound;
+use kawaro_core::update::flow::platform_with;
+use kawaro_core::update::schedule::State as Schedule;
+use kawaro_core::update::verify::UPDATE_KEYS;
 
 use crate::notify::{self, UpdateKind};
 use crate::state::{Shared, lock};
@@ -26,7 +26,7 @@ static IDLE: OnceLock<UpdateState> = OnceLock::new();
 
 fn env() -> UpdateEnv {
     let cache = cache_dir_with(CURRENT, &|k| std::env::var_os(k), &|| None)
-        .unwrap_or_else(|| std::env::temp_dir().join("sbarhive-cache"));
+        .unwrap_or_else(|| std::env::temp_dir().join("kawaro-cache"));
     UpdateEnv {
         installed: env!("CARGO_PKG_VERSION").to_string(),
         keys: UPDATE_KEYS.iter().map(|k| k.to_string()).collect(),
@@ -112,8 +112,8 @@ pub fn apply_from_menu(state: Shared) {
             }
             crate::update::request_apply_or_busy(guard.as_deref_mut())
         };
-        if let sbarhive_core::ipc::Response::Error { message } = response {
-            eprintln!("sbarhived: update: {message}");
+        if let kawaro_core::ipc::Response::Error { message } = response {
+            eprintln!("kawarod: update: {message}");
         }
         run_effects(effects, lang);
     });
@@ -158,23 +158,23 @@ fn apply(lang: Lang) {
 #[cfg(windows)]
 fn install(_lang: Lang, path: &std::path::Path, _sha256: &str, _kind: &str) -> Result<(), ()> {
     // Starts the helper copy and asks this daemon to quit over IPC.
-    sbarhive_core::update::apply::apply_msi(path).map_err(|_| ())
+    kawaro_core::update::apply::apply_msi(path).map_err(|_| ())
 }
 
 #[cfg(unix)]
 fn install(lang: Lang, path: &std::path::Path, sha256: &str, kind: &str) -> Result<(), ()> {
-    use sbarhive_core::update::apply::{
+    use kawaro_core::update::apply::{
         CommandRunner, Facts, PKEXEC, PkgKind, Plan, apply_now, linux_plan, privileged_argv_checked,
     };
     struct Runner;
     impl CommandRunner for Runner {
-        fn run(&self, argv: &[String]) -> Result<i32, sbarhive_core::update::UpdateError> {
+        fn run(&self, argv: &[String]) -> Result<i32, kawaro_core::update::UpdateError> {
             std::process::Command::new(&argv[0])
                 .args(&argv[1..])
                 .status()
-                .map_err(|_| sbarhive_core::update::UpdateError::Io)?
+                .map_err(|_| kawaro_core::update::UpdateError::Io)?
                 .code()
-                .ok_or(sbarhive_core::update::UpdateError::Io)
+                .ok_or(kawaro_core::update::UpdateError::Io)
         }
     }
     let exists = |p: &str| std::path::Path::new(p).exists();
@@ -190,7 +190,7 @@ fn install(lang: Lang, path: &std::path::Path, sha256: &str, kind: &str) -> Resu
         .flatten()
         .any(|e| {
             let name = e.file_name().to_string_lossy().to_lowercase();
-            (name.contains("sbarhive") && name.ends_with(".repo")) || name == "sbarhive.sources"
+            (name.contains("kawaro") && name.ends_with(".repo")) || name == "kawaro.sources"
         });
     let plan = linux_plan(&Facts {
         has_dnf: exists("/usr/bin/dnf"),
@@ -200,8 +200,8 @@ fn install(lang: Lang, path: &std::path::Path, sha256: &str, kind: &str) -> Resu
         installed_kind: Some(installed_kind),
     });
     // The CLI that runs the privileged step sits next to this daemon.
-    let cli = daemon_exe().and_then(|e| e.parent().map(|d| d.join("sbarhive")));
-    let cli = cli.unwrap_or_else(|| PathBuf::from("/usr/bin/sbarhive"));
+    let cli = daemon_exe().and_then(|e| e.parent().map(|d| d.join("kawaro")));
+    let cli = cli.unwrap_or_else(|| PathBuf::from("/usr/bin/kawaro"));
     match &plan {
         Plan::ShowCommand(cmd) => {
             let how = cmd.replace("{file}", &path.to_string_lossy());
@@ -230,7 +230,7 @@ fn daemon_exe() -> Option<PathBuf> {
 
 /// The variable the updater sets on the daemon it starts, so that daemon
 /// waits for the old one to free the socket.
-const RESTARTED: &str = "SBARHIVE_RESTARTED";
+const RESTARTED: &str = "KAWARO_RESTARTED";
 /// Retries of the restarted daemon, an eighth of `RESTART_DELAY` apart.
 const RESTART_TRIES: u32 = 20;
 

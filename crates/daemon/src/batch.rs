@@ -2,7 +2,7 @@
 //! selected file, so the first path shows the hive at once and the paths
 //! that follow within the merge window rebuild its cells for all files.
 
-use sbarhive_core::merge::{Collector, Push};
+use kawaro_core::merge::{Collector, Push};
 use std::path::PathBuf;
 
 /// What the hive does for a pushed path.

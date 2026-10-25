@@ -1,4 +1,4 @@
-# SbarHive plan: releases
+# Kawaro plan: releases
 
 The original planning document was never exported, so this plan rebuilds it from `CLAUDE.md` and the hive spike (`docs/adr/0001-ui-toolkit.md`). Any later conflict is settled here with a written decision.
 
@@ -29,9 +29,9 @@ Goal: a Linux user selects images in the file manager, opens the hive from the r
 | engines/image | PNG, JPEG, WebP, AVIF, ICO, TIFF, BMP, GIF; resize, rotate, flip, greyscale, compress, strip metadata, merge images into one PDF |
 | ui | Production quality hive from the spike, icons, a progress indicator that takes no focus, tokens generated from `design/tokens.json` |
 | daemon | Background service on a Unix socket, tray icon (StatusNotifierItem), autostart with the session, xdg-activation token passing |
-| cli | `sbarhive open`, `sbarhive convert --to`, `sbarhive actions`, `sbarhive daemon` |
+| cli | `kawaro open`, `kawaro convert --to`, `kawaro actions`, `kawaro daemon` |
 | integrations | Dolphin first (a service menu with one item at the top), then Nautilus (nautilus-python), Nemo (action), Thunar (custom action) |
-| Direct shortcut | `sbarhive open --from-clipboard` reads copied files (`text/uri-list`), with a Hyprland recipe binding Super plus right click to copy the selection and open the hive |
+| Direct shortcut | `kawaro open --from-clipboard` reads copied files (`text/uri-list`), with a Hyprland recipe binding Super plus right click to copy the selection and open the hive |
 | Distribution | User install and uninstall script, systemd user unit, desktop file, bilingual README, GPLv3, CHANGELOG |
 
 Out of scope: audio, video, documents, settings, Windows.
@@ -46,19 +46,19 @@ Goal: the same hive works with video, audio, documents and PDF, and shows only w
 
 | Component | Scope |
 | --- | --- |
-| core::probe | Detect FFmpeg, LibreOffice and Ghostscript, hide unavailable actions, `sbarhive doctor` |
+| core::probe | Detect FFmpeg, LibreOffice and Ghostscript, hide unavailable actions, `kawaro doctor` |
 | engines/ffmpeg | Video to MP4, WebM, GIF; extract audio; convert audio (MP3, OGG, FLAC, WAV, M4A); compress video; real progress from `-progress` |
 | engines/office | Office and ODF documents to PDF, DOCX and ODT both ways, through headless LibreOffice |
 | engines/pdf | Compress PDF with Ghostscript, merge PDFs, split pages, pages to images |
 | ui | Settings window: language, theme, output location, naming policy, quality mode |
-| config | `~/.config/sbarhive/config.toml`, read by the service and reloaded on change |
+| config | `~/.config/kawaro/config.toml`, read by the service and reloaded on change |
 | Identity | Logo and icon as SVG, landing page in `site/` |
 
 Out of scope: Windows, macOS, Flatpak, the GlobalShortcuts portal.
 
 Decision (2026-10-20): the naming policy is fixed, not a setting. The output takes the original name with the new extension; if that name exists, "(1)", "(2)" is added and nothing is ever overwritten. Every other option (overwrite, replace the original) breaks "the original is never modified" or risks the user's files, and a name suffix alone does not justify a field. Revisit if users ask.
 
-Reload on change: the service polls `config.toml` and `actions/*.toml` every two seconds, so hand edits apply without `sbarhive reload`, and a language or theme change rebuilds the windows.
+Reload on change: the service polls `config.toml` and `actions/*.toml` every two seconds, so hand edits apply without `kawaro reload`, and a language or theme change rebuilds the windows.
 
 ## 0.3.0 "Drop"
 
@@ -67,7 +67,7 @@ Goal: a GNOME or KDE user drags a file, presses a shortcut of their choice durin
 | Component | Scope |
 | --- | --- |
 | ui | Wayland drop receiver (a private `wl_data_device` on winit's display, bound on every show, copy only, `text/uri-list`) and a "waiting for drop" mode with cell highlight |
-| cli and daemon | `sbarhive drop` and its IPC message, bound by the user to a custom system shortcut |
+| cli and daemon | `kawaro drop` and its IPC message, bound by the user to a custom system shortcut |
 | Docs | Binding the shortcut on GNOME and KDE, and a `bind` line for Hyprland |
 | Layer and preview | The hive as a `zwlr_layer_shell_v1` overlay (a full screen catcher with the hive as a software rendered subsurface) where the compositor offers it, an xdg_toplevel window on GNOME, X11 and with a screen reader; the receiver on the layer connection; the file itself in the centre cell from shared thumbnails or its type icon. Based on `docs/adr/0004-hive-overlay.md`, ahead of S-017b and S-017c. Story: S-018 (done) |
 | Drop on Hyprland | In drop mode the catcher takes the drag with an input region the size of the hive, because Hyprland sends no drag motion to a subsurface of a layer surface; outside the hive drags and clicks pass through. Ahead of S-019. Story: S-020 (done) |
@@ -102,7 +102,7 @@ Story: S-015 (draft). Out of scope: Windows, macOS.
 
 ## 0.6.0 "Windows"
 
-Goal: a Windows 10 or 11 user selects a file in Explorer, picks SbarHive from the right click menu, the hive appears at the pointer, and the result is saved next to the original, in Arabic and English, with no file leaving the machine.
+Goal: a Windows 10 or 11 user selects a file in Explorer, picks Kawaro from the right click menu, the hive appears at the pointer, and the result is saved next to the original, in Arabic and English, with no file leaving the machine.
 
 Before any code: ADR 0005 (`docs/adr/0005-windows.md`) settles the installer and its format, package signing, tray icon and notifications, where external engines live, and how to test on real Windows or a virtual machine.
 

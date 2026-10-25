@@ -7,19 +7,19 @@
 #   - measure.sh ran the first show and RUNS warm shows;
 #   - every show was a drop-mode show: hive_bench prints "mode=drop" in each
 #     show line (the contract of "show --drop"), and the bench daemon (with
-#     SBARHIVE_DEBUG_FOCUS=1) prints one "hive surface: layer" line per show
+#     KAWARO_DEBUG_FOCUS=1) prints one "hive surface: layer" line per show
 #     and no "hive focus: true" line, because the drop-mode layer takes no
 #     keyboard (S-018 AC13) while a normal show takes it;
 #   - the median warm catcher_ms is under 150 ms (first_frame_ms before
 #     S-021 AC8).
-# The time from the key press to the `sbarhive drop` process (the
+# The time from the key press to the `kawaro drop` process (the
 # compositor's spawn) is not in this number; tests/drop/*.sh shortcut cover
 # that the key runs it (AC11). No WAYLAND_DEBUG: it would slow the frames.
 # measure.sh's output folder is copied to tests/drop/out/ and removed.
 # S-019e AC20, mode "hold": the 150 ms budget of the long press path is
 # timed from the end of the threshold, not from the press. measure.sh runs
 # with DROP=1 HOLD=1 (hive_bench "show --drop --hold", the gate in
-# sbarhive_core::hold with its default 400 ms), on the layer path, and:
+# kawaro_core::hold with its default 400 ms), on the layer path, and:
 #   - all RUNS + 1 shows ran, every line says mode=hold and hold_ms=400;
 #   - in every line press_to_catcher_ms is catcher_ms plus the threshold:
 #     B - A between 400 and 450 ms (the clock starts at the threshold's end,
@@ -66,7 +66,7 @@ if [ "$HOLDM" = hold ]; then
 {
   log="$OUT/budget-hold"
   echo "== measure.sh $RUNS $IDLE (DROP=1 HOLD=1)"
-  env -u SBARHIVE_SURFACE -u SHOW_TOKEN -u PREVIEW DROP=1 HOLD=1 SBARHIVE_DEBUG_FOCUS=1 \
+  env -u KAWARO_SURFACE -u SHOW_TOKEN -u PREVIEW DROP=1 HOLD=1 KAWARO_DEBUG_FOCUS=1 \
     CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}" \
     nice -n 19 "$ROOT/crates/ui/tests/measure.sh" "$RUNS" "$IDLE" >"$log.txt" 2>&1
   raw=$(sed -n 's/^raw output: //p' "$log.txt")
@@ -118,7 +118,7 @@ fi
 {
   log="$OUT/budget-drop"
   echo "== measure.sh $RUNS $IDLE (DROP=1)"
-  env -u SBARHIVE_SURFACE -u SHOW_TOKEN -u PREVIEW -u HOLD DROP=1 SBARHIVE_DEBUG_FOCUS=1 \
+  env -u KAWARO_SURFACE -u SHOW_TOKEN -u PREVIEW -u HOLD DROP=1 KAWARO_DEBUG_FOCUS=1 \
     CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}" \
     nice -n 19 "$ROOT/crates/ui/tests/measure.sh" "$RUNS" "$IDLE" >"$log.txt" 2>&1
   raw=$(sed -n 's/^raw output: //p' "$log.txt")

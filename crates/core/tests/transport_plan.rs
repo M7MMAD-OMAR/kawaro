@@ -2,7 +2,7 @@
 //! Windows pipe decisions as pure functions, tested and mutated on Linux.
 //!
 //! Contract (tester, from AC8 to AC12; do not edit). In
-//! `sbarhive_core::transport`, `pub` on every platform:
+//! `kawaro_core::transport`, `pub` on every platform:
 //! - `pub fn dacl_sddl(sid: &str) -> String`: a protected DACL with one
 //!   allow ACE, generic all, for `sid` only.
 //! - `pub enum BindOutcome { Listen, AlreadyRunning, Failed(std::io::Error) }`
@@ -41,7 +41,7 @@
 //!   `fresh_ok`, `Empty` when the client is handed over and the fresh
 //!   instance failed, `Keep` when there is no client and it failed.
 
-use sbarhive_core::transport::{
+use kawaro_core::transport::{
     AcceptPlan, BindOutcome, ConnectStep, NextInstance, accept_backoff, accept_plan, bind_result,
     connect_plan, dacl_sddl, open_mode, pipe_mode, verify_owner,
 };

@@ -1,7 +1,7 @@
 //! S-054a: small helpers the implementer added beside the tester's contract
 //! (the `--kind` text, the effective user id, the system program paths).
 
-use sbarhive_core::update::apply::{PkgKind, Programs, effective_uid};
+use kawaro_core::update::apply::{PkgKind, Programs, effective_uid};
 use std::path::Path;
 
 #[test]

@@ -4,7 +4,7 @@
 //! system: `root_dir` is a temp folder. The contract is in `s054a_apply.rs`.
 //!
 //! Extra DECISIONs (reported): the copy lives in a new folder named
-//! `sbarhive-update-*` directly under `root_dir`, keeps the original file name
+//! `kawaro-update-*` directly under `root_dir`, keeps the original file name
 //! (dnf and apt need the suffix), the folder has mode 0700 and the file no
 //! group or other bits; the folder is removed on every path (success, manager
 //! failure, mismatch), so `root_dir` is empty afterwards. A manager that exits
@@ -16,8 +16,8 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
-use sbarhive_core::update::UpdateError;
-use sbarhive_core::update::apply::{PkgKind, Programs, install_privileged};
+use kawaro_core::update::UpdateError;
+use kawaro_core::update::apply::{PkgKind, Programs, install_privileged};
 
 static LOCK: Mutex<()> = Mutex::new(());
 
@@ -135,7 +135,7 @@ fn pkg(lab: &Lab, name: &str, bytes: &[u8]) -> PathBuf {
 fn ac3_rpm_runs_dnf_install_on_the_root_owned_copy_only() {
     let _g = lock();
     let lab = lab(0, 0);
-    let file = pkg(&lab, "sbarhive-0.4.0-1.x86_64.rpm", GOOD);
+    let file = pkg(&lab, "kawaro-0.4.0-1.x86_64.rpm", GOOD);
     install_privileged(&file, SHA_GOOD, PkgKind::Rpm, &lab.root_dir, &lab.programs).unwrap();
 
     let calls = lab.calls("dnf");
@@ -159,7 +159,7 @@ fn ac3_rpm_runs_dnf_install_on_the_root_owned_copy_only() {
             .file_name()
             .unwrap()
             .to_string_lossy()
-            .starts_with("sbarhive-update-"),
+            .starts_with("kawaro-update-"),
         "{folder:?}"
     );
     assert!(argv.iter().all(|a| !a.contains("nogpgcheck")));
@@ -196,7 +196,7 @@ fn ac3_rpm_runs_dnf_install_on_the_root_owned_copy_only() {
 fn ac3_deb_runs_apt_get_install_on_the_copy() {
     let _g = lock();
     let lab = lab(0, 0);
-    let file = pkg(&lab, "sbarhive_0.4.0-1_amd64.deb", GOOD);
+    let file = pkg(&lab, "kawaro_0.4.0-1_amd64.deb", GOOD);
     install_privileged(&file, SHA_GOOD, PkgKind::Deb, &lab.root_dir, &lab.programs).unwrap();
 
     let calls = lab.calls("apt-get");
@@ -223,7 +223,7 @@ fn ac3_deb_runs_apt_get_install_on_the_copy() {
 fn ac3_two_installs_use_two_different_folders() {
     let _g = lock();
     let lab = lab(0, 0);
-    let file = pkg(&lab, "sbarhive.rpm", GOOD);
+    let file = pkg(&lab, "kawaro.rpm", GOOD);
     for _ in 0..2 {
         install_privileged(&file, SHA_GOOD, PkgKind::Rpm, &lab.root_dir, &lab.programs).unwrap();
     }
@@ -239,7 +239,7 @@ fn ac3_a_file_that_does_not_match_the_hash_runs_nothing() {
     let _g = lock();
     for kind in [PkgKind::Rpm, PkgKind::Deb] {
         let lab = lab(0, 0);
-        let file = pkg(&lab, "sbarhive.pkg", BAD);
+        let file = pkg(&lab, "kawaro.pkg", BAD);
         let out = install_privileged(&file, SHA_GOOD, kind, &lab.root_dir, &lab.programs);
         assert_eq!(out, Err(UpdateError::HashMismatch), "{kind:?}");
         assert!(lab.calls("dnf").is_empty(), "{kind:?}");
@@ -256,7 +256,7 @@ fn ac3_a_file_that_does_not_match_the_hash_runs_nothing() {
 fn ac3_a_file_replaced_after_the_caller_checked_it_is_a_mismatch() {
     let _g = lock();
     let lab = lab(0, 0);
-    let file = pkg(&lab, "sbarhive.rpm", GOOD);
+    let file = pkg(&lab, "kawaro.rpm", GOOD);
     // The caller verified `GOOD` against SHA_GOOD, then the user-writable
     // file is swapped for other bytes of a different size and for the same
     // size, before the privileged call.
@@ -274,7 +274,7 @@ fn ac3_a_file_replaced_after_the_caller_checked_it_is_a_mismatch() {
 fn ac3_a_malformed_expected_hash_never_matches() {
     let _g = lock();
     let lab = lab(0, 0);
-    let file = pkg(&lab, "sbarhive.rpm", GOOD);
+    let file = pkg(&lab, "kawaro.rpm", GOOD);
     for bad in ["", "abc", &SHA_GOOD.to_uppercase(), &SHA_GOOD[..63]] {
         let out = install_privileged(&file, bad, PkgKind::Rpm, &lab.root_dir, &lab.programs);
         assert!(
@@ -312,7 +312,7 @@ fn ac3_a_manager_that_fails_is_io_and_the_copy_is_still_removed() {
     let _g = lock();
     for kind in [PkgKind::Rpm, PkgKind::Deb] {
         let lab = lab(1, 100);
-        let file = pkg(&lab, "sbarhive.pkg", GOOD);
+        let file = pkg(&lab, "kawaro.pkg", GOOD);
         let out = install_privileged(&file, SHA_GOOD, kind, &lab.root_dir, &lab.programs);
         assert_eq!(out, Err(UpdateError::Io), "{kind:?}");
         assert_eq!(lab.calls("dnf").len() + lab.calls("apt-get").len(), 1);
@@ -325,7 +325,7 @@ fn ac3_a_manager_that_cannot_start_is_io() {
     let _g = lock();
     let mut lab = lab(0, 0);
     lab.programs.dnf = lab.bin.join("no-such-dnf");
-    let file = pkg(&lab, "sbarhive.rpm", GOOD);
+    let file = pkg(&lab, "kawaro.rpm", GOOD);
     let out = install_privileged(&file, SHA_GOOD, PkgKind::Rpm, &lab.root_dir, &lab.programs);
     assert_eq!(out, Err(UpdateError::Io));
     assert!(lab.root_entries().is_empty());
@@ -336,7 +336,7 @@ fn ac3_a_root_dir_that_does_not_exist_is_io_and_nothing_is_created() {
     let _g = lock();
     let lab = lab(0, 0);
     let missing = lab.root_dir.join("missing");
-    let file = pkg(&lab, "sbarhive.rpm", GOOD);
+    let file = pkg(&lab, "kawaro.rpm", GOOD);
     let out = install_privileged(&file, SHA_GOOD, PkgKind::Rpm, &missing, &lab.programs);
     assert_eq!(out, Err(UpdateError::Io));
     assert!(!missing.exists());

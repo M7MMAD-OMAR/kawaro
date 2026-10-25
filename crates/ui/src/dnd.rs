@@ -18,13 +18,13 @@ pub fn pick(plan: &Plan, x: f64, y: f64) -> Option<usize> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     Hidden,
-    /// Shown from the context menu or `sbarhive open`.
+    /// Shown from the context menu or `kawaro open`.
     Normal,
     /// A drop show on the layer path, its catcher bound but the hive not
     /// revealed: waits for the first event that says whether a file drag
     /// is there (S-021).
     Probing,
-    /// Shown by `sbarhive drop`, no cell under the drag.
+    /// Shown by `kawaro drop`, no cell under the drag.
     Waiting,
     /// A drag hovers this cell.
     Over(usize),
@@ -36,7 +36,7 @@ pub enum State {
 pub enum Event {
     Show {
         drop: bool,
-        /// A drop show made by a held key (`sbarhive drop --hold`, S-019e):
+        /// A drop show made by a held key (`kawaro drop --hold`, S-019e):
         /// the key release closes it, and the drag leaving does not.
         hold: bool,
         /// The show is on the layer path (a hidden catcher, S-021): a drop

@@ -19,18 +19,17 @@ const DETACHED_PROCESS: u32 = 0x0000_0008;
 const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
 
 /// The variable that tells the helper copy where the program folder is.
-const PROGRAM_DIR_VAR: &str = "SBARHIVE_PROGRAM_DIR";
+const PROGRAM_DIR_VAR: &str = "KAWARO_PROGRAM_DIR";
 
-/// Copies `sbarhive.exe` to a temporary folder and starts the copy detached
+/// Copies `kawaro.exe` to a temporary folder and starts the copy detached
 /// with `update --apply-msi <msi>`. The caller asks the daemon to quit next;
 /// the copy waits for it, so `msiexec` never replaces files of a live daemon.
 pub fn apply_msi(msi: &Path) -> Result<(), UpdateError> {
     let exe = std::env::current_exe().map_err(|_| UpdateError::Io)?;
     let program_dir = exe.parent().ok_or(UpdateError::Io)?;
-    let folder =
-        std::env::temp_dir().join(format!("sbarhive-update-helper-{}", std::process::id()));
+    let folder = std::env::temp_dir().join(format!("kawaro-update-helper-{}", std::process::id()));
     std::fs::create_dir_all(&folder).map_err(|_| UpdateError::Io)?;
-    let copy = folder.join("sbarhive.exe");
+    let copy = folder.join("kawaro.exe");
     std::fs::copy(&exe, &copy).map_err(|_| UpdateError::Io)?;
     Command::new(&copy)
         .args(helper_args(msi))
@@ -106,7 +105,7 @@ impl HelperOps for Ops {
         let Some(dir) = &self.program_dir else {
             return;
         };
-        let _ = Command::new(dir.join("sbarhived.exe"))
+        let _ = Command::new(dir.join("kawarod.exe"))
             .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
             .spawn();
     }

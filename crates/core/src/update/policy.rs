@@ -4,7 +4,7 @@ use super::manifest::{Asset, Manifest};
 use super::{Channel, UpdateError, version};
 
 /// Every asset url must start with this.
-const URL_PREFIX: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/";
+const URL_PREFIX: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/";
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Update {

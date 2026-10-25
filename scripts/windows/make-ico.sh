@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Regenerates design/brand/sbarhive.ico (16, 24, 32, 48, 64 and 256 pixel
-# images) from design/brand/sbarhive.svg. Needs inkscape and ImageMagick (`magick`,
+# Regenerates design/brand/kawaro.ico (16, 24, 32, 48, 64 and 256 pixel
+# images) from design/brand/kawaro.svg. Needs inkscape and ImageMagick (`magick`,
 # else `convert`). A re-run gives an identical file.
 #   scripts/windows/make-ico.sh
 set -eu
 cd "$(dirname "$0")/../.."
-svg=design/brand/sbarhive.svg
-out=design/brand/sbarhive.ico
+svg=design/brand/kawaro.svg
+out=design/brand/kawaro.ico
 if ! command -v inkscape >/dev/null 2>&1; then
   echo "missing tool: inkscape" >&2
   exit 2

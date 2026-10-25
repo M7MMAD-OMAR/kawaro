@@ -1,4 +1,4 @@
-//! Windows shell glue for `sbarhived open` (S-046): the foreground grant, the
+//! Windows shell glue for `kawarod open` (S-046): the foreground grant, the
 //! foreground call after the hive shows, and the merging of the files that
 //! Explorer sends one process at a time. Left out of the mutants run, the
 //! live check is S-052; the decisions are in `args.rs`, `batch.rs`,
@@ -7,7 +7,7 @@
 use crate::batch::{OpenBatch, Step};
 use crate::server::focus_log;
 use crate::state::{Shared, lock};
-use sbarhive_core::ActionDef;
+use kawaro_core::ActionDef;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 use std::time::Instant;

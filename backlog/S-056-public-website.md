@@ -2,7 +2,7 @@
 الحالة: مراجعة
 
 ## Story
-As the maintainer, I want a bilingual public website with a honeycomb theme, so that visitors understand SbarHive at a glance, download the beta safely and are told honestly what is and is not verified.
+As the maintainer, I want a bilingual public website with a honeycomb theme, so that visitors understand Kawaro at a glance, download the beta safely and are told honestly what is and is not verified.
 
 ## Acceptance criteria
 - AC1: `python3 site/build.py` writes eight pages (home, download, windows, privacy in Arabic at the root and English under `site/en/`), each with a working language switch to its twin and `dir="rtl"` for Arabic.

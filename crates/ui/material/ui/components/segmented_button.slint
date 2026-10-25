@@ -27,7 +27,7 @@ component SegmentedItemTemplate {
     accessible-item-selected: root.selected;
     accessible-item-index: root.index;
 
-    // SbarHive: the outer segments round their own outer corners, because
+    // Kawaro: the outer segments round their own outer corners, because
     // the software renderer does not clip children to a rounded parent.
     if root.selected : Rectangle {
         background: MaterialPalette.secondary_container;
@@ -51,7 +51,7 @@ component SegmentedItemTemplate {
         animate width { duration: MaterialAnimations.standard_accelerate_duration; easing: MaterialAnimations.standard_easing; }
     }
 
-    // SbarHive: the 1px side divider between segments is removed (no side
+    // Kawaro: the 1px side divider between segments is removed (no side
     // lines in our design); the selected segment is marked by its surface
     // and the check icon.
 

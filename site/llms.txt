@@ -1,27 +1,27 @@
-# SbarHive
+# Kawaro
 
 > A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. First beta 0.4.0-beta.1.
 
 ## Docs
 
-- [Quick start](https://hive.sbarah.com/en/docs/start.md)
-- [Install](https://hive.sbarah.com/en/docs/install.md)
-- [Use the hive](https://hive.sbarah.com/en/docs/use.md)
-- [How it works](https://hive.sbarah.com/en/docs/how.md)
-- [Formats](https://hive.sbarah.com/en/docs/formats.md)
-- [Shortcuts](https://hive.sbarah.com/en/docs/shortcuts.md)
-- [Settings](https://hive.sbarah.com/en/docs/settings.md)
-- [Troubleshooting](https://hive.sbarah.com/en/docs/troubleshoot.md)
-- [Contribute](https://hive.sbarah.com/en/docs/contribute.md)
+- [Quick start](https://kawaro.sbarah.com/en/docs/start.md)
+- [Install](https://kawaro.sbarah.com/en/docs/install.md)
+- [Use the hive](https://kawaro.sbarah.com/en/docs/use.md)
+- [How it works](https://kawaro.sbarah.com/en/docs/how.md)
+- [Formats](https://kawaro.sbarah.com/en/docs/formats.md)
+- [Shortcuts](https://kawaro.sbarah.com/en/docs/shortcuts.md)
+- [Settings](https://kawaro.sbarah.com/en/docs/settings.md)
+- [Troubleshooting](https://kawaro.sbarah.com/en/docs/troubleshoot.md)
+- [Contribute](https://kawaro.sbarah.com/en/docs/contribute.md)
 
 ## Project
 
-- [Download](https://hive.sbarah.com/en/download/): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps
-- [Windows and SmartScreen](https://hive.sbarah.com/en/windows/): the Windows build is unsigned
-- [Privacy](https://hive.sbarah.com/en/privacy/): no tracking, signed updates only
-- [Releases](https://hive.sbarah.com/en/releases.md)
-- [Source](https://github.com/M7MMAD-OMAR/sbarhive): GPL-3.0-or-later
+- [Download](https://kawaro.sbarah.com/en/download/): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps
+- [Windows and SmartScreen](https://kawaro.sbarah.com/en/windows/): the Windows build is unsigned
+- [Privacy](https://kawaro.sbarah.com/en/privacy/): no tracking, signed updates only
+- [Releases](https://kawaro.sbarah.com/en/releases.md)
+- [Source](https://github.com/M7MMAD-OMAR/kawaro): GPL-3.0-or-later
 
 ## Arabic
 
-- [التوثيق بالعربية](https://hive.sbarah.com/docs/)
+- [التوثيق بالعربية](https://kawaro.sbarah.com/docs/)

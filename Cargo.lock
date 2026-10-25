@@ -2755,6 +2755,92 @@ dependencies = [
 ]
 
 [[package]]
+name = "kawaro-cli"
+version = "0.4.0-beta.1"
+dependencies = [
+ "clap",
+ "kawaro-core",
+ "kawaro-engines",
+ "serde_json",
+ "tempfile",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "kawaro-core"
+version = "0.4.0-beta.1"
+dependencies = [
+ "minisign-verify",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 0.8.23",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "kawaro-daemon"
+version = "0.4.0-beta.1"
+dependencies = [
+ "ashpd",
+ "futures-util",
+ "kawaro-core",
+ "kawaro-engines",
+ "kawaro-ui",
+ "ksni",
+ "notify-rust",
+ "serde_json",
+ "slint",
+ "tempfile",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "kawaro-engines"
+version = "0.4.0-beta.1"
+dependencies = [
+ "image",
+ "kawaro-core",
+ "libc",
+ "lopdf",
+ "miniz_oxide 0.8.9",
+ "pdf-writer",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.21",
+ "toml 0.8.23",
+ "webp",
+ "windows-sys 0.61.2",
+ "zip",
+]
+
+[[package]]
+name = "kawaro-ui"
+version = "0.4.0-beta.1"
+dependencies = [
+ "i-slint-backend-testing",
+ "i-slint-backend-winit",
+ "i-slint-core",
+ "kawaro-core",
+ "md-5",
+ "png 0.17.16",
+ "rustix 1.1.5",
+ "serde_json",
+ "slint",
+ "slint-build",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-protocols",
+ "wayland-protocols-wlr",
+ "windows-sys 0.61.2",
+ "zbus",
+]
+
+[[package]]
 name = "keyboard-types"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4571,92 +4657,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
-]
-
-[[package]]
-name = "sbarhive-cli"
-version = "0.4.0-beta.1"
-dependencies = [
- "clap",
- "sbarhive-core",
- "sbarhive-engines",
- "serde_json",
- "tempfile",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "sbarhive-core"
-version = "0.4.0-beta.1"
-dependencies = [
- "minisign-verify",
- "semver",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.21",
- "toml 0.8.23",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "sbarhive-daemon"
-version = "0.4.0-beta.1"
-dependencies = [
- "ashpd",
- "futures-util",
- "ksni",
- "notify-rust",
- "sbarhive-core",
- "sbarhive-engines",
- "sbarhive-ui",
- "serde_json",
- "slint",
- "tempfile",
- "windows-sys 0.61.2",
-]
-
-[[package]]
-name = "sbarhive-engines"
-version = "0.4.0-beta.1"
-dependencies = [
- "image",
- "libc",
- "lopdf",
- "miniz_oxide 0.8.9",
- "pdf-writer",
- "sbarhive-core",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.21",
- "toml 0.8.23",
- "webp",
- "windows-sys 0.61.2",
- "zip",
-]
-
-[[package]]
-name = "sbarhive-ui"
-version = "0.4.0-beta.1"
-dependencies = [
- "i-slint-backend-testing",
- "i-slint-backend-winit",
- "i-slint-core",
- "md-5",
- "png 0.17.16",
- "rustix 1.1.5",
- "sbarhive-core",
- "serde_json",
- "slint",
- "slint-build",
- "wayland-backend",
- "wayland-client",
- "wayland-protocols",
- "wayland-protocols-wlr",
- "windows-sys 0.61.2",
- "zbus",
 ]
 
 [[package]]

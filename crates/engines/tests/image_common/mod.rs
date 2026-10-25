@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use image::{ImageFormat, Rgba, RgbaImage};
-use sbarhive_core::{CancelToken, Engine, EngineError, Task};
-use sbarhive_engines::image::ImageEngine;
+use kawaro_core::{CancelToken, Engine, EngineError, Task};
+use kawaro_engines::image::ImageEngine;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 

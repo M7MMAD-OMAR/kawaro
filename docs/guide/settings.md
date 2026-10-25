@@ -2,14 +2,14 @@
 
 # Settings
 
-The file is `config.toml`: `~/.config/sbarhive/` on Linux, `%APPDATA%\SbarHive\` on Windows. Every key is optional, unknown keys are ignored, and a broken file falls back to the defaults.
+The file is `config.toml`: `~/.config/kawaro/` on Linux, `%APPDATA%\Kawaro\` on Windows. Every key is optional, unknown keys are ignored, and a broken file falls back to the defaults.
 
 | Key | Values | Default |
 | --- | --- | --- |
 | `language` | `auto`, `ar`, `en` | `auto` |
 | `theme` | `auto`, `light`, `dark` | `auto` |
 | `output` | `beside`, `subfolder` | `beside` |
-| `output_folder` | folder name for `subfolder` | `SbarHive` |
+| `output_folder` | folder name for `subfolder` | `Kawaro` |
 | `quality` | `light`, `balanced`, `max` | `balanced` |
 | `open_folder_when_done` | `true`, `false` | `false` |
 | `notify` | `true`, `false` | `true` |

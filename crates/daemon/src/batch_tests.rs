@@ -4,7 +4,7 @@
 //! Contract (tester, from AC4 and AC8; do not edit):
 //! - `crate::server::focus_log(ok: bool) -> Option<&'static str>`: `None`
 //!   when `SetForegroundWindow` succeeded, else
-//!   `Some("sbarhived: foreground refused")`.
+//!   `Some("kawarod: foreground refused")`.
 //! - `crate::batch::OpenBatch::new(cells_for: impl Fn(&[PathBuf]) -> Vec<String>
 //!   and 'static)`, where `cells_for` gives the cell ids for a file set (the
 //!   daemon passes the registry; the `Actions` response is built the same
@@ -26,7 +26,7 @@ fn ac4_focus_log_is_silent_when_the_call_worked() {
 
 #[test]
 fn ac4_focus_log_names_the_refusal() {
-    assert_eq!(focus_log(false), Some("sbarhived: foreground refused"));
+    assert_eq!(focus_log(false), Some("kawarod: foreground refused"));
 }
 
 /// Images share one set of actions; a mix of images and a PDF has another.

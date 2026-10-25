@@ -33,7 +33,7 @@ inner() {
   echo "== daemon show ($COMP)"
   "$BIN" daemon 2>"$OUT/$COMP-daemon.log" &
   local dpid=$!
-  for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/sbarhive-spike.sock" ] && break; sleep 0.1; done
+  for _ in $(seq 50); do [ -S "$XDG_RUNTIME_DIR/kawaro-spike.sock" ] && break; sleep 0.1; done
   sleep 1
   for i in $(seq "$RUNS"); do
     echo "warm $i $("$BIN" show | tr '\n' ' ')"

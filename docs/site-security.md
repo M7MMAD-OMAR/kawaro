@@ -2,11 +2,11 @@
 
 # Website security
 
-How `https://hive.sbarah.com` is hosted and kept safe. The decisions are in `docs/adr/0007-site-hosting-cloudflare.md`; this page is the operating summary (S-059). Values that identify the account are placeholders here: `<ACCOUNT_ID>`, `<ZONE_ID>`, `<EXPIRY_DATE>`. The real values stay outside the repository.
+How `https://kawaro.sbarah.com` is hosted and kept safe. The decisions are in `docs/adr/0007-site-hosting-cloudflare.md`; this page is the operating summary (S-059). Values that identify the account are placeholders here: `<ACCOUNT_ID>`, `<ZONE_ID>`, `<EXPIRY_DATE>`. The real values stay outside the repository.
 
 ## Hosting
 
-The site is a Cloudflare Worker named `sbarhive-site` with Workers Static Assets and no Worker script (no `main` in `wrangler.jsonc`), so there is no server code to attack. `scripts/prepare-site-deploy.sh` builds the site and stages the upload set in `.deploy-out/`, the assets directory of `wrangler.jsonc`, without `build.py` or caches. `scripts/site/check-deploy.sh` then checks that set with its own matcher: an allowlist of extensions, no forbidden directory, no file over 25 MiB, no private key, at most 20,000 files. `site/.assetsignore` is a second layer that Wrangler reads.
+The site is a Cloudflare Worker named `kawaro-site` with Workers Static Assets and no Worker script (no `main` in `wrangler.jsonc`), so there is no server code to attack. `scripts/prepare-site-deploy.sh` builds the site and stages the upload set in `.deploy-out/`, the assets directory of `wrangler.jsonc`, without `build.py` or caches. `scripts/site/check-deploy.sh` then checks that set with its own matcher: an allowlist of extensions, no forbidden directory, no file over 25 MiB, no private key, at most 20,000 files. `site/.assetsignore` is a second layer that Wrangler reads.
 
 ## No secret in GitHub
 
@@ -46,6 +46,6 @@ Only the owner can do these; the repository work above does not need them to pas
 4. In Cloudflare, Workers Builds: connect the GitHub App to this single repository; production branch `main`; build command `scripts/site/check-deploy.sh --build`; deploy command `npx wrangler@<pinned version> deploy`; build variables `PYTHON_VERSION` and `NODE_VERSION` (not secrets); non production branches build as preview versions.
 5. Replace the default build token with a custom token for one account (`<ACCOUNT_ID>`) with only the Workers permissions a deploy needs (confirm the names in the dashboard), an expiry date (`<EXPIRY_DATE>`, at most 12 months) and a calendar reminder 30 days before it. Do not store it anywhere else; use `wrangler login` for manual work.
 6. First deploy: on a branch build or manually, with `workers_dev` temporarily on, open the `workers.dev` address; check headers (step 9), search in both languages and `/.well-known/security.txt`; then turn `workers_dev` off.
-7. Attach the custom domain `hive.sbarah.com` in the dashboard (Workers, Settings, Domains and routes). Check the other services on `sbarah.com` first, then set SSL Full (strict), Always Use HTTPS, minimum TLS 1.2, DNSSEC (DS record at the registrar) and the proxy on; no wildcard records; CAA only after reading Cloudflare's current guidance.
+7. Attach the custom domain `kawaro.sbarah.com` in the dashboard (Workers, Settings, Domains and routes). Check the other services on `sbarah.com` first, then set SSL Full (strict), Always Use HTTPS, minimum TLS 1.2, DNSSEC (DS record at the registrar) and the proxy on; no wildcard records; CAA only after reading Cloudflare's current guidance.
 8. After one week with no problem, change HSTS to `max-age=31536000; includeSubDomains` in `site/_headers` (no `preload`).
 9. Verify with an online checker (for example Mozilla Observatory and securityheaders.com) that the headers match AC2 and the grade is at least A, and with an SSL test that TLS 1.0 and 1.1 are refused.

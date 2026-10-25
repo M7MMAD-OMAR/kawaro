@@ -3,8 +3,8 @@
 use crate::notify::UpdateKind;
 use crate::progress::percent;
 use crate::update::{Phase, UpdateState};
-use sbarhive_core::MediaKind;
-use sbarhive_core::i18n::Lang;
+use kawaro_core::MediaKind;
+use kawaro_core::i18n::Lang;
 
 /// Arabic counted noun: 1 and 2 have their own forms, 3..=10 take the plural,
 /// 11 and above take the singular accusative-like form used in everyday counts.
@@ -105,24 +105,24 @@ pub fn settings(lang: Lang) -> &'static str {
 
 pub fn quit(lang: Lang) -> &'static str {
     match lang {
-        Lang::Ar => "إنهاء صبار هايف",
-        Lang::En => "Quit SbarHive",
+        Lang::Ar => "إنهاء كوارو",
+        Lang::En => "Quit Kawaro",
     }
 }
 
 pub fn idle(lang: Lang) -> &'static str {
     match lang {
-        Lang::Ar => "جاهز. حدّد ملفات في مدير الملفات وافتح صبار هايف من قائمة النقر اليمين.",
+        Lang::Ar => "جاهز. حدّد ملفات في مدير الملفات وافتح كوارو من قائمة النقر اليمين.",
         Lang::En => {
-            "Ready. Select files in your file manager and open SbarHive from the right-click menu."
+            "Ready. Select files in your file manager and open Kawaro from the right-click menu."
         }
     }
 }
 
 pub fn app_name(lang: Lang) -> &'static str {
     match lang {
-        Lang::Ar => "صبار هايف",
-        Lang::En => "SbarHive",
+        Lang::Ar => "كوارو",
+        Lang::En => "Kawaro",
     }
 }
 
@@ -132,14 +132,14 @@ pub fn update_message(lang: Lang, kind: UpdateKind, version: &str) -> String {
         (Lang::Ar, UpdateKind::Ready) => {
             format!("التحديث {version} جاهز. اختر «حدّث الآن» من قائمة الدرج.")
         }
-        (Lang::Ar, UpdateKind::Updated) => format!("تم تحديث صبار هايف إلى {version}."),
+        (Lang::Ar, UpdateKind::Updated) => format!("تم تحديث كوارو إلى {version}."),
         (Lang::Ar, UpdateKind::Failed) => {
             format!("تعذّر التحديث {version}. النسخة الحالية لم تتغير.")
         }
         (Lang::En, UpdateKind::Ready) => {
             format!("Update {version} is ready. Choose Update now in the tray menu.")
         }
-        (Lang::En, UpdateKind::Updated) => format!("SbarHive was updated to {version}."),
+        (Lang::En, UpdateKind::Updated) => format!("Kawaro was updated to {version}."),
         (Lang::En, UpdateKind::Failed) => {
             format!("Update {version} failed. The current version is unchanged.")
         }
@@ -157,8 +157,8 @@ pub fn update_now(lang: Lang) -> &'static str {
 /// What the tray entry does, for the tooltip next to it.
 pub fn update_now_hint(lang: Lang) -> &'static str {
     match lang {
-        Lang::Ar => "ثبّت التحديث الذي نُزّل ثم أعد تشغيل صبار هايف",
-        Lang::En => "Install the downloaded update and restart SbarHive",
+        Lang::Ar => "ثبّت التحديث الذي نُزّل ثم أعد تشغيل كوارو",
+        Lang::En => "Install the downloaded update and restart Kawaro",
     }
 }
 
@@ -287,12 +287,12 @@ mod tests {
             (open_folder, "فتح المجلد", "Open folder"),
             (cancel_all, "إلغاء كل المهام", "Cancel all jobs"),
             (settings, "الإعدادات", "Settings"),
-            (quit, "إنهاء صبار هايف", "Quit SbarHive"),
-            (app_name, "صبار هايف", "SbarHive"),
+            (quit, "إنهاء كوارو", "Quit Kawaro"),
+            (app_name, "كوارو", "Kawaro"),
             (
                 idle,
-                "جاهز. حدّد ملفات في مدير الملفات وافتح صبار هايف من قائمة النقر اليمين.",
-                "Ready. Select files in your file manager and open SbarHive from the right-click menu.",
+                "جاهز. حدّد ملفات في مدير الملفات وافتح كوارو من قائمة النقر اليمين.",
+                "Ready. Select files in your file manager and open Kawaro from the right-click menu.",
             ),
         ];
         for (f, ar, en) in cases {
@@ -333,7 +333,7 @@ mod tests {
     }
 
     // S-014c AC10: the centre text of a drop-mode hive while it waits for the
-    // drag (`sbarhive drop`, before enter). The wording is the implementer's;
+    // drag (`kawaro drop`, before enter). The wording is the implementer's;
     // the test pins that both languages exist and are distinct.
     #[test]
     fn ac10_drop_waiting_text_in_both_languages() {

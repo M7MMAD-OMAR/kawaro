@@ -10,8 +10,8 @@
 #   --update  rewrites the references (review them before committing).
 # Exit code 0 when every snapshot matches.
 #
-# S-018 AC7: every reference is compared twice, with SBARHIVE_SURFACE=layer
-# (the layer-shell adapter) and with SBARHIVE_SURFACE=window (winit). Each run
+# S-018 AC7: every reference is compared twice, with KAWARO_SURFACE=layer
+# (the layer-shell adapter) and with KAWARO_SURFACE=window (winit). Each run
 # keeps a WAYLAND_DEBUG=1 trace, so a layer run that silently fell back to a
 # window (or a window run that made a layer surface) fails. SNAP_SURFACES
 # narrows the list; --update writes the references from the window run only.
@@ -38,7 +38,7 @@ REF="$HERE/snapshots"
 UPDATE=0
 [ "${1:-}" = "--update" ] && UPDATE=1
 
-(cd "$ROOT" && cargo build --quiet --release -p sbarhive-ui --example hive_snapshot) || exit 2
+(cd "$ROOT" && cargo build --quiet --release -p kawaro-ui --example hive_snapshot) || exit 2
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/hive_snapshot"
 OUT="$(mktemp -d)"
 mkdir -p "$REF"
@@ -62,7 +62,7 @@ inner() {
         local out="$OUT/$surface-$name" trace="$OUT/$surface-${name%.png}.trace"
         local cmp=(--compare "$REF/$name")
         [ "$UPDATE" = 1 ] && { cmp=(); out="$OUT/$name"; }
-        if ! SBARHIVE_SURFACE=$surface WAYLAND_DEBUG=1 SBARHIVE_COLOR_SCHEME=$scheme SBARHIVE_REDUCED_MOTION=1 \
+        if ! KAWARO_SURFACE=$surface WAYLAND_DEBUG=1 KAWARO_COLOR_SCHEME=$scheme KAWARO_REDUCED_MOTION=1 \
             "$BIN" "$out" --lang "$lang" --highlight 0 "${cmp[@]}" 2>"$trace"; then
           echo "FAIL $surface $name (actual: $out)"; fail=1
         fi
@@ -113,8 +113,8 @@ preview() {
       local cmp=(--compare "$REF/$name")
       [ "$UPDATE" = 1 ] && { cmp=(); out="$OUT/$name"; }
       # The --file options go first, so the output path is the last bare word.
-      if ! XDG_DATA_DIRS="$ROOT/tests/fixtures/mime/system" SBARHIVE_SURFACE=$surface WAYLAND_DEBUG=1 \
-          SBARHIVE_COLOR_SCHEME=$scheme SBARHIVE_REDUCED_MOTION=1 \
+      if ! XDG_DATA_DIRS="$ROOT/tests/fixtures/mime/system" KAWARO_SURFACE=$surface WAYLAND_DEBUG=1 \
+          KAWARO_COLOR_SCHEME=$scheme KAWARO_REDUCED_MOTION=1 \
           "$BIN" "${args[@]}" "$out" --lang "$lang" --highlight -1 "${cmp[@]}" 2>"$trace"; then
         echo "FAIL AC26 $surface $name (actual: $out)"; fail=1
       fi

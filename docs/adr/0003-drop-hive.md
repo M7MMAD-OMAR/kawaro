@@ -29,7 +29,7 @@ The spike in `spikes/drop/` ran only in private headless compositors (KWin 6.7.5
 ### Alternatives, by reliability on GNOME, KDE and Hyprland
 
 1. **Shortcut during the drag, then drop.** Proven on GNOME and KDE by running, on Hyprland in source, with the finding 6 limit under strict policies. Pressing before the drag is not relied on for Wayland (finding 6).
-2. **`sbarhive drop` on a custom system shortcut.** Set in GNOME keyboard settings, KDE shortcuts, or a Hyprland `bind` line. Needs no portal but carries no activation token on any desktop. GNOME custom shortcuts are assumed to take the same path as finding 4, but we tested `grab_accelerator`, not gsd-media-keys shortcuts (assumed).
+2. **`kawaro drop` on a custom system shortcut.** Set in GNOME keyboard settings, KDE shortcuts, or a Hyprland `bind` line. Needs no portal but carries no activation token on any desktop. GNOME custom shortcuts are assumed to take the same path as finding 4, but we tested `grab_accelerator`, not gsd-media-keys shortcuts (assumed).
 3. **The right click menu.** Stays the guaranteed entry point, unrelated to dragging.
 4. **Dropping on a taskbar icon.** Works on KDE (`requestOpenUrls`); not on GNOME, whose dash accepts only app icons (verified in source); Hyprland has no default bar.
 5. **A permanent drop target or screen corner.** Needs wlr-layer-shell, which GNOME lacks. Rejected.
@@ -44,7 +44,7 @@ The spike in `spikes/drop/` ran only in private headless compositors (KWin 6.7.5
 
 - One drop receiver in `crates/ui`, modelled on the spike, with its own thread and queue, rebound to the new surface on every `present` because Slint destroys the surface on hide (ADR 0001, finding 5). On X11, winit events plus `QueryPointer`.
 - A "waiting for drop" mode: the hive does not close on focus loss or an outside click, only on `leave`, cancel, a timeout or Esc. The file list is read on `enter`, so cells are built for the real file type before the drop.
-- Phase one: `sbarhive drop`, bound by the user to a custom system shortcut, with binding docs for each desktop. Works only under default policies; fails with GNOME strict and KWin Extreme (finding 6). Phase two: register the shortcut through the portal with ashpd, passing `activation_token` on GNOME to get past finding 6.
+- Phase one: `kawaro drop`, bound by the user to a custom system shortcut, with binding docs for each desktop. Works only under default policies; fails with GNOME strict and KWin Extreme (finding 6). Phase two: register the shortcut through the portal with ashpd, passing `activation_token` on GNOME to get past finding 6.
 - Do not wait for Slint to move to winit 0.31. If the upgrade becomes possible and Slint delivers drops to `DropArea`, the private receiver is removed in a separate task.
 
 ## Consequences
@@ -63,11 +63,11 @@ Still open:
 
 ### S-019 (2026-10-21, manager decision)
 
-- **Holding the key:** `sbarhive drop --hold` keeps the drop hive while the key is held, and `sbarhive drop --release` closes it when the key is let go. The drag leaving the hive does not close it while the key is held; it closes on drop or release. A 10 s timeout with no enter stays as a safety net. A press without `--hold` behaves as in S-014. Implemented in S-019e.
-- **Drag position:** `sbarhive drop --at X,Y` in global logical coordinates where the position is available (Hyprland: `hyprctl cursorpos -j`), otherwise the centre and then one move on the first drag motion (ADR 0004, S-019 amendment).
+- **Holding the key:** `kawaro drop --hold` keeps the drop hive while the key is held, and `kawaro drop --release` closes it when the key is let go. The drag leaving the hive does not close it while the key is held; it closes on drop or release. A 10 s timeout with no enter stays as a safety net. A press without `--hold` behaves as in S-014. Implemented in S-019e.
+- **Drag position:** `kawaro drop --at X,Y` in global logical coordinates where the position is available (Hyprland: `hyprctl cursorpos -j`), otherwise the centre and then one move on the first drag motion (ADR 0004, S-019 amendment).
 
 ### S-019e (2026-10-21, long press)
 
-- **Show after a threshold:** `sbarhive drop --hold` is only a press event; the hive appears once the key has been held for `hold_ms` (key in `config.toml`, default 400 ms, accepted 100 to 2000). The gate is pure logic in `sbarhive_core::hold`, and the timer lives in the service, not the client. A release before the threshold cancels the timer, so a brief tap shows nothing. This replaces the 300 ms saved release from the S-019 amendment.
+- **Show after a threshold:** `kawaro drop --hold` is only a press event; the hive appears once the key has been held for `hold_ms` (key in `config.toml`, default 400 ms, accepted 100 to 2000). The gate is pure logic in `kawaro_core::hold`, and the timer lives in the service, not the client. A release before the threshold cancels the timer, so a brief tap shows nothing. This replaces the 300 ms saved release from the S-019 amendment.
 - **The 150 ms budget:** on the `hold` path the budget starts when the threshold elapses; the wait itself is a user setting, not response time. The median from threshold to first frame is under 150 ms (since S-021, to the first ready `commit` of the catcher, with the visible frame within 150 ms of the drag's enter), and the time from the press is the threshold plus that median. Instant paths (right click, `drop` without `--hold`, `open`) keep the old definition: request to first frame under 150 ms.
 - **Closing:** the gate resets whenever the hive closes for any reason (drop, 10 s timeout, Esc, a click), so a lost release never swallows the next press (manager decision 14).

@@ -24,7 +24,7 @@
 #     downloads `windows` into the SAME folder it passes to --dist (carried item 6).
 #   - carried: top-level permissions has no write; release and update-manifest have
 #     contents: write; build and test have none. minisign -V -p
-#     packaging/keys/sbarhive-update.pub runs in a step before the publish step (not inside
+#     packaging/keys/kawaro-update.pub runs in a step before the publish step (not inside
 #     it: the S-053c publish test runs that step with stub files); a trap ... EXIT removes
 #     the key file also on failure; each json is uploaded before its .minisig.
 # shellcheck disable=SC2016
@@ -136,8 +136,8 @@ us = steps("update-manifest")
 sign_i = [i for i, s in enumerate(us) if "sign-update-manifest.sh" in s.get("run", "")]
 pub_i = [i for i, s in enumerate(us) if "gh release upload" in s.get("run", "")]
 ok("carried 1: one signing step and one publish step", len(sign_i) >= 1 and len(pub_i) == 1)
-ver_i = [i for i, s in enumerate(us) if re.search(r"minisign\s+-V\s+-p\s+packaging/keys/sbarhive-update\.pub\s+-m\b", s.get("run", ""))]
-ok("carried 1: minisign -V -p packaging/keys/sbarhive-update.pub -m runs in a step", len(ver_i) >= 1)
+ver_i = [i for i, s in enumerate(us) if re.search(r"minisign\s+-V\s+-p\s+packaging/keys/kawaro-update\.pub\s+-m\b", s.get("run", ""))]
+ok("carried 1: minisign -V -p packaging/keys/kawaro-update.pub -m runs in a step", len(ver_i) >= 1)
 ok("carried 1: verification runs before the publish step", bool(ver_i) and bool(pub_i) and min(ver_i) < pub_i[0])
 ok("carried 1: verification covers every manifest (a loop or both files)",
    any(re.search(r"for\s+\w+\s+in\s+feed/\*\.json", us[i].get("run", "")) or ("beta.json" in us[i].get("run", "") and "stable.json" in us[i].get("run", "")) for i in ver_i))
@@ -197,13 +197,13 @@ if [ -s "$TMP/release.sh" ]; then
     mkdir -p "$w/$FOLDER" "$w/docs"
     echo notes > "$w/docs/release-notes-$ver.md"
     local mp="${ver//-/\~}"
-    echo rpm > "$w/$FOLDER/sbarhive-$mp-1.x86_64.rpm"
-    echo deb > "$w/$FOLDER/sbarhive_${mp}_amd64.deb"
-    echo zip > "$w/$FOLDER/sbarhive-$ver-windows-x64.zip"
-    echo msi > "$w/$FOLDER/sbarhive-$ver-windows-x64.msi"
+    echo rpm > "$w/$FOLDER/kawaro-$mp-1.x86_64.rpm"
+    echo deb > "$w/$FOLDER/kawaro_${mp}_amd64.deb"
+    echo zip > "$w/$FOLDER/kawaro-$ver-windows-x64.zip"
+    echo msi > "$w/$FOLDER/kawaro-$ver-windows-x64.msi"
     : > "$TMP/rlog-$tag-$ex"
     (cd "$w" && PATH="$FAKE:$PATH" FAKE_LOG="$TMP/rlog-$tag-$ex" FAKE_RELEASE_EXISTS="$ex" GITHUB_REF_NAME="$tag" \
-      GITHUB_REF="refs/tags/$tag" GITHUB_REPOSITORY=M7MMAD-OMAR/sbarhive GH_TOKEN=dummy \
+      GITHUB_REF="refs/tags/$tag" GITHUB_REPOSITORY=M7MMAD-OMAR/kawaro GH_TOKEN=dummy \
       bash -e "$TMP/release.sh" >"$TMP/rlog-$tag-$ex.out" 2>&1)
     echo $? > "$TMP/rrc-$tag-$ex"
     echo "$w" > "$TMP/rw-$tag-$ex"
@@ -228,7 +228,7 @@ if [ -s "$TMP/release.sh" ]; then
     check "AC3 $tag: upload has --clobber" grep -Eq '^gh release upload .*--clobber' "$L"
     names="$(grep '^gh release upload' "$L" | tr ' ' '\n' | grep -E '(\.rpm|\.deb|\.zip|\.msi|SHA256SUMS)$' | xargs -r -n1 basename | sort | tr '\n' ' ')"
     mp="${ver//-/\~}"
-    want="$(printf '%s\n' SHA256SUMS "sbarhive-$mp-1.x86_64.rpm" "sbarhive_${mp}_amd64.deb" "sbarhive-$ver-windows-x64.zip" "sbarhive-$ver-windows-x64.msi" | sort | tr '\n' ' ')"
+    want="$(printf '%s\n' SHA256SUMS "kawaro-$mp-1.x86_64.rpm" "kawaro_${mp}_amd64.deb" "kawaro-$ver-windows-x64.zip" "kawaro-$ver-windows-x64.msi" | sort | tr '\n' ' ')"
     check "AC3 $tag: upload names the four files and SHA256SUMS" test "$names" = "$want"
   done
   check "AC3 beta tag: create has --prerelease" grep -Eq '^gh release create .*--prerelease' "$TMP/rlog-v0.4.0-beta.1-"
@@ -247,7 +247,7 @@ if [ -s "$TMP/sign.sh" ]; then
     local n="$1" pub="$2" key="$3" w="$TMP/ws-$1"
     mkdir -p "$w/packaging/keys" "$w/feed" "$w/rt"
     ln -s "$REPO_ROOT/scripts" "$w/scripts"
-    cp "$pub" "$w/packaging/keys/sbarhive-update.pub"
+    cp "$pub" "$w/packaging/keys/kawaro-update.pub"
     echo '{"schema":1,"channel":"beta","version":"0.4.0-beta.1"}' > "$w/feed/beta.json"
     echo '{"schema":1,"channel":"stable","version":"0.4.0"}' > "$w/feed/stable.json"
     (cd "$w" && RUNNER_TEMP="$w/rt" UPDATE_SIGNING_KEY="$(cat "$key")" UPDATE_SIGNING_PASSWORD="" \
@@ -277,7 +277,7 @@ if [ -s "$TMP/publish.sh" ]; then
     w="$(mktemp -d -p "$TMP")"; mkdir -p "$w/feed"
     for f in stable.json stable.json.minisig beta.json beta.json.minisig; do echo stub > "$w/feed/$f"; done
     : > "$TMP/plog-$tag"
-    (cd "$w" && PATH="$FAKE:$PATH" FAKE_LOG="$TMP/plog-$tag" GITHUB_REF_NAME="$tag" GITHUB_REPOSITORY=M7MMAD-OMAR/sbarhive \
+    (cd "$w" && PATH="$FAKE:$PATH" FAKE_LOG="$TMP/plog-$tag" GITHUB_REF_NAME="$tag" GITHUB_REPOSITORY=M7MMAD-OMAR/kawaro \
       GH_TOKEN=dummy bash -e "$TMP/publish.sh" >/dev/null 2>&1)
     mapfile -t seq < <(grep '^gh release upload' "$TMP/plog-$tag" | tr ' ' '\n' | grep -E '\.(json|minisig)$' | xargs -r -n1 basename)
     pos() { local i; for i in "${!seq[@]}"; do [ "${seq[$i]}" = "$1" ] && { echo "$i"; return; }; done; echo -1; }

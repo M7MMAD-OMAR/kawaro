@@ -1,5 +1,5 @@
 //! S-040a AC5 (backlog/S-040-windows-ipc.md): the client and the service
-//! reach the socket only through `sbarhive_core::transport`. The same check
+//! reach the socket only through `kawaro_core::transport`. The same check
 //! as `grep -rn 'std::os::unix::net' crates/cli/src crates/daemon/src`.
 
 use std::path::{Path, PathBuf};

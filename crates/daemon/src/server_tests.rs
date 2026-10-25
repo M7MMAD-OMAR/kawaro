@@ -3,7 +3,7 @@
 
 use crate::server::open;
 use crate::state::State;
-use sbarhive_core::config::Config;
+use kawaro_core::config::Config;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 

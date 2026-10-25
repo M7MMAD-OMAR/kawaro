@@ -5,9 +5,7 @@ use super::UpdateError;
 use minisign_verify::{PublicKey, Signature};
 
 /// The trusted public keys: a signature from any of them is accepted.
-pub const UPDATE_KEYS: &[&str] = &[include_str!(
-    "../../../../packaging/keys/sbarhive-update.pub"
-)];
+pub const UPDATE_KEYS: &[&str] = &[include_str!("../../../../packaging/keys/kawaro-update.pub")];
 
 /// A key as the text of a `.pub` file or as its bare base64 line.
 fn load_key(text: &str) -> Result<PublicKey, UpdateError> {

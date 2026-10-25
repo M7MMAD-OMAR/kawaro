@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The hive on Hyprland, in a private nested Hyprland (aquamarine Wayland
 # backend) inside a private headless kwin_wayland --virtual. Reproduces the
-# report on Hyprland 0.56 with SBARHIVE_SURFACE=layer: the overlay
+# report on Hyprland 0.56 with KAWARO_SURFACE=layer: the overlay
 # shows, but no `hive focus` line ever comes and input feels frozen.
 # Input comes from org_kde_kwin_fake_input on the outer KWin
 # (tests/drop/kwin-input), so it reaches Hyprland as a real seat keyboard and
@@ -10,7 +10,7 @@
 # Modes:
 #   (default) layer    human PASS/FAIL lines on stdout, plus INFO lines with
 #                      the measured numbers (latency, CPU, drop mode).
-#   window             the same checks with SBARHIVE_SURFACE=window.
+#   window             the same checks with KAWARO_SURFACE=window.
 #   --selftest         only start the nested Hyprland, check that it takes a
 #                      client (keys.py maps), tear down; exit 0 on success.
 #   --json             the checks; human lines go to stderr and stdout gets
@@ -19,7 +19,7 @@
 #                      running reader keeps the layer, key release hides, hive
 #                      near the pointer, same output as the pointer, adaptive
 #                      shape), all real checks:
-#                      hive near pointer: `sbarhive open` while a 1 px
+#                      hive near pointer: `kawaro open` while a 1 px
 #                        pointer jitter around P = (300, 200) runs (every
 #                        10 ms for 600 ms, from before the command): a
 #                        "hive anchor" line within 1 px of P or P + 1
@@ -27,14 +27,14 @@
 #                        "hive surface" line equal to the AC3 placement for
 #                        it (tests/overlay/anchor.py, 1 px) on the 960x540
 #                        logical output; then a drag held still at
-#                        (500, 300) and `sbarhive drop --at "$(hyprctl
+#                        (500, 300) and `kawaro drop --at "$(hyprctl
 #                        cursorpos)"`, as the documented binding would run it
 #                        (manager decision 1): anchored there at once, one
 #                        wl_subsurface.set_position;
 #                      key release hides (S-019e, AC11 to AC13 on
-#                        Hyprland): `sbarhive drop --hold` with the pointer
+#                        Hyprland): `kawaro drop --hold` with the pointer
 #                        still exits 0 within 200 ms, no layer is listed at
-#                        300 ms, one is by 1000 ms, then `sbarhive drop
+#                        300 ms, one is by 1000 ms, then `kawaro drop
 #                        --release` exits 0 within 200 ms and the layer is
 #                        gone within 500 ms; and a tap (the release 150 ms
 #                        after the press) shows nothing for 1000 ms (no
@@ -49,7 +49,7 @@
 #                        output create` listed none within 10 s), so those
 #                        two checks run in tests/overlay/kwin.sh outputs
 #                        (a private KWin with two virtual outputs).
-#                      adaptive shape (S-019b, AC3, AC4): `sbarhive open`
+#                      adaptive shape (S-019b, AC3, AC4): `kawaro open`
 #                        with the pointer jittering 1 px around (4, 4): the
 #                        anchor within 1 px of (4, 4) or (5, 5), the
 #                        "hive surface" box
@@ -57,7 +57,7 @@
 #                        tests/overlay/anchor.py for the printed anchor
 #                        (1 px), the box inside the output;
 #                      screen reader flag without a reader (S-019a, AC1,
-#                        AC2), last, on a daemon with no SBARHIVE_SURFACE:
+#                        AC2), last, on a daemon with no KAWARO_SURFACE:
 #                        the fake a11y bus (tests/overlay/a11y.py, started
 #                        before KWin with the flag off) sets
 #                        ScreenReaderEnabled with no owner of
@@ -85,7 +85,7 @@
 # one "hive reveal: N" or "hive probe: hidden (R)" line, and no attach on the
 # hive subsurface before the reveal or in a hidden show):
 #   AC5 (b), replacing S-020 AC4: the pointer still at (40, 40), outside the
-#     centred hive, and `sbarhive drop`: a click there after the switch to
+#     centred hive, and `kawaro drop`: a click there after the switch to
 #     the hive rectangle reaches keys.py once and the catcher stays bound;
 #     the pointer then moves into the rectangle: "hidden (pointer)". The same
 #     show keeps S-019 decision 12 with the S-021 AC4 reference: the
@@ -110,7 +110,7 @@
 # log; the hive gets wl_data_device.motion, a release over the WEBP cell
 # writes the file, the drop timeout and Esc mid-drag both end with the hive
 # gone and pointer input working. S-021 AC7 on the "cell" drag: "hive
-# reveal: N" with N the lines of `sbarhive actions` for the PNG, and the
+# reveal: N" with N the lines of `kawaro actions` for the PNG, and the
 # hive's first attach after the drag's first wl_data_device.enter on the
 # catcher; the timeout and Esc drags each print one "hive reveal" line
 # (AC3). S-021 AC6: a drag of notes.unknownext (no action) moved into the
@@ -129,7 +129,7 @@
 # written) and no protocol error; AC4, a PNG drag resting at the centre of
 # the revealed hive: 4 or more attach on the hive subsurface in the 200 ms
 # from its first with motion, 1 or 2 on a daemon with
-# SBARHIVE_REDUCED_MOTION=1, a normal show's count as INFO; AC5, the S-021
+# KAWARO_REDUCED_MOTION=1, a normal show's count as INFO; AC5, the S-021
 # AC8 budget over eight revealed shows (AC9 (3), the two AC1 drags, the two
 # AC4 shows, cell, timeout, Esc).
 # 55 checks, 62 with --quasimode. The S-021 and S-022 checks run in layer
@@ -141,7 +141,7 @@
 # none for the hive subsurface and sends nothing (src/protocols/core/
 # DataDevice.cpp, mouse.move listener in initiateDrag).
 # HYPR_SCALE sets the nested output scale (default 1.333333, a common laptop panel scale).
-# HYPR_DROP_VIA=exec runs the mid-drag `sbarhive drop` through Hyprland's
+# HYPR_DROP_VIA=exec runs the mid-drag `kawaro drop` through Hyprland's
 # exec dispatcher, as the documented Super+Z binding does.
 # Never touches the live desktop: everything runs with a throwaway HOME, XDG
 # dirs, runtime dir and session bus, with DISPLAY, WAYLAND_DISPLAY,
@@ -172,7 +172,7 @@ done
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
 need() { echo "$1" >&2; [ "$JSON" = 1 ] && echo '{"total": 0, "failed": 1, "skipped": 0}'; exit 2; }
 if ! command -v Hyprland >/dev/null || ! command -v kwin_wayland >/dev/null; then need "needs Hyprland and kwin_wayland"; fi
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || need "build first: cargo build --release"
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || need "build first: cargo build --release"
 [ -x "$INPUT" ] || need "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"
 OUT="${HYPR_OUT:-$HERE/out}"
 mkdir -p "$OUT"
@@ -202,7 +202,7 @@ inner() {
   finish() {
     exec 3>&- 2>/dev/null
     exec 6>&- 2>/dev/null
-    [ -n "${d:-}" ] && { "$BIN/sbarhive" quit >/dev/null 2>&1; sleep 0.3; }
+    [ -n "${d:-}" ] && { "$BIN/kawaro" quit >/dev/null 2>&1; sleep 0.3; }
     kill "${pids[@]}" 2>/dev/null
     sleep 0.5
     kill -9 "${pids[@]}" 2>/dev/null
@@ -252,13 +252,13 @@ hl.config({
   input = { follow_mouse = 1 },
 })
 -- Typical rules for the hive window (window path), so it floats centred.
-local sbarhive = { class = [[^(io\\.github\\.m7mmad_omar\\.SbarHive)$]], title = [[^(SbarHive)$]] }
-hl.window_rule({ match = sbarhive, float = true })
-hl.window_rule({ match = sbarhive, center = true })
-hl.window_rule({ match = sbarhive, pin = true })
-hl.window_rule({ match = sbarhive, no_anim = true })
-hl.window_rule({ match = sbarhive, border_size = 0 })
-hl.layer_rule({ match = { namespace = "^sbarhive$" }, no_anim = true })
+local kawaro = { class = [[^(io\\.github\\.m7mmad_omar\\.Kawaro)$]], title = [[^(Kawaro)$]] }
+hl.window_rule({ match = kawaro, float = true })
+hl.window_rule({ match = kawaro, center = true })
+hl.window_rule({ match = kawaro, pin = true })
+hl.window_rule({ match = kawaro, no_anim = true })
+hl.window_rule({ match = kawaro, border_size = 0 })
+hl.layer_rule({ match = { namespace = "^kawaro$" }, no_anim = true })
 LUA
   # --portal: no systemd or activation environment updates by Hyprland
   # itself (the portal's environment is set below, on this bus only).
@@ -306,7 +306,7 @@ LUA
   }
   start_keys
   local mapped=0
-  for _ in $(seq 50); do hyprctl clients 2>/dev/null | grep -q 'class: org.sbarhive.HyprKeys' && { mapped=1; break; }; sleep 0.2; done
+  for _ in $(seq 50); do hyprctl clients 2>/dev/null | grep -q 'class: org.kawaro.HyprKeys' && { mapped=1; break; }; sleep 0.2; done
 
   if [ "$SELFTEST" = 1 ]; then
     check "selftest: nested Hyprland takes a client" '[ "$mapped" = 1 ]'
@@ -355,8 +355,8 @@ print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
     # watch counts every window that is not the daemon's or the source's.
     kill "$kp" 2>/dev/null
     local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
-    mkdir -p "$XDG_CONFIG_HOME/sbarhive"
-    printf 'language = "en"\ntheme = "light"\nhold_ms = 400\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    mkdir -p "$XDG_CONFIG_HOME/kawaro"
+    printf 'language = "en"\ntheme = "light"\nhold_ms = 400\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
     local NEXT="$XDG_RUNTIME_DIR/next" SLOG="$log-source.log" OUT_LOG="$log" MODE=portal-real
     local DLOG="$log-first-daemon.log" d="" src=""
     portal_hypr_run
@@ -383,28 +383,28 @@ print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
 
   local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo.png"
-  mkdir -p "$XDG_CONFIG_HOME/sbarhive"
-  printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  mkdir -p "$XDG_CONFIG_HOME/kawaro"
+  printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
   local DLOG="$log-daemon.log"
   : >"$DLOG"
   # start_daemon [WL] [RM]: WL=1 (the default) adds WAYLAND_DEBUG=1. Show 1,
   # the latency show, runs on a daemon without it, so the trace's writes are
-  # not part of the measured time. RM is SBARHIVE_REDUCED_MOTION, 0 (motion)
+  # not part of the measured time. RM is KAWARO_REDUCED_MOTION, 0 (motion)
   # by default; S-022 AC4 runs one show on a daemon with RM=1.
   local DAEMON_WL=1 DAEMON_RM=0
   start_daemon() {
     DAEMON_WL=${1:-1} DAEMON_RM=${2:-0}
     if [ "$DAEMON_WL" = 1 ]; then
-      SBARHIVE_REDUCED_MOTION=$DAEMON_RM SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+      KAWARO_REDUCED_MOTION=$DAEMON_RM KAWARO_SURFACE=$SURFACE KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >>"$DLOG" 2>&1 &
     else
-      SBARHIVE_REDUCED_MOTION=$DAEMON_RM SBARHIVE_SURFACE=$SURFACE SBARHIVE_DEBUG_FOCUS=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+      KAWARO_REDUCED_MOTION=$DAEMON_RM KAWARO_SURFACE=$SURFACE KAWARO_DEBUG_FOCUS=1 "$BIN/kawarod" >>"$DLOG" 2>&1 &
     fi
     d=$!
     pids+=("$d")
-    for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+    for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
   }
   stop_daemon() {
-    "$BIN/sbarhive" quit >/dev/null 2>&1
+    "$BIN/kawaro" quit >/dev/null 2>&1
     timeout 3 tail --pid="$d" -f /dev/null 2>/dev/null || kill "$d" 2>/dev/null
     sleep 0.3
   }
@@ -417,10 +417,10 @@ print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
     start_daemon "$DAEMON_WL" "$DAEMON_RM"
   }
 
-  # Shown: a layer named sbarhive, or the window titled exactly SbarHive.
+  # Shown: a layer named kawaro, or the window titled exactly Kawaro.
   shown() {
-    if [ "$SURFACE" = layer ]; then hyprctl layers 2>/dev/null | grep -q 'namespace: sbarhive'
-    else hyprctl clients 2>/dev/null | grep -qE '^\s+title: SbarHive$'; fi
+    if [ "$SURFACE" = layer ]; then hyprctl layers 2>/dev/null | grep -q 'namespace: kawaro'
+    else hyprctl clients 2>/dev/null | grep -qE '^\s+title: Kawaro$'; fi
   }
   gone_within() { local i; for i in $(seq "$1"); do shown || return 0; sleep 0.1; done; ! shown; }
   after() { sed -n "$(($1 + 1)),\$p" "$DLOG" | grep -v '^\['; }
@@ -444,7 +444,7 @@ print(round(m["width"] / m["scale"] / 2), round(m["height"] / m["scale"] / 2))')
       local i; for i in $(seq 20); do
         hyprctl clients -j 2>/dev/null | python3 -I -c 'import json,sys
 for c in json.load(sys.stdin):
-    if c["title"] == "SbarHive": print(*c["at"], *c["size"]); break' && return; sleep 0.1
+    if c["title"] == "Kawaro": print(*c["at"], *c["size"]); break' && return; sleep 0.1
       done
     fi
   }
@@ -469,14 +469,14 @@ for c in json.load(sys.stdin):
 
   # Show 1: open, then Esc.
   centre_ptr
-  show "$BIN/sbarhive" open "$W/photo.png"
+  show "$BIN/kawaro" open "$W/photo.png"
   check "surface shown ($SURFACE)" 'after "$MARK" | grep -q "^hive surface: $SURFACE"'
   check "show latency under 150 ms (${LAT:-none} ms)" '[ -n "$LAT" ] && [ "$LAT" -lt 150 ]'
   sleep 0.5
   check "keyboard focus received (hive focus: true)" 'after "$MARK" | grep -q "^hive focus: true"'
   local k0; k0=$(wc -l <"$KLOG")
   local cd ch; read -r cd ch <<<"$(cpu_pct 2 "$d" "$hy")"
-  say "INFO shown 2 s: sbarhived ${cd}% CPU, Hyprland ${ch}% CPU (one core = 100)"
+  say "INFO shown 2 s: kawarod ${cd}% CPU, Hyprland ${ch}% CPU (one core = 100)"
   key 30; sleep 0.5
   say "INFO a key while shown reached the other client: $( [ "$(wc -l <"$KLOG")" -gt "$k0" ] && echo yes || echo no )"
   key 1
@@ -489,7 +489,7 @@ for c in json.load(sys.stdin):
 
   # Show 2: open, then a click far from the centre (on the catcher, inside the smallest logical output).
   centre_ptr
-  show "$BIN/sbarhive" open "$W/photo.png"
+  show "$BIN/kawaro" open "$W/photo.png"
   sleep 0.5
   click 40 40
   check "click outside closes" 'gone_within 15'
@@ -525,15 +525,15 @@ for c in json.load(sys.stdin):
     wait_shown() { local t0; t0=$(now_us); while [ $(( ($(now_us) - t0) / 1000 )) -lt "$1" ]; do shown && return 0; sleep 0.05; done; shown; }
 
     # AC5 (b), replacing S-020 AC4: the pointer still at (40, 40), outside
-    # the rectangle of the centred hive, and `sbarhive drop` (no --at). A
+    # the rectangle of the centred hive, and `kawaro drop` (no --at). A
     # click there after the switch to the hive rectangle (S-019 decision 12:
     # 300 ms from the position, so after the last "hive surface" line or
     # 400 ms) reaches keys.py once and leaves the catcher bound; then the
     # pointer moves into the rectangle: "hive probe: hidden (pointer)".
     local bclicks=none bstay=no bseg=""
-    if "$BIN/sbarhive" ping >/dev/null 2>&1; then
+    if "$BIN/kawaro" ping >/dev/null 2>&1; then
       move 40 40; sleep 0.3
-      show "$BIN/sbarhive" drop
+      show "$BIN/kawaro" drop
       sleep 0.9
       k0=$(wc -l <"$KLOG")
       click 40 40; sleep 0.6
@@ -563,7 +563,7 @@ for c in json.load(sys.stdin):
     # the trace's stamps, and a click after the move reaches keys.py once.
     local aclicks=none agone=none aseg=""
     centre_ptr
-    show "$BIN/sbarhive" drop --at "$(hyprctl cursorpos)"
+    show "$BIN/kawaro" drop --at "$(hyprctl cursorpos)"
     sleep 0.5
     move $((hcx + 5)) "$hcy"; sleep 0.6
     k0=$(wc -l <"$KLOG")
@@ -585,23 +585,23 @@ for c in json.load(sys.stdin):
     local m91 m92 m93 h1seen=no r1rc r1ms r1new=none t0 seg91="" seg93="" h2seen=no r2rc r2ms h2gone=no
     centre_ptr
     m91=$(wc -l <"$DLOG")
-    "$BIN/sbarhive" drop --hold --at "$(hyprctl cursorpos)" >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --hold --at "$(hyprctl cursorpos)" >>"$log-cli.log" 2>&1
     wait_shown 1500 && h1seen=yes
     sleep 0.3
     move $((hcx + 5)) "$hcy"; sleep 0.6
     seg91=$(seg_from "$m91")
     m92=$(wc -l <"$DLOG"); t0=$(now_us)
-    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; r1rc=$?; r1ms=$(( ($(now_us) - t0) / 1000 ))
+    "$BIN/kawaro" drop --release >>"$log-cli.log" 2>&1; r1rc=$?; r1ms=$(( ($(now_us) - t0) / 1000 ))
     sleep 1
     r1new=$(new_surfaces "$(seg_from "$m92")")
     reset_hive "the AC9 hold (1)"
     centre_ptr
     m93=$(wc -l <"$DLOG")
-    "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --hold >>"$log-cli.log" 2>&1
     wait_shown 1500 && h2seen=yes
     sleep 0.3
     t0=$(now_us)
-    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; r2rc=$?; r2ms=$(( ($(now_us) - t0) / 1000 ))
+    "$BIN/kawaro" drop --release >>"$log-cli.log" 2>&1; r2rc=$?; r2ms=$(( ($(now_us) - t0) / 1000 ))
     gone_within 5 && h2gone=yes
     seg93=$(seg_from "$m93")
     reset_hive "the AC9 hold (2)"
@@ -624,9 +624,9 @@ for c in json.load(sys.stdin):
     local m7 seg7=""
     move 40 40; sleep 0.3
     m7=$(wc -l <"$DLOG")
-    "$BIN/sbarhive" drop --at 500,300 >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --at 500,300 >>"$log-cli.log" 2>&1
     sleep 1
-    "$BIN/sbarhive" drop --at 500,300 >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --at 500,300 >>"$log-cli.log" 2>&1
     sleep 1
     for i in 1 2 3 4 5 6 7 8; do move $((40 + i * 460 / 8)) $((40 + i * 260 / 8)); sleep 0.05; done
     sleep 0.8
@@ -636,7 +636,7 @@ for c in json.load(sys.stdin):
   fi
 
   # Drop mode mid-drag, as the documented Super+Z and Alt-hold bindings do: a
-  # GTK drag source (tests/drop/source.py) drags a PNG and `sbarhive drop`
+  # GTK drag source (tests/drop/source.py) drags a PNG and `kawaro drop`
   # runs while the button is held. Three cases:
   #   cell     the drag enters the hive and is released over the WEBP cell
   #            (ring 1, upper right); the file must be written.
@@ -666,13 +666,13 @@ for c in json.load(sys.stdin):
     printf '%s\n' "$W/cycle.png" >"$NEXT"
     begin_drag
     m94=$(wc -l <"$DLOG")
-    "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --hold >>"$log-cli.log" 2>&1
     wait_shown 1500 && h3seen=yes
     sleep 0.5
     for i in 1 2 3 4 5 6; do move $((210 + i * (hcx - 210) / 6)) $((180 + i * (hcy - 180) / 6)); sleep 0.05; done
     sleep 0.8
     move 60 60; sleep 0.3; echo "up" >&3; sleep 0.5
-    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --release >>"$log-cli.log" 2>&1
     sleep 0.5
     seg94=$(seg_from "$m94")
     gone_within 30 || true
@@ -693,7 +693,7 @@ for c in json.load(sys.stdin):
     # WEBP writes the second file, and the daemon log has no protocol error.
     # On 2026-10-22 (S-021b) the second show's enter went unread.
     local nact1 m1a m1b mrel t1 g1 gone1=none web1=no seg1a="" seg1b=""
-    nact1=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    nact1=$("$BIN/kawaro" actions "$W/photo.png" 2>/dev/null | grep -c .)
     # held_over_webp FILE: a drag of FILE, `drop --hold`, into the hive and
     # over its WEBP cell (MARK is the show's start).
     held_over_webp() {
@@ -701,7 +701,7 @@ for c in json.load(sys.stdin):
       cp "$ROOT/tests/fixtures/images/alpha.png" "$1"
       printf '%s\n' "$1" >"$NEXT"
       begin_drag
-      show "$BIN/sbarhive" drop --hold
+      show "$BIN/kawaro" drop --hold
       read -r gx gy gw gh < <(geo)
       if [ -n "${gw:-}" ]; then
         sleep 0.5
@@ -714,7 +714,7 @@ for c in json.load(sys.stdin):
     m1a=$MARK
     sleep 0.3
     mrel=$(wc -l <"$DLOG"); t1=$(date -u +%T.%6N)
-    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --release >>"$log-cli.log" 2>&1
     sleep 0.7
     echo "up" >&3
     sleep 1.5
@@ -728,7 +728,7 @@ for c in json.load(sys.stdin):
     echo "up" >&3
     for i in $(seq 30); do [ -s "$W/second.webp" ] && break; sleep 0.1; done
     sleep 0.3
-    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1
+    "$BIN/kawaro" drop --release >>"$log-cli.log" 2>&1
     sleep 0.5
     seg1a=$(sed -n "$((m1a + 1)),${m1b}p" "$DLOG")
     seg1b=$(seg_from "$m1b")
@@ -737,18 +737,18 @@ for c in json.load(sys.stdin):
     say "INFO S-022 AC1: first drag, layer destroyed ${gone1} ms after \`drop --release\`, first.webp written $web1; second drag: $(grep -E '^(drop cells:|hive (reveal|probe):)' <<<"$seg1b" | tr '\n' '|')"
     probe_checks "S-022 AC1 first drag, drop --hold, over WEBP" "$seg1a" reveal
     local r1n; IFS='|' read -r _ _ _ r1n _ <<<"$PROBE"
-    check "S-022 AC1 first drag: \"hive reveal: N\" with N the $nact1 lines of \`sbarhive actions\`, then \`drop --release\` over the WEBP cell destroys the layer within 500 ms and the button let go there writes no WEBP" \
+    check "S-022 AC1 first drag: \"hive reveal: N\" with N the $nact1 lines of \`kawaro actions\`, then \`drop --release\` over the WEBP cell destroys the layer within 500 ms and the button let go there writes no WEBP" \
       '[ "$r1n" != none ] && [ "$r1n" -eq "$nact1" ] && within_ms "$gone1" 500 && [ "$web1" = no ]'
     again_checks "AC1 second drag after the release" "$seg1b" "$nact1" "$W/second.webp"
     check "S-022 AC1: no protocol error in the daemon log after the two drags" \
       '! grep -qE "wl_display[#@]1\.error\(|[Pp]rotocol error" "$DLOG"'
 
     # S-022 AC4: the opening animation starts at the reveal. A PNG drag,
-    # `sbarhive drop` with the drag still, then one move to the centred
+    # `kawaro drop` with the drag still, then one move to the centred
     # hive's centre (no cell lit), where it rests 400 ms. The attach count
     # on the hive subsurface in the 200 ms from its first one (layer.sh
     # attach_burst): 4 or more on this daemon (motion), 2 or fewer on one
-    # with SBARHIVE_REDUCED_MOTION=1. A normal show with motion gives the
+    # with KAWARO_REDUCED_MOTION=1. A normal show with motion gives the
     # calibration count (INFO). The daemon is then started again with
     # motion, as before.
     local PVSEG seg4m seg4r seg4n b4m b4r b4n
@@ -757,7 +757,7 @@ for c in json.load(sys.stdin):
       cp "$ROOT/tests/fixtures/images/alpha.png" "$1"
       printf '%s\n' "$1" >"$NEXT"
       begin_drag
-      show "$BIN/sbarhive" drop
+      show "$BIN/kawaro" drop
       read -r gx gy gw gh < <(geo)
       sleep 0.6
       [ -n "${gw:-}" ] && move $((gx + gw / 2)) $((gy + gh / 2))
@@ -769,7 +769,7 @@ for c in json.load(sys.stdin):
     }
     centre_rest "$W/motion.png"; seg4m=$PVSEG
     centre_ptr
-    show "$BIN/sbarhive" open "$W/photo.png"
+    show "$BIN/kawaro" open "$W/photo.png"
     sleep 0.6
     seg4n=$(seg_from "$MARK")
     key 1; gone_within 15 || true
@@ -780,10 +780,10 @@ for c in json.load(sys.stdin):
     stop_daemon
     start_daemon 1 0
     b4m=$(attach_burst "$seg4m" 200); b4r=$(attach_burst "$seg4r" 200); b4n=$(attach_burst "$seg4n" 200)
-    say "INFO S-022 AC4: hive subsurface attach in the 200 ms from the first: drop reveal with motion $b4m, with SBARHIVE_REDUCED_MOTION=1 $b4r; calibration, a normal show with motion $b4n"
+    say "INFO S-022 AC4: hive subsurface attach in the 200 ms from the first: drop reveal with motion $b4m, with KAWARO_REDUCED_MOTION=1 $b4r; calibration, a normal show with motion $b4n"
     check "S-022 AC4: a revealed drop show with motion draws its opening animation: 4 or more attach on the hive subsurface in the 200 ms from its first" \
       '[ "$b4m" != none ] && [ "$b4m" -ge 4 ]'
-    check "S-022 AC4: with SBARHIVE_REDUCED_MOTION=1 the reveal draws 1 or 2 attach in those 200 ms (no animation)" \
+    check "S-022 AC4: with KAWARO_REDUCED_MOTION=1 the reveal draws 1 or 2 attach in those 200 ms (no animation)" \
       '[ "$b4r" != none ] && [ "$b4r" -ge 1 ] && [ "$b4r" -le 2 ]'
   fi
 
@@ -799,8 +799,8 @@ for c in json.load(sys.stdin):
     local dragging=no; sed -n "$((s0 + 1)),\$p" "$SLOG" | grep -q drag-begin && dragging=yes
     # HYPR_DROP_VIA=exec runs it as the documented binding does, through
     # Hyprland's exec (which hands the process an activation token).
-    if [ "${HYPR_DROP_VIA:-}" = exec ]; then show hyprctl dispatch "hl.dsp.exec_cmd(\"$BIN/sbarhive drop\")"
-    else show "$BIN/sbarhive" drop; fi
+    if [ "${HYPR_DROP_VIA:-}" = exec ]; then show hyprctl dispatch "hl.dsp.exec_cmd(\"$BIN/kawaro drop\")"
+    else show "$BIN/kawaro" drop; fi
     local gx gy gw gh cdrag="" cur=""
     read -r gx gy gw gh < <(geo)
     if [ -n "${gw:-}" ]; then
@@ -832,7 +832,7 @@ for c in json.load(sys.stdin):
     AFTER=no; sed -n "$((s1 + 1)),\$p" "$SLOG" | grep -q drag-begin && AFTER=yes
     gone_within 130 || true
     reset_hive "drag $c"
-    say "INFO drag $c: under way $dragging; drop hive ${gw:+at $gx $gy $gw $gh} in ${LAT:-none} ms; enter at ${enter:-none} (surface-local); cursor over WEBP at ${cur:-?}; motion events $MOTIONS; sbarhived ${cdrag:-?}% CPU; file written $WROTE; hive gone $CLOSED; source: $(sed -n "$((s0 + 1)),$((s1))p" "$SLOG" | grep -oE 'drag-(end|cancel).*' | tr '\n' ' ')"
+    say "INFO drag $c: under way $dragging; drop hive ${gw:+at $gx $gy $gw $gh} in ${LAT:-none} ms; enter at ${enter:-none} (surface-local); cursor over WEBP at ${cur:-?}; motion events $MOTIONS; kawarod ${cdrag:-?}% CPU; file written $WROTE; hive gone $CLOSED; source: $(sed -n "$((s0 + 1)),$((s1))p" "$SLOG" | grep -oE 'drag-(end|cancel).*' | tr '\n' ' ')"
   }
   drag_case cell
   # S-019f: this show's trace, for the quasimode preview check.
@@ -850,13 +850,13 @@ for c in json.load(sys.stdin):
   # Layer mode only (S-021 decision 1).
   if [ "$SURFACE" = layer ]; then
     # S-021 AC7, the "cell" drag: one "hive reveal: N" line with N the lines
-    # of `sbarhive actions` for the PNG, the hive drawn only after the drag's
+    # of `kawaro actions` for the PNG, the hive drawn only after the drag's
     # first enter on the catcher; the WEBP write is the check above.
-    local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    local nact; nact=$("$BIN/kawaro" actions "$W/photo.png" 2>/dev/null | grep -c .)
     probe_checks "AC7 cell drag" "$CELL_SEG" reveal
     local cn; IFS='|' read -r _ _ _ cn _ <<<"$PROBE"
-    say "INFO S-021 AC7 cell: hive reveal N $cn, sbarhive actions lines $nact"
-    check "S-021 AC7 cell drag: \"hive reveal: N\" with N the number of \`sbarhive actions\` lines for the PNG ($nact)" \
+    say "INFO S-021 AC7 cell: hive reveal N $cn, kawaro actions lines $nact"
+    check "S-021 AC7 cell drag: \"hive reveal: N\" with N the number of \`kawaro actions\` lines for the PNG ($nact)" \
       '[ "$cn" != none ] && [ "$nact" -ge 1 ] && [ "$cn" -eq "$nact" ]'
     # AC3 for the timeout and Esc drags: each revealed, one probe line.
     local tall trev eall erev
@@ -878,7 +878,7 @@ for c in json.load(sys.stdin):
     # show's trace), NNEW (files new in the work folder) and NAFTER (a new drag
     # began afterwards). KIND file drags notes.unknownext (no action), text a
     # plain string (source.py "text:", no text/uri-list). The drag stands
-    # still at `sbarhive drop`, then moves into the centred hive's rectangle.
+    # still at `kawaro drop`, then moves into the centred hive's rectangle.
     local NSEG NNEW NAFTER
     no_drop() {
       local before s1 i
@@ -886,11 +886,11 @@ for c in json.load(sys.stdin):
         printf 'x\n' >"$W/notes.unknownext"
         printf '%s\n' "$W/notes.unknownext" >"$NEXT"
       else
-        printf 'text:%s\n' "sbarhive drop text" >"$NEXT"
+        printf 'text:%s\n' "kawaro drop text" >"$NEXT"
       fi
       before=$(find "$W" -type f | sort)
       begin_drag
-      show "$BIN/sbarhive" drop
+      show "$BIN/kawaro" drop
       sleep 0.5
       for i in 1 2 3 4 5 6; do move $((210 + i * (hcx - 210) / 6)) $((180 + i * (hcy - 180) / 6)); sleep 0.05; done
       sleep 0.8
@@ -927,13 +927,13 @@ for c in json.load(sys.stdin):
     centre_ptr
     local hm hrc hms rrc rms pre300=no post=no hgone=no t0 t1
     hm=$(wc -l <"$DLOG"); t0=$(now_us)
-    "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1; hrc=$?; hms=$(( ($(now_us) - t0) / 1000 ))
+    "$BIN/kawaro" drop --hold >>"$log-cli.log" 2>&1; hrc=$?; hms=$(( ($(now_us) - t0) / 1000 ))
     while [ $(( ($(now_us) - t0) / 1000 )) -lt 300 ]; do sleep 0.02; done
     shown && pre300=yes
     while [ $(( ($(now_us) - t0) / 1000 )) -lt 1000 ]; do shown && { post=yes; break; }; sleep 0.05; done
     sleep 0.3
     t1=$(now_us)
-    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; rrc=$?; rms=$(( ($(now_us) - t1) / 1000 ))
+    "$BIN/kawaro" drop --release >>"$log-cli.log" 2>&1; rrc=$?; rms=$(( ($(now_us) - t1) / 1000 ))
     gone_within 5 && hgone=yes
     say "INFO quasimode key release: press exit $hrc in $hms ms, layer at 300 ms $pre300, layer by 1000 ms $post, release exit $rrc in $rms ms, gone within 500 ms $hgone, get_layer_surface $(sed -n "$((hm + 1)),\$p" "$DLOG" | grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(')"
     reset_hive "the hold show"
@@ -942,10 +942,10 @@ for c in json.load(sys.stdin):
     # A tap: the release 150 ms after the press.
     local tseen=no tgls
     hm=$(wc -l <"$DLOG"); t0=$(now_us)
-    "$BIN/sbarhive" drop --hold >>"$log-cli.log" 2>&1; hrc=$?; hms=$(( ($(now_us) - t0) / 1000 ))
+    "$BIN/kawaro" drop --hold >>"$log-cli.log" 2>&1; hrc=$?; hms=$(( ($(now_us) - t0) / 1000 ))
     while [ $(( ($(now_us) - t0) / 1000 )) -lt 150 ]; do sleep 0.01; done
     t1=$(now_us)
-    "$BIN/sbarhive" drop --release >>"$log-cli.log" 2>&1; rrc=$?; rms=$(( ($(now_us) - t1) / 1000 ))
+    "$BIN/kawaro" drop --release >>"$log-cli.log" 2>&1; rrc=$?; rms=$(( ($(now_us) - t1) / 1000 ))
     while [ $(( ($(now_us) - t0) / 1000 )) -lt 1000 ]; do shown && tseen=yes; sleep 0.05; done
     tgls=$(sed -n "$((hm + 1)),\$p" "$DLOG" | grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(|-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\(')
     say "INFO quasimode tap: press exit $hrc in $hms ms, release exit $rrc in $rms ms, a layer listed within 1000 ms $tseen, new surfaces in the trace $tgls"
@@ -963,7 +963,7 @@ for c in json.load(sys.stdin):
     say "INFO quasimode drop preview: first enter at segment line ${pe1:-none}, preview lines before it $ppre, first after it: ${ppost:-none}"
     check "quasimode: drop preview after enter (S-019 AC14, AC15): \"hive preview: icon image\" after the drag's first enter, none before it" \
       '[ -n "$pe1" ] && [ "$ppre" -eq 0 ] && [ "$ppost" = "hive preview: icon image" ]'
-    local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+    local nact; nact=$("$BIN/kawaro" actions "$W/photo.png" 2>/dev/null | grep -c .)
     # near A B TOL: |A - B| <= TOL, for decimals.
     near() { awk -v a="$1" -v b="$2" -v t="$3" 'BEGIN { d = a - b; if (d < 0) d = -d; exit !(a != "" && b != "" && d <= t) }'; }
     # near_jit A P: A within 1 px of P or of P + 1, the two points of a
@@ -990,7 +990,7 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
     }
     anchor_of() { grep -m1 -E '^hive anchor: ' <<<"$1" | cut -d' ' -f3-; }
 
-    # Hive near pointer, 1: `sbarhive open` while the pointer moves 1 px
+    # Hive near pointer, 1: `kawaro open` while the pointer moves 1 px
     # around P (Hyprland logical pixels).
     gone_within 120 || true
     local i px=300 py=200
@@ -1000,25 +1000,25 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
       if ((i % 2)); then move $((px + 1)) $((py + 1)); else move "$px" "$py"; fi
       echo "sleep 10" >&3
     done
-    show "$BIN/sbarhive" open "$W/photo.png"
+    show "$BIN/kawaro" open "$W/photo.png"
     sleep 1
     local nseg; nseg=$(after "$MARK")
     local nax nay; read -r nax nay <<<"$(anchor_of "$nseg")"
     say "INFO quasimode near pointer (open): P ($px, $py), output ${lw}x${lh}, $(grep -m1 -E '^hive anchor: ' <<<"$nseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$nseg" || echo 'no surface line')"
     key 1; gone_within 30 || true
     reset_hive "the near pointer show"
-    check "quasimode: hive near pointer (S-019 AC5, AC6): \`sbarhive open\` with the pointer moving at ($px, $py) is anchored within 1 px of it (or of it + 1, the jitter's other point) and placed by plan_at for that anchor" \
+    check "quasimode: hive near pointer (S-019 AC5, AC6): \`kawaro open\` with the pointer moving at ($px, $py) is anchored within 1 px of it (or of it + 1, the jitter's other point) and placed by plan_at for that anchor" \
       'near_jit "$nax" "$px" && near_jit "$nay" "$py" && placed "$nseg" "$lw" "$lh"'
 
     # Hive near pointer, 2: decision 1, a drag held still and
-    # `sbarhive drop --at "$(hyprctl cursorpos)"` (no wait, no move).
+    # `kawaro drop --at "$(hyprctl cursorpos)"` (no wait, no move).
     local s0; s0=$(wc -l <"$SLOG")
     cp "$ROOT/tests/fixtures/images/alpha.png" "$W/held.png"
     printf '%s\n' "$W/held.png" >"$NEXT"
     begin_drag
     move 500 300; sleep 0.5
     local cur; cur=$(hyprctl cursorpos | tr -d ' ')
-    show "$BIN/sbarhive" drop --at "$(hyprctl cursorpos)"
+    show "$BIN/kawaro" drop --at "$(hyprctl cursorpos)"
     sleep 1
     local dseg; dseg=$(after "$MARK")
     local dax day; read -r dax day <<<"$(anchor_of "$dseg")"
@@ -1027,10 +1027,10 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
     echo "up" >&3
     gone_within 130 || true
     reset_hive "the drop --at show"
-    check "quasimode: hive near pointer (S-019 decision 1): a still drag and \`sbarhive drop --at \"\$(hyprctl cursorpos)\"\` anchor at the cursor (1 px) at once, with one set_position" \
+    check "quasimode: hive near pointer (S-019 decision 1): a still drag and \`kawaro drop --at \"\$(hyprctl cursorpos)\"\` anchor at the cursor (1 px) at once, with one set_position" \
       '[ "$(grep -cE "^hive anchor: " <<<"$dseg")" -eq 1 ] && near "$dax" "${cur%,*}" 1 && near "$day" "${cur#*,}" 1 && [ "$dsets" -eq 1 ] && placed "$dseg" "$lw" "$lh"'
 
-    # Adaptive shape (S-019b, AC3, AC4): `sbarhive open` with the pointer
+    # Adaptive shape (S-019b, AC3, AC4): `kawaro open` with the pointer
     # moving 1 px around B, a few pixels inside the top left corner (Hyprland
     # 0 is the nested window's edge in KWin). The anchor is clamped, so the
     # hive keeps only the slots that fit: its box, its cell count and its
@@ -1045,7 +1045,7 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
       echo "sleep 10" >&3
     done
     local bcur; bcur=$(hyprctl cursorpos | tr -d ' ')
-    show "$BIN/sbarhive" open "$W/photo.png"
+    show "$BIN/kawaro" open "$W/photo.png"
     sleep 1
     local bseg; bseg=$(after "$MARK")
     key 1; gone_within 30 || true
@@ -1063,11 +1063,11 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
         near "$(awk -v a="$bsy" -v b="$bccy" 'BEGIN { print a + b }')" "$ocy" 1 && bcells=yes
     done <<<"$borc"
     say "INFO quasimode adaptive shape: B ($bx, $by), cursorpos $bcur, actions $nact, $(grep -m1 -E '^hive anchor: ' <<<"$bseg" || echo 'no anchor line'), $(grep -m1 -E '^hive surface: ' <<<"$bseg" || echo 'no surface line'), $(grep -m1 -E '^hive cells: ' <<<"$bseg" || echo 'no cells line'), anchor.py (min_rings cx cy count x y w h): $(tr '\n' '|' <<<"$borc")"
-    check "quasimode: adaptive shape (S-019b AC3, AC4): \`sbarhive open\` with the pointer at the top left corner is anchored there (1 px from B or B + 1, the two jitter points), its \"hive surface\" box and \"hive cells\" count and centre equal plan_at by tests/overlay/anchor.py (1 px), and the box lies inside the ${lw}x${lh} output" \
+    check "quasimode: adaptive shape (S-019b AC3, AC4): \`kawaro open\` with the pointer at the top left corner is anchored there (1 px from B or B + 1, the two jitter points), its \"hive surface\" box and \"hive cells\" count and centre equal plan_at by tests/overlay/anchor.py (1 px), and the box lies inside the ${lw}x${lh} output" \
       'near_jit "$bax" "$bx" && near_jit "$bay" "$by" && placed "$bseg" "$lw" "$lh" && [ "$bcells" = yes ] && [ "$bsx" -ge 0 ] && [ "$bsy" -ge 0 ] && [ $((bsx + bsw)) -le "$lw" ] && [ $((bsy + bsh)) -le "$lh" ]'
 
     # Screen reader rule (S-019a, AC1, AC2), last because it replaces the
-    # daemon: one daemon with no SBARHIVE_SURFACE (config hive_surface absent,
+    # daemon: one daemon with no KAWARO_SURFACE (config hive_surface absent,
     # so auto). With ScreenReaderEnabled set on the fake bus and no owner of
     # org.gnome.Orca.Service, its show is a layer surface and exactly one
     # "hive surface choice:" line names the reason; once a11y.py owns the
@@ -1080,19 +1080,19 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
     echo on >&6; sleep 1
     local am1 am2 aseg1 aseg2
     am1=$(wc -l <"$DLOG")
-    SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+    KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >>"$DLOG" 2>&1 &
     d=$!
     pids+=("$d")
-    for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+    for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
     centre_ptr
-    show "$BIN/sbarhive" open "$W/photo.png"
+    show "$BIN/kawaro" open "$W/photo.png"
     sleep 0.5; key 1; sleep 1
     am2=$(wc -l <"$DLOG")
     echo orca >&6
     timeout 10 gdbus wait --session org.gnome.Orca.Service || say "INFO fake org.gnome.Orca.Service did not appear"
     sleep 1
     centre_ptr
-    show "$BIN/sbarhive" open "$W/photo.png"
+    show "$BIN/kawaro" open "$W/photo.png"
     sleep 0.5; key 1; sleep 1
     stop_daemon
     aseg1=$(sed -n "$((am1 + 1)),${am2}p" "$DLOG")
@@ -1115,8 +1115,8 @@ print(round(m["width"] / m["scale"]), round(m["height"] / m["scale"]))')
     # made no reliable second output (`hyprctl output create wayland SBH-2`
     # answered ok, but SBH-2 was not listed with a mode within 10 s), so the
     # two checks moved to a private KWin with two virtual outputs.
-    say "INFO quasimode: same output as pointer (S-019 AC5): \`sbarhive open\` on the second output is checked by tests/overlay/kwin.sh outputs"
-    say "INFO quasimode: same output as pointer (S-019 decision 1): \`sbarhive drop --at\` with global coordinates on the second output is checked by tests/overlay/kwin.sh outputs"
+    say "INFO quasimode: same output as pointer (S-019 AC5): \`kawaro open\` on the second output is checked by tests/overlay/kwin.sh outputs"
+    say "INFO quasimode: same output as pointer (S-019 decision 1): \`kawaro drop --at\` with global coordinates on the second output is checked by tests/overlay/kwin.sh outputs"
   fi
 
   finish
@@ -1134,7 +1134,7 @@ if [ "$PORTAL" = 1 ]; then
   # S-014e3: the real portal on the private bus; the app's desktop entry
   # where an install puts it, in the throwaway data directory.
   mkdir -p "$SANDBOX/.local/share/applications"
-  cp "$ROOT/packaging/io.github.m7mmad_omar.SbarHive.desktop" "$SANDBOX/.local/share/applications/"
+  cp "$ROOT/packaging/io.github.m7mmad_omar.Kawaro.desktop" "$SANDBOX/.local/share/applications/"
 else
   no_real_portal "$SANDBOX"
 fi
@@ -1145,8 +1145,8 @@ mkdir -p "$SANDBOX/.config" "$SANDBOX/.local/share" "$SANDBOX/.cache" "$SANDBOX/
 # Environment set BEFORE dbus-run-session, so nothing the private bus
 # activates can reach the live desktop or the real profile.
 ENVS=(-u DISPLAY -u WAYLAND_DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE -u XDG_CURRENT_DESKTOP
-  -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID -u SBARHIVE_SURFACE
-  -u SBARHIVE_REDUCED_MOTION
+  -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID -u KAWARO_SURFACE
+  -u KAWARO_REDUCED_MOTION
   HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share"
   XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" XDG_RUNTIME_DIR="$RUNTIME"
   GIO_USE_VFS=local GVFS_DISABLE_FUSE=1)

@@ -1,4 +1,4 @@
-# softbuffer 0.4.8, patched for SbarHive
+# softbuffer 0.4.8, patched for Kawaro
 
 Source: crates.io `softbuffer` 0.4.8 (MIT OR Apache-2.0), unpacked as is.
 

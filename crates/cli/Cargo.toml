@@ -1,18 +1,18 @@
 [package]
-name = "sbarhive-cli"
-description = "SbarHive command line"
+name = "kawaro-cli"
+description = "Kawaro command line"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "sbarhive"
+name = "kawaro"
 path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-sbarhive-core.workspace = true
-sbarhive-engines.workspace = true
+kawaro-core.workspace = true
+kawaro-engines.workspace = true
 serde_json.workspace = true
 
 # Starting the service detached and the foreground grant (S-042). Already in

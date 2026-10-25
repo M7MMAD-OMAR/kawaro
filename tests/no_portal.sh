@@ -20,12 +20,12 @@
 #      rewrites config.toml later keeps that line in every write.
 no_real_portal() {
   local svc="$1/.local/share/dbus-1/services"
-  mkdir -p "$svc" "$1/.config/sbarhive"
+  mkdir -p "$svc" "$1/.config/kawaro"
   printf '[D-BUS Service]\nName=org.freedesktop.portal.Desktop\nExec=/bin/false\n' \
     >"$svc/org.freedesktop.portal.Desktop.service"
-  printf 'portal_shortcut = false\n' >"$1/.config/sbarhive/config.toml"
+  printf 'portal_shortcut = false\n' >"$1/.config/kawaro/config.toml"
 }
 
 # No test daemon may send a real desktop notification (notify.rs reads this);
 # every compositor script that starts the daemon sources this file.
-export SBARHIVE_NO_NOTIFY=1
+export KAWARO_NO_NOTIFY=1

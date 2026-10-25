@@ -5,17 +5,17 @@ Renumbered on 2026-10-23: this story was S-023 on windows/0.6.0 before the merge
 Builds on ADR 0005 section 4, and on S-040b (the windows-sys dependency in core). For release 0.6.0. Does not touch `crates/ui`. One working day or less, so no split.
 
 ## Story
-As a user on Windows, I want my settings and actions saved in `%APPDATA%\SbarHive` and the daemon log in `%LOCALAPPDATA%\SbarHive\logs`, and I want the output never to replace an existing file, even on a USB drive, so that I find my files where Windows expects them and never lose a file.
+As a user on Windows, I want my settings and actions saved in `%APPDATA%\Kawaro` and the daemon log in `%LOCALAPPDATA%\Kawaro\logs`, and I want the output never to replace an existing file, even on a USB drive, so that I find my files where Windows expects them and never lose a file.
 
 ## Files
 `crates/core/src/{lib.rs,paths.rs,paths/windows.rs,config.rs,output_impl.rs,output_impl/windows.rs}`, `crates/core/Cargo.toml` (windows-sys features only), `crates/daemon/src/state.rs`, `crates/daemon/src/watch.rs`, `crates/cli/src/main.rs`, `.cargo/mutants.toml`, `docs/architecture.md`, `README.md`, `CHANGELOG.md`.
 
 ## Acceptance criteria
-- AC1: a pure function `paths::config_dir_with(os, env, known)` (the name is a proposal): `os` from `Os::{Linux, Windows}`, `env` a function that reads a variable, and `known` a function that gives the known folder. On Windows with `APPDATA=A` it returns `Path::new(A).join("SbarHive")`, and does not call `known` (counter 0). Without `APPDATA`, or with an empty value, it returns `known()` with `SbarHive` appended, and `None` if `known` returned `None`. On Linux it returns what it returns today: `XDG_CONFIG_HOME/sbarhive`, then `HOME/.config/sbarhive`, then `None`.
-- AC2: `paths::log_dir_with(os, env, known)`: on Windows `Path::new(LOCALAPPDATA).join("SbarHive").join("logs")`, with the `known` fallback as in AC1. On Linux `None` (the log stays on stderr).
+- AC1: a pure function `paths::config_dir_with(os, env, known)` (the name is a proposal): `os` from `Os::{Linux, Windows}`, `env` a function that reads a variable, and `known` a function that gives the known folder. On Windows with `APPDATA=A` it returns `Path::new(A).join("Kawaro")`, and does not call `known` (counter 0). Without `APPDATA`, or with an empty value, it returns `known()` with `Kawaro` appended, and `None` if `known` returned `None`. On Linux it returns what it returns today: `XDG_CONFIG_HOME/kawaro`, then `HOME/.config/kawaro`, then `None`.
+- AC2: `paths::log_dir_with(os, env, known)`: on Windows `Path::new(LOCALAPPDATA).join("Kawaro").join("logs")`, with the `known` fallback as in AC1. On Linux `None` (the log stays on stderr).
 - AC3: `Config::path()` equals `config_dir().join("config.toml")`, and the new `Config::actions_dir()` equals `config_dir().join("actions")`. The signatures of `Config::path`, `Config::load` and `Config::load_from` stay as they are, because `crates/ui` calls them. The existing test `path_and_load_follow_xdg_then_home` passes without modification.
-- AC4: `user_actions_dir` is removed from `crates/daemon/src/state.rs`, and `load_registry` calls `Config::actions_dir()`. `grep -rn 'fn user_actions_dir' crates/` returns 0 lines, and a TOML action in `XDG_CONFIG_HOME/sbarhive/actions/` appears in `sbarhive actions` as today.
-- AC5: `paths/windows.rs` reads the two folders with `SHGetKnownFolderPath` (`FOLDERID_RoamingAppData` and `FOLDERID_LocalAppData`) and frees the memory with `CoTaskMemFree`. The file is in `exclude_globs`. `cargo clippy -p sbarhive-core --lib` for the Windows target has no warning.
+- AC4: `user_actions_dir` is removed from `crates/daemon/src/state.rs`, and `load_registry` calls `Config::actions_dir()`. `grep -rn 'fn user_actions_dir' crates/` returns 0 lines, and a TOML action in `XDG_CONFIG_HOME/kawaro/actions/` appears in `kawaro actions` as today.
+- AC5: `paths/windows.rs` reads the two folders with `SHGetKnownFolderPath` (`FOLDERID_RoamingAppData` and `FOLDERID_LocalAppData`) and frees the memory with `CoTaskMemFree`. The file is in `exclude_globs`. `cargo clippy -p kawaro-core --lib` for the Windows target has no warning.
 - AC6: `finalize_with` takes an injected place-without-replacing function instead of the check then `rename` written inside it. With a fake function that returns `AlreadyExists` for `a.webp` and `a (1).webp`: the output is `a (2).webp`, the content of the two existing files is unchanged, and the temporary file is removed. With a function that returns another error (`PermissionDenied`): the same error is returned, and the temporary file remains.
 - AC7: on Linux the place function is today's behaviour (the check then `rename`), so the four `ac9_*` tests in `output_impl.rs` and `crates/core/tests/output.rs` pass without modifying their assertions. On Windows it is `MoveFileExW` without `MOVEFILE_REPLACE_EXISTING` in `output_impl/windows.rs`, and codes 80 and 183 become `AlreadyExists`. The code mapping function is pure, in `output_impl.rs`: 80 and 183 give `AlreadyExists`, and 5 gives `PermissionDenied`. `output_impl/windows.rs` is in `exclude_globs`.
 - AC8: no new crate: the count of `[[package]]` in `Cargo.lock` stays 671, and `X` lists nothing beyond what it listed after S-040b.
@@ -24,10 +24,10 @@ As a user on Windows, I want my settings and actions saved in `%APPDATA%\SbarHiv
 ## Check commands
 Read-only tools alone (`grep`) run outside the scope.
 - `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
-- `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p sbarhive-core -p sbarhive-daemon -p sbarhive-cli`
-- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p sbarhive-core -p sbarhive-engines --lib -- -D warnings`
+- `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p kawaro-core -p kawaro-daemon -p kawaro-cli`
+- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines --lib -- -D warnings`
 - `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (the changed files only, including `state.rs`; Windows files are excluded)
-- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/sbarhive-win-target cargo tree --target x86_64-pc-windows-gnu -p sbarhive-core -e normal --depth 1`
+- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-core -e normal --depth 1`
 
 ## Test cases
 | Criterion | Test | Type |
@@ -43,7 +43,7 @@ Read-only tools alone (`grep`) run outside the scope.
 Stay green: `cargo test --workspace`, and `tests/e2e/run.sh`.
 
 ## Live verification deferred to S-052
-- `config.toml` is written to `%APPDATA%\SbarHive` from the settings window, and the atomic save with `std::fs::rename` replaces the old file.
+- `config.toml` is written to `%APPDATA%\Kawaro` from the settings window, and the atomic save with `std::fs::rename` replaces the old file.
 - An account without `APPDATA` in the environment finds the folder with `SHGetKnownFolderPath`.
 - A conversion on an exFAT drive does not replace an existing file with the same name.
 
@@ -55,11 +55,11 @@ Stay green: `cargo test --workspace`, and `tests/e2e/run.sh`.
 ## Review log
 - 2026-10-22, planner: the choice takes `os` as a parameter so that the Windows branch is tested on Linux, and the real call passes `Os` from `cfg!(windows)`.
 - 2026-10-22, tester: the contract the tester fixed at the top of `crates/core/tests/paths.rs` and in the comment of the test module in `output_impl.rs` (not to be modified):
-  - `sbarhive_core::paths` is a `pub` module on all platforms, with `enum Os { Linux, Windows }`, `config_dir_with(os, env, known)`, `log_dir_with(os, env, known)` and `config_dir()`, all `pub`. `env` has the shape `Fn(&str) -> Option<OsString>` (the shape of `var_os`), and `known` has the shape `Fn() -> Option<PathBuf>`; the tests pass them by reference, so `&dyn Fn` and generic parameters both work. `Config::actions_dir() -> Option<PathBuf>`.
+  - `kawaro_core::paths` is a `pub` module on all platforms, with `enum Os { Linux, Windows }`, `config_dir_with(os, env, known)`, `log_dir_with(os, env, known)` and `config_dir()`, all `pub`. `env` has the shape `Fn(&str) -> Option<OsString>` (the shape of `var_os`), and `known` has the shape `Fn() -> Option<PathBuf>`; the tests pass them by reference, so `&dyn Fn` and generic parameters both work. `Config::actions_dir() -> Option<PathBuf>`.
   - `finalize_with(temp, final_path, link: &LinkFn, place: &PlaceFn)` where `PlaceFn` is `dyn Fn(&Path, &Path) -> std::io::Result<()>`: it moves, and fails with `AlreadyExists` if the name is taken. `finalize_with` does not check existence and does not call `rename` itself when linking fails, and it still returns the link error if the temporary file is missing (`ac9_fallback_with_missing_temp_reports_the_link_error`). The fake functions capture nothing, so a `'static` alias like `LinkFn` works.
   - `place_no_replace(from, to)` visible in `output_impl.rs`: on Linux the check then `rename`, and on Windows from `output_impl/windows.rs`. And `move_error_kind(code: u32) -> ErrorKind` is pure: 80 and 183 are `AlreadyExists`, 5 is `PermissionDenied`, and others are neither.
   - Files and tests:
-    - `crates/core/tests/paths.rs` (new): `ac1_windows_appdata_wins_and_known_is_not_called`, `ac1_windows_empty_appdata_falls_back_to_the_known_folder`, `ac1_windows_missing_appdata_falls_back_to_the_known_folder`, `ac1_windows_ignores_xdg_and_home`, `ac1_windows_without_appdata_and_without_known_folder_is_none`, `ac1_windows_appdata_is_not_read_as_localappdata`, `ac1_linux_xdg_config_home_first`, `ac1_linux_home_dot_config_second`, `ac1_linux_without_xdg_and_home_is_none_even_with_appdata` (the three Linux branches check that `known` is not called), `ac2_windows_log_dir_is_localappdata_sbarhive_logs_without_known`, `ac2_windows_empty_or_missing_localappdata_falls_back_to_the_known_folder` (and `APPDATA` alone does not stand in), `ac2_windows_without_localappdata_and_without_known_folder_is_none`, `ac2_linux_has_no_log_dir`, `ac3_config_dir_follows_the_process_environment_on_linux`, `ac3_config_path_is_config_dir_joined_with_config_toml`, `ac3_actions_dir_is_config_dir_joined_with_actions`.
+    - `crates/core/tests/paths.rs` (new): `ac1_windows_appdata_wins_and_known_is_not_called`, `ac1_windows_empty_appdata_falls_back_to_the_known_folder`, `ac1_windows_missing_appdata_falls_back_to_the_known_folder`, `ac1_windows_ignores_xdg_and_home`, `ac1_windows_without_appdata_and_without_known_folder_is_none`, `ac1_windows_appdata_is_not_read_as_localappdata`, `ac1_linux_xdg_config_home_first`, `ac1_linux_home_dot_config_second`, `ac1_linux_without_xdg_and_home_is_none_even_with_appdata` (the three Linux branches check that `known` is not called), `ac2_windows_log_dir_is_localappdata_kawaro_logs_without_known`, `ac2_windows_empty_or_missing_localappdata_falls_back_to_the_known_folder` (and `APPDATA` alone does not stand in), `ac2_windows_without_localappdata_and_without_known_folder_is_none`, `ac2_linux_has_no_log_dir`, `ac3_config_dir_follows_the_process_environment_on_linux`, `ac3_config_path_is_config_dir_joined_with_config_toml`, `ac3_actions_dir_is_config_dir_joined_with_actions`.
     - `crates/core/src/output_impl.rs` (the test module): `ac6_place_already_exists_moves_on_to_the_next_number` (the two files really exist, and the order of names asked for is `a.webp`, then `a (1).webp`, then `a (2).webp`), `ac6_finalize_trusts_the_place_function_not_its_own_check` (no file on disk, so a check left inside `finalize_with` would give `a.webp`), `ac6_place_permission_denied_is_returned_and_keeps_the_temp` (one call, with no retry on another name), `ac6_a_successful_link_does_not_call_place`, `ac7_linux_place_refuses_a_taken_name_and_keeps_both_files`, `ac7_linux_place_refuses_a_dangling_link_name`, `ac7_linux_place_moves_to_a_free_name`, `ac7_move_error_codes_80_and_183_are_already_exists`, `ac7_move_error_code_5_is_permission_denied`, `ac7_move_error_other_codes_are_neither`. The `finalize_with` calls in the three `ac9_*` tests that call it were edited to pass `&place_no_replace` as a fourth argument, and their assertions are literally unchanged (AC7).
     - `crates/core/tests/paths_windows.rs` (new, a text check on the Windows files in the manner of `transport_seed.rs`): `ac5_paths_windows_reads_both_known_folders_and_frees_them`, `ac5_ac7_windows_files_are_excluded_from_mutants`, `ac5_ac7_paths_rs_and_output_impl_rs_stay_mutated`, `ac7_windows_places_with_move_file_ex_without_replacing` (bans the name `MOVEFILE_REPLACE_EXISTING` in the whole file, comments included, and requires `MoveFileExW` and `move_error_kind(`).
     - `crates/daemon/tests/actions_dir.rs` (new): `ac4_no_crate_defines_user_actions_dir` (walks all of `crates/`, and the searched text is built from two pieces so the reviewer's `grep` does not match it), `ac4_load_registry_uses_config_actions_dir`.
@@ -70,22 +70,22 @@ Stay green: `cargo test --workspace`, and `tests/e2e/run.sh`.
     `diff <(git show f1e430e:crates/core/src/output_impl.rs | sed -n '/^#\[cfg(test)\]/,$p') <(sed -n '/^#\[cfg(test)\]/,$p' crates/core/src/output_impl.rs)`
     `diff <(git show f1e430e:crates/core/src/config.rs | sed -n '/fn path_and_load_follow_xdg_then_home/,/^    }$/p') <(sed -n '/fn path_and_load_follow_xdg_then_home/,/^    }$/p' crates/core/src/config.rs)`
   - Warning: the `--lib` test binary in core does not build until the implementation lands, so all existing unit tests in core (including `transport.rs` from S-040a and `config.rs`) show red until then; this is unavoidable because the tested functions are private.
-  - Check of the tests' logic: a temporary copy of the repository in the session directory (deleted and not merged) with a short implementation of the contract passed 28 of the core `--lib` tests, the sixteen `paths` tests, the four `paths_windows` tests, the fourteen `output` tests and the two `actions_dir` tests; and `cargo clippy -p sbarhive-core --tests -D warnings` is clean on it. `cargo fmt --check` is clean here.
+  - Check of the tests' logic: a temporary copy of the repository in the session directory (deleted and not merged) with a short implementation of the contract passed 28 of the core `--lib` tests, the sixteen `paths` tests, the four `paths_windows` tests, the fourteen `output` tests and the two `actions_dir` tests; and `cargo clippy -p kawaro-core --tests -D warnings` is clean on it. `cargo fmt --check` is clean here.
   - Failure output (each command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`):
 ```
-$ cargo test -j 2 -p sbarhive-core --lib
+$ cargo test -j 2 -p kawaro-core --lib
 error[E0061]: this function takes 3 arguments but 4 arguments were supplied
 error[E0425]: cannot find function `move_error_kind` in this scope
 error[E0425]: cannot find function `place_no_replace` in this scope
 error[E0425]: cannot find value `place_no_replace` in this scope
-error: could not compile `sbarhive-core` (lib test) due to 17 previous errors
+error: could not compile `kawaro-core` (lib test) due to 17 previous errors
 
-$ cargo test -j 2 -p sbarhive-core --test paths
-error[E0432]: unresolved import `sbarhive_core::paths`
+$ cargo test -j 2 -p kawaro-core --test paths
+error[E0432]: unresolved import `kawaro_core::paths`
 error[E0599]: no associated function or constant named `actions_dir` found for struct `Config` in the current scope
-error: could not compile `sbarhive-core` (test "paths") due to 2 previous errors
+error: could not compile `kawaro-core` (test "paths") due to 2 previous errors
 
-$ cargo test -j 2 -p sbarhive-core --test paths_windows
+$ cargo test -j 2 -p kawaro-core --test paths_windows
 test ac5_ac7_paths_rs_and_output_impl_rs_stay_mutated ... FAILED
 test ac5_ac7_windows_files_are_excluded_from_mutants ... FAILED
 test ac5_paths_windows_reads_both_known_folders_and_frees_them ... FAILED
@@ -96,14 +96,14 @@ crates/core/src/paths.rs must exist
 .../crates/core/src/paths/windows.rs must exist: No such file or directory (os error 2)
 test result: FAILED. 0 passed; 4 failed
 
-$ cargo test -j 2 -p sbarhive-daemon --test actions_dir
+$ cargo test -j 2 -p kawaro-daemon --test actions_dir
 test ac4_load_registry_uses_config_actions_dir ... FAILED
 test ac4_no_crate_defines_user_actions_dir ... FAILED
 load_registry must call Config::actions_dir() (AC4):
 these files still define the old helper: [".../crates/cli/src/main.rs", ".../crates/daemon/src/state.rs"] (AC4)
 test result: FAILED. 0 passed; 2 failed
 
-$ cargo test -j 2 -p sbarhive-cli --test cli actions_include_user_actions
+$ cargo test -j 2 -p kawaro-cli --test cli actions_include_user_actions
 test actions_include_user_actions_from_the_config_dir ... ok
 test result: ok. 1 passed; 0 failed
 ```

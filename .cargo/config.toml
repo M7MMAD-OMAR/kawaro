@@ -2,4 +2,4 @@
 # so a daemon started by a test never sends a real desktop notification to the
 # session it was started from. The daemon reads it in notify.rs.
 [env]
-SBARHIVE_NO_NOTIFY = "1"
+KAWARO_NO_NOTIFY = "1"

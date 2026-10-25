@@ -53,7 +53,7 @@
 
 ## سجل المراجعة
 - 2026-10-19 planner: كُتبت القصة بحالة معتمدة (موافقة مسبقة من المشرف لهذا المسار).
-- 2026-10-19 tester: الاختبارات في `crates/engines/tests/image_{ops,formats,pdf,fixtures}.rs` والمساعد المشترك في `tests/image_common/mod.rs`. الملفات الثابتة في `tests/fixtures/images/` (alpha.png وorient6.jpg وsample.gif وsample.bmp) يولّدها الاختبار المتجاهَل `regenerate`، ويتحقق `fixtures_are_current` من محتواها. التشغيل الأول على المحرك الفارغ (`cargo test -p sbarhive-engines --release --no-fail-fast`):
+- 2026-10-19 tester: الاختبارات في `crates/engines/tests/image_{ops,formats,pdf,fixtures}.rs` والمساعد المشترك في `tests/image_common/mod.rs`. الملفات الثابتة في `tests/fixtures/images/` (alpha.png وorient6.jpg وsample.gif وsample.bmp) يولّدها الاختبار المتجاهَل `regenerate`، ويتحقق `fixtures_are_current` من محتواها. التشغيل الأول على المحرك الفارغ (`cargo test -p kawaro-engines --release --no-fail-fast`):
 
   ```
   Running tests/image_fixtures.rs   test result: ok. 1 passed; 0 failed; 1 ignored
@@ -65,9 +65,9 @@
   الاختبار الوحيد الناجح هو `unknown_op` لأن المحرك الفارغ كان يعيد `UnsupportedOp` لكل عملية.
 - 2026-10-19 tester: تعديل بعد قراءة شيفرة `image`: `PngEncoder::new` يستخدم `CompressionType::Fast` لا `Default`، فصار مرجع مقارنة PNG هو الضغط المتوازن (`Default`) صراحةً، وصار شرط AC11 لـ PNG "أصغر من الضغط المتوازن" بدل "لا يزيد". وعتبة AC4 لـ JPEG صارت 240 لأن أخذ عينات اللون في JPEG يمس الحواف.
 - 2026-10-19 implementer: `crates/engines/src/image.rs` (التوزيع والمعاملات والفك والاتجاه)، و`image/encode.rs` (الصيغ والتسطيح وICO)، و`image/pdf.rs`. كل الاختبارات تنجح: 11 وحدة، و1 و20 و22 و6 تكامل (60 اختباراً بعد إضافة اختباري الطفرات أدناه).
-- 2026-10-19 reviewer: `cargo clippy -p sbarhive-engines --all-targets -- -D warnings` يفشل بأخطاء في `crates/core` (queue.rs وi18n.rs وipc.rs) خارج ملكية هذا المسار. البوابة على هذا الـ crate وحده تنجح: `cargo clippy -p sbarhive-engines --all-targets --no-deps -- -D warnings`. يُرفع إصلاح core لمسار core.
-- 2026-10-19 reviewer: `cargo mutants -f crates/engines/src/image.rs -f 'crates/engines/src/image/*.rs' --test-package sbarhive-engines --timeout 120 -j 4`: 130 طفرة، 114 مقتولة، 12 غير قابلة للبناء، 4 ناجية: (1) `==` إلى `!=` في اختيار الجودة الافتراضية في `run_single`، و(2 إلى 4) حساب الحشو الأفقي `(side - w) / 2` في `ico`، لأن اختبارات ICO كلها كانت بمصادر عريضة حشوها الأفقي صفر. أُضيف اختباران: `default_quality_is_90_and_75_for_compress` و`ico_pads_tall_sources_left_and_right`. إعادة التشغيل على الدالتين: 13 طفرة، 13 مقتولة. النتيجة: لا طفرات ناجية.
-- 2026-10-19 reviewer: `cargo fmt --all --check` و`cargo test -p sbarhive-engines --release` ينجحان. الحالة: مراجعة.
+- 2026-10-19 reviewer: `cargo clippy -p kawaro-engines --all-targets -- -D warnings` يفشل بأخطاء في `crates/core` (queue.rs وi18n.rs وipc.rs) خارج ملكية هذا المسار. البوابة على هذا الـ crate وحده تنجح: `cargo clippy -p kawaro-engines --all-targets --no-deps -- -D warnings`. يُرفع إصلاح core لمسار core.
+- 2026-10-19 reviewer: `cargo mutants -f crates/engines/src/image.rs -f 'crates/engines/src/image/*.rs' --test-package kawaro-engines --timeout 120 -j 4`: 130 طفرة، 114 مقتولة، 12 غير قابلة للبناء، 4 ناجية: (1) `==` إلى `!=` في اختيار الجودة الافتراضية في `run_single`، و(2 إلى 4) حساب الحشو الأفقي `(side - w) / 2` في `ico`، لأن اختبارات ICO كلها كانت بمصادر عريضة حشوها الأفقي صفر. أُضيف اختباران: `default_quality_is_90_and_75_for_compress` و`ico_pads_tall_sources_left_and_right`. إعادة التشغيل على الدالتين: 13 طفرة، 13 مقتولة. النتيجة: لا طفرات ناجية.
+- 2026-10-19 reviewer: `cargo fmt --all --check` و`cargo test -p kawaro-engines --release` ينجحان. الحالة: مراجعة.
 - 2026-10-20، المراجع المستقل (إصدار v0.1.0): **PASS**. بـ `--release`: وحدة engines 44، image_formats 20، image_ops 22، image_pdf 6، image_fixtures 1 ناجح و1 متجاهل (`regenerate`). كل AC من 1 إلى 16 له اختبار ناجح (AC14 في `three_images_make_three_pages` يتحقق من 3 قيم وسيطة على الأقل). e2e يحوّل PNG إلى WebP ويدمج صورتين في PDF بنجاح. رخص التبعيات (image وwebp وpdf-writer وminiz_oxide) مسجلة في `docs/engines.md` ومتوافقة. لم تُعَد الطفرات على `image.rs` (آخر جولة: صفر ناجية). لم تُعدَّل الحالة لأن صلاحية هذه المراجعة محصورة في السجل وCHANGELOG.md.
 
 

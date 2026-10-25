@@ -2,15 +2,15 @@
 # S-018 AC19 and AC20 (S-018f): licences and documentation. No compositor.
 #   AC19  i-slint-backend-winit and i-slint-core pinned "=1.18.1" in
 #         crates/ui/Cargo.toml; those two, md-5 and png in docs/engines.md with
-#         the version sbarhive-ui resolves in Cargo.lock and a licence; `cargo tree -d` adds
+#         the version kawaro-ui resolves in Cargo.lock and a licence; `cargo tree -d` adds
 #         no duplicate over main before S-018 (BASE, default 4047d9d, the
 #         commit that approved S-018, extracted with git archive into a
 #         temporary folder, no worktree); every package in Cargo.lock that is
 #         not in BASE's Cargo.lock is in docs/engines.md with its version.
 #   AC20  docs/architecture.md names both hive paths and the choice rule (the
-#         four globals, the screen reader, SBARHIVE_SURFACE); the user docs
+#         four globals, the screen reader, KAWARO_SURFACE); the user docs
 #         (README.md, integrations/linux/hyprland/README.md) give a Hyprland
-#         layerrule that turns off the animation of the "sbarhive" namespace,
+#         layerrule that turns off the animation of the "kawaro" namespace,
 #         in Arabic and in English, each marked as not verified; the
 #         Arabic rule is read from the Arabic copies (README.ar.md beside
 #         each), the English rule from the English files;
@@ -37,15 +37,15 @@ for c in i-slint-backend-winit i-slint-core; do
   check "AC19: $c pinned \"=1.18.1\" in crates/ui/Cargo.toml" \
     'grep -qE "^$c *= *(\"=1\.18\.1\"|\{.*version *= *\"=1\.18\.1\")" "$ROOT/crates/ui/Cargo.toml"'
 done
-# The versions sbarhive-ui itself resolves (Cargo.lock can hold several, png
+# The versions kawaro-ui itself resolves (Cargo.lock can hold several, png
 # 0.17 for us and 0.18 for another crate).
-direct=$(cd "$ROOT" && nice -n 19 cargo tree -p sbarhive-ui --offline --locked --depth 1 --prefix none -e normal,build,dev 2>/dev/null | sed 's/ (.*//' | sort -u)
+direct=$(cd "$ROOT" && nice -n 19 cargo tree -p kawaro-ui --offline --locked --depth 1 --prefix none -e normal,build,dev 2>/dev/null | sed 's/ (.*//' | sort -u)
 for c in i-slint-backend-winit i-slint-core md-5 png; do
   v=$(awk -v n="$c" '$1==n{sub(/^v/,"",$2); print $2}' <<<"$direct" | head -1)
   r=$(row "$c")
-  echo "INFO $c: sbarhive-ui resolves ${v:-none}; engines.md row: ${r:-none}"
+  echo "INFO $c: kawaro-ui resolves ${v:-none}; engines.md row: ${r:-none}"
   # The row's version column and a licence (an SPDX id or the Slint licence).
-  check "AC19: $c in docs/engines.md with the version sbarhive-ui resolves (${v:-?}) and a licence" \
+  check "AC19: $c in docs/engines.md with the version kawaro-ui resolves (${v:-?}) and a licence" \
     '[ -n "$v" ] && [ -n "$r" ] && awk -F"|" "{print \$3}" <<<"$r" | grep -qF "$v" && awk -F"|" "{print \$4}" <<<"$r" | grep -qE "MIT|Apache-2\.0|GPL-3\.0|BSD|Zlib|Unlicense|ISC|MPL"'
 done
 
@@ -74,13 +74,13 @@ check "AC19: every package new in Cargo.lock since $BASE is in docs/engines.md w
 
 echo "== AC20"
 ARCH="$ROOT/docs/architecture.md"
-for t in zwlr_layer_shell_v1 wl_subcompositor wp_viewporter wp_single_pixel_buffer SBARHIVE_SURFACE; do
+for t in zwlr_layer_shell_v1 wl_subcompositor wp_viewporter wp_single_pixel_buffer KAWARO_SURFACE; do
   check "AC20: docs/architecture.md names $t (the layer path and the choice rule)" 'grep -qF "$t" "$ARCH"'
 done
 check "AC20: docs/architecture.md describes the window path (xdg_toplevel, xdg_surface or xdg-shell)" 'grep -qE "xdg_toplevel|xdg_surface|xdg-shell" "$ARCH"'
 check "AC20: docs/architecture.md gives the screen reader rule" 'grep -qiE "screen reader|ScreenReaderEnabled" "$ARCH"'
 
-# A Hyprland layer rule that turns off the animation of the "sbarhive"
+# A Hyprland layer rule that turns off the animation of the "kawaro"
 # namespace (noanim or no_anim, any Hyprland syntax), in each language, with
 # the "not verified" mark within 5 lines of it, the Arabic and the English
 # rule on different lines. Arabic is matched with its diacritics removed.
@@ -96,7 +96,7 @@ for path in sys.argv[1:]:
     except OSError:
         continue
     for i, l in enumerate(lines):
-        if rule.search(l) and "sbarhive" in l:
+        if rule.search(l) and "kawaro" in l:
             near = "\n".join(lines[max(0, i - 5): i + 6])
             # The Arabic mark counts in an Arabic copy (.ar.md), the
             # English one in an English file.
@@ -111,7 +111,7 @@ PY
 )
 echo "INFO Hyprland layer rule: $rules"
 read -r _ nar _ nen lines _ <<<"$rules"
-check "AC20: Arabic user docs give a Hyprland layerrule turning off sbarhive's animation, marked «لم يُتحقق منها»" '[ "${nar:-0}" -ge 1 ]'
+check "AC20: Arabic user docs give a Hyprland layerrule turning off kawaro's animation, marked «لم يُتحقق منها»" '[ "${nar:-0}" -ge 1 ]'
 check "AC20: English user docs give the same layerrule, marked not verified" '[ "${nen:-0}" -ge 1 ]'
 check "AC20: the Arabic and the English rule are two lines (one per language)" '[ "${lines:-}" = two ]'
 

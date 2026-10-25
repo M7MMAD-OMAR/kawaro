@@ -6,13 +6,13 @@ members = ["crates/core", "crates/engines", "crates/ui", "crates/daemon", "crate
 version = "0.4.0-beta.1"
 edition = "2024"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/M7MMAD-OMAR/sbarhive"
+repository = "https://github.com/M7MMAD-OMAR/kawaro"
 rust-version = "1.85"
 
 [workspace.dependencies]
-sbarhive-core = { path = "crates/core" }
-sbarhive-engines = { path = "crates/engines" }
-sbarhive-ui = { path = "crates/ui" }
+kawaro-core = { path = "crates/core" }
+kawaro-engines = { path = "crates/engines" }
+kawaro-ui = { path = "crates/ui" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"
@@ -30,6 +30,6 @@ codegen-units = 4
 strip = true
 
 # Transparent windows on Wayland with the software renderer; see
-# vendor/softbuffer/SBARHIVE-PATCH.md.
+# vendor/softbuffer/KAWARO-PATCH.md.
 [patch.crates-io]
 softbuffer = { path = "vendor/softbuffer" }

@@ -9,17 +9,17 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use sbarhive_core::config::Config;
-use sbarhive_core::ipc::Response;
-use sbarhive_core::paths::Os;
-use sbarhive_core::update::apply::{AutoAction, auto_action, can_apply};
-use sbarhive_core::update::effective_channel;
-use sbarhive_core::update::fetch::{CurlFetcher, Fetcher};
-use sbarhive_core::update::flow::{
+use kawaro_core::config::Config;
+use kawaro_core::ipc::Response;
+use kawaro_core::paths::Os;
+use kawaro_core::update::apply::{AutoAction, auto_action, can_apply};
+use kawaro_core::update::effective_channel;
+use kawaro_core::update::fetch::{CurlFetcher, Fetcher};
+use kawaro_core::update::flow::{
     CheckEnv, CheckOutcome, CheckState, INTERVAL_SECS, Update, VerifiedPackage, check_with,
     download_verified,
 };
-use sbarhive_core::update::policy::Platform;
+use kawaro_core::update::policy::Platform;
 
 use crate::notify::UpdateKind;
 use crate::progress::{self, Progress};
@@ -347,6 +347,6 @@ fn run(state: &Shared) {
         };
         crate::tray::refresh();
         update_sys::run_effects(effects, lang);
-        std::thread::sleep(sbarhive_core::update::apply::RETRY_INTERVAL);
+        std::thread::sleep(kawaro_core::update::apply::RETRY_INTERVAL);
     }
 }

@@ -1,8 +1,8 @@
-//! Runs the `sbarhive` binary with a private HOME, runtime dir and PATH. The
+//! Runs the `kawaro` binary with a private HOME, runtime dir and PATH. The
 //! daemon side is a fake socket server in this process, so no window opens.
 #![cfg(unix)]
 
-use sbarhive_core::ipc::{Event, Request, Response};
+use kawaro_core::ipc::{Event, Request, Response};
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::net::UnixListener;
@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::{Arc, Mutex};
 
-const BIN: &str = env!("CARGO_BIN_EXE_sbarhive");
+const BIN: &str = env!("CARGO_BIN_EXE_kawaro");
 
 fn fixture(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -79,7 +79,7 @@ fn fake_daemon(
     env: &Env,
     reply: impl Fn(&Request) -> Vec<Response> + Send + 'static,
 ) -> Arc<Mutex<Vec<Request>>> {
-    let listener = UnixListener::bind(env.root().join("sbarhive.sock")).unwrap();
+    let listener = UnixListener::bind(env.root().join("kawaro.sock")).unwrap();
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();
     std::thread::spawn(move || {
@@ -136,7 +136,7 @@ fn convert_to_an_unknown_format_lists_the_plain_conversions() {
     let env = Env::new(None);
     let png = env.file("a.png", &fixture("alpha.png"));
     // A conversion with a suffix is not a plain one and stays out of the list.
-    let dir = env.root().join("cfg/sbarhive/actions");
+    let dir = env.root().join("cfg/kawaro/actions");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         dir.join("small.toml"),
@@ -354,7 +354,7 @@ fn actions_hide_engines_that_are_not_installed() {
 fn actions_include_user_actions_from_the_config_dir() {
     let env = Env::new(None);
     let png = env.file("a.png", &fixture("alpha.png"));
-    let dir = env.root().join("cfg/sbarhive/actions");
+    let dir = env.root().join("cfg/kawaro/actions");
     std::fs::create_dir_all(&dir).unwrap();
     let mine = std::fs::read_to_string(
         Path::new(env!("CARGO_MANIFEST_DIR")).join("../../actions/images.toml"),
@@ -384,10 +384,10 @@ fn doctor_reports_tools_found_on_path() {
     assert!(text.contains("ok      gs "), "{text}");
     assert!(text.contains("missing ffmpeg "), "{text}");
     assert!(text.contains("ok      image"), "{text}");
-    assert!(text.contains("missing sbarhived answering"), "{text}");
+    assert!(text.contains("missing kawarod answering"), "{text}");
 }
 
-/// S-022a AC5: `sbarhive doctor` prints `transport::endpoint()`, which on
+/// S-022a AC5: `kawaro doctor` prints `transport::endpoint()`, which on
 /// Linux is the socket in the private runtime dir.
 #[test]
 fn ac5_doctor_prints_the_endpoint_in_the_runtime_dir() {
@@ -395,14 +395,14 @@ fn ac5_doctor_prints_the_endpoint_in_the_runtime_dir() {
     let o = env.run(&["doctor"]);
     assert!(o.status.success());
     let text = stdout(&o);
-    let sock = env.root().join("sbarhive.sock").display().to_string();
+    let sock = env.root().join("kawaro.sock").display().to_string();
     assert!(text.contains(&sock), "{sock} missing from:\n{text}");
 }
 
 /// Like `fake_daemon`, but records raw JSON, so a request the protocol does
 /// not know yet still reaches the assertion instead of a parse panic.
 fn raw_daemon(env: &Env) -> Arc<Mutex<Vec<serde_json::Value>>> {
-    let listener = UnixListener::bind(env.root().join("sbarhive.sock")).unwrap();
+    let listener = UnixListener::bind(env.root().join("kawaro.sock")).unwrap();
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();
     std::thread::spawn(move || {
@@ -423,7 +423,7 @@ fn raw_daemon(env: &Env) -> Arc<Mutex<Vec<serde_json::Value>>> {
     seen
 }
 
-/// Runs `sbarhive drop` with the given args and environment, and returns the
+/// Runs `kawaro drop` with the given args and environment, and returns the
 /// one request the daemon saw.
 fn drop_request(args: &[&str], vars: &[(&str, &str)]) -> serde_json::Value {
     let env = Env::new(None);
@@ -495,7 +495,7 @@ fn ac4_drop_skips_an_empty_environment_token_like_open() {
 }
 
 // S-019d, manager decision 1 (backlog/S-019-hive-at-pointer.md):
-// `sbarhive drop --at X,Y` passes the pointer position in global logical
+// `kawaro drop --at X,Y` passes the pointer position in global logical
 // coordinates, as `hyprctl cursorpos` prints it ("1198, 1800"), so a still
 // hand needs no wait. The request carries it as `"at": [X, Y]`
 // (crates/core/tests/ipc_drop.rs).
@@ -561,13 +561,13 @@ fn ac8_s019_decision1_drop_at_rejects_a_malformed_position_without_a_request() {
 }
 
 // S-019e (backlog/S-019-hive-at-pointer.md, AC11 and AC19, amended
-// 2026-10-21): `sbarhive drop --hold` is the press of a held key and
-// `sbarhive drop --release` its release. The threshold timer is in the
+// 2026-10-21): `kawaro drop --hold` is the press of a held key and
+// `kawaro drop --release` its release. The threshold timer is in the
 // daemon (AC17): the client sends one request and returns at once. The JSON
 // forms are fixed in crates/core/tests/ipc_drop.rs: `"hold": true` on a
 // drop, and `{"cmd":"drop-release"}`.
 
-/// Runs `sbarhive drop ARGS` against a fake daemon and returns the requests
+/// Runs `kawaro drop ARGS` against a fake daemon and returns the requests
 /// it saw, the output and the wall time of the command.
 fn drop_timed(env: &Env, args: &[&str]) -> (Vec<serde_json::Value>, Output, std::time::Duration) {
     let seen = raw_daemon(env);
@@ -589,9 +589,9 @@ fn ac11_s019e_drop_hold_sends_one_press_and_returns_within_200_ms() {
     let env = Env::new(None);
     // A long threshold in the private config: the client must not wait for
     // it (the timer is the daemon's).
-    std::fs::create_dir_all(env.root().join(".config/sbarhive")).unwrap();
+    std::fs::create_dir_all(env.root().join(".config/kawaro")).unwrap();
     std::fs::write(
-        env.root().join(".config/sbarhive/config.toml"),
+        env.root().join(".config/kawaro/config.toml"),
         "hold_ms = 2000\n",
     )
     .unwrap();
@@ -608,7 +608,7 @@ fn ac11_s019e_drop_hold_sends_one_press_and_returns_within_200_ms() {
 
 #[test]
 fn ac11_s019e_plain_drop_stays_an_immediate_show() {
-    // `sbarhive drop` without --hold keeps the S-014 request (no hold), for
+    // `kawaro drop` without --hold keeps the S-014 request (no hold), for
     // a binding that runs it on a plain key press; --hold is the other one.
     let v = drop_request(&[], &[]);
     assert!(!hold_flag(&v), "no hold on a plain drop: {v}");
@@ -641,7 +641,7 @@ fn ac11_s019e_drop_release_without_a_daemon_starts_none_and_exits_0() {
     // No socket in the private runtime dir: the release of a key whose
     // press never reached a daemon. The client must not start one (AC11).
     let env = Env::new(None);
-    let sock = env.root().join("sbarhive.sock");
+    let sock = env.root().join("kawaro.sock");
     let t0 = std::time::Instant::now();
     let o = env.run(&["drop", "--release"]);
     let took = t0.elapsed();

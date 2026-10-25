@@ -1,10 +1,10 @@
-# SbarHive documentation (English)
+# Kawaro documentation (English)
 
 # Quick start
 
-1. [Install](install.md) SbarHive.
+1. [Install](install.md) Kawaro.
 2. Select one or more files in your file manager.
-3. Right click and choose **SbarHive**. The hive opens.
+3. Right click and choose **Kawaro**. The hive opens.
 4. Click a cell. The result is saved next to the original, which is never changed.
 
 Progress shows in the tray tooltip. Only actions that fit your files, and the tools you have installed, appear.
@@ -29,13 +29,13 @@ Check every download against `SHA256SUMS`. The steps are on the [download page](
 
 ## Extra tools
 
-Video and audio need FFmpeg. Documents and PDF need LibreOffice and Ghostscript. An action whose tool is missing does not appear in the hive. Run `sbarhive doctor` to see what was found.
+Video and audio need FFmpeg. Documents and PDF need LibreOffice and Ghostscript. An action whose tool is missing does not appear in the hive. Run `kawaro doctor` to see what was found.
 
 ## From source (Linux)
 
 ```
-git clone https://github.com/M7MMAD-OMAR/sbarhive
-cd sbarhive
+git clone https://github.com/M7MMAD-OMAR/kawaro
+cd kawaro
 ./scripts/install.sh
 ```
 
@@ -45,14 +45,14 @@ Needs Rust 1.85 or newer. To remove it: `./scripts/uninstall.sh`.
 
 # Use the hive
 
-- **Open it:** select files, right click, choose SbarHive. On Linux you can also hold the drop shortcut while dragging ([shortcuts](shortcuts.md)).
+- **Open it:** select files, right click, choose Kawaro. On Linux you can also hold the drop shortcut while dragging ([shortcuts](shortcuts.md)).
 - **Read it:** the centre cell shows the full name of the cell under your pointer.
 - **Pick:** click a cell. Cells that do not fit your selection are not drawn.
 - **Result:** saved next to the original under a new name, or in a subfolder if you change `output` in [settings](settings.md).
 - **Progress:** in the tray tooltip. On Windows, the tray menu has Cancel all.
 - **Many files:** actions that combine files, such as merging PDFs, appear when you select two or more.
 
-On Hyprland you can bind Super plus right click to open the hive. See the [Hyprland guide](https://github.com/M7MMAD-OMAR/sbarhive/blob/main/integrations/linux/hyprland/README.md).
+On Hyprland you can bind Super plus right click to open the hive. See the [Hyprland guide](https://github.com/M7MMAD-OMAR/kawaro/blob/main/integrations/linux/hyprland/README.md).
 
 ---
 
@@ -66,7 +66,7 @@ One service shows the interface. A thin command line client asks it to open the 
 
 ![Processes and crates](diagram:overview)
 
-- `sbarhived` holds the hive, the queue, the tray and the engines.
+- `kawarod` holds the hive, the queue, the tray and the engines.
 - FFmpeg, LibreOffice and Ghostscript run as separate processes, killed with their whole tree on cancel.
 - The original file is never changed: the result is written to a temporary file and then renamed.
 
@@ -166,8 +166,8 @@ What the hive does for each kind of file. An action whose tool is missing does n
 
 Hold **Super+Z** while dragging files and the hive appears. Let go and it closes. A short tap shows nothing.
 
-- GNOME 48 and later, KDE 6: SbarHive registers the shortcut through the desktop portal. The first time, the desktop asks you to allow it.
-- Older desktops and Hyprland: bind `sbarhive drop` yourself. The steps are in the [full guide](https://github.com/M7MMAD-OMAR/sbarhive/blob/main/docs/drop-shortcut.md).
+- GNOME 48 and later, KDE 6: Kawaro registers the shortcut through the desktop portal. The first time, the desktop asks you to allow it.
+- Older desktops and Hyprland: bind `kawaro drop` yourself. The steps are in the [full guide](https://github.com/M7MMAD-OMAR/kawaro/blob/main/docs/drop-shortcut.md).
 - Change the hold time with `hold_ms` in [settings](settings.md).
 
 ## Windows
@@ -178,14 +178,14 @@ Hold **Super+Z** while dragging files and the hive appears. Let go and it closes
 
 # Settings
 
-The file is `config.toml`: `~/.config/sbarhive/` on Linux, `%APPDATA%\SbarHive\` on Windows. Every key is optional, unknown keys are ignored, and a broken file falls back to the defaults.
+The file is `config.toml`: `~/.config/kawaro/` on Linux, `%APPDATA%\Kawaro\` on Windows. Every key is optional, unknown keys are ignored, and a broken file falls back to the defaults.
 
 | Key | Values | Default |
 | --- | --- | --- |
 | `language` | `auto`, `ar`, `en` | `auto` |
 | `theme` | `auto`, `light`, `dark` | `auto` |
 | `output` | `beside`, `subfolder` | `beside` |
-| `output_folder` | folder name for `subfolder` | `SbarHive` |
+| `output_folder` | folder name for `subfolder` | `Kawaro` |
 | `quality` | `light`, `balanced`, `max` | `balanced` |
 | `open_folder_when_done` | `true`, `false` | `false` |
 | `notify` | `true`, `false` | `true` |
@@ -201,13 +201,13 @@ The file is `config.toml`: `~/.config/sbarhive/` on Linux, `%APPDATA%\SbarHive\`
 
 # Troubleshooting
 
-- **An action is missing:** its tool is not installed. Run `sbarhive doctor`.
+- **An action is missing:** its tool is not installed. Run `kawaro doctor`.
 - **Windows warns "Windows protected your PC":** the build is unsigned. [Verify the file](site:download#verify), then choose More info and Run anyway.
 - **The hive opens without keyboard focus (GNOME, KDE):** focus tests on real desktops are not finished. Report it with your desktop and version.
-- **Nothing happens on right click:** run `sbarhive ping`. If the service does not answer, run `sbarhive daemon` and try again.
+- **Nothing happens on right click:** run `kawaro ping`. If the service does not answer, run `kawaro daemon` and try again.
 - **Updates:** set `update_check = false` to stop the daily check ([settings](settings.md)).
 
-Report a problem on [GitHub](https://github.com/M7MMAD-OMAR/sbarhive/issues).
+Report a problem on [GitHub](https://github.com/M7MMAD-OMAR/kawaro/issues).
 
 ---
 
@@ -217,8 +217,8 @@ Report a problem on [GitHub](https://github.com/M7MMAD-OMAR/sbarhive/issues).
 - Never modify the original file. Engines write a temporary file, and the queue renames it.
 - Every user string in Arabic and English, with right to left layout.
 - Colours, sizes and durations come from `design/tokens.json`.
-- Read [CONTRIBUTING](https://github.com/M7MMAD-OMAR/sbarhive/blob/main/CONTRIBUTING.md) and open an issue before a large change.
+- Read [CONTRIBUTING](https://github.com/M7MMAD-OMAR/kawaro/blob/main/CONTRIBUTING.md) and open an issue before a large change.
 
-The code is GPL-3.0-or-later: [github.com/M7MMAD-OMAR/sbarhive](https://github.com/M7MMAD-OMAR/sbarhive).
+The code is GPL-3.0-or-later: [github.com/M7MMAD-OMAR/kawaro](https://github.com/M7MMAD-OMAR/kawaro).
 
 ---

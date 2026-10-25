@@ -1,16 +1,16 @@
-//! S-050 AC4 and AC5: `sbarhive integration install|uninstall` run as the
+//! S-050 AC4 and AC5: `kawaro integration install|uninstall` run as the
 //! real binary. Stdout lines and exit codes are compared exactly.
 
 use std::path::Path;
 use std::process::{Command, Output};
 
-const BIN: &str = env!("CARGO_BIN_EXE_sbarhive");
-const SHELL: &str = r"HKCU\Software\Classes\*\shell\SbarHive";
-const AUMID: &str = r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.SbarHive";
+const BIN: &str = env!("CARGO_BIN_EXE_kawaro");
+const SHELL: &str = r"HKCU\Software\Classes\*\shell\Kawaro";
+const AUMID: &str = r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.Kawaro";
 
 fn run(lang: &str, args: &[&str]) -> Output {
     Command::new(BIN)
-        .env("SBARHIVE_LANG", lang)
+        .env("KAWARO_LANG", lang)
         .args(args)
         .output()
         .unwrap()
@@ -40,11 +40,11 @@ fn ac4_dry_run_with_dir_prints_six_reg_lines() {
     assert_eq!(l.len(), 6);
     assert_eq!(
         l[0],
-        format!("reg.exe add {SHELL} /v MUIVerb /t REG_SZ /d SbarHive /f")
+        format!("reg.exe add {SHELL} /v MUIVerb /t REG_SZ /d Kawaro /f")
     );
     assert_eq!(
         l[1],
-        format!(r"reg.exe add {SHELL} /v Icon /t REG_SZ /d /x\sbarhive.ico /f")
+        format!(r"reg.exe add {SHELL} /v Icon /t REG_SZ /d /x\kawaro.ico /f")
     );
     assert_eq!(
         l[2],
@@ -52,11 +52,11 @@ fn ac4_dry_run_with_dir_prints_six_reg_lines() {
     );
     assert_eq!(
         l[4],
-        format!("reg.exe add {AUMID} /v DisplayName /t REG_SZ /d SbarHive /f")
+        format!("reg.exe add {AUMID} /v DisplayName /t REG_SZ /d Kawaro /f")
     );
     assert_eq!(
         l[5],
-        format!(r"reg.exe add {AUMID} /v IconUri /t REG_SZ /d /x\sbarhive.ico /f")
+        format!(r"reg.exe add {AUMID} /v IconUri /t REG_SZ /d /x\kawaro.ico /f")
     );
 }
 
@@ -70,7 +70,7 @@ fn ac4_fourth_line_is_the_command_value() {
     assert_eq!(l.len(), 6);
     assert!(l[3].starts_with(&format!(r"reg.exe add {SHELL}\command /ve /t REG_SZ /d ")));
     assert!(l[3].contains(r#"open "%1""#), "{}", l[3]);
-    assert!(l[3].contains(r"/x\sbarhived.exe"), "{}", l[3]);
+    assert!(l[3].contains(r"/x\kawarod.exe"), "{}", l[3]);
     assert!(l[3].ends_with(" /f"));
 }
 
@@ -87,8 +87,8 @@ fn ac4_every_line_is_a_reg_exe_add() {
         assert!(line.starts_with("reg.exe add HKCU"), "{line}");
         assert!(line.ends_with(" /f"), "{line}");
     }
-    assert!(l[0].contains("صبار هايف"), "{}", l[0]);
-    assert!(!l[0].contains("SbarHive /f"), "{}", l[0]);
+    assert!(l[0].contains("كوارو"), "{}", l[0]);
+    assert!(!l[0].contains("Kawaro /f"), "{}", l[0]);
 }
 
 #[test]
@@ -98,16 +98,8 @@ fn ac4_default_dir_is_the_executable_folder() {
     let folder = Path::new(BIN).parent().unwrap().display().to_string();
     let l = lines(&o);
     assert_eq!(l.len(), 6);
-    assert!(
-        l[1].contains(&format!(r"{folder}\sbarhive.ico")),
-        "{}",
-        l[1]
-    );
-    assert!(
-        l[3].contains(&format!(r"{folder}\sbarhived.exe")),
-        "{}",
-        l[3]
-    );
+    assert!(l[1].contains(&format!(r"{folder}\kawaro.ico")), "{}", l[1]);
+    assert!(l[3].contains(&format!(r"{folder}\kawarod.exe")), "{}", l[3]);
 }
 
 #[cfg(not(windows))]

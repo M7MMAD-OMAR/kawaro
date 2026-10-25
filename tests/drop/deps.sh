@@ -19,12 +19,12 @@
 #     packages (its lines at column 0), and Cargo.lock has exactly one
 #     package named zbus, at 5.19.0 or at a version docs/engines.md records
 #     for zbus (a single repository wide upgrade);
-#   - no tokio in the daemon: `cargo tree -p sbarhive-daemon -e normal -i
+#   - no tokio in the daemon: `cargo tree -p kawaro-daemon -e normal -i
 #     tokio` prints no tree (cargo says "nothing to print", or tokio is not
 #     in Cargo.lock at all);
 #   - every package in Cargo.lock that is not in the lock of 0de3c74 (the
 #     approval of S-014e) has a row in docs/engines.md naming it, its
-#     version and a licence; the workspace members (sbarhive-*) are not
+#     version and a licence; the workspace members (kawaro-*) are not
 #     dependencies and are left out.
 # The checks after the first are only meaningful with a client, so each one
 # requires it.
@@ -98,20 +98,20 @@ elif [[ "$LOCK_ZBUS" =~ ^[0-9.]+$ ]] && grep -qE "^\| zbus \| ${LOCK_ZBUS//./\\.
 check "AC14: with the client, no second zbus: cargo tree -d lists no zbus, and Cargo.lock has one zbus, at 5.19.0 or at the version docs/engines.md records" \
   '[ "$have" = yes ] && [ "$TREE_D_RC" -eq 0 ] && [ "$ZDUP" -eq 0 ] && [ "$ZREC" = yes ]'
 
-TREE_T=$(nice -n 19 cargo tree --offline -p sbarhive-daemon -e normal -i tokio 2>&1); TREE_T_RC=$?
+TREE_T=$(nice -n 19 cargo tree --offline -p kawaro-daemon -e normal -i tokio 2>&1); TREE_T_RC=$?
 TOKIO_OK=no
 if [ "$TREE_T_RC" -eq 0 ] && grep -q 'nothing to print' <<<"$TREE_T" && ! grep -qE '^tokio v' <<<"$TREE_T"; then TOKIO_OK=yes
 elif [ "$LOCK_TOKIO" = - ] && grep -q 'did not match any packages' <<<"$TREE_T"; then TOKIO_OK=yes; fi
-echo "INFO AC14: cargo tree -p sbarhive-daemon -e normal -i tokio: exit $TREE_T_RC, $(head -1 <<<"$TREE_T")"
+echo "INFO AC14: cargo tree -p kawaro-daemon -e normal -i tokio: exit $TREE_T_RC, $(head -1 <<<"$TREE_T")"
 check "AC14: with the client, the daemon's normal dependencies have no tokio" '[ "$have" = yes ] && [ "$TOKIO_OK" = yes ]'
 
 NEW=$(python3 -I - <(git show "$BASE:Cargo.lock") Cargo.lock <<'PY'
 import sys, tomllib
 def pk(f):
-    # Workspace members (sbarhive-*) are not dependencies; a version bump
+    # Workspace members (kawaro-*) are not dependencies; a version bump
     # at release time (0.3.3) made them look new. The vendored softbuffer
     # has no "source" either but is a dependency, so filter by name.
-    return {(p["name"], p["version"]) for p in tomllib.load(open(f, "rb")).get("package", []) if not p["name"].startswith("sbarhive-")}
+    return {(p["name"], p["version"]) for p in tomllib.load(open(f, "rb")).get("package", []) if not p["name"].startswith("kawaro-")}
 for n, v in sorted(pk(sys.argv[2]) - pk(sys.argv[1])):
     print(n, v)
 PY

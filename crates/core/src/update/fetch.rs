@@ -80,7 +80,7 @@ pub fn curl_args(url: &str, dest: &Path, max_bytes: u64) -> Vec<String> {
     .map(|s| s.to_string())
     .collect();
     args.push(max_bytes.to_string());
-    args.extend(["--user-agent", "sbarhive-update", "--output"].map(String::from));
+    args.extend(["--user-agent", "kawaro-update", "--output"].map(String::from));
     args.push(dest.to_string_lossy().into_owned());
     args.push(url.to_string());
     args

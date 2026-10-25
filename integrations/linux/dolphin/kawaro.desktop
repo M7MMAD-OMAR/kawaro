@@ -1,13 +1,13 @@
-# SbarHive service menu for Dolphin (KF6).
+# Kawaro service menu for Dolphin (KF6).
 # Install to ~/.local/share/kio/servicemenus/ and keep it executable: KF6
 # ignores service menus in user directories that lack the executable bit.
 #
 # No --token here on purpose: KDE puts XDG_ACTIVATION_TOKEN in the
 # environment of commands it launches from a service menu, and
-# `sbarhive open` reads XDG_ACTIVATION_TOKEN (then DESKTOP_STARTUP_ID) when
+# `kawaro open` reads XDG_ACTIVATION_TOKEN (then DESKTOP_STARTUP_ID) when
 # --token is absent, so the hive window can take focus on KWin.
 #
-# scripts/install.sh replaces the bare `sbarhive` in Exec with an absolute
+# scripts/install.sh replaces the bare `kawaro` in Exec with an absolute
 # path, because Dolphin started by the session may not have ~/.local/bin
 # in PATH.
 [Desktop Entry]
@@ -16,10 +16,10 @@ X-KDE-ServiceTypes=KonqPopupMenu/Plugin
 MimeType=all/allfiles;
 X-KDE-Protocols=file
 X-KDE-Priority=TopLevel
-Actions=sbarhive;
+Actions=kawaro;
 
-[Desktop Action sbarhive]
-Name=SbarHive
-Name[ar]=صبار هايف
-Icon=sbarhive
-Exec=sbarhive open -- %F
+[Desktop Action kawaro]
+Name=Kawaro
+Name[ar]=كوارو
+Icon=kawaro
+Exec=kawaro open -- %F

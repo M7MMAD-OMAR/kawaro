@@ -4,17 +4,17 @@
 #
 #   scripts/uninstall.sh [--purge]
 #
-# Reads $XDG_STATE_HOME/sbarhive/install-manifest and removes exactly the
+# Reads $XDG_STATE_HOME/kawaro/install-manifest and removes exactly the
 # files and directories listed there, takes our action out of Thunar's
 # uca.xml and disables the systemd user unit. Without a manifest it removes
-# the known install paths. User settings in $XDG_CONFIG_HOME/sbarhive stay
-# unless --purge is given; --purge also removes SbarHive data, cache and
+# the known install paths. User settings in $XDG_CONFIG_HOME/kawaro stay
+# unless --purge is given; --purge also removes Kawaro data, cache and
 # state directories.
-# Same environment as install.sh (PREFIX, XDG_*, SBARHIVE_THUNAR_SYSTEM_UCA).
+# Same environment as install.sh (PREFIX, XDG_*, KAWARO_THUNAR_SYSTEM_UCA).
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_ID="io.github.m7mmad_omar.SbarHive"
+APP_ID="io.github.m7mmad_omar.Kawaro"
 
 PREFIX="${PREFIX:-$HOME/.local}"
 BIN="$PREFIX/bin"
@@ -22,8 +22,8 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
 CACHE="${XDG_CACHE_HOME:-$HOME/.cache}"
 STATE="${XDG_STATE_HOME:-$HOME/.local/state}"
-SYS_UCA="${SBARHIVE_THUNAR_SYSTEM_UCA:-/etc/xdg/Thunar/uca.xml}"
-MANIFEST="$STATE/sbarhive/install-manifest"
+SYS_UCA="${KAWARO_THUNAR_SYSTEM_UCA:-/etc/xdg/Thunar/uca.xml}"
+MANIFEST="$STATE/kawaro/install-manifest"
 MERGE="$REPO_ROOT/integrations/linux/thunar/merge_uca.py"
 
 PURGE=0
@@ -40,18 +40,18 @@ if [ -f "$MANIFEST" ]; then
   mapfile -t ENTRIES < "$MANIFEST"
 else
   echo "No manifest at $MANIFEST; removing the known install paths | لا توجد قائمة تثبيت، تُحذف المسارات المعروفة"
-  for f in "$BIN/sbarhive" "$BIN/sbarhived" "$BIN/sbarhive-open-selection" \
-           "$DATA/icons/hicolor/scalable/apps/sbarhive.svg" \
-           "$DATA/icons/hicolor/symbolic/apps/sbarhive-symbolic.svg" \
+  for f in "$BIN/kawaro" "$BIN/kawarod" "$BIN/kawaro-open-selection" \
+           "$DATA/icons/hicolor/scalable/apps/kawaro.svg" \
+           "$DATA/icons/hicolor/symbolic/apps/kawaro-symbolic.svg" \
            "$DATA/applications/$APP_ID.desktop" "$DATA/metainfo/$APP_ID.metainfo.xml" \
-           "$DATA/kio/servicemenus/sbarhive.desktop" \
-           "$DATA/nautilus-python/extensions/sbarhive.py" \
-           "$DATA/nemo/actions/sbarhive.nemo_action" \
-           "$CONF/autostart/sbarhive.desktop" "$CONF/systemd/user/sbarhive.service"; do
+           "$DATA/kio/servicemenus/kawaro.desktop" \
+           "$DATA/nautilus-python/extensions/kawaro.py" \
+           "$DATA/nemo/actions/kawaro.nemo_action" \
+           "$CONF/autostart/kawaro.desktop" "$CONF/systemd/user/kawaro.service"; do
     [ -e "$f" ] && ENTRIES+=("f $f")
   done
   [ -f "$CONF/Thunar/uca.xml" ] && ENTRIES+=("thunar existing $CONF/Thunar/uca.xml")
-  [ -f "$CONF/systemd/user/sbarhive.service" ] && ENTRIES+=("systemd sbarhive.service")
+  [ -f "$CONF/systemd/user/kawaro.service" ] && ENTRIES+=("systemd kawaro.service")
 fi
 
 FILES=()
@@ -71,7 +71,7 @@ done
 
 # 1. Stop and disable the daemon before its binary goes away.
 if [ "$SYSTEMD" -eq 1 ] && command -v systemctl >/dev/null 2>&1; then
-  systemctl --user disable --now sbarhive.service >/dev/null 2>&1 || true
+  systemctl --user disable --now kawaro.service >/dev/null 2>&1 || true
 fi
 
 # 2. Thunar: drop our action, keep every other one.
@@ -98,10 +98,10 @@ fi
 
 # 4. Optional purge of user data.
 if [ "$PURGE" -eq 1 ]; then
-  rm -rf -- "$CONF/sbarhive" "$DATA/sbarhive" "$CACHE/sbarhive" "$STATE/sbarhive"
+  rm -rf -- "$CONF/kawaro" "$DATA/kawaro" "$CACHE/kawaro" "$STATE/kawaro"
   echo "Settings and data removed | حُذفت الإعدادات والبيانات"
 else
-  [ -d "$CONF/sbarhive" ] && echo "Settings kept in $CONF/sbarhive (use --purge) | الإعدادات باقية في $CONF/sbarhive (استخدم --purge)"
+  [ -d "$CONF/kawaro" ] && echo "Settings kept in $CONF/kawaro (use --purge) | الإعدادات باقية في $CONF/kawaro (استخدم --purge)"
 fi
 
-echo "SbarHive removed | أُزيل صبار هايف"
+echo "Kawaro removed | أُزيل كوارو"

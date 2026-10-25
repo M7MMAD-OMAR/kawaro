@@ -1,12 +1,12 @@
 [package]
-name = "sbarhive-ui"
-description = "SbarHive interface: the hive and the settings window (Slint)"
+name = "kawaro-ui"
+description = "Kawaro interface: the hive and the settings window (Slint)"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-sbarhive-core.workspace = true
+kawaro-core.workspace = true
 slint.workspace = true
 # Centre cell picture (S-018g): MD5 of the file URI for the thumbnail
 # name, PNG text chunks for its validity. Both already in the tree.
@@ -24,7 +24,7 @@ rustix = { version = "1.1.5", features = ["event", "pipe", "fs"] }
 # already pull in, so no new packages.
 i-slint-backend-winit = { version = "=1.18.1", default-features = false }
 i-slint-core = { version = "=1.18.1", default-features = false }
-# "unstable" for xdg-output: the output under `sbarhive drop --at` (S-019d).
+# "unstable" for xdg-output: the output under `kawaro drop --at` (S-019d).
 wayland-protocols = { version = "0.32.13", features = ["client", "staging", "unstable"] }
 wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
 # Screen reader state from org.a11y.Status (S-018 AC12). Same version

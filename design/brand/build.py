@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Draw the SbarHive mark from geometry and export every brand asset.
+"""Draw the Kawaro mark from geometry and export every brand asset.
 
 The hexagon is the same pointy-top cell the app draws (width:height = sqrt3:2).
-The cactus is cut out of it as negative space. Colours come from
+The beehive (kawwara) is cut out of it as negative space. Colours come from
 design/tokens.json; nothing here invents a colour.
 
 Needs: python3, inkscape (text to path and PNG export).
@@ -44,31 +44,39 @@ def hexagon(cx, cy, r, corner):
     return "".join(d)
 
 
-def rounded_bar(x0, y0, x1, y1, top_round=True):
-    """Vertical bar from y0 (top) to y1, fully rounded top when asked."""
-    w = x1 - x0
-    rr = w / 2
-    if top_round:
-        return (f"M{x0},{y1}V{y0 + rr}A{rr},{rr} 0 0 1 {x1},{y0 + rr}V{y1}Z")
-    return f"M{x0},{y0}H{x1}V{y1}H{x0}Z"
 
-
-def cactus():
-    """Saguaro on a 512 grid as a union of simple shapes (no overlaps needed
-    by renderers: the shapes are later merged by inkscape for the symbolic icon).
-
-    Trunk 80 wide, arms 56 wide, gaps between arm and trunk 40 so they stay
-    apart at 32 px and blur into one readable silhouette at 16 px.
+def skep():
+    """The traditional beehive (kawwara) on a 512 grid: a dome of radius 140
+    centred at (256, 262), cut by three 14 unit gaps into three dome tiers and
+    a wider base with an arched entrance. The upper half follows the circle,
+    the lower part has straight sides. The tiers stay separate at 32 px and
+    read as one striped dome with a door at 16 px.
     """
+    cx, cy, r = 256, 262, 140
+
+    def half(y):
+        return math.sqrt(r * r - (y - cy) ** 2) if y < cy else r
+
     parts = []
-    # trunk: x 216..296, from y 96 to y 424
-    parts.append(rounded_bar(216, 96, 296, 424))
-    # left arm: upright x 120..176 from y 176 to elbow, elbow joins trunk
-    parts.append(rounded_bar(120, 176, 176, 300))
-    parts.append(f"M120,296V300A56,56 0 0 0 176,356H216V300H176V296Z")
-    # right arm: upright x 336..392 from y 136 to elbow at y 300
-    parts.append(rounded_bar(336, 136, 392, 260))
-    parts.append(f"M392,256V260A56,56 0 0 1 336,316H296V260H336V256Z")
+    for y1, y2 in ((122, 174), (188, 236), (250, 294)):
+        a = half(y1)
+        top = f"M{cx - a:.2f},{y1}H{cx + a:.2f}"
+        if y2 <= cy:
+            b = half(y2)
+            right = f"A{r},{r} 0 0 1 {cx + b:.2f},{y2}"
+            bottom = f"H{cx - b:.2f}"
+            left = f"A{r},{r} 0 0 1 {cx - a:.2f},{y1}"
+        else:
+            right = f"A{r},{r} 0 0 1 {cx + r},{cy}V{y2}"
+            bottom = f"H{cx - r}"
+            left = f"V{cy}A{r},{r} 0 0 1 {cx - a:.2f},{y1}"
+        parts.append(top + right + bottom + left + "Z")
+    # base: wider than the dome, with an arched entrance cut into it
+    base_half, door, door_h = 154, 26, 56
+    y1, y2 = 308, 388
+    arch = y2 - door_h + door
+    parts.append(f"M{cx - base_half},{y1}H{cx + base_half}V{y2}H{cx + door}V{arch}"
+                 f"A{door},{door} 0 0 0 {cx - door},{arch}V{y2}H{cx - base_half}Z")
     return parts
 
 
@@ -81,9 +89,9 @@ def svg(body, view="0 0 512 512", w=512, h=512, extra=""):
 
 
 def app_icon():
-    body = (f'  <title>SbarHive</title>\n'
+    body = (f'  <title>Kawaro</title>\n'
             f'  <path fill="{LIGHT["accent"]}" d="{HEX}"/>\n'
-            + "".join(f'  <path fill="{LIGHT["accent-ink"]}" d="{p}"/>\n' for p in cactus()))
+            + "".join(f'  <path fill="{LIGHT["accent-ink"]}" d="{p}"/>\n' for p in skep()))
     return svg(body.rstrip("\n"))
 
 
@@ -92,14 +100,14 @@ def run(*args):
 
 
 def merged_cutout(fill, out_path, w, h, extra=""):
-    """Hexagon minus cactus as one path, via inkscape boolean ops."""
+    """Hexagon minus beehive as one path, via inkscape boolean ops."""
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(tmp) / "src.svg"
-        cact = "".join(f'<path d="{p}"/>' for p in cactus())
-        src.write_text(svg(f'<path id="hex" d="{HEX}"/><g id="cactus">{cact}</g>'), encoding="utf-8")
+        tiers = "".join(f'<path d="{p}"/>' for p in skep())
+        src.write_text(svg(f'<path id="hex" d="{HEX}"/><g id="skep">{tiers}</g>'), encoding="utf-8")
         merged = Path(tmp) / "merged.svg"
         run("inkscape", str(src), "--actions",
-            "select-by-id:cactus;selection-ungroup;path-union;"
+            "select-by-id:skep;selection-ungroup;path-union;"
             "select-all;path-difference;"
             f"export-plain-svg;export-filename:{merged};export-do")
         text = merged.read_text(encoding="utf-8")
@@ -114,27 +122,27 @@ def symbolic():
     # foreground. KDE reads the ColorScheme-Text class instead.
     style = ('  <style id="current-color-scheme" type="text/css">'
              f'.ColorScheme-Text {{ color: #bebebe; }}</style>\n')
-    merged_cutout("currentColor", HERE / "sbarhive-symbolic.svg", 16, 16,
+    merged_cutout("currentColor", HERE / "kawaro-symbolic.svg", 16, 16,
                   extra=' class="ColorScheme-Text" style="fill:currentColor"')
-    p = HERE / "sbarhive-symbolic.svg"
+    p = HERE / "kawaro-symbolic.svg"
     t = p.read_text(encoding="utf-8")
     t = t.replace(">\n", ">\n" + style, 1)
     p.write_text(t, encoding="utf-8")
 
 
 def wordmark(name, scheme):
-    """Mark, then SbarHive and صبار هايف on one line. Text becomes paths."""
+    """Mark, then Kawaro and كوارو on one line. Text becomes paths."""
     mark = (f'<g transform="translate(0,8) scale(0.25)">'
             f'<path fill="{scheme["accent"]}" d="{HEX}"/>'
-            + "".join(f'<path fill="{scheme["accent-ink"]}" d="{p}"/>' for p in cactus())
+            + "".join(f'<path fill="{scheme["accent-ink"]}" d="{p}"/>' for p in skep())
             + "</g>")
     font = 'font-family="IBM Plex Sans Arabic" font-weight="600"'
-    text = (f'<text x="156" y="104" font-size="84" {font} fill="{scheme["text-primary"]}">SbarHive</text>'
-            f'<text x="904" y="104" font-size="84" {font} fill="{scheme["text-secondary"]}" '
-            f'direction="rtl" text-anchor="start" xml:lang="ar">صبار هايف</text>')
+    text = (f'<text x="156" y="104" font-size="84" {font} fill="{scheme["text-primary"]}">Kawaro</text>'
+            f'<text x="662" y="104" font-size="84" {font} fill="{scheme["text-secondary"]}" '
+            f'direction="rtl" text-anchor="start" xml:lang="ar">كوارو</text>')
     with tempfile.TemporaryDirectory() as tmp:
         src = Path(tmp) / "w.svg"
-        src.write_text(svg(mark + text, view="0 0 928 144", w=928, h=144), encoding="utf-8")
+        src.write_text(svg(mark + text, view="0 0 686 144", w=686, h=144), encoding="utf-8")
         out = HERE / name
         run("inkscape", str(src), "--export-text-to-path", "--export-plain-svg",
             f"--export-filename={out}")
@@ -144,20 +152,20 @@ def pngs():
     out = HERE / "png"
     out.mkdir(exist_ok=True)
     for s in SIZES:
-        run("inkscape", str(HERE / "sbarhive.svg"), "-w", str(s), "-h", str(s),
-            f"--export-filename={out / f'sbarhive-{s}.png'}")
+        run("inkscape", str(HERE / "kawaro.svg"), "-w", str(s), "-h", str(s),
+            f"--export-filename={out / f'kawaro-{s}.png'}")
 
 
 def site_icons():
     site = ROOT / "site"
     (site / "favicon.svg").write_text(app_icon(), encoding="utf-8")
     for name, size in (("favicon-32.png", 32), ("apple-touch-icon.png", 180)):
-        run("inkscape", str(HERE / "sbarhive.svg"), "-w", str(size), "-h", str(size),
+        run("inkscape", str(HERE / "kawaro.svg"), "-w", str(size), "-h", str(size),
             f"--export-filename={site / name}")
 
 
 def main():
-    (HERE / "sbarhive.svg").write_text(app_icon(), encoding="utf-8")
+    (HERE / "kawaro.svg").write_text(app_icon(), encoding="utf-8")
     symbolic()
     wordmark("wordmark.svg", LIGHT)
     wordmark("wordmark-dark.svg", DARK)

@@ -3,7 +3,7 @@
 //!
 //! Contract fixed by the tester (the implementer may not change this file):
 //!
-//! - `sbarhive_core::paths` is a `pub mod` on every platform.
+//! - `kawaro_core::paths` is a `pub mod` on every platform.
 //! - `pub enum Os { Linux, Windows }` (derives at least `Clone, Copy`).
 //! - `pub fn config_dir_with(os: Os, env: E, known: K) -> Option<PathBuf>`
 //!   and `pub fn log_dir_with(os: Os, env: E, known: K) -> Option<PathBuf>`,
@@ -21,8 +21,8 @@
 //! Linux joins with `/`. These are the only tests in this binary and none
 //! of them changes the process environment.
 
-use sbarhive_core::config::Config;
-use sbarhive_core::paths::{Os, config_dir, config_dir_with, log_dir_with};
+use kawaro_core::config::Config;
+use kawaro_core::paths::{Os, config_dir, config_dir_with, log_dir_with};
 use std::cell::Cell;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -57,7 +57,7 @@ fn ac1_windows_appdata_wins_and_known_is_not_called() {
     let env = env_of(&[("APPDATA", "A"), ("XDG_CONFIG_HOME", "X"), ("HOME", "H")]);
     assert_eq!(
         config_dir_with(Os::Windows, &env, &known),
-        Some(Path::new("A").join("SbarHive"))
+        Some(Path::new("A").join("Kawaro"))
     );
     assert_eq!(
         calls.get(),
@@ -76,7 +76,7 @@ fn ac1_windows_empty_appdata_falls_back_to_the_known_folder() {
     let env = env_of(&[("APPDATA", "")]);
     assert_eq!(
         config_dir_with(Os::Windows, &env, &known),
-        Some(known_dir().join("SbarHive"))
+        Some(known_dir().join("Kawaro"))
     );
     assert_eq!(calls.get(), 1);
 }
@@ -91,7 +91,7 @@ fn ac1_windows_missing_appdata_falls_back_to_the_known_folder() {
     let env = env_of(&[]);
     assert_eq!(
         config_dir_with(Os::Windows, &env, &known),
-        Some(known_dir().join("SbarHive"))
+        Some(known_dir().join("Kawaro"))
     );
     assert_eq!(calls.get(), 1);
 }
@@ -103,7 +103,7 @@ fn ac1_windows_ignores_xdg_and_home() {
     let env = env_of(&[("XDG_CONFIG_HOME", "X"), ("HOME", "H")]);
     assert_eq!(
         config_dir_with(Os::Windows, &env, &|| Some(known_dir())),
-        Some(known_dir().join("SbarHive"))
+        Some(known_dir().join("Kawaro"))
     );
 }
 
@@ -121,7 +121,7 @@ fn ac1_windows_appdata_is_not_read_as_localappdata() {
     let env = env_of(&[("LOCALAPPDATA", "L")]);
     assert_eq!(
         config_dir_with(Os::Windows, &env, &|| Some(known_dir())),
-        Some(known_dir().join("SbarHive"))
+        Some(known_dir().join("Kawaro"))
     );
 }
 
@@ -137,7 +137,7 @@ fn ac1_linux_xdg_config_home_first() {
     let env = env_of(&[("XDG_CONFIG_HOME", "X"), ("HOME", "H"), ("APPDATA", "A")]);
     assert_eq!(
         config_dir_with(Os::Linux, &env, &known),
-        Some(Path::new("X").join("sbarhive"))
+        Some(Path::new("X").join("kawaro"))
     );
     assert_eq!(calls.get(), 0, "Linux never asks the known folder");
 }
@@ -152,7 +152,7 @@ fn ac1_linux_home_dot_config_second() {
     let env = env_of(&[("HOME", "H"), ("APPDATA", "A")]);
     assert_eq!(
         config_dir_with(Os::Linux, &env, &known),
-        Some(Path::new("H").join(".config").join("sbarhive"))
+        Some(Path::new("H").join(".config").join("kawaro"))
     );
     assert_eq!(calls.get(), 0, "Linux never asks the known folder");
 }
@@ -172,7 +172,7 @@ fn ac1_linux_without_xdg_and_home_is_none_even_with_appdata() {
 // AC2.
 
 #[test]
-fn ac2_windows_log_dir_is_localappdata_sbarhive_logs_without_known() {
+fn ac2_windows_log_dir_is_localappdata_kawaro_logs_without_known() {
     let calls = Cell::new(0);
     let known = || {
         calls.set(calls.get() + 1);
@@ -181,7 +181,7 @@ fn ac2_windows_log_dir_is_localappdata_sbarhive_logs_without_known() {
     let env = env_of(&[("LOCALAPPDATA", "L"), ("APPDATA", "A")]);
     assert_eq!(
         log_dir_with(Os::Windows, &env, &known),
-        Some(Path::new("L").join("SbarHive").join("logs"))
+        Some(Path::new("L").join("Kawaro").join("logs"))
     );
     assert_eq!(
         calls.get(),
@@ -208,7 +208,7 @@ fn ac2_windows_empty_or_missing_localappdata_falls_back_to_the_known_folder() {
             Some(
                 PathBuf::from("known")
                     .join("Local")
-                    .join("SbarHive")
+                    .join("Kawaro")
                     .join("logs")
             )
         );
@@ -249,7 +249,7 @@ fn ac3_config_dir_follows_the_process_environment_on_linux() {
     let expected = std::env::var_os("XDG_CONFIG_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-        .map(|b| b.join("sbarhive"));
+        .map(|b| b.join("kawaro"));
     assert!(expected.is_some(), "test needs XDG_CONFIG_HOME or HOME");
     assert_eq!(config_dir(), expected);
 }

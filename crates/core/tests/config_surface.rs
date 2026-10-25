@@ -2,7 +2,7 @@
 //! `config.toml`. Values `auto`, `layer` or `window`; absent means `auto`.
 //!
 //! Contract (written by the tester from the acceptance criteria; do not edit):
-//! - `sbarhive_core::config::HiveSurface { Auto, Layer, Window }`, with
+//! - `kawaro_core::config::HiveSurface { Auto, Layer, Window }`, with
 //!   `Default` = `Auto`, `Clone`, `Copy`, `Debug`, `PartialEq`.
 //! - `Config::hive_surface: HiveSurface`.
 //! - The key in the file is spelled `hive_surface`, with an underscore, as
@@ -12,7 +12,7 @@
 //! - A value outside the three is a broken file: defaults plus a warning, as
 //!   for every other key today.
 
-use sbarhive_core::config::{Config, HiveSurface};
+use kawaro_core::config::{Config, HiveSurface};
 
 fn load(text: &str) -> (Config, Option<String>) {
     let dir = tempfile::tempdir().unwrap();
@@ -46,7 +46,7 @@ fn ac1_hive_surface_layer() {
     let (c, warn) = load("language = \"en\"\nhive_surface = \"layer\"\n");
     assert!(warn.is_none(), "{warn:?}");
     assert_eq!(c.hive_surface, HiveSurface::Layer);
-    assert_eq!(c.language, sbarhive_core::config::LangSetting::En);
+    assert_eq!(c.language, kawaro_core::config::LangSetting::En);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn ac1_hive_surface_window() {
     let (c, warn) = load("hive_surface = \"window\"\ntheme = \"dark\"\n");
     assert!(warn.is_none(), "{warn:?}");
     assert_eq!(c.hive_surface, HiveSurface::Window);
-    assert_eq!(c.theme, sbarhive_core::config::Theme::Dark);
+    assert_eq!(c.theme, kawaro_core::config::Theme::Dark);
 }
 
 #[test]

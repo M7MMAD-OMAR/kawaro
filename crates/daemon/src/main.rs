@@ -1,5 +1,5 @@
 #![cfg_attr(windows, windows_subsystem = "windows")]
-//! `sbarhived`: the SbarHive background service. Owns the hive window, the
+//! `kawarod`: the Kawaro background service. Owns the hive window, the
 //! job queue, the tray icon and the socket in `$XDG_RUNTIME_DIR`.
 
 mod args;
@@ -49,9 +49,9 @@ mod update_tests;
 
 use state::lock;
 
-use sbarhive_core::config::Config;
-use sbarhive_core::queue::Queue;
-use sbarhive_core::transport::{self, Bound, Listener};
+use kawaro_core::config::Config;
+use kawaro_core::queue::Queue;
+use kawaro_core::transport::{self, Bound, Listener};
 use std::path::PathBuf;
 use std::process::ExitCode;
 use std::sync::{Arc, Mutex, mpsc};
@@ -90,11 +90,11 @@ fn main() -> ExitCode {
     let listener = match bound {
         Ok(Bound::Listening(l)) => l,
         Ok(Bound::AlreadyRunning) => {
-            eprintln!("sbarhived: already running");
+            eprintln!("kawarod: already running");
             return ExitCode::SUCCESS;
         }
         Err(e) => {
-            eprintln!("sbarhived: cannot listen on {endpoint}: {e}");
+            eprintln!("kawarod: cannot listen on {endpoint}: {e}");
             return ExitCode::FAILURE;
         }
     };
@@ -103,26 +103,26 @@ fn main() -> ExitCode {
 
     let (config, warning) = Config::load();
     if let Some(w) = warning {
-        eprintln!("sbarhived: settings: {w}");
+        eprintln!("kawarod: settings: {w}");
     }
     let lang = config.lang();
-    if let Err(e) = sbarhive_ui::init() {
-        eprintln!("sbarhived: no display: {e}");
+    if let Err(e) = kawaro_ui::init() {
+        eprintln!("kawarod: no display: {e}");
         return ExitCode::FAILURE;
     }
     // Matches the desktop file, so compositors, window rules and portals
-    // can tell SbarHive windows apart from any other.
-    if let Err(e) = slint::set_xdg_app_id("io.github.m7mmad_omar.SbarHive") {
-        eprintln!("sbarhived: app id: {e}");
+    // can tell Kawaro windows apart from any other.
+    if let Err(e) = slint::set_xdg_app_id("io.github.m7mmad_omar.Kawaro") {
+        eprintln!("kawarod: app id: {e}");
     }
-    let engines = sbarhive_engines::all();
+    let engines = kawaro_engines::all();
     let (ev_tx, ev_rx) = mpsc::channel();
     let queue = Arc::new(Queue::new(engines.clone(), workers(), ev_tx));
     let state: state::Shared = Arc::new(Mutex::new(state::State::new(config, &engines)));
 
     let theme = lock(&state).config.theme;
     if let Err(e) = ui::build(lang, theme, &state, &queue) {
-        eprintln!("sbarhived: cannot create the windows: {e}");
+        eprintln!("kawarod: cannot create the windows: {e}");
         return ExitCode::FAILURE;
     }
 
@@ -147,7 +147,7 @@ fn main() -> ExitCode {
     if let Some(files) = open_files
         && let Err(e) = server::open(&state, files, None)
     {
-        eprintln!("sbarhived: {e}");
+        eprintln!("kawarod: {e}");
     }
     #[cfg(unix)]
     {
@@ -162,7 +162,7 @@ fn main() -> ExitCode {
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("sbarhived: {e}");
+            eprintln!("kawarod: {e}");
             ExitCode::FAILURE
         }
     }
@@ -171,7 +171,7 @@ fn main() -> ExitCode {
 /// Sends one `open` line to the service on `endpoint` and waits for its
 /// reply. `None` when no service answers, so the caller becomes the service.
 fn send_open(endpoint: &transport::Endpoint, files: &[String]) -> Option<ExitCode> {
-    use sbarhive_core::ipc::{Request, Response};
+    use kawaro_core::ipc::{Request, Response};
     use std::io::{BufRead, BufReader, Write};
     let mut stream = transport::Stream::connect(endpoint).ok()?;
     #[cfg(windows)]
@@ -182,19 +182,19 @@ fn send_open(endpoint: &transport::Endpoint, files: &[String]) -> Option<ExitCod
     };
     let line = serde_json::to_string(&request).ok()?;
     if writeln!(stream, "{line}").is_err() {
-        eprintln!("sbarhived: cannot send the request");
+        eprintln!("kawarod: cannot send the request");
         return Some(ExitCode::FAILURE);
     }
     let mut reply = String::new();
     let read = BufReader::new(stream).read_line(&mut reply);
     match (read, serde_json::from_str::<Response>(&reply)) {
         (Ok(_), Ok(Response::Error { message })) => {
-            eprintln!("sbarhived: {message}");
+            eprintln!("kawarod: {message}");
             Some(ExitCode::FAILURE)
         }
         (Ok(_), Ok(_)) => Some(ExitCode::SUCCESS),
         _ => {
-            eprintln!("sbarhived: no reply from the running service");
+            eprintln!("kawarod: no reply from the running service");
             Some(ExitCode::FAILURE)
         }
     }
@@ -203,7 +203,7 @@ fn send_open(endpoint: &transport::Endpoint, files: &[String]) -> Option<ExitCod
 /// The service has no console on Windows: stderr goes to the log file.
 #[cfg(windows)]
 fn log_to_file() {
-    let Some(path) = sbarhive_core::paths::log_file() else {
+    let Some(path) = kawaro_core::paths::log_file() else {
         return;
     };
     if let Ok(file) = logfile::open_append(&path) {

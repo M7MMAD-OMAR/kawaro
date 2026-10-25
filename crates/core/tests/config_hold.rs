@@ -1,7 +1,7 @@
 //! S-019e (backlog/S-019-hive-at-pointer.md, AC18; manager decision 10
 //! approved as proposed): the `hold_ms` key in `config.toml`, the long press
 //! threshold in milliseconds. Default 400, accepted range 100 to 2000 (no 0
-//! for "at once": that is `sbarhive drop` without `--hold`).
+//! for "at once": that is `kawaro drop` without `--hold`).
 //!
 //! Contract (written by the tester from the acceptance criteria; do not edit):
 //! - `Config::hold_ms`, an unsigned integer type (`u64::from` must take it;
@@ -14,7 +14,7 @@
 //!   (one `Some`), as for every other key. Whether the other keys keep their
 //!   values then is not fixed by the story, so it is not tested.
 
-use sbarhive_core::config::{Config, LangSetting, Theme};
+use kawaro_core::config::{Config, LangSetting, Theme};
 
 fn load(text: &str) -> (Config, Option<String>) {
     let dir = tempfile::tempdir().unwrap();

@@ -125,7 +125,7 @@ mod tests {
 
     #[test]
     fn every_builtin_action_has_a_known_icon() {
-        let reg = sbarhive_core::action::Registry::builtin();
+        let reg = kawaro_core::action::Registry::builtin();
         assert!(!reg.all().is_empty());
         let known: BTreeSet<&str> = icon_names().collect();
         for a in reg.all() {

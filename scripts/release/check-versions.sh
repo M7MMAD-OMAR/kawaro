@@ -78,8 +78,8 @@ MSIPV=""
 report MSI "$MSIPV" "$MSIV"
 
 # names: the zip file, the folder inside it and the MSI file carry the version
-WANT_ZIP="sbarhive-$VERSION-windows-x64.zip"
-WANT_MSI="sbarhive-$VERSION-windows-x64.msi"
+WANT_ZIP="kawaro-$VERSION-windows-x64.zip"
+WANT_MSI="kawaro-$VERSION-windows-x64.msi"
 ZIPF="$(first "$OUT"/*.zip)"
 FOUND_NAMES=""
 if [ -n "$ZIPF" ] && [ -n "$MSIF" ]; then

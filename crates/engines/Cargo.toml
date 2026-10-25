@@ -1,12 +1,12 @@
 [package]
-name = "sbarhive-engines"
-description = "SbarHive engines: one adapter per backend behind sbarhive_core::Engine"
+name = "kawaro-engines"
+description = "Kawaro engines: one adapter per backend behind kawaro_core::Engine"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [dependencies]
-sbarhive-core.workspace = true
+kawaro-core.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 # Image engine. Licenses and reasons in docs/engines.md.

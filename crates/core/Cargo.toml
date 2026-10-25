@@ -1,6 +1,6 @@
 [package]
-name = "sbarhive-core"
-description = "SbarHive core: actions, tasks, engine contract, output naming, job queue and IPC types"
+name = "kawaro-core"
+description = "Kawaro core: actions, tasks, engine contract, output naming, job queue and IPC types"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

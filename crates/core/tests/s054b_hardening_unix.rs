@@ -7,15 +7,15 @@ use std::fs;
 use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 
-use sbarhive_core::update::UpdateError;
-use sbarhive_core::update::apply::{PkgKind, privileged_argv_checked};
-use sbarhive_core::update::fetch::{CurlFetcher, FetchError, Fetcher};
-use sbarhive_core::update::flow::{Update, download_verified};
-use sbarhive_core::update::manifest::Asset;
+use kawaro_core::update::UpdateError;
+use kawaro_core::update::apply::{PkgKind, privileged_argv_checked};
+use kawaro_core::update::fetch::{CurlFetcher, FetchError, Fetcher};
+use kawaro_core::update::flow::{Update, download_verified};
+use kawaro_core::update::manifest::Asset;
 
 const FIRST: &[u8] = b"first-asset-bytes";
 const SHA_FIRST: &str = "bff5b3ca49e18ea61c9f21a39f95922bcf75f2e0f8ffedf46e07c7cfd70d5d64";
-const NAME: &str = "sbarhive-0.4.0-1.x86_64.rpm";
+const NAME: &str = "kawaro-0.4.0-1.x86_64.rpm";
 
 struct Serve(&'static [u8]);
 
@@ -29,13 +29,13 @@ impl Fetcher for Serve {
 fn update() -> Update {
     Update {
         version: "0.4.0".to_string(),
-        notes_url: "https://github.com/M7MMAD-OMAR/sbarhive/releases/tag/v0.4.0".to_string(),
+        notes_url: "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.0".to_string(),
         asset: Asset {
             kind: "rpm".to_string(),
             os: "linux".to_string(),
             arch: "x86_64".to_string(),
             name: NAME.to_string(),
-            url: format!("https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0/{NAME}"),
+            url: format!("https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0/{NAME}"),
             size: 17,
             sha256: SHA_FIRST.to_string(),
         },
@@ -72,16 +72,16 @@ fn a_symlinked_updates_folder_never_loses_the_folders_of_its_target() {
 
 fn euid() -> u32 {
     let status = fs::read_to_string("/proc/self/status").unwrap();
-    sbarhive_core::update::apply::effective_uid(&status).unwrap()
+    kawaro_core::update::apply::effective_uid(&status).unwrap()
 }
 
 #[test]
 fn privileged_argv_checked_refuses_an_exe_that_is_not_root_owned() {
     let t = tempfile::tempdir().unwrap();
-    let mine = t.path().join("sbarhive");
+    let mine = t.path().join("kawaro");
     fs::write(&mine, b"#!/bin/sh\n").unwrap();
     fs::set_permissions(&mine, fs::Permissions::from_mode(0o755)).unwrap();
-    let file = Path::new("/c/sbarhive.rpm");
+    let file = Path::new("/c/kawaro.rpm");
     if euid() != 0 {
         assert_eq!(
             privileged_argv_checked(&mine, file, "ab", PkgKind::Rpm),
@@ -129,7 +129,7 @@ fn curl_runs_with_a_cleared_environment() {
     let dest = t.path().join("out.txt");
     CurlFetcher::with_program(&curl)
         .get(
-            "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/updates/stable.json",
+            "https://github.com/M7MMAD-OMAR/kawaro/releases/download/updates/stable.json",
             &dest,
             1000,
         )

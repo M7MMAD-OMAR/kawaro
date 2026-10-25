@@ -56,14 +56,14 @@ jobs:
       - run: ${{ matrix.install }}
       - name: Smoke test
         run: |
-          sbarhive --version
+          kawaro --version
           base64 -d > /tmp/a.png <<'PNG'
           iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAAE0lEQVR4nGP4z8DA8B+MGP4zAAAd8AP9pokTAAAAAABJRU5ErkJggg==
           PNG
-          sbarhive convert --to webp /tmp/a.png
+          kawaro convert --to webp /tmp/a.png
           test "$(head -c 4 /tmp/a.webp)" = RIFF
-          test -f /usr/share/kio/servicemenus/sbarhive.desktop
-          test -f /usr/lib/systemd/user/sbarhive.service
+          test -f /usr/share/kio/servicemenus/kawaro.desktop
+          test -f /usr/lib/systemd/user/kawaro.service
 
   # Windows zip and MSI, cross built on Linux with the same scripts as a
   # developer machine (S-044, S-051). Unsigned (ADR 0005).
@@ -92,8 +92,8 @@ jobs:
         with:
           name: windows
           path: |
-            target-windows/dist/sbarhive-*-windows-x64.zip
-            target-windows/dist/sbarhive-*-windows-x64.msi
+            target-windows/dist/kawaro-*-windows-x64.zip
+            target-windows/dist/kawaro-*-windows-x64.msi
 
   release:
     needs: [test, windows]
@@ -130,7 +130,7 @@ jobs:
             flags=()
             case "${GITHUB_REF_NAME}" in *-*) flags=(--prerelease) ;; esac
             gh release create "${GITHUB_REF_NAME}" "${flags[@]}" --verify-tag \
-              --title "SbarHive ${version}" --notes-file "docs/release-notes-${version}.md" \
+              --title "Kawaro ${version}" --notes-file "docs/release-notes-${version}.md" \
               -R "${GITHUB_REPOSITORY}"
           fi
       - name: Attach to the release
@@ -145,7 +145,7 @@ jobs:
   # secrets; they are whole env values here and nowhere else.
   update-manifest:
     needs: release
-    if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/sbarhive'
+    if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/kawaro'
     runs-on: ubuntu-22.04
     environment: release-signing
     permissions:
@@ -193,7 +193,7 @@ jobs:
         run: |
           set -euo pipefail
           for f in feed/*.json; do
-            minisign -V -p packaging/keys/sbarhive-update.pub -m "$f"
+            minisign -V -p packaging/keys/kawaro-update.pub -m "$f"
           done
       - name: Publish
         env:

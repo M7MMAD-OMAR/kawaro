@@ -8,9 +8,9 @@ pub enum Lang {
 }
 
 impl Lang {
-    /// From `SBARHIVE_LANG`, then `LC_ALL`, `LC_MESSAGES`, `LANGUAGE`, `LANG`.
+    /// From `KAWARO_LANG`, then `LC_ALL`, `LC_MESSAGES`, `LANGUAGE`, `LANG`.
     pub fn detect() -> Self {
-        for var in ["SBARHIVE_LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"] {
+        for var in ["KAWARO_LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"] {
             if let Ok(v) = std::env::var(var)
                 && !v.is_empty()
             {

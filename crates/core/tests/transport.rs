@@ -2,7 +2,7 @@
 //! transport behind one interface, tested on Linux in a temporary dir.
 //!
 //! Contract (tester, from AC1 and AC2; do not edit). In
-//! `sbarhive_core::transport`:
+//! `kawaro_core::transport`:
 //! - `pub fn endpoint() -> Endpoint`; on Unix it displays exactly as
 //!   `ipc::socket_path().display()`.
 //! - `Endpoint: Clone + Debug + Display`, and on Unix
@@ -25,9 +25,9 @@
 //!   file nobody listens on is removed and bound.
 
 #[cfg_attr(not(unix), allow(unused_imports))]
-use sbarhive_core::ipc::{self, Request, Response};
+use kawaro_core::ipc::{self, Request, Response};
 #[cfg_attr(not(unix), allow(unused_imports))]
-use sbarhive_core::transport::{self, Bound, Endpoint, Listener, Stream};
+use kawaro_core::transport::{self, Bound, Endpoint, Listener, Stream};
 #[cfg_attr(not(unix), allow(unused_imports))]
 use std::io::{BufRead, BufReader, ErrorKind, Read, Write};
 #[cfg(unix)]
@@ -39,7 +39,7 @@ use std::time::{Duration, Instant};
 
 #[cfg(unix)]
 fn ep(dir: &Path) -> Endpoint {
-    Endpoint::from_path(dir.join("sbarhive.sock"))
+    Endpoint::from_path(dir.join("kawaro.sock"))
 }
 
 #[cfg(unix)]
@@ -68,9 +68,9 @@ fn ac1_stream_is_read_write_send_and_listener_is_send() {
 
 #[test]
 fn ac1_socket_name_and_socket_path_keep_their_value() {
-    assert_eq!(ipc::SOCKET_NAME, "sbarhive.sock");
+    assert_eq!(ipc::SOCKET_NAME, "kawaro.sock");
     let p: std::path::PathBuf = ipc::socket_path();
-    assert_eq!(p.file_name().unwrap(), "sbarhive.sock");
+    assert_eq!(p.file_name().unwrap(), "kawaro.sock");
 }
 
 #[cfg(unix)]
@@ -85,8 +85,8 @@ fn ac1_endpoint_on_unix_is_the_socket_path() {
 #[cfg(unix)]
 #[test]
 fn ac1_endpoint_from_path_displays_the_path() {
-    let e = Endpoint::from_path("/run/user/1000/sbarhive.sock");
-    assert_eq!(e.to_string(), "/run/user/1000/sbarhive.sock");
+    let e = Endpoint::from_path("/run/user/1000/kawaro.sock");
+    assert_eq!(e.to_string(), "/run/user/1000/kawaro.sock");
     assert_eq!(e.clone().to_string(), e.to_string());
 }
 
@@ -109,7 +109,7 @@ fn ac1_ac3_server_pid_is_none_on_unix() {
 fn ac2_pipe_name_is_the_exact_literal() {
     assert_eq!(
         transport::pipe_name("S-1-5-21-1-2-3-1001", 1),
-        r"\\.\pipe\io.github.m7mmad_omar.SbarHive.S-1-5-21-1-2-3-1001.1"
+        r"\\.\pipe\io.github.m7mmad_omar.Kawaro.S-1-5-21-1-2-3-1001.1"
     );
 }
 
@@ -120,7 +120,7 @@ fn ac2_pipe_name_differs_by_sid_and_by_session() {
     assert_ne!(transport::pipe_name("S-1-5-21-1-2-3-1001", 2), base);
     assert_eq!(
         transport::pipe_name("S-1-5-21-1-2-3-1001", 2),
-        r"\\.\pipe\io.github.m7mmad_omar.SbarHive.S-1-5-21-1-2-3-1001.2"
+        r"\\.\pipe\io.github.m7mmad_omar.Kawaro.S-1-5-21-1-2-3-1001.2"
     );
 }
 
@@ -130,7 +130,7 @@ fn ac2_longest_sid_and_session_fit_in_256_chars() {
     let name = transport::pipe_name(sid, u32::MAX);
     assert_eq!(
         name,
-        format!(r"\\.\pipe\io.github.m7mmad_omar.SbarHive.{sid}.4294967295")
+        format!(r"\\.\pipe\io.github.m7mmad_omar.Kawaro.{sid}.4294967295")
     );
     assert!(
         name.chars().count() <= 256,
@@ -281,7 +281,7 @@ fn ac6_bind_is_already_running_when_a_server_answers_ping() {
 #[test]
 fn ac6_a_stale_socket_file_is_removed_and_bound() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("sbarhive.sock");
+    let path = dir.path().join("kawaro.sock");
     drop(std::os::unix::net::UnixListener::bind(&path).unwrap());
     assert!(
         path.exists(),
@@ -308,7 +308,7 @@ fn ac6_a_stale_socket_file_is_removed_and_bound() {
 #[test]
 fn s028_ac7_dropping_cleanup_removes_the_socket_file() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("sbarhive.sock");
+    let path = dir.path().join("kawaro.sock");
     let l = listen(&Endpoint::from_path(&path));
     assert!(path.exists(), "bind leaves the socket file");
     let cleanup: transport::Cleanup = l.cleanup();
@@ -324,7 +324,7 @@ fn s028_ac7_dropping_cleanup_removes_the_socket_file() {
 #[test]
 fn s028_ac7_a_second_cleanup_dropped_after_removal_does_not_panic() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("sbarhive.sock");
+    let path = dir.path().join("kawaro.sock");
     let l = listen(&Endpoint::from_path(&path));
     let first = l.cleanup();
     let second = l.cleanup();

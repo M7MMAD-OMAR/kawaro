@@ -1,10 +1,10 @@
 [English](release-notes-0.4.0-beta.1.md) | [العربية](release-notes-0.4.0-beta.1.ar.md)
 
-# SbarHive 0.4.0-beta.1
+# Kawaro 0.4.0-beta.1
 
 ## Status
 
-This is the first public beta of SbarHive, for Linux and for Windows. It is a prerelease: expect rough edges, and please report what you find. Nothing in it is production ready, and the stable channel does not offer it.
+This is the first public beta of Kawaro, for Linux and for Windows. It is a prerelease: expect rough edges, and please report what you find. Nothing in it is production ready, and the stable channel does not offer it.
 
 ## What works
 
@@ -24,7 +24,7 @@ This is the first public beta of SbarHive, for Linux and for Windows. It is a pr
 
 ## Updates
 
-SbarHive checks once a day for a new version. The check reads a signed manifest from the project's GitHub releases; the signature is verified against a public key built into the app before anything is downloaded, and every package is checked against the size and SHA-256 in that manifest. There are two channels, `beta` and `stable`. A beta build follows the `beta` channel, so you will be offered later betas and the final release. To turn the automatic check off, set `update_check = false` in `config.toml`. A manual check ignores that setting, but this beta has no menu entry or command for it yet.
+Kawaro checks once a day for a new version. The check reads a signed manifest from the project's GitHub releases; the signature is verified against a public key built into the app before anything is downloaded, and every package is checked against the size and SHA-256 in that manifest. There are two channels, `beta` and `stable`. A beta build follows the `beta` channel, so you will be offered later betas and the final release. To turn the automatic check off, set `update_check = false` in `config.toml`. A manual check ignores that setting, but this beta has no menu entry or command for it yet.
 
 On Windows an update installs quietly for your user. On Linux the package is downloaded and verified in the background, and it installs only after you choose "Update now" in the tray menu and approve the system password prompt.
 

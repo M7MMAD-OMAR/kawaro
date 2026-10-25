@@ -8,7 +8,7 @@
 # itself, with a consent dialog the first time, and it is changed in the
 # settings (GNOME: Apps, then "Global shortcuts"; KDE: System Settings, then
 # Shortcuts); on Hyprland the line `bind = SUPER, Z, global,
-# io.github.m7mmad_omar.SbarHive:drop` (the identifier AC20 proves); the
+# io.github.m7mmad_omar.Kawaro:drop` (the identifier AC20 proves); the
 # portal shortcut works by holding (`hold_ms`), not by a tap; and where there
 # is no portal the manual bind stays. A static check finds these lines in
 # each language, tests/drop/docs.sh and tests/drop/hold_docs.sh pass, no em
@@ -50,14 +50,14 @@
 # angle quotes), turns registration back on or off (one sentence), within
 # seconds with no restart (one sentence); and that off leaves the manual
 # bind (one sentence). No portal section has
-# `systemctl --user restart sbarhive` any more.
+# `systemctl --user restart kawaro` any more.
 #
 # CHANGELOG.md: one line that names S-014e (or S-014e1, e2, e3) with
 # Arabic and English text (it was under "## [Unreleased]" until the 0.3.3
 # release).
 # S-014f4 (AC28): the portal section also says, in each language, that a
-# key changed in the desktop's settings is kept by SbarHive (one sentence:
-# changed, kept, SbarHive or the daemon); that on KDE it applies at once
+# key changed in the desktop's settings is kept by Kawaro (one sentence:
+# changed, kept, Kawaro or the daemon); that on KDE it applies at once
 # (one sentence naming KDE and not GNOME); and that on GNOME it applies at
 # the latest after logging out and back in (one sentence naming GNOME and
 # not KDE). A GNOME sentence that says "at once" (or immediately) is allowed
@@ -119,8 +119,8 @@ if anysec:
     spans.append(("(whole file)", 0, len(lines)))
 PORTAL_HEAD = re.compile(r"portal" if lang == "en" else r"بوابة|البوابة", re.I)
 
-GLOBAL = re.compile(r"^\s*bind\s*=\s*SUPER\s*,\s*Z\s*,\s*global\s*,\s*io\.github\.m7mmad_omar\.SbarHive:drop\s*$", re.M)
-EXEC = re.compile(r"^\s*bind[a-z]*\s*=\s*SUPER\s*,\s*Z\s*,\s*exec\s*,.*\bsbarhive drop\b.*--at\b", re.M)
+GLOBAL = re.compile(r"^\s*bind\s*=\s*SUPER\s*,\s*Z\s*,\s*global\s*,\s*io\.github\.m7mmad_omar\.Kawaro:drop\s*$", re.M)
+EXEC = re.compile(r"^\s*bind[a-z]*\s*=\s*SUPER\s*,\s*Z\s*,\s*exec\s*,.*\bkawaro drop\b.*--at\b", re.M)
 W = lambda w: r"(?<!\S)(?:" + w + r")(?!\S)"
 # AC27: the switch's label, quoted (Arabic compared as the text above, so
 # the hamza of الإفلات is read as ا).
@@ -144,7 +144,7 @@ SENT = {
         "off-manual": [[r"\boff\b", r"\b(manual|by hand)\b"]],
         "alternative": [[r"\balternative\b|\binstead\b", r"\bglobal\b"]],
         # AC28 (S-014f4).
-        "key-kept": [[r"\bchang", r"\b(keeps?|kept)\b", r"\bSbarHive\b|\bdaemon\b"]],
+        "key-kept": [[r"\bchang", r"\b(keeps?|kept)\b", r"\bKawaro\b|\bdaemon\b"]],
         "kde-at-once": [[r"\bKDE\b", r"\bat once\b|\bimmediately\b|\bright away\b"]],
         "gnome-logout": [[r"\bGNOME\b", r"\b(log|sign)(ging)? out\b", r"\bback in\b|\b(log|sign)(ging)? (back )?in\b"]],
         "gnome-at-once": [[r"\bGNOME\b", r"\bat once\b|\bimmediately\b|\bright away\b"]],
@@ -165,7 +165,7 @@ SENT = {
         "off-manual": [[r"ايقاف|وقف|تعطيل|عطل|اطفاء", r"يدوي"]],
         "alternative": [[r"بديل|بدلا", r"global"]],
         # AC28 (S-014f4).
-        "key-kept": [[r"غير|تغيير|تغير", r"يحتفظ|تحتفظ|يبقي|يبقى|تبقى|يحافظ", r"SbarHive|صبار هايف|الخدمة"]],
+        "key-kept": [[r"غير|تغيير|تغير", r"يحتفظ|تحتفظ|يبقي|يبقى|تبقى|يحافظ", r"Kawaro|كوارو|الخدمة"]],
         "kde-at-once": [[r"KDE", r"فورا|في الحال|على الفور|مباشرة"]],
         "gnome-logout": [[r"GNOME", r"الخروج", r"الدخول"]],
         "gnome-at-once": [[r"GNOME", r"فورا|في الحال|على الفور|مباشرة"]],
@@ -182,7 +182,7 @@ LIT = {
     "portal_shortcut": re.compile(r"\bportal_shortcut = false\b"),
     "global-line": GLOBAL,
     # AC27: found means the section still has the restart command.
-    "restart-cmd": re.compile(r"systemctl --user restart sbarhive"),
+    "restart-cmd": re.compile(r"systemctl --user restart kawaro"),
 }
 first_exec = EXEC.search(text)
 first_global = GLOBAL.search(text)
@@ -238,7 +238,7 @@ for lang in en ar; do
     'has $lang "$doc" versions registers-itself consent-first'
   check "AC22 $rel ($name): it is changed in the settings (GNOME: Apps, then \"Global shortcuts\"; KDE: System Settings, then Shortcuts)" \
     'has $lang "$doc" gnome-change kde-change'
-  check "AC22 $rel ($name): on Hyprland the line \`bind = SUPER, Z, global, io.github.m7mmad_omar.SbarHive:drop\`, as the alternative, the documented exec bind with --at staying the first way (answer 6)" \
+  check "AC22 $rel ($name): on Hyprland the line \`bind = SUPER, Z, global, io.github.m7mmad_omar.Kawaro:drop\`, as the alternative, the documented exec bind with --at staying the first way (answer 6)" \
     'has $lang "$doc" global-line alternative exec-first'
   check "AC22 $rel ($name): the portal shortcut works by holding (\`hold_ms\`), not by a tap" \
     'has $lang "$doc" hold_ms hold-not-tap'
@@ -248,13 +248,13 @@ for lang in en ar; do
     'has $lang "$doc" remove-manual'
   check "AC22 $rel ($name): on GNOME the consent dialog may open behind a full screen window (note 2026-10-22)" \
     'has $lang "$doc" behind-full-screen'
-  check "AC27 $rel ($name): a refusal is remembered as \`portal_shortcut = false\`; the settings switch, its label quoted, turns registration back on or off within seconds with no restart; off leaves the manual bind; no \`systemctl --user restart sbarhive\` in the portal section (check 9, S-014f2)" \
+  check "AC27 $rel ($name): a refusal is remembered as \`portal_shortcut = false\`; the settings switch, its label quoted, turns registration back on or off within seconds with no restart; off leaves the manual bind; no \`systemctl --user restart kawaro\` in the portal section (check 9, S-014f2)" \
     'has $lang "$doc" portal_shortcut refusal-remembered switch-on-off live-no-restart off-manual && ! keys $lang "$doc" | grep -q "^restart-cmd "'
   hypr=$([ $lang = ar ] && echo "$HYPR_AR" || echo "$HYPR")
   check "AC22 ${hypr#"$ROOT/"} ($name): the global line, after the exec Super+Z line with --at, called the alternative (answer 6)" \
     'has $lang "$hypr" --any global-line alternative exec-first'
   # S-014f4 (AC28).
-  check "AC28 $rel ($name): a key changed in the desktop's settings is kept by SbarHive (one sentence)" \
+  check "AC28 $rel ($name): a key changed in the desktop's settings is kept by Kawaro (one sentence)" \
     'has $lang "$doc" key-kept'
   check "AC28 $rel ($name): on KDE the changed key applies at once (a sentence naming KDE and not GNOME)" \
     'has $lang "$doc" kde-at-once'

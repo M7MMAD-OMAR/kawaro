@@ -2,7 +2,7 @@
 الحالة: مراجعة
 
 ## Story
-As a visitor or an AI agent, I want short guides, a formats list and a releases page on the website, so that I can find how SbarHive works without reading the repository.
+As a visitor or an AI agent, I want short guides, a formats list and a releases page on the website, so that I can find how Kawaro works without reading the repository.
 
 ## Acceptance criteria
 - AC1: `scripts/build-site.sh` writes docs pages (seven guides plus formats), a releases page and an Atom feed, in Arabic at the root and English under `/en/`.

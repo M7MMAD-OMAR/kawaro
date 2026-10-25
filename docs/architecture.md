@@ -7,18 +7,18 @@ read mostly by agents and contributors writing code.
 ## Processes
 
 ```
-file manager entry ──▶ sbarhive open ──▶ (Unix socket, JSON lines) ──▶ sbarhived
+file manager entry ──▶ kawaro open ──▶ (Unix socket, JSON lines) ──▶ kawarod
   Dolphin / Nautilus      CLI, starts        $XDG_RUNTIME_DIR/            hive window (Slint)
-  Nemo / Thunar           the daemon if      sbarhive.sock                job queue + engines
+  Nemo / Thunar           the daemon if      kawaro.sock                job queue + engines
   Hyprland bind           it is not up                                    tray icon, notifications
 ```
 
-- `sbarhived` (crates/daemon) is the only process that shows UI. Single
-  instance, through `sbarhive_core::transport::Listener::bind`:
+- `kawarod` (crates/daemon) is the only process that shows UI. Single
+  instance, through `kawaro_core::transport::Listener::bind`:
   - Unix: binding the socket gives `AlreadyRunning` if another daemon answers
     `ping` within 500 ms; any other socket file there is stale, removed and
     bound.
-  - Windows: the pipe `\\.\pipe\io.github.m7mmad_omar.SbarHive.<SID>.<session>`.
+  - Windows: the pipe `\\.\pipe\io.github.m7mmad_omar.Kawaro.<SID>.<session>`.
     The first instance is created with `FILE_FLAG_FIRST_PIPE_INSTANCE`; when
     it fails with `ERROR_ACCESS_DENIED` a daemon already owns the name
     (`AlreadyRunning`). Later instances, one per accepted client, omit the
@@ -32,7 +32,7 @@ file manager entry ──▶ sbarhive open ──▶ (Unix socket, JSON lines) �
     is retried on the next accept (`transport::accept_plan`).
   - At exit the daemon drops the guard from `Listener::cleanup`, which
     removes the Unix socket file; on Windows it does nothing.
-- `sbarhive` (crates/cli) is a thin client, plus `convert` which runs engines
+- `kawaro` (crates/cli) is a thin client, plus `convert` which runs engines
   in-process with no daemon.
 - Engines (crates/engines) run inside the daemon. Heavy external tools
   (FFmpeg, LibreOffice, Ghostscript, v0.2) run as child processes, each in
@@ -43,8 +43,8 @@ file manager entry ──▶ sbarhive open ──▶ (Unix socket, JSON lines) �
 - `Engine` trait, `Task`, `CancelToken`, `EngineError`: `engine.rs`.
 - `ActionDef`, `Registry`, TOML schema: `action.rs`. Built-in actions live in
   the repository `actions/` folder and are embedded with `include_str!`. User
-  actions load from `Config::actions_dir()` (`~/.config/sbarhive/actions/`
-  on Linux, `%APPDATA%\SbarHive\actions\` on Windows) and may override a
+  actions load from `Config::actions_dir()` (`~/.config/kawaro/actions/`
+  on Linux, `%APPDATA%\Kawaro\actions\` on Windows) and may override a
   built-in id.
 - Folders: `paths.rs`. `config_dir_with` and `log_dir_with` take the
   platform, the environment and the known folder as parameters, so the
@@ -120,12 +120,12 @@ theme follows the system colour scheme, Arabic mirrors the layout.
 The hive is drawn on one of two surfaces, chosen again at every hive build
 by `overlay::choose_surface` (`crates/ui/src/overlay.rs`, pure) from the
 globals the compositor advertises, the screen reader state and the
-`SBARHIVE_SURFACE` environment variable:
+`KAWARO_SURFACE` environment variable:
 
 - **Layer path** (`crates/ui/src/layer.rs`): a Slint window adapter with the
   software renderer on its own wayland-client connection. Each show creates
   a catcher, a `zwlr_layer_shell_v1` surface on the overlay layer with the
-  namespace `sbarhive`, anchored to every edge, exclusive zone -1 and
+  namespace `kawaro`, anchored to every edge, exclusive zone -1 and
   exclusive keyboard (none in drop mode). Its
   buffer is one transparent pixel from `wp_single_pixel_buffer_manager_v1`
   stretched over the output by `wp_viewporter`; a click on it closes the
@@ -148,8 +148,8 @@ globals the compositor advertises, the screen reader state and the
 
 Choice rule:
 
-1. `SBARHIVE_SURFACE=window` always gives the window path.
-2. `SBARHIVE_SURFACE=layer` gives the layer path, even with a screen reader,
+1. `KAWARO_SURFACE=window` always gives the window path.
+2. `KAWARO_SURFACE=layer` gives the layer path, even with a screen reader,
    when the compositor has all four of `zwlr_layer_shell_v1`,
    `wl_subcompositor`, `wp_viewporter` and `wp_single_pixel_buffer` (the
    `wp_single_pixel_buffer_manager_v1` global); otherwise a window, with a
@@ -168,7 +168,7 @@ Choice rule:
 Every change of the choice prints one `hive surface choice: KIND, REASON`
 line, with no environment variable.
 
-On Hyprland a layer rule for the `sbarhive` namespace can turn off its
+On Hyprland a layer rule for the `kawaro` namespace can turn off its
 animation; see `integrations/linux/hyprland/README.md`.
 
 ### Hive at the pointer (S-019, ADR 0004)
@@ -178,12 +178,12 @@ On the layer path the hive opens at an anchor instead of the output centre:
 - **Anchor and wait.** On a normal show the anchor is the first
   `wl_pointer.enter` or `motion` on the catcher or the hive before the
   placement, waited for at most 50 ms (`ANCHOR_WAIT`) from the catcher's first
-  `configure`; with none the hive is centred. `sbarhive drop --at X,Y` (global
+  `configure`; with none the hive is centred. `kawaro drop --at X,Y` (global
   logical coordinates, for example `$(hyprctl cursorpos)`) gives the anchor at
   once, on the output that holds the point. After the placement (the end of
   `ANCHOR_WAIT`) the centre of a normal show does not follow the pointer. A drop
   show without `--at` takes its anchor from the drag instead (the catcher phase
-  below). With `SBARHIVE_DEBUG_FOCUS` every show prints `hive anchor: X Y` or
+  below). With `KAWARO_DEBUG_FOCUS` every show prints `hive anchor: X Y` or
   `hive anchor: none`, then `hive cells: N CX CY`.
 - **Adaptive shape.** `layout::plan_at` (pure, `crates/ui/src/layout.rs`)
   clamps the anchor so the centre cell stays on screen, then fills the slots
@@ -206,9 +206,9 @@ On the layer path the hive opens at an anchor instead of the output centre:
 
 ### Holding the drop key (S-019e, ADR 0003)
 
-`sbarhive drop --hold` is the press of a held key and
-`sbarhive drop --release` its release; both send one request and return at
-once. The daemon feeds them to the long press gate (`sbarhive_core::hold`,
+`kawaro drop --hold` is the press of a held key and
+`kawaro drop --release` its release; both send one request and return at
+once. The daemon feeds them to the long press gate (`kawaro_core::hold`,
 pure, with an injected clock), on the event loop thread:
 
 - A press starts a timer of `hold_ms` (config.toml, 100 to 2000, default
@@ -229,7 +229,7 @@ pure, with an injected clock), on the event loop thread:
   swallows the next press (manager decision 14).
 - `Request::Drop` carries `hold`, false by default, and the release is
   `Request::DropRelease` (`{"cmd":"drop-release"}`). `--release` never
-  starts the daemon; `sbarhive drop` without `--hold` stays the immediate
+  starts the daemon; `kawaro drop` without `--hold` stays the immediate
   show of S-014. A GlobalShortcuts portal (a later story) maps `Activated`
   and `Deactivated` to the same two gate inputs (`hold::from_portal`).
 - Budget: on the hold path the 150 ms budget is timed from the end of the
@@ -242,7 +242,7 @@ pure, with an injected clock), on the event loop thread:
 After a drag enters a drop hive (either kind) its centre shows the dragged files
 by the S-018h rules (S-019f): one file's cached thumbnail or the kind icon with
 the format code, the count for several; before enter, on the window path, the
-waiting text and no preview. With `SBARHIVE_DEBUG_FOCUS` every enter prints one
+waiting text and no preview. With `KAWARO_DEBUG_FOCUS` every enter prints one
 `hive preview: thumb W H` or `hive preview: icon KIND` line.
 
 ### Probing a drop show (S-021)
@@ -263,7 +263,7 @@ file no action takes, shows nothing at all.
   KWin sends `wl_pointer.enter` at once under a still pointer.
 - **Reveal.** An enter whose files give at least one cell
   (`on_drop_files`) moves the machine to `Waiting` and the hive is drawn;
-  from there S-014 and S-019 apply unchanged. With `SBARHIVE_DEBUG_FOCUS`
+  from there S-014 and S-019 apply unchanged. With `KAWARO_DEBUG_FOCUS`
   the show prints `hive reveal: N`, N the cells of the `drop cells:` line
   before it. Budget: at most 150 ms from that enter to the hive's first
   `wl_surface.attach`, by the daemon's trace timestamps. The opening
@@ -289,8 +289,8 @@ file no action takes, shows nothing at all.
 
 ## Settings
 
-`config.toml` in `paths::config_dir()` (`~/.config/sbarhive` on Linux,
-`%APPDATA%\SbarHive` on Windows), model in `crates/core/src/config.rs`:
+`config.toml` in `paths::config_dir()` (`~/.config/kawaro` on Linux,
+`%APPDATA%\Kawaro` on Windows), model in `crates/core/src/config.rs`:
 language, theme, output place (beside the original, or a subfolder whose
 name the daemon puts in `OutputSpec.dir`), quality preset (shifts the
 `quality` parameter by -15, 0 or +10, clamped to 1..100), notify, open the
@@ -309,33 +309,33 @@ name with the new extension, " (1)", " (2)" on collision, never an overwrite.
 - Progress never takes focus: tray icon tooltip and status while jobs run, one
   desktop notification when a job ends (counts, first error, "Open folder").
 - Tray menu: Cancel all, Settings (v0.2), Quit.
-- Started by the systemd user unit `sbarhive.service`
+- Started by the systemd user unit `kawaro.service`
   (`WantedBy=graphical-session.target`), or on demand by the CLI.
 
 ## CLI
 
 ```
-sbarhive open [--token T] [--from-clipboard] [--] FILES...
-sbarhive convert --to EXT [--quality N] FILES...      # in-process, no daemon
-sbarhive run ACTION_ID [--wait] FILES...
-sbarhive actions FILES...                             # id, ring, code, label
-sbarhive drop [--token T] [--at X,Y] [--hold | --release]
-sbarhive daemon                                       # exec sbarhived
-sbarhive ping | quit
+kawaro open [--token T] [--from-clipboard] [--] FILES...
+kawaro convert --to EXT [--quality N] FILES...      # in-process, no daemon
+kawaro run ACTION_ID [--wait] FILES...
+kawaro actions FILES...                             # id, ring, code, label
+kawaro drop [--token T] [--at X,Y] [--hold | --release]
+kawaro daemon                                       # exec kawarod
+kawaro ping | quit
 ```
 
 `open` reads `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID` when `--token`
 is absent. `--from-clipboard` reads `text/uri-list` with `wl-paste` on
 Wayland or `xclip` on X11. If the socket does not answer, `open` starts
-`sbarhived` detached and retries for up to 2 seconds.
+`kawarod` detached and retries for up to 2 seconds.
 
 ## File manager integrations (integrations/linux)
 
 Each integration only collects the selected paths (and an activation token
-where the file manager can give one) and runs `sbarhive open`. No logic.
+where the file manager can give one) and runs `kawaro open`. No logic.
 - Dolphin: service menu with `X-KDE-Priority=TopLevel`.
 - Nautilus: nautilus-python `MenuProvider`; token from
   `Gdk.AppLaunchContext.get_startup_notify_id`.
 - Nemo: `.nemo_action`. Thunar: custom action merged into `uca.xml`.
 - Hyprland: a bind that sends Ctrl+C to the active window, then
-  `sbarhive open --from-clipboard`.
+  `kawaro open --from-clipboard`.

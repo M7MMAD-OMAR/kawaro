@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::paths::{CURRENT, Os, cache_dir_with};
 
 /// Where the manifests are published.
-const FEED: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/updates";
+const FEED: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/updates";
 /// Automatic checks run at most this often.
 pub const INTERVAL_SECS: u64 = 86_400;
 /// Package files are hashed in reads of this size.
@@ -370,8 +370,8 @@ mod tests {
 
     #[test]
     fn plain_names() {
-        assert!(name_is_plain("sbarhive-0.4.0-1.x86_64.rpm"));
-        assert!(name_is_plain("sbarhive_0.4.0~beta.1_amd64.deb"));
+        assert!(name_is_plain("kawaro-0.4.0-1.x86_64.rpm"));
+        assert!(name_is_plain("kawaro_0.4.0~beta.1_amd64.deb"));
         assert!(!name_is_plain(""));
         assert!(!name_is_plain("a/b.rpm"));
         assert!(!name_is_plain("..x"));

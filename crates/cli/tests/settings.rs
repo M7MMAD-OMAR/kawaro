@@ -1,8 +1,8 @@
-//! `sbarhive settings`, the command the app launcher entry runs. The daemon
+//! `kawaro settings`, the command the app launcher entry runs. The daemon
 //! side is a fake socket server, so no window opens.
 #![cfg(unix)]
 
-use sbarhive_core::ipc::{Request, Response};
+use kawaro_core::ipc::{Request, Response};
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixListener;
 use std::process::Command;
@@ -11,7 +11,7 @@ use std::sync::{Arc, Mutex};
 #[test]
 fn settings_asks_the_running_daemon_to_open_its_window() {
     let dir = tempfile::tempdir().unwrap();
-    let listener = UnixListener::bind(dir.path().join("sbarhive.sock")).unwrap();
+    let listener = UnixListener::bind(dir.path().join("kawaro.sock")).unwrap();
     let seen = Arc::new(Mutex::new(Vec::new()));
     let log = seen.clone();
     std::thread::spawn(move || {
@@ -27,7 +27,7 @@ fn settings_asks_the_running_daemon_to_open_its_window() {
             let _ = writeln!(conn, "{ok}");
         }
     });
-    let o = Command::new(env!("CARGO_BIN_EXE_sbarhive"))
+    let o = Command::new(env!("CARGO_BIN_EXE_kawaro"))
         .arg("settings")
         .env_clear()
         .env("HOME", dir.path())
@@ -42,7 +42,7 @@ fn settings_asks_the_running_daemon_to_open_its_window() {
 #[test]
 fn settings_without_a_daemon_to_start_fails_clearly() {
     let dir = tempfile::tempdir().unwrap();
-    let o = Command::new(env!("CARGO_BIN_EXE_sbarhive"))
+    let o = Command::new(env!("CARGO_BIN_EXE_kawaro"))
         .arg("settings")
         .env_clear()
         .env("HOME", dir.path())
@@ -51,5 +51,5 @@ fn settings_without_a_daemon_to_start_fails_clearly() {
         .output()
         .unwrap();
     assert!(!o.status.success());
-    assert!(String::from_utf8_lossy(&o.stderr).contains("sbarhived"));
+    assert!(String::from_utf8_lossy(&o.stderr).contains("kawarod"));
 }

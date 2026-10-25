@@ -5,8 +5,8 @@
 //! The searched text is built from two pieces, and is never written whole
 //! in this file, so the reviewer's grep over `crates/` for the old function
 //! definition does not match this file. The behaviour
-//! (a TOML action under `XDG_CONFIG_HOME/sbarhive/actions/` shows in
-//! `sbarhive actions`) is `actions_include_user_actions_from_the_config_dir`
+//! (a TOML action under `XDG_CONFIG_HOME/kawaro/actions/` shows in
+//! `kawaro actions`) is `actions_include_user_actions_from_the_config_dir`
 //! in `crates/cli/tests/cli.rs`, which already passes and guards against a
 //! regression.
 

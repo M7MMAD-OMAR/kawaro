@@ -43,7 +43,7 @@ ac1_build_sh_reexecs_in_a_6g_scope_with_j2_and_prints_its_cgroup () {
     check "AC1: --target x86_64-pc-windows-gnu ($(field 7 "$call"))" has_target_windows "$call"
     assert_eq "AC1: CARGO_TARGET_DIR from the caller is kept" "$(field 6 "$call")" "$FSB/target"
   fi
-  check "AC1: sbarhive.exe produced in the target dir" test -f "$FSB/target/x86_64-pc-windows-gnu/release/sbarhive.exe"
+  check "AC1: kawaro.exe produced in the target dir" test -f "$FSB/target/x86_64-pc-windows-gnu/release/kawaro.exe"
   drop_fakes
 
   echo "== AC1: build.sh default target dir"
@@ -81,7 +81,7 @@ ac2_check_dlls_accepts_system_dlls_and_rejects_lib_dlls () {
   out="$(timeout 30 "$WIN/check-dlls.sh" --text "$FIX/objdump-ok.txt" 2>&1)"; rc=$?
   assert_eq "AC2 ok: exit code" "$rc" "0"
   check "AC2 ok: line 'dll check: ok <name> $n imports' (got [$out])" \
-    grep -qE "^dll check: ok (sbarhive\.exe|objdump-ok\.txt|$FIX/objdump-ok\.txt) $n imports\$" <<<"$out"
+    grep -qE "^dll check: ok (kawaro\.exe|objdump-ok\.txt|$FIX/objdump-ok\.txt) $n imports\$" <<<"$out"
 
   out="$(timeout 30 "$WIN/check-dlls.sh" --text "$FIX/objdump-mingw.txt" 2>&1)"; rc=$?
   assert_eq "AC2 mingw: exit code" "$rc" "1"
@@ -107,10 +107,10 @@ echo "objdump \$*" >> "$FSB/log/objdump.log"
 cat "$FIX/objdump-mingw.txt"
 EOF
   chmod 0755 "$FSB/bin/x86_64-w64-mingw32-objdump"
-  printf 'MZfake' > "$FSB/sbarhive.exe"
-  out="$(PATH="$FSB/bin:$PATH" timeout 30 "$WIN/check-dlls.sh" "$FSB/sbarhive.exe" 2>&1)"; rc=$?
+  printf 'MZfake' > "$FSB/kawaro.exe"
+  out="$(PATH="$FSB/bin:$PATH" timeout 30 "$WIN/check-dlls.sh" "$FSB/kawaro.exe" 2>&1)"; rc=$?
   assert_eq "AC2 exe: exit code from objdump output" "$rc" "1"
-  check "AC2 exe: objdump -p ran on the exe" grep -qE -- "-p( .*)? $FSB/sbarhive.exe" "$FSB/log/objdump.log"
+  check "AC2 exe: objdump -p ran on the exe" grep -qE -- "-p( .*)? $FSB/kawaro.exe" "$FSB/log/objdump.log"
   check "AC2 exe: names libwinpthread-1.dll" grep -qF libwinpthread-1.dll <<<"$out"
   drop_fakes
 }
@@ -129,8 +129,8 @@ ac3_check_sh_runs_windows_clippy_all_targets_in_a_6g_scope () {
     assert_eq "AC3: memory.max of clippy's cgroup" "$(field 3 "$call")" "$SIX_G"
     check "AC3: -j 2 ($(field 7 "$call"))" has_jobs_2 "$call"
     check "AC3: --target x86_64-pc-windows-gnu" has_target_windows "$call"
-    check "AC3: -p sbarhive-core -p sbarhive-engines -p sbarhive-cli --all-targets ($(field 7 "$call"))" \
-      argv_has "$call" "-p sbarhive-core" "-p sbarhive-engines" "-p sbarhive-cli" --all-targets
+    check "AC3: -p kawaro-core -p kawaro-engines -p kawaro-cli --all-targets ($(field 7 "$call"))" \
+      argv_has "$call" "-p kawaro-core" "-p kawaro-engines" "-p kawaro-cli" --all-targets
     check "AC3: -- -D warnings" argv_has "$call" "-- -D warnings"
   fi
   drop_fakes
@@ -219,7 +219,7 @@ no_long_dash_and_shell_lint_for_the_new_scripts () {
 
 # S-028c AC8 (backlog/S-028-review-fixes.md): build.sh, check.sh and
 # make-iso.sh default CARGO_TARGET_DIR to
-# ${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target and keep a caller's
+# ${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target and keep a caller's
 # value; no committed file outside backlog/ names the maintainer's home.
 
 # s028_target_of SCRIPT: the target dir SCRIPT used in this environment. For
@@ -249,7 +249,7 @@ s028_target_of () {
 # shellcheck disable=SC2030,SC2031
 s028_ac8_scripts_default_the_target_dir_to_the_xdg_cache () {
   echo "== S-028 AC8: target dir defaults"
-  local real_iso="$WIN_TARGET_DEFAULT/sbarhive-win-tests.iso" real_before real_after s got d
+  local real_iso="$WIN_TARGET_DEFAULT/kawaro-win-tests.iso" real_before real_after s got d
   real_before="$(stat -c '%Y %s' "$real_iso" 2>/dev/null || echo absent)"
   make_fakes
   cat > "$FSB/bin/genisoimage" <<'EOF'
@@ -268,19 +268,19 @@ EOF
   cp "$FSB/bin/genisoimage" "$FSB/bin/mkisofs"
   # A fake build output where each case expects the target dir, so
   # make-iso.sh reaches its ISO step there.
-  for d in "$FSB/x/sbarhive-win-target" "$FSB/h/.cache/sbarhive-win-target" "$FSB/caller"; do
+  for d in "$FSB/x/kawaro-win-target" "$FSB/h/.cache/kawaro-win-target" "$FSB/caller"; do
     mkdir -p "$d/x86_64-pc-windows-gnu/release" "$d/x86_64-pc-windows-gnu/debug/deps"
-    printf 'MZ release\n' > "$d/x86_64-pc-windows-gnu/release/sbarhive.exe"
+    printf 'MZ release\n' > "$d/x86_64-pc-windows-gnu/release/kawaro.exe"
     printf 'MZ test\n' > "$d/x86_64-pc-windows-gnu/debug/deps/contracts-27b367aa4bb7975d.exe"
   done
   for s in build.sh check.sh make-iso.sh; do
     if [ ! -x "$WIN/$s" ]; then fail "S-028 AC8: missing or not executable $WIN/$s"; continue; fi
     got="$(unset CARGO_TARGET_DIR; export CI=true XDG_CACHE_HOME="$FSB/x" PATH="$FSB/bin:$PATH"
       s028_target_of "$s")"
-    assert_eq "S-028 AC8: $s with XDG_CACHE_HOME set" "$got" "$FSB/x/sbarhive-win-target"
+    assert_eq "S-028 AC8: $s with XDG_CACHE_HOME set" "$got" "$FSB/x/kawaro-win-target"
     got="$(unset CARGO_TARGET_DIR XDG_CACHE_HOME; export CI=true HOME="$FSB/h" PATH="$FSB/bin:$PATH"
       s028_target_of "$s")"
-    assert_eq "S-028 AC8: $s with XDG_CACHE_HOME unset" "$got" "$FSB/h/.cache/sbarhive-win-target"
+    assert_eq "S-028 AC8: $s with XDG_CACHE_HOME unset" "$got" "$FSB/h/.cache/kawaro-win-target"
     got="$(export CI=true CARGO_TARGET_DIR="$FSB/caller" XDG_CACHE_HOME="$FSB/x" PATH="$FSB/bin:$PATH"
       s028_target_of "$s")"
     assert_eq "S-028 AC8: $s keeps the caller's CARGO_TARGET_DIR" "$got" "$FSB/caller"

@@ -35,9 +35,9 @@
 - ويندوز: قتل المجموعة يقتصر هناك على العملية المباشرة.
 
 ## سجل المراجعة
-- 2026-10-19، tester: كُتبت الاختبارات على هيكل يعيد `UnsupportedOp`. التشغيل `cargo test -p sbarhive-engines --no-fail-fast -- office pdf` فشل: 12 من 12 في `office_engine` و1 من 2 في `office_actions` (الاختبار الناجح يفحص ملف TOML وحده).
+- 2026-10-19، tester: كُتبت الاختبارات على هيكل يعيد `UnsupportedOp`. التشغيل `cargo test -p kawaro-engines --no-fail-fast -- office pdf` فشل: 12 من 12 في `office_engine` و1 من 2 في `office_actions` (الاختبار الناجح يفحص ملف TOML وحده).
 - 2026-10-19، implementer: فشلت ثلاثة اختبارات بعد التنفيذ لأن crate zip بلا ميزات لا يقرأ الأرشيفات المضغوطة بـ deflate التي يكتبها LibreOffice. أُضيفت ميزة `deflate-flate2` في dev-dependencies فقط، دون تعديل الاختبارات. النتيجة: 12 من 12 و2 من 2 و7 وحدات.
-- 2026-10-19، reviewer: `cargo fmt --all --check` نظيف. `cargo clippy -p sbarhive-engines --all-targets -- -D warnings` يفشل على شيفرة مسارات أخرى فقط: `dead_code` في `crates/core/src/queue.rs` (placeholder) و`default_constructed_unit_structs` في سطر `image::ImageEngine::default()` في `lib.rs`؛ مع `-A dead_code -A clippy::default_constructed_unit_structs` نظيف. نتيجة cargo mutants أدناه.
+- 2026-10-19، reviewer: `cargo fmt --all --check` نظيف. `cargo clippy -p kawaro-engines --all-targets -- -D warnings` يفشل على شيفرة مسارات أخرى فقط: `dead_code` في `crates/core/src/queue.rs` (placeholder) و`default_constructed_unit_structs` في سطر `image::ImageEngine::default()` في `lib.rs`؛ مع `-A dead_code -A clippy::default_constructed_unit_structs` نظيف. نتيجة cargo mutants أدناه.
 
 
 ### Release review 2026-10-20

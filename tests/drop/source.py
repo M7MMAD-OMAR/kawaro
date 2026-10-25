@@ -67,6 +67,6 @@ def on_activate(app):
     print("source: shown", flush=True)
 
 
-app = Gtk.Application(application_id="dev.sbarhive.DropTestSource", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app = Gtk.Application(application_id="dev.kawaro.DropTestSource", flags=Gio.ApplicationFlags.NON_UNIQUE)
 app.connect("activate", on_activate)
 app.run([])

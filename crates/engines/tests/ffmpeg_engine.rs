@@ -3,8 +3,8 @@
 //! committed. Every assertion reads the real output back with ffprobe.
 
 mod ffmpeg {
-    use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Task};
-    use sbarhive_engines::ffmpeg::FfmpegEngine;
+    use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Task};
+    use kawaro_engines::ffmpeg::FfmpegEngine;
     use serde_json::Value;
     use std::path::{Path, PathBuf};
     use std::process::Command;

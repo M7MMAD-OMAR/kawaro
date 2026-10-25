@@ -24,9 +24,9 @@ arabic_in_guillemets() {
 }
 
 check "AC7 $DOC exists" test -s "$DOC"
-KEYID="$(sed -n 's/^untrusted comment: minisign public key \([0-9A-F]\{16\}\)$/\1/p' packaging/keys/sbarhive-update.pub)"
+KEYID="$(sed -n 's/^untrusted comment: minisign public key \([0-9A-F]\{16\}\)$/\1/p' packaging/keys/kawaro-update.pub)"
 check "AC7 the public key file has a 16 digit key id" test "${#KEYID}" -eq 16
-check "AC7 the document contains the key id of packaging/keys/sbarhive-update.pub" \
+check "AC7 the document contains the key id of packaging/keys/kawaro-update.pub" \
   grep -qF "$KEYID" "$DOC"
 
 # a section is the text under a heading, up to the next heading
@@ -44,8 +44,8 @@ S_SEC="$(section 'secrets')"
 check "AC7 secrets section names UPDATE_SIGNING_KEY" grep -q 'UPDATE_SIGNING_KEY' <<<"$S_SEC"
 check "AC7 secrets section names UPDATE_SIGNING_PASSWORD" grep -q 'UPDATE_SIGNING_PASSWORD' <<<"$S_SEC"
 check "AC7 secrets section names the environment release-signing" grep -q 'release-signing' <<<"$S_SEC"
-check "AC7 rotation section names sbarhive-update-next.pub" \
-  grep -q 'sbarhive-update-next\.pub' <<<"$(section 'rotat')"
+check "AC7 rotation section names kawaro-update-next.pub" \
+  grep -q 'kawaro-update-next\.pub' <<<"$(section 'rotat')"
 check "AC7 leak section says users reinstall by hand" grep -Eqi 'reinstall' <<<"$(section 'leak')"
 check "AC7 the document names ADR 0006" grep -q '0006' "$DOC"
 # shellcheck disable=SC2016
@@ -62,8 +62,8 @@ check "AC8 no secret key header anywhere in git history" \
   test "$(git log --all -p | grep -c -e "$HEAD1$HEAD2" -e "$PREFIX")" -eq 0
 check "AC8 the only key file in packaging/keys is a .pub" \
   test "$(find packaging/keys -type f ! -name '*.pub' | wc -l)" -eq 0
-check "AC8 *.key and sbarhive-signing are not tracked" \
-  test "$(git ls-files | grep -Ec '\.key$|sbarhive-signing')" -eq 0
+check "AC8 *.key and kawaro-signing are not tracked" \
+  test "$(git ls-files | grep -Ec '\.key$|kawaro-signing')" -eq 0
 
 # AC9
 for s in scripts/make-update-manifest.sh scripts/sign-update-manifest.sh; do

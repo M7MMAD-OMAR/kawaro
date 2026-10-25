@@ -6,7 +6,7 @@
 //! the hidden KWin 6.7.5 and GNOME Shell 50.5 runs of `spikes/overlay/`
 //! (`overlay-spike globals`), one global per line as `[*] name vN`.
 
-use sbarhive_ui::overlay::{
+use kawaro_ui::overlay::{
     Placement, Surface, choose_surface, key_for_evdev, place, scheme_is_dark, wants_cursor_shape,
 };
 use slint::platform::Key;

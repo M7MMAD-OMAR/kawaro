@@ -11,12 +11,7 @@ use std::io::Write;
 #[test]
 fn ac7_two_appends_to_a_nested_missing_path_leave_two_lines() {
     let tmp = tempfile::tempdir().unwrap();
-    let path = tmp
-        .path()
-        .join("a")
-        .join("b")
-        .join("c")
-        .join("sbarhived.log");
+    let path = tmp.path().join("a").join("b").join("c").join("kawarod.log");
     assert!(!path.parent().unwrap().exists());
 
     let mut first = logfile::open_append(&path).unwrap();

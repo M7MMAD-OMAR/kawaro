@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://hive.sbarah.com/sitemap.xml
+Sitemap: https://kawaro.sbarah.com/sitemap.xml

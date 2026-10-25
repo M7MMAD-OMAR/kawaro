@@ -10,7 +10,7 @@ license = "GPL-3.0-or-later"
 
 [dependencies]
 # The real hive from crates/ui, unchanged, shown on our own layer surface.
-sbarhive-ui = { path = "../../crates/ui" }
+kawaro-ui = { path = "../../crates/ui" }
 slint = { version = "=1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-software", "accessibility", "compat-1-2", "unstable-winit-030"] }
 # The winit platform we wrap (settings window, GNOME, X11 keep using it).
 i-slint-backend-winit = "=1.18.1"

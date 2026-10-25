@@ -21,7 +21,7 @@ mod windows;
 pub use windows::{apply_msi, helper_main};
 
 /// The page that lists the packages, shown when nothing else can install.
-pub const RELEASE_PAGE_URL: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/latest";
+pub const RELEASE_PAGE_URL: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/latest";
 
 /// `pkexec` by absolute path, never found through `PATH`.
 pub const PKEXEC: &str = "/usr/bin/pkexec";
@@ -71,7 +71,7 @@ pub fn classify_msi(code: i32) -> MsiResult {
     }
 }
 
-/// The arguments of the helper copy of `sbarhive.exe`.
+/// The arguments of the helper copy of `kawaro.exe`.
 pub fn helper_args(msi: &Path) -> Vec<String> {
     vec![
         "update".to_string(),
@@ -173,9 +173,9 @@ pub struct Facts {
     pub has_dnf: bool,
     pub has_apt: bool,
     pub has_pkexec: bool,
-    /// A file matching `*sbarhive*.repo` or `sbarhive.sources` exists.
+    /// A file matching `*kawaro*.repo` or `kawaro.sources` exists.
     pub repo_configured: bool,
-    /// The format SbarHive was installed from; it picks the manager when
+    /// The format Kawaro was installed from; it picks the manager when
     /// both exist, and `None` prefers dnf.
     pub installed_kind: Option<PkgKind>,
 }
@@ -195,8 +195,8 @@ pub enum Plan {
 
 fn repo_command(elevate: &str, kind: PkgKind) -> String {
     match kind {
-        PkgKind::Rpm => format!("{elevate} dnf upgrade -y sbarhive"),
-        PkgKind::Deb => format!("{elevate} apt-get install -y --only-upgrade sbarhive"),
+        PkgKind::Rpm => format!("{elevate} dnf upgrade -y kawaro"),
+        PkgKind::Deb => format!("{elevate} apt-get install -y --only-upgrade kawaro"),
     }
 }
 
@@ -397,7 +397,7 @@ impl Drop for Cleanup {
     }
 }
 
-/// A new `sbarhive-update-*` folder with mode 0700 directly under `root`.
+/// A new `kawaro-update-*` folder with mode 0700 directly under `root`.
 /// The name has the process id, the clock and a counter, and `create` fails
 /// when it exists, so a planted folder is never reused.
 #[cfg(unix)]
@@ -409,10 +409,7 @@ fn make_folder(root: &Path) -> Result<PathBuf, UpdateError> {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| d.as_nanos());
-    let path = root.join(format!(
-        "sbarhive-update-{}-{nanos}-{n}",
-        std::process::id()
-    ));
+    let path = root.join(format!("kawaro-update-{}-{nanos}-{n}", std::process::id()));
     std::fs::DirBuilder::new()
         .mode(0o700)
         .create(&path)

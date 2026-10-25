@@ -16,13 +16,13 @@
 
 ## أدوات إضافية
 
-الفيديو والصوت يحتاجان FFmpeg. المستندات وPDF تحتاج LibreOffice وGhostscript. الإجراء الذي تغيب أداته لا يظهر في الخلية. شغّل `sbarhive doctor` لترى الأدوات الموجودة عندك.
+الفيديو والصوت يحتاجان FFmpeg. المستندات وPDF تحتاج LibreOffice وGhostscript. الإجراء الذي تغيب أداته لا يظهر في الخلية. شغّل `kawaro doctor` لترى الأدوات الموجودة عندك.
 
 ## من الشيفرة (لينكس)
 
 ```
-git clone https://github.com/M7MMAD-OMAR/sbarhive
-cd sbarhive
+git clone https://github.com/M7MMAD-OMAR/kawaro
+cd kawaro
 ./scripts/install.sh
 ```
 
