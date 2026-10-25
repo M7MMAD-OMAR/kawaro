@@ -10,7 +10,7 @@
 <link rel="alternate" hreflang="en" href="https://hive.sbarah.com/en/">
 <link rel="alternate" hreflang="x-default" href="https://hive.sbarah.com/">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20width=%22512%22%20height=%22512%22%20viewBox=%220%200%20512%20512%22%3E%0A%20%20%3Ctitle%3ESbarHive%3C/title%3E%0A%20%20%3Cpath%20fill=%22%23D9921A%22%20d=%22M231.75,22.00Q256.00,8.00%20280.25,22.00L446.53,118.00Q470.77,132.00%20470.77,160.00L470.77,352.00Q470.77,380.00%20446.53,394.00L280.25,490.00Q256.00,504.00%20231.75,490.00L65.47,394.00Q41.23,380.00%2041.23,352.00L41.23,160.00Q41.23,132.00%2065.47,118.00Z%22/%3E%0A%20%20%3Cpath%20fill=%22%233A2500%22%20d=%22M216,424V136.0A40.0,40.0%200%200%201%20296,136.0V424Z%22/%3E%0A%20%20%3Cpath%20fill=%22%233A2500%22%20d=%22M120,300V204.0A28.0,28.0%200%200%201%20176,204.0V300Z%22/%3E%0A%20%20%3Cpath%20fill=%22%233A2500%22%20d=%22M120,296V300A56,56%200%200%200%20176,356H216V300H176V296Z%22/%3E%0A%20%20%3Cpath%20fill=%22%233A2500%22%20d=%22M336,260V164.0A28.0,28.0%200%200%201%20392,164.0V260Z%22/%3E%0A%20%20%3Cpath%20fill=%22%233A2500%22%20d=%22M392,256V260A56,56%200%200%201%20336,316H296V260H336V256Z%22/%3E%0A%3C/svg%3E" type="image/svg+xml">
 <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta property="og:type" content="website">
@@ -44,7 +44,7 @@
     </a>
     <nav class="site-nav" aria-label="التنقل الرئيسي">
       <a href="docs/">التوثيق</a><a href="download/">التنزيل</a><a href="releases/">الإصدارات</a>
-      <a class="button button-support button-sm" href="https://sbarah.com/support"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg><span>ادعم صبارة</span></a>
+      <a class="button button-support button-sm" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer" aria-label="ادعم صبارة"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg><span>ادعم صبارة</span></a>
       <a class="lang-switch" href="en/" hreflang="en" lang="en">English</a>
     </nav>
   </div>
@@ -52,20 +52,17 @@
 <main id="main">
 <section class="hero sec full" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
-  <div class="hero-copy">
-    <p class="eyebrow"><span class="pill pill-hot">0.4.0-beta.1</span> مجاني ومفتوح المصدر</p>
-    <h1 id="hero-title">حوّل أي ملف بنقرة <span class="hl">يمين</span></h1>
-    <p class="lead">حدّد الملف. اختر خلية. الناتج بجانب الأصل.</p>
-    <div class="actions hero-actions">
-      <a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.msi" data-os="win">ويندوز MSI</a>
-      <a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive_0.4.0%7Ebeta.1_amd64.deb" data-os="linux">لينكس DEB</a>
-      <a class="button button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0%7Ebeta.1-1.x86_64.rpm" data-os="linux">لينكس RPM</a>
-    </div>
-    <ul class="facts" role="list"><li><span class="pill pill-hot">0.4.0-beta.1</span></li><li><a href="windows/">ويندوز غير موقّع</a></li><li><a href="download/#verify">تحقق من الملف</a></li></ul>
-  </div>
-  <div class="stage" id="stage" role="group" aria-label="عرض توضيحي">
-  <svg class="hive" id="hive" viewBox="0 0 480 435" role="group" aria-label="الخلية السداسية: الإجراءات التي تناسب الملف المحدّد">
-    <g id="cells">
+<div class="hero-copy">
+<h1 id="hero-title">حوّل أي ملف بنقرة <span class="hl">يمين</span></h1>
+<p class="lead">حدّد الملف. اختر خلية. الناتج بجانب الأصل.</p>
+<div class="actions">
+<a class="button button-primary button-lg" href="download/" data-os-default="linux">تنزيل</a>
+<a class="link-all" href="download/">كل التنزيلات</a>
+</div>
+<p class="hero-note">البيتا قريبا للينكس و<a href="windows/">ويندوز (غير موقّع)</a>.</p>
+</div>
+<div class="stage" aria-hidden="true">
+  <svg class="hive" viewBox="0 0 480 435" focusable="false">
 <g class="cell cell-center" style="--i:0"><path d="M240.2,181.6L271.4,199.6L271.4,235.6L240.2,253.6L209.1,235.6L209.1,199.6Z"/><text x="240.2" y="217.6">صورة واحدة</text></g>
 <g class="cell cell-active" style="--i:1"><path d="M274.4,240.8L305.6,258.8L305.6,294.8L274.4,312.8L243.2,294.8L243.2,258.8Z"/><text x="274.4" y="276.8">WEBP</text></g>
 <g class="cell" style="--i:2"><path d="M206.1,240.8L237.2,258.8L237.2,294.8L206.1,312.8L174.9,294.8L174.9,258.8Z"/><text x="206.1" y="276.8">PNG</text></g>
@@ -103,23 +100,34 @@
 <g class="cell cell-empty" style="--i:34"><path d="M445.3,181.6L476.5,199.6L476.5,235.6L445.3,253.6L414.1,235.6L414.1,199.6Z"/></g>
 <g class="cell cell-empty" style="--i:35"><path d="M411.1,240.8L442.3,258.8L442.3,294.8L411.1,312.8L379.9,294.8L379.9,258.8Z"/></g>
 <g class="cell cell-empty" style="--i:36"><path d="M376.9,300.0L408.1,318.0L408.1,354.0L376.9,372.0L345.8,354.0L345.8,318.0Z"/></g>
-    </g>
   </svg>
-  <div class="stage-bar">
-    <div class="kinds" role="radiogroup" aria-label="نوع الملف" id="kinds"></div>
-    <div class="tray" id="tray" aria-hidden="true">
-      <img src="favicon.svg" alt="" width="20" height="20">
-      <span class="tray-name" id="tray-name"></span>
-      <span class="bar"><span class="bar-in" id="tray-bar"></span></span>
-    </div>
-    <ul class="files" id="files" aria-label="المجلد"></ul>
-    <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="إيقاف الحركة" data-off="تشغيل الحركة">إيقاف الحركة</button>
-  </div>
-  <p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
 </div>
 </div>
 </section>
 <div class="marquee sec" aria-hidden="true"><div class="hexedge"></div><ul class="track" dir="ltr"><li>PNG</li><li>JPG</li><li>WEBP</li><li>AVIF</li><li>GIF</li><li>PDF</li><li>DOCX</li><li>ODT</li><li>MP4</li><li>WEBM</li><li>MKV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>XLSX</li><li>PPTX</li><li>TIFF</li><li>ICO</li><li>PNG</li><li>JPG</li><li>WEBP</li><li>AVIF</li><li>GIF</li><li>PDF</li><li>DOCX</li><li>ODT</li><li>MP4</li><li>WEBM</li><li>MKV</li><li>MP3</li><li>OGG</li><li>FLAC</li><li>WAV</li><li>M4A</li><li>XLSX</li><li>PPTX</li><li>TIFF</li><li>ICO</li></ul></div>
+<section class="sec s-sim" id="sim" aria-labelledby="sim-title">
+<div class="wrap">
+
+<h2 id="sim-title">جرّبها هنا</h2>
+<p class="section-intro">اسحب ملفا إلى المجلد، أو اختر ملفا واضغط Enter. لا يُرفع شيء: هذا عرض توضيحي فقط.</p>
+<div class="sim-board">
+  <div class="sim-left">
+    <ul class="sim-samples" role="list" aria-label="ملفات تجريبية"><li><button type="button" class="sim-file" draggable="true" data-kind="image" data-name="photo.png" aria-label="photo.png، صورة. اضغط Enter لفتح الخلية."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">photo.png</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="video" data-name="clip.mov" aria-label="clip.mov، فيديو. اضغط Enter لفتح الخلية."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">clip.mov</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="document" data-name="report.docx" aria-label="report.docx، مستند. اضغط Enter لفتح الخلية."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">report.docx</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="audio" data-name="song.wav" aria-label="song.wav، صوت. اضغط Enter لفتح الخلية."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">song.wav</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="pdfs" data-name="a.pdf, b.pdf" aria-label="a.pdf, b.pdf، ملفا PDF. اضغط Enter لفتح الخلية."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">a.pdf, b.pdf</span></button></li></ul>
+    <div class="sim-zone" id="sim-zone" tabindex="0" role="group" aria-label="المجلد. أفلت ملفا تجريبيا هنا.">
+      <p class="sim-hint">أفلت ملفا هنا</p>
+      <ul class="sim-files" id="sim-files" aria-label="ملفات المجلد"></ul>
+    </div>
+  </div>
+  <div class="sim-stage">
+    <p class="sim-idle">تظهر الخلية هنا</p>
+    <div class="sim-hive" id="sim-hive" role="group" aria-label="الخلية: إجراءات تناسب الملف" hidden></div>
+  </div>
+</div>
+<div class="sim-static"><svg class="sim-pic" viewBox="0 0 160 140" aria-hidden="true" focusable="false"><path class="mc mc-hot" d="M80.0,48.0L99.1,59.0L99.1,81.0L80.0,92.0L60.9,81.0L60.9,59.0Z"/><path class="mc" d="M100.1,82.7L119.1,93.7L119.1,115.7L100.1,126.7L81.0,115.7L81.0,93.7Z"/><path class="mc" d="M59.9,82.7L79.0,93.7L79.0,115.7L59.9,126.7L40.9,115.7L40.9,93.7Z"/><path class="mc" d="M39.9,48.0L58.9,59.0L58.9,81.0L39.9,92.0L20.8,81.0L20.8,59.0Z"/><path class="mc" d="M59.9,13.3L79.0,24.3L79.0,46.3L59.9,57.3L40.9,46.3L40.9,24.3Z"/><path class="mc" d="M100.1,13.3L119.1,24.3L119.1,46.3L100.1,57.3L81.0,46.3L81.0,24.3Z"/><path class="mc" d="M120.1,48.0L139.2,59.0L139.2,81.0L120.1,92.0L101.1,81.0L101.1,59.0Z"/></svg><p class="sim-nojs">صورة ثابتة للخلية، فعّل JavaScript لتجربتها.</p></div>
+<p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
+
+</div>
+</section>
 <section class="sec s-how full inv" id="how" aria-labelledby="how-title">
 <div class="hexedge" aria-hidden="true"></div><div class="side side-start" aria-hidden="true"></div><div class="wrap">
 
@@ -160,11 +168,11 @@
 <h2 id="get-title" class="reveal" data-reveal>نزّل صبار هايف</h2>
 <div class="dl-grid">
   <div class="dl-card" data-card="win"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="6" y="6" width="17" height="17" rx="3"/><rect x="25" y="6" width="17" height="17" rx="3"/><rect x="6" y="25" width="17" height="17" rx="3"/><rect x="25" y="25" width="17" height="17" rx="3"/></svg><h3>ويندوز</h3><p class="dl-sub">10 و11، 64 بت</p>
-    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.msi" data-os="win">تنزيل MSI</a><a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0-beta.1-windows-x64.zip">ZIP محمول</a></div></div>
+    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="msi">تنزيل <bdi>MSI</bdi> <span class="soon">قريبا</span></a><a class="button" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="zip"><bdi>ZIP</bdi> محمول <span class="soon">قريبا</span></a></div></div>
   <div class="dl-card" data-card="linux"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><rect x="5" y="9" width="38" height="30" rx="5" class="line"/><path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg><h3>لينكس</h3><p class="dl-sub">فيدورا وأوبونتو وديبيان، 64 بت</p>
-    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive_0.4.0%7Ebeta.1_amd64.deb" data-os="linux">تنزيل DEB</a><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/sbarhive-0.4.0%7Ebeta.1-1.x86_64.rpm" data-os="linux">تنزيل RPM</a></div></div>
+    <div class="actions"><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="deb">تنزيل <bdi>DEB</bdi> <span class="soon">قريبا</span></a><a class="button button-primary button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="rpm">تنزيل <bdi>RPM</bdi> <span class="soon">قريبا</span></a></div></div>
 </div>
-<ul class="facts" role="list"><li><span class="pill pill-hot">0.4.0-beta.1</span></li><li><a href="windows/">ويندوز غير موقّع</a></li><li><a href="download/#verify">تحقق من الملف</a></li></ul>
+<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>0.4.0-beta.1</bdi></span></li><li><a href="windows/">ويندوز غير موقّع</a></li><li><a href="download/#verify">تحقق من الملف</a></li></ul>
 
 </div>
 </section>
@@ -174,8 +182,16 @@
 <h2 id="open-title" class="reveal" data-reveal>مجاني ومفتوح</h2>
 <div class="actions">
   <a class="button button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive">الشيفرة على GitHub</a>
-  <a class="button button-support button-lg" href="https://sbarah.com/support"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg><span>ادعم صبارة</span></a>
 </div>
+
+</div>
+</section>
+<section class="sec s-support" id="support" aria-labelledby="support-title">
+<div class="hexedge" aria-hidden="true"></div><div class="wrap">
+
+<h2 id="support-title">ادعم العمل</h2>
+<p class="section-intro">صبار هايف مجاني. إن وفّر عليك وقتا فيمكنك دعم صبارة.</p>
+<a class="support-badge" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer"><picture><source media="(prefers-color-scheme: dark)" srcset="assets/support-sbarah-dark.svg"><img src="assets/support-sbarah-light.svg" alt="ادعم صبارة" width="520" height="140"></picture></a>
 
 </div>
 </section>
@@ -184,10 +200,12 @@
   <div class="hexedge" aria-hidden="true"></div>
   <div class="wrap">
     <p>برنامج حر برخصة GPLv3. <span class="muted">بيتا <bdi dir="ltr">0.4.0-beta.1</bdi></span></p>
-    <p><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a> · <a href="windows/">ويندوز</a> · <a href="privacy/">الخصوصية</a> · <a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub الإصدارات</a> · <a href="https://sbarah.com/support">ادعم صبارة</a> · <a href="en/" hreflang="en" lang="en">English</a></p>
+    <ul class="footer-product" role="list"><li><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a></li><li><a href="windows/">ويندوز</a></li><li><a href="privacy/">الخصوصية</a></li><li><a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub الإصدارات</a></li><li><a class="" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer">ادعم صبارة</a></li></ul>
+    <ul class="footer-lang" role="list"><li><a href="en/" hreflang="en" lang="en">English</a></li></ul>
+    <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="إيقاف الحركة" data-off="تشغيل الحركة">إيقاف الحركة</button>
   </div>
 </footer>
-<script id="hive-config" type="application/json">{"rtl": true, "r": 36.0, "gap": 6, "pad": 4, "kinds": [{"key": "image", "label": "صورة", "selection": "صورة واحدة", "files": ["photo.png"], "cells": [{"c": "WEBP", "n": "تحويل إلى WebP", "o": "photo.webp"}, {"c": "PNG", "n": "تحويل إلى PNG", "o": "photo.png"}, {"c": "JPG", "n": "تحويل إلى JPG", "o": "photo.jpg"}, {"c": "AVIF", "n": "تحويل إلى AVIF", "o": "photo.avif"}, {"c": "PDF", "n": "تحويل إلى PDF", "o": "photo.pdf"}, {"c": "GIF", "n": "تحويل إلى GIF", "o": "photo.gif"}, {"c": "تحجيم", "n": "تحجيم الصورة", "o": "photo-resized.png"}, {"c": "تدوير", "n": "تدوير الصورة", "o": "photo-rotated.png"}, {"c": "قلب", "n": "قلب الصورة", "o": "photo-flipped.png"}, {"c": "رمادي", "n": "تحويل الصورة إلى رمادي", "o": "photo-gray.png"}, {"c": "ضغط", "n": "ضغط الصورة", "o": "photo-compressed.png"}, {"c": "تنظيف", "n": "تنظيف: حذف البيانات الوصفية", "o": "photo-clean.png"}]}, {"key": "video", "label": "فيديو", "selection": "فيديو واحد", "files": ["clip.mov"], "cells": [{"c": "MP4", "n": "تحويل إلى MP4", "o": "clip.mp4"}, {"c": "WEBM", "n": "تحويل إلى WebM", "o": "clip.webm"}, {"c": "GIF", "n": "تحويل إلى GIF متحركة", "o": "clip.gif"}, {"c": "MKV", "n": "تحويل إلى MKV", "o": "clip.mkv"}, {"c": "MP3", "n": "استخراج الصوت بصيغة MP3", "o": "clip.mp3"}, {"c": "OGG", "n": "استخراج الصوت بصيغة OGG", "o": "clip.ogg"}, {"c": "ضغط", "n": "ضغط الفيديو", "o": "clip-compressed.mov"}, {"c": "M4A", "n": "استخراج الصوت بصيغة M4A", "o": "clip.m4a"}, {"c": "FLAC", "n": "استخراج الصوت بصيغة FLAC", "o": "clip.flac"}, {"c": "WAV", "n": "استخراج الصوت بصيغة WAV", "o": "clip.wav"}]}, {"key": "document", "label": "مستند", "selection": "مستند واحد", "files": ["report.docx"], "cells": [{"c": "PDF", "n": "تحويل إلى PDF", "o": "report.pdf"}, {"c": "ODT", "n": "تحويل إلى ODT", "o": "report.odt"}]}, {"key": "audio", "label": "صوت", "selection": "ملف صوتي", "files": ["song.wav"], "cells": [{"c": "MP3", "n": "تحويل إلى MP3", "o": "song.mp3"}, {"c": "M4A", "n": "تحويل إلى M4A", "o": "song.m4a"}, {"c": "OGG", "n": "تحويل إلى OGG", "o": "song.ogg"}, {"c": "FLAC", "n": "تحويل إلى FLAC", "o": "song.flac"}]}, {"key": "pdfs", "label": "ملفا PDF", "selection": "ملفان معا", "files": ["a.pdf", "b.pdf"], "cells": [{"c": "دمج", "n": "دمج الملفات في ملف واحد", "o": "a-merged.pdf"}, {"c": "ضغط", "n": "ضغط ملفات PDF", "o": "a-compressed.pdf"}, {"c": "تدوير", "n": "تدوير الصفحات 90 درجة", "o": "a-rotated.pdf"}, {"c": "صور", "n": "صور: تحويل الصفحات إلى صور PNG", "o": "a-pages.zip"}, {"c": "تقسيم", "n": "تقسيم: ملف PDF لكل صفحة", "o": "a-split.zip"}]}], "ui": {"idle": "مرّر على خلية", "working": "جارٍ التحويل", "done": "تم", "tray": "صبار هايف", "doneNote": "اكتمل: ", "original": "الأصل لا يتغير", "fresh": "جديد", "stepsOn": ["1", "2", "3"]}}</script>
+<script id="hive-config" type="application/json">{"rtl": true, "r": 36.0, "gap": 6, "pad": 4, "kinds": [{"key": "image", "label": "صورة", "selection": "صورة واحدة", "files": ["photo.png"], "cells": [{"c": "WEBP", "n": "تحويل إلى WebP", "o": "photo.webp", "id": "webp"}, {"c": "PNG", "n": "تحويل إلى PNG", "o": "photo.png", "id": "photo-png"}, {"c": "JPG", "n": "تحويل إلى JPG", "o": "photo.jpg", "id": "jpg"}, {"c": "AVIF", "n": "تحويل إلى AVIF", "o": "photo.avif", "id": "avif"}, {"c": "PDF", "n": "تحويل إلى PDF", "o": "photo.pdf", "id": "pdf"}, {"c": "GIF", "n": "تحويل إلى GIF", "o": "photo.gif", "id": "gif"}, {"c": "تحجيم", "n": "تحجيم الصورة", "o": "photo-resized.png", "id": "photo-resized-png"}, {"c": "تدوير", "n": "تدوير الصورة", "o": "photo-rotated.png", "id": "photo-rotated-png"}, {"c": "قلب", "n": "قلب الصورة", "o": "photo-flipped.png", "id": "photo-flipped-png"}, {"c": "رمادي", "n": "تحويل الصورة إلى رمادي", "o": "photo-gray.png", "id": "photo-gray-png"}, {"c": "ضغط", "n": "ضغط الصورة", "o": "photo-compressed.png", "id": "photo-compressed-png"}, {"c": "تنظيف", "n": "تنظيف: حذف البيانات الوصفية", "o": "photo-clean.png", "id": "photo-clean-png"}]}, {"key": "video", "label": "فيديو", "selection": "فيديو واحد", "files": ["clip.mov"], "cells": [{"c": "MP4", "n": "تحويل إلى MP4", "o": "clip.mp4", "id": "mp4"}, {"c": "WEBM", "n": "تحويل إلى WebM", "o": "clip.webm", "id": "webm"}, {"c": "GIF", "n": "تحويل إلى GIF متحركة", "o": "clip.gif", "id": "gif"}, {"c": "MKV", "n": "تحويل إلى MKV", "o": "clip.mkv", "id": "mkv"}, {"c": "MP3", "n": "استخراج الصوت بصيغة MP3", "o": "clip.mp3", "id": "mp3"}, {"c": "OGG", "n": "استخراج الصوت بصيغة OGG", "o": "clip.ogg", "id": "ogg"}, {"c": "ضغط", "n": "ضغط الفيديو", "o": "clip-compressed.mov", "id": "mov"}, {"c": "M4A", "n": "استخراج الصوت بصيغة M4A", "o": "clip.m4a", "id": "m4a"}, {"c": "FLAC", "n": "استخراج الصوت بصيغة FLAC", "o": "clip.flac", "id": "flac"}, {"c": "WAV", "n": "استخراج الصوت بصيغة WAV", "o": "clip.wav", "id": "wav"}]}, {"key": "document", "label": "مستند", "selection": "مستند واحد", "files": ["report.docx"], "cells": [{"c": "PDF", "n": "تحويل إلى PDF", "o": "report.pdf", "id": "pdf"}, {"c": "ODT", "n": "تحويل إلى ODT", "o": "report.odt", "id": "odt"}]}, {"key": "audio", "label": "صوت", "selection": "ملف صوتي", "files": ["song.wav"], "cells": [{"c": "MP3", "n": "تحويل إلى MP3", "o": "song.mp3", "id": "mp3"}, {"c": "M4A", "n": "تحويل إلى M4A", "o": "song.m4a", "id": "m4a"}, {"c": "OGG", "n": "تحويل إلى OGG", "o": "song.ogg", "id": "ogg"}, {"c": "FLAC", "n": "تحويل إلى FLAC", "o": "song.flac", "id": "flac"}]}, {"key": "pdfs", "label": "ملفا PDF", "selection": "ملفان معا", "files": ["a.pdf", "b.pdf"], "cells": [{"c": "دمج", "n": "دمج الملفات في ملف واحد", "o": "a-merged.pdf", "id": "a-merged-pdf"}, {"c": "ضغط", "n": "ضغط ملفات PDF", "o": "a-compressed.pdf", "id": "a-compressed-pdf"}, {"c": "تدوير", "n": "تدوير الصفحات 90 درجة", "o": "a-rotated.pdf", "id": "a-rotated-pdf"}, {"c": "صور", "n": "صور: تحويل الصفحات إلى صور PNG", "o": "a-pages.zip", "id": "a-pages-zip"}, {"c": "تقسيم", "n": "تقسيم: ملف PDF لكل صفحة", "o": "a-split.zip", "id": "a-split-zip"}]}], "ui": {"done": "تم", "actions": "{n} إجراءات", "original": "الأصل لا يتغير", "fresh": "جديد", "rel": "تنزيل ل{os}", "win": "ويندوز", "linux": "لينكس", "pause": "إيقاف الحركة", "play": "تشغيل الحركة"}}</script>
 <script src="app.js" defer></script>
 </body>
 </html>

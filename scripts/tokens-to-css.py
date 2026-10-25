@@ -20,6 +20,10 @@ def colors(scheme):
     return [f"  --color-{name}: {value};" for name, value in scheme.items()]
 
 
+def sbarah(scheme):
+    return [f"  --sbarah-{name}: {value};" for name, value in scheme.items() if not name.startswith("$")]
+
+
 def scale(prefix, table, unit="px"):
     return [f"  --{prefix}-{key}: {value}{unit};" for key, value in table.items()]
 
@@ -52,11 +56,13 @@ def main():
         "  color-scheme: light dark;",
         *base,
         *colors(light),
+        *sbarah(t["sbarah"]["light"]),
         "}",
         "",
         "@media (prefers-color-scheme: dark) {",
         "  :root {",
         *["  " + line for line in colors(dark)],
+        *["  " + line for line in sbarah(t["sbarah"]["dark"])],
         "  }",
         "}",
         "",

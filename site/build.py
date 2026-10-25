@@ -13,6 +13,11 @@ that share a structure, not one text translated from the other.
 import html
 import json
 import math
+import os
+import re
+import subprocess
+import sys
+import urllib.parse
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -25,9 +30,17 @@ BASE = "https://hive.sbarah.com/"
 REPO = "https://github.com/M7MMAD-OMAR/sbarhive"
 RELEASES = REPO + "/releases"
 VERSION = "0.4.0-beta.1"
+# S-061: download links point at release assets only once the release exists.
+# Set RELEASE_PUBLISHED=1 after the tag and its assets are on GitHub.
+PUBLISHED = os.environ.get("RELEASE_PUBLISHED", "0") == "1"
 DIRECTIONS = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
 
 PAGES = ["index", "download", "windows", "privacy"]
+
+# The tab icon is inlined: a browser fetches a linked icon after the page has
+# loaded, and the try-it demo promises no network request after load.
+FAVICON = "data:image/svg+xml," + urllib.parse.quote(
+    (HERE / "favicon.svg").read_text(encoding="utf-8").strip(), safe="/:=,;'()")
 
 
 def spiral(rings):
@@ -113,8 +126,12 @@ def kinds(lang):
     ]
 
     def k(key, label, sel, files, cells):
+        exts = [o.rsplit(".", 1)[1] for _, _, o in cells]
+        # id: the output extension, or the whole name when two cells share one
         return {"key": key, "label": label, "selection": sel, "files": files,
-                "cells": [{"c": c, "n": n, "o": o} for c, n, o in cells]}
+                "cells": [{"c": c, "n": n, "o": o,
+                           "id": ext if exts.count(ext) == 1 else o.replace(".", "-")}
+                          for (c, n, o), ext in zip(cells, exts)]}
 
     return [
         k("image", "صورة" if ar else "Image", "صورة واحدة" if ar else "One image", ["photo.png"], img),
@@ -132,14 +149,15 @@ def hive_config(lang):
         "r": R, "gap": GAP, "pad": PAD,
         "kinds": kinds(lang),
         "ui": {
-            "idle": "مرّر على خلية" if ar else "Hover a cell",
-            "working": "جارٍ التحويل" if ar else "Working",
             "done": "تم" if ar else "Done",
-            "tray": "صبار هايف" if ar else "SbarHive",
-            "doneNote": "اكتمل: " if ar else "Finished: ",
+            "actions": "{n} إجراءات" if ar else "{n} actions",
             "original": "الأصل لا يتغير" if ar else "Original, untouched",
             "fresh": "جديد" if ar else "New",
-            "stepsOn": ["1", "2", "3"],
+            "rel": "تنزيل ل{os}" if ar else "Download for {os}",
+            "win": "ويندوز" if ar else "Windows",
+            "linux": "لينكس" if ar else "Linux",
+            "pause": "إيقاف الحركة" if ar else "Pause motion",
+            "play": "تشغيل الحركة" if ar else "Play motion",
         },
     }
 
@@ -404,7 +422,7 @@ def head(lang, page, root, title=None, desc=None, extra_ld=()):
 <link rel="alternate" hreflang="{other}" href="{abs_url(other, page)}">
 <link rel="alternate" hreflang="x-default" href="{abs_url("ar", page)}">
 <meta name="color-scheme" content="light dark">
-<link rel="icon" href="{root}favicon.svg" type="image/svg+xml">
+<link rel="icon" href="{FAVICON}" type="image/svg+xml">
 <link rel="icon" href="{root}favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="{root}apple-touch-icon.png">
 <meta property="og:type" content="website">
@@ -437,9 +455,15 @@ HEART = ('<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="fal
          '<path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg>')
 
 
+def support_a(cls, inner, extra=""):
+    """The one support link shape: exact URL, new tab, no opener."""
+    return (f'<a class="{cls}" href="{SUPPORT}" target="_blank" rel="noopener noreferrer"{extra}>'
+            f'{inner}</a>')
+
+
 def support_link(lang, cls="button button-support"):
-    p = lang_pack(lang)
-    return f'<a class="{cls}" href="{SUPPORT}">{HEART}<span>{p["support"]}</span></a>'
+    text = lang_pack(lang)["support"]
+    return support_a(cls, f'{HEART}<span>{text}</span>', f' aria-label="{text}"')
 
 
 def header(lang, page, root):
@@ -471,20 +495,25 @@ def header(lang, page, root):
 def footer(lang, page, root):
     p = lang_pack(lang)
     other = "en" if lang == "ar" else "ar"
-    links = " · ".join([
+    product = [
         f'<a href="{REPO}">GitHub</a>',
         f'<a href="{page_href(lang, page, lang, "windows")}">{p["nav"]["windows"]}</a>',
         f'<a href="{page_href(lang, page, lang, "privacy")}">{p["nav"]["privacy"]}</a>',
         f'<a href="{RELEASES}">GitHub {p["releases"]}</a>',
-        f'<a href="{SUPPORT}">{p["support"]}</a>',
-        f'<a href="{page_href(lang, page, other, page)}" hreflang="{other}" lang="{other}">{p["other_lang"]}</a>',
-    ])
+        support_a("", p["support"]),
+    ]
+    items = "".join(f"<li>{x}</li>" for x in product)
+    ui = hive_config(lang)["ui"]
+    lang_sw = (f'<a href="{page_href(lang, page, other, page)}" hreflang="{other}" lang="{other}">'
+               f'{p["other_lang"]}</a>')
     return f'''</main>
 <footer class="site-footer sec inv">
   <div class="hexedge" aria-hidden="true"></div>
   <div class="wrap">
     <p>{p["footer_license"]} <span class="muted">{p["footer_beta"]}</span></p>
-    <p>{links}</p>
+    <ul class="footer-product" role="list">{items}</ul>
+    <ul class="footer-lang" role="list"><li>{lang_sw}</li></ul>
+    <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="{ui["pause"]}" data-off="{ui["play"]}">{ui["pause"]}</button>
   </div>
 </footer>
 <script id="hive-config" type="application/json">{json.dumps(hive_config(lang), ensure_ascii=False)}</script>
@@ -522,17 +551,35 @@ LIN_ICO = ('<svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable
            '<path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg>')
 
 
+SOON = {"ar": "قريبا", "en": "Coming soon"}
+LATIN = re.compile(r"\b(?:MSI|DEB|RPM|ZIP|EXE)\b|\d+\.\d+\.\d+(?:-[A-Za-z]+\.\d+)?")
+
+
+def bidi(text, lang):
+    """Arabic text: isolate Latin file codes and versions so they keep their order."""
+    if lang != "ar":
+        return text
+    parts = re.split(r"(<[^>]*>)", text)
+    return "".join(x if x.startswith("<") else LATIN.sub(lambda m: f"<bdi>{m.group(0)}</bdi>", x) for x in parts)
+
+
+def dl_link(lang, kind, label, cls):
+    """A download button. Until the release exists it opens the releases page."""
+    href = FILES[kind] if PUBLISHED else RELEASES
+    soon = "" if PUBLISHED else f' <span class="soon">{SOON[lang]}</span>'
+    return f'<a class="{cls}" href="{href}" data-dl="{kind}">{label}{soon}</a>'
+
+
 def dl_buttons(lang, which):
     """Direct download buttons. Names follow scripts/release/dry-run.sh and make-msi.sh."""
     ar = lang == "ar"
+    word = "تنزيل" if ar else "Download"
+    big = "button button-primary button-lg"
     if which == "win":
-        return (f'<a class="button button-primary button-lg" href="{FILES["msi"]}" data-os="win">'
-                f'{"تنزيل MSI" if ar else "Download MSI"}</a>'
-                f'<a class="button" href="{FILES["zip"]}">{"ZIP محمول" if ar else "Portable ZIP"}</a>')
-    return (f'<a class="button button-primary button-lg" href="{FILES["deb"]}" data-os="linux">'
-            f'{"تنزيل DEB" if ar else "Download DEB"}</a>'
-            f'<a class="button button-primary button-lg" href="{FILES["rpm"]}" data-os="linux">'
-            f'{"تنزيل RPM" if ar else "Download RPM"}</a>')
+        return (dl_link(lang, "msi", bidi(f"{word} MSI", lang), big)
+                + dl_link(lang, "zip", bidi("ZIP محمول" if ar else "Portable ZIP", lang), "button"))
+    return (dl_link(lang, "deb", bidi(f"{word} DEB", lang), big)
+            + dl_link(lang, "rpm", bidi(f"{word} RPM", lang), big))
 
 
 def dl_cards(lang):
@@ -552,39 +599,18 @@ def dl_cards(lang):
 def pills(lang, verify_href, win_href):
     ar = lang == "ar"
     return (f'<ul class="facts" role="list">'
-            f'<li><span class="pill pill-hot">{VERSION}</span></li>'
+            f'<li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li>'
             f'<li><a href="{win_href}">{"ويندوز غير موقّع" if ar else "Windows is unsigned"}</a></li>'
             f'<li><a href="{verify_href}">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
             f'</ul>')
 
 
 def stage(lang):
-    ar = lang == "ar"
-    t = {
-        "pick": "نوع الملف" if ar else "File kind",
-        "hive_title": "الخلية السداسية: الإجراءات التي تناسب الملف المحدّد" if ar else "The hive: actions that fit the selected file",
-        "demo": "عرض توضيحي" if ar else "Demo",
-        "pause": "إيقاف الحركة" if ar else "Pause motion",
-        "play": "تشغيل الحركة" if ar else "Play motion",
-        "folder": "المجلد" if ar else "Folder",
-    }
-    return f'''<div class="stage" id="stage" role="group" aria-label="{t["demo"]}">
-  <svg class="hive" id="hive" viewBox="{VIEW}" role="group" aria-label="{t["hive_title"]}">
-    <g id="cells">
+    """The hero hive: a quiet picture of the idea. The try-it demo is the #sim section."""
+    return f'''<div class="stage" aria-hidden="true">
+  <svg class="hive" viewBox="{VIEW}" focusable="false">
 {static_hive(lang)}
-    </g>
   </svg>
-  <div class="stage-bar">
-    <div class="kinds" role="radiogroup" aria-label="{t["pick"]}" id="kinds"></div>
-    <div class="tray" id="tray" aria-hidden="true">
-      <img src="{rel_root(lang, "index")}favicon.svg" alt="" width="20" height="20">
-      <span class="tray-name" id="tray-name"></span>
-      <span class="bar"><span class="bar-in" id="tray-bar"></span></span>
-    </div>
-    <ul class="files" id="files" aria-label="{t["folder"]}"></ul>
-    <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="{t["pause"]}" data-off="{t["play"]}">{t["pause"]}</button>
-  </div>
-  <p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
 </div>'''
 
 
@@ -613,9 +639,13 @@ def clip_frame_bare(kind):
 
 T_HOME = {
     "ar": {
-        "eyebrow": "مجاني ومفتوح المصدر",
         "h1": "حوّل أي ملف بنقرة <span class=\"hl\">يمين</span>",
         "sub": "حدّد الملف. اختر خلية. الناتج بجانب الأصل.",
+        "dl": "تنزيل",
+        "all": "كل التنزيلات",
+        "win_link": "ويندوز (غير موقّع)",
+        "note": "بيتا للينكس و{win}.",
+        "note_soon": "البيتا قريبا للينكس و{win}.",
         "how": "ثلاث خطوات",
         "steps": ["حدّد", "اختر", "خذ الناتج"],
         "privacy": "ملفاتك تبقى عندك",
@@ -625,11 +655,17 @@ T_HOME = {
         "get": "نزّل صبار هايف",
         "open": "مجاني ومفتوح",
         "gh": "الشيفرة على GitHub",
+        "support_h2": "ادعم العمل",
+        "support_p": "صبار هايف مجاني. إن وفّر عليك وقتا فيمكنك دعم صبارة.",
     },
     "en": {
-        "eyebrow": "Free and open source",
         "h1": "Convert any file with a <span class=\"hl\">right</span> click",
         "sub": "Select the file. Pick a cell. The result lands next to the original.",
+        "dl": "Download",
+        "all": "All downloads",
+        "win_link": "Windows (unsigned)",
+        "note": "Beta for Linux and {win}.",
+        "note_soon": "Beta coming soon for Linux and {win}.",
         "how": "Three steps",
         "steps": ["Select", "Pick", "Take it"],
         "privacy": "Your files stay with you",
@@ -639,29 +675,107 @@ T_HOME = {
         "get": "Get SbarHive",
         "open": "Free and open",
         "gh": "Source on GitHub",
+        "support_h2": "Support the work",
+        "support_p": "SbarHive is free. If it saves you time, you can support Sbarah.",
     },
 }
+
+T_SIM = {
+    "ar": {
+        "h2": "جرّبها هنا",
+        "intro": "اسحب ملفا إلى المجلد، أو اختر ملفا واضغط Enter. لا يُرفع شيء: هذا عرض توضيحي فقط.",
+        "samples": "ملفات تجريبية",
+        "zone": "المجلد. أفلت ملفا تجريبيا هنا.",
+        "folder": "ملفات المجلد",
+        "hint": "أفلت ملفا هنا",
+        "idle": "تظهر الخلية هنا",
+        "nojs": "صورة ثابتة للخلية، فعّل JavaScript لتجربتها.",
+        "sample": "{name}، {kind}. اضغط Enter لفتح الخلية.",
+        "hive": "الخلية: إجراءات تناسب الملف",
+    },
+    "en": {
+        "h2": "Try it here",
+        "intro": "Drag a file onto the folder, or pick one and press Enter. Nothing is uploaded: this is only a demo.",
+        "samples": "Sample files",
+        "zone": "Folder. Drop a sample file here.",
+        "folder": "Folder files",
+        "hint": "Drop a file here",
+        "idle": "The hive opens here",
+        "nojs": "A still picture of the hive, turn on JavaScript to try it.",
+        "sample": "{name}, {kind}. Press Enter to open the hive.",
+        "hive": "The hive: actions that fit the file",
+    },
+}
+
+DOC_ICO = ('<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+           '<path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg>')
+
+
+def sim_section(lang):
+    """The try-it demo (S-061 AC7, AC8). Behaviour lives in app.js between the sim markers."""
+    t = T_SIM[lang]
+    items = []
+    for k in kinds(lang):
+        names = ", ".join(k["files"])
+        label = html.escape(t["sample"].format(name=names, kind=k["label"]))
+        items.append(f'<li><button type="button" class="sim-file" draggable="true" data-kind="{k["key"]}" '
+                     f'data-name="{names}" aria-label="{label}">{DOC_ICO}<span class="name">{names}</span></button></li>')
+    pic = (f'<svg class="sim-pic" viewBox="0 0 160 140" aria-hidden="true" focusable="false">'
+           f'{mini_cluster(80, 70, 22, lang == "ar", {0: "mc mc-hot"})}</svg>')
+    inner = f'''
+<h2 id="sim-title">{t["h2"]}</h2>
+<p class="section-intro">{t["intro"]}</p>
+<div class="sim-board">
+  <div class="sim-left">
+    <ul class="sim-samples" role="list" aria-label="{t["samples"]}">{"".join(items)}</ul>
+    <div class="sim-zone" id="sim-zone" tabindex="0" role="group" aria-label="{t["zone"]}">
+      <p class="sim-hint">{t["hint"]}</p>
+      <ul class="sim-files" id="sim-files" aria-label="{t["folder"]}"></ul>
+    </div>
+  </div>
+  <div class="sim-stage">
+    <p class="sim-idle">{t["idle"]}</p>
+    <div class="sim-hive" id="sim-hive" role="group" aria-label="{t["hive"]}" hidden></div>
+  </div>
+</div>
+<div class="sim-static">{pic}<p class="sim-nojs">{t["nojs"]}</p></div>
+<p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
+'''
+    return sec(inner, cls="s-sim", ident="sim", labelledby="sim-title", edge=False)
+
+
+def support_section(lang):
+    """The owner's badge in the Sbarah theme: the only link in the section."""
+    t, p, r = T_HOME[lang], lang_pack(lang), rel_root(lang, "index")
+    pic = (f'<picture><source media="(prefers-color-scheme: dark)" srcset="{r}assets/support-sbarah-dark.svg">'
+           f'<img src="{r}assets/support-sbarah-light.svg" alt="{p["support"]}" width="520" height="140"></picture>')
+    inner = f'''
+<h2 id="support-title">{t["support_h2"]}</h2>
+<p class="section-intro">{t["support_p"]}</p>
+{support_a("support-badge", pic)}
+'''
+    return sec(inner, cls="s-support", ident="support", labelledby="support-title")
 
 
 def home(lang):
     t = T_HOME[lang]
-    p = lang_pack(lang)
     win_href = page_href(lang, "index", lang, "windows")
     dl_href = page_href(lang, "index", lang, "download")
+    win_a = f'<a href="{win_href}">{t["win_link"]}</a>'
+    note = (t["note"] if PUBLISHED else t["note_soon"]).format(win=win_a)
+    rel = ' data-rel="1"' if PUBLISHED else ""
     hero = f'''<section class="hero sec full" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
-  <div class="hero-copy">
-    <p class="eyebrow"><span class="pill pill-hot">{VERSION}</span> {t["eyebrow"]}</p>
-    <h1 id="hero-title">{t["h1"]}</h1>
-    <p class="lead">{t["sub"]}</p>
-    <div class="actions hero-actions">
-      <a class="button button-primary button-lg" href="{FILES["msi"]}" data-os="win">{"ويندوز MSI" if lang == "ar" else "Windows MSI"}</a>
-      <a class="button button-primary button-lg" href="{FILES["deb"]}" data-os="linux">{"لينكس DEB" if lang == "ar" else "Linux DEB"}</a>
-      <a class="button button-lg" href="{FILES["rpm"]}" data-os="linux">{"لينكس RPM" if lang == "ar" else "Linux RPM"}</a>
-    </div>
-    {pills(lang, dl_href + "#verify", win_href)}
-  </div>
-  {stage(lang)}
+<div class="hero-copy">
+<h1 id="hero-title">{t["h1"]}</h1>
+<p class="lead">{t["sub"]}</p>
+<div class="actions">
+<a class="button button-primary button-lg" href="{dl_href}" data-os-default="linux"{rel}>{t["dl"]}</a>
+<a class="link-all" href="{dl_href}">{t["all"]}</a>
+</div>
+<p class="hero-note">{note}</p>
+</div>
+{stage(lang)}
 </div>
 </section>
 '''
@@ -704,10 +818,9 @@ def home(lang):
 <h2 id="open-title" class="reveal" data-reveal>{t["open"]}</h2>
 <div class="actions">
   <a class="button button-lg" href="{REPO}">{t["gh"]}</a>
-  {support_link(lang, "button button-support button-lg")}
 </div>
 ''', cls="s-open", ident="open", labelledby="open-title", side="start")
-    return hero + marquee_block() + how + privacy + formats + get + open_
+    return hero + marquee_block() + sim_section(lang) + how + privacy + formats + get + open_ + support_section(lang)
 
 
 # ---------------------------------------------------------------------------
@@ -730,8 +843,8 @@ def download(lang):
     ar = lang == "ar"
     win_href = page_href(lang, "download", lang, "windows")
     if ar:
-        h = page_head("نزّل صبار هايف", f"أول إصدار بيتا <code>{VERSION}</code>")
-        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot">{VERSION}</span></li><li><a href="{win_href}">ويندوز غير موقّع</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
+        h = page_head("نزّل صبار هايف", f"أول إصدار بيتا <code>{VERSION}</code>" + ("" if PUBLISHED else "، قريبا"))
+        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">ويندوز غير موقّع</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title" class="reveal" data-reveal>تحقق من الملف</h2>
 <p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
@@ -742,8 +855,8 @@ def download(lang):
 {code(f"git clone {REPO}" + chr(10) + "cd sbarhive" + chr(10) + "./scripts/install.sh")}
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
-        h = page_head("Download SbarHive", f"First beta, <code>{VERSION}</code>")
-        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot">{VERSION}</span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
+        h = page_head("Download SbarHive", f"First beta, <code>{VERSION}</code>" + ("" if PUBLISHED else ", coming soon"))
+        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title" class="reveal" data-reveal>Verify the file</h2>
 <p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>
@@ -819,8 +932,6 @@ def render(lang, page):
 # actions/*.toml (formats) and CHANGELOG.md (releases). Nothing is written twice.
 # ---------------------------------------------------------------------------
 
-import datetime
-import re
 import tomllib
 
 ROOT = HERE.parent
@@ -858,7 +969,7 @@ def inline(text, lang, page):
             return f'<a href="{href}">{label}</a>'
 
         part = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", link, part)
-        out.append(part)
+        out.append(bidi(part, lang))
     return "".join(out)
 
 
@@ -999,7 +1110,7 @@ def docs_nav(lang, page, current):
     for slug in DOC_ORDER:
         title = doc_title(slug, lang)
         cur = ' aria-current="page"' if slug == current else ""
-        items.append(f'<li><a href="{page_href(lang, page, lang, "docs/" + slug)}"{cur}>{html.escape(title)}</a></li>')
+        items.append(f'<li><a href="{page_href(lang, page, lang, "docs/" + slug)}"{cur}>{bidi(html.escape(title), lang)}</a></li>')
     return f'<nav class="docs-nav" aria-label="{"التوثيق" if ar else "Documentation"}"><ul role="list">{"".join(items)}</ul></nav>'
 
 
@@ -1063,7 +1174,7 @@ def docs_index(lang):
     tiles = []
     for n, slug in enumerate(DOC_ORDER, 1):
         tiles.append(f'<a class="doc-tile reveal" data-reveal href="{page_href(lang, page, lang, "docs/" + slug)}">'
-                     f'<span class="n">{n}</span><span class="t">{html.escape(doc_title(slug, lang))}</span></a>')
+                     f'<span class="n">{n}</span><span class="t">{bidi(html.escape(doc_title(slug, lang)), lang)}</span></a>')
     inner = (f'<h1>{title}</h1>{search_box(lang, root)}<div class="doc-tiles">{"".join(tiles)}</div>')
     ld = [breadcrumb_ld(lang, [(p["name"], "index"), (title, page)])]
     return (head(lang, page, root, f"{title} | {p['name']}", desc, ld) + header(lang, page, root)
@@ -1089,7 +1200,7 @@ def release_blocks(lang):
         ver = VERSION if unreleased else r["version"]
         pill = ("بيتا، لم يصدر بعد" if ar else "Beta, not tagged yet") if unreleased else ("مستقر" if ar else "Stable")
         cls = "pill pill-hot" if unreleased else "pill"
-        items = "".join(f"<li>{html.escape((arx or en) if ar else en)}</li>" for en, arx in r["items"][:6])
+        items = "".join(f"<li>{bidi(html.escape((arx or en) if ar else en), lang)}</li>" for en, arx in r["items"][:6])
         more = len(r["items"]) - 6
         more_html = ""
         if more > 0:
@@ -1111,7 +1222,7 @@ def releases_page(lang):
     p = lang_pack(lang)
     title = "الإصدارات" if ar else "Releases"
     desc = "كل إصدارات صبار هايف وما تغيّر فيها." if ar else "Every SbarHive release and what changed."
-    latest = (f'<div class="latest"><span class="pill pill-hot">{VERSION}</span>'
+    latest = (f'<div class="latest"><span class="pill pill-hot"><bdi>{VERSION}</bdi></span>'
               f'<div class="actions">{dl_buttons(lang, "win")}{dl_buttons(lang, "linux")}</div>'
               f'<p class="fine"><a href="{page_href(lang, page, lang, "download")}#verify">{"تحقق من الملف" if ar else "Verify the file"}</a> · '
               f'<a href="{page_href(lang, page, lang, "windows")}">{"ويندوز غير موقّع" if ar else "Windows is unsigned"}</a> · '
@@ -1122,9 +1233,14 @@ def releases_page(lang):
             + sec(inner, cls="s-releases", edge=False, side="end") + footer(lang, page, root))
 
 
+def newest_date():
+    """The newest dated release in CHANGELOG.md. Pages never carry the build time."""
+    return max([r["date"] for r in parse_changelog() if r["date"]] or ["1970-01-01"])
+
+
 def feed_xml(lang):
     ar = lang == "ar"
-    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    now = newest_date() + "T00:00:00Z"
     entries = []
     for r in parse_changelog():
         ver = VERSION if r["version"] == "Unreleased" else r["version"]
@@ -1142,7 +1258,7 @@ ALL_PAGES = (["index", "download", "windows", "privacy", "releases", "docs/index
 
 
 def sitemap():
-    today = datetime.date.today().isoformat()
+    today = newest_date()
     urls = []
     for page in ALL_PAGES:
         for lang in ("ar", "en"):
@@ -1211,10 +1327,23 @@ def build_extras():
     (HERE / "diagrams").mkdir(exist_ok=True)
     for f in (ROOT / "docs" / "diagrams").glob("*.svg"):
         shutil.copy(f, HERE / "diagrams" / f.name)
+    (HERE / "assets").mkdir(exist_ok=True)
+    for f in (ROOT / "docs" / "assets").glob("support-sbarah-*.svg"):
+        shutil.copy(f, HERE / "assets" / f.name)
     print("wrote docs, releases, feeds, sitemap, robots, llms files")
 
 
+def check_release_tag():
+    """With RELEASE_PUBLISHED=1 the asset links are real only if the tag exists."""
+    out = subprocess.run(["git", "tag", "-l", TAG], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    if not out:
+        print(f"RELEASE_PUBLISHED=1 but the tag {TAG} does not exist: create and push it first", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
+    if PUBLISHED:
+        check_release_tag()
     for lang in ("ar", "en"):
         for page in PAGES:
             parts = (["en"] if lang == "en" else []) + ([] if page == "index" else [page])

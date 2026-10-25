@@ -1,12 +1,12 @@
 # Releases
 
 ## 0.4.0-beta.1
+- Website polish (S-061)
 - CI is green again on Linux and Windows, with `scripts/ci-status.sh` and a rule to read it 
 - Architecture diagrams (S-057)
 - Website on a Cloudflare Worker with static assets
 - Docs and releases on the website (S-057)
 - Public website (S-056)
-- First public beta (S-055)
 
 ## 0.3.3 (2026-10-23)
 - Drop shortcut through the global shortcuts portal (S-014e)
