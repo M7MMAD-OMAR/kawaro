@@ -1,0 +1,32 @@
+/* Closing (S-064): open source and support side by side. The open tile is ink;
+   the support tile keeps the Sbarah theme, so only --sbarah-* tokens there. */
+.s-closing { background: var(--color-surface-0); }
+.closing { display: grid; gap: var(--space-4); }
+.closing > * {
+  --cut: var(--space-7);
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: var(--space-4);
+  padding: var(--space-7) var(--space-6);
+}
+.closing p { margin: 0; max-width: 34ch; font-size: var(--fs-lead); }
+.closing-open {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
+}
+[dir="rtl"] .closing-open { clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); }
+.closing-open h2 { font-size: var(--fs-h2); max-width: 12ch; }
+.closing-open :focus-visible { outline-color: var(--color-accent); }
+.closing-open { --btn-edge: var(--color-accent); --btn-hover-fill: var(--color-paper); --btn-hover-ink: var(--color-ink); }
+.closing-support { background: var(--sbarah-bg); color: var(--sbarah-text); clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%); }
+[dir="rtl"] .closing-support { clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); }
+.closing-support h3 { font-size: var(--fs-h2); font-weight: var(--font-weight-bold); }
+.closing-support :focus-visible { outline-color: var(--sbarah-accent); }
+.closing-support .support-badge { display: block; width: fit-content; max-width: 100%; margin-block-start: var(--space-3); }
+.support-badge img { display: block; width: calc(var(--space-10) * 3.6); max-width: 100%; height: auto; }
+@media (min-width: 960px) {
+  .closing { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+  .closing > * { padding: var(--space-8) var(--space-7); }
+}

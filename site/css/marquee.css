@@ -1,0 +1,48 @@
+/* The conversion band (S-064): two tilted ribbons that cross, one ink and one
+   amber, each drifting the other way at a steady speed. Decoration only (the
+   markup is aria-hidden); with reduced motion the ribbons stand still. */
+.mq {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: var(--space-9);
+  overflow: clip;
+  background: var(--color-surface-0);
+}
+.mq-row { grid-area: 1 / 1; min-width: 0; overflow: clip; rotate: -4deg; margin-inline: calc(var(--space-6) * -1); }
+.mq-row-1 { background: var(--color-ink); color: var(--color-accent); z-index: 1; }
+.mq-row-2 { background: var(--color-accent); color: var(--color-accent-ink); rotate: 4deg; }
+.mq-track {
+  display: flex;
+  width: max-content;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.mq-track li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-6);
+  font-size: var(--fs-h3);
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.mq-track li::after {
+  content: "";
+  width: var(--space-4);
+  height: calc(var(--space-4) * 1.1547);
+  margin-inline-start: var(--space-6);
+  background: currentColor;
+  clip-path: var(--hexagon);
+}
+.mq-arrow { width: var(--space-6); height: var(--space-6); fill: currentColor; scale: var(--dir) 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .mq-track { animation: mq-drift var(--duration-marquee) var(--ease-steady) infinite; }
+  .mq-row-2 .mq-track { animation-direction: reverse; }
+}
+@keyframes mq-drift {
+  100% { translate: calc(-50% * var(--dir)) 0; }
+}

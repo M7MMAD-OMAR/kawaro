@@ -322,7 +322,8 @@ def abs_url(lang, page):
 COMPONENT_STEMS = ("hex-button", "section-head", "hex-plate", "step-cell", "format-cell", "download-slab")
 CSS_BASE = (["style.css", "css/header.css"] + [f"css/components/{s}.css" for s in COMPONENT_STEMS]
             + ["css/pages.css"])
-CSS_HOME = ["css/art.css", "css/hero.css", "css/scene.css", "css/sim.css"]
+CSS_HOME = ["css/hero.css", "css/demo.css", "css/marquee.css", "css/bento.css", "css/sim.css",
+            "css/formats.css", "css/closing.css"]
 CSS_DOCS = ["css/docs.css"]
 
 
@@ -429,23 +430,6 @@ def format_cell(title, codes):
     return f'<li class="format-cell"><h3>{title}</h3><p class="format-cell-codes">{codes}</p></li>'
 
 
-ART = {
-    "privacy": (1024, 768, "وثيقة داخل سياج من الخلايا السداسية وفي وسطها ثقب مفتاح، لا شيء يعبر الحدود", "A document sealed inside a fence of small hexagons with a keyhole, nothing crosses the border"),
-    "formats": (1024, 384, "شكل صفحة يتحول خطوة بعد خطوة إلى خلية سداسية", "A page shape that turns step by step into a hexagon cell"),
-}
-
-
-def art(lang, name, lazy=True):
-    """Generated flat art (AC9): WebP in assets/, with width and height and a language matched alt.
-    Below the fold images are small (under 12 KB) and load eagerly: the S-061 zero request after load test
-    forbids a lazy fetch that fires while the demo scrolls."""
-    w, h, alt_ar, alt_en = ART[name]
-    alt = alt_ar if lang == "ar" else alt_en
-    load = 'decoding="async"' if lazy else 'fetchpriority="high"'
-    return (f'<img class="art art-{name}" src="{rel_root(lang, "index")}assets/art-{name}.webp" '
-            f'width="{w}" height="{h}" alt="{alt}" {load}>')
-
-
 def support_a(cls, inner, extra=""):
     """The one support link shape: exact URL, new tab, no opener."""
     return (f'<a class="{cls}" href="{SUPPORT}" target="_blank" rel="noopener noreferrer"{extra}>'
@@ -461,11 +445,15 @@ def header(lang, page, root):
     p = lang_pack(lang)
     other = "en" if lang == "ar" else "ar"
     links = []
-    for key in ("docs", "download", "releases"):
+    for key in ("docs", "releases", "privacy"):
         cur = ' aria-current="page"' if (key == page or page.startswith(key + "/")) else ""
         links.append(f'<a class="nav-link" href="{page_href(lang, page, lang, key)}"{cur}>{p["nav"][key]}</a>')
     sw = (f'<a class="nav-link lang-switch" href="{page_href(lang, page, other, page)}" '
           f'hreflang="{other}" lang="{other}">{p["other_lang"]}</a>')
+    cur = ' aria-current="page"' if page == "download" else ""
+    sup = support_link(lang, "nav-link nav-support")
+    cta = hex_button(page_href(lang, page, lang, "download"), "تنزيل" if lang == "ar" else "Download", "primary", "sm",
+                     cur, extra="nav-cta")
     return f'''<header class="site-header">
   <div class="wrap">
     <a class="brand" href="{page_href(lang, page, lang, "index")}">
@@ -474,8 +462,9 @@ def header(lang, page, root):
     </a>
     <nav class="site-nav" aria-label="{p["nav_label"]}">
       {"".join(links)}
-      {support_link(lang)}
+      {sup}
       {sw}
+      {cta}
     </nav>
   </div>
 </header>
@@ -498,13 +487,16 @@ def footer(lang, page, root):
                f'{p["other_lang"]}</a>')
     scripts = f'<script src="{root}app.js" defer></script>'
     if page == "index":
-        scripts += f'\n<script src="{root}js/scene.js" defer></script>\n<script src="{root}js/sim.js" defer></script>'
+        scripts += f'\n<script src="{root}js/sim.js" defer></script>'
     return f'''</main>
 <footer class="site-footer">
   <div class="wrap">
-    <p>{p["footer_license"]} <span class="muted">{p["footer_beta"]}</span></p>
-    <ul class="footer-product" role="list">{items}</ul>
-    <ul class="footer-lang" role="list"><li>{lang_sw}</li></ul>
+    <div class="footer-row">
+      <p>{p["footer_license"]} <span class="muted">{p["footer_beta"]}</span></p>
+      <ul class="footer-product" role="list">{items}</ul>
+      <ul class="footer-lang" role="list"><li>{lang_sw}</li></ul>
+    </div>
+    <p class="footer-mark" aria-hidden="true">{p["name"]}</p>
   </div>
 </footer>
 <script id="hive-config" type="application/json">{json.dumps(hive_config(lang), ensure_ascii=False)}</script>
@@ -562,7 +554,7 @@ def dl_buttons(lang, which):
     word = "تنزيل" if ar else "Download"
     if which == "win":
         return (dl_link(lang, "msi", bidi(f"{word} MSI", lang), "primary", "lg")
-                + dl_link(lang, "zip", bidi("ZIP محمول" if ar else "Portable ZIP", lang)))
+                + dl_link(lang, "zip", bidi("ZIP بلا تثبيت" if ar else "Portable ZIP", lang)))
     return (dl_link(lang, "deb", bidi(f"{word} DEB", lang), "primary", "lg")
             + dl_link(lang, "rpm", bidi(f"{word} RPM", lang), "primary", "lg"))
 
@@ -587,134 +579,176 @@ def pills(lang, verify_href, win_href):
     ar = lang == "ar"
     return (f'<ul class="facts" role="list">'
             f'<li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li>'
-            f'<li><a href="{win_href}">{"ويندوز غير موقّع" if ar else "Windows is unsigned"}</a></li>'
+            f'<li><a href="{win_href}">{"نسخة ويندوز غير موقّعة" if ar else "Windows is unsigned"}</a></li>'
             f'<li><a href="{verify_href}">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
             f'</ul>')
 
 
-HERO_ALT = {
-    "ar": "خلية ملف PNG تتحول إلى خلية WebP، وبجوارهما خلايا الصيغ الأخرى",
-    "en": "A PNG file cell turns into a WebP cell, with cells for the other formats beside it",
-}
-
-
-def hero_art(lang):
-    """The hero picture, drawn here: a honeycomb in which a PNG cell (ink) turns into a WebP cell
-    (amber) across one bold chevron, beside the other formats it could become. Sharp polygons only."""
-    rtl = lang == "ar"
-    r = 70.0
-    dx, dy = SQRT3 * r, 1.5 * r
-    w, h = 4 * dx + 16, 2 * dy + 2 * r + 16
-    rows = [  # (row, column, offset in half cells, code, kind)
-        (0, 0, 1, "", "ghost"), (0, 1, 1, "AVIF", ""), (0, 2, 1, "GIF", ""),
-        (1, 0, 0, "PNG", "src"), (1, 1, 0, "WEBP", "dst"), (1, 2, 0, "JPG", ""), (1, 3, 0, "", "ghost"),
-        (2, 0, 1, "PDF", ""), (2, 1, 1, "", "ghost"), (2, 2, 1, "", "ghost"),
-    ]
-
-    def xy(row, col, half):
-        x = dx * (col + half / 2) + dx / 2 + 8
-        return (w - x if rtl else x), dy * row + r + 8
-
-    cells = []
-    for i, (row, col, half, code, kind) in enumerate(rows):
-        cx, cy = xy(row, col, half)
-        cls = "ha-cell" + (f" ha-{kind}" if kind else "")
-        label = f'<text x="{cx:.1f}" y="{cy:.1f}">{code}</text>' if code else ""
-        cells.append(f'<g class="{cls}" style="--i:{i}"><path d="{hex_path(cx, cy, r - 4)}"/>{label}</g>')
-    ax, ay = xy(1, 0, 0)
-    bx, by = xy(1, 1, 0)
-    mx, my = (ax + bx) / 2, (ay + by) / 2
-    d = -1 if rtl else 1
-    pts = [(-8, -24), (3, -24), (17, 0), (3, 24), (-8, 24), (4, 0)]
-    chev = "M" + "L".join(f"{mx + d * x:.1f},{my + y:.1f}" for x, y in pts) + "Z"
-    return (f'<svg class="hero-art" viewBox="0 0 {w:.0f} {h:.0f}" role="img" aria-label="{HERO_ALT[lang]}" focusable="false">'
-            + "".join(cells) + f'<g class="ha-go" style="--i:10"><path d="{chev}"/></g></svg>')
-
-
 # ---------------------------------------------------------------------------
-# Home
+# Home (S-064). One idea per section, in this order: hero with a live demo,
+# a band of conversions, four facts in a bento grid, the try-it demo, the
+# formats from actions/*.toml, the download, then open source and support.
+# The words are short on purpose; the drawings and the motion carry the rest.
 # ---------------------------------------------------------------------------
 
 T_HOME = {
     "ar": {
-        "h1": "حوّل أي ملف بنقرة <span class=\"hl\">يمين</span>",
-        "sub": "حدّد الملف. اختر خلية. الناتج بجانب الأصل.",
-        "dl": "تنزيل",
-        "all": "كل التنزيلات",
-        "win_link": "ويندوز (غير موقّع)",
-        "note": "بيتا للينكس و{win}",
-        "note_soon": "البيتا قريبا للينكس و{win}",
-        "scene_h2": "شاهدها تعمل",
-        "scene_steps": ["هذا مجلدك، وفيه ملفاتك", "حدّد الملف الذي تريده", "تنفتح الخلية حلقة بعد حلقة",
-                        "اختر الخلية المناسبة", "الناتج بجانب الأصل، والأصل لم يتغير"],
-        "scene_folder": "الصور",
-        "scene_kept": "الأصل",
-        "scene_new": "جديد",
-        "try": "جرّبها بنفسك",
-        "how": "ثلاث خطوات",
-        "steps": ["حدّد", "اختر", "خذ الناتج"],
-        "step_text": ["حدّد ملفا أو أكثر في مدير الملفات.",
-                      "انقر بزر الفأرة الأيمن، فتعرض الخلية ما يناسب الملف فقط.",
-                      "يظهر الملف الجديد بجانب الأصل."],
-        "privacy": "ملفاتك تبقى عندك",
-        "ticks": ["بلا رفع", "بلا تتبع", "الأصل لا يتغير"],
-        "formats": "صور وفيديو وصوت ومستندات",
-        "tiles": ["صور", "فيديو", "صوت", "مستندات", "PDF"],
+        "eyebrow": "النسخة التجريبية <bdi dir=\"ltr\">" + VERSION + "</bdi>",
+        "eyebrow_soon": "قريبا: النسخة التجريبية <bdi dir=\"ltr\">" + VERSION + "</bdi>",
+        "h1a": "حوّل أي ملف",
+        "h1b": "بالزر <span class=\"hl\">الأيمن</span>",
+        "sub": "حدّد ملفا في مدير الملفات وانقر بزر الفأرة الأيمن. تظهر الخلية وفيها الإجراءات التي تناسبه فقط، ويُحفظ الناتج في ملف جديد بجانب الأصل.",
+        "dl": "تنزيل مجاني",
+        "try": "جرّب الخلية هنا",
+        "win_link": "ويندوز",
+        "note": "للينكس و{win}، ونسخة ويندوز غير موقّعة.",
+        "note_soon": "للينكس و{win}، ونسخة ويندوز غير موقّعة.",
+        "chips": ["بلا رفع", "بلا حساب", "مفتوح المصدر"],
+        "demo_label": "عرض متحرك: تحدّد صورة في مجلد، وتفتح الخلية وتختار WEBP، فيظهر ملف جديد بجانب الأصل",
+        "demo_folder": "الصور",
+        "demo_centre": "صورة",
+        "demo_new": "جديد",
+        "demo_steps": ["حدّد الملف", "اختر الإجراء من الخلية", "الناتج بجانب الأصل"],
+        "bento_h2": "تحوّل الخلية ملفك، ثم تختفي",
+        "privacy_k": "الخصوصية",
+        "privacy_h": "ملفاتك لا تغادر جهازك",
+        "privacy_p": "كل تحويل يجري في جهازك: لا رفع، ولا حساب، ولا تتبع.",
+        "privacy_a": "صفحة الخصوصية",
+        "orig_h": "الأصل لا يتغير",
+        "orig_p": "يُحفظ الناتج في ملف جديد بجانبه، ويبقى ملفك كما هو.",
+        "orig_kept": "الأصل",
+        "fit_h": "لا ترى إلا ما يناسب ملفك",
+        "fit_p": "إن حدّدت صورة رأيت صيغ الصور، وإن حدّدت ملفي PDF رأيت الدمج والتقسيم.",
+        "lang_h": "واجهة عربية كاملة",
+        "lang_p": "تعمل بالعربية والإنجليزية، والعربية فيها من اليمين إلى اليسار.",
+        "formats_h2": "{n} إجراء في خلية واحدة",
+        "formats_p": "لا يظهر الإجراء في الخلية إن لم تكن أداته مثبتة في جهازك.",
+        "formats_all": "كل الصيغ والإجراءات",
+        "families": {"images": "صور", "video": "فيديو", "audio": "صوت", "documents": "مستندات", "pdf": "PDF"},
         "get": "نزّل صبار هايف",
-        "open": "مجاني ومفتوح",
-        "open_p": "مفتوح المصدر برخصة GPLv3. اقرأه وعدّله وشاركه.",
+        "get_p": "مجاني وبلا حساب، ويحوّل ملفاتك دون اتصال بالإنترنت.",
+        "open": "مجاني ومفتوح المصدر",
+        "open_p": "برخصة <bdi dir=\"ltr\">GPLv3</bdi>: اقرأ الشيفرة، وعدّلها، وشاركها.",
         "gh": "الشيفرة على GitHub",
-        "support_h2": "ادعم العمل",
+        "support_h": "ادعم صبارة",
         "support_p": "صبار هايف مجاني. إن وفّر عليك وقتا فيمكنك دعم صبارة.",
     },
     "en": {
-        "h1": "Convert any file with a <span class=\"hl\">right</span> click",
-        "sub": "Select the file. Pick a cell. The result lands next to the original.",
-        "dl": "Download",
-        "all": "All downloads",
-        "win_link": "Windows (unsigned)",
-        "note": "Beta for Linux and {win}",
-        "note_soon": "Beta coming soon for Linux and {win}",
-        "scene_h2": "Watch it work",
-        "scene_steps": ["This is your folder, full of files", "Select the file you want", "The hive opens, ring by ring",
-                        "Pick the cell that fits", "The result lands next to the untouched original"],
-        "scene_folder": "Pictures",
-        "scene_kept": "Original",
-        "scene_new": "New",
-        "try": "Try it yourself",
-        "how": "Three steps",
-        "steps": ["Select", "Pick", "Take it"],
-        "step_text": ["Select one file or many in your file manager.",
-                      "Right click. The hive shows only what fits the file.",
-                      "The new file lands next to the original."],
-        "privacy": "Your files stay with you",
-        "ticks": ["No uploads", "No tracking", "Original untouched"],
-        "formats": "Images, video, audio, documents",
-        "tiles": ["Images", "Video", "Audio", "Documents", "PDF"],
+        "eyebrow": "Beta " + VERSION,
+        "eyebrow_soon": "Coming soon: beta " + VERSION,
+        "h1a": "Convert any file",
+        "h1b": "with a <span class=\"hl\">right</span> click",
+        "sub": "Select a file in your file manager and right click. A hive opens with only what fits it, and the result is saved next to the original.",
+        "dl": "Free download",
+        "try": "Try the hive here",
+        "win_link": "Windows",
+        "note": "For Linux and {win}; the Windows build is unsigned.",
+        "note_soon": "For Linux and {win}; the Windows build is unsigned.",
+        "chips": ["No uploads", "No account", "Open source"],
+        "demo_label": "Animation: a picture is selected in a folder, the hive opens, WEBP is picked, and a new file appears next to the original",
+        "demo_folder": "Pictures",
+        "demo_centre": "Image",
+        "demo_new": "New",
+        "demo_steps": ["Select the file", "Pick an action in the hive", "The result lands beside it"],
+        "bento_h2": "The hive converts your file, then gets out of the way",
+        "privacy_k": "Privacy",
+        "privacy_h": "Your files never leave your machine",
+        "privacy_p": "Every conversion runs on your machine: no uploads, no account, no tracking.",
+        "privacy_a": "Read the privacy page",
+        "orig_h": "The original stays as it is",
+        "orig_p": "The result goes to a new file beside it. Your file is never modified.",
+        "orig_kept": "Original",
+        "fit_h": "You only see what fits your file",
+        "fit_p": "Select an image and you see image formats; select two PDFs and you see merge and split.",
+        "lang_h": "A full Arabic interface",
+        "lang_p": "It works in Arabic and English, with Arabic right to left.",
+        "formats_h2": "{n} actions in one hive",
+        "formats_p": "An action only shows in the hive when its tool is installed on your machine.",
+        "formats_all": "All formats and actions",
+        "families": {"images": "Images", "video": "Video", "audio": "Audio", "documents": "Documents", "pdf": "PDF"},
         "get": "Get SbarHive",
-        "open": "Free and open",
-        "open_p": "Open source under GPLv3. Read it, change it, share it.",
+        "get_p": "Free, no account, and it converts your files offline.",
+        "open": "Free and open source",
+        "open_p": "Under the GPLv3: read the code, change it, share it.",
         "gh": "Source on GitHub",
-        "support_h2": "Support the work",
+        "support_h": "Support Sbarah",
         "support_p": "SbarHive is free. If it saves you time, you can support Sbarah.",
     },
 }
 
+# The hero demo: a folder window, a cursor, the hive and the result. Every
+# position is in container units (cqw) of the window, so the picture scales as
+# one piece; x is mirrored for right to left in CSS through --dir.
+DEMO_FILES = [("PNG", "photo.png", "pick"), ("", "", "slot"), ("MOV", "clip.mov", ""),
+              ("WAV", "song.wav", ""), ("DOCX", "report.docx", ""), ("PDF", "notes.pdf", "")]
+DEMO_RING = ["WEBP", "JPG", "AVIF", "PDF", "GIF", "ICO"]
+# Ring one around the centre, pointy-top cells: (x, y) in cqw from the hive centre.
+DEMO_STEP_X, DEMO_STEP_Y = 17.0, 14.7
+DEMO_SLOTS = [(DEMO_STEP_X, 0), (DEMO_STEP_X / 2, -DEMO_STEP_Y), (-DEMO_STEP_X / 2, -DEMO_STEP_Y),
+              (-DEMO_STEP_X, 0), (-DEMO_STEP_X / 2, DEMO_STEP_Y), (DEMO_STEP_X / 2, DEMO_STEP_Y)]
+
+CURSOR = ('<svg class="demo-cursor-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+          '<path d="M3 2L20 12L12.5 13.5L16.5 21L13.5 22.5L9.5 15L3 20Z"/></svg>')
+
+
+def hero_demo(lang):
+    """The hero picture: a looping, CSS only story of one conversion (S-064 AC3).
+    Without motion it shows the end of the story: the result beside the original."""
+    t = T_HOME[lang]
+    tiles = []
+    for code_, name, role in DEMO_FILES:
+        if role == "slot":
+            tiles.append(f'<li class="demo-file demo-slot"><span class="demo-result"><span class="demo-ext">WEBP</span>'
+                         f'<span class="demo-name">photo.webp</span><span class="demo-tag">{t["demo_new"]}</span></span></li>')
+            continue
+        cls = "demo-file" + (" demo-pick" if role == "pick" else "")
+        tiles.append(f'<li class="{cls}"><span class="demo-ext">{code_}</span><span class="demo-name">{name}</span></li>')
+    cells = [f'<span class="demo-cell demo-centre" style="--x:0;--y:0;--i:0">{t["demo_centre"]}</span>']
+    for i, (code_, (x, y)) in enumerate(zip(DEMO_RING, DEMO_SLOTS), 1):
+        hot = " demo-hot" if i == 1 else ""
+        cells.append(f'<span class="demo-cell{hot}" style="--x:{x:g};--y:{y:g};--i:{i}">{code_}</span>')
+    steps = "".join(f'<li class="demo-step" style="--s:{i}"><b>{i}</b>{s}</li>' for i, s in enumerate(t["demo_steps"], 1))
+    return f'''<figure class="demo" role="img" aria-label="{html.escape(t["demo_label"])}">
+  <div class="demo-window" aria-hidden="true">
+    <div class="demo-bar"><i></i><i></i><i></i><span>{t["demo_folder"]}</span></div>
+    <ul class="demo-files" role="list">{"".join(tiles)}</ul>
+    <div class="demo-hive">{"".join(cells)}</div>
+    <div class="demo-pointer"><span class="demo-cursor">{CURSOR}</span></div>
+  </div>
+  <ol class="demo-steps" aria-hidden="true">{steps}</ol>
+</figure>'''
+
+
+MARQUEE = [("PNG", "WEBP"), ("MOV", "MP4"), ("WAV", "MP3"), ("DOCX", "PDF"), ("JPG", "AVIF"),
+           ("MP4", "GIF"), ("FLAC", "OGG"), ("ODT", "DOCX"), ("PNG", "PDF"), ("MKV", "WEBM")]
+ARROW = ('<svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+         '<path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg>')
+
+
+def marquee(lang):
+    """A band of conversions that drifts across the page, twice for a seamless loop.
+    Decoration only: the formats section below says the same thing in words."""
+    rows = []
+    for row, pairs in enumerate((MARQUEE, MARQUEE[5:] + MARQUEE[:5])):
+        one = "".join(f'<li><span>{a}</span>{ARROW}<span>{b}</span></li>' for a, b in pairs)
+        rows.append(f'<div class="mq-row mq-row-{row + 1}"><ul class="mq-track" role="list">{one}{one}</ul></div>')
+    return f'<div class="mq" aria-hidden="true">{"".join(rows)}</div>\n'
+
 T_SIM = {
     "ar": {
-        "h2": "جرّبها هنا",
-        "intro": "اسحب ملفا إلى المجلد، أو اختر ملفا واضغط Enter. لا يُرفع شيء: هذا عرض توضيحي فقط.",
+        "h2": "جرّب الخلية هنا",
+        "intro": "اسحب ملفا إلى المجلد، أو حدّد ملفا واضغط Enter. لا يُرفع شيء: هذا عرض توضيحي فقط.",
         "samples": "ملفات تجريبية",
         "zone": "المجلد. أفلت ملفا تجريبيا هنا.",
         "folder": "ملفات المجلد",
         "hint": "أفلت ملفا هنا",
         "idle": "تظهر الخلية هنا",
-        "nojs": "صورة ثابتة للخلية، فعّل JavaScript لتجربتها.",
+        "nojs": "صورة ثابتة للخلية. فعّل JavaScript لتجربتها.",
         "sample": "{name}، {kind}. اضغط Enter لفتح الخلية.",
         "hive": "الخلية: إجراءات تناسب الملف",
     },
     "en": {
-        "h2": "Try it here",
+        "h2": "Try the hive here",
         "intro": "Drag a file onto the folder, or pick one and press Enter. Nothing is uploaded: this is only a demo.",
         "samples": "Sample files",
         "zone": "Folder. Drop a sample file here.",
@@ -737,7 +771,8 @@ def sim_section(lang):
     items = []
     for k in kinds(lang):
         names = ", ".join(k["files"])
-        label = html.escape(t["sample"].format(name=names, kind=k["label"]))
+        said = (" و" if lang == "ar" else " and ").join(k["files"])
+        label = html.escape(t["sample"].format(name=said, kind=k["label"]))
         items.append(f'<li><button type="button" class="sim-file" draggable="true" data-kind="{k["key"]}" '
                      f'data-name="{names}" aria-label="{label}">{DOC_ICO}<span class="name">{names}</span></button></li>')
     pic = (f'<svg class="sim-pic" viewBox="0 0 160 140" aria-hidden="true" focusable="false">'
@@ -763,72 +798,112 @@ def sim_section(lang):
     return sec(inner, cls="s-sim", ident="sim", labelledby="sim-title")
 
 
-def support_section(lang):
-    """The owner's badge in the Sbarah theme: the only link in the section."""
+def bento_tile(cls, inner, tag="li"):
+    """One tile of the facts grid: a slab with one cut corner, its own surface tone."""
+    return f'<{tag} class="bento-tile {cls}">{inner}</{tag}>'
+
+
+LOCK = ('<svg class="bento-lock" viewBox="0 0 120 138" aria-hidden="true" focusable="false">'
+        '<path class="bl-hex" d="M60 3L117 36V102L60 135L3 102V36Z"/>'
+        '<path class="bl-body" d="M36 62H84V104H36Z"/><path class="bl-loop" d="M44 62V48A16 16 0 0 1 76 48V62H69V48A9 9 0 0 0 51 48V62Z"/>'
+        '<path class="bl-key" d="M56 76H64V92H56Z"/></svg>')
+
+
+def bento_section(lang):
+    t = T_HOME[lang]
+    priv = page_href(lang, "index", lang, "privacy")
+    fit_cells = "".join(f'<i style="--q:{q};--r:{r}"{" class=on" if i in (0, 1, 4) else ""}></i>'
+                        for i, (q, r) in enumerate(spiral(1)))
+    tiles = [
+        bento_tile("bento-privacy", f'''{LOCK}
+<p class="bento-kicker">{t["privacy_k"]}</p>
+<h3>{t["privacy_h"]}</h3>
+<p>{t["privacy_p"]}</p>
+<a class="bento-link" href="{priv}">{t["privacy_a"]}</a>'''),
+        bento_tile("bento-orig", f'''<div class="bento-files" aria-hidden="true">
+<span class="bf bf-old"><b>PNG</b><small>{t["orig_kept"]}</small></span>
+<span class="bf bf-new"><b>WEBP</b><small>{t["demo_new"]}</small></span></div>
+<h3>{t["orig_h"]}</h3><p>{t["orig_p"]}</p>'''),
+        bento_tile("bento-fit", f'<div class="bento-hive" aria-hidden="true">{fit_cells}</div>'
+                                f'<h3>{t["fit_h"]}</h3><p>{bidi(t["fit_p"], lang)}</p>'),
+        bento_tile("bento-lang", f'<div class="bento-glyphs" aria-hidden="true"><span lang="ar">ع</span>'
+                                 f'<span lang="en">A</span></div><h3>{t["lang_h"]}</h3><p>{t["lang_p"]}</p>'),
+    ]
+    inner = f'''{section_head("bento-title", t["bento_h2"])}
+<ul class="bento" role="list">{"".join(tiles)}</ul>'''
+    return sec(inner, cls="s-bento", ident="why", labelledby="bento-title")
+
+
+def families(lang):
+    """Action families from actions/*.toml: (key, name, codes in ring order)."""
+    ar = lang == "ar"
+    acts = {}
+    for f in sorted((ROOT / "actions").glob("*.toml")):
+        for a in tomllib.loads(f.read_text(encoding="utf-8"))["action"]:
+            acts.setdefault(a["accepts"][0], []).append(a)
+    out = []
+    for key, kind, _, _ in GROUPS:
+        group = sorted(acts.get(kind, []), key=lambda a: (a.get("ring", 1), a.get("order", 0)))
+        codes = []
+        for a in group:
+            c = a["code"]["ar" if ar else "en"]
+            if c not in codes:
+                codes.append(c)
+        out.append((key, len(group), codes))
+    return out
+
+
+def count_label(lang, n):
+    """Action count with the Arabic number agreement: 3 to 10 take the plural."""
+    if lang != "ar":
+        return f"{n} action" + ("" if n == 1 else "s")
+    return f"{n} " + ("إجراءات" if 3 <= n <= 10 else "إجراء")
+
+
+def formats_section(lang):
+    t = T_HOME[lang]
+    fams = families(lang)
+    total = sum(n for _, n, _ in fams)
+    rows = []
+    for i, (key, n, codes) in enumerate(fams):
+        chips = "".join(f'<li><bdi>{html.escape(c)}</bdi></li>' for c in codes)
+        rows.append(f'''<li class="fam" style="--i:{i}">
+<h3 class="fam-name">{t["families"][key]}<sup aria-label="{count_label(lang, n)}"><bdi>{n}</bdi></sup></h3>
+<ul class="fam-codes" role="list" aria-label="{count_label(lang, n)}">{chips}</ul></li>''')
+    href = page_href(lang, "index", lang, "docs/formats")
+    inner = f'''{section_head("formats-title", t["formats_h2"].format(n=f'<bdi>{total}</bdi>'), t["formats_p"])}
+<ol class="fams" role="list">{"".join(rows)}</ol>
+<div class="actions">{hex_button(href, t["formats_all"], "plain", "md")}</div>'''
+    return sec(inner, cls="s-formats", ident="formats", labelledby="formats-title")
+
+
+def get_section(lang):
+    t = T_HOME[lang]
+    dl_href = page_href(lang, "index", lang, "download")
+    win_href = page_href(lang, "index", lang, "windows")
+    inner = f'''{section_head("get-title", t["get"], t["get_p"])}
+{dl_cards(lang)}
+{pills(lang, dl_href + "#verify", win_href)}'''
+    return sec(inner, cls="s-get", ident="download", labelledby="get-title")
+
+
+def closing_section(lang):
+    """Open source and support, side by side. The support tile keeps the Sbarah theme."""
     t, p, r = T_HOME[lang], lang_pack(lang), rel_root(lang, "index")
     pic = f'<img src="{r}assets/support-sbarah-light.svg" alt="{p["support"]}" width="520" height="140">'
-    inner = f'''
-{section_head("support-title", t["support_h2"], t["support_p"])}
+    inner = f'''<div class="closing">
+<div class="closing-open">
+<h2 id="open-title">{t["open"]}</h2>
+<p>{t["open_p"]}</p>
+<div class="actions">{hex_button(REPO, t["gh"], "primary", "lg")}</div>
+</div>
+<div class="closing-support" id="support">
+<h3>{t["support_h"]}</h3>
+<p>{t["support_p"]}</p>
 {support_a("support-badge", pic)}
-'''
-    return sec(inner, cls="s-support", ident="support", labelledby="support-title")
-
-
-def scene_cell(q, r, ring, label, picked=False):
-    pick = " data-pick" if picked else ""
-    on = f'<span class="scene-hit-label">{html.escape(label)}</span>' if picked else ""
-    return (f'<div class="scene-cell" data-ring="{ring}"{pick} style="--q:{q};--r:{r};--k:{ring}">'
-            f'<span class="scene-cell-hit">{on}</span><span class="scene-cell-label">{html.escape(label)}</span></div>')
-
-
-def scene_section(lang):
-    """AC6: one pinned scene. Scroll progress drives it (js/scene.js writes --p and data-state).
-    Ghost cells draw the empty hive from the first frame; the real cells fly in over them."""
-    t = T_HOME[lang]
-    image = kinds(lang)[0]
-    slots = spiral(2)
-    ghosts = "".join(f'<i class="scene-ghost" data-ring="{1 if 0 < i <= 6 else 2 if i else 0}" '
-                     f'style="--q:{q};--r:{r}"></i>' for i, (q, r) in enumerate(slots))
-    cells = [scene_cell(0, 0, 0, image["label"])]
-    for i, c in enumerate(image["cells"][:12], 1):
-        q, r = slots[i]
-        cells.append(scene_cell(q, r, 1 if i <= 6 else 2, c["c"], picked=(i == 1)))
-
-    def tile(cls, ext, name, tag, extra=""):
-        return (f'<li class="{cls}">{extra}<span class="scene-ext">{ext}</span>'
-                f'<span class="scene-name">{name}</span><span class="scene-tag">{tag}</span></li>')
-
-    files = "".join([
-        tile("scene-file scene-original", "PNG", "photo.png", t["scene_kept"], '<i class="scene-sel"></i><i class="scene-cursor"></i>'),
-        tile("scene-result", "WEBP", "photo.webp", t["scene_new"], '<i class="scene-halo"></i>'),
-        tile("scene-file", "MOV", "clip.mov", ""),
-        tile("scene-file scene-more", "DOCX", "report.docx", ""),
-    ])
-    steps = "".join(f'<li><span class="num" aria-hidden="true">{i}</span><span class="scene-step-text">{s}</span></li>'
-                    for i, s in enumerate(t["scene_steps"], 1))
-    pips = "".join(f'<i class="scene-pip"><s></s><b>{i}</b></i>' for i in range(1, 6))
-    inner = f'''<div class="scene-stage">
-  <div class="scene-top">
-    {section_head("scene-title", t["scene_h2"])}
-    <div class="scene-progress" aria-hidden="true">{pips}</div>
-  </div>
-  <div class="scene-visual" aria-hidden="true">
-    <div class="scene-folder">
-      <div class="scene-bar"><span class="scene-bar-name">{t["scene_folder"]}</span></div>
-      <ul class="scene-files" role="list">{files}</ul>
-    </div>
-    <div class="scene-hive">{ghosts}{"".join(cells)}</div>
-  </div>
-  <ol class="scene-steps">{steps}</ol>
+</div>
 </div>'''
-    return f'<section id="scene" class="scene" aria-labelledby="scene-title">\n{inner}\n</section>\n'
-
-
-def try_bridge(lang):
-    """The keyboard operable version of the demo: a control after the scene that jumps to #sim."""
-    t = T_HOME[lang]
-    btn = hex_button("#sim", t["try"], "primary", "lg", extra="try-it")
-    return f'<div class="try-bridge"><div class="wrap">{btn}</div></div>\n'
+    return sec(inner, cls="s-closing", ident="open", labelledby="open-title")
 
 
 def home(lang):
@@ -839,55 +914,25 @@ def home(lang):
     note = (t["note"] if PUBLISHED else t["note_soon"]).format(win=win_a)
     rel = ' data-rel="1"' if PUBLISHED else ""
     btn = hex_button(dl_href, t["dl"], "primary", "lg", f' data-os-default="linux"{rel}')
-    hero = f'''<section class="hero sec" aria-labelledby="hero-title">
+    chips = "".join(f"<li>{c}</li>" for c in t["chips"])
+    mini = "".join(f'<i style="--q:{q};--r:{r};--i:{i}"></i>' for i, (q, r) in enumerate(spiral(1)))
+    hero = f'''<section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
-<div class="hero-copy">
-<h1 id="hero-title">{t["h1"]}</h1>
+<p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>{t["eyebrow"] if PUBLISHED else t["eyebrow_soon"]}</p>
+<h1 id="hero-title"><span class="h1-line">{t["h1a"]}<span class="h1-hive" aria-hidden="true">{mini}</span></span>
+<span class="h1-line">{t["h1b"]}</span></h1>
+<div class="hero-side">
 <p class="lead">{t["sub"]}</p>
-<div class="actions">{btn}<a class="link-all" href="{dl_href}">{t["all"]}</a></div>
+<div class="actions">{btn}<a class="link-try" href="#sim">{t["try"]}</a></div>
+<ul class="hero-chips" role="list">{chips}</ul>
 <p class="hero-note">{note}</p>
 </div>
-<div class="stage">{hero_art(lang)}</div>
+<div class="hero-stage">{hero_demo(lang)}</div>
 </div>
 </section>
 '''
-    cells = "".join(step_cell(i, t["steps"][i - 1], t["step_text"][i - 1]) for i in (1, 2, 3))
-    how = sec(f'''
-{section_head("how-title", t["how"])}
-<ol class="step-row" role="list">{cells}</ol>
-''', cls="s-how alt", ident="how", labelledby="how-title")
-    plates = "".join(hex_plate(x, "li", "accent" if i == 0 else "") for i, x in enumerate(t["ticks"]))
-    privacy = sec(f'''
-{section_head("privacy-title", t["privacy"])}
-<div class="split">
-  <ul class="plate-list" role="list">{plates}</ul>
-  <div class="privacy-art">{art(lang, "privacy")}</div>
-</div>
-''', cls="s-privacy", ident="privacy", labelledby="privacy-title")
-    fam = [
-        (t["tiles"][0], "PNG JPG WEBP AVIF"),
-        (t["tiles"][1], "MP4 WEBM MKV GIF"),
-        (t["tiles"][2], "MP3 OGG FLAC WAV"),
-        (t["tiles"][3], "DOCX ODT XLSX"),
-        (t["tiles"][4], "MERGE SPLIT SHRINK"),
-    ]
-    formats = sec(f'''
-{section_head("formats-title", t["formats"])}
-{art(lang, "formats")}
-<ul class="format-grid" role="list">{"".join(format_cell(a, b) for a, b in fam)}</ul>
-''', cls="s-formats alt", ident="formats", labelledby="formats-title")
-    get = sec(f'''
-{section_head("get-title", t["get"])}
-{dl_cards(lang)}
-{pills(lang, dl_href + "#verify", win_href)}
-''', cls="s-get", ident="download", labelledby="get-title")
-    open_ = sec(f'''
-{section_head("open-title", t["open"], t["open_p"])}
-<div class="actions">{hex_button(REPO, t["gh"], "plain", "lg")}</div>
-''', cls="s-open", ident="open", labelledby="open-title")
-    return (hero + scene_section(lang) + try_bridge(lang) + sim_section(lang) + how + privacy + formats + get
-            + open_ + support_section(lang))
-
+    return (hero + marquee(lang) + bento_section(lang) + sim_section(lang) + formats_section(lang)
+            + get_section(lang) + closing_section(lang))
 
 
 # ---------------------------------------------------------------------------
@@ -911,7 +956,7 @@ def download(lang):
     win_href = page_href(lang, "download", lang, "windows")
     if ar:
         h = page_head("نزّل صبار هايف", f"أول إصدار بيتا <code>{VERSION}</code>" + ("" if PUBLISHED else "، قريبا"))
-        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">ويندوز غير موقّع</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
+        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
 <p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
@@ -1289,7 +1334,7 @@ def releases_page(lang):
               f'<div class="actions">{dl_buttons(lang, "win")}{dl_buttons(lang, "linux")}</div>'
               f'<ul class="fine fine-links" role="list">'
               f'<li><a href="{page_href(lang, page, lang, "download")}#verify">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
-              f'<li><a href="{page_href(lang, page, lang, "windows")}">{"ويندوز غير موقّع" if ar else "Windows is unsigned"}</a></li>'
+              f'<li><a href="{page_href(lang, page, lang, "windows")}">{"نسخة ويندوز غير موقّعة" if ar else "Windows is unsigned"}</a></li>'
               f'<li><a href="feed.xml">{"موجز الإصدارات" if ar else "Feed"}</a></li></ul></div>')
     inner = f'<h1>{title}</h1>{latest}<div class="releases" data-pagefind-body data-pagefind-meta="title:{title}">{release_blocks(lang)}</div>'
     ld = [breadcrumb_ld(lang, [(p["name"], "index"), (title, page)])]

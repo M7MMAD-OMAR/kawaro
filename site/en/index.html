@@ -36,10 +36,13 @@
 <link rel="stylesheet" href="../css/components/format-cell.css">
 <link rel="stylesheet" href="../css/components/download-slab.css">
 <link rel="stylesheet" href="../css/pages.css">
-<link rel="stylesheet" href="../css/art.css">
 <link rel="stylesheet" href="../css/hero.css">
-<link rel="stylesheet" href="../css/scene.css">
+<link rel="stylesheet" href="../css/demo.css">
+<link rel="stylesheet" href="../css/marquee.css">
+<link rel="stylesheet" href="../css/bento.css">
 <link rel="stylesheet" href="../css/sim.css">
+<link rel="stylesheet" href="../css/formats.css">
+<link rel="stylesheet" href="../css/closing.css">
 <script type="application/ld+json">
 {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "SbarHive", "alternateName": "صبار هايف", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux, Windows", "softwareVersion": "0.4.0-beta.1", "isAccessibleForFree": true, "license": "https://www.gnu.org/licenses/gpl-3.0.html", "url": "https://hive.sbarah.com/", "codeRepository": "https://github.com/M7MMAD-OMAR/sbarhive", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}
 </script>
@@ -55,52 +58,61 @@
       <span>SbarHive</span><span class="badge">beta</span>
     </a>
     <nav class="site-nav" aria-label="Main navigation">
-      <a class="nav-link" href="docs/">Docs</a><a class="nav-link" href="download/">Download</a><a class="nav-link" href="releases/">Releases</a>
-      <a class="hex-button button-support hex-button-sm" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer" aria-label="Support Sbarah"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21L4 12.5V7.5L8 4L12 7L16 4L20 7.5V12.5Z"/></svg><span>Support Sbarah</span></a>
+      <a class="nav-link" href="docs/">Docs</a><a class="nav-link" href="releases/">Releases</a><a class="nav-link" href="privacy/">Privacy</a>
+      <a class="nav-link nav-support" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer" aria-label="Support Sbarah"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21L4 12.5V7.5L8 4L12 7L16 4L20 7.5V12.5Z"/></svg><span>Support Sbarah</span></a>
       <a class="nav-link lang-switch" href="../" hreflang="ar" lang="ar">العربية</a>
+      <a class="hex-button button-primary hex-button-sm nav-cta" href="download/">Download</a>
     </nav>
   </div>
 </header>
 <main id="main">
-<section class="hero sec" aria-labelledby="hero-title">
+<section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
-<div class="hero-copy">
-<h1 id="hero-title">Convert any file with a <span class="hl">right</span> click</h1>
-<p class="lead">Select the file. Pick a cell. The result lands next to the original.</p>
-<div class="actions"><a class="hex-button button-primary hex-button-lg" href="download/" data-os-default="linux">Download</a><a class="link-all" href="download/">All downloads</a></div>
-<p class="hero-note">Beta coming soon for Linux and <a href="windows/">Windows (unsigned)</a></p>
+<p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>Coming soon: beta 0.4.0-beta.1</p>
+<h1 id="hero-title"><span class="h1-line">Convert any file<span class="h1-hive" aria-hidden="true"><i style="--q:0;--r:0;--i:0"></i><i style="--q:-1;--r:1;--i:1"></i><i style="--q:0;--r:1;--i:2"></i><i style="--q:1;--r:0;--i:3"></i><i style="--q:1;--r:-1;--i:4"></i><i style="--q:0;--r:-1;--i:5"></i><i style="--q:-1;--r:0;--i:6"></i></span></span>
+<span class="h1-line">with a <span class="hl">right</span> click</span></h1>
+<div class="hero-side">
+<p class="lead">Select a file in your file manager and right click. A hive opens with only what fits it, and the result is saved next to the original.</p>
+<div class="actions"><a class="hex-button button-primary hex-button-lg" href="download/" data-os-default="linux">Free download</a><a class="link-try" href="#sim">Try the hive here</a></div>
+<ul class="hero-chips" role="list"><li>No uploads</li><li>No account</li><li>Open source</li></ul>
+<p class="hero-note">For Linux and <a href="windows/">Windows</a>; the Windows build is unsigned.</p>
 </div>
-<div class="stage"><svg class="hero-art" viewBox="0 0 501 366" role="img" aria-label="A PNG file cell turns into a WebP cell, with cells for the other formats beside it" focusable="false"><g class="ha-cell ha-ghost" style="--i:0"><path d="M129.2,12.0L186.4,45.0L186.4,111.0L129.2,144.0L72.1,111.0L72.1,45.0Z"/></g><g class="ha-cell" style="--i:1"><path d="M250.5,12.0L307.6,45.0L307.6,111.0L250.5,144.0L193.3,111.0L193.3,45.0Z"/><text x="250.5" y="78.0">AVIF</text></g><g class="ha-cell" style="--i:2"><path d="M371.7,12.0L428.9,45.0L428.9,111.0L371.7,144.0L314.6,111.0L314.6,45.0Z"/><text x="371.7" y="78.0">GIF</text></g><g class="ha-cell ha-src" style="--i:3"><path d="M68.6,117.0L125.8,150.0L125.8,216.0L68.6,249.0L11.5,216.0L11.5,150.0Z"/><text x="68.6" y="183.0">PNG</text></g><g class="ha-cell ha-dst" style="--i:4"><path d="M189.9,117.0L247.0,150.0L247.0,216.0L189.9,249.0L132.7,216.0L132.7,150.0Z"/><text x="189.9" y="183.0">WEBP</text></g><g class="ha-cell" style="--i:5"><path d="M311.1,117.0L368.3,150.0L368.3,216.0L311.1,249.0L254.0,216.0L254.0,150.0Z"/><text x="311.1" y="183.0">JPG</text></g><g class="ha-cell ha-ghost" style="--i:6"><path d="M432.4,117.0L489.5,150.0L489.5,216.0L432.4,249.0L375.2,216.0L375.2,150.0Z"/></g><g class="ha-cell" style="--i:7"><path d="M129.2,222.0L186.4,255.0L186.4,321.0L129.2,354.0L72.1,321.0L72.1,255.0Z"/><text x="129.2" y="288.0">PDF</text></g><g class="ha-cell ha-ghost" style="--i:8"><path d="M250.5,222.0L307.6,255.0L307.6,321.0L250.5,354.0L193.3,321.0L193.3,255.0Z"/></g><g class="ha-cell ha-ghost" style="--i:9"><path d="M371.7,222.0L428.9,255.0L428.9,321.0L371.7,354.0L314.6,321.0L314.6,255.0Z"/></g><g class="ha-go" style="--i:10"><path d="M121.2,159.0L132.2,159.0L146.2,183.0L132.2,207.0L121.2,207.0L133.2,183.0Z"/></g></svg></div>
+<div class="hero-stage"><figure class="demo" role="img" aria-label="Animation: a picture is selected in a folder, the hive opens, WEBP is picked, and a new file appears next to the original">
+  <div class="demo-window" aria-hidden="true">
+    <div class="demo-bar"><i></i><i></i><i></i><span>Pictures</span></div>
+    <ul class="demo-files" role="list"><li class="demo-file demo-pick"><span class="demo-ext">PNG</span><span class="demo-name">photo.png</span></li><li class="demo-file demo-slot"><span class="demo-result"><span class="demo-ext">WEBP</span><span class="demo-name">photo.webp</span><span class="demo-tag">New</span></span></li><li class="demo-file"><span class="demo-ext">MOV</span><span class="demo-name">clip.mov</span></li><li class="demo-file"><span class="demo-ext">WAV</span><span class="demo-name">song.wav</span></li><li class="demo-file"><span class="demo-ext">DOCX</span><span class="demo-name">report.docx</span></li><li class="demo-file"><span class="demo-ext">PDF</span><span class="demo-name">notes.pdf</span></li></ul>
+    <div class="demo-hive"><span class="demo-cell demo-centre" style="--x:0;--y:0;--i:0">Image</span><span class="demo-cell demo-hot" style="--x:17;--y:0;--i:1">WEBP</span><span class="demo-cell" style="--x:8.5;--y:-14.7;--i:2">JPG</span><span class="demo-cell" style="--x:-8.5;--y:-14.7;--i:3">AVIF</span><span class="demo-cell" style="--x:-17;--y:0;--i:4">PDF</span><span class="demo-cell" style="--x:-8.5;--y:14.7;--i:5">GIF</span><span class="demo-cell" style="--x:8.5;--y:14.7;--i:6">ICO</span></div>
+    <div class="demo-pointer"><span class="demo-cursor"><svg class="demo-cursor-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 2L20 12L12.5 13.5L16.5 21L13.5 22.5L9.5 15L3 20Z"/></svg></span></div>
+  </div>
+  <ol class="demo-steps" aria-hidden="true"><li class="demo-step" style="--s:1"><b>1</b>Select the file</li><li class="demo-step" style="--s:2"><b>2</b>Pick an action in the hive</li><li class="demo-step" style="--s:3"><b>3</b>The result lands beside it</li></ol>
+</figure></div>
 </div>
 </section>
-<section id="scene" class="scene" aria-labelledby="scene-title">
-<div class="scene-stage">
-  <div class="scene-top">
-    <div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="scene-title">Watch it work</h2></div>
-    <div class="scene-progress" aria-hidden="true"><i class="scene-pip"><s></s><b>1</b></i><i class="scene-pip"><s></s><b>2</b></i><i class="scene-pip"><s></s><b>3</b></i><i class="scene-pip"><s></s><b>4</b></i><i class="scene-pip"><s></s><b>5</b></i></div>
-  </div>
-  <div class="scene-visual" aria-hidden="true">
-    <div class="scene-folder">
-      <div class="scene-bar"><span class="scene-bar-name">Pictures</span></div>
-      <ul class="scene-files" role="list"><li class="scene-file scene-original"><i class="scene-sel"></i><i class="scene-cursor"></i><span class="scene-ext">PNG</span><span class="scene-name">photo.png</span><span class="scene-tag">Original</span></li><li class="scene-result"><i class="scene-halo"></i><span class="scene-ext">WEBP</span><span class="scene-name">photo.webp</span><span class="scene-tag">New</span></li><li class="scene-file"><span class="scene-ext">MOV</span><span class="scene-name">clip.mov</span><span class="scene-tag"></span></li><li class="scene-file scene-more"><span class="scene-ext">DOCX</span><span class="scene-name">report.docx</span><span class="scene-tag"></span></li></ul>
-    </div>
-    <div class="scene-hive"><i class="scene-ghost" data-ring="0" style="--q:0;--r:0"></i><i class="scene-ghost" data-ring="1" style="--q:-1;--r:1"></i><i class="scene-ghost" data-ring="1" style="--q:0;--r:1"></i><i class="scene-ghost" data-ring="1" style="--q:1;--r:0"></i><i class="scene-ghost" data-ring="1" style="--q:1;--r:-1"></i><i class="scene-ghost" data-ring="1" style="--q:0;--r:-1"></i><i class="scene-ghost" data-ring="1" style="--q:-1;--r:0"></i><i class="scene-ghost" data-ring="2" style="--q:-2;--r:2"></i><i class="scene-ghost" data-ring="2" style="--q:-1;--r:2"></i><i class="scene-ghost" data-ring="2" style="--q:0;--r:2"></i><i class="scene-ghost" data-ring="2" style="--q:1;--r:1"></i><i class="scene-ghost" data-ring="2" style="--q:2;--r:0"></i><i class="scene-ghost" data-ring="2" style="--q:2;--r:-1"></i><i class="scene-ghost" data-ring="2" style="--q:2;--r:-2"></i><i class="scene-ghost" data-ring="2" style="--q:1;--r:-2"></i><i class="scene-ghost" data-ring="2" style="--q:0;--r:-2"></i><i class="scene-ghost" data-ring="2" style="--q:-1;--r:-1"></i><i class="scene-ghost" data-ring="2" style="--q:-2;--r:0"></i><i class="scene-ghost" data-ring="2" style="--q:-2;--r:1"></i><div class="scene-cell" data-ring="0" style="--q:0;--r:0;--k:0"><span class="scene-cell-hit"></span><span class="scene-cell-label">Image</span></div><div class="scene-cell" data-ring="1" data-pick style="--q:-1;--r:1;--k:1"><span class="scene-cell-hit"><span class="scene-hit-label">WEBP</span></span><span class="scene-cell-label">WEBP</span></div><div class="scene-cell" data-ring="1" style="--q:0;--r:1;--k:1"><span class="scene-cell-hit"></span><span class="scene-cell-label">PNG</span></div><div class="scene-cell" data-ring="1" style="--q:1;--r:0;--k:1"><span class="scene-cell-hit"></span><span class="scene-cell-label">JPG</span></div><div class="scene-cell" data-ring="1" style="--q:1;--r:-1;--k:1"><span class="scene-cell-hit"></span><span class="scene-cell-label">AVIF</span></div><div class="scene-cell" data-ring="1" style="--q:0;--r:-1;--k:1"><span class="scene-cell-hit"></span><span class="scene-cell-label">PDF</span></div><div class="scene-cell" data-ring="1" style="--q:-1;--r:0;--k:1"><span class="scene-cell-hit"></span><span class="scene-cell-label">GIF</span></div><div class="scene-cell" data-ring="2" style="--q:-2;--r:2;--k:2"><span class="scene-cell-hit"></span><span class="scene-cell-label">RESIZE</span></div><div class="scene-cell" data-ring="2" style="--q:-1;--r:2;--k:2"><span class="scene-cell-hit"></span><span class="scene-cell-label">ROTATE</span></div><div class="scene-cell" data-ring="2" style="--q:0;--r:2;--k:2"><span class="scene-cell-hit"></span><span class="scene-cell-label">FLIP</span></div><div class="scene-cell" data-ring="2" style="--q:1;--r:1;--k:2"><span class="scene-cell-hit"></span><span class="scene-cell-label">GRAY</span></div><div class="scene-cell" data-ring="2" style="--q:2;--r:0;--k:2"><span class="scene-cell-hit"></span><span class="scene-cell-label">SHRINK</span></div><div class="scene-cell" data-ring="2" style="--q:2;--r:-1;--k:2"><span class="scene-cell-hit"></span><span class="scene-cell-label">STRIP</span></div></div>
-  </div>
-  <ol class="scene-steps"><li><span class="num" aria-hidden="true">1</span><span class="scene-step-text">This is your folder, full of files</span></li><li><span class="num" aria-hidden="true">2</span><span class="scene-step-text">Select the file you want</span></li><li><span class="num" aria-hidden="true">3</span><span class="scene-step-text">The hive opens, ring by ring</span></li><li><span class="num" aria-hidden="true">4</span><span class="scene-step-text">Pick the cell that fits</span></li><li><span class="num" aria-hidden="true">5</span><span class="scene-step-text">The result lands next to the untouched original</span></li></ol>
+<div class="mq" aria-hidden="true"><div class="mq-row mq-row-1"><ul class="mq-track" role="list"><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBP</span></li><li><span>MOV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP4</span></li><li><span>WAV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP3</span></li><li><span>DOCX</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>JPG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>AVIF</span></li><li><span>MP4</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>GIF</span></li><li><span>FLAC</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>OGG</span></li><li><span>ODT</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>DOCX</span></li><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>MKV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBM</span></li><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBP</span></li><li><span>MOV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP4</span></li><li><span>WAV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP3</span></li><li><span>DOCX</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>JPG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>AVIF</span></li><li><span>MP4</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>GIF</span></li><li><span>FLAC</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>OGG</span></li><li><span>ODT</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>DOCX</span></li><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>MKV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBM</span></li></ul></div><div class="mq-row mq-row-2"><ul class="mq-track" role="list"><li><span>MP4</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>GIF</span></li><li><span>FLAC</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>OGG</span></li><li><span>ODT</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>DOCX</span></li><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>MKV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBM</span></li><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBP</span></li><li><span>MOV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP4</span></li><li><span>WAV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP3</span></li><li><span>DOCX</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>JPG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>AVIF</span></li><li><span>MP4</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>GIF</span></li><li><span>FLAC</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>OGG</span></li><li><span>ODT</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>DOCX</span></li><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>MKV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBM</span></li><li><span>PNG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>WEBP</span></li><li><span>MOV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP4</span></li><li><span>WAV</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>MP3</span></li><li><span>DOCX</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>PDF</span></li><li><span>JPG</span><svg class="mq-arrow" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 10.5H15.5L11 6L13 4L21 12L13 20L11 18L15.5 13.5H3Z"/></svg><span>AVIF</span></li></ul></div></div>
+<section class="sec s-bento" id="why" aria-labelledby="bento-title">
+<div class="wrap">
+<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="bento-title">The hive converts your file, then gets out of the way</h2></div>
+<ul class="bento" role="list"><li class="bento-tile bento-privacy"><svg class="bento-lock" viewBox="0 0 120 138" aria-hidden="true" focusable="false"><path class="bl-hex" d="M60 3L117 36V102L60 135L3 102V36Z"/><path class="bl-body" d="M36 62H84V104H36Z"/><path class="bl-loop" d="M44 62V48A16 16 0 0 1 76 48V62H69V48A9 9 0 0 0 51 48V62Z"/><path class="bl-key" d="M56 76H64V92H56Z"/></svg>
+<p class="bento-kicker">Privacy</p>
+<h3>Your files never leave your machine</h3>
+<p>Every conversion runs on your machine: no uploads, no account, no tracking.</p>
+<a class="bento-link" href="privacy/">Read the privacy page</a></li><li class="bento-tile bento-orig"><div class="bento-files" aria-hidden="true">
+<span class="bf bf-old"><b>PNG</b><small>Original</small></span>
+<span class="bf bf-new"><b>WEBP</b><small>New</small></span></div>
+<h3>The original stays as it is</h3><p>The result goes to a new file beside it. Your file is never modified.</p></li><li class="bento-tile bento-fit"><div class="bento-hive" aria-hidden="true"><i style="--q:0;--r:0" class=on></i><i style="--q:-1;--r:1" class=on></i><i style="--q:0;--r:1"></i><i style="--q:1;--r:0"></i><i style="--q:1;--r:-1" class=on></i><i style="--q:0;--r:-1"></i><i style="--q:-1;--r:0"></i></div><h3>You only see what fits your file</h3><p>Select an image and you see image formats; select two PDFs and you see merge and split.</p></li><li class="bento-tile bento-lang"><div class="bento-glyphs" aria-hidden="true"><span lang="ar">ع</span><span lang="en">A</span></div><h3>A full Arabic interface</h3><p>It works in Arabic and English, with Arabic right to left.</p></li></ul>
 </div>
 </section>
-<div class="try-bridge"><div class="wrap"><a class="hex-button button-primary hex-button-lg try-it" href="#sim">Try it yourself</a></div></div>
 <section class="sec s-sim" id="sim" aria-labelledby="sim-title">
 <div class="wrap">
 
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="sim-title">Try it here</h2><p class="section-head-lede">Drag a file onto the folder, or pick one and press Enter. Nothing is uploaded: this is only a demo.</p></div>
+<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="sim-title">Try the hive here</h2><p class="section-head-lede">Drag a file onto the folder, or pick one and press Enter. Nothing is uploaded: this is only a demo.</p></div>
 <div class="sim-board">
   <div class="sim-left">
     <div class="sim-zone" id="sim-zone" tabindex="0" role="group" aria-label="Folder. Drop a sample file here.">
       <p class="sim-hint">Drop a file here</p>
       <ul class="sim-files" id="sim-files" aria-label="Folder files"></ul>
     </div>
-    <ul class="sim-samples" role="list" aria-label="Sample files"><li><button type="button" class="sim-file" draggable="true" data-kind="image" data-name="photo.png" aria-label="photo.png, Image. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">photo.png</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="video" data-name="clip.mov" aria-label="clip.mov, Video. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">clip.mov</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="document" data-name="report.docx" aria-label="report.docx, Document. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">report.docx</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="audio" data-name="song.wav" aria-label="song.wav, Audio. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">song.wav</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="pdfs" data-name="a.pdf, b.pdf" aria-label="a.pdf, b.pdf, Two PDFs. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">a.pdf, b.pdf</span></button></li></ul>
+    <ul class="sim-samples" role="list" aria-label="Sample files"><li><button type="button" class="sim-file" draggable="true" data-kind="image" data-name="photo.png" aria-label="photo.png, Image. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">photo.png</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="video" data-name="clip.mov" aria-label="clip.mov, Video. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">clip.mov</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="document" data-name="report.docx" aria-label="report.docx, Document. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">report.docx</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="audio" data-name="song.wav" aria-label="song.wav, Audio. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">song.wav</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="pdfs" data-name="a.pdf, b.pdf" aria-label="a.pdf and b.pdf, Two PDFs. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">a.pdf, b.pdf</span></button></li></ul>
   </div>
   <div class="sim-stage">
     <p class="sim-idle">The hive opens here</p>
@@ -112,70 +124,59 @@
 
 </div>
 </section>
-<section class="sec s-how alt" id="how" aria-labelledby="how-title">
+<section class="sec s-formats" id="formats" aria-labelledby="formats-title">
 <div class="wrap">
-
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="how-title">Three steps</h2></div>
-<ol class="step-row" role="list"><li class="step-cell"><span class="step-cell-num">1</span><h3>Select</h3><p>Select one file or many in your file manager.</p></li><li class="step-cell"><span class="step-cell-num">2</span><h3>Pick</h3><p>Right click. The hive shows only what fits the file.</p></li><li class="step-cell"><span class="step-cell-num">3</span><h3>Take it</h3><p>The new file lands next to the original.</p></li></ol>
-
-</div>
-</section>
-<section class="sec s-privacy" id="privacy" aria-labelledby="privacy-title">
-<div class="wrap">
-
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="privacy-title">Your files stay with you</h2></div>
-<div class="split">
-  <ul class="plate-list" role="list"><li class="hex-plate hex-plate-accent">No uploads</li><li class="hex-plate">No tracking</li><li class="hex-plate">Original untouched</li></ul>
-  <div class="privacy-art"><img class="art art-privacy" src="../assets/art-privacy.webp" width="1024" height="768" alt="A document sealed inside a fence of small hexagons with a keyhole, nothing crosses the border" decoding="async"></div>
-</div>
-
-</div>
-</section>
-<section class="sec s-formats alt" id="formats" aria-labelledby="formats-title">
-<div class="wrap">
-
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="formats-title">Images, video, audio, documents</h2></div>
-<img class="art art-formats" src="../assets/art-formats.webp" width="1024" height="384" alt="A page shape that turns step by step into a hexagon cell" decoding="async">
-<ul class="format-grid" role="list"><li class="format-cell"><h3>Images</h3><p class="format-cell-codes">PNG JPG WEBP AVIF</p></li><li class="format-cell"><h3>Video</h3><p class="format-cell-codes">MP4 WEBM MKV GIF</p></li><li class="format-cell"><h3>Audio</h3><p class="format-cell-codes">MP3 OGG FLAC WAV</p></li><li class="format-cell"><h3>Documents</h3><p class="format-cell-codes">DOCX ODT XLSX</p></li><li class="format-cell"><h3>PDF</h3><p class="format-cell-codes">MERGE SPLIT SHRINK</p></li></ul>
-
+<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="formats-title"><bdi>45</bdi> actions in one hive</h2><p class="section-head-lede">An action only shows in the hive when its tool is installed on your machine.</p></div>
+<ol class="fams" role="list"><li class="fam" style="--i:0">
+<h3 class="fam-name">Images<sup aria-label="16 actions"><bdi>16</bdi></sup></h3>
+<ul class="fam-codes" role="list" aria-label="16 actions"><li><bdi>WEBP</bdi></li><li><bdi>PNG</bdi></li><li><bdi>JPG</bdi></li><li><bdi>AVIF</bdi></li><li><bdi>PDF</bdi></li><li><bdi>ICO</bdi></li><li><bdi>50%</bdi></li><li><bdi>1920</bdi></li><li><bdi>ROT</bdi></li><li><bdi>FLIP</bdi></li><li><bdi>GRAY</bdi></li><li><bdi>SMALL</bdi></li><li><bdi>CLEAN</bdi></li><li><bdi>GIF</bdi></li><li><bdi>TIFF</bdi></li><li><bdi>BMP</bdi></li></ul></li><li class="fam" style="--i:1">
+<h3 class="fam-name">Video<sup aria-label="11 actions"><bdi>11</bdi></sup></h3>
+<ul class="fam-codes" role="list" aria-label="11 actions"><li><bdi>MP4</bdi></li><li><bdi>WEBM</bdi></li><li><bdi>GIF</bdi></li><li><bdi>MP3</bdi></li><li><bdi>SHRINK</bdi></li><li><bdi>MKV</bdi></li><li><bdi>MOV</bdi></li><li><bdi>OGG</bdi></li><li><bdi>M4A</bdi></li><li><bdi>FLAC</bdi></li><li><bdi>WAV</bdi></li></ul></li><li class="fam" style="--i:2">
+<h3 class="fam-name">Audio<sup aria-label="6 actions"><bdi>6</bdi></sup></h3>
+<ul class="fam-codes" role="list" aria-label="6 actions"><li><bdi>MP3</bdi></li><li><bdi>M4A</bdi></li><li><bdi>OGG</bdi></li><li><bdi>FLAC</bdi></li><li><bdi>OPUS</bdi></li><li><bdi>WAV</bdi></li></ul></li><li class="fam" style="--i:3">
+<h3 class="fam-name">Documents<sup aria-label="7 actions"><bdi>7</bdi></sup></h3>
+<ul class="fam-codes" role="list" aria-label="7 actions"><li><bdi>PDF</bdi></li><li><bdi>DOCX</bdi></li><li><bdi>ODT</bdi></li><li><bdi>XLSX</bdi></li><li><bdi>ODS</bdi></li><li><bdi>PPTX</bdi></li><li><bdi>ODP</bdi></li></ul></li><li class="fam" style="--i:4">
+<h3 class="fam-name">PDF<sup aria-label="5 actions"><bdi>5</bdi></sup></h3>
+<ul class="fam-codes" role="list" aria-label="5 actions"><li><bdi>SHRINK</bdi></li><li><bdi>MERGE</bdi></li><li><bdi>IMAGES</bdi></li><li><bdi>ROTATE</bdi></li><li><bdi>SPLIT</bdi></li></ul></li></ol>
+<div class="actions"><a class="hex-button button-plain" href="docs/formats/">All formats and actions</a></div>
 </div>
 </section>
 <section class="sec s-get" id="download" aria-labelledby="get-title">
 <div class="wrap">
-
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="get-title">Get SbarHive</h2></div>
+<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="get-title">Get SbarHive</h2><p class="section-head-lede">Free, no account, and it converts your files offline.</p></div>
 <div class="dl-grid"><div class="download-slab" data-card="win"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path d="M6 6H23V23H6ZM25 6H42V23H25ZM6 25H23V42H6ZM25 25H42V42H25Z"/></svg><h3>Windows</h3><p class="download-slab-sub">10 and 11, 64 bit</p><div class="actions"><a class="hex-button button-primary hex-button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="msi">Download MSI <span class="soon">Coming soon</span></a><a class="hex-button button-plain" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="zip">Portable ZIP <span class="soon">Coming soon</span></a></div></div><div class="download-slab" data-card="linux"><svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><path class="line" d="M5 9H43V39H5Z"/><path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg><h3>Linux</h3><p class="download-slab-sub">Fedora, Ubuntu, Debian, 64 bit</p><div class="actions"><a class="hex-button button-primary hex-button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="deb">Download DEB <span class="soon">Coming soon</span></a><a class="hex-button button-primary hex-button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive/releases" data-dl="rpm">Download RPM <span class="soon">Coming soon</span></a></div></div></div>
 <ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>0.4.0-beta.1</bdi></span></li><li><a href="windows/">Windows is unsigned</a></li><li><a href="download/#verify">Verify the file</a></li></ul>
-
 </div>
 </section>
-<section class="sec s-open" id="open" aria-labelledby="open-title">
+<section class="sec s-closing" id="open" aria-labelledby="open-title">
 <div class="wrap">
-
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="open-title">Free and open</h2><p class="section-head-lede">Open source under GPLv3. Read it, change it, share it.</p></div>
-<div class="actions"><a class="hex-button button-plain hex-button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive">Source on GitHub</a></div>
-
+<div class="closing">
+<div class="closing-open">
+<h2 id="open-title">Free and open source</h2>
+<p>Under the GPLv3: read the code, change it, share it.</p>
+<div class="actions"><a class="hex-button button-primary hex-button-lg" href="https://github.com/M7MMAD-OMAR/sbarhive">Source on GitHub</a></div>
 </div>
-</section>
-<section class="sec s-support" id="support" aria-labelledby="support-title">
-<div class="wrap">
-
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="support-title">Support the work</h2><p class="section-head-lede">SbarHive is free. If it saves you time, you can support Sbarah.</p></div>
+<div class="closing-support" id="support">
+<h3>Support Sbarah</h3>
+<p>SbarHive is free. If it saves you time, you can support Sbarah.</p>
 <a class="support-badge" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer"><img src="../assets/support-sbarah-light.svg" alt="Support Sbarah" width="520" height="140"></a>
-
+</div>
+</div>
 </div>
 </section>
 </main>
 <footer class="site-footer">
   <div class="wrap">
-    <p>Free software under the GPLv3. <span class="muted">Beta 0.4.0-beta.1</span></p>
-    <ul class="footer-product" role="list"><li><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a></li><li><a href="windows/">Windows</a></li><li><a href="privacy/">Privacy</a></li><li><a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub Releases</a></li><li><a class="" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer">Support Sbarah</a></li></ul>
-    <ul class="footer-lang" role="list"><li><a href="../" hreflang="ar" lang="ar">العربية</a></li></ul>
+    <div class="footer-row">
+      <p>Free software under the GPLv3. <span class="muted">Beta 0.4.0-beta.1</span></p>
+      <ul class="footer-product" role="list"><li><a href="https://github.com/M7MMAD-OMAR/sbarhive">GitHub</a></li><li><a href="windows/">Windows</a></li><li><a href="privacy/">Privacy</a></li><li><a href="https://github.com/M7MMAD-OMAR/sbarhive/releases">GitHub Releases</a></li><li><a class="" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer">Support Sbarah</a></li></ul>
+      <ul class="footer-lang" role="list"><li><a href="../" hreflang="ar" lang="ar">العربية</a></li></ul>
+    </div>
+    <p class="footer-mark" aria-hidden="true">SbarHive</p>
   </div>
 </footer>
 <script id="hive-config" type="application/json">{"rtl": false, "r": 36.0, "gap": 6, "pad": 4, "kinds": [{"key": "image", "label": "Image", "selection": "One image", "files": ["photo.png"], "cells": [{"c": "WEBP", "n": "Convert to WebP", "o": "photo.webp", "id": "webp"}, {"c": "PNG", "n": "Convert to PNG", "o": "photo.png", "id": "photo-png"}, {"c": "JPG", "n": "Convert to JPG", "o": "photo.jpg", "id": "jpg"}, {"c": "AVIF", "n": "Convert to AVIF", "o": "photo.avif", "id": "avif"}, {"c": "PDF", "n": "Convert to PDF", "o": "photo.pdf", "id": "pdf"}, {"c": "GIF", "n": "Convert to GIF", "o": "photo.gif", "id": "gif"}, {"c": "RESIZE", "n": "Resize image", "o": "photo-resized.png", "id": "photo-resized-png"}, {"c": "ROTATE", "n": "Rotate", "o": "photo-rotated.png", "id": "photo-rotated-png"}, {"c": "FLIP", "n": "Flip image", "o": "photo-flipped.png", "id": "photo-flipped-png"}, {"c": "GRAY", "n": "Gray: make it gray", "o": "photo-gray.png", "id": "photo-gray-png"}, {"c": "SHRINK", "n": "Shrink image", "o": "photo-compressed.png", "id": "photo-compressed-png"}, {"c": "STRIP", "n": "Strip metadata", "o": "photo-clean.png", "id": "photo-clean-png"}]}, {"key": "video", "label": "Video", "selection": "One video", "files": ["clip.mov"], "cells": [{"c": "MP4", "n": "Convert to MP4", "o": "clip.mp4", "id": "mp4"}, {"c": "WEBM", "n": "Convert to WebM", "o": "clip.webm", "id": "webm"}, {"c": "GIF", "n": "Convert to animated GIF", "o": "clip.gif", "id": "gif"}, {"c": "MKV", "n": "Convert to MKV", "o": "clip.mkv", "id": "mkv"}, {"c": "MP3", "n": "Extract audio as MP3", "o": "clip.mp3", "id": "mp3"}, {"c": "OGG", "n": "Extract audio as OGG", "o": "clip.ogg", "id": "ogg"}, {"c": "SHRINK", "n": "Shrink video", "o": "clip-compressed.mov", "id": "mov"}, {"c": "M4A", "n": "Extract audio as M4A", "o": "clip.m4a", "id": "m4a"}, {"c": "FLAC", "n": "Extract audio as FLAC", "o": "clip.flac", "id": "flac"}, {"c": "WAV", "n": "Extract audio as WAV", "o": "clip.wav", "id": "wav"}]}, {"key": "document", "label": "Document", "selection": "One document", "files": ["report.docx"], "cells": [{"c": "PDF", "n": "Convert to PDF", "o": "report.pdf", "id": "pdf"}, {"c": "ODT", "n": "Convert to ODT", "o": "report.odt", "id": "odt"}]}, {"key": "audio", "label": "Audio", "selection": "One audio file", "files": ["song.wav"], "cells": [{"c": "MP3", "n": "Convert to MP3", "o": "song.mp3", "id": "mp3"}, {"c": "M4A", "n": "Convert to M4A", "o": "song.m4a", "id": "m4a"}, {"c": "OGG", "n": "Convert to OGG", "o": "song.ogg", "id": "ogg"}, {"c": "FLAC", "n": "Convert to FLAC", "o": "song.flac", "id": "flac"}]}, {"key": "pdfs", "label": "Two PDFs", "selection": "Two files", "files": ["a.pdf", "b.pdf"], "cells": [{"c": "MERGE", "n": "Merge into one PDF", "o": "a-merged.pdf", "id": "a-merged-pdf"}, {"c": "SHRINK", "n": "Shrink PDFs", "o": "a-compressed.pdf", "id": "a-compressed-pdf"}, {"c": "ROTATE", "n": "Rotate pages 90 degrees", "o": "a-rotated.pdf", "id": "a-rotated-pdf"}, {"c": "PNGS", "n": "PNGs: pages to PNG images", "o": "a-pages.zip", "id": "a-pages-zip"}, {"c": "SPLIT", "n": "Split: one PDF per page", "o": "a-split.zip", "id": "a-split-zip"}]}], "ui": {"done": "Done", "actions": "{n} actions", "original": "Original, untouched", "fresh": "New", "rel": "Download for {os}", "win": "Windows", "linux": "Linux"}}</script>
 <script src="../app.js" defer></script>
-<script src="../js/scene.js" defer></script>
 <script src="../js/sim.js" defer></script>
 </body>
 </html>

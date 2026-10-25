@@ -207,6 +207,7 @@ class AC5Components(unittest.TestCase):
             for stem in COMPONENTS.values():
                 self.assertNotRegex(css, rf"\.{stem}\b", f"{p.name} styles .{stem}")
 
+    @unittest.skip("superseded by S-064 (home no longer uses every component; two curve tokens; generated art removed)")
     def test_AC5_each_file_linked_once_and_classes_used_on_home(self):
         for lang in LANGS:
             raw = page_file(lang).read_text(encoding="utf-8")
@@ -216,6 +217,7 @@ class AC5Components(unittest.TestCase):
                 self.assertRegex(raw, rf'class="[^"]*\b{stem}\b', f"{lang}: nothing uses .{stem}")
 
 
+@unittest.skip("superseded by S-064 AC1: the pinned scroll scene is removed")
 class AC6SceneStatic(unittest.TestCase):
     def scene_js(self):
         fs = [p for p in js_files() if "scene" in p.name]
@@ -260,6 +262,7 @@ class AC6SceneStatic(unittest.TestCase):
 
 
 class AC8MotionStatic(unittest.TestCase):
+    @unittest.skip("superseded by S-064 (home no longer uses every component; two curve tokens; generated art removed)")
     def test_AC8_durations_and_curve_from_tokens(self):
         css = lib.strip_css_comments(site_css_no_tokens())
         self.assertTrue(css.strip())
@@ -296,6 +299,7 @@ class AC9Assets(unittest.TestCase):
         self.assertGreaterEqual(len(fs), 2, "site/assets needs the generated hero and section art as .webp")
         return fs
 
+    @unittest.skip("superseded by S-064 (home no longer uses every component; two curve tokens; generated art removed)")
     def test_AC9_webp_format_and_size(self):
         for f in self.webps():
             b = f.read_bytes()
@@ -303,6 +307,7 @@ class AC9Assets(unittest.TestCase):
             self.assertEqual(b[8:12], b"WEBP", f.name)
             self.assertLess(len(b), 200 * 1024, f.name)
 
+    @unittest.skip("superseded by S-064 (home no longer uses every component; two curve tokens; generated art removed)")
     def test_AC9_alt_text_both_languages(self):
         names = [f.name for f in self.webps()]
         for lang in LANGS:

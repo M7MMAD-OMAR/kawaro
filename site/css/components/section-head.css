@@ -1,7 +1,7 @@
 /* section_head: a hexagon mark, the section's one h2 and an optional lede. A parent
    can tighten it with --head-gap, --head-gap-inner and --head-mark. */
 .section-head { display: grid; justify-items: start; gap: var(--head-gap-inner, var(--space-4)); margin-block-end: var(--head-gap, var(--space-7)); }
-.section-head h2 { max-width: 16ch; }
+.section-head h2 { max-width: 20ch; font-size: var(--head-size, var(--fs-h2)); }
 .section-head-mark {
   display: var(--head-mark, block);
   width: var(--space-6);

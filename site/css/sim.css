@@ -1,12 +1,17 @@
 /* Try it: the keyboard operable drop demo. The section is always in the page;
    the control after the scene jumps here. Values come from tokens only. */
 html:not(.js) .sim-board { display: none; }
-.s-sim { background: var(--color-surface-1); --head-lede: var(--color-text-primary); --head-gap: var(--space-6); }
+.s-sim { background: var(--color-accent-soft); --head-lede: var(--color-text-primary); --head-gap: var(--space-7); }
+/* S-064: the demo sits on one workbench, a paper slab with an ink edge; the hive
+   opens on its own surface beside the folder. */
 .sim-board {
   --cw: calc(var(--space-9) * 1.2);
-  --edge: var(--border-ring);
+  --edge: var(--border-edge);
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
+  padding: var(--space-5);
+  background: var(--color-paper);
+  border: var(--border-edge) solid var(--color-ink);
 }
 .sim-board > * { min-width: 0; }
 .sim-left { display: grid; gap: var(--space-5); align-content: start; }
@@ -31,7 +36,7 @@ html:not(.js) .sim-board { display: none; }
 .sim-file:hover, .sim-file:focus-visible { background: var(--color-ink); color: var(--color-paper); }
 .sim-file.on { background: var(--color-accent); color: var(--color-accent-ink); }
 .sim-file .ico { flex: none; width: var(--space-6); height: var(--space-6); fill: none; stroke: currentColor; stroke-width: var(--border-focus); stroke-linejoin: miter; }
-.sim-file .name, .sim-files .name { direction: ltr; unicode-bidi: isolate; font-family: ui-monospace, "IBM Plex Mono", monospace; }
+.sim-file .name, .sim-files .name { direction: ltr; unicode-bidi: isolate; font-weight: var(--font-weight-semibold); }
 
 /* The drop zone: a big frame with a hexagon mark. Hover over it while dragging turns it amber. */
 .sim-zone {
@@ -73,7 +78,7 @@ html:not(.js) .sim-board { display: none; }
 .sim-files li.fresh { background: var(--color-accent); color: var(--color-accent-ink); }
 .sim-files li.fresh .note { color: var(--color-accent-ink); font-weight: var(--font-weight-semibold); }
 
-.sim-stage { position: relative; display: grid; place-items: center; }
+.sim-stage { position: relative; display: grid; place-items: center; min-height: calc(var(--cw) * 4); background: var(--color-surface-1); }
 .sim-stage.open { min-height: calc(var(--cw) * 5.4); }
 .sim-idle {
   position: relative;
@@ -99,7 +104,7 @@ html:not(.js) .sim-board { display: none; }
 .sim-hive[data-rings="1"] { width: calc(var(--cw) * 3.3); height: calc(var(--cw) * 3.1); }
 .sim-hive[hidden] { display: none; }
 @media (max-width: 719px) {
-  .sim-board { --cw: calc((100vw - var(--space-6)) / 3.3); --edge: var(--border-edge); }
+  .sim-board { --cw: calc((100vw - var(--space-10)) / 3.3); --edge: var(--border-default); padding: var(--space-3); }
   .sim-board .hx { font-size: var(--type-small); }
   .sim-board .sim-centre { font-size: var(--type-small); padding-inline: var(--space-3); }
   .sim-samples { grid-template-columns: 1fr; }
@@ -162,11 +167,18 @@ html:not(.js) .sim-board { display: none; }
 .sim-nojs { margin: 0; color: var(--color-text-secondary); text-align: center; }
 @media (min-width: 960px) { .sim-board { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: var(--space-7); } }
 @media (prefers-reduced-motion: no-preference) {
+  .js .sim-idle { animation: sim-wait var(--duration-loop) var(--ease-out) infinite; }
   .js .sim-cell .hx, .js .sim-cell .ring {
     opacity: 0;
     animation: sim-pop var(--duration-base) var(--ease-out) forwards;
     animation-delay: calc(var(--i, 0) * var(--duration-stagger));
   }
+}
+@keyframes sim-wait {
+  0%, 40%, 100% { scale: 1; }
+  45% { scale: 1.06; }
+  50% { scale: 1; }
+  55% { scale: 1.04; }
 }
 @keyframes sim-pop {
   100% { opacity: 1; }

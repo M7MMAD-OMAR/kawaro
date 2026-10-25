@@ -1,0 +1,230 @@
+/* The hero demo (S-064): one conversion told as a loop. A folder window, a cursor
+   that selects photo.png, the hive opening around the centre, WEBP picked, the
+   hive closing and photo.webp landing in the empty slot beside the original.
+   Every length inside the window is in container units (cqw) so the picture
+   scales as one piece. The loop runs only when motion is welcome; at rest, and
+   with reduced motion, the window shows the end of the story: both files side by
+   side and no hive. Keyframe percentages are the script:
+     0-12 the cursor reaches photo.png   12-18 select and right click
+     18-28 the hive opens               30-44 the cursor travels to WEBP
+     46 click                           52-58 the hive closes
+     58-66 photo.webp lands             92-100 the scene resets */
+.demo { position: relative; margin: 0; display: grid; gap: var(--space-5); }
+.demo-window {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: 100 / 72;
+  background: var(--color-paper);
+  border: var(--border-edge) solid var(--color-ink);
+  overflow: clip;
+}
+.demo-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.4cqw;
+  height: 9cqw;
+  padding-inline: 4cqw;
+  background: var(--color-surface-2);
+  font-size: 3cqw;
+  font-weight: var(--font-weight-semibold);
+}
+.demo-bar i { width: 2cqw; height: 2.3cqw; background: var(--color-ink); clip-path: var(--hexagon); }
+.demo-bar i:first-child { background: var(--color-accent); }
+.demo-bar span { margin-inline-start: 2cqw; }
+.demo-files {
+  position: absolute;
+  inset-block-start: 14cqw;
+  inset-inline: 5cqw;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 24cqw;
+  gap: 3cqw;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.demo-file {
+  position: relative;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.6cqw;
+  background: var(--color-surface-1);
+  outline: 0.6cqw solid transparent;
+  outline-offset: -0.6cqw;
+}
+.demo-ext { font-size: 5.4cqw; font-weight: var(--font-weight-bold); line-height: 1.1; direction: ltr; }
+.demo-name { font-size: 2.6cqw; font-weight: var(--font-weight-semibold); direction: ltr; unicode-bidi: isolate; }
+.demo-slot { background: transparent; outline: 0.5cqw dashed var(--color-border); outline-offset: -0.5cqw; }
+.demo-result {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 0.6cqw;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+.demo-tag {
+  position: absolute;
+  inset-block-start: 1.4cqw;
+  inset-inline-end: 1.4cqw;
+  padding-inline: 1cqw;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-size: 2cqw;
+  font-weight: var(--font-weight-semibold);
+}
+
+.demo-hive { display: none; position: absolute; inset: 0; pointer-events: none; }
+.demo-cell {
+  position: absolute;
+  inset-inline-start: calc(28cqw - 8cqw);
+  inset-block-start: calc(40cqw - 9.24cqw);
+  display: grid;
+  place-items: center;
+  width: 16cqw;
+  height: 18.48cqw;
+  background: var(--color-ink);
+  clip-path: var(--hexagon);
+  translate: calc(var(--x) * 1cqw * var(--dir)) calc(var(--y) * 1cqw);
+  font-size: 3.4cqw;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-paper);
+  unicode-bidi: isolate;
+}
+.demo-cell:not(.demo-centre) { background: var(--color-surface-0); color: var(--color-ink); }
+.demo-cell::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  background: var(--color-ink);
+  clip-path: var(--hexagon);
+}
+.demo-cell:not(.demo-centre) { isolation: isolate; background: transparent; }
+.demo-cell:not(.demo-centre)::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-block: calc(0.7cqw * 1.1547);
+  inset-inline: 0.7cqw;
+  background: var(--color-paper);
+  clip-path: var(--hexagon);
+}
+.demo-cell.demo-hot::after { background: var(--color-accent); }
+.demo-centre { font-family: var(--font-family); }
+
+.demo-pointer { display: none; position: absolute; inset: 0; direction: ltr; pointer-events: none; }
+.demo-cursor { position: absolute; inset-block-start: 0; inset-inline-start: 0; width: 5.4cqw; height: 5.4cqw; transform-origin: 10% 10%; }
+.demo-cursor-ico { display: block; width: 100%; height: 100%; fill: var(--color-ink); stroke: var(--color-paper); stroke-width: 1.4; stroke-linejoin: miter; }
+
+.demo-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.demo-step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  padding-inline: var(--space-3);
+  background: var(--color-surface-1);
+  font-size: var(--fs-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.3;
+}
+.demo-step b {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  height: calc(var(--space-6) * 1.1547);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  clip-path: var(--hexagon);
+  font-size: var(--type-small);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .demo-hive, .demo-pointer { display: block; }
+  .demo-cursor { animation: demo-cursor var(--duration-loop) var(--ease-out) infinite both; }
+  [dir="rtl"] .demo-cursor { animation-name: demo-cursor-rtl; }
+  .demo-pick { animation: demo-select var(--duration-loop) var(--ease-out) infinite both; }
+  .demo-cell {
+    animation: demo-cell var(--duration-loop) var(--ease-out) infinite both;
+    animation-delay: calc(var(--i) * var(--duration-stagger) * 2);
+  }
+  .demo-cell.demo-hot { animation-name: demo-hot; }
+  .demo-result { animation: demo-result var(--duration-loop) var(--ease-out) infinite both; }
+  .demo-step { animation: demo-step-1 var(--duration-loop) var(--ease-out) infinite both; }
+  .demo-step:nth-child(2) { animation-name: demo-step-2; }
+  .demo-step:nth-child(3) { animation-name: demo-step-3; }
+}
+
+@keyframes demo-cursor {
+  0% { translate: 80cqw 60cqw; opacity: 0.001; }
+  4% { opacity: 1; }
+  12% { translate: 15cqw 26cqw; scale: 1; }
+  14% { scale: 0.75; }
+  17% { scale: 1; }
+  30% { translate: 15cqw 26cqw; }
+  44% { translate: 45cqw 40cqw; scale: 1; }
+  46% { scale: 0.75; }
+  49% { scale: 1; }
+  54% { translate: 45cqw 40cqw; }
+  70%, 92% { translate: 88cqw 66cqw; opacity: 1; }
+  100% { translate: 88cqw 66cqw; opacity: 0.001; }
+}
+@keyframes demo-cursor-rtl {
+  0% { translate: 20cqw 60cqw; opacity: 0.001; }
+  4% { opacity: 1; }
+  12% { translate: 85cqw 26cqw; scale: 1; }
+  14% { scale: 0.75; }
+  17% { scale: 1; }
+  30% { translate: 85cqw 26cqw; }
+  44% { translate: 55cqw 40cqw; scale: 1; }
+  46% { scale: 0.75; }
+  49% { scale: 1; }
+  54% { translate: 55cqw 40cqw; }
+  70%, 92% { translate: 12cqw 66cqw; opacity: 1; }
+  100% { translate: 12cqw 66cqw; opacity: 0.001; }
+}
+@keyframes demo-select {
+  0%, 11% { background-color: var(--color-surface-1); outline-color: transparent; }
+  13%, 55% { background-color: var(--color-accent-soft); outline-color: var(--color-ink); }
+  58%, 100% { background-color: var(--color-surface-1); outline-color: transparent; }
+}
+@keyframes demo-cell {
+  0%, 18% { scale: 0.001; opacity: 0.001; }
+  26%, 52% { scale: 1; opacity: 1; }
+  58%, 100% { scale: 0.001; opacity: 0.001; }
+}
+@keyframes demo-hot {
+  0%, 18% { scale: 0.001; opacity: 0.001; }
+  26%, 45% { scale: 1; opacity: 1; }
+  47% { scale: 1.14; opacity: 1; }
+  52% { scale: 1.06; opacity: 1; }
+  58%, 100% { scale: 0.001; opacity: 0.001; }
+}
+@keyframes demo-result {
+  0%, 56% { scale: 0.4; opacity: 0.001; }
+  62% { scale: 1.08; opacity: 1; }
+  66%, 92% { scale: 1; opacity: 1; }
+  100% { scale: 1; opacity: 0.001; }
+}
+@keyframes demo-step-1 {
+  0%, 17% { background-color: var(--color-ink); color: var(--color-paper); }
+  19%, 100% { background-color: var(--color-surface-1); color: var(--color-ink); }
+}
+@keyframes demo-step-2 {
+  0%, 17% { background-color: var(--color-surface-1); color: var(--color-ink); }
+  19%, 56% { background-color: var(--color-ink); color: var(--color-paper); }
+  58%, 100% { background-color: var(--color-surface-1); color: var(--color-ink); }
+}
+@keyframes demo-step-3 {
+  0%, 56% { background-color: var(--color-surface-1); color: var(--color-ink); }
+  58%, 98% { background-color: var(--color-ink); color: var(--color-paper); }
+  100% { background-color: var(--color-surface-1); color: var(--color-ink); }
+}
+@media (max-width: 719px) {
+  .demo-steps { grid-template-columns: 1fr; }
+}

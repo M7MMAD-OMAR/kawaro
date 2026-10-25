@@ -103,6 +103,7 @@ class AC3Sharp(unittest.TestCase):
                     self.assertEqual(pg.evaluate(self.JS)[:10], [], f"{lang}/{page} {w}")
                     pg.context.close()
 
+    @unittest.skip("superseded by S-064 AC1: the pinned scene is removed")
     def test_AC3_scene_and_hover_states_also_sharp(self):
         pg = B.page(page_path("en"))
         for p in PROGRESS:
@@ -124,7 +125,7 @@ class AC4Big(unittest.TestCase):
                     h1 = pg.evaluate("parseFloat(getComputedStyle(document.querySelector('main h1')).fontSize)")
                     self.assertGreaterEqual(h1, 72)
                 secs = pg.evaluate("""() => [...document.querySelectorAll('main > section:not(.hero)')].map(s => [s.id || s.className, [...s.querySelectorAll('h2')].map(h => parseFloat(getComputedStyle(h).fontSize))])""")
-                self.assertGreaterEqual(len(secs), 6, f"{lang} {w}: sections")
+                self.assertGreaterEqual(len(secs), 5, f"{lang} {w}: sections")  # S-064: five sections after the hero
                 for name, h2s in secs:
                     self.assertEqual(len(h2s), 1, f"{lang} {w}: section {name} needs exactly one h2")
                     self.assertGreaterEqual(h2s[0], h2_min, f"{lang} {w}: {name} h2")
@@ -145,6 +146,7 @@ class AC4Big(unittest.TestCase):
                     pg.context.close()
 
 
+@unittest.skip("superseded by S-064 AC1: the pinned scene is removed")
 class AC6Scene(unittest.TestCase):
     def test_AC6_stage_is_pinned_and_covers_viewport(self):
         for lang in LANGS:
@@ -232,6 +234,7 @@ class AC6Scene(unittest.TestCase):
         pg.context.close()
 
 
+@unittest.skip("superseded by S-064: no scene; the hero links to #sim and test_browser.py AC7 covers the keyboard demo")
 class AC7Access(unittest.TestCase):
     def test_AC7_try_it_control_after_scene_keyboard_reachable(self):
         for lang in LANGS:
@@ -301,7 +304,7 @@ def is_blank(png):
 class AC8Feedback(unittest.TestCase):
     def test_AC8_no_blank_viewport_every_100px(self):
         pg0 = B.page(page_path("en"))
-        self.assertEqual(pg0.locator("section#scene").count(), 1, "scene missing")
+        self.assertEqual(pg0.locator(".demo").count(), 1, "hero demo missing (S-064 replaced the scene)")
         pg0.context.close()
         for lang, w, h in (("en", 1280, 800), ("ar", 375, 667)):
             pg = B.page(page_path(lang), width=w, height=h)
@@ -320,7 +323,7 @@ class AC8Feedback(unittest.TestCase):
     def test_AC8_content_visible_with_js_off(self):
         for lang in LANGS:
             pg = B.page(page_path(lang), js=False)
-            self.assertEqual(pg.locator("section#scene").count(), 1, "scene missing")
+            self.assertEqual(pg.locator(".demo").count(), 1, "hero demo missing (S-064 replaced the scene)")
             hidden = pg.evaluate("""() => [...document.querySelectorAll('main h1, main h2, main p')].filter(e => e.textContent.trim() && !e.closest('.sim-nojs'))
                 .filter(e => { let o = 1; for (let n = e; n; n = n.parentElement) { const s = getComputedStyle(n); o *= parseFloat(s.opacity); if (s.visibility === 'hidden') o = 0; } return o < 0.99; })
                 .map(e => e.tagName + '.' + e.className)""")
@@ -347,6 +350,7 @@ class AC8Feedback(unittest.TestCase):
         self.assertNotEqual(btn.evaluate("e => getComputedStyle(e).outlineStyle"), "none")
         pg.context.close()
 
+    @unittest.skip("superseded by S-064: no scene; test_s064_browser.py checks reduced motion on the hero demo")
     def test_AC8_reduced_motion_zero_durations_in_scene(self):
         pg = B.page(page_path("en"), reduced=True)
         self.assertGreater(pg.locator("#scene *").count(), 5, "scene missing")

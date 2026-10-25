@@ -1,12 +1,12 @@
 # الإصدارات
 
 ## 0.4.0-beta.1
+- Home page restructure (S-064)
 - Website redesign, first part (S-063)
 - High contrast hive (S-062)
 - Website polish (S-061)
 - CI is green again on Linux and Windows, with `scripts/ci-status.sh` and a rule to read it 
 - Architecture diagrams (S-057)
-- Website on a Cloudflare Worker with static assets
 
 ## 0.3.3 (2026-10-23)
 - Drop shortcut through the global shortcuts portal (S-014e)

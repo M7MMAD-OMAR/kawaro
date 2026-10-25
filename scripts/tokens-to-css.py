@@ -40,6 +40,9 @@ def main():
     lines.append(f'  --font-family: "{s["font"]["family"]}", system-ui, sans-serif;')
     lines += scale("font-weight", s["font"]["weight"], unit="")
     lines.append(f"  --ease-out: {motion['easing']};")
+    # S-064: loops (the marquee, the hero demo) move at a constant speed.
+    if "easing-steady" in motion:
+        lines.append(f"  --ease-steady: {motion['easing-steady']};")
     lines += scale("", durations, unit="ms")
     lines += scale("scene", s["scene"], unit="")
 

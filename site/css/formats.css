@@ -1,0 +1,62 @@
+/* Formats (S-064): the five families as a list of very large words, each with its
+   action count and its codes. The words are the picture. Hovering a family marks
+   it in amber and lifts its codes one after another. */
+.s-formats { background: var(--color-surface-1); }
+.fams { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-5); }
+.fam {
+  display: grid;
+  gap: var(--space-3) var(--space-7);
+  align-items: center;
+  padding-block: var(--space-2);
+}
+.fam-name {
+  justify-self: start;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding-inline: var(--space-3);
+  font-size: clamp(var(--type-display-sm), 9vw, calc(var(--type-display) * 0.82));
+  font-weight: var(--font-weight-bold);
+  line-height: 1.2;
+  transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+body:lang(ar) .fam-name { line-height: 1.45; }
+.fam-name sup {
+  display: grid;
+  place-items: center;
+  min-width: var(--space-7);
+  height: calc(var(--space-7) * 1.1547);
+  padding-inline: var(--space-1);
+  background: var(--color-ink);
+  color: var(--color-paper);
+  clip-path: var(--hexagon);
+  font-size: var(--type-small);
+  line-height: 1;
+  vertical-align: baseline;
+}
+.fam-name sup { margin-inline-start: var(--space-2); }
+.fam-codes { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.fam-codes li {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-7);
+  padding-inline: var(--space-4);
+  background: var(--color-paper);
+  font-size: var(--fs-body);
+  font-weight: var(--font-weight-semibold);
+  clip-path: polygon(var(--space-3) 0, calc(100% - var(--space-3)) 0, 100% 50%, calc(100% - var(--space-3)) 100%, var(--space-3) 100%, 0 50%);
+  transition: translate var(--duration-base) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+}
+.fam-codes li:nth-child(2) { transition-delay: var(--duration-stagger); }
+.fam-codes li:nth-child(3) { transition-delay: calc(var(--duration-stagger) * 2); }
+.fam-codes li:nth-child(4) { transition-delay: calc(var(--duration-stagger) * 3); }
+.fam-codes li:nth-child(5) { transition-delay: calc(var(--duration-stagger) * 4); }
+.fam-codes li:nth-child(n + 6) { transition-delay: calc(var(--duration-stagger) * 5); }
+.s-formats .actions { margin-block-start: var(--space-7); }
+@media (hover: hover) {
+  .fam:hover .fam-name { background: var(--color-accent); color: var(--color-accent-ink); }
+  .fam:hover .fam-codes li { background: var(--color-ink); color: var(--color-paper); translate: 0 calc(var(--space-1) * -1); }
+}
+@media (min-width: 960px) {
+  .fam { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+}

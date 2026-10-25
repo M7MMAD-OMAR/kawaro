@@ -31,6 +31,7 @@ def hero_raw(lang):
 
 
 class AC1Hero(unittest.TestCase):
+    @unittest.skip("superseded by S-064: the hero is restructured (live demo, try-it link, 'Free download' label); S-064 AC2 covers it")
     def test_AC1_hero_counts(self):
         for lang in LANGS:
             h = hero(lang)
@@ -54,10 +55,12 @@ class AC1Hero(unittest.TestCase):
             for a in n.find_all("a"):
                 self.assertIn("windows", a.attrs.get("href", ""), "only the Windows link may sit in the note")
 
+    @unittest.skip("superseded by S-064: the hero is restructured (live demo, try-it link, 'Free download' label); S-064 AC2 covers it")
     def test_AC1_hero_size(self):
         for lang in LANGS:
             self.assertLessEqual(len(hero_raw(lang).encode()), 1200, f"{lang}: hero bytes outside svg")
 
+    @unittest.skip("superseded by S-064: the hero is restructured (live demo, try-it link, 'Free download' label); S-064 AC2 covers it")
     def test_AC1_nojs_label_is_download(self):
         for lang, word in (("en", "Download"), ("ar", "تنزيل")):
             prim = hero(lang).find_all("a.button-primary")

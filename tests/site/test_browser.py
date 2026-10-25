@@ -80,6 +80,7 @@ class AC1HeroBrowser(unittest.TestCase):
         if errors:
             raise errors[0]
 
+    @unittest.skip("superseded by S-064 (new hero, 96px section rhythm, Download button at the header end); see test_s064_browser.py")
     def test_AC1_js_off_label_and_href(self):
         for lang, word in (("en", "Download"), ("ar", "تنزيل")):
             pg = B.page(page_path(lang), js=False)
@@ -88,6 +89,7 @@ class AC1HeroBrowser(unittest.TestCase):
             self.assertTrue(el.get_attribute("href").endswith("download/"))
             pg.context.close()
 
+    @unittest.skip("superseded by S-064 (new hero, 96px section rhythm, Download button at the header end); see test_s064_browser.py")
     def test_AC1_no_overlap_hero_copy_and_hive(self):
         for lang in LANGS:
             for w in WIDTHS:
@@ -102,6 +104,7 @@ class AC1HeroBrowser(unittest.TestCase):
 
 
 class AC2Computed(unittest.TestCase):
+    @unittest.skip("superseded by S-064 (new hero, 96px section rhythm, Download button at the header end); see test_s064_browser.py")
     def test_AC2_section_wrap_and_header_gap(self):
         for lang in LANGS:
             for path in (page_path(lang), page_path(lang, "download")):
@@ -313,6 +316,7 @@ class AC8SimAccess(unittest.TestCase):
 
 
 class AC9RtlBrowser(unittest.TestCase):
+    @unittest.skip("superseded by S-064 (new hero, 96px section rhythm, Download button at the header end); see test_s064_browser.py")
     def test_AC9_ar_brand_right_switch_left(self):
         pg = B.page("/", width=1280)
         brand = pg.locator("header .brand").bounding_box()
