@@ -202,7 +202,7 @@ def mini_cluster(cx, cy, radius, rtl=False, classes=None):
 def privacy_svg(lang):
     ar = lang == "ar"
     rtl = ar
-    w, h = 640, 250
+    w, h = 720, 290
 
     def mx(x):
         return w - x if rtl else x
@@ -210,10 +210,10 @@ def privacy_svg(lang):
     t_pc = "جهازك" if ar else "Your machine"
     t_net = "الإنترنت" if ar else "The internet"
     t_none = "لا يخرج أي ملف" if ar else "No file leaves"
-    cx_pc, cx_net = mx(190), mx(520)
+    cx_pc, cx_net = mx(170), mx(570)
     out = [f'<svg class="privacy-map" viewBox="0 0 {w} {h}" role="img" aria-label="{html.escape(t_pc)}: {html.escape(t_none)}">']
-    out.append(f'<path class="zone" d="{hex_path(cx_pc, 125, 112)}"/>')
-    out.append(f'<text class="zone-label" x="{cx_pc}" y="22">{t_pc}</text>')
+    out.append(f'<path class="zone" d="{hex_path(cx_pc, 125, 118)}"/>')
+    out.append(f'<text class="zone-label" x="{cx_pc}" y="272">{t_pc}</text>')
     out.append(f'<rect class="doc" x="{cx_pc - 70}" y="100" width="28" height="38"/>')
     out.append(f'<path class="hop" d="{hex_path(cx_pc, 120, 20)}"/>')
     out.append(f'<rect class="doc doc-new" x="{cx_pc + 42}" y="100" width="28" height="38"/>')
@@ -221,14 +221,14 @@ def privacy_svg(lang):
     out.append(f'<line class="wire-s" x1="{cx_pc + 22}" y1="119" x2="{cx_pc + 40}" y2="119"/>')
     # internet: dashed zone
     out.append(f'<path class="zone zone-off" d="{hex_path(cx_net, 125, 80)}"/>')
-    out.append(f'<text class="zone-label" x="{cx_net}" y="125">{t_net}</text>')
+    out.append(f'<text class="zone-label" x="{cx_net}" y="272">{t_net}</text>')
     # blocked link
-    a, b = sorted((cx_pc + (112 * 0.87 if not rtl else -112 * 0.87), cx_net + (-80 * 0.87 if not rtl else 80 * 0.87)))
+    a, b = sorted((cx_pc + (118 * 0.87 if not rtl else -118 * 0.87), cx_net + (-80 * 0.87 if not rtl else 80 * 0.87)))
     mid = (a + b) / 2
     out.append(f'<line class="wire-off" x1="{a:.0f}" y1="125" x2="{b:.0f}" y2="125"/>')
     out.append(f'<g class="cross"><line x1="{mid - 9:.0f}" y1="116" x2="{mid + 9:.0f}" y2="134"/>'
                f'<line x1="{mid - 9:.0f}" y1="134" x2="{mid + 9:.0f}" y2="116"/></g>')
-    out.append(f'<text class="zone-label strong" x="{mid:.0f}" y="165">{t_none}</text>')
+    out.append(f'<text class="zone-label strong" x="{mid:.0f}" y="96">{t_none}</text>')
     out.append("</svg>")
     return "".join(out)
 
@@ -344,7 +344,7 @@ def abs_url(lang, page):
 COMPONENT_STEMS = ("hex-button", "section-head", "hex-plate", "step-cell", "format-cell", "download-slab")
 CSS_BASE = (["style.css", "css/header.css"] + [f"css/components/{s}.css" for s in COMPONENT_STEMS]
             + ["css/pages.css"])
-CSS_HOME = ["css/hero.css", "css/scene.css", "css/sim.css"]
+CSS_HOME = ["css/art.css", "css/hero.css", "css/scene.css", "css/sim.css"]
 CSS_DOCS = ["css/docs.css"]
 
 
@@ -449,6 +449,22 @@ def step_cell(n, title, text=""):
 def format_cell(title, codes):
     """A pointy-top hexagon holding a family of formats."""
     return f'<li class="format-cell"><h3>{title}</h3><p class="format-cell-codes">{codes}</p></li>'
+
+
+ART = {
+    "hero": (1024, 768, "خلايا سداسية مسطحة متجاورة وفي وسطها خلية كهرمانية", "Flat hexagon cells joined as a honeycomb with one amber cell in the middle"),
+    "privacy": (1024, 768, "شاشة حاسوب فيها خلايا وملفات وقفل، لا يخرج منها شيء", "A computer screen with hive cells, files and a padlock, nothing leaves it"),
+    "formats": (1024, 368, "خمس خلايا لأنواع الملفات: صور وفيديو وصوت ومستندات وأرشيف", "Five hive cells for file types: images, video, audio, documents and archives"),
+}
+
+
+def art(lang, name, lazy=True):
+    """Generated flat art (AC9): WebP in assets/, with width and height and a language matched alt."""
+    w, h, alt_ar, alt_en = ART[name]
+    alt = alt_ar if lang == "ar" else alt_en
+    load = 'loading="lazy" decoding="async"' if lazy else 'fetchpriority="high"'
+    return (f'<img class="art art-{name}" src="{rel_root(lang, "index")}assets/art-{name}.webp" '
+            f'width="{w}" height="{h}" alt="{alt}" {load}>')
 
 
 def support_a(cls, inner, extra=""):
@@ -637,6 +653,7 @@ T_HOME = {
         "tiles": ["صور", "فيديو", "صوت", "مستندات", "PDF"],
         "get": "نزّل صبار هايف",
         "open": "مجاني ومفتوح",
+        "open_p": "مفتوح المصدر برخصة GPLv3. اقرأه وعدّله وشاركه.",
         "gh": "الشيفرة على GitHub",
         "support_h2": "ادعم العمل",
         "support_p": "صبار هايف مجاني. إن وفّر عليك وقتا فيمكنك دعم صبارة.",
@@ -667,6 +684,7 @@ T_HOME = {
         "tiles": ["Images", "Video", "Audio", "Documents", "PDF"],
         "get": "Get SbarHive",
         "open": "Free and open",
+        "open_p": "Open source under GPLv3. Read it, change it, share it.",
         "gh": "Source on GitHub",
         "support_h2": "Support the work",
         "support_p": "SbarHive is free. If it saves you time, you can support Sbarah.",
@@ -813,7 +831,7 @@ def home(lang):
 <div class="actions">{btn}<a class="link-all" href="{dl_href}">{t["all"]}</a></div>
 <p class="hero-note">{note}</p>
 </div>
-{stage(lang)}
+<div class="stage">{art(lang, "hero", lazy=False)}</div>
 </div>
 </section>
 '''
@@ -827,7 +845,7 @@ def home(lang):
 {section_head("privacy-title", t["privacy"])}
 <div class="split">
   <ul class="plate-list" role="list">{plates}</ul>
-  <div>{privacy_svg(lang)}</div>
+  <div class="privacy-art">{art(lang, "privacy")}</div>
 </div>
 ''', cls="s-privacy", ident="privacy", labelledby="privacy-title")
     fam = [
@@ -839,6 +857,7 @@ def home(lang):
     ]
     formats = sec(f'''
 {section_head("formats-title", t["formats"])}
+{art(lang, "formats")}
 <ul class="format-grid" role="list">{"".join(format_cell(a, b) for a, b in fam)}</ul>
 ''', cls="s-formats alt", ident="formats", labelledby="formats-title")
     get = sec(f'''
@@ -847,7 +866,7 @@ def home(lang):
 {pills(lang, dl_href + "#verify", win_href)}
 ''', cls="s-get", ident="download", labelledby="get-title")
     open_ = sec(f'''
-{section_head("open-title", t["open"])}
+{section_head("open-title", t["open"], t["open_p"])}
 <div class="actions">{hex_button(REPO, t["gh"], "plain", "lg")}</div>
 ''', cls="s-open", ident="open", labelledby="open-title")
     return (hero + scene_section(lang) + try_bridge(lang) + sim_section(lang) + how + privacy + formats + get
@@ -907,10 +926,7 @@ def windows(lang):
     if ar:
         h = page_head("صبار هايف على ويندوز", "غير موقّع بعد، فيظهر تحذير SmartScreen")
         a = sec(f'''<h2 id="w1">ثلاث خطوات</h2>
-<ol class="step-words" role="list">
-<li><span class="n">1</span><h3>تحقق من الملف</h3><p><a href="{dl}#verify">SHA256SUMS</a></p></li>
-<li><span class="n">2</span><h3>More info</h3></li>
-<li><span class="n">3</span><h3>Run anyway</h3></li></ol>
+<ol class="step-row" role="list">{step_cell(1, "تحقق من الملف", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
 <p class="section-intro">ليست لدينا شهادة توقيع بعد، ولا نعد بمتجر أو بموعد.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
         b = sec(f'''<h2 id="w2">لم يكتمل بعد</h2>
 <div class="grid grid-3">{card("لم يُجرَّب على جهاز ويندوز حقيقي", "", ("tag-warn", "تنبيه"))}{card("بلا خلية الإفلات بعد", "", ("tag-warn", "غير جاهز"))}{card("بلا إشعارات بعد", "التقدم في تلميح الأيقونة", ("tag-warn", "غير جاهز"))}</div>''',
@@ -918,10 +934,7 @@ def windows(lang):
     else:
         h = page_head("SbarHive on Windows", "Not signed yet, so SmartScreen warns you")
         a = sec(f'''<h2 id="w1">Three steps</h2>
-<ol class="step-words" role="list">
-<li><span class="n">1</span><h3>Verify the file</h3><p><a href="{dl}#verify">SHA256SUMS</a></p></li>
-<li><span class="n">2</span><h3>More info</h3></li>
-<li><span class="n">3</span><h3>Run anyway</h3></li></ol>
+<ol class="step-row" role="list">{step_cell(1, "Verify the file", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
 <p class="section-intro">We have no signing certificate yet, and promise no store or date.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
         b = sec(f'''<h2 id="w2">Not finished yet</h2>
 <div class="grid grid-3">{card("Not run on a real Windows machine", "", ("tag-warn", "Note"))}{card("No drop hive", "", ("tag-warn", "Missing"))}{card("No notifications", "Progress shows in the tray tooltip", ("tag-warn", "Missing"))}</div>''',
@@ -933,7 +946,7 @@ def privacy(lang):
     ar = lang == "ar"
     if ar:
         h = page_head("ملفاتك تبقى عندك")
-        a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li>بلا رفع</li><li>بلا تتبع</li><li>بلا حسابات</li></ul></div>
+        a = sec(f'''<div class="split"><div><ul class="plate-list" role="list">{hex_plate("بلا رفع", "li", "accent")}{hex_plate("بلا تتبع", "li")}{hex_plate("بلا حسابات", "li")}</ul></div>
 <div>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
         b = sec(f'''<h2 id="p2">الاتصال الوحيد هو فحص التحديثات</h2>
 <div class="grid grid-2">{card("مرة في اليوم", "يقرأ البرنامج ملف تحديث موقّعا من صفحة إصدارات GitHub، فيرى GitHub عنوان IP الخاص بك كما في أي تنزيل.")}{card("تحقق قبل التنزيل", "التوقيع، ثم الحجم، ثم SHA-256.")}{card("قناتا التحديث", "<code>beta</code> و<code>stable</code>.")}{card("إيقاف الفحص", "<code>update_check = false</code> في <code>config.toml</code>.")}</div>''',
@@ -942,7 +955,7 @@ def privacy(lang):
 <p class="section-intro">يُكتب الناتج أولا في ملف مؤقت، ثم يُعاد تسميته. الشيفرة مفتوحة على <a href="{REPO}">GitHub</a>.</p>''', cls="s-p3", ident="originals", labelledby="p3", side="start")
     else:
         h = page_head("Your files stay with you")
-        a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li>No uploads</li><li>No tracking</li><li>No accounts</li></ul></div>
+        a = sec(f'''<div class="split"><div><ul class="plate-list" role="list">{hex_plate("No uploads", "li", "accent")}{hex_plate("No tracking", "li")}{hex_plate("No accounts", "li")}</ul></div>
 <div>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
         b = sec(f'''<h2 id="p2">The only connection: updates</h2>
 <div class="grid grid-2">{card("Once a day", "The app reads a signed manifest from GitHub releases. GitHub sees your address, as with any download.")}{card("Verified first", "Signature, then size, then SHA-256.")}{card("Two channels", "<code>beta</code> and <code>stable</code>.")}{card("Turn it off", "<code>update_check = false</code> in <code>config.toml</code>.")}</div>''',

@@ -33,3 +33,4 @@
 .download-slab .os-ico { width: var(--space-9); height: var(--space-9); fill: var(--color-ink); }
 .download-slab .os-ico .line { fill: none; stroke: var(--color-ink); stroke-width: 3; stroke-linejoin: miter; }
 .download-slab:focus-within::after { background: var(--color-accent-soft); }
+.download-slab:hover::after { background: var(--color-accent-soft); }

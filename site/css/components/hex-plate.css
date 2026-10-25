@@ -31,3 +31,6 @@
   clip-path: polygon(var(--cut-in) 0, calc(100% - var(--cut-in)) 0, 100% 50%, calc(100% - var(--cut-in)) 100%, var(--cut-in) 100%, 0 50%);
 }
 .hex-plate-accent::after { background: var(--color-accent); }
+/* Hover answers at once: the fill turns to ink. */
+.hex-plate:hover { color: var(--color-paper); }
+.hex-plate:hover::after { background: var(--color-ink); }

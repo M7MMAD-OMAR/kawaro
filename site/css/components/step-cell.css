@@ -26,3 +26,5 @@
   inset-inline: var(--border-edge);
   background: var(--color-accent);
 }
+.step-cell:hover .step-cell-num { color: var(--color-paper); }
+.step-cell:hover .step-cell-num::after { background: var(--color-ink); }
