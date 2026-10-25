@@ -20,3 +20,8 @@ crates/core/*.pkg
 site/pagefind/
 .wrangler/
 .deploy-out/
+.worktrees/
+.worktrees/
+
+# local signing key and passphrase, never committed
+/.secrets/
