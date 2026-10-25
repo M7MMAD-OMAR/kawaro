@@ -40,9 +40,9 @@
 <link rel="stylesheet" href="../css/demo.css">
 <link rel="stylesheet" href="../css/marquee.css">
 <link rel="stylesheet" href="../css/bento.css">
-<link rel="stylesheet" href="../css/sim.css">
 <link rel="stylesheet" href="../css/formats.css">
 <link rel="stylesheet" href="../css/closing.css">
+<link rel="stylesheet" href="../css/motion.css">
 <script type="application/ld+json">
 {"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "SbarHive", "alternateName": "صبار هايف", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux, Windows", "softwareVersion": "0.4.0-beta.1", "isAccessibleForFree": true, "license": "https://www.gnu.org/licenses/gpl-3.0.html", "url": "https://hive.sbarah.com/", "codeRepository": "https://github.com/M7MMAD-OMAR/sbarhive", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}}
 </script>
@@ -66,16 +66,15 @@
   </div>
 </header>
 <main id="main">
+<div class="scroll-meter" aria-hidden="true"></div>
 <section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
-<p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>Coming soon: beta 0.4.0-beta.1</p>
-<h1 id="hero-title"><span class="h1-line">Convert any file<span class="h1-hive" aria-hidden="true"><i style="--q:0;--r:0;--i:0"></i><i style="--q:-1;--r:1;--i:1"></i><i style="--q:0;--r:1;--i:2"></i><i style="--q:1;--r:0;--i:3"></i><i style="--q:1;--r:-1;--i:4"></i><i style="--q:0;--r:-1;--i:5"></i><i style="--q:-1;--r:0;--i:6"></i></span></span>
-<span class="h1-line">with a <span class="hl">right</span> click</span></h1>
+<h1 id="hero-title"><span class="h1-line"><span>Convert files</span></span>
+<span class="h1-line"><span>safely, <span class="hl">locally</span></span></span></h1>
 <div class="hero-side">
-<p class="lead">Select a file in your file manager and right click. A hive opens with only what fits it, and the result is saved next to the original.</p>
-<div class="actions"><a class="hex-button button-primary hex-button-lg" href="download/" data-os-default="linux">Free download</a><a class="link-try" href="#sim">Try the hive here</a></div>
-<ul class="hero-chips" role="list"><li>No uploads</li><li>No account</li><li>Open source</li></ul>
-<p class="hero-note">For Linux and <a href="windows/">Windows</a>; the Windows build is unsigned.</p>
+<p class="lead">Select a file and right click: the hive shows what fits it. Everything runs on your machine; nothing is uploaded, and the result is saved next to the original.</p>
+<div class="actions"><a class="hex-button button-primary hex-button-lg" href="download/" data-os-default="linux">Free download</a></div>
+<p class="hero-note">Open source, for Linux and <a href="windows/">Windows</a>.</p>
 </div>
 <div class="hero-stage"><figure class="demo" role="img" aria-label="Animation: a picture is selected in a folder, the hive opens, WEBP is picked, and a new file appears next to the original">
   <div class="demo-window" aria-hidden="true">
@@ -100,28 +99,6 @@
 <span class="bf bf-old"><b>PNG</b><small>Original</small></span>
 <span class="bf bf-new"><b>WEBP</b><small>New</small></span></div>
 <h3>The original stays as it is</h3><p>The result goes to a new file beside it. Your file is never modified.</p></li><li class="bento-tile bento-fit"><div class="bento-hive" aria-hidden="true"><i style="--q:0;--r:0" class=on></i><i style="--q:-1;--r:1" class=on></i><i style="--q:0;--r:1"></i><i style="--q:1;--r:0"></i><i style="--q:1;--r:-1" class=on></i><i style="--q:0;--r:-1"></i><i style="--q:-1;--r:0"></i></div><h3>You only see what fits your file</h3><p>Select an image and you see image formats; select two PDFs and you see merge and split.</p></li><li class="bento-tile bento-lang"><div class="bento-glyphs" aria-hidden="true"><span lang="ar">ع</span><span lang="en">A</span></div><h3>A full Arabic interface</h3><p>It works in Arabic and English, with Arabic right to left.</p></li></ul>
-</div>
-</section>
-<section class="sec s-sim" id="sim" aria-labelledby="sim-title">
-<div class="wrap">
-
-<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span><h2 id="sim-title">Try the hive here</h2><p class="section-head-lede">Drag a file onto the folder, or pick one and press Enter. Nothing is uploaded: this is only a demo.</p></div>
-<div class="sim-board">
-  <div class="sim-left">
-    <div class="sim-zone" id="sim-zone" tabindex="0" role="group" aria-label="Folder. Drop a sample file here.">
-      <p class="sim-hint">Drop a file here</p>
-      <ul class="sim-files" id="sim-files" aria-label="Folder files"></ul>
-    </div>
-    <ul class="sim-samples" role="list" aria-label="Sample files"><li><button type="button" class="sim-file" draggable="true" data-kind="image" data-name="photo.png" aria-label="photo.png, Image. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">photo.png</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="video" data-name="clip.mov" aria-label="clip.mov, Video. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">clip.mov</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="document" data-name="report.docx" aria-label="report.docx, Document. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">report.docx</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="audio" data-name="song.wav" aria-label="song.wav, Audio. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">song.wav</span></button></li><li><button type="button" class="sim-file" draggable="true" data-kind="pdfs" data-name="a.pdf, b.pdf" aria-label="a.pdf and b.pdf, Two PDFs. Press Enter to open the hive."><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 3h8l4 4v14H6zM14 3v4h4"/></svg><span class="name">a.pdf, b.pdf</span></button></li></ul>
-  </div>
-  <div class="sim-stage">
-    <p class="sim-idle">The hive opens here</p>
-    <div class="sim-hive" id="sim-hive" role="group" aria-label="The hive: actions that fit the file" hidden></div>
-  </div>
-</div>
-<div class="sim-static"><svg class="sim-pic" viewBox="0 0 160 140" aria-hidden="true" focusable="false"><path class="mc mc-hot" d="M80.0,48.0L99.1,59.0L99.1,81.0L80.0,92.0L60.9,81.0L60.9,59.0Z"/><path class="mc" d="M59.9,82.7L79.0,93.7L79.0,115.7L59.9,126.7L40.9,115.7L40.9,93.7Z"/><path class="mc" d="M100.1,82.7L119.1,93.7L119.1,115.7L100.1,126.7L81.0,115.7L81.0,93.7Z"/><path class="mc" d="M120.1,48.0L139.2,59.0L139.2,81.0L120.1,92.0L101.1,81.0L101.1,59.0Z"/><path class="mc" d="M100.1,13.3L119.1,24.3L119.1,46.3L100.1,57.3L81.0,46.3L81.0,24.3Z"/><path class="mc" d="M59.9,13.3L79.0,24.3L79.0,46.3L59.9,57.3L40.9,46.3L40.9,24.3Z"/><path class="mc" d="M39.9,48.0L58.9,59.0L58.9,81.0L39.9,92.0L20.8,81.0L20.8,59.0Z"/></svg><p class="sim-nojs">A still picture of the hive, turn on JavaScript to try it.</p></div>
-<p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
-
 </div>
 </section>
 <section class="sec s-formats" id="formats" aria-labelledby="formats-title">
@@ -177,6 +154,5 @@
 </footer>
 <script id="hive-config" type="application/json">{"rtl": false, "r": 36.0, "gap": 6, "pad": 4, "kinds": [{"key": "image", "label": "Image", "selection": "One image", "files": ["photo.png"], "cells": [{"c": "WEBP", "n": "Convert to WebP", "o": "photo.webp", "id": "webp"}, {"c": "PNG", "n": "Convert to PNG", "o": "photo.png", "id": "photo-png"}, {"c": "JPG", "n": "Convert to JPG", "o": "photo.jpg", "id": "jpg"}, {"c": "AVIF", "n": "Convert to AVIF", "o": "photo.avif", "id": "avif"}, {"c": "PDF", "n": "Convert to PDF", "o": "photo.pdf", "id": "pdf"}, {"c": "GIF", "n": "Convert to GIF", "o": "photo.gif", "id": "gif"}, {"c": "RESIZE", "n": "Resize image", "o": "photo-resized.png", "id": "photo-resized-png"}, {"c": "ROTATE", "n": "Rotate", "o": "photo-rotated.png", "id": "photo-rotated-png"}, {"c": "FLIP", "n": "Flip image", "o": "photo-flipped.png", "id": "photo-flipped-png"}, {"c": "GRAY", "n": "Gray: make it gray", "o": "photo-gray.png", "id": "photo-gray-png"}, {"c": "SHRINK", "n": "Shrink image", "o": "photo-compressed.png", "id": "photo-compressed-png"}, {"c": "STRIP", "n": "Strip metadata", "o": "photo-clean.png", "id": "photo-clean-png"}]}, {"key": "video", "label": "Video", "selection": "One video", "files": ["clip.mov"], "cells": [{"c": "MP4", "n": "Convert to MP4", "o": "clip.mp4", "id": "mp4"}, {"c": "WEBM", "n": "Convert to WebM", "o": "clip.webm", "id": "webm"}, {"c": "GIF", "n": "Convert to animated GIF", "o": "clip.gif", "id": "gif"}, {"c": "MKV", "n": "Convert to MKV", "o": "clip.mkv", "id": "mkv"}, {"c": "MP3", "n": "Extract audio as MP3", "o": "clip.mp3", "id": "mp3"}, {"c": "OGG", "n": "Extract audio as OGG", "o": "clip.ogg", "id": "ogg"}, {"c": "SHRINK", "n": "Shrink video", "o": "clip-compressed.mov", "id": "mov"}, {"c": "M4A", "n": "Extract audio as M4A", "o": "clip.m4a", "id": "m4a"}, {"c": "FLAC", "n": "Extract audio as FLAC", "o": "clip.flac", "id": "flac"}, {"c": "WAV", "n": "Extract audio as WAV", "o": "clip.wav", "id": "wav"}]}, {"key": "document", "label": "Document", "selection": "One document", "files": ["report.docx"], "cells": [{"c": "PDF", "n": "Convert to PDF", "o": "report.pdf", "id": "pdf"}, {"c": "ODT", "n": "Convert to ODT", "o": "report.odt", "id": "odt"}]}, {"key": "audio", "label": "Audio", "selection": "One audio file", "files": ["song.wav"], "cells": [{"c": "MP3", "n": "Convert to MP3", "o": "song.mp3", "id": "mp3"}, {"c": "M4A", "n": "Convert to M4A", "o": "song.m4a", "id": "m4a"}, {"c": "OGG", "n": "Convert to OGG", "o": "song.ogg", "id": "ogg"}, {"c": "FLAC", "n": "Convert to FLAC", "o": "song.flac", "id": "flac"}]}, {"key": "pdfs", "label": "Two PDFs", "selection": "Two files", "files": ["a.pdf", "b.pdf"], "cells": [{"c": "MERGE", "n": "Merge into one PDF", "o": "a-merged.pdf", "id": "a-merged-pdf"}, {"c": "SHRINK", "n": "Shrink PDFs", "o": "a-compressed.pdf", "id": "a-compressed-pdf"}, {"c": "ROTATE", "n": "Rotate pages 90 degrees", "o": "a-rotated.pdf", "id": "a-rotated-pdf"}, {"c": "PNGS", "n": "PNGs: pages to PNG images", "o": "a-pages.zip", "id": "a-pages-zip"}, {"c": "SPLIT", "n": "Split: one PDF per page", "o": "a-split.zip", "id": "a-split-zip"}]}], "ui": {"done": "Done", "actions": "{n} actions", "original": "Original, untouched", "fresh": "New", "rel": "Download for {os}", "win": "Windows", "linux": "Linux"}}</script>
 <script src="../app.js" defer></script>
-<script src="../js/sim.js" defer></script>
 </body>
 </html>

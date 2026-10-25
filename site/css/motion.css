@@ -1,0 +1,81 @@
+/* Scroll choreography for the home page (S-065). Every effect here is driven by
+   the scroll position itself (scroll and view timelines), so nothing waits on a
+   script and scrolling back plays it in reverse. Blocks are moved, scaled,
+   rotated or unmasked, never faded, so a block is always readable at rest. The
+   whole file applies only where view timelines exist and motion is welcome.
+
+   The script, top to bottom:
+     meter      an amber line under the header fills as the page is read
+     band       the two ribbons swing from flat into their X as they arrive
+     headings   each section heading is unmasked upward, then lifts away on exit
+     bento      tiles arrive one after another, tilted and small, and settle;
+                on exit they sink back a little
+     formats    each family word slides in from the reading start, one by one,
+                and its codes follow from the other side
+     download   the two slabs come in from opposite sides and meet
+     closing    the two tiles rise and grow into place
+     footer     the giant name rises out of the bottom edge */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .scroll-meter {
+      position: fixed;
+      inset-block-start: 0;
+      inset-inline: 0;
+      z-index: 30;
+      height: var(--space-1);
+      background: var(--color-accent);
+      transform-origin: var(--meter-origin, left) center;
+      animation: meter var(--duration-slow) var(--ease-steady) both;
+      animation-timeline: scroll(root block);
+    }
+    [dir="rtl"] .scroll-meter { --meter-origin: right; }
+
+    .mq-row-1 { animation: swing-1 var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 0% cover 45%; }
+    .mq-row-2 { animation: swing-2 var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 0% cover 45%; }
+
+    :is(.s-bento, .s-formats, .s-get) > .wrap > :first-child > h2, .closing-open h2 {
+      animation: head-in var(--duration-slow) var(--ease-out) both;
+      animation-timeline: view();
+      animation-range: entry 10% cover 40%;
+    }
+    :is(.s-bento, .s-formats, .s-get) > .wrap > :first-child > p { animation: lede-in var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 20% cover 45%; }
+
+    .bento-tile {
+      animation: tile var(--duration-slow) var(--ease-out) both;
+      animation-timeline: view();
+      animation-range: entry 0% exit 100%;
+    }
+    .bento-tile:nth-child(2) { animation-range: entry 10% exit 100%; }
+    .bento-tile:nth-child(3) { animation-range: entry 20% exit 100%; }
+    .bento-tile:nth-child(4) { animation-range: entry 30% exit 100%; }
+
+    .fam-name { animation: from-start var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 0% cover 35%; }
+    .fam-codes { animation: from-end var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 10% cover 40%; }
+
+    .dl-grid > :first-child { animation: from-start var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+    .dl-grid > :last-child { animation: from-end var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+
+    .closing > * { animation: rise-in var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 0% cover 40%; }
+    .closing > :last-child { animation-range: entry 15% cover 45%; }
+
+    .footer-mark { animation: mark-up var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry 0% entry 100%; }
+  }
+}
+
+@keyframes meter { 0% { scale: 0 1; } 100% { scale: 1 1; } }
+@keyframes swing-1 { 0% { rotate: 0deg; translate: calc(var(--dir) * -10%) 0; } }
+@keyframes swing-2 { 0% { rotate: 0deg; translate: calc(var(--dir) * 10%) 0; } }
+@keyframes head-in {
+  0% { clip-path: inset(0 0 100% 0); translate: 0 var(--space-8); }
+  100% { clip-path: inset(-20% -10% -30% -10%); translate: 0 0; }
+}
+@keyframes lede-in { 0% { translate: 0 var(--space-7); } }
+@keyframes tile {
+  0% { translate: 0 var(--space-9); scale: 0.86; rotate: calc(var(--dir) * -3deg); }
+  30%, 75% { translate: 0 0; scale: 1; rotate: 0deg; }
+  100% { translate: 0 calc(var(--space-7) * -1); scale: 0.94; rotate: 0deg; }
+}
+@keyframes from-start { 0% { translate: calc(var(--dir) * -30vw) 0; } }
+@keyframes from-end { 0% { translate: calc(var(--dir) * 30vw) 0; } }
+@keyframes rise-in { 0% { translate: 0 var(--space-9); scale: 0.9; } }
+@keyframes mark-up { 0% { translate: 0 60%; } }

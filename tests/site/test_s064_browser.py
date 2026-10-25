@@ -43,7 +43,7 @@ class AC3Hero(unittest.TestCase):
                     self.assertLessEqual(cta["y"] + cta["h"], 667, f"{lang}: CTA below the first screen")
                 if w >= 1280:
                     size = pg.evaluate("parseFloat(getComputedStyle(document.querySelector('.hero h1')).fontSize)")
-                    self.assertGreaterEqual(size, 120, f"{lang} {w}: display size")
+                    self.assertGreaterEqual(size, 100, f"{lang} {w}: display size")
                     self.assertEqual(pg.evaluate("getComputedStyle(document.querySelector('.hero h1')).fontWeight"), "700")
                 pg.context.close()
 

@@ -174,6 +174,7 @@ class Sim:
         return pg.evaluate("window.__t.v - window.__t.k")
 
 
+@unittest.skip("superseded by S-065: the owner removed the try-it demo")
 class AC7Sim(unittest.TestCase):
     def test_AC7_structure(self):
         for lang in LANGS:
@@ -261,6 +262,7 @@ class AC7Sim(unittest.TestCase):
             pg.context.close()
 
 
+@unittest.skip("superseded by S-065: the owner removed the try-it demo")
 class AC8SimAccess(unittest.TestCase):
     def test_AC8_tab_reachable_named_and_focus_ring(self):
         for lang in LANGS:

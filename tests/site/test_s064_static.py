@@ -11,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib  # noqa: E402
 from lib import REPO, LANGS, page_file, site, html_files  # noqa: E402
 
-ORDER = ["hero", "mq", "why", "sim", "formats", "download", "open"]
+ORDER = ["hero", "mq", "why", "formats", "download", "open"]  # S-065 removed #sim
 
 
 def home(lang):
@@ -94,7 +94,7 @@ class AC3Display(unittest.TestCase):
         m = re.search(r"--type-display-sm: (\d+)px;", tok)
         self.assertGreaterEqual(int(m.group(1)), 44)
         self.assertIn("--font-weight-bold: 700;", tok)
-        self.assertIn("var(--fs-display)", css("hero.css"))
+        self.assertIn("var(--type-display)", css("hero.css"))  # S-065: capped below the token for a calmer hero
 
 
 class AC4Formats(unittest.TestCase):
@@ -132,14 +132,17 @@ class AC5Motion(unittest.TestCase):
         self.assertIn("--ease-steady: linear;", (site() / "tokens.css").read_text(encoding="utf-8"))
 
     def test_AC5_view_timeline_gated_and_never_fades(self):
-        style = lib.strip_css_comments(css("../style.css"))
-        self.assertRegex(style, r"@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\)")
-        rise = re.search(r"@keyframes rise \{(.*?)\n\}", style, flags=re.S).group(1)
-        self.assertNotIn("opacity", rise)
+        # S-065: scroll choreography lives in motion.css, the hero exit in hero.css.
         for p in sorted(site().rglob("*.css")):
             t = lib.strip_css_comments(p.read_text(encoding="utf-8"))
-            if "animation-timeline" in t and p.name != "style.css":
-                self.fail(f"{p.name}: view timeline outside the gated block")
+            if "animation-timeline" not in t:
+                continue
+            self.assertIn(p.name, ("motion.css", "hero.css"), f"{p.name}: scroll timeline outside the gated files")
+            gate = t.index("@supports (animation-timeline: view())")
+            self.assertRegex(t[gate:], r"^@supports \(animation-timeline: view\(\)\) \{\s*@media \(prefers-reduced-motion: no-preference\)")
+            self.assertGreater(t.index("animation-timeline"), gate, p.name)
+            for m in re.finditer(r"@keyframes [\w-]+ \{(.*?)\n\}", t, flags=re.S):
+                self.assertNotIn("opacity", m.group(1), f"{p.name}: a scroll effect fades content")
 
     def test_AC5_loops_stop_with_reduced_motion(self):
         for name in ("demo.css", "marquee.css", "hero.css"):
@@ -169,12 +172,15 @@ class AC6Shell(unittest.TestCase):
 
 
 class AC7Kept(unittest.TestCase):
-    def test_AC7_sim_contract(self):
+    def test_AC7_no_try_it_demo(self):
+        # S-065: the owner removed the try-it section and its script.
         for lang in LANGS:
             t = home(lang)
-            for ident in ('id="sim"', 'id="sim-zone"', 'id="sim-hive"', 'id="sim-files"', 'id="stage-live"'):
-                self.assertIn(ident, t, lang)
-            self.assertIn("js/sim.js", t)
+            self.assertNotIn('id="sim"', t, lang)
+            self.assertNotIn("sim.js", t, lang)
+            self.assertNotIn('href="#sim"', t, lang)
+        self.assertFalse((site() / "js" / "sim.js").exists())
+        self.assertFalse((site() / "css" / "sim.css").exists())
 
     def test_AC7_no_radius_shadow_gradient_one_sided_border(self):
         c = lib.strip_css_comments(site_css())

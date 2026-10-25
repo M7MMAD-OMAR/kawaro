@@ -281,7 +281,6 @@ class AC8MotionStatic(unittest.TestCase):
             self.assertIn(u + ":", tok, f"{u} not defined in tokens.css")
 
     def test_AC8_no_pointer_listeners_outside_sim_in_all_js(self):
-        self.assertTrue((site() / "js").is_dir(), "site/js missing")
         for p in js_files():
             rest = re.sub(r"//\s*sim:begin.*?//\s*sim:end", "", p.read_text(encoding="utf-8"), flags=re.S)
             self.assertEqual(re.findall(r"pointermove|mousemove", rest), [], str(p))
@@ -331,12 +330,12 @@ class AC10Finish(unittest.TestCase):
         for p in [REPO / "site/build.py", REPO / "scripts/tokens-to-css.py", REPO / "design/tokens.json", REPO / "backlog/S-063-site-redesign.md"]:
             if DASH.search(p.read_text(encoding="utf-8")):
                 bad.append(str(p))
-        for d in ("css", "js"):
-            self.assertTrue((REPO / "site" / d).is_dir(), f"site/{d}/ missing")
+        self.assertTrue((REPO / "site" / "css").is_dir(), "site/css/ missing")
+        for d in ("css", "js"):  # S-065: site/js/ is gone; app.js is checked below
             for p in (REPO / "site" / d).rglob("*"):
                 if p.is_file() and DASH.search(p.read_text(encoding="utf-8")):
                     bad.append(str(p))
-        for p in (REPO / "tests/site").glob("test_s063_*.py"):
+        for p in [REPO / "site/app.js"] + list((REPO / "tests/site").glob("test_s063_*.py")):
             if DASH.search(p.read_text(encoding="utf-8")):
                 bad.append(str(p))
         for f in html_files():

@@ -24,7 +24,7 @@
   background: var(--tile-bg);
   color: var(--tile-ink);
   clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, 0 100%);
-  transition: translate var(--duration-base) var(--ease-out);
+  transition: transform var(--duration-base) var(--ease-out);
 }
 [dir="rtl"] .bento-tile { clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%, 0 var(--cut)); }
 .bento-tile h3 { font-size: var(--fs-h3); font-weight: var(--font-weight-bold); max-width: 18ch; }
@@ -40,7 +40,7 @@
   justify-self: start;
   display: inline-flex;
   align-items: center;
-  min-height: var(--target-min);
+  min-height: calc(var(--target-min) + var(--space-2));
   margin-block-start: var(--space-2);
   padding-inline: var(--space-4);
   border: var(--border-default) solid var(--color-paper);
@@ -122,7 +122,7 @@
 .bento-glyphs span + span { background: var(--color-accent); color: var(--color-accent-ink); }
 
 @media (hover: hover) and (prefers-reduced-motion: no-preference) {
-  .bento-tile:hover { translate: 0 calc(var(--space-2) * -1); }
+  .bento-tile:hover { transform: translateY(calc(var(--space-2) * -1)); }
   .bento-privacy:hover .bl-loop { translate: 0 calc(var(--space-2) * -1); }
   .bento-orig:hover .bf-new { translate: calc(var(--space-4) * var(--dir)) 0; }
   .bento-fit:hover .bento-hive i:not(.on):not(:first-child) { background: var(--color-ink); }

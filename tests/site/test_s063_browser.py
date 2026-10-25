@@ -125,7 +125,7 @@ class AC4Big(unittest.TestCase):
                     h1 = pg.evaluate("parseFloat(getComputedStyle(document.querySelector('main h1')).fontSize)")
                     self.assertGreaterEqual(h1, 72)
                 secs = pg.evaluate("""() => [...document.querySelectorAll('main > section:not(.hero)')].map(s => [s.id || s.className, [...s.querySelectorAll('h2')].map(h => parseFloat(getComputedStyle(h).fontSize))])""")
-                self.assertGreaterEqual(len(secs), 5, f"{lang} {w}: sections")  # S-064: five sections after the hero
+                self.assertGreaterEqual(len(secs), 4, f"{lang} {w}: sections")  # S-065: four sections after the hero
                 for name, h2s in secs:
                     self.assertEqual(len(h2s), 1, f"{lang} {w}: section {name} needs exactly one h2")
                     self.assertGreaterEqual(h2s[0], h2_min, f"{lang} {w}: {name} h2")

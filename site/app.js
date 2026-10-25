@@ -1,6 +1,6 @@
 /* SbarHive site behaviour: the download card for the visitor's system, the hero
    download button, and the docs search. No dependencies. Everything works without
-   JS. The scroll scene is in js/scene.js and the try-it demo in js/sim.js. */
+   JS. The home page motion is CSS only (S-064, S-065). */
 (() => {
   const doc = document;
   const cfgNode = doc.getElementById("hive-config");
