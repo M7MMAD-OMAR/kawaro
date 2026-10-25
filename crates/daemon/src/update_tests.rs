@@ -853,7 +853,7 @@ fn ac3_the_update_thread_starts_after_the_socket_is_bound_and_main_never_checks(
 fn ac6_update_notifications_never_open_a_window() {
     let notify = code("notify.rs");
     assert!(notify.contains("notify_update_with"));
-    assert!(notify.contains("kawarod: notify:"));
+    assert!(notify.contains("log_line("));
     let update = code("update.rs");
     for word in [
         "slint",
