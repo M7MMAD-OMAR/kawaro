@@ -369,10 +369,10 @@ class AC12Finish(unittest.TestCase):
         for rel in ("site/build.py", "site/style.css", "site/app.js", "design/tokens.json", "README.md", "README.ar.md",
                     "CHANGELOG.md", "backlog/S-061-site-polish.md"):
             p = REPO / rel
-            if p.exists() and re.search("[–—]", p.read_text(encoding="utf-8")):
+            if p.exists() and re.search("[\u2013\u2014]", p.read_text(encoding="utf-8")):
                 bad.append(rel)
         for f in html_files():
-            if re.search("[–—]", f.read_text(encoding="utf-8")):
+            if re.search("[\u2013\u2014]", f.read_text(encoding="utf-8")):
                 bad.append(str(f.relative_to(site())))
         self.assertEqual(bad, [])
 
