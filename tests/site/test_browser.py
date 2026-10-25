@@ -51,19 +51,34 @@ class AC1HeroBrowser(unittest.TestCase):
     def test_AC1_primary_swaps_with_user_agent(self):
         WIN = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
         LIN = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
-        b1 = Browser("1")
-        with b1:
-            for lang, win_word, lin_word in (("en", "Windows", "Linux"), ("ar", "ويندوز", "لينكس")):
-                got = {}
-                for name, ua in (("win", WIN), ("lin", LIN)):
-                    pg = b1.page(page_path(lang), user_agent=ua)
-                    el = pg.locator(".hero a.button-primary")
-                    got[name] = (el.inner_text(), el.get_attribute("href"))
-                    pg.context.close()
-                self.assertIn(win_word, got["win"][0], got)
-                self.assertTrue(got["win"][1].endswith((".msi", ".zip")), got)
-                self.assertIn(lin_word, got["lin"][0], got)
-                self.assertTrue(got["lin"][1].endswith((".deb", ".rpm")), got)
+        errors = []
+
+        def run():
+            # A second sync Playwright cannot start inside the module browser's
+            # event loop, so the published build is driven from its own thread.
+            try:
+                b1 = Browser("1")
+                with b1:
+                    for lang, win_word, lin_word in (("en", "Windows", "Linux"), ("ar", "ويندوز", "لينكس")):
+                        got = {}
+                        for name, ua in (("win", WIN), ("lin", LIN)):
+                            pg = b1.page(page_path(lang), user_agent=ua)
+                            el = pg.locator(".hero a.button-primary")
+                            got[name] = (el.inner_text(), el.get_attribute("href"))
+                            pg.context.close()
+                        self.assertIn(win_word, got["win"][0], got)
+                        self.assertTrue(got["win"][1].endswith((".msi", ".zip")), got)
+                        self.assertIn(lin_word, got["lin"][0], got)
+                        self.assertTrue(got["lin"][1].endswith((".deb", ".rpm")), got)
+            except BaseException as e:  # noqa: BLE001
+                errors.append(e)
+
+        import threading
+        th = threading.Thread(target=run)
+        th.start()
+        th.join()
+        if errors:
+            raise errors[0]
 
     def test_AC1_js_off_label_and_href(self):
         for lang, word in (("en", "Download"), ("ar", "تنزيل")):
