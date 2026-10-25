@@ -1,0 +1,58 @@
+/* hex_button: a flat-top hexagon. The edge is a full polygon in ink; the fill is a
+   second polygon inset by the edge width, so the border follows the clip.
+   Hover and focus swap the fill and the ink at once (custom properties, no
+   transition), so the answer is immediate and visible. The focus ring is the
+   outline of the box, outside the clip. Colours can be set by a parent through
+   --btn-fill, --btn-ink and --btn-edge. */
+.hex-button {
+  --hb-h: var(--space-8);
+  --cut: calc(var(--hb-h) * 0.29);
+  --cut-in: calc(var(--cut) - var(--border-edge) * 0.58);
+  --fill: var(--btn-fill, var(--color-paper));
+  --ink: var(--btn-ink, var(--color-ink));
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--hb-h);
+  padding-block: var(--space-2);
+  padding-inline: calc(var(--cut) + var(--space-5));
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.25;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+}
+.hex-button::before,
+.hex-button::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+}
+.hex-button::before {
+  inset: 0;
+  background: var(--btn-edge, var(--color-ink));
+  clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% 50%, calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 50%);
+}
+.hex-button::after {
+  inset-block: var(--border-edge);
+  inset-inline: calc(var(--border-edge) * 1.1547);
+  background: var(--fill);
+  clip-path: polygon(var(--cut-in) 0, calc(100% - var(--cut-in)) 0, 100% 50%, calc(100% - var(--cut-in)) 100%, var(--cut-in) 100%, 0 50%);
+}
+.hex-button.button-primary { --fill: var(--btn-fill, var(--color-accent)); --ink: var(--btn-ink, var(--color-accent-ink)); }
+.hex-button.button-support { --fill: var(--btn-fill, var(--color-accent-soft)); }
+.hex-button:hover,
+.hex-button:focus-visible {
+  --fill: var(--btn-hover-fill, var(--color-ink));
+  --ink: var(--btn-hover-ink, var(--color-paper));
+}
+.hex-button-sm { --hb-h: var(--target-min); font-size: var(--type-small); }
+.hex-button-lg { --hb-h: calc(var(--space-8) + var(--space-4)); font-size: var(--fs-lead); }
+.hex-button .ico { flex: none; width: var(--space-5); height: var(--space-5); fill: currentColor; }
+.hex-button .soon { font-size: var(--type-small); font-weight: var(--font-weight-regular); }

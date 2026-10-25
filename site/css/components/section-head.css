@@ -1,0 +1,12 @@
+/* section_head: a hexagon mark, the section's one h2 and an optional lede. A parent
+   can tighten it with --head-gap, --head-gap-inner and --head-mark. */
+.section-head { display: grid; justify-items: start; gap: var(--head-gap-inner, var(--space-4)); margin-block-end: var(--head-gap, var(--space-7)); }
+.section-head h2 { max-width: 16ch; }
+.section-head-mark {
+  display: var(--head-mark, block);
+  width: var(--space-6);
+  height: calc(var(--space-6) * 1.1547);
+  background: var(--color-accent);
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.section-head-lede { margin: 0; max-width: 36ch; font-size: var(--fs-lead); color: var(--head-lede, var(--color-text-secondary)); }

@@ -1,0 +1,33 @@
+/* hex_plate: a wide plate with pointed ends. Edge and fill are two clipped layers. */
+.hex-plate {
+  --cut: var(--space-6);
+  --cut-in: calc(var(--cut) - var(--border-edge) * 0.7);
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  min-height: calc(var(--space-9) + var(--space-4));
+  margin: 0;
+  padding: var(--space-4) calc(var(--cut) + var(--space-5));
+  font-size: var(--fs-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.2;
+}
+.hex-plate::before,
+.hex-plate::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+}
+.hex-plate::before {
+  inset: 0;
+  background: var(--color-ink);
+  clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% 50%, calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 50%);
+}
+.hex-plate::after {
+  inset-block: var(--border-edge);
+  inset-inline: calc(var(--border-edge) * 1.2);
+  background: var(--color-paper);
+  clip-path: polygon(var(--cut-in) 0, calc(100% - var(--cut-in)) 0, 100% 50%, calc(100% - var(--cut-in)) 100%, var(--cut-in) 100%, 0 50%);
+}
+.hex-plate-accent::after { background: var(--color-accent); }

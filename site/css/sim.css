@@ -1,0 +1,129 @@
+/* Try it: the keyboard operable drop demo. The section is always in the page;
+   the control after the scene jumps here. Values come from tokens only. */
+html:not(.js) .sim-board { display: none; }
+.s-sim { background: var(--color-surface-0); }
+.sim-board { display: grid; gap: var(--space-6); }
+.sim-board > * { min-width: 0; }
+.sim-left { display: grid; gap: var(--space-4); align-content: start; }
+.sim-samples { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sim-file {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target-min);
+  min-width: var(--target-min);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-edge) solid var(--color-ink);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--type-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: grab;
+}
+.sim-file:hover, .sim-file:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.sim-file.on { background: var(--color-accent); color: var(--color-accent-ink); }
+.sim-file .ico { flex: none; width: var(--space-5); height: var(--space-5); fill: none; stroke: currentColor; stroke-width: var(--border-focus); stroke-linejoin: miter; }
+.sim-file .name, .sim-files .name { direction: ltr; unicode-bidi: isolate; font-family: ui-monospace, "IBM Plex Mono", monospace; }
+
+.sim-zone {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-height: calc(var(--space-9) * 2);
+  padding: var(--space-5);
+  border: var(--border-edge) dashed var(--color-ink);
+  background: var(--color-surface-1);
+}
+.sim-zone.ready { background: var(--color-accent-soft); }
+.sim-zone.over { background: var(--color-accent); }
+.sim-hint { margin: 0; align-self: center; text-align: center; color: var(--color-text-secondary); }
+.sim-zone.full .sim-hint { display: none; }
+.sim-files { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sim-files li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-paper);
+  border: var(--border-default) solid var(--color-ink);
+}
+.sim-files .note { color: var(--color-text-secondary); font-size: var(--type-small); }
+.sim-files li.fresh { background: var(--color-accent); color: var(--color-accent-ink); }
+.sim-files li.fresh .note { color: var(--color-accent-ink); font-weight: var(--font-weight-semibold); }
+
+.sim-stage { display: grid; place-items: center; }
+.sim-idle { display: none; margin: 0; text-align: center; color: var(--color-text-secondary); }
+.js .sim-idle { display: block; }
+.sim-stage.open .sim-idle { display: none; }
+.sim-hive { --cw: calc(var(--hex-size-md) * 0.866); display: grid; place-items: center; width: calc(var(--cw) * 5.4); height: calc(var(--cw) * 5); }
+.sim-hive[data-rings="1"] { width: calc(var(--cw) * 3.3); height: calc(var(--cw) * 3.1); }
+.sim-hive[hidden] { display: none; }
+@media (max-width: 400px) { .sim-hive { --cw: calc(var(--hex-size-md) * 0.78); } }
+.sim-cell, .sim-centre {
+  grid-area: 1 / 1;
+  width: var(--cw);
+  height: calc(var(--cw) * 1.1547);
+  translate: calc(var(--x, 0) * 100%) calc(var(--y, 0) * 100%);
+}
+.sim-cell {
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--color-ink);
+  cursor: pointer;
+  outline: var(--border-focus) solid transparent;
+}
+.sim-cell > * { grid-area: 1 / 1; }
+.sim-cell .ring { width: 100%; height: 100%; background: var(--color-ink); clip-path: var(--hexagon); }
+.sim-cell .hx {
+  display: grid;
+  place-items: center;
+  width: calc(100% - var(--border-edge) * 2);
+  height: calc(100% - var(--border-edge) * 2.31);
+  clip-path: var(--hexagon);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-size: var(--type-small);
+  font-weight: var(--font-weight-semibold);
+}
+.sim-cell:hover .hx, .sim-cell:focus-visible .hx { background: var(--color-ink); color: var(--color-paper); }
+.sim-cell.done .hx { background: var(--color-accent); color: var(--color-accent-ink); }
+.sim-centre {
+  display: grid;
+  place-items: center;
+  padding: 0 var(--space-2);
+  text-align: center;
+  clip-path: var(--hexagon);
+  background: var(--color-accent-soft);
+  color: var(--color-ink);
+  font-size: var(--type-small);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.15;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+.sim-static { display: grid; justify-items: center; gap: var(--space-3); margin-block-start: var(--space-5); }
+.js .sim-static { display: none; }
+.sim-pic { width: calc(var(--space-9) * 2); height: auto; }
+.sim-pic .mc { fill: var(--color-paper); stroke: var(--color-ink); stroke-width: var(--border-default); }
+.sim-pic .mc-hot { fill: var(--color-accent); }
+.sim-nojs { margin: 0; color: var(--color-text-secondary); text-align: center; }
+@media (min-width: 720px) { .sim-board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; } }
+@media (prefers-reduced-motion: no-preference) {
+  .js .sim-cell .hx, .js .sim-cell .ring {
+    opacity: 0;
+    animation: sim-pop var(--duration-base) var(--ease-out) forwards;
+    animation-delay: calc(var(--i, 0) * var(--duration-stagger));
+  }
+}
+@keyframes sim-pop {
+  100% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #sim *, #sim *::before, #sim *::after { animation: none !important; transition: none !important; }
+}

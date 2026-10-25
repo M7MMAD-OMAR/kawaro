@@ -1,0 +1,28 @@
+/* step_cell: a pointy-top hexagon with the step number, then title and sentence. */
+.step-cell { display: grid; justify-items: start; align-content: start; gap: var(--space-3); }
+.step-cell h3 { margin: 0; }
+.step-cell p { margin: 0; max-width: 24ch; }
+.step-cell-num {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: calc(var(--space-9) + var(--space-5));
+  height: calc((var(--space-9) + var(--space-5)) * 1.1547);
+  font-size: var(--fs-h2);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent-ink);
+}
+.step-cell-num::before,
+.step-cell-num::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+}
+.step-cell-num::before { inset: 0; background: var(--color-ink); }
+.step-cell-num::after {
+  inset-block: calc(var(--border-edge) * 1.1547);
+  inset-inline: var(--border-edge);
+  background: var(--color-accent);
+}

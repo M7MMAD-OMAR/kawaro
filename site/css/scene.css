@@ -1,0 +1,282 @@
+/* The scene: one pinned stage inside a tall section. Scroll progress p in [0, 1]
+   (written by js/scene.js as --p, plus data-state) drives, in order: a folder with
+   files, one file selected, the hive opening ring by ring, a cell picked, and the
+   result file next to the untouched original. Only transform and opacity change.
+
+   The default below is the final, static picture: it is what shows with JS off and
+   with reduced motion. The pinned, scroll driven version is added only under .js
+   and no-preference. Positions are logical, and x is multiplied by --dir. */
+
+.scene {
+  --cw: min(8.4vw, 13svh);
+  --tw: calc(var(--space-9) * 1.3);
+  --scene-w: min(100%, calc(var(--space-10) * 10));
+  --head-gap: var(--space-4);
+  --head-mark: none;
+  background: var(--color-surface-1);
+  padding-block: var(--space-7);
+  overflow-x: clip;
+}
+.scene-stage {
+  display: grid;
+  gap: var(--space-6);
+  padding-inline: var(--space-4);
+}
+.scene-stage > * { width: var(--scene-w); margin-inline: auto; min-width: 0; }
+.scene-visual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+/* The folder: a window with two cut corners. */
+.scene-folder {
+  --cut: var(--space-6);
+  position: relative;
+  isolation: isolate;
+  justify-self: center;
+  padding: var(--space-5);
+}
+.scene-folder::before,
+.scene-folder::after {
+  content: "";
+  position: absolute;
+  z-index: -2;
+}
+.scene-folder::before {
+  inset: 0;
+  background: var(--color-ink);
+  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+}
+.scene-folder::after {
+  inset: var(--border-edge);
+  background: var(--color-surface-0);
+  clip-path: polygon(0 0, calc(100% - var(--cut) + var(--border-edge) * 0.4) 0, 100% calc(var(--cut) - var(--border-edge) * 0.4), 100% 100%, calc(var(--cut) - var(--border-edge) * 0.4) 100%, 0 calc(100% - var(--cut) + var(--border-edge) * 0.4));
+}
+.scene-bar { display: flex; align-items: center; gap: var(--space-3); margin-block-end: var(--space-4); font-weight: var(--font-weight-semibold); }
+.scene-bar::before {
+  content: "";
+  width: var(--space-5);
+  height: calc(var(--space-5) * 1.1547);
+  background: var(--color-accent);
+  clip-path: var(--hexagon);
+}
+.scene-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(3, var(--tw));
+  gap: var(--space-4);
+  font-size: var(--fs-body);
+}
+
+/* Files: a page with a folded corner. */
+.scene-file,
+.scene-result {
+  --fold: var(--space-5);
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-1);
+  width: var(--tw);
+  height: calc(var(--tw) * 1.15);
+  margin: 0;
+  padding: var(--space-2);
+  text-align: center;
+}
+.scene-file::before,
+.scene-result::before,
+.scene-file::after,
+.scene-result::after {
+  content: "";
+  position: absolute;
+  z-index: -3;
+}
+.scene-file::before,
+.scene-result::before {
+  inset: 0;
+  background: var(--color-ink);
+  clip-path: polygon(0 0, calc(100% - var(--fold)) 0, 100% var(--fold), 100% 100%, 0 100%);
+}
+.scene-file::after,
+.scene-result::after {
+  z-index: -2;
+  inset: var(--border-edge);
+  background: var(--color-paper);
+  clip-path: polygon(0 0, calc(100% - var(--fold) + var(--border-edge) * 0.4) 0, 100% calc(var(--fold) - var(--border-edge) * 0.4), 100% 100%, 0 100%);
+}
+.scene-result::after { background: var(--color-accent-soft); }
+.scene-ext { font-size: calc(var(--tw) * 0.22); font-weight: var(--font-weight-semibold); line-height: 1.1; }
+.scene-name { font-size: calc(var(--tw) * 0.13); direction: ltr; unicode-bidi: isolate; line-height: 1.2; }
+.scene-tag { font-size: calc(var(--tw) * 0.11); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); line-height: 1.2; min-height: calc(var(--tw) * 0.13); }
+.scene-sel {
+  position: absolute;
+  z-index: -1;
+  inset: var(--border-edge);
+  background: var(--color-accent);
+  clip-path: polygon(0 0, calc(100% - var(--fold) + var(--border-edge) * 0.4) 0, 100% calc(var(--fold) - var(--border-edge) * 0.4), 100% 100%, 0 100%);
+}
+.scene-cursor { display: none; }
+
+/* The hive: pointy-top cells in axial coordinates, centre first. */
+.scene-hive {
+  display: grid;
+  place-items: center;
+  justify-self: center;
+  width: calc(var(--cw) * 5.2);
+  height: calc(var(--cw) * 4.9);
+}
+.scene-cell {
+  --cell-fill: var(--color-paper);
+  --pos: translate(calc(var(--dir) * (var(--q) + var(--r) / 2) * var(--cw)), calc(var(--r) * var(--cw) * 0.866));
+  grid-area: 1 / 1;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  width: calc(var(--cw) * 0.94);
+  height: calc(var(--cw) * 1.0854);
+  transform: var(--pos);
+}
+.scene-cell[data-ring="0"] { --cell-fill: var(--color-accent-soft); }
+.scene-cell::before,
+.scene-cell::after,
+.scene-cell-hit {
+  content: "";
+  position: absolute;
+  clip-path: var(--hexagon);
+}
+.scene-cell::before { z-index: -3; inset: 0; background: var(--color-ink); }
+.scene-cell::after,
+.scene-cell-hit {
+  inset-block: calc(var(--border-edge) * 1.1547);
+  inset-inline: var(--border-edge);
+}
+.scene-cell::after { z-index: -2; background: var(--cell-fill); }
+.scene-cell-hit { z-index: -1; background: var(--color-accent); opacity: 0; }
+.scene-cell-label {
+  max-width: 84%;
+  font-size: calc(var(--cw) * 0.19);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.1;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.scene-cell[data-pick] .scene-cell-hit { opacity: 1; }
+
+/* Steps: five numbered lines. Static by default. */
+.scene-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--space-10) * 1.6), 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+.scene-steps li { display: flex; align-items: center; gap: var(--space-3); font-size: var(--fs-body); line-height: 1.3; }
+.scene-steps .num {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: var(--space-7);
+  height: calc(var(--space-7) * 1.1547);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font-weight: var(--font-weight-semibold);
+  clip-path: var(--hexagon);
+}
+
+.try-bridge { background: var(--color-surface-1); padding-block: 0 var(--space-7); }
+.try-bridge .wrap { display: flex; justify-content: center; }
+
+/* Pinned and scroll driven. */
+@media (prefers-reduced-motion: no-preference) {
+  .js .scene {
+    --p: 0;
+    --sel: clamp(0, calc((var(--p) - var(--scene-select)) / var(--scene-ramp)), 1);
+    --opn: clamp(0, calc((var(--p) - var(--scene-open)) / var(--scene-ramp)), 1);
+    --pck: clamp(0, calc((var(--p) - var(--scene-pick)) / var(--scene-ramp)), 1);
+    --res: clamp(0, calc((var(--p) - var(--scene-result)) / var(--scene-ramp)), 1);
+    --rin: clamp(0, calc((var(--p) - var(--scene-result) - var(--scene-ramp) / 2) / var(--scene-ramp)), 1);
+    height: calc(var(--scene-length) * 100svh);
+    padding-block: 0;
+  }
+  .js .scene-stage {
+    position: sticky;
+    inset-block-start: 0;
+    height: 100svh;
+    overflow: hidden;
+    padding-block: var(--space-6);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    align-content: stretch;
+    gap: var(--space-4);
+  }
+  .js .scene-visual { align-self: center; }
+
+  .js .scene-file:not(.scene-original) { opacity: calc(1 - var(--sel) * 0.55); }
+  .js .scene-original {
+    transform: translateY(calc(var(--sel) * var(--space-3) * -1)) scale(calc(1 + var(--sel) * 0.08));
+  }
+  .js .scene-sel { opacity: var(--sel); }
+  .js .scene-cursor {
+    display: block;
+    position: absolute;
+    z-index: 2;
+    inset-inline-end: var(--space-2);
+    inset-block-end: var(--space-2);
+    width: var(--space-5);
+    height: var(--space-6);
+    background: var(--color-ink);
+    clip-path: polygon(0 0, 0 100%, 28% 76%, 48% 100%, 64% 92%, 44% 68%, 80% 68%);
+    transform: translate(calc((1 - var(--sel)) * var(--space-9) * var(--dir)), calc((1 - var(--sel)) * var(--space-9)));
+    opacity: calc(var(--sel) * (1 - var(--opn)));
+  }
+
+  .js .scene-hive { opacity: calc(1 - var(--res)); }
+  .js .scene-cell {
+    --c: clamp(0, calc((var(--p) - var(--scene-open) - var(--k) * var(--scene-ring-step)) / var(--scene-ring-step)), 1);
+    opacity: calc(var(--c) * (1 - var(--pck) * 0.35));
+    transform: var(--pos) scale(calc(0.4 + var(--c) * 0.6));
+  }
+  .js .scene-cell[data-pick] {
+    opacity: var(--c);
+    transform: var(--pos) scale(calc(0.4 + var(--c) * 0.6 + var(--pck) * 0.18));
+  }
+  .js .scene-cell-hit { opacity: 0; }
+  .js .scene-cell[data-pick] .scene-cell-hit { opacity: var(--pck); }
+
+  .js .scene-result {
+    opacity: var(--rin);
+    transform: scale(calc(0.7 + var(--rin) * 0.3));
+  }
+
+  .js .scene-steps { display: grid; grid-template-columns: 1fr; gap: 0; align-self: end; }
+  .js .scene-steps li {
+    grid-area: 1 / 1;
+    opacity: 0;
+    transform: translateY(var(--space-3));
+    transition: opacity var(--duration-base) var(--ease-out), transform var(--duration-base) var(--ease-out);
+    font-size: var(--fs-lead);
+  }
+  .js .scene:not([data-state]) .scene-steps li:nth-child(1),
+  .js .scene[data-state="folder"] .scene-steps li:nth-child(1),
+  .js .scene[data-state="select"] .scene-steps li:nth-child(2),
+  .js .scene[data-state="open"] .scene-steps li:nth-child(3),
+  .js .scene[data-state="pick"] .scene-steps li:nth-child(4),
+  .js .scene[data-state="result"] .scene-steps li:nth-child(5) {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 719px) {
+  .scene { --cw: min(16vw, 9svh); --tw: calc((100vw - var(--space-9)) / 3); }
+  .scene-visual { grid-template-columns: 1fr; }
+  .scene-folder, .scene-hive { grid-area: 1 / 1; }
+  .scene-files { gap: var(--space-2); }
+  .scene-folder { padding: var(--space-3); }
+}

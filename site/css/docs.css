@@ -1,0 +1,54 @@
+/* Docs, search and releases. Square boxes, ink edges, strong hover. */
+.docs-layout { display: grid; gap: var(--space-6); align-items: start; }
+.docs-layout > * { min-width: 0; }
+.docs-layout aside { display: grid; gap: var(--space-4); }
+.docs-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.docs-nav a { display: flex; align-items: center; min-height: var(--target-min); padding-inline: var(--space-4); border: var(--border-default) solid var(--color-ink); background: var(--color-paper); text-decoration: none; font-weight: var(--font-weight-semibold); }
+.docs-nav a:hover, .docs-nav a:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.docs-nav a[aria-current="page"] { background: var(--color-accent); color: var(--color-accent-ink); }
+.prose { max-width: calc(var(--space-10) * 6); }
+.prose h1 { font-size: var(--fs-h2); margin-block-end: var(--space-5); }
+.prose h2 { font-size: var(--fs-h3); margin-block: var(--space-7) var(--space-3); }
+.prose p, .prose li { max-width: 40ch; }
+.prose ul, .prose ol { padding-inline-start: var(--space-5); }
+.prose li + li { margin-block-start: var(--space-2); }
+.prose pre { margin-block: var(--space-4); }
+.prose .edit { margin-block-start: var(--space-6); color: var(--color-text-secondary); }
+.table-wrap { overflow-x: auto; margin-block: var(--space-4); }
+table { border-collapse: collapse; width: 100%; font-size: var(--type-small); }
+th, td { text-align: start; padding: var(--space-2) var(--space-3); border: var(--border-default) solid var(--color-ink); vertical-align: top; }
+th { background: var(--color-accent-soft); }
+td code, th code { white-space: nowrap; }
+
+.search { position: relative; }
+.search input { width: 100%; min-height: var(--target-min); font: inherit; padding: var(--space-3) var(--space-4); border: var(--border-edge) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); }
+.search input:focus-visible { background: var(--color-accent-soft); }
+.results { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-2); }
+.results:empty { display: none; }
+.results li { background: var(--color-paper); border: var(--border-default) solid var(--color-ink); padding: var(--space-3) var(--space-4); }
+.results a { font-weight: var(--font-weight-semibold); }
+.results p { margin: var(--space-1) 0 0; font-size: var(--type-small); color: var(--color-text-secondary); }
+.results mark { background: var(--color-accent); color: var(--color-accent-ink); padding-inline: var(--space-1); }
+
+.doc-tiles { display: grid; gap: var(--space-4); grid-template-columns: 1fr; margin-block-start: var(--space-6); }
+.doc-tile { display: flex; align-items: center; gap: var(--space-4); padding: var(--space-4) var(--space-5); background: var(--color-paper); border: var(--border-edge) solid var(--color-ink); text-decoration: none; }
+.doc-tile:hover, .doc-tile:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.doc-tile .n { display: grid; place-items: center; flex: none; width: var(--space-7); height: calc(var(--space-7) * 1.1547); clip-path: var(--hexagon); background: var(--color-accent); color: var(--color-accent-ink); font-weight: var(--font-weight-semibold); }
+.doc-tile .t { font-size: var(--fs-lead); font-weight: var(--font-weight-semibold); }
+
+.latest { display: grid; gap: var(--space-3); justify-items: start; margin-block: var(--space-5) var(--space-6); }
+.latest .actions { margin: 0; }
+.releases { display: grid; gap: var(--space-5); }
+.release { background: var(--color-paper); border: var(--border-edge) solid var(--color-ink); padding: var(--space-5); }
+.release h2 { font-size: var(--fs-h3); margin-block-end: var(--space-2); }
+.release .meta { margin: 0 0 var(--space-3); color: var(--color-text-secondary); display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-3); align-items: center; }
+.release ul { margin: 0; padding-inline-start: var(--space-5); }
+.release li + li { margin-block-start: var(--space-1); }
+.diagram { margin: var(--space-5) 0; }
+.diagram img { display: block; width: 100%; height: auto; border: var(--border-default) solid var(--color-ink); }
+
+@media (min-width: 720px) {
+  .docs-layout { grid-template-columns: calc(var(--space-10) * 2) minmax(0, 1fr); gap: var(--space-7); }
+  .docs-nav ul { flex-direction: column; flex-wrap: nowrap; gap: var(--space-1); }
+  .doc-tiles { grid-template-columns: repeat(2, 1fr); }
+}

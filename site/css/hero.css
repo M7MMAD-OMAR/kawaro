@@ -1,0 +1,61 @@
+/* Hero: one headline, one download, one note and a hive of cells that pop in ring
+   by ring. The copy is visible from the first paint; the pop only enhances it. */
+.hero-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-6); align-items: center; }
+.hero-grid > * { min-width: 0; }
+.hero-copy { position: relative; z-index: 2; }
+.hero .lead { margin-block-start: var(--space-5); max-width: 20ch; }
+.hero .actions { margin-block-start: var(--space-6); }
+.link-all {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding-inline: var(--space-3);
+  font-weight: var(--font-weight-semibold);
+}
+.link-all:hover, .link-all:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.hero-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-1);
+  margin: var(--space-3) 0 0;
+  color: var(--color-text-secondary);
+}
+.hero-note a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target-min);
+  padding-inline: var(--space-2);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-ink);
+}
+.hero-note a:hover, .hero-note a:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.stage { position: relative; z-index: 1; }
+.hive { width: 100%; max-width: min(100%, calc(100svh * 0.9)); height: auto; margin-inline: auto; display: block; overflow: visible; }
+.hive path { fill: var(--color-paper); stroke: var(--color-ink); stroke-width: var(--border-edge); stroke-linejoin: miter; }
+.hive text {
+  fill: var(--color-ink);
+  font-family: var(--font-family);
+  font-size: var(--type-small);
+  font-weight: var(--font-weight-semibold);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+.hive .cell-center path { fill: var(--color-accent-soft); }
+.hive .cell-empty path { fill: var(--color-surface-1); stroke: var(--color-border); }
+.hive .cell-active path { fill: var(--color-accent); }
+.hive .cell-active text { fill: var(--color-accent-ink); }
+@media (prefers-reduced-motion: no-preference) {
+  .js .hive .cell {
+    opacity: 0;
+    animation: cell-pop var(--duration-slow) var(--ease-out) forwards;
+    animation-delay: calc(var(--i, 0) * var(--duration-stagger));
+  }
+}
+@keyframes cell-pop {
+  100% { opacity: 1; }
+}
+@media (min-width: 960px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); }
+}

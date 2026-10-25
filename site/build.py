@@ -156,8 +156,6 @@ def hive_config(lang):
             "rel": "تنزيل ل{os}" if ar else "Download for {os}",
             "win": "ويندوز" if ar else "Windows",
             "linux": "لينكس" if ar else "Linux",
-            "pause": "إيقاف الحركة" if ar else "Pause motion",
-            "play": "تشغيل الحركة" if ar else "Play motion",
         },
     }
 
@@ -201,34 +199,6 @@ def mini_cluster(cx, cy, radius, rtl=False, classes=None):
     return "".join(parts)
 
 
-def journey_svg(lang):
-    """Three nodes: files, the hive, the result next to the original."""
-    rtl = lang == "ar"
-    w, h = 720, 190
-    xs = [110, 360, 610]
-    if rtl:
-        xs = [w - x for x in xs]
-    big = 70
-    out = [f'<svg class="journey" viewBox="0 0 {w} {h}" aria-hidden="true" focusable="false">']
-    for a, b in ((xs[0], xs[1]), (xs[1], xs[2])):
-        lo, hi = sorted((a, b))
-        out.append(f'<line class="wire" x1="{lo + big * 0.9:.0f}" y1="95" x2="{hi - big * 0.9:.0f}" y2="95" pathLength="1"/>')
-    for x in xs:
-        out.append(f'<path class="node" d="{hex_path(x, 95, big)}"/>')
-    # 1: two stacked files
-    x = xs[0]
-    out.append(f'<rect class="doc" x="{x - 30}" y="66" width="38" height="50" rx="6"/>')
-    out.append(f'<rect class="doc doc-front" x="{x - 12}" y="76" width="38" height="50" rx="6"/>')
-    # 2: the hive
-    out.append(mini_cluster(xs[1], 95, 15, rtl, {0: "mc mc-hot"}))
-    # 3: original and result
-    x = xs[2]
-    out.append(f'<rect class="doc" x="{x - 44}" y="70" width="36" height="48" rx="6"/>')
-    out.append(f'<rect class="doc doc-new" x="{x + 8}" y="70" width="36" height="48" rx="6"/>')
-    out.append("</svg>")
-    return "".join(out)
-
-
 def privacy_svg(lang):
     ar = lang == "ar"
     rtl = ar
@@ -244,9 +214,9 @@ def privacy_svg(lang):
     out = [f'<svg class="privacy-map" viewBox="0 0 {w} {h}" role="img" aria-label="{html.escape(t_pc)}: {html.escape(t_none)}">']
     out.append(f'<path class="zone" d="{hex_path(cx_pc, 125, 112)}"/>')
     out.append(f'<text class="zone-label" x="{cx_pc}" y="22">{t_pc}</text>')
-    out.append(f'<rect class="doc" x="{cx_pc - 70}" y="100" width="28" height="38" rx="5"/>')
+    out.append(f'<rect class="doc" x="{cx_pc - 70}" y="100" width="28" height="38"/>')
     out.append(f'<path class="hop" d="{hex_path(cx_pc, 120, 20)}"/>')
-    out.append(f'<rect class="doc doc-new" x="{cx_pc + 42}" y="100" width="28" height="38" rx="5"/>')
+    out.append(f'<rect class="doc doc-new" x="{cx_pc + 42}" y="100" width="28" height="38"/>')
     out.append(f'<line class="wire-s" x1="{cx_pc - 40}" y1="119" x2="{cx_pc - 22}" y2="119"/>')
     out.append(f'<line class="wire-s" x1="{cx_pc + 22}" y1="119" x2="{cx_pc + 40}" y2="119"/>')
     # internet: dashed zone
@@ -261,31 +231,6 @@ def privacy_svg(lang):
     out.append(f'<text class="zone-label strong" x="{mid:.0f}" y="165">{t_none}</text>')
     out.append("</svg>")
     return "".join(out)
-
-
-def clip_frame(kind, caption):
-    """A hexagonal frame with a small looping illustration. Illustrations only."""
-    if kind == "resize":
-        art = ('<rect class="a-img" x="30" y="30" width="60" height="60" rx="8"/>'
-               '<path class="a-corner" d="M30 52V30H52M90 68V90H68"/>')
-    elif kind == "audio":
-        bars = "".join(f'<rect class="a-bar" style="--i:{i}" x="{20 + i * 12}" y="35" width="7" height="50" rx="3.5"/>'
-                       for i in range(8))
-        art = bars
-    elif kind == "film":
-        art = ('<rect class="a-film" x="20" y="34" width="80" height="52" rx="8"/>'
-               '<path class="a-play" d="M52 49L72 60L52 71Z"/>')
-    elif kind == "docs":
-        art = ('<rect class="a-sheet" x="22" y="30" width="38" height="52" rx="6"/>'
-               '<rect class="a-sheet a-docnew" x="60" y="38" width="38" height="52" rx="6"/>'
-               '<path class="a-arrow" d="M44 92H76M68 84L76 92L68 100"/>')
-    else:
-        art = ('<rect class="a-sheet a-s1" x="26" y="34" width="38" height="52" rx="6"/>'
-               '<rect class="a-sheet a-s2" x="56" y="34" width="38" height="52" rx="6"/>'
-               '<rect class="a-sheet a-merged" x="41" y="30" width="38" height="60" rx="6"/>')
-    return (f'<figure class="clip clip-{kind}"><div class="hexframe"><div class="hexframe-in">'
-            f'<svg viewBox="0 0 120 120" aria-hidden="true" focusable="false">{art}</svg></div></div>'
-            f'<figcaption>{caption}</figcaption></figure>')
 
 
 # ---------------------------------------------------------------------------
@@ -396,6 +341,22 @@ def abs_url(lang, page):
     return BASE + "/".join(parts) + ("/" if parts else "")
 
 
+COMPONENT_STEMS = ("hex-button", "section-head", "hex-plate", "step-cell", "format-cell", "download-slab")
+CSS_BASE = (["style.css", "css/header.css"] + [f"css/components/{s}.css" for s in COMPONENT_STEMS]
+            + ["css/pages.css"])
+CSS_HOME = ["css/hero.css", "css/scene.css", "css/sim.css"]
+CSS_DOCS = ["css/docs.css"]
+
+
+def css_links(page, root):
+    files = list(CSS_BASE)
+    if page == "index":
+        files += CSS_HOME
+    if page == "releases" or page.startswith("docs"):
+        files += CSS_DOCS
+    return "\n".join(f'<link rel="stylesheet" href="{root}{f}">' for f in files)
+
+
 def head(lang, page, root, title=None, desc=None, extra_ld=()):
     p = lang_pack(lang)
     title = html.escape(title or p["titles"][page])
@@ -421,7 +382,7 @@ def head(lang, page, root, title=None, desc=None, extra_ld=()):
 <link rel="alternate" hreflang="{lang}" href="{abs_url(lang, page)}">
 <link rel="alternate" hreflang="{other}" href="{abs_url(other, page)}">
 <link rel="alternate" hreflang="x-default" href="{abs_url("ar", page)}">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="light">
 <link rel="icon" href="{FAVICON}" type="image/svg+xml">
 <link rel="icon" href="{root}favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="{root}apple-touch-icon.png">
@@ -439,7 +400,7 @@ def head(lang, page, root, title=None, desc=None, extra_ld=()):
 <meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="{root}fonts/IBMPlexSansArabic-SemiBold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="{root}tokens.css">
-<link rel="stylesheet" href="{root}style.css">
+{css_links(page, root)}
 <script type="application/ld+json">
 {json.dumps(ld, ensure_ascii=False)}
 </script>
@@ -452,7 +413,42 @@ def head(lang, page, root, title=None, desc=None, extra_ld=()):
 
 
 HEART = ('<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
-         '<path d="M12 21C5 15.5 3 12 3 8.7 3 6 5 4 7.6 4c1.8 0 3.3 1 4.4 2.6C13.100 5 14.600 4 16.400 4 19 4 21 6 21 8.700 21 12 19 15.500 12 21Z"/></svg>')
+         '<path d="M12 21L4 12.5V7.5L8 4L12 7L16 4L20 7.5V12.5Z"/></svg>')
+
+
+# ---------------------------------------------------------------------------
+# The six section helpers (S-063 AC5). Each has its own file in site/css/components/.
+# ---------------------------------------------------------------------------
+
+def hex_button(href, label, kind="plain", size="md", attrs="", extra=""):
+    """A flat-top hexagon button: edge and fill are two clipped layers."""
+    size_cls = "" if size == "md" else f" hex-button-{size}"
+    more = f" {extra}" if extra else ""
+    return f'<a class="hex-button button-{kind}{size_cls}{more}" href="{href}"{attrs}>{label}</a>'
+
+
+def section_head(ident, title, lede=""):
+    """A heading block: a small hexagon mark, the section's one h2 and an optional lede."""
+    p = f'<p class="section-head-lede">{lede}</p>' if lede else ""
+    return (f'<div class="section-head"><span class="section-head-mark" aria-hidden="true"></span>'
+            f'<h2 id="{ident}">{title}</h2>{p}</div>')
+
+
+def hex_plate(inner, tag="div", tone=""):
+    """A wide plate with pointed ends, the web twin of a hive plate."""
+    cls = "hex-plate" + (f" hex-plate-{tone}" if tone else "")
+    return f'<{tag} class="{cls}">{inner}</{tag}>'
+
+
+def step_cell(n, title, text=""):
+    """One step: a pointy-top hexagon with its number, a title and one sentence."""
+    p = f"<p>{text}</p>" if text else ""
+    return f'<li class="step-cell"><span class="step-cell-num">{n}</span><h3>{title}</h3>{p}</li>'
+
+
+def format_cell(title, codes):
+    """A pointy-top hexagon holding a family of formats."""
+    return f'<li class="format-cell"><h3>{title}</h3><p class="format-cell-codes">{codes}</p></li>'
 
 
 def support_a(cls, inner, extra=""):
@@ -461,7 +457,7 @@ def support_a(cls, inner, extra=""):
             f'{inner}</a>')
 
 
-def support_link(lang, cls="button button-support"):
+def support_link(lang, cls="hex-button button-support hex-button-sm"):
     text = lang_pack(lang)["support"]
     return support_a(cls, f'{HEART}<span>{text}</span>', f' aria-label="{text}"')
 
@@ -472,18 +468,18 @@ def header(lang, page, root):
     links = []
     for key in ("docs", "download", "releases"):
         cur = ' aria-current="page"' if (key == page or page.startswith(key + "/")) else ""
-        links.append(f'<a href="{page_href(lang, page, lang, key)}"{cur}>{p["nav"][key]}</a>')
-    sw = (f'<a class="lang-switch" href="{page_href(lang, page, other, page)}" '
+        links.append(f'<a class="nav-link" href="{page_href(lang, page, lang, key)}"{cur}>{p["nav"][key]}</a>')
+    sw = (f'<a class="nav-link lang-switch" href="{page_href(lang, page, other, page)}" '
           f'hreflang="{other}" lang="{other}">{p["other_lang"]}</a>')
     return f'''<header class="site-header">
   <div class="wrap">
     <a class="brand" href="{page_href(lang, page, lang, "index")}">
-      <img src="{root}favicon.svg" alt="" width="32" height="32">
+      <img src="{root}favicon.svg" alt="" width="48" height="48">
       <span>{p["name"]}</span><span class="badge">{p["beta"]}</span>
     </a>
     <nav class="site-nav" aria-label="{p["nav_label"]}">
       {"".join(links)}
-      {support_link(lang, "button button-support button-sm")}
+      {support_link(lang)}
       {sw}
     </nav>
   </div>
@@ -503,36 +499,32 @@ def footer(lang, page, root):
         support_a("", p["support"]),
     ]
     items = "".join(f"<li>{x}</li>" for x in product)
-    ui = hive_config(lang)["ui"]
     lang_sw = (f'<a href="{page_href(lang, page, other, page)}" hreflang="{other}" lang="{other}">'
                f'{p["other_lang"]}</a>')
+    scripts = f'<script src="{root}app.js" defer></script>'
+    if page == "index":
+        scripts += f'\n<script src="{root}js/scene.js" defer></script>\n<script src="{root}js/sim.js" defer></script>'
     return f'''</main>
-<footer class="site-footer sec inv">
-  <div class="hexedge" aria-hidden="true"></div>
+<footer class="site-footer">
   <div class="wrap">
     <p>{p["footer_license"]} <span class="muted">{p["footer_beta"]}</span></p>
     <ul class="footer-product" role="list">{items}</ul>
     <ul class="footer-lang" role="list"><li>{lang_sw}</li></ul>
-    <button type="button" class="motion-toggle" id="motion-toggle" aria-pressed="false" data-on="{ui["pause"]}" data-off="{ui["play"]}">{ui["pause"]}</button>
   </div>
 </footer>
 <script id="hive-config" type="application/json">{json.dumps(hive_config(lang), ensure_ascii=False)}</script>
-<script src="{root}app.js" defer></script>
+{scripts}
 </body>
 </html>
 '''
 
 
-def sec(inner, *, cls="", scheme=None, ident=None, labelledby=None, side=None, edge=True, full=False):
+def sec(inner, *, cls="", ident=None, labelledby=None, **_):
     attrs = f' id="{ident}"' if ident else ""
     if labelledby:
         attrs += f' aria-labelledby="{labelledby}"'
-    classes = "sec " + cls + (" full" if full else "")
-    if scheme == "dark":
-        classes += " inv"
-    sd = f'<div class="side side-{side}" aria-hidden="true"></div>' if side else ""
-    ed = '<div class="hexedge" aria-hidden="true"></div>' if edge else ""
-    return f'<section class="{classes.strip()}"{attrs}>\n{ed}{sd}<div class="wrap">\n{inner}\n</div>\n</section>\n'
+    classes = ("sec " + cls).strip()
+    return f'<section class="{classes}"{attrs}>\n<div class="wrap">\n{inner}\n</div>\n</section>\n'
 
 
 def code(text):
@@ -544,10 +536,9 @@ def code(text):
 # ---------------------------------------------------------------------------
 
 WIN_ICO = ('<svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false">'
-           '<rect x="6" y="6" width="17" height="17" rx="3"/><rect x="25" y="6" width="17" height="17" rx="3"/>'
-           '<rect x="6" y="25" width="17" height="17" rx="3"/><rect x="25" y="25" width="17" height="17" rx="3"/></svg>')
+           '<path d="M6 6H23V23H6ZM25 6H42V23H25ZM6 25H23V42H6ZM25 25H42V42H25Z"/></svg>')
 LIN_ICO = ('<svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable="false">'
-           '<rect x="5" y="9" width="38" height="30" rx="5" class="line"/>'
+           '<path class="line" d="M5 9H43V39H5Z"/>'
            '<path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg>')
 
 
@@ -563,37 +554,38 @@ def bidi(text, lang):
     return "".join(x if x.startswith("<") else LATIN.sub(lambda m: f"<bdi>{m.group(0)}</bdi>", x) for x in parts)
 
 
-def dl_link(lang, kind, label, cls):
+def dl_link(lang, kind, label, button="plain", size="md"):
     """A download button. Until the release exists it opens the releases page."""
     href = FILES[kind] if PUBLISHED else RELEASES
     soon = "" if PUBLISHED else f' <span class="soon">{SOON[lang]}</span>'
-    return f'<a class="{cls}" href="{href}" data-dl="{kind}">{label}{soon}</a>'
+    return hex_button(href, f"{label}{soon}", button, size, f' data-dl="{kind}"')
 
 
 def dl_buttons(lang, which):
     """Direct download buttons. Names follow scripts/release/dry-run.sh and make-msi.sh."""
     ar = lang == "ar"
     word = "تنزيل" if ar else "Download"
-    big = "button button-primary button-lg"
     if which == "win":
-        return (dl_link(lang, "msi", bidi(f"{word} MSI", lang), big)
-                + dl_link(lang, "zip", bidi("ZIP محمول" if ar else "Portable ZIP", lang), "button"))
-    return (dl_link(lang, "deb", bidi(f"{word} DEB", lang), big)
-            + dl_link(lang, "rpm", bidi(f"{word} RPM", lang), big))
+        return (dl_link(lang, "msi", bidi(f"{word} MSI", lang), "primary", "lg")
+                + dl_link(lang, "zip", bidi("ZIP محمول" if ar else "Portable ZIP", lang)))
+    return (dl_link(lang, "deb", bidi(f"{word} DEB", lang), "primary", "lg")
+            + dl_link(lang, "rpm", bidi(f"{word} RPM", lang), "primary", "lg"))
+
+
+def download_slab(lang, which):
+    """One operating system: a cut corner slab with its icon, its note and its buttons."""
+    ar = lang == "ar"
+    if which == "win":
+        title, sub, icon, card = ("ويندوز" if ar else "Windows"), ("10 و11، 64 بت" if ar else "10 and 11, 64 bit"), WIN_ICO, "win"
+    else:
+        title, sub, icon, card = ("لينكس" if ar else "Linux"), ("فيدورا وأوبونتو وديبيان، 64 بت" if ar else "Fedora, Ubuntu, Debian, 64 bit"), LIN_ICO, "linux"
+    return (f'<div class="download-slab" data-card="{card}">{icon}<h3>{title}</h3>'
+            f'<p class="download-slab-sub">{sub}</p>'
+            f'<div class="actions">{dl_buttons(lang, which)}</div></div>')
 
 
 def dl_cards(lang):
-    ar = lang == "ar"
-    win_t = "ويندوز" if ar else "Windows"
-    win_s = "10 و11، 64 بت" if ar else "10 and 11, 64 bit"
-    lin_t = "لينكس" if ar else "Linux"
-    lin_s = "فيدورا وأوبونتو وديبيان، 64 بت" if ar else "Fedora, Ubuntu, Debian, 64 bit"
-    return f'''<div class="dl-grid">
-  <div class="dl-card" data-card="win">{WIN_ICO}<h3>{win_t}</h3><p class="dl-sub">{win_s}</p>
-    <div class="actions">{dl_buttons(lang, "win")}</div></div>
-  <div class="dl-card" data-card="linux">{LIN_ICO}<h3>{lin_t}</h3><p class="dl-sub">{lin_s}</p>
-    <div class="actions">{dl_buttons(lang, "linux")}</div></div>
-</div>'''
+    return f'<div class="dl-grid">{download_slab(lang, "win")}{download_slab(lang, "linux")}</div>'
 
 
 def pills(lang, verify_href, win_href):
@@ -614,25 +606,6 @@ def stage(lang):
 </div>'''
 
 
-def marquee_block():
-    codes = ["PNG", "JPG", "WEBP", "AVIF", "GIF", "PDF", "DOCX", "ODT", "MP4", "WEBM",
-             "MKV", "MP3", "OGG", "FLAC", "WAV", "M4A", "XLSX", "PPTX", "TIFF", "ICO"]
-    items = "".join(f"<li>{c}</li>" for c in codes)
-    return (f'<div class="marquee sec" aria-hidden="true"><div class="hexedge"></div>'
-            f'<ul class="track" dir="ltr">{items}{items}</ul></div>\n')
-
-
-def tile(art, title, codes, span):
-    chips = "".join(f"<li>{c}</li>" for c in codes)
-    return (f'<div class="tile tile-{span} reveal" data-reveal>{clip_frame_bare(art)}'
-            f'<h3>{title}</h3><ul class="chips" aria-hidden="true">{chips}</ul></div>')
-
-
-def clip_frame_bare(kind):
-    html_ = clip_frame(kind, "")
-    return html_.replace("<figcaption></figcaption>", "").replace("<figure", "<div").replace("</figure>", "</div>")
-
-
 # ---------------------------------------------------------------------------
 # Home
 # ---------------------------------------------------------------------------
@@ -646,8 +619,18 @@ T_HOME = {
         "win_link": "ويندوز (غير موقّع)",
         "note": "بيتا للينكس و{win}",
         "note_soon": "البيتا قريبا للينكس و{win}",
+        "scene_h2": "شاهدها تعمل",
+        "scene_steps": ["هذا مجلدك، وفيه ملفاتك", "حدّد الملف الذي تريده", "تنفتح الخلية حلقة بعد حلقة",
+                        "اختر الخلية المناسبة", "الناتج بجانب الأصل، والأصل لم يتغير"],
+        "scene_folder": "الصور",
+        "scene_kept": "الأصل",
+        "scene_new": "جديد",
+        "try": "جرّبها بنفسك",
         "how": "ثلاث خطوات",
         "steps": ["حدّد", "اختر", "خذ الناتج"],
+        "step_text": ["حدّد ملفا أو أكثر في مدير الملفات.",
+                      "انقر بزر الفأرة الأيمن، فتعرض الخلية ما يناسب الملف فقط.",
+                      "يظهر الملف الجديد بجانب الأصل."],
         "privacy": "ملفاتك تبقى عندك",
         "ticks": ["بلا رفع", "بلا تتبع", "الأصل لا يتغير"],
         "formats": "صور وفيديو وصوت ومستندات",
@@ -666,8 +649,18 @@ T_HOME = {
         "win_link": "Windows (unsigned)",
         "note": "Beta for Linux and {win}",
         "note_soon": "Beta coming soon for Linux and {win}",
+        "scene_h2": "Watch it work",
+        "scene_steps": ["This is your folder, full of files", "Select the file you want", "The hive opens, ring by ring",
+                        "Pick the cell that fits", "The result lands next to the untouched original"],
+        "scene_folder": "Pictures",
+        "scene_kept": "Original",
+        "scene_new": "New",
+        "try": "Try it yourself",
         "how": "Three steps",
         "steps": ["Select", "Pick", "Take it"],
+        "step_text": ["Select one file or many in your file manager.",
+                      "Right click. The hive shows only what fits the file.",
+                      "The new file lands next to the original."],
         "privacy": "Your files stay with you",
         "ticks": ["No uploads", "No tracking", "Original untouched"],
         "formats": "Images, video, audio, documents",
@@ -712,7 +705,7 @@ DOC_ICO = ('<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="f
 
 
 def sim_section(lang):
-    """The try-it demo (S-061 AC7, AC8). Behaviour lives in app.js between the sim markers."""
+    """The try-it demo (S-061 AC7, AC8). Behaviour lives in js/sim.js between the sim markers."""
     t = T_SIM[lang]
     items = []
     for k in kinds(lang):
@@ -723,8 +716,7 @@ def sim_section(lang):
     pic = (f'<svg class="sim-pic" viewBox="0 0 160 140" aria-hidden="true" focusable="false">'
            f'{mini_cluster(80, 70, 22, lang == "ar", {0: "mc mc-hot"})}</svg>')
     inner = f'''
-<h2 id="sim-title">{t["h2"]}</h2>
-<p class="section-intro">{t["intro"]}</p>
+{section_head("sim-title", t["h2"], t["intro"])}
 <div class="sim-board">
   <div class="sim-left">
     <ul class="sim-samples" role="list" aria-label="{t["samples"]}">{"".join(items)}</ul>
@@ -741,20 +733,68 @@ def sim_section(lang):
 <div class="sim-static">{pic}<p class="sim-nojs">{t["nojs"]}</p></div>
 <p class="sr-only" id="stage-live" role="status" aria-live="polite"></p>
 '''
-    return sec(inner, cls="s-sim", ident="sim", labelledby="sim-title", edge=False)
+    return sec(inner, cls="s-sim", ident="sim", labelledby="sim-title")
 
 
 def support_section(lang):
     """The owner's badge in the Sbarah theme: the only link in the section."""
     t, p, r = T_HOME[lang], lang_pack(lang), rel_root(lang, "index")
-    pic = (f'<picture><source media="(prefers-color-scheme: dark)" srcset="{r}assets/support-sbarah-dark.svg">'
-           f'<img src="{r}assets/support-sbarah-light.svg" alt="{p["support"]}" width="520" height="140"></picture>')
+    pic = f'<img src="{r}assets/support-sbarah-light.svg" alt="{p["support"]}" width="520" height="140">'
     inner = f'''
-<h2 id="support-title">{t["support_h2"]}</h2>
-<p class="section-intro">{t["support_p"]}</p>
+{section_head("support-title", t["support_h2"], t["support_p"])}
 {support_a("support-badge", pic)}
 '''
     return sec(inner, cls="s-support", ident="support", labelledby="support-title")
+
+
+def scene_cell(slot, q, r, ring, label, picked=False):
+    pick = " data-pick" if picked else ""
+    return (f'<div class="scene-cell" data-ring="{ring}"{pick} style="--q:{q};--r:{r};--k:{ring}">'
+            f'<span class="scene-cell-hit"></span><span class="scene-cell-label">{html.escape(label)}</span></div>')
+
+
+def scene_section(lang):
+    """AC6: one pinned scene. Scroll progress drives it (js/scene.js writes --p and data-state)."""
+    t = T_HOME[lang]
+    image = kinds(lang)[0]
+    slots = spiral(2)
+    cells = [scene_cell(0, 0, 0, 0, image["label"])]
+    for i, c in enumerate(image["cells"][:12], 1):
+        q, r = slots[i]
+        cells.append(scene_cell(i, q, r, 1 if i <= 6 else 2, c["c"], picked=(i == 1)))
+
+    def tile(cls, ext, name, tag, extra=""):
+        return (f'<li class="{cls}">{extra}<span class="scene-ext">{ext}</span>'
+                f'<span class="scene-name">{name}</span><span class="scene-tag">{tag}</span></li>')
+
+    files = "".join([
+        tile("scene-file scene-original", "PNG", "photo.png", t["scene_kept"], '<i class="scene-sel"></i><i class="scene-cursor"></i>'),
+        tile("scene-result", "WEBP", "photo.webp", t["scene_new"]),
+        tile("scene-file", "MOV", "clip.mov", ""),
+        tile("scene-file", "DOCX", "report.docx", ""),
+        tile("scene-file", "WAV", "song.wav", ""),
+    ])
+    steps = "".join(f'<li><span class="num" aria-hidden="true">{i}</span><span class="scene-step-text">{s}</span></li>'
+                    for i, s in enumerate(t["scene_steps"], 1))
+    inner = f'''<div class="scene-stage">
+  {section_head("scene-title", t["scene_h2"])}
+  <div class="scene-visual" aria-hidden="true">
+    <div class="scene-folder">
+      <div class="scene-bar"><span class="scene-bar-name">{t["scene_folder"]}</span></div>
+      <ul class="scene-files" role="list">{files}</ul>
+    </div>
+    <div class="scene-hive">{"".join(cells)}</div>
+  </div>
+  <ol class="scene-steps">{steps}</ol>
+</div>'''
+    return f'<section id="scene" class="scene" aria-labelledby="scene-title">\n{inner}\n</section>\n'
+
+
+def try_bridge(lang):
+    """The keyboard operable version of the demo: a control after the scene that jumps to #sim."""
+    t = T_HOME[lang]
+    btn = hex_button("#sim", t["try"], "primary", "lg", extra="try-it")
+    return f'<div class="try-bridge"><div class="wrap">{btn}</div></div>\n'
 
 
 def home(lang):
@@ -764,63 +804,55 @@ def home(lang):
     win_a = f'<a href="{win_href}">{t["win_link"]}</a>'
     note = (t["note"] if PUBLISHED else t["note_soon"]).format(win=win_a)
     rel = ' data-rel="1"' if PUBLISHED else ""
-    hero = f'''<section class="hero sec full" aria-labelledby="hero-title">
+    btn = hex_button(dl_href, t["dl"], "primary", "lg", f' data-os-default="linux"{rel}')
+    hero = f'''<section class="hero sec" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
 <div class="hero-copy">
 <h1 id="hero-title">{t["h1"]}</h1>
 <p class="lead">{t["sub"]}</p>
-<div class="actions">
-<a class="button button-primary button-lg" href="{dl_href}" data-os-default="linux"{rel}>{t["dl"]}</a>
-<a class="link-all" href="{dl_href}">{t["all"]}</a>
-</div>
+<div class="actions">{btn}<a class="link-all" href="{dl_href}">{t["all"]}</a></div>
 <p class="hero-note">{note}</p>
 </div>
 {stage(lang)}
 </div>
 </section>
 '''
+    cells = "".join(step_cell(i, t["steps"][i - 1], t["step_text"][i - 1]) for i in (1, 2, 3))
     how = sec(f'''
-<h2 id="how-title" class="reveal" data-reveal>{t["how"]}</h2>
-<div class="journey-wrap reveal" data-reveal>{journey_svg(lang)}</div>
-<ol class="step-words" role="list">
-  <li class="reveal" data-reveal><span class="n">1</span><h3>{t["steps"][0]}</h3></li>
-  <li class="reveal" data-reveal><span class="n">2</span><h3>{t["steps"][1]}</h3></li>
-  <li class="reveal" data-reveal><span class="n">3</span><h3>{t["steps"][2]}</h3></li>
-</ol>
-''', cls="s-how", scheme="dark", ident="how", labelledby="how-title", side="start", full=True)
-    ticks = "".join(f'<li class="reveal" data-reveal>{x}</li>' for x in t["ticks"])
+{section_head("how-title", t["how"])}
+<ol class="step-row" role="list">{cells}</ol>
+''', cls="s-how alt", ident="how", labelledby="how-title")
+    plates = "".join(hex_plate(x, "li", "accent" if i == 0 else "") for i, x in enumerate(t["ticks"]))
     privacy = sec(f'''
+{section_head("privacy-title", t["privacy"])}
 <div class="split">
-  <div>
-    <h2 id="privacy-title" class="reveal" data-reveal>{t["privacy"]}</h2>
-    <ul class="ticks" role="list">{ticks}</ul>
-  </div>
-  <div class="reveal" data-reveal>{privacy_svg(lang)}</div>
+  <ul class="plate-list" role="list">{plates}</ul>
+  <div>{privacy_svg(lang)}</div>
 </div>
-''', cls="s-privacy", ident="privacy", labelledby="privacy-title", side="end", full=True)
-    tiles = [
-        tile("resize", t["tiles"][0], ["PNG", "JPG", "WEBP", "AVIF"], "a"),
-        tile("film", t["tiles"][1], ["MP4", "WEBM", "MKV", "GIF"], "b"),
-        tile("audio", t["tiles"][2], ["MP3", "OGG", "FLAC", "WAV"], "c"),
-        tile("docs", t["tiles"][3], ["DOCX", "ODT", "XLSX", "PPTX"], "d"),
-        tile("merge", t["tiles"][4], ["PDF"], "e"),
+''', cls="s-privacy", ident="privacy", labelledby="privacy-title")
+    fam = [
+        (t["tiles"][0], "PNG JPG WEBP AVIF"),
+        (t["tiles"][1], "MP4 WEBM MKV GIF"),
+        (t["tiles"][2], "MP3 OGG FLAC WAV"),
+        (t["tiles"][3], "DOCX ODT XLSX"),
+        (t["tiles"][4], "PDF"),
     ]
     formats = sec(f'''
-<h2 id="formats-title" class="reveal" data-reveal>{t["formats"]}</h2>
-<div class="bento">{"".join(tiles)}</div>
-''', cls="alt s-formats", ident="formats", labelledby="formats-title", side="start", full=True)
+{section_head("formats-title", t["formats"])}
+<ul class="format-grid" role="list">{"".join(format_cell(a, b) for a, b in fam)}</ul>
+''', cls="s-formats alt", ident="formats", labelledby="formats-title")
     get = sec(f'''
-<h2 id="get-title" class="reveal" data-reveal>{t["get"]}</h2>
+{section_head("get-title", t["get"])}
 {dl_cards(lang)}
 {pills(lang, dl_href + "#verify", win_href)}
-''', cls="s-get", scheme="dark", ident="download", labelledby="get-title", side="end", full=True)
+''', cls="s-get", ident="download", labelledby="get-title")
     open_ = sec(f'''
-<h2 id="open-title" class="reveal" data-reveal>{t["open"]}</h2>
-<div class="actions">
-  <a class="button button-lg" href="{REPO}">{t["gh"]}</a>
-</div>
-''', cls="s-open", ident="open", labelledby="open-title", side="start")
-    return hero + marquee_block() + sim_section(lang) + how + privacy + formats + get + open_ + support_section(lang)
+{section_head("open-title", t["open"])}
+<div class="actions">{hex_button(REPO, t["gh"], "plain", "lg")}</div>
+''', cls="s-open", ident="open", labelledby="open-title")
+    return (hero + scene_section(lang) + try_bridge(lang) + sim_section(lang) + how + privacy + formats + get
+            + open_ + support_section(lang))
+
 
 
 # ---------------------------------------------------------------------------
@@ -829,14 +861,14 @@ def home(lang):
 
 def page_head(title, lead=""):
     lead_html = f'<p class="lead">{lead}</p>' if lead else ""
-    return (f'<section class="page-head sec"><div class="side side-end" aria-hidden="true"></div><div class="wrap">'
+    return (f'<section class="page-head sec"><div class="wrap">'
             f'<h1>{title}</h1>{lead_html}</div></section>\n')
 
 
 def card(title, body="", tag=""):
     tg = f'<span class="tag {tag[0]}">{tag[1]}</span>' if tag else ""
     bd = f"<p>{body}</p>" if body else ""
-    return f'<div class="card reveal" data-reveal>{tg}<h3>{title}</h3>{bd}</div>'
+    return f'<div class="card">{tg}<h3>{title}</h3>{bd}</div>'
 
 
 def download(lang):
@@ -846,24 +878,24 @@ def download(lang):
         h = page_head("نزّل صبار هايف", f"أول إصدار بيتا <code>{VERSION}</code>" + ("" if PUBLISHED else "، قريبا"))
         top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">ويندوز غير موقّع</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
-        ver = sec(f'''<h2 id="v-title" class="reveal" data-reveal>تحقق من الملف</h2>
+        ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
 <p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
-<div class="split"><div class="reveal" data-reveal><h3>لينكس</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
-<div class="reveal" data-reveal><h3>ويندوز</h3>{code(f"certutil -hashfile sbarhive-{VERSION}-windows-x64.msi SHA256")}</div></div>
+<div class="split"><div><h3>لينكس</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
+<div><h3>ويندوز</h3>{code(f"certutil -hashfile sbarhive-{VERSION}-windows-x64.msi SHA256")}</div></div>
 <p class="section-intro">وإن اختلفت القيمة فلا تشغّل الملف.</p>''', cls="alt s-verify", ident="verify", labelledby="v-title", side="start")
-        src = sec(f'''<h2 id="b-title" class="reveal" data-reveal>البناء من الشيفرة على لينكس</h2>
+        src = sec(f'''<h2 id="b-title">البناء من الشيفرة على لينكس</h2>
 {code(f"git clone {REPO}" + chr(10) + "cd sbarhive" + chr(10) + "./scripts/install.sh")}
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
         h = page_head("Download SbarHive", f"First beta, <code>{VERSION}</code>" + ("" if PUBLISHED else ", coming soon"))
         top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
-        ver = sec(f'''<h2 id="v-title" class="reveal" data-reveal>Verify the file</h2>
+        ver = sec(f'''<h2 id="v-title">Verify the file</h2>
 <p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>
-<div class="split"><div class="reveal" data-reveal><h3>Linux</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
-<div class="reveal" data-reveal><h3>Windows</h3>{code(f"certutil -hashfile sbarhive-{VERSION}-windows-x64.msi SHA256")}</div></div>
+<div class="split"><div><h3>Linux</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
+<div><h3>Windows</h3>{code(f"certutil -hashfile sbarhive-{VERSION}-windows-x64.msi SHA256")}</div></div>
 <p class="section-intro">If a value differs, do not run the file.</p>''', cls="alt s-verify", ident="verify", labelledby="v-title", side="start")
-        src = sec(f'''<h2 id="b-title" class="reveal" data-reveal>From source on Linux</h2>
+        src = sec(f'''<h2 id="b-title">From source on Linux</h2>
 {code(f"git clone {REPO}" + chr(10) + "cd sbarhive" + chr(10) + "./scripts/install.sh")}
 <p class="section-intro">Needs Rust 1.85 or newer. To remove: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     return h + top + ver + src
@@ -874,24 +906,24 @@ def windows(lang):
     dl = page_href(lang, "windows", lang, "download")
     if ar:
         h = page_head("صبار هايف على ويندوز", "غير موقّع بعد، فيظهر تحذير SmartScreen")
-        a = sec(f'''<h2 id="w1" class="reveal" data-reveal>ثلاث خطوات</h2>
+        a = sec(f'''<h2 id="w1">ثلاث خطوات</h2>
 <ol class="step-words" role="list">
-<li class="reveal" data-reveal><span class="n">1</span><h3>تحقق من الملف</h3><p><a href="{dl}#verify">SHA256SUMS</a></p></li>
-<li class="reveal" data-reveal><span class="n">2</span><h3>More info</h3></li>
-<li class="reveal" data-reveal><span class="n">3</span><h3>Run anyway</h3></li></ol>
+<li><span class="n">1</span><h3>تحقق من الملف</h3><p><a href="{dl}#verify">SHA256SUMS</a></p></li>
+<li><span class="n">2</span><h3>More info</h3></li>
+<li><span class="n">3</span><h3>Run anyway</h3></li></ol>
 <p class="section-intro">ليست لدينا شهادة توقيع بعد، ولا نعد بمتجر أو بموعد.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
-        b = sec(f'''<h2 id="w2" class="reveal" data-reveal>لم يكتمل بعد</h2>
+        b = sec(f'''<h2 id="w2">لم يكتمل بعد</h2>
 <div class="grid grid-3">{card("لم يُجرَّب على جهاز ويندوز حقيقي", "", ("tag-warn", "تنبيه"))}{card("بلا خلية الإفلات بعد", "", ("tag-warn", "غير جاهز"))}{card("بلا إشعارات بعد", "التقدم في تلميح الأيقونة", ("tag-warn", "غير جاهز"))}</div>''',
                 cls="alt s-w2", ident="gaps", labelledby="w2", side="end")
     else:
         h = page_head("SbarHive on Windows", "Not signed yet, so SmartScreen warns you")
-        a = sec(f'''<h2 id="w1" class="reveal" data-reveal>Three steps</h2>
+        a = sec(f'''<h2 id="w1">Three steps</h2>
 <ol class="step-words" role="list">
-<li class="reveal" data-reveal><span class="n">1</span><h3>Verify the file</h3><p><a href="{dl}#verify">SHA256SUMS</a></p></li>
-<li class="reveal" data-reveal><span class="n">2</span><h3>More info</h3></li>
-<li class="reveal" data-reveal><span class="n">3</span><h3>Run anyway</h3></li></ol>
+<li><span class="n">1</span><h3>Verify the file</h3><p><a href="{dl}#verify">SHA256SUMS</a></p></li>
+<li><span class="n">2</span><h3>More info</h3></li>
+<li><span class="n">3</span><h3>Run anyway</h3></li></ol>
 <p class="section-intro">We have no signing certificate yet, and promise no store or date.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
-        b = sec(f'''<h2 id="w2" class="reveal" data-reveal>Not finished yet</h2>
+        b = sec(f'''<h2 id="w2">Not finished yet</h2>
 <div class="grid grid-3">{card("Not run on a real Windows machine", "", ("tag-warn", "Note"))}{card("No drop hive", "", ("tag-warn", "Missing"))}{card("No notifications", "Progress shows in the tray tooltip", ("tag-warn", "Missing"))}</div>''',
                 cls="alt s-w2", ident="gaps", labelledby="w2", side="end")
     return h + a + b
@@ -901,21 +933,21 @@ def privacy(lang):
     ar = lang == "ar"
     if ar:
         h = page_head("ملفاتك تبقى عندك")
-        a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li class="reveal" data-reveal>بلا رفع</li><li class="reveal" data-reveal>بلا تتبع</li><li class="reveal" data-reveal>بلا حسابات</li></ul></div>
-<div class="reveal" data-reveal>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
-        b = sec(f'''<h2 id="p2" class="reveal" data-reveal>الاتصال الوحيد هو فحص التحديثات</h2>
+        a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li>بلا رفع</li><li>بلا تتبع</li><li>بلا حسابات</li></ul></div>
+<div>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
+        b = sec(f'''<h2 id="p2">الاتصال الوحيد هو فحص التحديثات</h2>
 <div class="grid grid-2">{card("مرة في اليوم", "يقرأ البرنامج ملف تحديث موقّعا من صفحة إصدارات GitHub، فيرى GitHub عنوان IP الخاص بك كما في أي تنزيل.")}{card("تحقق قبل التنزيل", "التوقيع، ثم الحجم، ثم SHA-256.")}{card("قناتا التحديث", "<code>beta</code> و<code>stable</code>.")}{card("إيقاف الفحص", "<code>update_check = false</code> في <code>config.toml</code>.")}</div>''',
                 cls="alt s-p2", ident="updates", labelledby="p2", side="end")
-        c = sec(f'''<h2 id="p3" class="reveal" data-reveal>الأصل لا يُمسّ</h2>
+        c = sec(f'''<h2 id="p3">الأصل لا يُمسّ</h2>
 <p class="section-intro">يُكتب الناتج أولا في ملف مؤقت، ثم يُعاد تسميته. الشيفرة مفتوحة على <a href="{REPO}">GitHub</a>.</p>''', cls="s-p3", ident="originals", labelledby="p3", side="start")
     else:
         h = page_head("Your files stay with you")
-        a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li class="reveal" data-reveal>No uploads</li><li class="reveal" data-reveal>No tracking</li><li class="reveal" data-reveal>No accounts</li></ul></div>
-<div class="reveal" data-reveal>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
-        b = sec(f'''<h2 id="p2" class="reveal" data-reveal>The only connection: updates</h2>
+        a = sec(f'''<div class="split"><div><ul class="ticks" role="list"><li>No uploads</li><li>No tracking</li><li>No accounts</li></ul></div>
+<div>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
+        b = sec(f'''<h2 id="p2">The only connection: updates</h2>
 <div class="grid grid-2">{card("Once a day", "The app reads a signed manifest from GitHub releases. GitHub sees your address, as with any download.")}{card("Verified first", "Signature, then size, then SHA-256.")}{card("Two channels", "<code>beta</code> and <code>stable</code>.")}{card("Turn it off", "<code>update_check = false</code> in <code>config.toml</code>.")}</div>''',
                 cls="alt s-p2", ident="updates", labelledby="p2", side="end")
-        c = sec(f'''<h2 id="p3" class="reveal" data-reveal>The original is never touched</h2>
+        c = sec(f'''<h2 id="p3">The original is never touched</h2>
 <p class="section-intro">The result is written to a temporary file, then renamed. The code is open on <a href="{REPO}">GitHub</a>.</p>''', cls="s-p3", ident="originals", labelledby="p3", side="start")
     return h + a + b + c
 
@@ -989,9 +1021,8 @@ def md_to_html(text, lang, page):
         elif ln.startswith("![") and "(diagram:" in ln:
             alt, name = re.match(r"!\[([^\]]*)\]\(diagram:([a-z]+)\)", ln).groups()
             r_ = rel_root(lang, page)
-            out.append(f'<figure class="diagram"><picture>'
-                       f'<source media="(prefers-color-scheme: dark)" srcset="{r_}diagrams/{name}.{lang}.dark.svg">'
-                       f'<img src="{r_}diagrams/{name}.{lang}.light.svg" alt="{html.escape(alt)}" loading="lazy"></picture></figure>')
+            out.append(f'<figure class="diagram">'
+                       f'<img src="{r_}diagrams/{name}.{lang}.light.svg" alt="{html.escape(alt)}" loading="lazy"></figure>')
         elif ln.startswith("# "):
             title = ln[2:].strip()
             out.append(f"<h1>{inline(title, lang, page)}</h1>")
@@ -1173,7 +1204,7 @@ def docs_index(lang):
     desc = "ابدأ بالتثبيت، ثم الخلية، ثم الصيغ والإعدادات." if ar else "Start with install, then the hive, then formats and settings."
     tiles = []
     for n, slug in enumerate(DOC_ORDER, 1):
-        tiles.append(f'<a class="doc-tile reveal" data-reveal href="{page_href(lang, page, lang, "docs/" + slug)}">'
+        tiles.append(f'<a class="doc-tile" href="{page_href(lang, page, lang, "docs/" + slug)}">'
                      f'<span class="n">{n}</span><span class="t">{bidi(html.escape(doc_title(slug, lang)), lang)}</span></a>')
     inner = (f'<h1>{title}</h1>{search_box(lang, root)}<div class="doc-tiles">{"".join(tiles)}</div>')
     ld = [breadcrumb_ld(lang, [(p["name"], "index"), (title, page)])]
@@ -1209,7 +1240,7 @@ def release_blocks(lang):
         tag_link = f"{RELEASES}/tag/v{ver}"
         date = f'<time>{r["date"]}</time>' if r["date"] else ""
         name = f' <span class="muted">{html.escape(r["name"])}</span>' if r["name"] and ar else ""
-        out.append(f'<article class="release reveal" data-reveal><h2 id="v{ver.replace(".", "-")}"><span dir="ltr">{ver}</span>{name}</h2>'
+        out.append(f'<article class="release"><h2 id="v{ver.replace(".", "-")}"><span dir="ltr">{ver}</span>{name}</h2>'
                    f'<p class="meta"><span class="{cls}">{pill}</span> {date} '
                    f'<a href="{tag_link}">GitHub</a></p><ul>{items}</ul>{more_html}</article>')
     return "".join(out)
@@ -1325,7 +1356,7 @@ def build_extras():
     (HERE / ".nojekyll").write_text("", encoding="utf-8")
     import shutil
     (HERE / "diagrams").mkdir(exist_ok=True)
-    for f in (ROOT / "docs" / "diagrams").glob("*.svg"):
+    for f in (ROOT / "docs" / "diagrams").glob("*.light.svg"):
         shutil.copy(f, HERE / "diagrams" / f.name)
     (HERE / "assets").mkdir(exist_ok=True)
     for f in (ROOT / "docs" / "assets").glob("support-sbarah-*.svg"):
