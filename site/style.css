@@ -43,7 +43,7 @@ body {
   line-height: 1.7;
   overflow-x: clip;
 }
-:lang(en) { line-height: 1.6; }
+body:lang(en) { line-height: 1.6; }
 
 a {
   color: inherit;
@@ -246,7 +246,7 @@ h2 + .section-intro, .grid + .section-intro { margin-block-start: var(--space-5)
 .hero-grid { display: grid; grid-template-columns: 1fr; gap: var(--space-5); align-items: center; }
 .hero-grid > * { min-width: 0; }
 .hero-copy { position: relative; z-index: 2; }
-.hero .lead { font-size: calc(var(--font-size-title) * 1.5); color: var(--color-text-primary); max-width: 18em; }
+.hero .lead { margin-block-start: var(--space-5); font-size: calc(var(--font-size-title) * 1.5); color: var(--color-text-primary); max-width: 18em; }
 .hero .actions { margin-block-start: var(--space-6); gap: var(--space-2) var(--space-4); }
 .link-all {
   display: inline-flex; align-items: center; min-height: var(--tap);
@@ -354,7 +354,9 @@ html:not(.js) .journey .wire { stroke-dashoffset: 0; }
 .dl-card.rec { border: var(--border-focus) solid var(--color-accent); }
 .dl-card h3 { font-size: calc(var(--font-size-title) * 2.5); margin: 0; }
 .dl-sub { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-title); }
-.dl-card .actions { margin-block-start: var(--space-4); }
+.dl-card .actions { margin-block-start: var(--space-4); width: 100%; }
+.dl-card .button { flex-direction: column; gap: var(--space-1); }
+@media (max-width: 719px) { .dl-card .actions { flex-direction: column; align-items: stretch; } }
 .os-ico { width: calc(var(--space-6) * 2); height: calc(var(--space-6) * 2); fill: var(--color-accent); }
 .os-ico .line { fill: none; stroke: var(--color-accent); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .facts { list-style: none; margin: var(--space-5) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); font-size: var(--font-size-title); color: var(--color-text-secondary); }
@@ -363,7 +365,7 @@ html:not(.js) .journey .wire { stroke-dashoffset: 0; }
 /* Page head, code */
 .page-head h1 { font-size: calc(var(--font-size-title) * 3); }
 .page-head .lead { font-size: calc(var(--font-size-title) * 1.5); }
-pre { margin: 0; padding: var(--space-4); background: var(--color-surface-2); border-radius: var(--radius-md); overflow-x: auto; direction: ltr; text-align: start; line-height: 1.6; }
+pre { margin: 0; padding: var(--space-4); background: var(--color-surface-2); border-radius: var(--radius-md); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; direction: ltr; text-align: start; line-height: 1.6; }
 .alt pre { background: var(--color-surface-3); }
 h3 + pre { margin-block-start: var(--space-2); }
 .sec h2:not(:first-child) { margin-block-start: calc(var(--space-6) * 2); }
@@ -420,8 +422,12 @@ html:not(.js) .motion-toggle { display: none; }
 }
 @media (max-width: 719px) {
   .ticks li { font-size: calc(var(--font-size-title) * 1.5); padding: var(--space-4) var(--space-5); }
-  .site-nav .button-support span { display: none; }
-  .site-nav .button-support { padding: 0; min-width: var(--tap); }
+  .site-header .wrap { gap: 0 var(--space-2); }
+  .site-nav { display: contents; }
+  .brand { order: -2; }
+  .site-nav .lang-switch { order: -1; }
+  .site-nav a { padding: 0 var(--space-2); }
+  .site-nav .button-support .ico { display: none; }
 }
 
 .paused *, .paused *::before { animation-play-state: paused !important; }
@@ -440,7 +446,7 @@ html:not(.js) .motion-toggle { display: none; }
 /* ---- Try it: the drop demo (S-061). Values come from tokens only. ---- */
 .s-sim .section-intro { margin-block-start: var(--space-3); }
 html:not(.js) .s-sim .section-intro, html:not(.js) .sim-board { display: none; }
-.sim-board { display: grid; gap: var(--space-5); margin-block-start: var(--space-5); }
+.sim-board { display: grid; gap: var(--space-5); margin-block: var(--space-5) var(--space-5); padding-block-end: var(--space-5); }
 .sim-board > * { min-width: 0; }
 .sim-left { display: grid; gap: var(--space-4); align-content: start; }
 .sim-samples { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
