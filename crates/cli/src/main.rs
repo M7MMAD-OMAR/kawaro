@@ -19,7 +19,7 @@ use clap::{Parser, Subcommand};
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::{Event, Request, Response};
 use kawaro_core::queue::{self, JobEvent};
-use kawaro_core::update::apply::PkgKind;
+use kawaro_core::update::apply::{INSTALL_PRIVILEGED_FLAG, PkgKind};
 use kawaro_core::{ActionDef, CancelToken, Engine, Registry};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -170,7 +170,12 @@ fn main() -> ExitCode {
         };
     }
     if let Cmd::Update { args } = cli.cmd {
-        if args.iter().any(|a| a == "--install-privileged") {
+        // `--install-privileged FILE` or `--install-privileged=FILE`.
+        let privileged = |a: &String| {
+            a.strip_prefix(INSTALL_PRIVILEGED_FLAG)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('='))
+        };
+        if args.iter().any(privileged) {
             let words = std::iter::once("update".to_string()).chain(args);
             let p = Privileged::parse_from(words);
             return update(p.install_privileged, p.sha256, p.kind);

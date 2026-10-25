@@ -6,7 +6,7 @@ pub use kawaro_core::paths::Os;
 use std::path::Path;
 
 /// The start of every notification log line.
-pub const LOG_PREFIX: &str = "kawarod: notify: ";
+const LOG_PREFIX: &str = "kawarod: notify: ";
 
 /// The program and its arguments that show the result: Explorer selects
 /// `file` (one `/select,` argument, spaces kept) or opens `folder`;

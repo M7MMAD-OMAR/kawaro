@@ -399,6 +399,9 @@ impl Inner {
         ATTACH_PENDING.with(|c| c.set(false));
         #[cfg(target_os = "linux")]
         receiver::detach();
+        // A closed hive ends an Explorer drag (S-067).
+        #[cfg(windows)]
+        dnd::windows::hive_closed();
         let ui = self.ui.borrow();
         ui.hide().ok();
         ui.set_highlight(-1);
@@ -1006,7 +1009,10 @@ mod drop_tests;
 mod drop_track_tests;
 #[cfg(test)]
 mod monitor_tests;
+// The test file's header ends its contract list with a plain line, which
+// this lint reads as a lazy list continuation; the test file is not edited.
 #[cfg(test)]
+#[allow(clippy::doc_lazy_continuation)]
 mod s067_drop_track_tests;
 #[cfg(test)]
 mod ui_tests;

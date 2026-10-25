@@ -298,6 +298,39 @@ pub(super) fn sha256_hex(path: &Path) -> std::io::Result<String> {
         .collect())
 }
 
+/// The file a package is downloaded to before it is verified: the name of
+/// `final_path` with `.part` appended.
+pub fn part_path(final_path: &Path) -> PathBuf {
+    let mut name = final_path.file_name().unwrap_or_default().to_os_string();
+    name.push(".part");
+    final_path.with_file_name(name)
+}
+
+/// The highest version newer than `current` with a verified package under
+/// `<cache_dir>/updates/<version>/`: a file that is not a part file
+/// (`download_verified` renames it only after its size and SHA-256 matched).
+pub fn ready_on_disk(cache_dir: &Path, current: &semver::Version) -> Option<semver::Version> {
+    let updates = cache_dir.join("updates");
+    fs::read_dir(&updates)
+        .ok()?
+        .flatten()
+        .filter_map(|e| {
+            let v = semver::Version::parse(e.file_name().to_str()?).ok()?;
+            (v.cmp_precedence(current).is_gt() && has_package(&e.path())).then_some(v)
+        })
+        .max_by(|a, b| a.cmp_precedence(b))
+}
+
+/// True when `dir` holds a file that is not a part file.
+fn has_package(dir: &Path) -> bool {
+    fs::read_dir(dir).is_ok_and(|entries| {
+        entries.flatten().any(|e| {
+            e.file_type().is_ok_and(|t| t.is_file())
+                && e.path().extension().is_none_or(|x| x != "part")
+        })
+    })
+}
+
 /// Downloads the package to `<dir>/<name>.part`, checks its size and SHA-256
 /// against the signed manifest and renames it to `<dir>/<name>`. A package
 /// that fails never stays as a file. After success the other version folders
@@ -312,12 +345,12 @@ pub fn download_verified(
         return Err(UpdateError::BadUrl);
     }
     fs::create_dir_all(dir).map_err(|_| UpdateError::Io)?;
-    let part = dir.join(format!("{}.part", asset.name));
+    let path = dir.join(&asset.name);
+    let part = part_path(&path);
     if let Err(e) = fetch_and_check(asset, &part, fetcher) {
         let _ = fs::remove_file(&part);
         return Err(e);
     }
-    let path = dir.join(&asset.name);
     fs::rename(&part, &path).map_err(|_| {
         let _ = fs::remove_file(&part);
         UpdateError::Io

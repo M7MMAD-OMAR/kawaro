@@ -26,6 +26,9 @@ pub const RELEASE_PAGE_URL: &str = "https://github.com/M7MMAD-OMAR/kawaro/releas
 /// `pkexec` by absolute path, never found through `PATH`.
 pub const PKEXEC: &str = "/usr/bin/pkexec";
 
+/// The `kawaro update` flag that runs the privileged step.
+pub const INSTALL_PRIVILEGED_FLAG: &str = "--install-privileged";
+
 /// The exit code of the privileged step when it is not run by root.
 pub const EXIT_NOT_ROOT: i32 = 77;
 
@@ -270,7 +273,7 @@ pub fn privileged_argv(exe: &Path, file: &Path, sha256: &str, kind: PkgKind) -> 
         PKEXEC.to_string(),
         exe.to_string_lossy().into_owned(),
         "update".to_string(),
-        "--install-privileged".to_string(),
+        INSTALL_PRIVILEGED_FLAG.to_string(),
         file.to_string_lossy().into_owned(),
         "--sha256".to_string(),
         sha256.to_string(),
@@ -300,6 +303,75 @@ pub fn privileged_argv_checked(
         return Err(UpdateError::Io);
     }
     Ok(privileged_argv(exe, file, sha256, kind))
+}
+
+/// The program `pkexec` would run as root, for the privileged step shape
+/// only (`pkexec <exe> update --install-privileged ...`). A repository
+/// upgrade (`pkexec dnf ...`) runs a system package manager and gives `None`.
+pub fn pkexec_target(argv: &[String]) -> Option<&Path> {
+    match argv {
+        [pkexec, exe, cmd, flag, ..]
+            if pkexec == PKEXEC && cmd == "update" && flag == INSTALL_PRIVILEGED_FLAG =>
+        {
+            Some(Path::new(exe))
+        }
+        _ => None,
+    }
+}
+
+/// Runs a program and gives its exit code. The privileged step is refused
+/// unless root owns the program `pkexec` would run as root (S-054a).
+pub struct SystemRunner;
+
+impl CommandRunner for SystemRunner {
+    fn run(&self, argv: &[String]) -> Result<i32, UpdateError> {
+        #[cfg(unix)]
+        if let Some(exe) = pkexec_target(argv) {
+            use std::os::unix::fs::MetadataExt;
+            let meta = std::fs::metadata(exe).map_err(|_| UpdateError::Io)?;
+            if !exe_is_trusted(meta.uid(), meta.mode()) {
+                return Err(UpdateError::Io);
+            }
+        }
+        let (program, args) = argv.split_first().ok_or(UpdateError::Io)?;
+        std::process::Command::new(program)
+            .args(args)
+            .status()
+            .map_err(|_| UpdateError::Io)?
+            .code()
+            .ok_or(UpdateError::Io)
+    }
+}
+
+/// A Kawaro repository file: `*kawaro*.repo` (any case) or `kawaro.sources`.
+pub fn is_repo_file(name: &str) -> bool {
+    let name = name.to_lowercase();
+    (name.contains("kawaro") && name.ends_with(".repo")) || name == "kawaro.sources"
+}
+
+/// `/proc/self/exe` ends in ` (deleted)` after a package replaced the file.
+pub fn clean_exe_path(exe: &Path) -> PathBuf {
+    let text = exe.to_string_lossy();
+    PathBuf::from(text.strip_suffix(" (deleted)").unwrap_or(&text))
+}
+
+/// The facts of this machine: the package managers and `pkexec` by absolute
+/// path, and a Kawaro repository file in the dnf or apt folders.
+pub fn probe_facts(installed_kind: Option<PkgKind>) -> Facts {
+    let exists = |p: &str| Path::new(p).exists();
+    let repo_configured = ["/etc/yum.repos.d", "/etc/apt/sources.list.d"]
+        .iter()
+        .filter_map(|d| std::fs::read_dir(d).ok())
+        .flatten()
+        .flatten()
+        .any(|e| is_repo_file(&e.file_name().to_string_lossy()));
+    Facts {
+        has_dnf: exists("/usr/bin/dnf"),
+        has_apt: exists("/usr/bin/apt-get"),
+        has_pkexec: exists(PKEXEC),
+        repo_configured,
+        installed_kind,
+    }
 }
 
 /// Runs the plan after an explicit "Update now". The only place that builds

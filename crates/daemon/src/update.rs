@@ -17,7 +17,7 @@ use kawaro_core::update::effective_channel;
 use kawaro_core::update::fetch::{CurlFetcher, Fetcher};
 use kawaro_core::update::flow::{
     CheckEnv, CheckOutcome, CheckState, INTERVAL_SECS, Update, VerifiedPackage, check_with,
-    download_verified,
+    download_verified, part_path,
 };
 use kawaro_core::update::policy::Platform;
 
@@ -159,7 +159,7 @@ fn download_step(
     let dir = st.env.updates_dir.join(&version);
     // The tray reads the progress without the update lock, from the size of
     // the part file; the guard ends it on every path out of this function.
-    let part = dir.join(format!("{}.part", update.asset.name));
+    let part = part_path(&dir.join(&update.asset.name));
     progress::shared().begin(&version, update.asset.size, &part);
     let _download = Download(progress::shared());
     match download_verified(update, &dir, fetcher) {
@@ -302,12 +302,7 @@ pub fn write_atomic(path: &Path, text: &str) -> std::io::Result<()> {
 /// retries about every eighth of it, for ten times this).
 pub const RESTART_DELAY: Duration = Duration::from_secs(2);
 
-/// `/proc/self/exe` ends in ` (deleted)` after a package replaced the file.
-#[cfg_attr(windows, allow(dead_code))]
-pub fn clean_exe_path(exe: &Path) -> PathBuf {
-    let text = exe.to_string_lossy();
-    PathBuf::from(text.strip_suffix(" (deleted)").unwrap_or(&text))
-}
+pub use kawaro_core::update::apply::clean_exe_path;
 
 /// The program that starts the new daemon, and its arguments (none: the new
 /// daemon learns it was restarted from the environment, never from a shell).

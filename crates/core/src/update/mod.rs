@@ -62,6 +62,17 @@ pub enum Channel {
     Beta,
 }
 
+impl Channel {
+    /// The channel named `stable` or `beta`, exactly.
+    pub fn parse(text: &str) -> Option<Channel> {
+        match text {
+            "stable" => Some(Channel::Stable),
+            "beta" => Some(Channel::Beta),
+            _ => None,
+        }
+    }
+}
+
 /// The channel to follow when none is configured: `Beta` for a version with a
 /// prerelease part, otherwise `Stable` (ADR 0006, manager decision).
 pub fn default_channel(installed: &str) -> Result<Channel, UpdateError> {

@@ -215,11 +215,7 @@ impl Config {
     /// key is missing, is not `stable` or `beta`, or the text is not TOML.
     pub fn explicit_update_channel(text: &str) -> Option<Channel> {
         let table: toml::Table = toml::from_str(text).ok()?;
-        match table.get("update_channel")?.as_str()? {
-            "stable" => Some(Channel::Stable),
-            "beta" => Some(Channel::Beta),
-            _ => None,
-        }
+        Channel::parse(table.get("update_channel")?.as_str()?)
     }
 
     /// The channel the user chose: the file's value when it had the key or

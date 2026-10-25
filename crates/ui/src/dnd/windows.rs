@@ -1,7 +1,8 @@
 //! Drops from Explorer on the hive window (S-047, ADR 0005 section 5). winit
 //! reports the dragged files but no position, so between the first hover
-//! event and the drop or cancel a timer of `TICK_MS` polls `GetCursorPos`
-//! and feeds the pure `DropTracker`. A drop on a cell runs through
+//! event and the drop, the cancel or the hive's close a timer of `TICK_MS`
+//! polls `GetCursorPos` and feeds the pure `DropTracker`, which also keeps
+//! the dragged files. A drop on a cell runs through
 //! `Inner::choose`, the path of a click. Nothing here deletes, moves or
 //! renames a dropped file. Windows only, left out of the mutants run; the
 //! live check is S-052.
@@ -20,8 +21,6 @@ use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
 
 thread_local! {
     static TRACKER: RefCell<DropTracker> = RefCell::new(DropTracker::default());
-    /// winit sends one hover event per file: the files of this drag so far.
-    static HOVERED: RefCell<Vec<PathBuf>> = const { RefCell::new(Vec::new()) };
     /// Runs only during a drag over a drop hive.
     static TICKER: slint::Timer = slint::Timer::default();
 }
@@ -62,26 +61,21 @@ fn cursor(inner: &Inner) -> (f32, f32) {
 
 fn hovered(path: PathBuf) {
     let Some(inner) = drop_hive() else { return };
-    let fresh = !TICKER.with(|t| t.running());
-    let files = HOVERED.with(|h| {
-        let mut h = h.borrow_mut();
-        if fresh {
-            h.clear();
-        }
-        h.push(path);
-        h.clone()
-    });
-    // The cells for the dragged files, laid out like a Wayland enter.
-    let event = inner.drop_files(files.clone());
-    inner.drag(event);
-    TRACKER.with(|t| {
+    // winit sends one hover event per file; the tracker keeps them.
+    let (fresh, files) = TRACKER.with(|t| {
         let mut t = t.borrow_mut();
+        let fresh = !t.is_active();
         if fresh {
             *t = DropTracker::default();
         }
-        t.on_hover(files);
+        t.on_hover_file(path);
+        (fresh, t.files().to_vec())
     });
-    if fresh {
+    // The cells for the dragged files, laid out like a Wayland enter.
+    let event = inner.drop_files(files);
+    inner.drag(event);
+    // A refused drag may have closed the hive already.
+    if fresh && TRACKER.with(|t| t.borrow().is_active()) {
         TICKER.with(|t| {
             t.start(
                 slint::TimerMode::Repeated,
@@ -90,6 +84,13 @@ fn hovered(path: PathBuf) {
             )
         });
     }
+}
+
+/// The hive closed (from `Inner::close`): the drag's files are forgotten
+/// and the cursor poll stops.
+pub fn hive_closed() {
+    TRACKER.with(|t| t.borrow_mut().on_close());
+    TICKER.with(|t| t.stop());
 }
 
 fn tick() {
@@ -105,7 +106,6 @@ fn tick() {
 }
 
 fn dropped() {
-    HOVERED.with(|h| h.borrow_mut().clear());
     let Some(inner) = drop_hive() else {
         TRACKER.with(|t| t.borrow_mut().on_cancel());
         return;
@@ -127,7 +127,6 @@ fn dropped() {
 }
 
 fn cancelled() {
-    HOVERED.with(|h| h.borrow_mut().clear());
     TRACKER.with(|t| t.borrow_mut().on_cancel());
     if let Some(inner) = drop_hive() {
         inner.drag(Event::Leave);
