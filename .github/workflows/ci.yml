@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       # Full history: the S-058 test reads CLAUDE.md at a base commit.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: System packages
@@ -40,7 +40,7 @@ jobs:
       CI: true
       CARGO_TARGET_DIR: ${{ github.workspace }}/target-windows
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: mingw-w64
         run: |
           sudo apt-get update
@@ -65,7 +65,7 @@ jobs:
       # Keep LF line endings: signature fixtures and source scanning tests
       # read bytes and lines exactly as committed.
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: FFmpeg
