@@ -14,7 +14,7 @@ class AC1MarkdownLinks(unittest.TestCase):
         pages = sorted(site().glob("docs/*/index.html")) + sorted(site().glob("en/docs/*/index.html"))
         self.assertGreaterEqual(len(pages), 18)
         for page in pages:
-            hrefs = re.findall(r'href="([^"]+\.md)"', page.read_text(encoding="utf-8"))
+            hrefs = re.findall(r'href="((?!https?:)[^"]+\.md)"', page.read_text(encoding="utf-8"))
             self.assertEqual(len(hrefs), 1, page)
             target = (page.parent / hrefs[0]).resolve()
             self.assertTrue(target.is_file(), f"{page.relative_to(site())} links to {hrefs[0]}: missing")
