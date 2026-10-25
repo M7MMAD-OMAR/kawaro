@@ -36,12 +36,11 @@ pub fn focus_log(ok: bool) -> Option<&'static str> {
 }
 
 /// The S-021 rule on Windows (S-047 AC6): a shortcut shows the drop hive
-/// only while the left button is held, that is during a drag.
-#[cfg(windows)]
-pub fn shortcut_drop_allowed() -> bool {
-    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
-    let state = unsafe { GetAsyncKeyState(i32::from(VK_LBUTTON)) };
-    kawaro_ui::drop_hive_allowed(kawaro_ui::Source::Shortcut, state < 0)
+/// only while the primary button is held, that is during a drag. True when
+/// a request must be refused: a drop with the primary button up.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub fn drop_refused(is_drop: bool, primary_down: bool) -> bool {
+    is_drop && !kawaro_ui::drop_hive_allowed(kawaro_ui::Source::Shortcut, primary_down)
 }
 
 /// Shows the hive for `files`. On Windows Explorer sends one file per
@@ -103,7 +102,10 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     };
     // A drop request on Windows comes from a shortcut: no drag, no hive.
     #[cfg(windows)]
-    if matches!(req, Request::Drop { .. }) && !shortcut_drop_allowed() {
+    if drop_refused(
+        matches!(req, Request::Drop { .. }),
+        crate::shell::primary_button_down(),
+    ) {
         return reply(&mut stream, &Response::Ok);
     }
     // The held drop key (S-019e): the gate on the event loop decides when

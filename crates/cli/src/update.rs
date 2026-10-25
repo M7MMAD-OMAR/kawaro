@@ -18,11 +18,11 @@ use kawaro_core::update::apply::{
 use kawaro_core::update::fetch::Fetcher;
 use kawaro_core::update::flow::{
     CheckEnv, CheckOutcome, CheckState, INTERVAL_SECS, Update, check_with, download_verified,
+    ready_on_disk,
 };
 use kawaro_core::update::policy::Platform;
 use kawaro_core::update::result::{Outcome, read_result};
-use kawaro_core::update::version::is_newer;
-use kawaro_core::update::{Channel, UpdateError, effective_channel};
+use kawaro_core::update::{Channel, UpdateError, effective_channel, version};
 
 /// `0`: up to date, or the install finished.
 const EXIT_OK: i32 = 0;
@@ -98,6 +98,7 @@ enum Msg {
     InstallFailed,
     Manual,
     UnknownChannel,
+    NoCache,
 }
 
 fn text(lang: Lang, msg: Msg) -> &'static str {
@@ -120,6 +121,7 @@ fn text(lang: Lang, msg: Msg) -> &'static str {
         (Lang::En, Msg::InstallFailed) => "install failed",
         (Lang::En, Msg::Manual) => "install it by hand",
         (Lang::En, Msg::UnknownChannel) => "unknown channel, expected stable or beta",
+        (Lang::En, Msg::NoCache) => "cannot create the cache folder",
         (Lang::Ar, Msg::Current) => "الحالي",
         (Lang::Ar, Msg::Latest) => "الأحدث",
         (Lang::Ar, Msg::Status) => "الحالة",
@@ -138,6 +140,7 @@ fn text(lang: Lang, msg: Msg) -> &'static str {
         (Lang::Ar, Msg::InstallFailed) => "فشل التثبيت",
         (Lang::Ar, Msg::Manual) => "ثبّته يدويًا",
         (Lang::Ar, Msg::UnknownChannel) => "قناة غير معروفة، المتاح stable أو beta",
+        (Lang::Ar, Msg::NoCache) => "تعذّر إنشاء مجلد التخزين المؤقت",
     }
 }
 
@@ -198,16 +201,25 @@ pub fn run(
             return code;
         }
     };
-    let (config, _) = Config::load_from(&facts.config_dir.join("config.toml"));
+    let (config, warning) = Config::load_from(&facts.config_dir.join("config.toml"));
+    if let Some(warning) = warning {
+        // A toml error spans several lines; the warning stays one.
+        let _ = writeln!(
+            err,
+            "{}",
+            warning.split_whitespace().collect::<Vec<_>>().join(" ")
+        );
+    }
     let lang = config.lang();
     let channel = match args.channel.as_deref() {
         None => effective_channel(config.configured_update_channel(), &facts.installed),
-        Some("stable") => Channel::Stable,
-        Some("beta") => Channel::Beta,
-        Some(other) => {
-            let _ = writeln!(err, "{}: {other}", text(lang, Msg::UnknownChannel));
-            return EXIT_USAGE;
-        }
+        Some(name) => match Channel::parse(name) {
+            Some(channel) => channel,
+            None => {
+                let _ = writeln!(err, "{}: {name}", text(lang, Msg::UnknownChannel));
+                return EXIT_USAGE;
+            }
+        },
     };
     if args.status {
         let _ = writeln!(out, "{}", status_line(facts, lang));
@@ -238,7 +250,11 @@ fn check(
     let scratch = facts
         .cache_dir
         .join(format!("check-{}", std::process::id()));
-    let _ = fs::create_dir_all(&scratch);
+    if fs::create_dir_all(&scratch).is_err() {
+        let folder = facts.cache_dir.display();
+        let _ = writeln!(err, "{}: {folder}", text(lang, Msg::NoCache));
+        return Err(EXIT_REJECTED);
+    }
     let keys: Vec<&str> = facts.keys.iter().map(String::as_str).collect();
     let env = CheckEnv {
         installed: &facts.installed,
@@ -342,31 +358,13 @@ fn status_line(facts: &Facts, lang: Lang) -> String {
     {
         return format!("{label} {} {}", text(lang, Msg::Failed), r.version);
     }
-    match ready_version(&facts.cache_dir.join("updates"), &facts.installed) {
+    let ready = version::parse(&facts.installed)
+        .ok()
+        .and_then(|v| ready_on_disk(&facts.cache_dir, &v));
+    match ready {
         Some(v) => format!("{label} {} {v}", text(lang, Msg::Ready)),
         None => format!("{label} {}", text(lang, Msg::None)),
     }
-}
-
-/// The version of a verified package newer than `installed`. A package is
-/// verified once it lost its `.part` name (`download_verified` renames it
-/// only after its size and SHA-256 matched).
-fn ready_version(updates: &Path, installed: &str) -> Option<String> {
-    fs::read_dir(updates)
-        .ok()?
-        .flatten()
-        .filter_map(|entry| entry.file_name().into_string().ok())
-        .filter(|v| is_newer(installed, v).unwrap_or(false))
-        .find(|v| has_package(&updates.join(v)))
-}
-
-fn has_package(dir: &Path) -> bool {
-    fs::read_dir(dir).is_ok_and(|entries| {
-        entries.flatten().any(|e| {
-            let is_file = e.file_type().is_ok_and(|t| t.is_file());
-            is_file && !e.file_name().to_string_lossy().ends_with(".part")
-        })
-    })
 }
 
 #[cfg(test)]
@@ -429,24 +427,5 @@ mod tests {
             apply_plan(&page, &facts, file, "ab", Lang::Ar),
             Err("ثبّته يدويًا: https://example.org/r".into())
         );
-    }
-
-    #[test]
-    fn ready_needs_a_finished_package_of_a_newer_version() {
-        let t = tempfile::tempdir().unwrap();
-        let updates = t.path().join("updates");
-        let add = |v: &str, name: &str| {
-            fs::create_dir_all(updates.join(v)).unwrap();
-            fs::write(updates.join(v).join(name), b"x").unwrap();
-        };
-        assert_eq!(ready_version(&updates, "0.3.3"), None);
-        add("0.3.0", "old.rpm");
-        add("0.4.0", "new.rpm.part");
-        fs::create_dir_all(updates.join("0.5.0").join("sub")).unwrap();
-        add("notes", "x.rpm");
-        assert_eq!(ready_version(&updates, "0.3.3"), None);
-        add("0.4.0", "new.rpm");
-        assert_eq!(ready_version(&updates, "0.3.3").as_deref(), Some("0.4.0"));
-        assert_eq!(ready_version(&updates, "0.4.0"), None);
     }
 }

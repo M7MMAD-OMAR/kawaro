@@ -6,7 +6,8 @@
 //! S-052; the decisions are in `shell_logic.rs` and `core::hotkey`.
 
 use crate::shell_logic::{
-    Command, HoldPoll, POLL_MS, Poll, fit_tip, menu_right_to_left, shortcut_error_line, tooltip,
+    Command, HoldPoll, POLL_MS, Poll, fit_tip, menu_right_to_left, primary_button_vk,
+    shortcut_error_line, tooltip,
 };
 use crate::state::{Shared, lock};
 use crate::tray::windows::{self as tray, WM_REFRESH};
@@ -28,8 +29,9 @@ use windows_sys::Win32::UI::Shell::{
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyWindow, DispatchMessageW, GetMessageW,
-    HICON, KillTimer, MSG, PostQuitMessage, RegisterClassExW, RegisterWindowMessageW, SetTimer,
-    TranslateMessage, WM_CLOSE, WM_DESTROY, WM_HOTKEY, WM_RBUTTONUP, WM_TIMER, WNDCLASSEXW,
+    GetSystemMetrics, HICON, KillTimer, MSG, PostQuitMessage, RegisterClassExW,
+    RegisterWindowMessageW, SM_SWAPBUTTON, SetTimer, TranslateMessage, WM_CLOSE, WM_DESTROY,
+    WM_HOTKEY, WM_RBUTTONUP, WM_TIMER, WNDCLASSEXW,
 };
 
 const HOTKEY_ID: i32 = 1;
@@ -48,6 +50,14 @@ thread_local! {
     /// The tray icon, loaded once: handle and whether we must destroy it.
     static ICON: OnceCell<(HICON, bool)> = const { OnceCell::new() };
     static HOLD: RefCell<HoldPoll> = RefCell::new(HoldPoll::default());
+}
+
+/// True while the primary mouse button is held, with the buttons swapped or
+/// not (`SM_SWAPBUTTON`), that is during a drag.
+pub fn primary_button_down() -> bool {
+    let swapped = unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0;
+    let state = unsafe { GetAsyncKeyState(primary_button_vk(swapped)) };
+    state < 0
 }
 
 /// Starts the shell thread and gives back the window handle once it exists.
@@ -159,7 +169,7 @@ unsafe extern "system" fn window_proc(
         WM_REFRESH => notify_icon(hwnd, NIM_MODIFY),
         tray::WM_TRAY if lparam as u32 == WM_RBUTTONUP => show_menu(hwnd),
         // The S-021 rule (S-047 AC6): the shortcut shows no hive without a drag.
-        WM_HOTKEY if !crate::server::shortcut_drop_allowed() => {}
+        WM_HOTKEY if crate::server::drop_refused(true, primary_button_down()) => {}
         WM_HOTKEY => {
             // The same as `kawaro drop --hold`: the long press gate shows
             // the hive after hold_ms; the release comes from the poll below.

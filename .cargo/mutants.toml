@@ -91,14 +91,20 @@ exclude_globs = [
   "crates/daemon/src/tray/linux.rs",
 ]
 exclude_re = [
-  # The Windows shortcut drop gate (S-047, manager decision): the function and
-  # the one refusal line in handle are cfg(windows), so a Linux run never
-  # compiles them and every mutant there is reported missed. The rule itself
-  # (drop_hive_allowed) stays mutated in crates/ui/src/drop_track.rs; the live
-  # check is S-052.
-  "crates/daemon/src/server.rs:.*replace shortcut_drop_allowed -> bool with",
-  "crates/daemon/src/server.rs:.*in shortcut_drop_allowed$",
-  "crates/daemon/src/server.rs:106:.*in handle$",
+  # The privileged step's trust check (S-067, now in core's SystemRunner): a
+  # mutant that makes pkexec_target miss the privileged step, or drops the
+  # refusal in SystemRunner::run, would start the real /usr/bin/pkexec from
+  # the refusal test, and no test may run pkexec. The shape is pinned by the
+  # pure pkexec_target test and the refusal by the unmutated SystemRunner
+  # tests; the mutants that cannot reach pkexec stay mutated.
+  "crates/core/src/update/apply.rs:.*replace pkexec_target -> Option<&Path> with None",
+  "crates/core/src/update/apply.rs:.*replace == with != in pkexec_target$",
+  "crates/core/src/update/apply.rs:.*replace match guard .* with false in pkexec_target$",
+  "crates/core/src/update/apply.rs:.*delete ! in <impl CommandRunner for SystemRunner>::run$",
+  # The one open folder spawn (S-067): it starts xdg-open or Explorer on the
+  # live desktop, which no test may reach; the command it is given is the
+  # pure open_folder_command, mutated in notify_logic.rs.
+  "crates/daemon/src/notify.rs:.*replace open_folder with \\(\\)",
   # The production notification wrappers (S-054b) talk to the desktop, which
   # no test may reach (KAWARO_NO_NOTIFY); their rules stay mutated in
   # notify_update_with and report_update_result_with.

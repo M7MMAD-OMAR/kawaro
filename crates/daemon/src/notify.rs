@@ -46,7 +46,7 @@ pub fn notify_update_with(
     }
     sent.pairs.push((kind, version.to_string()));
     let message = text::update_message(lang, kind, version);
-    sink.log(&format!("kawarod: notify: {message}"));
+    sink.log(&log_line(&message));
     sink.show(text::app_name(lang), &message);
 }
 
@@ -164,6 +164,19 @@ pub fn info(lang: Lang, body: &str) {
     );
 }
 
+/// Starts the program that shows the output folder. The child is waited on
+/// its own thread, so it never stays a zombie; a failed start is one log line.
+pub fn open_folder(program: String, args: Vec<String>) {
+    match std::process::Command::new(&program).args(args).spawn() {
+        Ok(mut child) => {
+            std::thread::spawn(move || {
+                let _ = child.wait();
+            });
+        }
+        Err(e) => eprintln!("kawarod: open folder: {program}: {e}"),
+    }
+}
+
 pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
     let total = job.ok + job.failed;
     let (summary, body) = if cancelled {
@@ -200,7 +213,7 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
             handle.wait_for_action(|action| {
                 if action == "default" {
                     let (program, args) = open_folder_command(CURRENT, &folder, file.as_deref());
-                    let _ = std::process::Command::new(program).args(args).spawn();
+                    open_folder(program, args);
                 }
             });
         });

@@ -6,8 +6,8 @@
 use crate::layout::Plan;
 use std::path::PathBuf;
 
-/// The cursor poll period during a drag, in milliseconds (the `uElapse`
-/// type of `SetTimer`).
+/// The cursor poll period during a drag, in milliseconds (the period of the
+/// `slint::Timer` in `dnd/windows.rs`).
 pub const TICK_MS: u32 = 16;
 
 /// What a drop does.
@@ -31,6 +31,28 @@ impl DropTracker {
     /// The drag carries `files`.
     pub fn on_hover(&mut self, files: Vec<PathBuf>) {
         self.files = files;
+    }
+
+    /// winit sends one hover event per file: the drag carries `path` too.
+    pub fn on_hover_file(&mut self, path: PathBuf) {
+        self.files.push(path);
+    }
+
+    /// The files of the current drag so far.
+    pub fn files(&self) -> &[PathBuf] {
+        &self.files
+    }
+
+    /// True from the first hover until a drop, a cancel or [`Self::on_close`].
+    pub fn is_active(&self) -> bool {
+        !self.files().is_empty()
+    }
+
+    /// The hive closed: the files and the last cell are forgotten, so the
+    /// next drag starts empty.
+    pub fn on_close(&mut self) {
+        self.files.clear();
+        self.last = None;
     }
 
     /// The cell under `cursor` (surface local, logical), or -1 for none, when

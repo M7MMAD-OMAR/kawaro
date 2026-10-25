@@ -4,7 +4,8 @@ use super::UpdateError;
 use semver::Version;
 use std::cmp::Ordering;
 
-pub(super) fn parse(text: &str) -> Result<Version, UpdateError> {
+/// `text` as a semantic version.
+pub fn parse(text: &str) -> Result<Version, UpdateError> {
     Version::parse(text).map_err(|_| UpdateError::BadVersion)
 }
 

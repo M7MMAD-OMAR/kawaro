@@ -128,3 +128,9 @@ impl HoldPoll {
 pub fn shortcut_error_line(s: &str, ok: bool) -> Option<String> {
     (!ok).then(|| format!("kawarod: shortcut {s} unavailable"))
 }
+
+/// The virtual key of the primary mouse button: `VK_LBUTTON`, or
+/// `VK_RBUTTON` when the user swapped the buttons (`SM_SWAPBUTTON`).
+pub fn primary_button_vk(swapped: bool) -> i32 {
+    if swapped { 0x02 } else { 0x01 }
+}

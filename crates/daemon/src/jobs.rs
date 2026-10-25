@@ -76,7 +76,7 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
             {
                 let file = info.first_output.as_deref();
                 let (program, args) = open_folder_command(CURRENT, dir, file);
-                let _ = std::process::Command::new(program).args(args).spawn();
+                notify::open_folder(program, args);
             }
         }
         let active: Vec<(String, f32)> = st

@@ -164,41 +164,14 @@ fn install(_lang: Lang, path: &std::path::Path, _sha256: &str, _kind: &str) -> R
 #[cfg(unix)]
 fn install(lang: Lang, path: &std::path::Path, sha256: &str, kind: &str) -> Result<(), ()> {
     use kawaro_core::update::apply::{
-        CommandRunner, Facts, PKEXEC, PkgKind, Plan, apply_now, linux_plan, privileged_argv_checked,
+        PkgKind, Plan, SystemRunner, apply_now, linux_plan, privileged_argv_checked, probe_facts,
     };
-    struct Runner;
-    impl CommandRunner for Runner {
-        fn run(&self, argv: &[String]) -> Result<i32, kawaro_core::update::UpdateError> {
-            std::process::Command::new(&argv[0])
-                .args(&argv[1..])
-                .status()
-                .map_err(|_| kawaro_core::update::UpdateError::Io)?
-                .code()
-                .ok_or(kawaro_core::update::UpdateError::Io)
-        }
-    }
-    let exists = |p: &str| std::path::Path::new(p).exists();
     let installed_kind = if kind == "deb" {
         PkgKind::Deb
     } else {
         PkgKind::Rpm
     };
-    let repo_configured = ["/etc/yum.repos.d", "/etc/apt/sources.list.d"]
-        .iter()
-        .filter_map(|d| std::fs::read_dir(d).ok())
-        .flatten()
-        .flatten()
-        .any(|e| {
-            let name = e.file_name().to_string_lossy().to_lowercase();
-            (name.contains("kawaro") && name.ends_with(".repo")) || name == "kawaro.sources"
-        });
-    let plan = linux_plan(&Facts {
-        has_dnf: exists("/usr/bin/dnf"),
-        has_apt: exists("/usr/bin/apt-get"),
-        has_pkexec: exists(PKEXEC),
-        repo_configured,
-        installed_kind: Some(installed_kind),
-    });
+    let plan = linux_plan(&probe_facts(Some(installed_kind)));
     // The CLI that runs the privileged step sits next to this daemon.
     let cli = daemon_exe().and_then(|e| e.parent().map(|d| d.join("kawaro")));
     let cli = cli.unwrap_or_else(|| PathBuf::from("/usr/bin/kawaro"));
@@ -214,9 +187,9 @@ fn install(lang: Lang, path: &std::path::Path, sha256: &str, kind: &str) -> Resu
         }
         Plan::Local(k) => {
             privileged_argv_checked(&cli, path, sha256, *k).map_err(|_| ())?;
-            apply_now(&plan, &cli, path, sha256, &Runner).map_err(|_| ())
+            apply_now(&plan, &cli, path, sha256, &SystemRunner).map_err(|_| ())
         }
-        Plan::RepoUpgrade(_) => apply_now(&plan, &cli, path, sha256, &Runner).map_err(|_| ()),
+        Plan::RepoUpgrade(_) => apply_now(&plan, &cli, path, sha256, &SystemRunner).map_err(|_| ()),
     }
 }
 
