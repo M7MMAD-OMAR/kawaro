@@ -746,11 +746,11 @@ def sim_section(lang):
 {section_head("sim-title", t["h2"], t["intro"])}
 <div class="sim-board">
   <div class="sim-left">
-    <ul class="sim-samples" role="list" aria-label="{t["samples"]}">{"".join(items)}</ul>
     <div class="sim-zone" id="sim-zone" tabindex="0" role="group" aria-label="{t["zone"]}">
       <p class="sim-hint">{t["hint"]}</p>
       <ul class="sim-files" id="sim-files" aria-label="{t["folder"]}"></ul>
     </div>
+    <ul class="sim-samples" role="list" aria-label="{t["samples"]}">{"".join(items)}</ul>
   </div>
   <div class="sim-stage">
     <p class="sim-idle">{t["idle"]}</p>
@@ -869,7 +869,7 @@ def home(lang):
         (t["tiles"][1], "MP4 WEBM MKV GIF"),
         (t["tiles"][2], "MP3 OGG FLAC WAV"),
         (t["tiles"][3], "DOCX ODT XLSX"),
-        (t["tiles"][4], "PDF"),
+        (t["tiles"][4], "MERGE SPLIT SHRINK"),
     ]
     formats = sec(f'''
 {section_head("formats-title", t["formats"])}
@@ -1260,7 +1260,10 @@ def release_blocks(lang):
         ver = VERSION if unreleased else r["version"]
         pill = ("بيتا، لم يصدر بعد" if ar else "Beta, not tagged yet") if unreleased else ("مستقر" if ar else "Stable")
         cls = "pill pill-hot" if unreleased else "pill"
-        items = "".join(f"<li>{bidi(html.escape((arx or en) if ar else en), lang)}</li>" for en, arx in r["items"][:6])
+        # An English line inside the Arabic page is its own LTR run, so its punctuation keeps its place.
+        items = "".join((f"<li>{bidi(html.escape(arx), lang)}</li>" if ar and arx else
+                         f'<li dir="ltr" lang="en">{html.escape(en)}</li>' if ar else f"<li>{html.escape(en)}</li>")
+                        for en, arx in r["items"][:6])
         more = len(r["items"]) - 6
         more_html = ""
         if more > 0:

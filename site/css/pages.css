@@ -95,3 +95,5 @@ h3 + pre { margin-block-start: var(--space-2); }
   .privacy-map .zone-label { font-size: calc(var(--type-lead) * 1.6); }
   .privacy-map .zone-label.strong { font-size: calc(var(--type-lead) * 1.2); }
 }
+.s-formats { --head-gap: var(--space-5); }
+.s-formats .format-grid { margin-block-end: var(--space-6); }

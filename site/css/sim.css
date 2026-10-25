@@ -1,9 +1,7 @@
 /* Try it: the keyboard operable drop demo. The section is always in the page;
    the control after the scene jumps here. Values come from tokens only. */
 html:not(.js) .sim-board { display: none; }
-.s-sim { background: var(--color-surface-1); --head-lede: var(--color-text-primary); }
-.s-sim .section-head { --head-gap: var(--space-6); }
-.s-sim .section-head-lede { max-width: 48ch; }
+.s-sim { background: var(--color-surface-1); --head-lede: var(--color-text-primary); --head-gap: var(--space-6); }
 .sim-board {
   --cw: calc(var(--space-9) * 1.2);
   --edge: var(--border-ring);

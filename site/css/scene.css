@@ -35,7 +35,6 @@
   justify-content: space-between;
   gap: var(--space-3) var(--space-5);
 }
-.scene-top .section-head h2 { max-width: none; }
 .scene-visual {
   display: grid;
   grid-template-columns: max-content;
