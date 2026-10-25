@@ -6,6 +6,7 @@
 //! The Windows decisions (S-040b) are pure functions here, tested and
 //! mutated on Linux; `transport/windows.rs` only calls the system with them.
 
+use crate::appid::APP_ID;
 use std::io::{self, ErrorKind};
 use std::path::PathBuf;
 use std::time::Duration;
@@ -93,7 +94,7 @@ pub fn accept_plan(connected: bool, connect_error: Option<u32>, fresh_ok: bool) 
 /// The pipe name for one user (`sid`) in one session, unique per user and
 /// session and at most 256 characters for the longest SID.
 pub fn pipe_name(sid: &str, session: u32) -> String {
-    format!(r"\\.\pipe\io.github.m7mmad_omar.Kawaro.{sid}.{session}")
+    format!(r"\\.\pipe\{APP_ID}.{sid}.{session}")
 }
 
 /// `ERROR_FILE_NOT_FOUND`: no pipe by that name, so no service.
