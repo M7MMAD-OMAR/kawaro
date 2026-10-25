@@ -23,7 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib  # noqa: E402
 from lib import REPO, LANGS, TMP, parse_file, page_file, site, built, html_files, make_copy, run_build  # noqa: E402
 
-APP_KEYS_SHA = "3dffa48b9a2bd42332992740608e936c80250a75e8f9e05fc7e2fa239f41c50b"
+APP_KEYS_SHA = "9399aded1a2d5c5bf7ff103e95aa6a30fef356ea43953e7a23d49bd7ee62ba7d"
 HELPERS = ("hex_button", "section_head", "hex_plate", "step_cell", "format_cell", "download_slab")
 COMPONENTS = {  # helper -> (css file stem, base class)
     "hex_button": "hex-button", "section_head": "section-head", "hex_plate": "hex-plate",

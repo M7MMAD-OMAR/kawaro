@@ -80,6 +80,7 @@ class AC3Sharp(unittest.TestCase):
     JS = """() => {
       const bad = [];
       for (const e of document.querySelectorAll('body, body *')) {
+        if (e.tagName === 'SOURCE') continue; // S-067: not rendered, so it has no computed style
         const s = getComputedStyle(e);
         const id = e.tagName + '.' + (e.getAttribute('class') || '');
         for (const k of ['borderTopLeftRadius', 'borderTopRightRadius', 'borderBottomLeftRadius', 'borderBottomRightRadius'])
@@ -323,7 +324,7 @@ class AC8Feedback(unittest.TestCase):
     def test_AC8_content_visible_with_js_off(self):
         for lang in LANGS:
             pg = B.page(page_path(lang), js=False)
-            self.assertEqual(pg.locator(".demo").count(), 1, "hero demo missing (S-064 replaced the scene)")
+            self.assertEqual(pg.locator(".demo, .film").count(), 1, "hero demo or film missing")
             hidden = pg.evaluate("""() => [...document.querySelectorAll('main h1, main h2, main p')].filter(e => e.textContent.trim() && !e.closest('.sim-nojs'))
                 .filter(e => { let o = 1; for (let n = e; n; n = n.parentElement) { const s = getComputedStyle(n); o *= parseFloat(s.opacity); if (s.visibility === 'hidden') o = 0; } return o < 0.99; })
                 .map(e => e.tagName + '.' + e.className)""")

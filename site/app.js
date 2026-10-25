@@ -1,6 +1,6 @@
 /* Kawaro site behaviour: the download card for the visitor's system, the hero
    download button, and the docs search. No dependencies. Everything works without
-   JS. The home page motion is CSS only (S-064, S-065). */
+   JS. The home page motion is CSS only (S-064, S-065), except the hero film. */
 (() => {
   const doc = document;
   const cfgNode = doc.getElementById("hive-config");
@@ -65,6 +65,24 @@
       const r = cur.getBoundingClientRect(), b = row.getBoundingClientRect();
       row.scrollLeft += r.left - b.left - (b.width - r.width) / 2;
     }
+  }
+
+  /* The hero film plays only when motion is welcome, and only while it is on
+     screen. With reduced motion it stays on its poster and shows controls. */
+  const film = doc.querySelector(".film-video");
+  if (film) {
+    const calm = matchMedia("(prefers-reduced-motion: reduce)");
+    let seen = true;
+    const sync = () => {
+      film.controls = calm.matches;
+      if (calm.matches || !seen) film.pause();
+      else film.play().catch(() => {});
+    };
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver((es) => { seen = es[es.length - 1].isIntersecting; sync(); }).observe(film);
+    }
+    calm.addEventListener("change", sync);
+    sync();
   }
 
   const prim = doc.querySelector("a[data-os-default]");

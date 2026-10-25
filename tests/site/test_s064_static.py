@@ -62,7 +62,8 @@ class AC1Structure(unittest.TestCase):
 
 class AC2HeroDemo(unittest.TestCase):
     def test_AC2_demo_markup(self):
-        for lang in LANGS:
+        # S-067: the Arabic hero is the product film; the demo window stays on the English page.
+        for lang in ("en",):
             t = home(lang)
             demo = t.split('<figure class="demo"', 1)[1].split("</figure>", 1)[0]
             self.assertEqual(len(re.findall(r'class="demo-cell', demo)), 7, lang)

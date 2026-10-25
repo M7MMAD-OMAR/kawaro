@@ -50,7 +50,7 @@ body:lang(en) .hero h1 .hl { line-height: 1.05; }
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
     .hero h1 { animation: hero-out var(--duration-slow) var(--ease-steady) both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
-    .hero .demo { animation: demo-out var(--duration-slow) var(--ease-steady) both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
+    .hero .demo, .hero .film { animation: demo-out var(--duration-slow) var(--ease-steady) both; animation-timeline: view(); animation-range: exit 0% exit 100%; }
   }
 }
 @keyframes hero-out { 100% { translate: 0 calc(var(--space-10) * -1); } }

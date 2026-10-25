@@ -26,6 +26,7 @@ csp = "; ".join([
     "style-src 'self'",
     "style-src-attr 'unsafe-inline'",
     "img-src 'self'",
+    "media-src 'self'",
     "font-src 'self'",
     "connect-src 'self'",
     "worker-src 'self'",
@@ -36,7 +37,8 @@ csp = "; ".join([
     "frame-ancestors 'none'",
     "upgrade-insecure-requests",
 ])
-permissions = ", ".join(f"{p}=()" for p in (
+# autoplay stays allowed for this origin: the muted hero film needs it (S-067).
+permissions = ", ".join(("autoplay=(self)" if p == "autoplay" else f"{p}=()") for p in (
     "accelerometer", "autoplay", "browsing-topics", "camera", "clipboard-read",
     "display-capture", "geolocation", "gyroscope", "magnetometer", "microphone",
     "midi", "payment", "usb",
@@ -53,6 +55,9 @@ immutable = "public, max-age=31536000, immutable"
   X-Frame-Options: DENY
 
 /fonts/*
+  Cache-Control: public, max-age=2592000
+
+/media/*
   Cache-Control: public, max-age=2592000
 
 /pagefind/fragment/*

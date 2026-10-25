@@ -7,7 +7,7 @@
 .hexhot{fill:#D9921A;stroke:#D9921A}
 .hexc{fill:#DFD3BB;stroke:#D2C6AE;stroke-width:1}
 .t{fill:#1F1A12} .t2{fill:#5C5446}
-.hot-t{fill:#3A2500} .hexhot-t{fill:#3A2500}
+.hot-t{fill:#1F1200} .hexhot-t{fill:#1F1200}
 .ln{stroke:#5C5446;stroke-width:2;fill:none}
 .head{fill:#5C5446}
 text{font-family:"IBM Plex Sans Arabic", "IBM Plex Sans", system-ui, sans-serif;direction:rtl;unicode-bidi:embed}

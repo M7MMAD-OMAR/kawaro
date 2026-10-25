@@ -117,11 +117,11 @@ For `/*`:
 
 | Header | Value |
 | --- | --- |
-| `Content-Security-Policy` | `default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-<hash of the js flag script>'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests` |
+| `Content-Security-Policy` | `default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'sha256-<hash of the js flag script>'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; media-src 'self'; font-src 'self'; connect-src 'self'; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests` |
 | `Strict-Transport-Security` | `max-age=86400; includeSubDomains` at first deploy, raised to `max-age=31536000; includeSubDomains` after one week with no problem. No `preload` (see below). |
 | `X-Content-Type-Options` | `nosniff` |
 | `Referrer-Policy` | `no-referrer` |
-| `Permissions-Policy` | `accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-read=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=()` |
+| `Permissions-Policy` | `accelerometer=(), autoplay=(self), browsing-topics=(), camera=(), clipboard-read=(), display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), midi=(), payment=(), usb=()` |
 | `Cross-Origin-Opener-Policy` | `same-origin` |
 | `Cross-Origin-Resource-Policy` | `same-origin` |
 | `X-Frame-Options` | `DENY` (old browsers; `frame-ancestors` is the real control) |

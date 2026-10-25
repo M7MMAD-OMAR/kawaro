@@ -1,12 +1,12 @@
 # الإصدارات
 
 ## 0.4.0-beta.1
+- Hero film (S-067)
+- Rename to Kawaro / كوارو (S-066)
 - Home page focus and motion (S-065)
 - Website deploy hardening (S-059)
 - Home page restructure (S-064)
 - Website redesign, first part (S-063)
-- High contrast hive (S-062)
-- Website polish (S-061)
 
 ## 0.3.3 (2026-10-23)
 - Drop shortcut through the global shortcuts portal (S-014e)
@@ -27,7 +27,7 @@
 - Drop hive waiting text (S-014c)
 
 ## 0.2.2 (2026-10-20)
-- Kawaro shows in app launchers (search «kawaro» or «كوارو»); opening it starts the service a
+- Kawaro shows in app launchers (search «kawaro» or «كوارو»); opening it starts the service 
 
 ## 0.2.1 (2026-10-20)
 - RPM and DEB packages, built on Ubuntu 22.04 and test-installed on Fedora 41, current Fedor
@@ -37,7 +37,7 @@
 - Settings window (S-011)
 - Office and PDF engines (S-009, S-010)
 - FFmpeg engine (S-008)
-- `kawaro doctor` and `kawaro reload`; the service also reloads settings and user action
+- `kawaro doctor` and `kawaro reload`; the service also reloads settings and user actions by
 - Brand
 
 ## 0.1.0 (2026-10-20)
