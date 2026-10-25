@@ -210,7 +210,7 @@ class AC3BuiltOutput(unittest.TestCase):
                 for k, v in attrs:
                     if re.fullmatch(r"on[a-z]+", k):
                         bad.append(f"{k}= on <{tag}> in {rel}")
-                    if k == "style" and not re.fullmatch(r"--[a-z-]+:-?[0-9.]+;?", v):
+                    if k == "style" and not re.fullmatch(r"(--[a-z-]+:-?[0-9.]+;?)+", v):
                         bad.append(f"style={v!r} in {rel}")
                     if k == "src" and foreign(v):
                         bad.append(f"foreign src {v} in {rel}")
