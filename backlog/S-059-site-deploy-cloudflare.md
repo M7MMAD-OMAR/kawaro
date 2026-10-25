@@ -51,3 +51,12 @@ Only the owner can do these; the repository work above does not need them to pas
 ## Manager note (2026-10-25)
 
 The site is already live as a Worker (`sbarhive-site`) deployed by hand with `scripts/deploy-site.sh`; `wrangler.jsonc` today uses `routes` with `custom_domain` and `workers_dev: true`, and an asset directory built into `.deploy-out`. AC1 above (no `routes`, `workers_dev` false, directory `./site`) and the Workers Builds path are still to be reconciled when this story is built. Until then deploys are manual.
+
+## Manager decision (2026-10-26): amendments that win over the criteria above
+
+The live site already deploys by hand from a staged folder, and that folder is a stricter upload set than `./site`. The criteria are amended as follows; every other criterion stands as written.
+
+- D1 (amends AC1): `assets.directory` is `./.deploy-out`, the folder `scripts/prepare-site-deploy.sh` stages from `site/`. `workers_dev` is `false`. `routes` is allowed and must equal exactly `[{"pattern": "hive.sbarah.com", "custom_domain": true}]`, because the domain is attached through it today and removing it before the owner moves deploys to Workers Builds could detach the domain. Every other forbidden key in AC1 stays forbidden, and the no account id and no `token` rules stay.
+- D2 (amends AC2 and AC5): `_headers` and `.well-known/security.txt` are generated into the staged folder by `scripts/site-headers.py` (no hand kept `site/_headers`). The tests run `scripts/prepare-site-deploy.sh` and read `.deploy-out/_headers` and `.deploy-out/.well-known/security.txt`. The values required by AC2 and AC5 apply unchanged, including `Expires:` computed from the build date.
+- D3 (amends AC3 and AC4): checks that AC3 and AC4 make on `site/` apply to the staged folder `.deploy-out/` (the upload set). `site/.assetsignore` is the source and is copied into the staged folder. `check-deploy.sh --build` runs `scripts/prepare-site-deploy.sh`, then checks; check-only mode reads the `assets.directory` of `wrangler.jsonc`; a path argument overrides the folder (used by the planted file tests). The headless check may serve the staged folder with `wrangler dev --local` or with a local test server that applies the staged `_headers` rules to every response.
+- D4: `docs/site-security.md` records why `routes` stays and the owner step after which it is removed (Workers Builds with a token without zone permissions, domain attached in the dashboard).
