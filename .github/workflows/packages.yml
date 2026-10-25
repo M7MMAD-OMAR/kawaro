@@ -25,7 +25,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo build --release --workspace
       - run: packaging/linux/build-packages.sh target/release dist
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: packages
           path: dist/*
@@ -88,7 +88,7 @@ jobs:
       - run: scripts/windows/build.sh
       - run: scripts/windows/make-zip.sh
       - run: scripts/windows/make-msi.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: |
