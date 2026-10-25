@@ -1,0 +1,62 @@
+name: macOS
+# S-069, ADR 0009: build and test on a GitHub-hosted Apple silicon runner.
+# Informational for now: both cargo steps use continue-on-error so this
+# workflow never blocks main. It runs only on story branches, on demand and
+# weekly, never on pull requests or main.
+on:
+  push:
+    branches: ['story/**']
+  workflow_dispatch:
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Log directory
+        run: mkdir -p logs
+      - name: cargo check
+        id: check
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo check --workspace --all-targets 2>&1 | tee logs/check.log
+      - name: cargo test
+        id: test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace --no-fail-fast 2>&1 | tee logs/test.log
+      - name: Summary
+        if: always()
+        shell: bash
+        env:
+          CHECK: ${{ steps.check.outcome }}
+          TEST: ${{ steps.test.outcome }}
+        run: |
+          {
+            echo "## macOS build and test (macos-14, informational)"
+            echo
+            echo "| Step | Outcome |"
+            echo "| --- | --- |"
+            echo "| cargo check --workspace --all-targets | $CHECK |"
+            echo "| cargo test --workspace --no-fail-fast | $TEST |"
+            echo
+            echo "Errors in the check log: $(grep -c '^error' logs/check.log || true)"
+            echo "Failed test lines in the test log: $(grep -c '^test .* FAILED' logs/test.log || true)"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: macos-logs
+          path: logs/
+          if-no-files-found: warn
