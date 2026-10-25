@@ -17,7 +17,7 @@ use serde_json::Value;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
-const COLOUR_KEYS: [&str; 13] = [
+const COLOUR_KEYS: [&str; 18] = [
     "surface-0",
     "surface-1",
     "surface-2",
@@ -31,6 +31,11 @@ const COLOUR_KEYS: [&str; 13] = [
     "warning",
     "danger",
     "progress",
+    "hive-plate",
+    "hive-edge",
+    "hex-fill",
+    "hex-fill-centre",
+    "hex-ink",
 ];
 
 fn main() {
@@ -279,7 +284,7 @@ fn slint_tokens(t: &Value) -> String {
         )
         .unwrap();
     }
-    for k in ["default", "focus"] {
+    for k in ["default", "focus", "hex"] {
         writeln!(
             s,
             "    out property <length> border-{k}: {}px;",
@@ -293,7 +298,7 @@ fn slint_tokens(t: &Value) -> String {
         text(t, &["font", "family"])
     )
     .unwrap();
-    for k in ["label", "body", "title"] {
+    for k in ["label", "body", "title", "cell"] {
         writeln!(
             s,
             "    out property <length> font-{k}: {}px;",

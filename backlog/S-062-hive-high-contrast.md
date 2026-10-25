@@ -1,5 +1,5 @@
 # S-062 Make the hive high contrast and opaque so it reads on any desktop
-Status: approved
+Status: review
 
 ## Story
 As a user with a dark (or light) file manager open behind the hive, I want every cell, edge and label to be clearly readable, so that I never lose a cell in the background or mistake one label for another.
@@ -55,3 +55,7 @@ Contrast ratio means the WCAG 2.1 relative luminance ratio, computed from `desig
   - The AC26 checksums of the four older references were removed from `snapshots.sh`: AC9 regenerates them, and the cell centre file holds their layout instead. Regenerate every reference with `snapshots.sh --update` (all eight, including thumb, icon and stack).
   - `crates/ui/tests/hive_p95.sh` (AC11): refuses to run without `Tokens.hive-plate` in `hive.slint` (`FAIL AC11: hive.slint has no plate`), then runs `measure.sh 20 0` and asserts the p95 of warm `first_frame_ms` < 150.
   - The suggested dark/light values in AC1 need these tunings before they pass: see the AC5 note. Other suggestion that passes all pure ratios: dark plate #1E1B16, edge #B3AA99, fill #0B0A08, centre fill #15130F, ink #F2ECE0; light plate #DFD3BB, edge #5C5446, fill #FFFFFF, centre fill #FAF7F0, ink #1F1A12.
+- Implementer (2026-10-25). All S-062 tests pass (contrast.rs 11/11, snapshots.sh AC6/AC7/AC9/AC10 in all four variants, hive_p95 AC11 p95 62 ms); the eight references are regenerated.
+  - Tokens: the proposed dark and light values from the tester were used as is; light `accent-ink` is now #1F1200 (7.06:1 on #D9921A). The tokens landed in HEAD inside an unrelated site commit that also held the other owner's token edits.
+  - `hex-cell.slint`: AC9 compares the bounding box of the exact fill pixels, and a plain 2 px stroke moves the apex row of off axis cells by one pixel. So the fill path keeps its old 1 px outline (inside unchanged) and a hive-edge hexagon, larger by 1.5 px (`(2 * border-hex - border-default) / 2`), sits under it, which gives a 2 px edge. Paths do not draw wide strokes outside their box in the software renderer, hence the filled hexagon instead of a wide stroke.
+  - `hive.slint`: the window background and a `radius-lg` plate rectangle use `hive-plate`; the window itself is a square opaque rectangle, so the rounded corners show the same plate colour.

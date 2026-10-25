@@ -16,19 +16,36 @@ export component HexCell inherits Rectangle {
     width: r * 1.7320508;
     height: r * 2;
 
+    // The edge is `border-hex` wide and lies outside the fill. The fill path
+    // below keeps the 1 px outline the cell always had, so the inside of the
+    // cell keeps its size and place. A hexagon in the edge colour, larger by
+    // the rest of the border on every side, sits under it.
+    property <length> reach: (2 * Tokens.border-hex - Tokens.border-default) / 2;
+
+    Path {
+        x: -root.reach;
+        y: -root.reach;
+        width: parent.width + 2 * root.reach;
+        height: parent.height + 2 * root.reach;
+        viewbox-width: 1.7320508;
+        viewbox-height: 2;
+        commands: "M 0.8660254 0 L 1.7320508 0.5 L 1.7320508 1.5 L 0.8660254 2 L 0 1.5 L 0 0.5 Z";
+        fill: Tokens.hive-edge;
+    }
+
     Path {
         width: parent.width;
         height: parent.height;
         viewbox-width: 1.7320508;
         viewbox-height: 2;
         commands: "M 0.8660254 0 L 1.7320508 0.5 L 1.7320508 1.5 L 0.8660254 2 L 0 1.5 L 0 0.5 Z";
-        fill: root.highlighted ? Tokens.accent : (root.centre ? Tokens.surface-3 : Tokens.surface-2);
-        stroke: root.highlighted ? Tokens.accent : Tokens.border;
+        fill: root.highlighted ? Tokens.accent : (root.centre ? Tokens.hex-fill-centre : Tokens.hex-fill);
+        stroke: Tokens.hive-edge;
         stroke-width: Tokens.border-default;
         animate fill, stroke { duration: Tokens.hover; }
     }
 
-    property <color> ink: root.highlighted ? Tokens.accent-ink : Tokens.text-primary;
+    property <color> ink: root.highlighted ? Tokens.accent-ink : Tokens.hex-ink;
 
     // Icon and code, centred together inside the flat sides of the hexagon.
     // The code keeps to one line, so it never runs past the hexagon's points.
@@ -51,7 +68,7 @@ export component HexCell inherits Rectangle {
             horizontal-alignment: center;
             overflow: elide;
             text: root.text;
-            font-size: Tokens.font-body;
+            font-size: Tokens.font-cell;
             font-weight: Tokens.weight-semibold;
             color: root.ink;
             accessible-role: none;
@@ -69,7 +86,7 @@ export component HexCell inherits Rectangle {
         wrap: word-wrap;
         overflow: elide;
         text: root.text;
-        font-size: root.centre ? Tokens.font-label : Tokens.font-body;
+        font-size: Tokens.font-cell;
         font-weight: root.centre ? Tokens.weight-medium : Tokens.weight-semibold;
         color: root.ink;
         accessible-role: none;
