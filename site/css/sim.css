@@ -1,66 +1,113 @@
 /* Try it: the keyboard operable drop demo. The section is always in the page;
    the control after the scene jumps here. Values come from tokens only. */
 html:not(.js) .sim-board { display: none; }
-.s-sim { background: var(--color-surface-0); }
-.sim-board { display: grid; gap: var(--space-6); }
+.s-sim { background: var(--color-surface-1); --head-lede: var(--color-text-primary); }
+.s-sim .section-head { --head-gap: var(--space-6); }
+.s-sim .section-head-lede { max-width: 48ch; }
+.sim-board {
+  --cw: calc(var(--space-9) * 1.2);
+  --edge: var(--border-ring);
+  display: grid;
+  gap: var(--space-6);
+}
 .sim-board > * { min-width: 0; }
-.sim-left { display: grid; gap: var(--space-4); align-content: start; }
-.sim-samples { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sim-left { display: grid; gap: var(--space-5); align-content: start; }
+.sim-samples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
 .sim-file {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: var(--target-min);
-  min-width: var(--target-min);
-  padding: var(--space-2) var(--space-4);
-  border: var(--border-edge) solid var(--color-ink);
+  gap: var(--space-4);
+  width: 100%;
+  min-height: calc(var(--space-9) * 0.8);
+  padding: var(--space-3) var(--space-4);
+  border: var(--edge) solid var(--color-ink);
   background: var(--color-paper);
   color: var(--color-ink);
   font: inherit;
-  font-size: var(--type-small);
+  font-size: var(--fs-body);
   font-weight: var(--font-weight-semibold);
+  text-align: start;
   cursor: grab;
 }
+.sim-samples li:last-child { grid-column: 1 / -1; }
 .sim-file:hover, .sim-file:focus-visible { background: var(--color-ink); color: var(--color-paper); }
 .sim-file.on { background: var(--color-accent); color: var(--color-accent-ink); }
-.sim-file .ico { flex: none; width: var(--space-5); height: var(--space-5); fill: none; stroke: currentColor; stroke-width: var(--border-focus); stroke-linejoin: miter; }
+.sim-file .ico { flex: none; width: var(--space-6); height: var(--space-6); fill: none; stroke: currentColor; stroke-width: var(--border-focus); stroke-linejoin: miter; }
 .sim-file .name, .sim-files .name { direction: ltr; unicode-bidi: isolate; font-family: ui-monospace, "IBM Plex Mono", monospace; }
 
+/* The drop zone: a big frame with a hexagon mark. Hover over it while dragging turns it amber. */
 .sim-zone {
   display: grid;
-  align-content: start;
-  gap: var(--space-2);
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-3);
   min-height: calc(var(--space-9) * 2);
   padding: var(--space-5);
-  border: var(--border-edge) dashed var(--color-ink);
-  background: var(--color-surface-1);
+  border: var(--edge) dashed var(--color-ink);
+  background: var(--color-paper);
 }
-.sim-zone.ready { background: var(--color-accent-soft); }
-.sim-zone.over { background: var(--color-accent); }
-.sim-hint { margin: 0; align-self: center; text-align: center; color: var(--color-text-secondary); }
+.sim-zone::before {
+  content: "";
+  width: var(--space-8);
+  height: calc(var(--space-8) * 1.1547);
+  background: var(--color-accent-soft);
+  clip-path: var(--hexagon);
+}
+.sim-zone.full::before { display: none; }
+.sim-zone.ready { background: var(--color-accent-soft); border-style: solid; }
+.sim-zone.over { background: var(--color-accent); border-style: solid; }
+.sim-zone.over::before { background: var(--color-ink); }
+.sim-hint { margin: 0; text-align: center; font-size: var(--fs-lead); font-weight: var(--font-weight-semibold); }
 .sim-zone.full .sim-hint { display: none; }
-.sim-files { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.sim-files { display: grid; gap: var(--space-3); width: 100%; margin: 0; padding: 0; list-style: none; }
 .sim-files li {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: var(--space-3);
-  padding: var(--space-2) var(--space-4);
-  background: var(--color-paper);
-  border: var(--border-default) solid var(--color-ink);
+  min-height: var(--space-9);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface-0);
+  border: var(--edge) solid var(--color-ink);
+  font-size: var(--fs-lead);
 }
-.sim-files .note { color: var(--color-text-secondary); font-size: var(--type-small); }
+.sim-files .note { color: var(--color-text-secondary); font-size: var(--fs-body); }
 .sim-files li.fresh { background: var(--color-accent); color: var(--color-accent-ink); }
 .sim-files li.fresh .note { color: var(--color-accent-ink); font-weight: var(--font-weight-semibold); }
 
-.sim-stage { display: grid; place-items: center; }
-.sim-idle { display: none; margin: 0; text-align: center; color: var(--color-text-secondary); }
-.js .sim-idle { display: block; }
+.sim-stage { position: relative; display: grid; place-items: center; min-height: calc(var(--cw) * 5.4); }
+.sim-idle {
+  position: relative;
+  isolation: isolate;
+  display: none;
+  align-content: center;
+  justify-items: center;
+  width: calc(var(--cw) * 3.6);
+  height: calc(var(--cw) * 3.6 * 1.1547);
+  margin: 0;
+  padding-inline: 22%;
+  text-align: center;
+  font-size: var(--fs-lead);
+  font-weight: var(--font-weight-semibold);
+}
+.sim-idle::before,
+.sim-idle::after { content: ""; position: absolute; z-index: -1; clip-path: var(--hexagon); }
+.sim-idle::before { inset: 0; background: var(--color-ink); }
+.sim-idle::after { inset-block: calc(var(--border-edge) * 1.1547); inset-inline: var(--border-edge); background: var(--color-surface-0); }
+.js .sim-idle { display: grid; }
 .sim-stage.open .sim-idle { display: none; }
-.sim-hive { --cw: calc(var(--hex-size-md) * 0.866); display: grid; place-items: center; width: calc(var(--cw) * 5.4); height: calc(var(--cw) * 5); }
+.sim-hive { display: grid; place-items: center; width: calc(var(--cw) * 5.4); height: calc(var(--cw) * 5); }
 .sim-hive[data-rings="1"] { width: calc(var(--cw) * 3.3); height: calc(var(--cw) * 3.1); }
 .sim-hive[hidden] { display: none; }
-@media (max-width: 400px) { .sim-hive { --cw: calc(var(--hex-size-md) * 0.78); } }
+@media (max-width: 719px) {
+  .sim-board { --cw: calc((100vw - var(--space-6)) / 5.4); --edge: var(--border-edge); }
+  .sim-board .hx { font-size: calc(var(--type-small) * 0.75); }
+  .sim-centre { font-size: calc(var(--type-small) * 0.6); }
+  .sim-samples { grid-template-columns: 1fr; }
+  .sim-file { min-height: var(--target-min); padding-block: var(--space-2); }
+  .sim-file .ico { width: var(--space-5); height: var(--space-5); }
+  .sim-idle { font-size: var(--fs-body); }
+}
 .sim-cell, .sim-centre {
   grid-area: 1 / 1;
   width: var(--cw);
@@ -88,7 +135,7 @@ html:not(.js) .sim-board { display: none; }
   clip-path: var(--hexagon);
   background: var(--color-paper);
   color: var(--color-ink);
-  font-size: var(--type-small);
+  font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
 }
 .sim-cell:hover .hx, .sim-cell:focus-visible .hx { background: var(--color-ink); color: var(--color-paper); }
@@ -101,7 +148,7 @@ html:not(.js) .sim-board { display: none; }
   clip-path: var(--hexagon);
   background: var(--color-accent-soft);
   color: var(--color-ink);
-  font-size: var(--type-small);
+  font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
   line-height: 1.15;
   text-wrap: balance;
@@ -113,7 +160,7 @@ html:not(.js) .sim-board { display: none; }
 .sim-pic .mc { fill: var(--color-paper); stroke: var(--color-ink); stroke-width: var(--border-default); }
 .sim-pic .mc-hot { fill: var(--color-accent); }
 .sim-nojs { margin: 0; color: var(--color-text-secondary); text-align: center; }
-@media (min-width: 720px) { .sim-board { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; } }
+@media (min-width: 960px) { .sim-board { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: center; gap: var(--space-7); } }
 @media (prefers-reduced-motion: no-preference) {
   .js .sim-cell .hx, .js .sim-cell .ring {
     opacity: 0;

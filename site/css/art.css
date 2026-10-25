@@ -1,7 +1,6 @@
 /* Generated art (AC9): flat WebP on the paper palette. Sharp edges, no frames drawn
    with shadows; the picture itself carries the shapes. */
 .art { display: block; width: 100%; height: auto; }
-.art-hero { aspect-ratio: 1; object-fit: cover; object-position: 100% 50%; }
 .art-formats { margin-block-end: var(--space-7); }
 .privacy-art { min-width: 0; }
 .privacy-art .art { max-width: calc(var(--space-10) * 5); margin-inline: auto; }

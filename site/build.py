@@ -164,28 +164,6 @@ def hive_config(lang):
 # Static pieces
 # ---------------------------------------------------------------------------
 
-def static_hive(lang):
-    """First paint and no-JS fallback: the image hive, same geometry as app.js."""
-    rtl = lang == "ar"
-    kind = kinds(lang)[0]
-    out = []
-    for i, (q, r) in enumerate(spiral(RINGS)):
-        cx, cy = cell_xy(q, r, rtl)
-        if i == 0:
-            out.append(f'<g class="cell cell-center" style="--i:0"><path d="{hex_path(cx, cy)}"/>'
-                       f'<text x="{cx:.1f}" y="{cy:.1f}">{html.escape(kind["label"])}</text></g>')
-            continue
-        idx = i - 1
-        if idx < len(kind["cells"]):
-            c = kind["cells"][idx]
-            cls = "cell cell-active" if idx == 0 else "cell"
-            out.append(f'<g class="{cls}" style="--i:{i}"><path d="{hex_path(cx, cy)}"/>'
-                       f'<text x="{cx:.1f}" y="{cy:.1f}">{html.escape(c["c"])}</text></g>')
-        else:
-            out.append(f'<g class="cell cell-empty" style="--i:{i}"><path d="{hex_path(cx, cy)}"/></g>')
-    return "\n".join(out)
-
-
 def mini_cluster(cx, cy, radius, rtl=False, classes=None):
     """Seven small cells (centre plus ring 1) around (cx, cy)."""
     s = radius + 2 / SQRT3
@@ -452,9 +430,8 @@ def format_cell(title, codes):
 
 
 ART = {
-    "hero": (1024, 768, "خلايا سداسية مسطحة متجاورة وفي وسطها خلية كهرمانية", "Flat hexagon cells joined as a honeycomb with one amber cell in the middle"),
-    "privacy": (1024, 768, "شاشة حاسوب فيها خلايا وملفات وقفل، لا يخرج منها شيء", "A computer screen with hive cells, files and a padlock, nothing leaves it"),
-    "formats": (1024, 368, "خمس خلايا لأنواع الملفات: صور وفيديو وصوت ومستندات وأرشيف", "Five hive cells for file types: images, video, audio, documents and archives"),
+    "privacy": (1024, 768, "وثيقة داخل سياج من الخلايا السداسية وفي وسطها ثقب مفتاح، لا شيء يعبر الحدود", "A document sealed inside a fence of small hexagons with a keyhole, nothing crosses the border"),
+    "formats": (1024, 384, "شكل صفحة يتحول خطوة بعد خطوة إلى خلية سداسية", "A page shape that turns step by step into a hexagon cell"),
 }
 
 
@@ -615,13 +592,43 @@ def pills(lang, verify_href, win_href):
             f'</ul>')
 
 
-def stage(lang):
-    """The hero hive: a quiet picture of the idea. The try-it demo is the #sim section."""
-    return f'''<div class="stage" aria-hidden="true">
-  <svg class="hive" viewBox="{VIEW}" focusable="false">
-{static_hive(lang)}
-  </svg>
-</div>'''
+HERO_ALT = {
+    "ar": "خلية ملف PNG تتحول إلى خلية WebP، وبجوارهما خلايا الصيغ الأخرى",
+    "en": "A PNG file cell turns into a WebP cell, with cells for the other formats beside it",
+}
+
+
+def hero_art(lang):
+    """The hero picture, drawn here: a honeycomb in which a PNG cell (ink) turns into a WebP cell
+    (amber) across one bold chevron, beside the other formats it could become. Sharp polygons only."""
+    rtl = lang == "ar"
+    r = 70.0
+    dx, dy = SQRT3 * r, 1.5 * r
+    w, h = 4 * dx + 16, 2 * dy + 2 * r + 16
+    rows = [  # (row, column, offset in half cells, code, kind)
+        (0, 0, 1, "", "ghost"), (0, 1, 1, "AVIF", ""), (0, 2, 1, "GIF", ""),
+        (1, 0, 0, "PNG", "src"), (1, 1, 0, "WEBP", "dst"), (1, 2, 0, "JPG", ""), (1, 3, 0, "", "ghost"),
+        (2, 0, 1, "PDF", ""), (2, 1, 1, "", "ghost"), (2, 2, 1, "", "ghost"),
+    ]
+
+    def xy(row, col, half):
+        x = dx * (col + half / 2) + dx / 2 + 8
+        return (w - x if rtl else x), dy * row + r + 8
+
+    cells = []
+    for i, (row, col, half, code, kind) in enumerate(rows):
+        cx, cy = xy(row, col, half)
+        cls = "ha-cell" + (f" ha-{kind}" if kind else "")
+        label = f'<text x="{cx:.1f}" y="{cy:.1f}">{code}</text>' if code else ""
+        cells.append(f'<g class="{cls}" style="--i:{i}"><path d="{hex_path(cx, cy, r - 4)}"/>{label}</g>')
+    ax, ay = xy(1, 0, 0)
+    bx, by = xy(1, 1, 0)
+    mx, my = (ax + bx) / 2, (ay + by) / 2
+    d = -1 if rtl else 1
+    pts = [(-8, -24), (3, -24), (17, 0), (3, 24), (-8, 24), (4, 0)]
+    chev = "M" + "L".join(f"{mx + d * x:.1f},{my + y:.1f}" for x, y in pts) + "Z"
+    return (f'<svg class="hero-art" viewBox="0 0 {w:.0f} {h:.0f}" role="img" aria-label="{HERO_ALT[lang]}" focusable="false">'
+            + "".join(cells) + f'<g class="ha-go" style="--i:10"><path d="{chev}"/></g></svg>')
 
 
 # ---------------------------------------------------------------------------
@@ -840,7 +847,7 @@ def home(lang):
 <div class="actions">{btn}<a class="link-all" href="{dl_href}">{t["all"]}</a></div>
 <p class="hero-note">{note}</p>
 </div>
-<div class="stage">{art(lang, "hero", lazy=False)}</div>
+<div class="stage">{hero_art(lang)}</div>
 </div>
 </section>
 '''
