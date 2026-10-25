@@ -36,8 +36,8 @@ class AC3Hero(unittest.TestCase):
                 self.assertLessEqual(pg.evaluate("document.documentElement.scrollWidth"), w, f"{lang} {w}")
                 h1 = box(pg, ".hero h1")
                 self.assertLessEqual(h1["x"] + h1["w"], w, f"{lang} {w}: h1 overflows")
-                self.assertEqual(overlap(box(pg, ".hero-side"), box(pg, ".demo")), 0, f"{lang} {w}: copy over demo")
-                self.assertEqual(overlap(h1, box(pg, ".demo")), 0, f"{lang} {w}: h1 over demo")
+                self.assertEqual(overlap(box(pg, ".hero-side"), box(pg, ".demo, .film")), 0, f"{lang} {w}: copy over demo")
+                self.assertEqual(overlap(h1, box(pg, ".demo, .film")), 0, f"{lang} {w}: h1 over demo")
                 if w == 375:
                     cta = box(pg, ".hero a.button-primary")
                     self.assertLessEqual(cta["y"] + cta["h"], 667, f"{lang}: CTA below the first screen")
@@ -50,7 +50,7 @@ class AC3Hero(unittest.TestCase):
 
 class AC2Demo(unittest.TestCase):
     def test_AC2_reduced_motion_shows_the_end_state(self):
-        for lang in LANGS:
+        for lang in ("en",):  # S-067: the Arabic hero is the film (test_s067_film.py)
             pg = B.page(page_path(lang), reduced=True)
             st = pg.evaluate("""() => ({
                 hive: getComputedStyle(document.querySelector('.demo-hive')).display,
@@ -63,6 +63,7 @@ class AC2Demo(unittest.TestCase):
             self.assertEqual(st["anims"], 0, f"{lang}: animations still running with reduced motion")
             pg.context.close()
 
+    @unittest.skip("superseded by S-067: the Arabic hero is the product film, so the demo is no longer drawn in both directions")
     def test_AC2_loop_runs_and_mirrors(self):
         xs = {}
         for lang in LANGS:

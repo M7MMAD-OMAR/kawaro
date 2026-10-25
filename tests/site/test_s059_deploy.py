@@ -27,13 +27,13 @@ EIGHT = {
     "Referrer-Policy", "Permissions-Policy", "Cross-Origin-Opener-Policy",
     "Cross-Origin-Resource-Policy", "X-Frame-Options",
 }
-PERMISSIONS = ("accelerometer=(), autoplay=(), browsing-topics=(), camera=(), clipboard-read=(), "
+PERMISSIONS = ("accelerometer=(), autoplay=(self), browsing-topics=(), camera=(), clipboard-read=(), "
                "display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), "
                "midi=(), payment=(), usb=()")
 # ADR 0007 section 7, script-src hash checked separately.
 CSP_EXPECTED = {
     "default-src": ["'none'"], "style-src": ["'self'"], "style-src-attr": ["'unsafe-inline'"],
-    "img-src": ["'self'"], "font-src": ["'self'"], "connect-src": ["'self'"],
+    "img-src": ["'self'"], "media-src": ["'self'"], "font-src": ["'self'"], "connect-src": ["'self'"],
     "worker-src": ["'self'"], "manifest-src": ["'self'"], "object-src": ["'none'"],
     "base-uri": ["'none'"], "form-action": ["'self'"], "frame-ancestors": ["'none'"],
     "upgrade-insecure-requests": [],

@@ -45,7 +45,7 @@ if not (assets / "_headers").is_file():
     print(f"check-deploy: {assets}/_headers is missing (run with --build)", file=sys.stderr)
     sys.exit(2)
 
-ALLOWED_EXT = {"html", "css", "js", "json", "xml", "txt", "md", "svg", "png", "webp", "woff2", "webmanifest",
+ALLOWED_EXT = {"html", "css", "js", "json", "xml", "txt", "md", "svg", "png", "webp", "mp4", "webm", "woff2", "webmanifest",
                "pagefind", "pf_meta", "pf_index", "pf_fragment", "pf_filter", "pf_dir"}
 SPECIAL = {"_headers", ".assetsignore", "OFL.txt"}
 FORBIDDEN_DIRS = {".git", "node_modules", "backlog", "__pycache__"}

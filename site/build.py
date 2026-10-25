@@ -320,7 +320,7 @@ def abs_url(lang, page):
 COMPONENT_STEMS = ("hex-button", "section-head", "hex-plate", "step-cell", "format-cell", "download-slab")
 CSS_BASE = (["style.css", "css/header.css"] + [f"css/components/{s}.css" for s in COMPONENT_STEMS]
             + ["css/pages.css"])
-CSS_HOME = ["css/hero.css", "css/demo.css", "css/marquee.css", "css/bento.css",
+CSS_HOME = ["css/hero.css", "css/demo.css", "css/film.css", "css/marquee.css", "css/bento.css",
             "css/formats.css", "css/closing.css", "css/motion.css"]
 CSS_DOCS = ["css/docs.css"]
 
@@ -681,6 +681,20 @@ CURSOR = ('<svg class="demo-cursor-ico" viewBox="0 0 24 24" aria-hidden="true" f
           '<path d="M3 2L20 12L12.5 13.5L16.5 21L13.5 22.5L9.5 15L3 20Z"/></svg>')
 
 
+FILM_LABEL = "فيديو قصير بلا صوت: يسحب المستخدم ملفاً، ويفتح الخلية، ويفلته على الصيغة، فيظهر ملف جديد بجانب الأصل"
+
+
+def hero_film(lang):
+    """The Arabic hero picture: the product film (S-067), silent, looping, one
+    file per format in media/. The poster is the demo scene, so a visitor who
+    prefers reduced motion, or whose browser blocks autoplay, still sees the product."""
+    label = html.escape(FILM_LABEL)
+    return (f'<figure class="film"><video class="film-video" width="1280" height="720" '
+            f'poster="media/hero-poster.webp" autoplay muted loop playsinline preload="auto" aria-label="{label}">'
+            f'<source src="media/hero.webm" type="video/webm"><source src="media/hero.mp4" type="video/mp4">'
+            f'</video></figure>')
+
+
 def hero_demo(lang):
     """The hero picture: a looping, CSS only story of one conversion (S-064 AC3).
     Without motion it shows the end of the story: the result beside the original."""
@@ -849,7 +863,7 @@ def home(lang):
 <div class="actions">{btn}</div>
 <p class="hero-note">{note}</p>
 </div>
-<div class="hero-stage">{hero_demo(lang)}</div>
+<div class="hero-stage">{hero_film(lang) if lang == "ar" else hero_demo(lang)}</div>
 </div>
 </section>
 '''

@@ -1,0 +1,12 @@
+/* The Arabic hero film (S-067): the product film, silent and looping, in the
+   place the demo window holds on the English page. One frame, one ink edge,
+   no shadow and no radius, like the demo window. Colour and edge come from the
+   tokens. With reduced motion the script pauses it and shows the controls. */
+.film { margin: 0; position: relative; }
+.film-video {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--color-paper);
+  border: var(--border-edge) solid var(--color-ink);
+}
