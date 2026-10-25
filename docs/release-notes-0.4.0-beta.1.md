@@ -17,14 +17,14 @@ This is the first public beta of Kawaro, for Linux and for Windows. It is a prer
 
 - Windows: the zip and the MSI are unsigned, because there is no code signing certificate yet. Windows SmartScreen may say "Windows protected your PC". Click "More info", then "Run anyway", after you have checked your download against SHA256SUMS.
 - Nothing on Windows has been verified on a live Windows machine yet: the builds are cross compiled on Linux and tested there, and the live checklist (S-052) is the next step.
-- Windows has no drop hive yet (S-047) and no notifications yet (S-049). Job progress shows in the tray tooltip only.
+- Windows: the drop hive (drag files from Explorer onto a cell, S-047) and the notification when a job ends with an Open folder button (S-049) are built and unit tested but have not run on a live Windows machine yet. Until the app id is registered, the notification may be labelled with another app's name.
 - Linux: the focus and activation tests on real GNOME and KDE desktops are still pending. On those desktops the hive may open without keyboard focus.
 - The tray menu has not been checked on real desktops yet, and the in-app download percentage in the tray tooltip has not been tested live.
 - The Windows update helper, which installs a new MSI while the app is closed, is built and unit tested but has not run on a live Windows machine yet.
 
 ## Updates
 
-Kawaro checks once a day for a new version. The check reads a signed manifest from the project's GitHub releases; the signature is verified against a public key built into the app before anything is downloaded, and every package is checked against the size and SHA-256 in that manifest. There are two channels, `beta` and `stable`. A beta build follows the `beta` channel, so you will be offered later betas and the final release. To turn the automatic check off, set `update_check = false` in `config.toml`. A manual check ignores that setting, but this beta has no menu entry or command for it yet.
+Kawaro checks once a day for a new version. The check reads a signed manifest from the project's GitHub releases; the signature is verified against a public key built into the app before anything is downloaded, and every package is checked against the size and SHA-256 in that manifest. There are two channels, `beta` and `stable`. A beta build follows the `beta` channel, so you will be offered later betas and the final release. To turn the automatic check off, set `update_check = false` in `config.toml`. A manual check ignores that setting: run `kawaro update --check` to check, `kawaro update` to download and verify, and `kawaro update --apply` to install (S-054c). There is no menu entry for it yet.
 
 On Windows an update installs quietly for your user. On Linux the package is downloaded and verified in the background, and it installs only after you choose "Update now" in the tray menu and approve the system password prompt.
 
