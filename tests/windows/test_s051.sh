@@ -8,7 +8,7 @@
 #
 # Contracts the acceptance criteria leave open, fixed here:
 # - the release tree is "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release";
-# - the scripts are started with CI=true and SBARHIVE_WIN_SCOPE=1 and a fake
+# - the scripts are started with CI=true and KAWARO_WIN_SCOPE=1 and a fake
 #   cargo first on PATH; the fake only logs, so any cargo call is visible;
 # - the output goes to the working directory or the repository root or the
 #   target dir (the test looks for the new file name in those three places and
@@ -18,7 +18,7 @@
 # Deferred (S-048 and S-049 are not done): the icon content and listing, the
 # Icon row in the zip and the MSI File table are not asserted; the registry
 # Icon and IconUri rows ARE compared with install_commands, which always
-# writes them. A placeholder design/brand/sbarhive.ico is created for the run
+# writes them. A placeholder design/brand/kawaro.ico is created for the run
 # when the real file is absent, and removed at the end.
 # shellcheck disable=SC2016
 set -u
@@ -26,19 +26,19 @@ set -u
 . "$(dirname "$0")/lib.sh"
 cd "$REPO_ROOT" || exit 2
 export LC_ALL=C.UTF-8
-T="$(mktemp -d "${TMPDIR:-/tmp}/sbarhive-s051.XXXXXX")"
-ICO="$REPO_ROOT/design/brand/sbarhive.ico"
+T="$(mktemp -d "${TMPDIR:-/tmp}/kawaro-s051.XXXXXX")"
+ICO="$REPO_ROOT/design/brand/kawaro.ico"
 MADE_ICO=0
 if [ ! -e "$ICO" ]; then printf 'placeholder ico for tests' > "$ICO"; MADE_ICO=1; fi
 cleanup () {
   [ "$MADE_ICO" = 1 ] && rm -f "$ICO"
-  case "$T" in "${TMPDIR:-/tmp}"/sbarhive-s051.*) rm -rf -- "$T" ;; esac
+  case "$T" in "${TMPDIR:-/tmp}"/kawaro-s051.*) rm -rf -- "$T" ;; esac
 }
 trap cleanup EXIT
 
 VERSION="$(awk '/^\[workspace.package\]/{p=1;next} /^\[/{p=0} p && /^version *=/{gsub(/"/,"",$3); print $3; exit}' Cargo.toml)"
-ZIPNAME="sbarhive-$VERSION-windows-x64.zip"
-MSINAME="sbarhive-$VERSION-windows-x64.msi"
+ZIPNAME="kawaro-$VERSION-windows-x64.zip"
+MSINAME="kawaro-$VERSION-windows-x64.msi"
 ACTIONS="$(cd actions && ls -- *.toml)"
 N=0
 
@@ -53,8 +53,8 @@ chmod 0755 "$T/bin/cargo"
 # make_tree DIR [nodaemon]: a fake release tree with two different small exes.
 make_tree () {
   mkdir -p "$1/x86_64-pc-windows-gnu/release"
-  printf 'MZ fake cli %s' "$VERSION" > "$1/x86_64-pc-windows-gnu/release/sbarhive.exe"
-  [ "${2:-}" = nodaemon ] || printf 'MZ fake daemon %s' "$VERSION" > "$1/x86_64-pc-windows-gnu/release/sbarhived.exe"
+  printf 'MZ fake cli %s' "$VERSION" > "$1/x86_64-pc-windows-gnu/release/kawaro.exe"
+  [ "${2:-}" = nodaemon ] || printf 'MZ fake daemon %s' "$VERSION" > "$1/x86_64-pc-windows-gnu/release/kawarod.exe"
 }
 
 # run_script SCRIPT NAME TARGET [CWD]: sets RC, OUT, ERR, ART (the new file
@@ -64,7 +64,7 @@ run_script () {
   N=$((N + 1)); mkdir -p "$cwd"; marker="$T/marker$N"; touch "$marker"; sleep 0.1
   rm -f "$T/cargo.log"
   OUT="$T/out$N.txt"; ERR="$T/err$N.txt"
-  (cd "$cwd" && CI=true SBARHIVE_WIN_SCOPE=1 CARGO_LOG="$T/cargo.log" PATH="$T/bin:$PATH" \
+  (cd "$cwd" && CI=true KAWARO_WIN_SCOPE=1 CARGO_LOG="$T/cargo.log" PATH="$T/bin:$PATH" \
     CARGO_TARGET_DIR="$target" timeout 300 "$REPO_ROOT/scripts/windows/$script" >"$OUT" 2>"$ERR")
   RC=$?
   found=""
@@ -115,8 +115,8 @@ ac1_zip_name_listing_and_exit_codes () {
   check "AC1: $ZIPNAME written ($ERR)" test -n "$ART"
   [ -n "$ART" ] || return 0
   list="$(unzip -Z1 "$ART" 2>&1)"
-  prefix="$(printf '%s\n' "$list" | grep -E '(^|/)sbarhive\.exe$' | head -n 1)"; prefix="${prefix%sbarhive.exe}"
-  for f in sbarhive.exe sbarhived.exe README-windows.txt SHA256SUMS; do
+  prefix="$(printf '%s\n' "$list" | grep -E '(^|/)kawaro\.exe$' | head -n 1)"; prefix="${prefix%kawaro.exe}"
+  for f in kawaro.exe kawarod.exe README-windows.txt SHA256SUMS; do
     assert_eq "AC1: $f listed once" "$(printf '%s\n' "$list" | grep -cxF "$prefix$f")" "1"
   done
   mkdir -p "$T/x1"; unzip -q "$ART" -d "$T/x1"
@@ -132,19 +132,19 @@ ac1_zip_name_listing_and_exit_codes () {
   done
   assert_eq "AC1: all action files share one folder" "$(printf '%s' "$dirs" | sort -u | grep -c .)" "1"
   assert_eq "AC1: the archive holds the 4 named files plus the actions only" \
-    "$(printf '%s\n' "$list" | grep -v '/$' | grep -vE '(^|/)sbarhive\.ico$' | grep -c .)" "$((4 + $(printf '%s\n' "$ACTIONS" | grep -c .)))"
+    "$(printf '%s\n' "$list" | grep -v '/$' | grep -vE '(^|/)kawaro\.ico$' | grep -c .)" "$((4 + $(printf '%s\n' "$ACTIONS" | grep -c .)))"
   assert_eq "AC1: unzip -t" "$(unzip -tq "$ART" | tail -n 1)" "No errors detected in compressed data of $ART."
 
 }
 
 ac1_missing_daemon_exits_2 () {
-  echo "== AC1: missing sbarhived.exe"
+  echo "== AC1: missing kawarod.exe"
   make_tree "$T/tree1b" nodaemon
   run_script make-zip.sh "$ZIPNAME" "$T/tree1b" "$T/cwd1b"
-  assert_eq "AC1: exit code without sbarhived.exe" "$RC" "2"
-  check "AC1: the message names sbarhived.exe" grep -q 'sbarhived\.exe' "$ERR" "$OUT"
-  assert_eq "AC1: no cargo call without sbarhived.exe" "$(cat "$T/cargo.log" 2>/dev/null)" ""
-  assert_eq "AC1: no zip written without sbarhived.exe" "$ART" ""
+  assert_eq "AC1: exit code without kawarod.exe" "$RC" "2"
+  check "AC1: the message names kawarod.exe" grep -q 'kawarod\.exe' "$ERR" "$OUT"
+  assert_eq "AC1: no cargo call without kawarod.exe" "$(cat "$T/cargo.log" 2>/dev/null)" ""
+  assert_eq "AC1: no zip written without kawarod.exe" "$ART" ""
 }
 
 ac2_sha256sums_and_reproducible_zip () {
@@ -166,8 +166,8 @@ ac2_sha256sums_and_reproducible_zip () {
   check "AC2: every hash line is 64 hex digits" test "$(grep -cE '^[0-9a-f]{64} [ *][^ ]' "$T/x2/${prefix}SHA256SUMS")" = "$n"
   assert_eq "AC2: sha256sum -c passes in the extracted folder" \
     "$(cd "$T/x2/$prefix" && sha256sum -c SHA256SUMS >/dev/null 2>&1; echo $?)" "0"
-  assert_eq "AC2: hash of sbarhived.exe" \
-    "$(grep -F ' sbarhived.exe' "$T/x2/${prefix}SHA256SUMS" | cut -c1-64)" "$(sha256sum < "$tree/x86_64-pc-windows-gnu/release/sbarhived.exe" | cut -c1-64)"
+  assert_eq "AC2: hash of kawarod.exe" \
+    "$(grep -F ' kawarod.exe' "$T/x2/${prefix}SHA256SUMS" | cut -c1-64)" "$(sha256sum < "$tree/x86_64-pc-windows-gnu/release/kawarod.exe" | cut -c1-64)"
   # A second run on unchanged content: older mtimes, later wall clock, other cwd and umask.
   touch -d '2001-01-01 00:00:00' "$tree"/x86_64-pc-windows-gnu/release/*.exe
   sleep 3
@@ -185,8 +185,8 @@ ac3_windows_readme_text () {
   check "AC3: $f exists" test -f "$f"
   [ -f "$f" ] || return 0
   check "AC3: the three steps: unzip" grep -qi 'unzip' "$f"
-  check "AC3: the command" grep -qF 'sbarhive integration install' "$f"
-  check "AC3: the command is named in both languages" test "$(grep -cF 'sbarhive integration install' "$f")" -ge 2
+  check "AC3: the command" grep -qF 'kawaro integration install' "$f"
+  check "AC3: the command is named in both languages" test "$(grep -cF 'kawaro integration install' "$f")" -ge 2
   check "AC3: Show more options" grep -qF 'Show more options' "$f"
   check "AC3: SmartScreen" grep -qF 'SmartScreen' "$f"
   check "AC3: More info" grep -qF 'More info' "$f"
@@ -209,7 +209,7 @@ ac4_msi_properties_and_install_folder () {
   local tree="$T/tree4" ver
   make_tree "$tree"
   check "AC4: scripts/windows/make-msi.sh is executable" test -x "$WIN/make-msi.sh"
-  check "AC4: installer/windows/sbarhive.wxs exists" test -f installer/windows/sbarhive.wxs
+  check "AC4: installer/windows/kawaro.wxs exists" test -f installer/windows/kawaro.wxs
   build_msi 4 "$tree"
   assert_eq "AC4: exit code" "$RC" "0"
   assert_eq "AC4: no cargo call" "$(cat "$T/cargo.log" 2>/dev/null)" ""
@@ -220,14 +220,14 @@ ac4_msi_properties_and_install_folder () {
   ver="$(table "$MSI" Property | awk -F'\t' '$1=="ProductVersion"{print $2}')"
   assert_eq "AC4: ProductVersion (numeric part only, an MSI version has no prerelease)" "$ver" "${VERSION%%[-+]*}"
   assert_eq "AC4: no ALLUSERS=1 row" "$(table "$MSI" Property | awk -F'\t' '$1=="ALLUSERS" && $2=="1"' | grep -c .)" "0"
-  assert_eq "AC4: the install folder is LocalAppDataFolder\\Programs\\SbarHive" \
-    "$(dirpath "$MSI" INSTALLDIR)" 'LocalAppDataFolder\Programs\SbarHive'
+  assert_eq "AC4: the install folder is LocalAppDataFolder\\Programs\\Kawaro" \
+    "$(dirpath "$MSI" INSTALLDIR)" 'LocalAppDataFolder\Programs\Kawaro'
 }
 
 ac4_msi_from_the_real_cross_built_exes () {
   echo "== AC4: with the real cross built exes"
-  local real="${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target"
-  check "AC4: the real release tree exists (build it with scripts/windows/build.sh)" test -f "$real/x86_64-pc-windows-gnu/release/sbarhived.exe"
+  local real="${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target"
+  check "AC4: the real release tree exists (build it with scripts/windows/build.sh)" test -f "$real/x86_64-pc-windows-gnu/release/kawarod.exe"
   build_msi 4r "$real"
   assert_eq "AC4: exit code with the real exes" "$RC" "0"
   check "AC4: MSI from the real exes written" test -n "$MSI"
@@ -242,7 +242,7 @@ ac5_registry_rows_match_s050 () {
   check "AC5: MSI written" test -n "$MSI"
   [ -n "$MSI" ] || return 0
   msiinfo export "$MSI" Registry > "$T/registry.txt" 2>/dev/null
-  (S051_REGISTRY_EXPORT="$T/registry.txt" CARGO_BUILD_JOBS=2 cargo test -p sbarhive-core --test s051_msi_registry -- --ignored >"$log" 2>&1)
+  (S051_REGISTRY_EXPORT="$T/registry.txt" CARGO_BUILD_JOBS=2 cargo test -p kawaro-core --test s051_msi_registry -- --ignored >"$log" 2>&1)
   assert_eq "AC5: cargo test exit code" "$?" "0"
   check "AC5: all four Rust checks ran and passed" grep -q 'test result: ok. 4 passed; 0 failed' "$log"
   [ -s "$log" ] && grep -E 'panicked|assert|left|right|FAILED|failed' "$log" | head -n 12 >&2
@@ -256,12 +256,12 @@ ac6_files_and_start_menu_shortcut () {
   check "AC6: MSI written" test -n "$MSI"
   [ -n "$MSI" ] || return 0
   names="$(table "$MSI" File | while IFS=$'\t' read -r _ _ fn _; do base "$fn"; done)"
-  for f in sbarhive.exe sbarhived.exe $ACTIONS; do
+  for f in kawaro.exe kawarod.exe $ACTIONS; do
     assert_eq "AC6: File table lists $f once" "$(printf '%s\n' "$names" | grep -cxF "$f")" "1"
   done
   local sc
-  sc="$(table "$MSI" Shortcut | while IFS=$'\t' read -r _ dir name _; do [ "$(base "$name")" = SbarHive ] && echo "$dir"; done)"
-  assert_eq "AC6: exactly one shortcut named SbarHive" "$(printf '%s\n' "$sc" | grep -c .)" "1"
+  sc="$(table "$MSI" Shortcut | while IFS=$'\t' read -r _ dir name _; do [ "$(base "$name")" = Kawaro ] && echo "$dir"; done)"
+  assert_eq "AC6: exactly one shortcut named Kawaro" "$(printf '%s\n' "$sc" | grep -c .)" "1"
   if [ -n "$sc" ]; then
     assert_eq "AC6: the shortcut folder reaches ProgramMenuFolder" \
       "$(ancestors "$MSI" "$sc" | grep -cxF ProgramMenuFolder)" "1"
@@ -284,7 +284,7 @@ ac7_docs_changelog_and_lint () {
   assert_eq "AC7: one CHANGELOG line for S-051" "$(grep -c 'S-051' CHANGELOG.md)" "1"
   check "AC7: that line also has the Arabic sentence" bash -c 'grep "S-051" CHANGELOG.md | perl -CSD -ne "BEGIN{\$f=0} \$f=1 if /[\x{0600}-\x{06FF}]/; END{exit !\$f}"'
   assert_eq "AC7: design-lint exit code" "$(scripts/design-lint.sh >/dev/null 2>&1; echo $?)" "0"
-  for l in scripts/windows/make-zip.sh scripts/windows/make-msi.sh installer/windows/sbarhive.wxs installer/windows/README-windows.txt docs/engines.md README.md README.ar.md CHANGELOG.md; do
+  for l in scripts/windows/make-zip.sh scripts/windows/make-msi.sh installer/windows/kawaro.wxs installer/windows/README-windows.txt docs/engines.md README.md README.ar.md CHANGELOG.md; do
     check "AC7: $l exists without a long dash" bash -c '[ -f "$1" ] && ! LC_ALL=C grep -qP "\xE2\x80[\x93\x94]" "$1"' _ "$l"
   done
 }

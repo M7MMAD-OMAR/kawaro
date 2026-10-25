@@ -3,7 +3,7 @@
 //! that is taken. The Win32 side is `shell.rs` and `tray/windows.rs`.
 
 use crate::text;
-use sbarhive_core::i18n::Lang;
+use kawaro_core::i18n::Lang;
 
 /// The longest tooltip `NOTIFYICONDATAW` holds, in UTF-16 units.
 const TIP_UNITS: usize = 127;
@@ -126,5 +126,5 @@ impl HoldPoll {
 
 /// The log line for a shortcut `RegisterHotKey` refused (`ok` is false).
 pub fn shortcut_error_line(s: &str, ok: bool) -> Option<String> {
-    (!ok).then(|| format!("sbarhived: shortcut {s} unavailable"))
+    (!ok).then(|| format!("kawarod: shortcut {s} unavailable"))
 }

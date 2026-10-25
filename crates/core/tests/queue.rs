@@ -3,9 +3,9 @@
 mod common;
 
 use common::{FakeEngine, action, files, listing};
-use sbarhive_core::action::OutputMode::{Combined, PerFile};
-use sbarhive_core::engine::{CancelToken, Engine};
-use sbarhive_core::queue::{JobEvent, Queue, plan, run_job};
+use kawaro_core::action::OutputMode::{Combined, PerFile};
+use kawaro_core::engine::{CancelToken, Engine};
+use kawaro_core::queue::{JobEvent, Queue, plan, run_job};
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, channel};
 use std::sync::{Arc, Barrier};
@@ -286,15 +286,15 @@ fn ac2_engine_without_output_file_fails_the_task() {
         fn id(&self) -> &'static str {
             "fake"
         }
-        fn capabilities(&self) -> Vec<(&'static str, Vec<sbarhive_core::MediaKind>)> {
+        fn capabilities(&self) -> Vec<(&'static str, Vec<kawaro_core::MediaKind>)> {
             vec![]
         }
         fn run(
             &self,
-            _: &sbarhive_core::Task,
-            p: sbarhive_core::Progress,
+            _: &kawaro_core::Task,
+            p: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), sbarhive_core::EngineError> {
+        ) -> Result<(), kawaro_core::EngineError> {
             p(1.0);
             Ok(())
         }
@@ -351,15 +351,15 @@ fn ac3_progress_ignores_regressions_and_out_of_range_reports() {
         fn id(&self) -> &'static str {
             "fake"
         }
-        fn capabilities(&self) -> Vec<(&'static str, Vec<sbarhive_core::MediaKind>)> {
+        fn capabilities(&self) -> Vec<(&'static str, Vec<kawaro_core::MediaKind>)> {
             vec![]
         }
         fn run(
             &self,
-            t: &sbarhive_core::Task,
-            p: sbarhive_core::Progress,
+            t: &kawaro_core::Task,
+            p: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), sbarhive_core::EngineError> {
+        ) -> Result<(), kawaro_core::EngineError> {
             p(0.8);
             p(0.4);
             p(-3.0);
@@ -391,15 +391,15 @@ fn ac3_progress_advances_per_task_without_engine_reports() {
         fn id(&self) -> &'static str {
             "fake"
         }
-        fn capabilities(&self) -> Vec<(&'static str, Vec<sbarhive_core::MediaKind>)> {
+        fn capabilities(&self) -> Vec<(&'static str, Vec<kawaro_core::MediaKind>)> {
             vec![]
         }
         fn run(
             &self,
-            t: &sbarhive_core::Task,
-            _: sbarhive_core::Progress,
+            t: &kawaro_core::Task,
+            _: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), sbarhive_core::EngineError> {
+        ) -> Result<(), kawaro_core::EngineError> {
             std::fs::write(&t.output, b"x")?;
             Ok(())
         }
@@ -504,15 +504,15 @@ fn ac5_cancel_between_tasks_skips_the_rest() {
         fn id(&self) -> &'static str {
             "fake"
         }
-        fn capabilities(&self) -> Vec<(&'static str, Vec<sbarhive_core::MediaKind>)> {
+        fn capabilities(&self) -> Vec<(&'static str, Vec<kawaro_core::MediaKind>)> {
             vec![]
         }
         fn run(
             &self,
-            t: &sbarhive_core::Task,
-            p: sbarhive_core::Progress,
+            t: &kawaro_core::Task,
+            p: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), sbarhive_core::EngineError> {
+        ) -> Result<(), kawaro_core::EngineError> {
             std::fs::write(&t.output, b"x")?;
             p(1.0);
             self.0.cancel();

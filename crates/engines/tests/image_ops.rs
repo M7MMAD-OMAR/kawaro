@@ -3,8 +3,8 @@
 mod image_common;
 use image_common::*;
 
-use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind};
-use sbarhive_engines::image::ImageEngine;
+use kawaro_core::{CancelToken, Engine, EngineError, MediaKind};
+use kawaro_engines::image::ImageEngine;
 use tempfile::tempdir;
 
 // AC1
@@ -31,7 +31,7 @@ fn id_and_capabilities() {
     for (op, kinds) in &caps {
         assert_eq!(kinds, &vec![MediaKind::Image], "kinds of {op}");
     }
-    assert!(sbarhive_engines::all().iter().any(|e| e.id() == "image"));
+    assert!(kawaro_engines::all().iter().any(|e| e.id() == "image"));
 }
 
 // AC6

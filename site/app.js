@@ -1,4 +1,4 @@
-/* SbarHive site behaviour: the download card for the visitor's system, the hero
+/* Kawaro site behaviour: the download card for the visitor's system, the hero
    download button, and the docs search. No dependencies. Everything works without
    JS. The home page motion is CSS only (S-064, S-065). */
 (() => {

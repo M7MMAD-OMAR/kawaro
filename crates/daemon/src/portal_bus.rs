@@ -2,7 +2,7 @@
 //! private thread and its own session bus connection, `Registry.Register`
 //! first, then `CreateSession` and one `BindShortcuts`, then the portal's
 //! `Activated` and `Deactivated` into the long press gate, the one that
-//! `sbarhive drop --hold` and `--release` feed. The `portal_shortcut`
+//! `kawaro drop --hold` and `--release` feed. The `portal_shortcut`
 //! switch applies live (S-014f2): a reload starts a client or stops the
 //! running one, at most one at a time. Every decision is in `portal.rs`;
 //! this file runs on a live bus only and is covered by tests/drop/portal.sh.
@@ -16,8 +16,8 @@ use ashpd::zbus;
 use ashpd::zbus::zvariant::{self, OwnedObjectPath, OwnedValue};
 use futures_util::StreamExt;
 use futures_util::future::{AbortHandle, AbortRegistration, Abortable};
-use sbarhive_core::config::Config;
-use sbarhive_core::i18n::Lang;
+use kawaro_core::config::Config;
+use kawaro_core::i18n::Lang;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
 use std::thread::JoinHandle;
@@ -57,17 +57,17 @@ pub fn follow(before: bool, after: bool, lang: Lang, state: &Shared) {
 /// `portal_shortcut` setting.
 pub fn start(enabled: bool, lang: Lang, state: Shared) {
     if !enabled {
-        return sbarhive_ui::stderr_line(&portal::unavailable_line(Reason::Off));
+        return kawaro_ui::stderr_line(&portal::unavailable_line(Reason::Off));
     }
     let desktops = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default();
     if portal::listed(&desktops, portal::NO_RELEASE) {
-        return sbarhive_ui::stderr_line(&portal::unavailable_line(Reason::NoRelease));
+        return kawaro_ui::stderr_line(&portal::unavailable_line(Reason::NoRelease));
     }
     let mut slot = client();
     let old = slot.take();
     let (stop, own) = AbortHandle::new_pair();
     let spawned = std::thread::Builder::new()
-        .name("sbarhive-portal".into())
+        .name("kawaro-portal".into())
         .spawn(move || {
             // At most one client: a closing one ends first.
             if let Some(old) = old {
@@ -79,12 +79,12 @@ pub fn start(enabled: bool, lang: Lang, state: Shared) {
                 if portal::remembers(r) {
                     remember(&state);
                 }
-                sbarhive_ui::stderr_line(&portal::unavailable_line(r));
+                kawaro_ui::stderr_line(&portal::unavailable_line(r));
             }
         });
     match spawned {
         Ok(thread) => *slot = Some(Client { stop, thread }),
-        Err(e) => eprintln!("sbarhived: portal thread: {e}"),
+        Err(e) => eprintln!("kawarod: portal thread: {e}"),
     }
 }
 
@@ -139,7 +139,7 @@ async fn serve(
         .await
         .is_err()
     {
-        sbarhive_ui::stderr_line(portal::REGISTRY_UNAVAILABLE);
+        kawaro_ui::stderr_line(portal::REGISTRY_UNAVAILABLE);
     }
     let gs = match GlobalShortcuts::with_connection(conn).await {
         Ok(gs) => gs,
@@ -181,12 +181,12 @@ async fn serve(
         .find(|s| s.id() == portal::SHORTCUT_ID)
         .map(|s| s.trigger_description().to_string())
         .unwrap_or_default();
-    sbarhive_ui::stderr_line(&portal::bound_line(&trigger));
+    kawaro_ui::stderr_line(&portal::bound_line(&trigger));
 
     let Some(own) = session_path(session) else {
         return Some(Reason::Error);
     };
-    let debug = std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some();
+    let debug = std::env::var_os("KAWARO_DEBUG_FOCUS").is_some();
     while let Some(msg) = signals.next().await {
         let header = msg.header();
         let Some(member) = header.member() else {
@@ -201,7 +201,7 @@ async fn serve(
         };
         if let Some(s) = portal::signal(&own, member.as_str(), path.as_str(), &id) {
             if debug {
-                sbarhive_ui::stderr_line(portal::debug_line(s));
+                kawaro_ui::stderr_line(portal::debug_line(s));
             }
             // AC15: the press's activation_token, a string option, goes
             // with it to the gate, as the IPC token of `drop --hold` does.
@@ -249,7 +249,7 @@ fn remember(state: &Shared) {
     let saved = match config.save_to(&path) {
         Ok(()) => true,
         Err(e) => {
-            eprintln!("sbarhived: cannot save {}: {e}", path.display());
+            eprintln!("kawarod: cannot save {}: {e}", path.display());
             false
         }
     };

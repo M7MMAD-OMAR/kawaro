@@ -1,4 +1,4 @@
-//! SbarHive hive spike. Answers three questions before any real code is built:
+//! Kawaro hive spike. Answers three questions before any real code is built:
 //! how fast the hive appears on Wayland, whether it gets keyboard focus, and
 //! whether hex picking, Esc, focus loss and Arabic layout behave.
 //!
@@ -105,7 +105,7 @@ fn parse(args: &[String]) -> Opts {
 
 fn socket_path() -> PathBuf {
     let dir = std::env::var_os("XDG_RUNTIME_DIR").unwrap_or_else(|| "/tmp".into());
-    PathBuf::from(dir).join("sbarhive-spike.sock")
+    PathBuf::from(dir).join("kawaro-spike.sock")
 }
 
 /// Dummy actions for a selection of three images. Ring 1 holds the common

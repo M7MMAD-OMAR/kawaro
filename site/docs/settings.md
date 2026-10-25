@@ -1,13 +1,13 @@
 # الإعدادات
 
-الملف هو `config.toml`: في `~/.config/sbarhive/` على لينكس، وفي `%APPDATA%\SbarHive\` على ويندوز. كل مفتاح اختياري، والمفاتيح غير المعروفة تُهمل، وإذا تلف الملف استُعملت القيم الافتراضية.
+الملف هو `config.toml`: في `~/.config/kawaro/` على لينكس، وفي `%APPDATA%\Kawaro\` على ويندوز. كل مفتاح اختياري، والمفاتيح غير المعروفة تُهمل، وإذا تلف الملف استُعملت القيم الافتراضية.
 
 | المفتاح | القيم | الافتراضي |
 | --- | --- | --- |
 | `language` | `auto` و`ar` و`en` | `auto` |
 | `theme` | `auto` و`light` و`dark` | `auto` |
 | `output` | `beside` و`subfolder` | `beside` |
-| `output_folder` | اسم المجلد حين تكون القيمة `subfolder` | `SbarHive` |
+| `output_folder` | اسم المجلد حين تكون القيمة `subfolder` | `Kawaro` |
 | `quality` | `light` و`balanced` و`max` | `balanced` |
 | `open_folder_when_done` | `true` و`false` | `false` |
 | `notify` | `true` و`false` | `true` |

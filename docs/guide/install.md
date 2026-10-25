@@ -16,13 +16,13 @@ Check every download against `SHA256SUMS`. The steps are on the [download page](
 
 ## Extra tools
 
-Video and audio need FFmpeg. Documents and PDF need LibreOffice and Ghostscript. An action whose tool is missing does not appear in the hive. Run `sbarhive doctor` to see what was found.
+Video and audio need FFmpeg. Documents and PDF need LibreOffice and Ghostscript. An action whose tool is missing does not appear in the hive. Run `kawaro doctor` to see what was found.
 
 ## From source (Linux)
 
 ```
-git clone https://github.com/M7MMAD-OMAR/sbarhive
-cd sbarhive
+git clone https://github.com/M7MMAD-OMAR/kawaro
+cd kawaro
 ./scripts/install.sh
 ```
 

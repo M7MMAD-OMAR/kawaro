@@ -68,12 +68,12 @@ mkdir -p "$COPY"
 awk -v v="$VERSION" '/^\[workspace.package\]/{p=1} p && /^version *=/{print "version = \"" v "\""; p=0; next} {print}' \
   "$COPY/Cargo.toml" > "$WORK/Cargo.toml.new"
 mv "$WORK/Cargo.toml.new" "$COPY/Cargo.toml"
-awk -v v="$VERSION" '/^name = "sbarhive-/{print; getline; print "version = \"" v "\""; next} {print}' \
+awk -v v="$VERSION" '/^name = "kawaro-/{print; getline; print "version = \"" v "\""; next} {print}' \
   "$COPY/Cargo.lock" > "$WORK/Cargo.lock.new"
 mv "$WORK/Cargo.lock.new" "$COPY/Cargo.lock"
 
-export SBARHIVE_WIN_SCOPE=1 CI=true
-WIN_TARGET="${CARGO_TARGET_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target}"
+export KAWARO_WIN_SCOPE=1 CI=true
+WIN_TARGET="${CARGO_TARGET_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target}"
 LIN_TARGET="${DRYRUN_LINUX_TARGET:-$ROOT/target}"
 
 if [ "$BUILD" = 1 ]; then
@@ -90,15 +90,15 @@ PKGS="$WORK/pkgs"
 CARGO_TARGET_DIR="$WIN_TARGET" "$COPY/scripts/windows/make-zip.sh" >/dev/null
 CARGO_TARGET_DIR="$WIN_TARGET" "$COPY/scripts/windows/make-msi.sh" >/dev/null
 
-RPM="sbarhive-$PKGV-1.x86_64.rpm"
-DEB="sbarhive_${PKGV}_amd64.deb"
-ZIP="sbarhive-$VERSION-windows-x64.zip"
-MSI="sbarhive-$VERSION-windows-x64.msi"
+RPM="kawaro-$PKGV-1.x86_64.rpm"
+DEB="kawaro_${PKGV}_amd64.deb"
+ZIP="kawaro-$VERSION-windows-x64.zip"
+MSI="kawaro-$VERSION-windows-x64.msi"
 cp "$PKGS/$RPM" "$PKGS/$DEB" "$OUT/"
 cp "$WIN_TARGET/dist/$ZIP" "$WIN_TARGET/dist/$MSI" "$OUT/"
 
 # Manifest assets, shaped like the release listing the CI job reads.
-BASE="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v$VERSION"
+BASE="https://github.com/M7MMAD-OMAR/kawaro/releases/download/v$VERSION"
 {
   for f in "$RPM" "$DEB" "$ZIP" "$MSI"; do
     jq -n --arg n "$f" --arg u "$BASE/$f" --argjson s "$(stat -c %s "$OUT/$f")" '{name: $n, url: $u, size: $s}'

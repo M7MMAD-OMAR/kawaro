@@ -1,4 +1,4 @@
-//! S-046 AC6 (backlog/S-046-windows-hive-window.md): `sbarhived open <file>`
+//! S-046 AC6 (backlog/S-046-windows-hive-window.md): `kawarod open <file>`
 //! acts as a client when a daemon answers. The fake listener comes from
 //! `core::transport`; the child runs with an empty display environment so no
 //! window can appear on the live desktop. The "no daemon" branch needs a
@@ -6,14 +6,14 @@
 
 #![cfg(unix)]
 
-use sbarhive_core::transport::{Bound, Endpoint, Listener};
+use kawaro_core::transport::{Bound, Endpoint, Listener};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 fn run(dir: &std::path::Path, args: &[&str]) -> (Option<i32>, String) {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_sbarhived"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_kawarod"))
         .args(args)
         .env("XDG_RUNTIME_DIR", dir)
         .env("HOME", dir)
@@ -24,7 +24,7 @@ fn run(dir: &std::path::Path, args: &[&str]) -> (Option<i32>, String) {
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
         .spawn()
-        .expect("spawn sbarhived");
+        .expect("spawn kawarod");
     let start = Instant::now();
     loop {
         if let Some(status) = child.try_wait().unwrap() {
@@ -44,7 +44,7 @@ fn run(dir: &std::path::Path, args: &[&str]) -> (Option<i32>, String) {
 #[test]
 fn ac6_open_sends_exactly_one_line_to_a_running_daemon_and_exits_0() {
     let dir = tempfile::tempdir().unwrap();
-    let endpoint = Endpoint::from_path(dir.path().join("sbarhive.sock"));
+    let endpoint = Endpoint::from_path(dir.path().join("kawaro.sock"));
     let Bound::Listening(listener) = Listener::bind(&endpoint).unwrap() else {
         panic!("fresh socket must bind");
     };
@@ -81,7 +81,7 @@ fn ac5_open_without_a_file_exits_nonzero_and_says_why() {
 #[test]
 fn ac6_open_prints_the_error_of_the_daemon_and_exits_1() {
     let dir = tempfile::tempdir().unwrap();
-    let endpoint = Endpoint::from_path(dir.path().join("sbarhive.sock"));
+    let endpoint = Endpoint::from_path(dir.path().join("kawaro.sock"));
     let Bound::Listening(listener) = Listener::bind(&endpoint).unwrap() else {
         panic!("fresh socket must bind");
     };
@@ -97,5 +97,5 @@ fn ac6_open_prints_the_error_of_the_daemon_and_exits_1() {
 
     let (code, err) = run(dir.path(), &["open", "a.xyz"]);
     assert_eq!(code, Some(1), "stderr: {err}");
-    assert!(err.contains("sbarhived: no fitting action"), "{err}");
+    assert!(err.contains("kawarod: no fitting action"), "{err}");
 }

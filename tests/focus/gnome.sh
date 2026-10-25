@@ -16,7 +16,7 @@ for a in "$@"; do
   case "$a" in notoken|token|bogus|nautilus) CASES+=("$a") ;; strict|smart) FOCUS_NEW="$a" ;; *) BIN="$a" ;; esac
 done
 [ ${#CASES[@]} -eq 0 ] && CASES=(notoken token)
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 OUT="${FOCUS_OUT:-$HERE/out}"
 mkdir -p "$OUT"
 export BIN HERE ROOT OUT FOCUS_NEW
@@ -79,14 +79,14 @@ inner() {
   local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   ffmpeg -loglevel error -f lavfi -i testsrc=size=80x60:rate=1 -frames:v 1 "$W/b.jpg"
 
-  SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$log-daemon.log" 2>&1 &
+  KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$log-daemon.log" 2>&1 &
   local d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
   # The first show after the daemon starts can take several seconds (ADR 0001,
   # finding 8). Show once and wait, so the measured show is a warm one.
   # NO_WARMUP=1 skips it, so the measured show is the first one.
   if [ -z "${NO_WARMUP:-}" ]; then
-    "$BIN/sbarhive" open "$W/b.jpg"; sleep 10
+    "$BIN/kawaro" open "$W/b.jpg"; sleep 10
     echo "warm-up: $(state)"
     key Escape
   else
@@ -98,7 +98,7 @@ inner() {
 
   case "$CASE" in
     notoken|token|bogus)
-      SBARHIVE="$BIN/sbarhive" python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>&1 &
+      KAWARO="$BIN/kawaro" python3 "$HERE/client.py" "$W/b.jpg" >"$log-client.log" 2>&1 &
       local client=$!
       sleep 3
       # Under the strict policy a window started without a token never gets
@@ -128,8 +128,8 @@ inner() {
     nautilus)
       local ext="$XDG_DATA_HOME/nautilus-python/extensions"
       mkdir -p "$ext"
-      sed "s|^SBARHIVE_BIN = .*|SBARHIVE_BIN = \"$BIN/sbarhive\"|" \
-        "$ROOT/integrations/linux/nautilus/sbarhive.py" >"$ext/sbarhive.py"
+      sed "s|^KAWARO_BIN = .*|KAWARO_BIN = \"$BIN/kawaro\"|" \
+        "$ROOT/integrations/linux/nautilus/kawaro.py" >"$ext/kawaro.py"
       nautilus --new-window "$W" >"$log-nautilus.log" 2>&1 &
       local naut=$!
       sleep 6
@@ -137,7 +137,7 @@ inner() {
       # own windows (Nextcloud's setup wizard did); close them, then give the
       # Nautilus window focus the way a click would.
       shell_eval 'global.get_window_actors().map(a => a.meta_window)
-        .filter(w => w.get_title() !== "work" && w.get_title() !== "SbarHive")
+        .filter(w => w.get_title() !== "work" && w.get_title() !== "Kawaro")
         .forEach(w => w.delete(global.get_current_time()))' >/dev/null
       sleep 1
       shell_eval 'global.get_window_actors().map(a => a.meta_window)
@@ -145,12 +145,12 @@ inner() {
         .forEach(w => w.activate(global.get_current_time()))' >/dev/null
       sleep 1
       echo "before: $(state)"
-      # Select the only file, open the context menu, pick the SbarHive entry.
+      # Select the only file, open the context menu, pick the Kawaro entry.
       key Home; key Control_L+a; key Shift_L+F10; sleep 1
       shot "$log-menu.png"
       local mark; mark=$(wc -l <"$log-daemon.log")
       echo "menu:   $(state)"
-      # SbarHive is the entry above Properties, the last one (Nautilus 49).
+      # Kawaro is the entry above Properties, the last one (Nautilus 49).
       for k in ${NAUTILUS_MENU_KEYS:-End Up}; do key "$k"; done
       key Return
       sleep 4
@@ -163,7 +163,7 @@ inner() {
       ;;
   esac
 
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   echo quit >"$fifo"
   sleep 0.5
   kill $d $input 2>/dev/null

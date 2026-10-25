@@ -13,8 +13,8 @@ use image::{
     ColorType, DynamicImage, ExtendedColorType, GrayImage, ImageEncoder, RgbImage, RgbaImage,
     imageops::{self, FilterType},
 };
-use sbarhive_core::EngineError;
-use sbarhive_core::media::extension;
+use kawaro_core::EngineError;
+use kawaro_core::media::extension;
 use std::io::Cursor;
 use std::path::Path;
 

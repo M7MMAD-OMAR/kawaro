@@ -13,7 +13,7 @@
 //! - The daemon writes `portal_shortcut = false` after a `denied` reply,
 //!   keeping the user's other keys (checked live by tests/drop/portal.sh).
 
-use sbarhive_core::config::Config;
+use kawaro_core::config::Config;
 
 fn load(text: &str) -> (Config, Option<String>) {
     let dir = tempfile::tempdir().unwrap();

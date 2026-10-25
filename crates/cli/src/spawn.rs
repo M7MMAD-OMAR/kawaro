@@ -11,9 +11,9 @@
 // - `wait_exit(cmd: &mut std::process::Command) -> Result<i32, String>`.
 // - `daemon_binary_in(dir: &Path, suffix: &str) -> PathBuf`.
 // - `foreground_grant(req: &Request, server_pid: Option<u32>) -> Option<u32>`,
-//   `Request` being `sbarhive_core::ipc::Request`.
+//   `Request` being `kawaro_core::ipc::Request`.
 
-use sbarhive_core::ipc::Request;
+use kawaro_core::ipc::Request;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -54,18 +54,18 @@ pub fn start_with(mut attempt: impl FnMut(u32) -> io::Result<()>) -> io::Result<
 }
 
 /// Runs the service in the foreground and returns its exit code; this is
-/// `sbarhive daemon` on Windows, which has no `exec`.
+/// `kawaro daemon` on Windows, which has no `exec`.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub fn wait_exit(cmd: &mut Command) -> Result<i32, String> {
     let status = cmd
         .status()
-        .map_err(|e| format!("cannot run sbarhived: {e}"))?;
+        .map_err(|e| format!("cannot run kawarod: {e}"))?;
     Ok(status.code().unwrap_or(1))
 }
 
 /// The service binary in `dir` when present, else its bare name for PATH.
 pub fn daemon_binary_in(dir: &Path, suffix: &str) -> PathBuf {
-    let name = format!("sbarhived{suffix}");
+    let name = format!("kawarod{suffix}");
     let path = dir.join(&name);
     if path.is_file() {
         path
@@ -86,7 +86,7 @@ pub fn foreground_grant(req: &Request, server_pid: Option<u32>) -> Option<u32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sbarhive_core::ipc::Request;
+    use kawaro_core::ipc::Request;
     use std::io;
     use std::path::{Path, PathBuf};
 
@@ -190,9 +190,9 @@ mod tests {
     #[test]
     fn ac3_wait_exit_missing_program_is_cannot_run() {
         let dir = tempfile::tempdir().unwrap();
-        let mut cmd = std::process::Command::new(dir.path().join("no-such-sbarhived"));
+        let mut cmd = std::process::Command::new(dir.path().join("no-such-kawarod"));
         let e = wait_exit(&mut cmd).expect_err("missing program");
-        assert!(e.starts_with("cannot run sbarhived:"), "got {e:?}");
+        assert!(e.starts_with("cannot run kawarod:"), "got {e:?}");
     }
 
     fn touch(dir: &Path, name: &str) -> PathBuf {
@@ -202,9 +202,9 @@ mod tests {
     }
 
     #[test]
-    fn ac4_exe_suffix_finds_sbarhived_exe_in_the_dir() {
+    fn ac4_exe_suffix_finds_kawarod_exe_in_the_dir() {
         let dir = tempfile::tempdir().unwrap();
-        let p = touch(dir.path(), "sbarhived.exe");
+        let p = touch(dir.path(), "kawarod.exe");
         assert_eq!(daemon_binary_in(dir.path(), ".exe"), p);
     }
 
@@ -213,38 +213,38 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(
             daemon_binary_in(dir.path(), ".exe"),
-            PathBuf::from("sbarhived.exe")
+            PathBuf::from("kawarod.exe")
         );
     }
 
     #[test]
     fn ac4_exe_suffix_ignores_a_file_without_the_suffix() {
         let dir = tempfile::tempdir().unwrap();
-        touch(dir.path(), "sbarhived");
+        touch(dir.path(), "kawarod");
         assert_eq!(
             daemon_binary_in(dir.path(), ".exe"),
-            PathBuf::from("sbarhived.exe")
+            PathBuf::from("kawarod.exe")
         );
     }
 
     #[test]
-    fn ac4_empty_suffix_finds_sbarhived_in_the_dir() {
+    fn ac4_empty_suffix_finds_kawarod_in_the_dir() {
         let dir = tempfile::tempdir().unwrap();
-        let p = touch(dir.path(), "sbarhived");
+        let p = touch(dir.path(), "kawarod");
         assert_eq!(daemon_binary_in(dir.path(), ""), p);
     }
 
     #[test]
-    fn ac4_empty_suffix_without_the_file_falls_back_to_sbarhived() {
+    fn ac4_empty_suffix_without_the_file_falls_back_to_kawarod() {
         let dir = tempfile::tempdir().unwrap();
-        assert_eq!(daemon_binary_in(dir.path(), ""), PathBuf::from("sbarhived"));
+        assert_eq!(daemon_binary_in(dir.path(), ""), PathBuf::from("kawarod"));
     }
 
     #[test]
-    fn ac4_a_directory_named_sbarhived_is_not_the_binary() {
+    fn ac4_a_directory_named_kawarod_is_not_the_binary() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::create_dir(dir.path().join("sbarhived")).unwrap();
-        assert_eq!(daemon_binary_in(dir.path(), ""), PathBuf::from("sbarhived"));
+        std::fs::create_dir(dir.path().join("kawarod")).unwrap();
+        assert_eq!(daemon_binary_in(dir.path(), ""), PathBuf::from("kawarod"));
     }
 
     fn every_request() -> Vec<(Request, bool)> {

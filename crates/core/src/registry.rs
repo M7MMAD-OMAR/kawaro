@@ -6,11 +6,11 @@
 
 use crate::i18n::Lang;
 
-const SHELL_KEY: &str = r"HKCU\Software\Classes\*\shell\SbarHive";
-const COMMAND_KEY: &str = r"HKCU\Software\Classes\*\shell\SbarHive\command";
-const AUMID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.SbarHive";
-const SERVICE_EXE: &str = "sbarhived.exe";
-const ICON: &str = "sbarhive.ico";
+const SHELL_KEY: &str = r"HKCU\Software\Classes\*\shell\Kawaro";
+const COMMAND_KEY: &str = r"HKCU\Software\Classes\*\shell\Kawaro\command";
+const AUMID_KEY: &str = r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.Kawaro";
+const SERVICE_EXE: &str = "kawarod.exe";
+const ICON: &str = "kawaro.ico";
 
 fn args(parts: &[&str]) -> Vec<String> {
     parts.iter().map(|s| s.to_string()).collect()
@@ -29,8 +29,8 @@ pub fn install_commands(dir: &str, lang: Lang) -> Result<Vec<Vec<String>>, Strin
     let dir = dir.trim_end_matches('\\');
     let icon = format!(r"{dir}\{ICON}");
     let verb = match lang {
-        Lang::En => "SbarHive",
-        Lang::Ar => "صبار هايف",
+        Lang::En => "Kawaro",
+        Lang::Ar => "كوارو",
     };
     let command = format!(r#""{dir}\{SERVICE_EXE}" open "%1""#);
     Ok(vec![
@@ -47,7 +47,7 @@ pub fn install_commands(dir: &str, lang: Lang) -> Result<Vec<Vec<String>>, Strin
             &command,
             "/f",
         ]),
-        add_named(AUMID_KEY, "DisplayName", "SbarHive"),
+        add_named(AUMID_KEY, "DisplayName", "Kawaro"),
         add_named(AUMID_KEY, "IconUri", &icon),
     ])
 }

@@ -10,7 +10,7 @@ about: Something does not work
 **Steps**
 
 **System**
-- SbarHive version (`sbarhive --version`):
+- Kawaro version (`kawaro --version`):
 - Distribution and desktop (GNOME, KDE, Hyprland...), Wayland or X11:
 - File manager:
-- Output of `sbarhive doctor`:
+- Output of `kawaro doctor`:

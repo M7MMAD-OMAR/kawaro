@@ -34,8 +34,8 @@ SMOKE=scripts/windows/beta-smoke.cmd
 LOGS=scripts/windows/collect-logs.cmd
 RD=README.md
 RA=README.ar.md
-T="$(mktemp -d "${TMPDIR:-/tmp}/sbarhive-s052.XXXXXX")"
-trap 'case "$T" in "${TMPDIR:-/tmp}"/sbarhive-s052.*) rm -rf -- "$T" ;; esac' EXIT
+T="$(mktemp -d "${TMPDIR:-/tmp}/kawaro-s052.XXXXXX")"
+trap 'case "$T" in "${TMPDIR:-/tmp}"/kawaro-s052.*) rm -rf -- "$T" ;; esac' EXIT
 
 cat > "$T/check.py" <<'PY'
 import re, sys
@@ -170,7 +170,7 @@ else:
     for label, pat in [
         ("Windows 10 22H2", r"22H2"),
         ("Windows 11", r"Windows 11|11\b"),
-        ("test folder", r"%USERPROFILE%\\sbarhive-beta-test"),
+        ("test folder", r"%USERPROFILE%\\kawaro-beta-test"),
         ("bounded size rule", r"bounded"),
         ("only windows the test opened are closed", r"(only|exact).*(clos)|clos.*(only|exact)"),
         ("zip", r"\.zip|\bzip\b"),
@@ -191,7 +191,7 @@ else:
     for label, pat in [
         ("PASS or FAIL list", r"PASS"),
         ("smoke.txt", r"smoke\.txt"),
-        ("log", r"sbarhived\.log|\blog\b"),
+        ("log", r"kawarod\.log|\blog\b"),
         ("screenshots of the hive", r"screenshot.*hive|hive.*screenshot"),
     ]:
         out(re.search(pat, rsec, re.I) is not None, "AC7 report lists " + label, "missing")
@@ -213,10 +213,10 @@ if smoke is None:
         out(False, n, SMOKE + " missing")
 else:
     out(crlf_ok(smoke), "AC5 CRLF on every line", "")
-    need = ["--version", "integration install --dry-run", "sbarhived.exe", "ping", "smoke.txt", r"%USERPROFILE%\sbarhive-beta-test", "total", "failed"]
+    need = ["--version", "integration install --dry-run", "kawarod.exe", "ping", "smoke.txt", r"%USERPROFILE%\kawaro-beta-test", "total", "failed"]
     miss = [n for n in need if n.lower() not in smoke.lower()]
     out(not miss, "AC5 commands and paths", "missing %s" % miss)
-    pos = [smoke.lower().find(k) for k in ("--version", "--dry-run", "sbarhived.exe", " ping")]
+    pos = [smoke.lower().find(k) for k in ("--version", "--dry-run", "kawarod.exe", " ping")]
     out(all(p >= 0 for p in pos) and pos == sorted(pos), "AC5 order version, dry-run, daemon, ping", str(pos))
     out(len(re.findall(r"errorlevel", smoke, re.I)) >= 4, "AC5 errorlevel written per command", "fewer than 4 errorlevel uses")
     sets = {}
@@ -231,8 +231,8 @@ else:
             if t.startswith("&") or t.lower() == "nul":
                 continue
             v = re.fullmatch(r"%(\w+)%.*", t)
-            ok = "sbarhive-beta-test" in t.lower() or (
-                v is not None and "sbarhive-beta-test" in sets.get(v.group(1).upper(), "").lower())
+            ok = "kawaro-beta-test" in t.lower() or (
+                v is not None and "kawaro-beta-test" in sets.get(v.group(1).upper(), "").lower())
             if not ok:
                 badt.append(t)
     outside = re.findall(r"(?i)%(?:temp|tmp|appdata|localappdata|windir|systemroot)%|\bC:\\", smoke)
@@ -246,7 +246,7 @@ if logs is None:
         out(False, n, LOGS + " missing")
 else:
     out(crlf_ok(logs), "AC6 CRLF on every line", "")
-    need = [r"%LOCALAPPDATA%\SbarHive\logs\sbarhived.log", r"%APPDATA%\SbarHive\config.toml", r"%USERPROFILE%\sbarhive-beta-test\report"]
+    need = [r"%LOCALAPPDATA%\Kawaro\logs\kawarod.log", r"%APPDATA%\Kawaro\config.toml", r"%USERPROFILE%\kawaro-beta-test\report"]
     miss = [n for n in need if n.lower() not in logs.lower()]
     out(not miss, "AC6 sources and target", "missing %s" % miss)
     out(re.search(r"(?im)^\s*echo\b.*report", logs) is not None or re.search(r"(?im)^\s*echo\b.*%\w+%", logs) is not None,

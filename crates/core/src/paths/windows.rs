@@ -41,7 +41,7 @@ fn local_app_data() -> Option<PathBuf> {
     known_folder(&FOLDERID_LocalAppData)
 }
 
-/// The service log file, `%LOCALAPPDATA%\SbarHive\logs\sbarhived.log`.
+/// The service log file, `%LOCALAPPDATA%\Kawaro\logs\kawarod.log`.
 pub fn log_file() -> Option<PathBuf> {
     log_file_with(Os::Windows, &|k| std::env::var_os(k), &local_app_data)
 }

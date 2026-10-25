@@ -1,4 +1,4 @@
-//! SbarHive interface: the hexagonal hive popup and the settings window
+//! Kawaro interface: the hexagonal hive popup and the settings window
 //! ([`SettingsWindow`], docs/adr/0002-settings-components.md). Contract in
 //! docs/architecture.md ("UI contract"); spike results in
 //! docs/adr/0001-ui-toolkit.md.
@@ -8,9 +8,9 @@
 //! IBM Plex Sans Arabic, embedded from `crates/ui/fonts/` (SIL OFL 1.1).
 //!
 //! Environment overrides read once in [`Hive::new`]:
-//! - `SBARHIVE_COLOR_SCHEME=light|dark` forces the theme (otherwise the
+//! - `KAWARO_COLOR_SCHEME=light|dark` forces the theme (otherwise the
 //!   system colour scheme, through Slint's `Palette.color-scheme`).
-//! - `SBARHIVE_REDUCED_MOTION=1|0` forces reduced motion on or off (otherwise
+//! - `KAWARO_REDUCED_MOTION=1|0` forces reduced motion on or off (otherwise
 //!   KDE or GNOME settings, see the `motion` module).
 
 // Windows has no drop receiver or preview yet, so some items are unused there.
@@ -50,7 +50,7 @@ mod tokens {
 }
 
 pub use icons::icon_names;
-pub use sbarhive_core::i18n::Lang;
+pub use kawaro_core::i18n::Lang;
 pub use settings::SettingsWindow;
 
 use layout::{Nav, Plan};
@@ -118,9 +118,9 @@ fn set_shown_plan(plan: Plan) {
 }
 
 /// Prints `hive surface: KIND X Y W H` in logical screen pixels when
-/// `SBARHIVE_DEBUG_FOCUS` is set (S-018 AC11).
+/// `KAWARO_DEBUG_FOCUS` is set (S-018 AC11).
 fn report_surface(kind: &str, x: i32, y: i32, w: u32, h: u32) {
-    if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+    if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
         stderr_line(&format!("hive surface: {kind} {x} {y} {w} {h}"));
     }
 }
@@ -165,11 +165,11 @@ pub fn stderr_line(line: &str) {
     let _ = std::io::stderr().write_all(format!("{line}\n").as_bytes());
 }
 
-/// Prints `hive preview: WHAT` when `SBARHIVE_DEBUG_FOCUS` is set: the
+/// Prints `hive preview: WHAT` when `KAWARO_DEBUG_FOCUS` is set: the
 /// thumbnail size handed to Slint, or the kind icon (S-018 AC27).
 #[cfg(unix)]
 fn debug_preview(what: &str) {
-    if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+    if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
         stderr_line(&format!("hive preview: {what}"));
     }
 }
@@ -214,7 +214,7 @@ impl CustomApplicationHandler for FocusWatcher {
         match event {
             winit::event::WindowEvent::Focused(f) if is_hive_window(slint_window) => {
                 // Observation hook for tests/focus: logs the hive's focus changes.
-                if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+                if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
                     stderr_line(&format!("hive focus: {f}"));
                 }
                 focus_changed(*f)
@@ -264,7 +264,7 @@ fn token_hook(attrs: winit::window::WindowAttributes) -> winit::window::WindowAt
 /// hook and the focus watcher. Call once, before creating any window.
 ///
 /// On Wayland, when [`overlay::choose_surface`] gives `Layer` for the
-/// compositor's globals and `SBARHIVE_SURFACE`, winit is wrapped by a thin
+/// compositor's globals and `KAWARO_SURFACE`, winit is wrapped by a thin
 /// platform that puts every hive build on a layer-shell overlay (S-018b,
 /// ADR 0004); other windows stay winit's.
 pub fn init() -> Result<(), slint::PlatformError> {
@@ -700,7 +700,7 @@ impl Hive {
     }
 
     /// Shows an empty two-ring hive that waits for a dragged file (S-014,
-    /// `sbarhive drop`). When the drag enters, [`Hive::on_drop_files`] gives
+    /// `kawaro drop`). When the drag enters, [`Hive::on_drop_files`] gives
     /// the cells; a drop on a cell runs [`Hive::on_choose`], a drop elsewhere,
     /// a `leave`, or 10 s without the drag closes it with
     /// [`Hive::on_dismiss`]. Focus loss does not close it. On the layer path
@@ -717,7 +717,7 @@ impl Hive {
     }
 
     /// [`Hive::present_drop`] with the pointer position `at` in global
-    /// logical coordinates (`sbarhive drop --at`, S-019 decision 1). The
+    /// logical coordinates (`kawaro drop --at`, S-019 decision 1). The
     /// layer path places the hive there at once instead of waiting for the
     /// first drag position; the window path ignores it.
     pub fn present_drop_at(
@@ -729,7 +729,7 @@ impl Hive {
         self.show(centre, Vec::new(), 2, token, Some(at), false, &[])
     }
 
-    /// [`Hive::present_drop_at`] for a held key (`sbarhive drop --hold`,
+    /// [`Hive::present_drop_at`] for a held key (`kawaro drop --hold`,
     /// S-019e), shown when the daemon's long press gate has passed its
     /// threshold. [`Hive::key_released`] closes it, and the drag leaving
     /// it does not (manager decision 3).
@@ -913,7 +913,7 @@ fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError
     platform::building_hive(false);
     let ui = ui?;
     let tokens = ui.global::<Tokens>();
-    if let Some(dark) = forced_dark(std::env::var("SBARHIVE_COLOR_SCHEME").ok().as_deref()) {
+    if let Some(dark) = forced_dark(std::env::var("KAWARO_COLOR_SCHEME").ok().as_deref()) {
         tokens.set_dark(dark);
     }
     tokens.set_reduced_motion(reduced_motion);
@@ -936,7 +936,7 @@ fn built_on_layer() -> bool {
     false
 }
 
-/// `SBARHIVE_COLOR_SCHEME` as a forced dark flag; `None` follows the system.
+/// `KAWARO_COLOR_SCHEME` as a forced dark flag; `None` follows the system.
 fn forced_dark(scheme: Option<&str>) -> Option<bool> {
     match scheme {
         Some("light") => Some(false),

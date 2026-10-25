@@ -2,7 +2,7 @@
 //! parser and the default shortcut in `Config`.
 //!
 //! Contract (tester, from AC1; do not edit):
-//! - `sbarhive_core::hotkey::parse(&str) -> Result<Hotkey, String>`, pure.
+//! - `kawaro_core::hotkey::parse(&str) -> Result<Hotkey, String>`, pure.
 //! - `#[derive(Debug, PartialEq)] pub struct Hotkey { pub mods: u32, pub vk: u32 }`.
 //! - `pub const MOD_ALT: u32 = 1; MOD_CONTROL = 2; MOD_SHIFT = 4; MOD_WIN = 8`.
 //! - Tokens split on `+`, case-insensitive. Modifier names: `Ctrl`, `Alt`,
@@ -10,8 +10,8 @@
 //!   (0x30..), `F1`..`F24` (0x70..0x87). At least one modifier is required.
 //! - `Config::shortcut: String`, default `"Ctrl+Alt+H"`, key `shortcut`.
 
-use sbarhive_core::config::Config;
-use sbarhive_core::hotkey::{Hotkey, MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, parse};
+use kawaro_core::config::Config;
+use kawaro_core::hotkey::{Hotkey, MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, parse};
 
 fn ok(s: &str) -> (u32, u32) {
     let h = parse(s).unwrap_or_else(|e| panic!("{s:?} must parse: {e}"));

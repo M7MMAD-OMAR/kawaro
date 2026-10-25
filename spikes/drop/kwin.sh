@@ -40,7 +40,7 @@ inner() {
     sleep 0.4
   }
   # The same KGlobalAccel path the GlobalShortcuts portal backend uses.
-  script sbh-shortcut 'print("SBH script loaded " + registerShortcut("SbhDrop", "SbarHive drop test", "Meta+Ctrl+F11", function () { print("SBH shortcut fired"); }));'
+  script sbh-shortcut 'print("SBH script loaded " + registerShortcut("SbhDrop", "Kawaro drop test", "Meta+Ctrl+F11", function () { print("SBH shortcut fired"); }));'
   gdbus call --session --dest org.kde.kglobalaccel --object-path /kglobalaccel --method org.kde.KGlobalAccel.allComponents >"$log-accel.txt" 2>&1
 
   local f="$XDG_RUNTIME_DIR/in"; mkfifo "$f"

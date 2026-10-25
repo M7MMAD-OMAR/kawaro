@@ -3,7 +3,7 @@
 //! Linux; this file only calls the system with them, so it is left out of
 //! the mutants run (`.cargo/mutants.toml`) and checked live in S-052.
 //!
-//! - The pipe is `\\.\pipe\io.github.m7mmad_omar.SbarHive.<SID>.<session>`.
+//! - The pipe is `\\.\pipe\io.github.m7mmad_omar.Kawaro.<SID>.<session>`.
 //! - Every instance gets a DACL that grants the current user alone
 //!   (`dacl_sddl`) and rejects remote clients (`pipe_mode`).
 //! - The first instance claims the name (`open_mode(true)`): a second

@@ -1,13 +1,13 @@
 //! S-046 AC7 (backlog/S-046-windows-hive-window.md): the pure collector that
 //! merges the paths Explorer sends one process at a time.
 //!
-//! Contract (tester, from AC7; do not edit). In `sbarhive_core::merge`:
+//! Contract (tester, from AC7; do not edit). In `kawaro_core::merge`:
 //! - `pub enum Push { First, Merged }`, `Debug + PartialEq + Clone + Copy`.
 //! - `pub struct Collector`, `Collector::new()`.
 //! - `push(&mut self, at_ms: u64, path: PathBuf) -> Push`.
 //! - `files(&self) -> Vec<PathBuf>`, first seen order, no duplicates.
 
-use sbarhive_core::merge::{Collector, Push};
+use kawaro_core::merge::{Collector, Push};
 use std::path::PathBuf;
 
 fn p(s: &str) -> PathBuf {

@@ -1,6 +1,6 @@
 [English](CONTRIBUTING.md) | [العربية](CONTRIBUTING.ar.md)
 
-# Contributing to SbarHive
+# Contributing to Kawaro
 
 Thanks for your interest. Read `docs/architecture.md` first and open an issue
 to discuss any large change before writing it.

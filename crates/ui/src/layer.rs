@@ -24,7 +24,7 @@
 //! centred. A drop show centred so moves once, at its first position within
 //! [`MOVE_WINDOW`] of its placement; after that its catcher takes the hive
 //! rectangle and the hive stays centred (manager decision 12). With
-//! `sbarhive drop --at X,Y` the output holding that point (xdg-output) is
+//! `kawaro drop --at X,Y` the output holding that point (xdg-output) is
 //! chosen and the hive placed before the first commit.
 //!
 //! One wayland-client connection for the process, read on a thread; its
@@ -141,7 +141,7 @@ pub(crate) struct ShowRequest {
     pub min_rings: i32,
     /// A drop show (S-014): no keyboard, the catcher takes the drag.
     pub drop: bool,
-    /// `sbarhive drop --at X,Y`, global logical coordinates.
+    /// `kawaro drop --at X,Y`, global logical coordinates.
     pub at: Option<(f64, f64)>,
 }
 
@@ -194,7 +194,7 @@ pub(crate) fn probed(from: dnd::State, to: dnd::State, event: dnd::Event, cells:
         (_, dnd::Event::Tick) => Some("cap"),
         _ => return,
     };
-    if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+    if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
         crate::stderr_line(&match reason {
             Some(r) => format!("hive probe: hidden ({r})"),
             None => format!("hive reveal: {cells}"),
@@ -219,7 +219,7 @@ pub(crate) fn after_drawn(f: impl FnOnce() + 'static) {
 /// probe: hidden (replaced)` (S-022), any other nothing.
 pub(crate) fn replaced(reason: Option<&str>) {
     if let Some(r) = reason
-        && std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some()
+        && std::env::var_os("KAWARO_DEBUG_FOCUS").is_some()
     {
         crate::stderr_line(&format!("hive probe: hidden ({r})"));
     }
@@ -369,12 +369,12 @@ pub(crate) fn start() -> bool {
     true
 }
 
-/// The surface decision for the advertised globals, `SBARHIVE_SURFACE`,
+/// The surface decision for the advertised globals, `KAWARO_SURFACE`,
 /// `hive_surface` in config.toml (read again at every build) and the
 /// screen reader state (S-019 AC1).
 fn choice(flag: bool, reader: bool) -> (Surface, String) {
-    let forced = std::env::var("SBARHIVE_SURFACE").ok();
-    let config = sbarhive_core::config::Config::load().0.hive_surface;
+    let forced = std::env::var("KAWARO_SURFACE").ok();
+    let config = kawaro_core::config::Config::load().0.hive_surface;
     GLOBALS.with(|g| {
         let g = g.borrow();
         let names: Vec<&str> = g.iter().map(String::as_str).collect();
@@ -732,7 +732,7 @@ impl LayerAdapter {
     /// `plan_at`, prints the anchor and cells lines, and takes its size and
     /// position.
     fn plan_for(&self, anchor: Option<(f32, f32)>, screen: (u32, u32)) {
-        if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+        if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
             match anchor {
                 Some((x, y)) => crate::stderr_line(&format!("hive anchor: {x} {y}")),
                 None => crate::stderr_line("hive anchor: none"),
@@ -755,7 +755,7 @@ impl LayerAdapter {
                 self.scale120.get(),
             )
         });
-        if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+        if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
             let (cx, cy) = plan.layout.origin;
             crate::stderr_line(&format!("hive cells: {} {cx} {cy}", plan.cells.len()));
         }
@@ -879,7 +879,7 @@ impl LayerAdapter {
             Ev::Shift(down) => self.key(Key::Shift, down),
             Ev::Focus(f) => {
                 // Observation hook for tests/focus, as on the window path.
-                if std::env::var_os("SBARHIVE_DEBUG_FOCUS").is_some() {
+                if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
                     crate::stderr_line(&format!("hive focus: {f}"));
                 }
                 // Focus loss does not close the hive on this path (S-018,
@@ -964,7 +964,7 @@ impl LayerAdapter {
                 &catcher,
                 target.as_ref().map(|t| &t.0),
                 Layer::Overlay,
-                "sbarhive".into(),
+                "kawaro".into(),
                 qh,
                 (),
             );
@@ -1271,7 +1271,7 @@ impl WindowAdapter for LayerAdapter {
 }
 
 fn shm_buffer(shm: &WlShm, qh: &QueueHandle<Wl>, w: u32, h: u32, bytes: &[u8]) -> Option<WlBuffer> {
-    let fd = rustix::fs::memfd_create("sbarhive-hive", rustix::fs::MemfdFlags::CLOEXEC).ok()?;
+    let fd = rustix::fs::memfd_create("kawaro-hive", rustix::fs::MemfdFlags::CLOEXEC).ok()?;
     let mut file = std::fs::File::from(fd);
     file.write_all(bytes).ok()?;
     let pool: WlShmPool = shm.create_pool(file.as_fd(), bytes.len() as i32, qh, ());

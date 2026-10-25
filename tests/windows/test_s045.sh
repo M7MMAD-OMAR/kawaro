@@ -5,7 +5,7 @@
 set -u
 cd "$(dirname "$0")/../.." || exit 2
 REPO="$PWD"
-TARGET="${CARGO_TARGET_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target}"
+TARGET="${CARGO_TARGET_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target}"
 REL="$TARGET/x86_64-pc-windows-gnu/release"
 fails=0
 fail () { echo "FAIL: $*"; fails=$((fails + 1)); }
@@ -23,23 +23,23 @@ echo "== AC8: check.sh and build.sh"
 "$REPO/scripts/windows/build.sh" && ok "AC8 build.sh" || fail "AC8: build.sh"
 
 # AC1, AC4: the daemon exe exists and is a PE32+ executable.
-echo "== AC1/AC4: sbarhived.exe"
-if [ -f "$REL/sbarhived.exe" ]; then
-  file "$REL/sbarhived.exe" | grep -q 'PE32+ executable' && ok "PE32+" || fail "sbarhived.exe is not PE32+"
+echo "== AC1/AC4: kawarod.exe"
+if [ -f "$REL/kawarod.exe" ]; then
+  file "$REL/kawarod.exe" | grep -q 'PE32+ executable' && ok "PE32+" || fail "kawarod.exe is not PE32+"
 else
-  fail "AC1/AC4: $REL/sbarhived.exe does not exist"
+  fail "AC1/AC4: $REL/kawarod.exe does not exist"
 fi
 
 # AC5: subsystem GUI (2) for the daemon, console (3) for the CLI.
 echo "== AC5: subsystem"
 sub () { x86_64-w64-mingw32-objdump -p "$1" 2>/dev/null | awk '$1 == "Subsystem" {print $2}'; }
-[ "$(sub "$REL/sbarhived.exe")" = 00000002 ] && ok "daemon GUI" || fail "AC5: sbarhived.exe Subsystem is '$(sub "$REL/sbarhived.exe")', want 00000002"
-[ "$(sub "$REL/sbarhive.exe")" = 00000003 ] && ok "cli console" || fail "AC5: sbarhive.exe Subsystem is '$(sub "$REL/sbarhive.exe")', want 00000003"
+[ "$(sub "$REL/kawarod.exe")" = 00000002 ] && ok "daemon GUI" || fail "AC5: kawarod.exe Subsystem is '$(sub "$REL/kawarod.exe")', want 00000002"
+[ "$(sub "$REL/kawaro.exe")" = 00000003 ] && ok "cli console" || fail "AC5: kawaro.exe Subsystem is '$(sub "$REL/kawaro.exe")', want 00000003"
 
 # AC8: no lib*.dll import.
 echo "== AC8: check-dlls"
-out="$("$REPO/scripts/windows/check-dlls.sh" "$REL/sbarhived.exe" 2>&1)"
-echo "$out" | grep -Eq '^dll check: ok sbarhived\.exe [0-9]+ imports$' && ok "dll check" || fail "AC8: check-dlls said: $out"
+out="$("$REPO/scripts/windows/check-dlls.sh" "$REL/kawarod.exe" 2>&1)"
+echo "$out" | grep -Eq '^dll check: ok kawarod\.exe [0-9]+ imports$' && ok "dll check" || fail "AC8: check-dlls said: $out"
 
 # AC9: Cargo.lock package count unchanged (baseline 672, 673 since S-053a adds minisign-verify), ui diff is lib.rs only.
 echo "== AC9: lock and ui"

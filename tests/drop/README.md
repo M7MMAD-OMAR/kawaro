@@ -1,6 +1,6 @@
 # Drop tests (S-014)
 
-A file dragged from a file manager, `sbarhive drop` run while the drag is
+A file dragged from a file manager, `kawaro drop` run while the drag is
 still going (what the keyboard shortcut does), and the file dropped on a hive
 cell. ADR 0003 and the spike in `spikes/drop/` are the background.
 
@@ -39,7 +39,7 @@ git; `DROP_OUT=dir` changes it).
 
 ## What a run does (S-014b: AC5, AC6, AC7)
 
-The daemon starts with `WAYLAND_DEBUG=1` and `SBARHIVE_LANG=en`, with no
+The daemon starts with `WAYLAND_DEBUG=1` and `KAWARO_LANG=en`, with no
 warm-up show. `source.py` (GTK 4, offers copy and move like Dolphin and
 Nautilus) drags a copy of `tests/fixtures/images/alpha.png` in four shows:
 
@@ -61,7 +61,7 @@ names `text/uri-list` only.
 
 On KWin the hive is a layer surface (S-018): `kwin.sh` reads the hive's
 rectangle from the daemon's last `hive surface: layer X Y W H` line after the
-show's `get_layer_surface` (the daemon runs with `SBARHIVE_DEBUG_FOCUS=1`),
+show's `get_layer_surface` (the daemon runs with `KAWARO_DEBUG_FOCUS=1`),
 counts it shown while there are more `get_layer_surface` than
 `zwlr_layer_surface_v1.destroy` requests, and takes the show's new surface from
 `get_layer_surface`. In each show the drag stands still for at least 400 ms
@@ -75,7 +75,7 @@ there is no first frame to count from. It then runs the checks in `layer.sh`
 (S-018d AC13, revised by S-020 AC1 and AC2 and by S-019 AC8 and AC9) for each
 show: keyboard interactivity 0; the catcher's default input region until the
 first position (the first pointer or drag enter on it), then a region of exactly
-the hive rectangle; with `sbarhive drop --at X,Y` that rectangle before the
+the hive rectangle; with `kawaro drop --at X,Y` that rectangle before the
 catcher's first commit; with no position (the drag standing still, no `--at`,
 decision 12) that rectangle as the catcher's first region, with no enter on it
 before, at most 400 ms after the catcher's ready commit by the trace timestamps,
@@ -91,19 +91,19 @@ rectangle. GNOME stays on the window path (`get_xdg_surface`).
 show with no drag): its first and third shows are a held PNG drag; its second
 has no drag and a press with no motion, and must print `hive probe: hidden
 (pointer)` with one destroy within 500 ms of that enter and nothing drawn; its
-fourth is `sbarhive drop --at 640,400` with the pointer at (100, 700), where a
+fourth is `kawaro drop --at 640,400` with the pointer at (100, 700), where a
 click must reach the window below once, with no pointer enter on the catcher
 outside the hive and no button, while the catcher stays until its 10 s bound
 (`hidden (cap)`) and draws nothing.
 
 S-019d adds six shows to `kwin.sh` with the drag held at P (S-019 AC10 and
 the manager's decision 1): a 1 px drag motion around (400, 500) from before
-`sbarhive drop` (three shows, each anchored there and dropped on the WEBP
+`kawaro drop` (three shows, each anchored there and dropped on the WEBP
 cell, the hive at (204, 319)); the same around (100, 700); a drag standing
 still for 1 s and then moving to (400, 500), outside the centred hive
 (decision 12: `hive anchor: none` only, one `set_position` in the middle,
 and the drop on that hive's WEBP cell writes the file; a still hand is placed
-by `--at` only); and `sbarhive drop --at 400,500` with the drag
+by `--at` only); and `kawaro drop --at 400,500` with the drag
 still (anchored at once, one `set_position`, the file written).
 
 The WEBP cell is located from the shipped layout rule
@@ -114,17 +114,17 @@ ring 1, top right of the centre in the English layout.
 
 Both scripts add a fifth show: `tests/fixtures/docs/one-page.pdf` (a one page
 PDF written by hand) dragged in and dropped on a corner. Both run the daemon
-with `SBARHIVE_DEBUG_FOCUS=1`.
+with `KAWARO_DEBUG_FOCUS=1`.
 
 - AC8: the daemon prints one stderr line per enter of a drag into a drop-mode
   hive, once the cells for the entered files are known and before any drop:
   `drop cells: ID ID ...` (cell ids in cell order, one space apart). In every
-  show each such line must equal `sbarhive actions --json FILE` for that
+  show each such line must equal `kawaro actions --json FILE` for that
   show's file, run in the same sandbox, and there must be at least one. The
   PNG and PDF lists must be non-empty and differ.
 - AC9, AC10 (KWin only; the window path draws the same component, S-018 AC7):
-  the daemon runs with `SBARHIVE_COLOR_SCHEME=light` and
-  `SBARHIVE_REDUCED_MOTION=1`. In show 1, a ScreenShot2 shot is taken before
+  the daemon runs with `KAWARO_COLOR_SCHEME=light` and
+  `KAWARO_REDUCED_MOTION=1`. In show 1, a ScreenShot2 shot is taken before
   the drag enters and one while the drag is over the WEBP cell
   (`tests/overlay/shot.py`, started in the background because it writes its
   PNG only after 5 s). Since S-021 the layer path draws nothing before the
@@ -136,7 +136,7 @@ with `SBARHIVE_DEBUG_FOCUS=1`.
   compared (0.1 % of pixels or less, 8 levels) with
   `snapshots/drop-en-light-over.png`. The waiting text (AC10) is checked on
   the window path (S-021 question 4): after the long press cycles `kwin.sh`
-  restarts the daemon with `SBARHIVE_SURFACE=window`, holds a PNG drag still
+  restarts the daemon with `KAWARO_SURFACE=window`, holds a PNG drag still
   under the waiting hive, checks text-primary ink in the centre, no cell and
   no S-021 line, and compares the crop of the `hive surface: window`
   rectangle with `snapshots/drop-en-light-waiting.png`. A missing reference
@@ -147,13 +147,13 @@ with `SBARHIVE_DEBUG_FOCUS=1`.
 
 ## S-014d: the shortcut mid-drag (AC11, AC12)
 
-`kwin.sh shortcut` and `gnome.sh shortcut` never run `sbarhive drop`
+`kwin.sh shortcut` and `gnome.sh shortcut` never run `kawaro drop`
 themselves. Super+Z is bound inside the private compositor to a wrapper that
-writes one time line and execs `sbarhive drop`:
+writes one time line and execs `kawaro drop`:
 
 - KWin: a KDE custom command shortcut, as the docs describe it: a `.desktop`
   entry with `X-KDE-GlobalAccel-CommandShortcut=true` in the sandbox
-  `applications` folder and `[services][net.local.sbarhive-drop.desktop]
+  `applications` folder and `[services][net.local.kawaro-drop.desktop]
   _launch=Meta+Z` in `kglobalshortcutsrc`, launched by the kglobalacceld in
   KWin. Keys go through `org_kde_kwin_fake_input` (evdev 125 + 44, Esc 1).
 - GNOME: `global.display.grab_accelerator('<Super>z')` in the normal action
@@ -187,7 +187,7 @@ KDE and Hyprland binding sections in `docs/`, in Arabic and in English.
 ## S-019e and S-019f: the long press and the preview
 
 `kwin.sh` (level=1) adds, after the S-019d shows: show 12, where the drag moves
-LATE_MS (170 ms by default) after `sbarhive drop` returns, so its first enter on
+LATE_MS (170 ms by default) after `kawaro drop` returns, so its first enter on
 the catcher falls inside the 300 ms window of manager decision 12. Since S-021
 AC4 the daemon counts that window from the placement, and the check counts it
 from the catcher's ready commit (its first commit after its first configure,
@@ -198,7 +198,7 @@ held over the centre cell (200 or more pixels of the thumbnail's sky colour in
 the centre, `pixels.py rgbcount`); `preview_checks` (lib.sh) on every show: one
 `hive preview: ...` line per enter and none before it, `icon image` for a PNG,
 `icon pdf` for the PDF, `thumb W H` for the seeded one. Then the long press
-cycles, outside the per-show marks: `sbarhive drop --hold` held (no surface at
+cycles, outside the per-show marks: `kawaro drop --hold` held (no surface at
 350 ms, one by 550 ms; the release closes it within 500 ms), a tap (release at
 200 ms: no surface within 1000 ms), a drag over the WEBP cell that leaves and
 comes back while the key is held (decision 3: it stays), then the release
@@ -217,7 +217,7 @@ before S-021) is under 150 ms.
 ## S-021: the drop hive only for a drag of files with an action
 
 On the layer path a drop show binds a hidden catcher and draws the hive only
-once a drag of files with an action enters it. With `SBARHIVE_DEBUG_FOCUS` the
+once a drag of files with an action enters it. With `KAWARO_DEBUG_FOCUS` the
 daemon prints exactly one of these lines per drop show there: `hive reveal: N`
 (N the ids of the `drop cells:` line before it) or `hive probe: hidden (R)`, R
 one of `pointer`, `no-uri-list`, `no-actions`, `release`, `cap` and, since
@@ -247,11 +247,11 @@ and AC2 in `kwin.sh` (`hold_cycles`, after the hold-over show): a PNG drag,
 --release` there (the layer destroyed within 500 ms, the button let go in
 place writes no WEBP), then a second PNG drag whose enter must be read
 (`layer.sh` `again_checks`: one `drop cells:` line, `hive reveal: N` with N
-the `sbarhive actions` count, an `accept` naming a type, the WEBP written)
+the `kawaro actions` count, an `accept` naming a type, the WEBP written)
 and no protocol error. AC4 in `repro.sh`: a PNG drag rests 400 ms at the
 centre of a revealed hive; the `attach` requests on the hive subsurface in
 the 200 ms from its first (`attach_burst`) are 4 or more with motion and 1
-or 2 on a daemon with `SBARHIVE_REDUCED_MOTION=1`, and a normal show's count
+or 2 on a daemon with `KAWARO_REDUCED_MOTION=1`, and a normal show's count
 is an INFO line. AC6 in `kwin.sh`: the `over` and `thumb` shots start 300 ms
 or more after their show's first `attach` (`shot_times`). AC7 in both
 scripts: two `drop --at` shows with no drag, the second while the first
@@ -272,7 +272,7 @@ nothing is D-Bus activated and the real portal never starts. Phases: `ac13`
 (the call order, the BindShortcuts fields and the `portal shortcuts:` line,
 then a portal without Registry), `ac17` (the timed signals and the AC18 a
 and b shows), `ac19` (six fallback modes, 30 s each, and the remembered
-denial in `config.toml`) and `hold` (five `sbarhive open` shows while the
+denial in `config.toml`) and `hold` (five `kawaro open` shows while the
 BindShortcuts Response is held). `deps.sh` is AC14: the portal client
 dependency, one zbus, no tokio in the daemon, and a `docs/engines.md` row
 for every new package in `Cargo.lock`.
@@ -292,7 +292,7 @@ gnome-control-center's global shortcuts provider) and `kwin.sh` with
 xdg-desktop-portal-kde. Nothing changes for the live desktop: the private bus
 starts the services itself, with `XDG_CURRENT_DESKTOP` set before
 `dbus-run-session`, and the throwaway data directory gets the shipped
-`packaging/io.github.m7mmad_omar.SbarHive.desktop`. Checks: the portal process
+`packaging/io.github.m7mmad_omar.Kawaro.desktop`. Checks: the portal process
 is on this bus, the live desktop's portal PIDs are the same after the run, and
 no private portal process is left. The daemon's output goes through
 `real_portal.py stamp` (a UTC stamp per `portal` line) and `dbus-monitor`

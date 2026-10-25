@@ -49,7 +49,7 @@ fn ac5_a_file_named_open_after_the_command_is_a_path() {
 fn ac5_an_unknown_word_alone_is_an_unknown_argument() {
     assert_eq!(
         parse(&v(&["bogus"])),
-        Err("sbarhived: unknown argument `bogus`".to_string())
+        Err("kawarod: unknown argument `bogus`".to_string())
     );
 }
 
@@ -57,6 +57,6 @@ fn ac5_an_unknown_word_alone_is_an_unknown_argument() {
 fn ac5_an_unknown_word_with_files_is_not_open() {
     assert_eq!(
         parse(&v(&["bogus", "x"])),
-        Err("sbarhived: unknown argument `bogus`".to_string())
+        Err("kawarod: unknown argument `bogus`".to_string())
     );
 }

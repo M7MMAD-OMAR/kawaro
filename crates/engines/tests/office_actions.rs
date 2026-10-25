@@ -1,7 +1,7 @@
 //! actions/documents.toml parses and only names ops the office engine runs (S-009).
 
-use sbarhive_core::{ActionDef, Engine, MediaKind, OutputMode};
-use sbarhive_engines::office::OfficeEngine;
+use kawaro_core::{ActionDef, Engine, MediaKind, OutputMode};
+use kawaro_engines::office::OfficeEngine;
 
 #[derive(serde::Deserialize)]
 struct File {

@@ -13,7 +13,7 @@
 #     or .deb become entries, in input order; every other asset is ignored.
 #   - OUT_JSON is schema 1: schema, channel, version, published (UTC
 #     YYYY-MM-DDTHH:MM:SSZ), notes_url
-#     (https://github.com/M7MMAD-OMAR/sbarhive/releases/tag/v<VERSION>, DECISION),
+#     (https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v<VERSION>, DECISION),
 #     assets[] with exactly kind, os, arch, name, url, size, sha256.
 #   - exit codes: 0 ok; 2 bad usage or bad input (channel, version, JSON,
 #     size not a positive integer, missing assets.json, missing --dist dir);
@@ -26,10 +26,10 @@ set -u
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 S="$REPO_ROOT/scripts/make-update-manifest.sh"
 V="0.4.0-beta.1"
-BASE="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v$V"
-RPM="sbarhive-0.4.0~beta.1-1.x86_64.rpm"
-DEB="sbarhive_0.4.0~beta.1_amd64.deb"
-MSI="SbarHive-0.4.0-beta.1-x64.msi"
+BASE="https://github.com/M7MMAD-OMAR/kawaro/releases/download/v$V"
+RPM="kawaro-0.4.0~beta.1-1.x86_64.rpm"
+DEB="kawaro_0.4.0~beta.1_amd64.deb"
+MSI="Kawaro-0.4.0-beta.1-x64.msi"
 
 DIST="$TMP/dist"
 mkdir -p "$DIST"
@@ -64,7 +64,7 @@ check "AC1 top level keys are exactly the schema 1 keys" \
 check "AC1 schema is the number 1" test "$(j '.schema|type + ":" + tostring')" = "number:1"
 check "AC2 channel" test "$(j .channel)" = beta
 check "AC2 version" test "$(j .version)" = "$V"
-check "AC2 notes_url" test "$(j .notes_url)" = "https://github.com/M7MMAD-OMAR/sbarhive/releases/tag/v$V"
+check "AC2 notes_url" test "$(j .notes_url)" = "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v$V"
 check "AC2 published is UTC seconds" \
   test "$(j '.published|test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")')" = true
 check "AC1 exactly three entries (SHA256SUMS and .msi.minisig ignored)" test "$(j '.assets|length')" = 3
@@ -96,7 +96,7 @@ check "AC1 size is copied from the input, not measured" \
   test "$(jq -r '.assets[0].size' "$TMP/out/size.json" 2>/dev/null)" = 4242
 
 # a plain version on the beta channel is allowed; stable needs a plain version
-jq --arg b "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0" \
+jq --arg b "https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0" \
   '.assets|=map(.url|=sub("v0.4.0-beta.1";"v0.4.0"))' "$TMP/assets.json" > "$TMP/assets-plain.json"
 "$S" --dist "$DIST" stable 0.4.0 "$TMP/assets-plain.json" "$TMP/out/stable.json" >/dev/null 2>&1
 check "AC2 stable manifest for 0.4.0" \

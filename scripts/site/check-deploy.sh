@@ -35,8 +35,8 @@ for key in ("main", "account_id", "vars", "kv_namespaces", "r2_buckets", "d1_dat
         bad.append(f"wrangler.jsonc: forbidden key {key}")
 if cfg.get("workers_dev") is not False:
     bad.append("wrangler.jsonc: workers_dev must be false")
-if cfg.get("routes", []) not in ([], [{"pattern": "hive.sbarah.com", "custom_domain": True}]):
-    bad.append("wrangler.jsonc: routes must be the one hive.sbarah.com custom domain")
+if cfg.get("routes", []) not in ([], [{"pattern": "kawaro.sbarah.com", "custom_domain": True}]):
+    bad.append("wrangler.jsonc: routes must be the one kawaro.sbarah.com custom domain")
 for value in re.findall(r'"[^"]*"', json.dumps(cfg)):
     if re.search(r"[A-Fa-f0-9]{32}", value) or "token" in value.lower():
         bad.append(f"wrangler.jsonc: secret like value {value}")

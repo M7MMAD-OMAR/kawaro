@@ -44,7 +44,7 @@ Contrast ratio means the WCAG 2.1 relative luminance ratio, computed from `desig
 
 ## Review log
 - Tester (2026-10-25). Tests written from the acceptance criteria only; all fail before implementation.
-  - `crates/ui/tests/contrast.rs` (run: `cargo test -p sbarhive-ui --test contrast`; dev-dependency `serde_json` added to `crates/ui/Cargo.toml`, already in the tree). 11 tests, 11 failed:
+  - `crates/ui/tests/contrast.rs` (run: `cargo test -p kawaro-ui --test contrast`; dev-dependency `serde_json` added to `crates/ui/Cargo.toml`, already in the tree). 11 tests, 11 failed:
     - AC1: `color.light.hive-plate is missing` (all five colour tokens absent); `border-width.hex` is None, want Some(2); generated `tokens.slint` check stops on the same missing token.
     - AC2, AC3, AC4: `color.<scheme>.hex-ink / hive-edge is missing`.
     - AC5: `light: accent-ink #3A2500 vs accent #D9921A is 5.59:1, want >= 7:1`. Dark is 8.38:1. This is a real defect in today's tokens: the implementer must darken the light `accent-ink` (for example #1F1200 gives 7.06:1, #140C00 gives 7.46:1) or change `accent`.

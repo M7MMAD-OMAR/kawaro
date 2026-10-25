@@ -47,6 +47,6 @@ def on_activate(app):
     w.present()
 
 
-app = Gtk.Application(application_id="org.sbarhive.OverlayOther")
+app = Gtk.Application(application_id="org.kawaro.OverlayOther")
 app.connect("activate", on_activate)
 app.run([])

@@ -28,14 +28,14 @@ passed as the last argument.
 
 ## What a case does
 
-1. Starts the compositor, then `sbarhived` with `SBARHIVE_DEBUG_FOCUS=1`
+1. Starts the compositor, then `kawarod` with `KAWARO_DEBUG_FOCUS=1`
    (prints `hive focus: true|false` on the hive window's focus events) and
    `WAYLAND_DEBUG=1` (protocol trace, to see whether
    `xdg_activation_v1.activate(token, surface)` is sent).
-2. Warm-up: `sbarhive open` once and waits 10 s (the first show can be slow,
+2. Warm-up: `kawaro open` once and waits 10 s (the first show can be slow,
    ADR 0001 finding 8).
 3. Starts `client.py`, a GTK 4 window that stands in for the file manager.
-   It launches `sbarhive open` the way the Nautilus extension does:
+   It launches `kawaro open` the way the Nautilus extension does:
    `token` gets a real token from `Gdk.Display.get_app_launch_context()
    .get_startup_notify_id()`, `notoken` passes none, `bogus` passes a made-up
    token (control: a policy that honours tokens must reject it).
@@ -80,7 +80,7 @@ with the keyboard: select all, Shift+F10, then `NAUTILUS_MENU_KEYS` (default
 extensions installed on the system can open windows of their own (Nextcloud's
 setup wizard did); the script closes them first.
 
-Status (2026-10-20): the context menu opens with the SbarHive entry in it
+Status (2026-10-20): the context menu opens with the Kawaro entry in it
 (`out/gnome-smart-nautilus-menu.png`), but in two attempts the key sequence
 did not launch it, so this route is unverified. The `client.py` route uses the
 same token call as the extension.

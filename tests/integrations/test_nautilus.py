@@ -20,7 +20,7 @@ import textwrap
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MODULE = os.path.join(HERE, "..", "..", "integrations", "linux", "nautilus", "sbarhive.py")
+MODULE = os.path.join(HERE, "..", "..", "integrations", "linux", "nautilus", "kawaro.py")
 
 STUB_GI = {
     "gi/__init__.py": """
@@ -109,7 +109,7 @@ def check(cond, msg):
 
 
 def load_module():
-    spec = importlib.util.spec_from_file_location("sbarhive_nautilus", MODULE)
+    spec = importlib.util.spec_from_file_location("kawaro_nautilus", MODULE)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod
@@ -124,7 +124,7 @@ def run(mode):
         os.environ.pop(var, None)
 
     if mode == "stub":
-        stub = tempfile.mkdtemp(prefix="sbarhive-gi-stub.")
+        stub = tempfile.mkdtemp(prefix="kawaro-gi-stub.")
         atexit.register(shutil.rmtree, stub, True)
         for rel, body in STUB_GI.items():
             path = os.path.join(stub, rel)
@@ -152,7 +152,7 @@ def run(mode):
 
         check(("Nautilus", "4.0") in gi.REQUIRED, "fallback to Nautilus 4.0 not used")
 
-    provider = mod.SbarHiveMenuProvider()
+    provider = mod.KawaroMenuProvider()
 
     # AC2: local files give one item; nothing local gives no item.
     local = [FakeFile("file", "/tmp/a b.png"), FakeFile("sftp", None), FakeFile("file", "/tmp/c.pdf")]
@@ -167,12 +167,12 @@ def run(mode):
     check(len(provider.get_file_items(None, local)) == 1, "legacy (window, files) signature")
 
     # AC3: label follows the locale.
-    check(label_of(items[0]) == "SbarHive", f"English label: {label_of(items[0])!r}")
+    check(label_of(items[0]) == "Kawaro", f"English label: {label_of(items[0])!r}")
     os.environ["LANG"] = "ar_SY.UTF-8"
-    check(label_of(provider.get_file_items(local)[0]) == "صبار هايف", "Arabic label from LANG")
+    check(label_of(provider.get_file_items(local)[0]) == "كوارو", "Arabic label from LANG")
     os.environ["LANG"] = "en_US.UTF-8"
     os.environ["LANGUAGE"] = "ar:en"
-    check(label_of(provider.get_file_items(local)[0]) == "صبار هايف", "Arabic label from LANGUAGE")
+    check(label_of(provider.get_file_items(local)[0]) == "كوارو", "Arabic label from LANGUAGE")
     os.environ.pop("LANGUAGE")
 
     # AC4: argv and Popen options, with and without a token.
@@ -194,7 +194,7 @@ def run(mode):
 
     real_popen = mod.subprocess.Popen
     mod.subprocess.Popen = RecordingPopen
-    mod.SBARHIVE_BIN = "sbarhive"
+    mod.KAWARO_BIN = "kawaro"
     mod.activation_token = lambda: "TOK"
     item = provider.get_file_items([FakeFile("file", "a"), FakeFile("file", "b")])[0]
     item.emit("activate")
@@ -219,7 +219,7 @@ def run(mode):
     slow.write("#!/bin/sh\nsleep 5\n")
     slow.close()
     os.chmod(slow.name, 0o755)
-    mod.SBARHIVE_BIN = slow.name
+    mod.KAWARO_BIN = slow.name
     start = time.monotonic()
     proc = mod.launch(["x"])
     elapsed = time.monotonic() - start

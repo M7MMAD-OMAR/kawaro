@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 
-use sbarhive_ui::{Hive, HiveCell, Lang, thumb};
+use kawaro_ui::{Hive, HiveCell, Lang, thumb};
 use std::path::PathBuf;
 
 pub fn lang_from_args(args: &[String]) -> Lang {

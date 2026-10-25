@@ -4,7 +4,7 @@
 #
 # Contract (DECISION marks a gap in the story):
 #   - job `update-manifest`: needs: release; if (a ${{ }} wrapper is allowed)
-#     startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/sbarhive';
+#     startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/kawaro';
 #     environment: release-signing. No other job has an environment.
 #   - UPDATE_SIGNING_KEY and UPDATE_SIGNING_PASSWORD appear only in this job,
 #     and every `secrets.` reference in the file is the value of a key under
@@ -51,7 +51,7 @@ if job is None:
 ok("AC4 needs: release", job.get("needs") == "release")
 cond = re.sub(r"^\$\{\{\s*|\s*\}\}$", "", str(job.get("if", "")).strip())
 ok("AC4 if is the tag and repository condition",
-   cond == "startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/sbarhive'")
+   cond == "startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/kawaro'")
 ok("AC4 environment: release-signing", job.get("environment") == "release-signing")
 ok("AC4 no other job has an environment",
    all("environment" not in j for n, j in jobs.items() if n != "update-manifest"))
@@ -155,7 +155,7 @@ run_publish() { # run_publish TAG [EXISTS]  -> log in $TMP/log-TAG-EXISTS
   : > "$TMP/log-$tag-$ex"
   if [ -s "$TMP/publish.sh" ]; then
     (cd "$w" && PATH="$FAKE:$PATH" FAKE_LOG="$TMP/log-$tag-$ex" FAKE_UPDATES_EXISTS="$ex" \
-      GITHUB_REF_NAME="$tag" GITHUB_REF="refs/tags/$tag" GITHUB_REPOSITORY=M7MMAD-OMAR/sbarhive \
+      GITHUB_REF_NAME="$tag" GITHUB_REF="refs/tags/$tag" GITHUB_REPOSITORY=M7MMAD-OMAR/kawaro \
       GH_TOKEN=dummy bash -e "$TMP/publish.sh" >"$TMP/log-$tag-$ex.out" 2>&1)
   fi
   echo $? > "$TMP/rc-$tag-$ex"

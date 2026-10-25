@@ -133,8 +133,8 @@ fn s045_ac5_main_rs_starts_with_the_windows_subsystem_attribute() {
 fn s045_ac8_check_script_runs_daemon_and_ui_clippy() {
     let check = read("scripts/windows/check.sh");
     for want in [
-        "-p sbarhive-daemon",
-        "-p sbarhive-ui",
+        "-p kawaro-daemon",
+        "-p kawaro-ui",
         "--lib --bins",
         "-D warnings",
         "x86_64-pc-windows-gnu",
@@ -147,8 +147,8 @@ fn s045_ac8_check_script_runs_daemon_and_ui_clippy() {
 fn s045_ac8_build_script_builds_the_daemon_in_release() {
     let build = read("scripts/windows/build.sh");
     assert!(
-        build.contains("sbarhive-daemon") || build.contains("sbarhived"),
-        "build.sh must build sbarhived.exe"
+        build.contains("kawaro-daemon") || build.contains("kawarod"),
+        "build.sh must build kawarod.exe"
     );
 }
 

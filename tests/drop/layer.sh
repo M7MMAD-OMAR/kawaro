@@ -16,7 +16,7 @@
 #     last set_input_region on the catcher in the show is a region with
 #     exactly one add, equal to X Y W H of the show's last
 #     "hive surface: layer X Y W H" line (S-020 AC1: the hive rectangle).
-#     With AT=1 (`sbarhive drop --at X,Y`, decision 1) the position is
+#     With AT=1 (`kawaro drop --at X,Y`, decision 1) the position is
 #     known from the start: the last set_input_region on the catcher before
 #     its first commit is already that rectangle.
 #     With AT=still (manager decision 12: no position, the drag or pointer
@@ -265,7 +265,7 @@ layer_drop_show() {
 
 # S-021 (AC3, AC4, AC7): a drop show on the layer path binds a hidden
 # catcher and draws the hive only once a drag of files with an action has
-# entered it. With SBARHIVE_DEBUG_FOCUS the daemon prints on stderr, in the
+# entered it. With KAWARO_DEBUG_FOCUS the daemon prints on stderr, in the
 # same stream as the WAYLAND_DEBUG trace, exactly one of these lines per drop
 # show on the layer path (none on the window path, none for a tap that binds
 # nothing):
@@ -402,7 +402,7 @@ attach_burst() {
 
 # again_checks NAME SEG NACT WEBP (AC1, AC2): the drag after a `drop
 # --release` over a revealed hive. SEG is the new show's trace, NACT the
-# number of `sbarhive actions` lines for its file, WEBP the file its drop on
+# number of `kawaro actions` lines for its file, WEBP the file its drop on
 # the WEBP cell must write. Its enter is read: exactly one "drop cells:"
 # line, "hive reveal: N" with N = NACT, a wl_data_offer.accept that names a
 # type (not nil), and the WEBP written; plus probe_checks for the show.
@@ -412,8 +412,8 @@ again_checks() {
   acc=$(grep -cE -- '-> wl_data_offer[#@][0-9]+\.accept\([0-9]+, "' <<<"$seg")
   rn=$(grep -E '^hive reveal: [0-9]+$' <<<"$seg" | head -1 | grep -oE '[0-9]+$')
   mime=$(file --mime-type -b "$webp" 2>/dev/null)
-  echo "INFO S-022 $name: drop cells lines $ncl, hive reveal ${rn:-none} (sbarhive actions $nact), accept with a type $acc, $(basename "$webp") ${mime:-not written}"
-  check "S-022 $name: the new drag's enter is read: exactly one \"drop cells:\" line, \"hive reveal: N\" with N the $nact lines of \`sbarhive actions\`, and a wl_data_offer.accept that names a type" \
+  echo "INFO S-022 $name: drop cells lines $ncl, hive reveal ${rn:-none} (kawaro actions $nact), accept with a type $acc, $(basename "$webp") ${mime:-not written}"
+  check "S-022 $name: the new drag's enter is read: exactly one \"drop cells:\" line, \"hive reveal: N\" with N the $nact lines of \`kawaro actions\`, and a wl_data_offer.accept that names a type" \
     '[ "$ncl" -eq 1 ] && [ -n "$rn" ] && [ "$nact" -ge 1 ] && [ "$rn" -eq "$nact" ] && [ "$acc" -ge 1 ]'
   check "S-022 $name: dropped on the WEBP cell, $(basename "$webp") is written (image/webp)" '[ "$mime" = image/webp ]'
   probe_checks "S-022 $name" "$seg" reveal

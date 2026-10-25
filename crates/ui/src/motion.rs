@@ -2,7 +2,7 @@
 //! the `present` path.
 //!
 //! Sources, first decisive one wins:
-//! 1. `SBARHIVE_REDUCED_MOTION`: `1`, `true`, `yes`, `on` reduce; `0`,
+//! 1. `KAWARO_REDUCED_MOTION`: `1`, `true`, `yes`, `on` reduce; `0`,
 //!    `false`, `no`, `off` animate. Anything else is ignored.
 //! 2. KDE: `AnimationDurationFactor=0` in the `[KDE]` group of
 //!    `$XDG_CONFIG_HOME/kdeglobals` (a file read, no process).
@@ -58,7 +58,7 @@ pub fn decide(env: Option<bool>, kde: Option<bool>, gnome: Option<bool>) -> bool
 
 /// Reads the sources listed in the module comment. Blocking, call once.
 pub fn detect() -> bool {
-    let env = std::env::var("SBARHIVE_REDUCED_MOTION")
+    let env = std::env::var("KAWARO_REDUCED_MOTION")
         .ok()
         .and_then(|v| parse_env(&v));
     if env.is_some() {

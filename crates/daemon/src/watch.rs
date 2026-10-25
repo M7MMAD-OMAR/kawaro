@@ -1,10 +1,10 @@
 //! Reloads settings and user actions when their files change, so editing
-//! `config.toml` by hand needs no `sbarhive reload`. Polls file times every
+//! `config.toml` by hand needs no `kawaro reload`. Polls file times every
 //! two seconds: two small paths, no extra dependency.
 
 use crate::state::Shared;
-use sbarhive_core::config::Config;
-use sbarhive_core::queue::Queue;
+use kawaro_core::config::Config;
+use kawaro_core::queue::Queue;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};

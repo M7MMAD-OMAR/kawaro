@@ -3,11 +3,11 @@
 # real xdg-activation token from tests/focus/client.py, at focus stealing
 # prevention levels 1 (Low) and 4 (Extreme), and without one?
 # Modelled on tests/focus/kwin.sh. Per case one private kwin_wayland --virtual:
-# the daemon (SBARHIVE_DEBUG_FOCUS=1, WAYLAND_DEBUG=1) shows a warm-up hive,
+# the daemon (KAWARO_DEBUG_FOCUS=1, WAYLAND_DEBUG=1) shows a warm-up hive,
 # which is closed with Esc through org_kde_kwin_fake_input (the layer path
 # does not close on focus loss); then client.py takes focus. In the token
 # cases the client is maximized and one primary click is injected on it at
-# the screen centre 3 s after start, and it launches `sbarhive open` on the
+# the screen centre 3 s after start, and it launches `kawaro open` on the
 # release with a token carrying that click's serial, as a file manager does
 # after the user's click (KWin at level 4 accepts a token only if no
 # interaction is newer than its serial, src/activation.cpp:604). The other
@@ -19,7 +19,7 @@
 #   notoken and bogus at level 4, pointer still (S-013 AC4, S-027 AC3): the
 #     show is a layer surface, no wl_keyboard.enter on the catcher, no
 #     "hive focus: true", focus=false in the TABLE line; bogus still sends
-#     activate("sbarhive-bogus-token", <catcher>).
+#     activate("kawaro-bogus-token", <catcher>).
 #   notoken at levels 0 to 3 (S-027 AC4, hard checks): wl_keyboard.enter on
 #     the catcher within 500 ms of the show's get_layer_surface, and
 #     "hive focus: true".
@@ -47,7 +47,7 @@ for a in "$@"; do
 done
 [ ${#CASES[@]} -eq 0 ] && CASES=(0:notoken 1:token 1:notoken 2:notoken 3:notoken 4:token 4:notoken 4:bogus)
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${OVERLAY_OUT:-$HERE/out}"
 mkdir -p "$OUT"
@@ -55,7 +55,7 @@ export BIN HERE ROOT OUT INPUT
 
 inner() {
   set -u
-  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE SBARHIVE_SURFACE
+  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE KAWARO_SURFACE
   local log="$OUT/focus-l$LEVEL-$CASE"
   local FAILS=0
   check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
@@ -76,13 +76,13 @@ inner() {
   local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/b.png"
   local DLOG="$log-daemon.log"
-  SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$DLOG" 2>&1 &
   local d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
   # Warm-up show, so the measured show is not the slow first one (ADR 0001,
   # 8), closed with Esc; then a pause so the key does not count as recent
   # user activity for the client.
-  "$BIN/sbarhive" open "$W/b.png"; sleep 4
+  "$BIN/kawaro" open "$W/b.png"; sleep 4
   echo "keydown 1" >&3; echo "sleep 40" >&3; echo "keyup 1" >&3
   sleep 3
 
@@ -92,9 +92,9 @@ inner() {
   if [ "$click" = 1 ]; then
     # WAYLAND_DEBUG=client to a separate file: the click's serials and the
     # token's set_serial, without flooding the client log.
-    CLIENT_CLICK=1 CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" WAYLAND_DEBUG=client       python3 "$ROOT/tests/focus/client.py" "$W/b.png" >"$log-client.log" 2>"$log-client-wayland.log" &
+    CLIENT_CLICK=1 CLIENT_AUTO="$CASE" KAWARO="$BIN/kawaro" WAYLAND_DEBUG=client       python3 "$ROOT/tests/focus/client.py" "$W/b.png" >"$log-client.log" 2>"$log-client-wayland.log" &
   else
-    CLIENT_AUTO="$CASE" SBARHIVE="$BIN/sbarhive" python3 "$ROOT/tests/focus/client.py" "$W/b.png" >"$log-client.log" 2>&1 &
+    CLIENT_AUTO="$CASE" KAWARO="$BIN/kawaro" python3 "$ROOT/tests/focus/client.py" "$W/b.png" >"$log-client.log" 2>&1 &
   fi
   local client=$!
   if [ "$click" = 1 ]; then
@@ -185,13 +185,13 @@ inner() {
   esac
   [ "$esc_case" = 1 ] && check "S-027 AC5 level $LEVEL $CASE: Esc injected while client.py runs, and the layer surface's destroy follows within 1000 ms" \
     '[ "$client_alive" = yes ] && [ "$esc_dt" != none ] && [ "$esc_dt" -ge 0 ] && [ "$esc_dt" -le 1000 ]'
-  [ "$CASE" = bogus ] && check "AC10 level $LEVEL bogus: activate(\"sbarhive-bogus-token\", <catcher>) still sent" \
-    '[ -n "$cat" ] && grep -qF "activate(\"sbarhive-bogus-token\", $cat)" <<<"$acts"'
+  [ "$CASE" = bogus ] && check "AC10 level $LEVEL bogus: activate(\"kawaro-bogus-token\", <catcher>) still sent" \
+    '[ -n "$cat" ] && grep -qF "activate(\"kawaro-bogus-token\", $cat)" <<<"$acts"'
 
   if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 
   exec 3>&-
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   sleep 0.5
   kill $d 2>/dev/null
   kill $kwin 2>/dev/null

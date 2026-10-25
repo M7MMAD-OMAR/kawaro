@@ -1,11 +1,11 @@
 //! State shared between the socket server, the event pump, the tray and the hive.
 
-use sbarhive_core::config::{Config, OutputPlace};
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::ipc::{ActionSummary, Event, Response};
-use sbarhive_core::queue::JobId;
-use sbarhive_core::transport;
-use sbarhive_core::{ActionDef, Engine, MediaKind, Registry, media};
+use kawaro_core::config::{Config, OutputPlace};
+use kawaro_core::i18n::Lang;
+use kawaro_core::ipc::{ActionSummary, Event, Response};
+use kawaro_core::queue::JobId;
+use kawaro_core::transport;
+use kawaro_core::{ActionDef, Engine, MediaKind, Registry, media};
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -44,7 +44,7 @@ pub fn load_registry() -> Registry {
     if let Some(dir) = Config::actions_dir()
         && let Err(e) = reg.add_dir(&dir)
     {
-        eprintln!("sbarhived: ignoring user actions: {e}");
+        eprintln!("kawarod: ignoring user actions: {e}");
     }
     reg
 }
@@ -75,7 +75,7 @@ impl State {
             action.output.dir = if safe {
                 name.to_string()
             } else {
-                "SbarHive".into()
+                "Kawaro".into()
             };
         }
         self.config.apply_quality(&mut action.params);
@@ -86,7 +86,7 @@ impl State {
     pub fn reload(&mut self) {
         let (config, warning) = Config::load();
         if let Some(w) = warning {
-            eprintln!("sbarhived: settings: {w}");
+            eprintln!("kawarod: settings: {w}");
         }
         self.lang = config.lang();
         self.config = config;

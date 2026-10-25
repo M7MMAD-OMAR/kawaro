@@ -1,7 +1,7 @@
 //! actions/pdf.toml parses and only names ops the PDF engines run (S-010).
 
-use sbarhive_core::{ActionDef, Engine, MediaKind, OutputMode};
-use sbarhive_engines::pdf::{GhostscriptEngine, PdfEngine};
+use kawaro_core::{ActionDef, Engine, MediaKind, OutputMode};
+use kawaro_engines::pdf::{GhostscriptEngine, PdfEngine};
 
 #[derive(serde::Deserialize)]
 struct File {

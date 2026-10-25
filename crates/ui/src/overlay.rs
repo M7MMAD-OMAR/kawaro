@@ -6,7 +6,7 @@
 //!
 //! The maths follows `spikes/overlay/src/overlay.rs`.
 
-use sbarhive_core::config::HiveSurface;
+use kawaro_core::config::HiveSurface;
 use slint::platform::Key;
 
 /// Globals the layer path needs, all at once: the overlay itself, the hive
@@ -27,7 +27,7 @@ pub enum Surface {
 }
 
 /// Chooses the hive surface from the advertised `globals`. `forced` is the
-/// raw `SBARHIVE_SURFACE` value: `window` always wins, `layer` overrides the
+/// raw `KAWARO_SURFACE` value: `window` always wins, `layer` overrides the
 /// screen reader but still needs the globals, any other value is ignored.
 /// The second element is a log line for the caller to print.
 pub fn choose_surface(
@@ -48,7 +48,7 @@ pub fn choose_surface(
         Some("layer") => (
             Surface::Window,
             Some(format!(
-                "SBARHIVE_SURFACE=layer but the compositor lacks {}, using a window",
+                "KAWARO_SURFACE=layer but the compositor lacks {}, using a window",
                 missing.join(", ")
             )),
         ),
@@ -65,7 +65,7 @@ pub fn screen_reader_running(flag: bool, reader: bool, config: HiveSurface) -> b
 }
 
 /// The hive surface and the reason for it (S-019 AC1, AC2). `forced` is the
-/// raw `SBARHIVE_SURFACE` and beats everything as in [`choose_surface`];
+/// raw `KAWARO_SURFACE` and beats everything as in [`choose_surface`];
 /// then `hive_surface` from config.toml; then the screen reader rule.
 pub fn surface_choice(
     globals: &[&str],
@@ -85,8 +85,8 @@ pub fn surface_choice(
     // A forced layer without the globals falls through to the window with
     // what is missing.
     match forced {
-        Some("window") => return window("SBARHIVE_SURFACE window"),
-        Some("layer") if missing.is_empty() => return layer("SBARHIVE_SURFACE layer"),
+        Some("window") => return window("KAWARO_SURFACE window"),
+        Some("layer") if missing.is_empty() => return layer("KAWARO_SURFACE layer"),
         _ => {}
     }
     if config == HiveSurface::Window {
@@ -161,7 +161,7 @@ pub fn key_for_evdev(code: u32) -> Option<Key> {
     })
 }
 
-/// Dark or light: `env` is the raw `SBARHIVE_COLOR_SCHEME` and wins when it
+/// Dark or light: `env` is the raw `KAWARO_COLOR_SCHEME` and wins when it
 /// is `light` or `dark`; otherwise the portal `color-scheme` value, where 1
 /// is dark and 0, 2, absent or an error are light.
 pub fn scheme_is_dark(env: Option<&str>, portal: Option<u32>) -> bool {

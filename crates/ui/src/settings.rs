@@ -12,7 +12,7 @@
 //! are the only place that knows the order.
 
 use crate::Lang;
-use sbarhive_core::config::{
+use kawaro_core::config::{
     Config, HOLD_MS_DEFAULT, HiveSurface, LangSetting, OutputPlace, Quality, Theme,
 };
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
@@ -123,7 +123,7 @@ fn strings(lang: Lang) -> Strings {
     match lang {
         Lang::Ar => Strings {
             text: SettingsText {
-                title: "إعدادات صبار هايف".into(),
+                title: "إعدادات كوارو".into(),
                 language: "اللغة".into(),
                 theme: "المظهر".into(),
                 output: "مكان النتائج".into(),
@@ -142,7 +142,7 @@ fn strings(lang: Lang) -> Strings {
         },
         Lang::En => Strings {
             text: SettingsText {
-                title: "SbarHive settings".into(),
+                title: "Kawaro settings".into(),
                 language: "Language".into(),
                 theme: "Theme".into(),
                 output: "Where results go".into(),
@@ -162,7 +162,7 @@ fn strings(lang: Lang) -> Strings {
     }
 }
 
-/// Colour scheme the window is drawn in: `SBARHIVE_COLOR_SCHEME` first (as
+/// Colour scheme the window is drawn in: `KAWARO_COLOR_SCHEME` first (as
 /// for the hive), then the theme being edited. `None` follows the system.
 fn forced_scheme(env: Option<&str>, theme: Theme) -> Option<slint::language::ColorScheme> {
     use slint::language::ColorScheme;
@@ -302,7 +302,7 @@ impl SettingsWindow {
         let inner = &self.inner;
         inner.close();
         let ui = inner.new_ui()?;
-        let env = std::env::var("SBARHIVE_COLOR_SCHEME").ok();
+        let env = std::env::var("KAWARO_COLOR_SCHEME").ok();
         if let Some(scheme) = forced_scheme(env.as_deref(), config.theme) {
             ui.global::<Palette>().set_color_scheme(scheme);
         }
@@ -336,7 +336,7 @@ impl SettingsWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use sbarhive_core::config::HiveSurface;
+    use kawaro_core::config::HiveSurface;
     use slint::language::ColorScheme;
 
     fn every_config() -> Vec<Config> {
@@ -389,7 +389,7 @@ mod tests {
             theme: 0,
             output: 0,
             quality: 1,
-            folder: "SbarHive".into(),
+            folder: "Kawaro".into(),
             notify: true,
             open_folder: false,
             portal_shortcut: true,
@@ -546,7 +546,7 @@ mod tests {
         s.folder = "  out  ".into();
         assert_eq!(s.to_config(false).output_folder, "out");
         s.folder = "   ".into();
-        assert_eq!(s.to_config(false).output_folder, "SbarHive");
+        assert_eq!(s.to_config(false).output_folder, "Kawaro");
     }
 
     #[test]
@@ -593,8 +593,8 @@ mod tests {
                 assert!(!x.contains(['\u{2014}', '\u{2013}']), "{x}");
             }
         }
-        assert_eq!(strings(Lang::Ar).text.title, "إعدادات صبار هايف");
-        assert_eq!(strings(Lang::En).text.title, "SbarHive settings");
+        assert_eq!(strings(Lang::Ar).text.title, "إعدادات كوارو");
+        assert_eq!(strings(Lang::En).text.title, "Kawaro settings");
     }
 
     mod window {
@@ -678,7 +678,7 @@ mod tests {
             i_slint_backend_testing::init_no_event_loop();
             for text in ["hold_ms = 100\n", "hold_ms = 1500\n", "hold_ms = 2000\n"] {
                 let dir = std::env::temp_dir()
-                    .join(format!("sbarhive-s019e-settings-{}", std::process::id()));
+                    .join(format!("kawaro-s019e-settings-{}", std::process::id()));
                 std::fs::create_dir_all(&dir).unwrap();
                 let p = dir.join("config.toml");
                 std::fs::write(&p, text).unwrap();
@@ -895,7 +895,7 @@ mod tests {
             win.open(&start).unwrap();
             assert!(win.inner.visible());
             assert_eq!(win.inner.state(), FormState::from_config(&start, false));
-            assert_eq!(win.inner.ui.borrow().get_text().title, "SbarHive settings");
+            assert_eq!(win.inner.ui.borrow().get_text().title, "Kawaro settings");
             let folder = find(&win, "Folder name", AccessibleRole::TextInput);
             assert_eq!(
                 folder.accessible_enabled(),
@@ -938,7 +938,7 @@ mod tests {
             }
             assert_eq!(
                 folder.accessible_value().as_deref(),
-                Some("SbarHivex"),
+                Some("Kawarox"),
                 "focus is in the field"
             );
             key(&win, Key::Escape);
@@ -1025,7 +1025,7 @@ mod tests {
             // Arabic: lists mirrored, Save on the left of Cancel.
             let (ar, saved) = wired(Lang::Ar);
             ar.open(&Config::default()).unwrap();
-            assert_eq!(ar.inner.ui.borrow().get_text().title, "إعدادات صبار هايف");
+            assert_eq!(ar.inner.ui.borrow().get_text().title, "إعدادات كوارو");
             let save = find(&ar, "حفظ", AccessibleRole::Button);
             let cancel = find(&ar, "إلغاء", AccessibleRole::Button);
             assert!(save.absolute_position().x < cancel.absolute_position().x);

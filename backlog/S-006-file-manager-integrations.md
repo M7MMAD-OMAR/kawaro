@@ -1,18 +1,18 @@
-# S-006 إضافة «صبار هايف» إلى قوائم مديري الملفات واختصار Hyprland
+# S-006 إضافة «كوارو» إلى قوائم مديري الملفات واختصار Hyprland
 الحالة: منتهية
 
 ## القصة
-بصفتي مستخدماً على لينكس، أريد عنصراً واحداً باسم SbarHive في قائمة النقر اليمين في Dolphin وNautilus وNemo وThunar، واختصاراً في Hyprland،
+بصفتي مستخدماً على لينكس، أريد عنصراً واحداً باسم Kawaro في قائمة النقر اليمين في Dolphin وNautilus وNemo وThunar، واختصاراً في Hyprland،
 حتى أفتح الخلية للملفات المحددة دون أن أكتب أي أمر.
 
 ## معايير القبول
-- AC1 (Dolphin): الملف `integrations/linux/dolphin/sbarhive.desktop` فيه بالضبط: `Type=Service`، `X-KDE-ServiceTypes=KonqPopupMenu/Plugin`، `MimeType=all/allfiles;`، `X-KDE-Priority=TopLevel`، `Actions=sbarhive;`، وقسم إجراء واحد فيه `Name=SbarHive` و`Name[ar]=صبار هايف` و`Icon=sbarhive` و`Exec=sbarhive open -- %F`. وضع الملف في المستودع 0755.
-- AC2 (Nautilus): الوحدة `integrations/linux/nautilus/sbarhive.py` تُستورد بـ gi الحقيقي (Nautilus 4.1، أو 4.0 عند غيابه) وبـ gi بديل، و`get_file_items` تعيد عنصراً واحداً لملفات `file://`، وقائمة فارغة إذا لم يكن بين الملفات ملف محلي.
-- AC3 (Nautilus): تسمية العنصر `صبار هايف` عندما تبدأ اللغة (LANGUAGE ثم LC_ALL ثم LC_MESSAGES ثم LANG) بـ `ar`، و`SbarHive` في غير ذلك.
-- AC4 (Nautilus): تفعيل العنصر يشغّل بالضبط `sbarhive open --token TOK -- a b` عند توفر رمز، و`sbarhive open -- a b` عند غيابه، عبر `subprocess.Popen` بجلسة جديدة ومداخل ومخارج `/dev/null`، ويعود خلال أقل من 100 ملي ثانية حتى لو بقي الأمر يعمل 5 ثوانٍ.
-- AC5 (Nemo): `sbarhive.nemo_action` فيه `Selection=notnone` و`Extensions=any;` و`Exec=sbarhive open -- %F` و`Name[ar]=صبار هايف`.
-- AC6 (Thunar): `merge_uca.py add` يضيف إجراءً واحداً بـ `unique-id` يساوي `sbarhive`، وتشغيله مرتين يترك إجراءً واحداً وملفاً مطابقاً بايتاً ببايت. `remove` مرتين يحذفه ولا يغيّر الإجراءات الأخرى ولا التعليقات. ملف `uca.xml` تالف لا يُعاد كتابته ويعيد الأمر رمز خروج غير صفري.
-- AC7 (Hyprland): السكربت يستدعي `hyprctl dispatch sendshortcut CTRL,C,activewindow` ثم `sbarhive open --from-clipboard` بهذا الترتيب. الملف README بالعربية والإنكليزية يذكر سطر الربط بالفأرة وبديلاً من لوحة المفاتيح.
+- AC1 (Dolphin): الملف `integrations/linux/dolphin/kawaro.desktop` فيه بالضبط: `Type=Service`، `X-KDE-ServiceTypes=KonqPopupMenu/Plugin`، `MimeType=all/allfiles;`، `X-KDE-Priority=TopLevel`، `Actions=kawaro;`، وقسم إجراء واحد فيه `Name=Kawaro` و`Name[ar]=كوارو` و`Icon=kawaro` و`Exec=kawaro open -- %F`. وضع الملف في المستودع 0755.
+- AC2 (Nautilus): الوحدة `integrations/linux/nautilus/kawaro.py` تُستورد بـ gi الحقيقي (Nautilus 4.1، أو 4.0 عند غيابه) وبـ gi بديل، و`get_file_items` تعيد عنصراً واحداً لملفات `file://`، وقائمة فارغة إذا لم يكن بين الملفات ملف محلي.
+- AC3 (Nautilus): تسمية العنصر `كوارو` عندما تبدأ اللغة (LANGUAGE ثم LC_ALL ثم LC_MESSAGES ثم LANG) بـ `ar`، و`Kawaro` في غير ذلك.
+- AC4 (Nautilus): تفعيل العنصر يشغّل بالضبط `kawaro open --token TOK -- a b` عند توفر رمز، و`kawaro open -- a b` عند غيابه، عبر `subprocess.Popen` بجلسة جديدة ومداخل ومخارج `/dev/null`، ويعود خلال أقل من 100 ملي ثانية حتى لو بقي الأمر يعمل 5 ثوانٍ.
+- AC5 (Nemo): `kawaro.nemo_action` فيه `Selection=notnone` و`Extensions=any;` و`Exec=kawaro open -- %F` و`Name[ar]=كوارو`.
+- AC6 (Thunar): `merge_uca.py add` يضيف إجراءً واحداً بـ `unique-id` يساوي `kawaro`، وتشغيله مرتين يترك إجراءً واحداً وملفاً مطابقاً بايتاً ببايت. `remove` مرتين يحذفه ولا يغيّر الإجراءات الأخرى ولا التعليقات. ملف `uca.xml` تالف لا يُعاد كتابته ويعيد الأمر رمز خروج غير صفري.
+- AC7 (Hyprland): السكربت يستدعي `hyprctl dispatch sendshortcut CTRL,C,activewindow` ثم `kawaro open --from-clipboard` بهذا الترتيب. الملف README بالعربية والإنكليزية يذكر سطر الربط بالفأرة وبديلاً من لوحة المفاتيح.
 - AC8: لا يحتوي أي ملف في `integrations/linux/` على شرطة طويلة (U+2014) ولا متوسطة (U+2013)، و`shellcheck` نظيف على السكربتات.
 
 ## حالات الاختبار
@@ -24,11 +24,11 @@
 | AC4 | نفس الملف: استبدال `Popen` بمسجّل، ورمز `TOK` ثم `None`، ومقارنة argv والمعاملات، وأمر حقيقي `sleep 5` مع قياس الزمن | وحدة |
 | AC5 | `test_static.sh` يقرأ المفاتيح | وحدة |
 | AC6 | `tests/integrations/test_merge_uca.sh` على ملف في مجلد مؤقت فيه إجراء آخر وتعليق، add مرتين وremove مرتين وملف تالف | تكامل |
-| AC7 | `tests/integrations/test_hyprland.sh` مع `hyprctl` و`sbarhive` وهميين يسجلان الاستدعاءات في ملف | تكامل |
+| AC7 | `tests/integrations/test_hyprland.sh` مع `hyprctl` و`kawaro` وهميين يسجلان الاستدعاءات في ملف | تكامل |
 | AC8 | `test_static.sh`: grep للشرطات و`shellcheck` | وحدة |
 
 ## قرارات
-- الملفات المصدرية تكتب `sbarhive` كما في المواصفة. المثبّت يستبدله بالمسار المطلق `${PREFIX}/bin/sbarhive` لأن مدير الملفات الذي تطلقه الجلسة قد لا يملك `~/.local/bin` في PATH.
+- الملفات المصدرية تكتب `kawaro` كما في المواصفة. المثبّت يستبدله بالمسار المطلق `${PREFIX}/bin/kawaro` لأن مدير الملفات الذي تطلقه الجلسة قد لا يملك `~/.local/bin` في PATH.
 - Dolphin: لا نمرر `--token`. KDE يضع `XDG_ACTIVATION_TOKEN` في بيئة الأمر الذي يطلقه، والـ CLI يقرؤه عند غياب `--token` (docs/architecture.md، قسم CLI).
 - Dolphin: `all/allfiles` يغطي الملفات دون المجلدات، و`X-KDE-Protocols=file` يحصر العنصر في الملفات المحلية (المفتاح موجود في libKF6KIOWidgets). الثمن: لا يظهر العنصر للعناصر بمخطط غير `file`، مثل عرض `desktop:/` في Plasma. Dolphin على Hyprland لا يتأثر.
 - Thunar: إذا لم يوجد `~/.config/Thunar/uca.xml` نبدأ من `/etc/xdg/Thunar/uca.xml`، لأن ملف المستخدم يحل محل ملف النظام كاملاً، ولو بدأنا من ملف فارغ لاختفت إجراءات Thunar الافتراضية.

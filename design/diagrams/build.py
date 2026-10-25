@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Draw the SbarHive architecture diagrams as SVG, from design/tokens.json.
+"""Draw the Kawaro architecture diagrams as SVG, from design/tokens.json.
 
 Standard library only. Every colour comes from the tokens (light and dark
 schemes are two files), no shadows, no gradients. Each diagram is written in
@@ -98,13 +98,13 @@ def overview(lang):
     t = lambda en, ar: T(lang, en, ar)
     c.label(30, 34, t("Who talks to whom", "من يكلّم من"), "start", "head", 15)
     c.box(30, 56, 190, 74, [t("File manager", "مدير الملفات"), "Dolphin Nautilus", "Nemo Thunar Explorer"], size=14)
-    c.box(300, 56, 190, 74, ["sbarhive open", t("CLI, starts the daemon", "سطر الأوامر، يشغّل الخدمة")], mono=True, size=14)
+    c.box(300, 56, 190, 74, ["kawaro open", t("CLI, starts the daemon", "سطر الأوامر، يشغّل الخدمة")], mono=True, size=14)
     c.box(570, 56, 190, 74, [t("IPC", "قناة الاتصال"), t("Unix socket", "مقبس يونكس"), t("named pipe on Windows", "وفي ويندوز: أنبوب مسمّى")], size=14)
     c.arrow(220, 93, 300, 93)
     c.arrow(490, 93, 570, 93)
     # daemon zone
     c.add(f'<rect class="zone" x="{c.x(30, 900):.1f}" y="170" width="900" height="300" rx="16"/>')
-    c.label(50, 198, "sbarhived  (crates/daemon)  " + t("the only process with UI", "العملية الوحيدة التي تعرض واجهة"), "start", "head", 15)
+    c.label(50, 198, "kawarod  (crates/daemon)  " + t("the only process with UI", "العملية الوحيدة التي تعرض واجهة"), "start", "head", 15)
     c.box(60, 220, 250, 84, [t("Hive", "الخلية"), t("Slint, software renderer", "Slint بمصيّر برمجي"), "crates/ui"], size=14)
     c.box(350, 220, 250, 84, [t("Queue and events", "الطابور والأحداث"), t("cancel, progress, atomic rename", "إلغاء وتقدّم وتسمية ذرية"), "crates/core"], size=14)
     c.box(640, 220, 250, 84, [t("Tray and notifications", "الصينية والإشعارات"), t("progress in the tooltip", "التقدم في التلميح"), "crates/daemon"], size=14)
@@ -123,9 +123,9 @@ def overview(lang):
         c.box(60 + i * 290, 524, 250, 74, [name, note], cls="box2", size=15)
         c.arrow(475, 434, 185 + i * 290, 524, dashed=True)
     c.label(930, 626, t("Cancel kills every child and its whole tree", "الإلغاء يقتل كل ابن مع شجرته كاملة"), "end", "t2", 12)
-    return lambda s: c.svg(s, t("SbarHive processes", "عمليات صبار هايف"),
-                 t("A file manager entry calls sbarhive open, which sends a request over a local socket to the daemon. The daemon holds the hive, the queue, the tray, the action registry and the engines. Heavy tools run as separate child processes.",
-                   "إدخال مدير الملفات يستدعي sbarhive open فيرسل طلبا عبر مقبس محلي إلى الخدمة. تضم الخدمة الخلية والطابور والصينية وسجل الإجراءات والمحركات، وتعمل الأدوات الثقيلة كعمليات ابنة منفصلة."))
+    return lambda s: c.svg(s, t("Kawaro processes", "عمليات كوارو"),
+                 t("A file manager entry calls kawaro open, which sends a request over a local socket to the daemon. The daemon holds the hive, the queue, the tray, the action registry and the engines. Heavy tools run as separate child processes.",
+                   "إدخال مدير الملفات يستدعي kawaro open فيرسل طلبا عبر مقبس محلي إلى الخدمة. تضم الخدمة الخلية والطابور والصينية وسجل الإجراءات والمحركات، وتعمل الأدوات الثقيلة كعمليات ابنة منفصلة."))
 
 
 # ---------------------------------------------------------------------------
@@ -137,7 +137,7 @@ def flow(lang):
     t = lambda en, ar: T(lang, en, ar)
     steps = [
         (t("Select files", "حدّد الملفات"), t("in the file manager", "في مدير الملفات")),
-        (t("Right click", "انقر يمين"), "sbarhive open"),
+        (t("Right click", "انقر يمين"), "kawaro open"),
         (t("Filter actions", "تصفية الإجراءات"), t("kind, count, tools found", "النوع والعدد والأدوات")),
         (t("Show the hive", "اعرض الخلية"), t("only cells that fit", "ما يناسب فقط")),
         (t("Click a cell", "انقر خلية"), t("a job joins the queue", "تدخل مهمة الطابور")),
@@ -201,7 +201,7 @@ def surface(lang):
     c = Canvas(960, 480, lang == "ar")
     t = lambda en, ar: T(lang, en, ar)
     c.label(30, 34, t("Where the hive is drawn, chosen at every show", "أين تُرسم الخلية، يُحسم عند كل عرض"), "start", "head", 15)
-    c.box(30, 70, 250, 100, [t("Forced?", "هل فُرض؟"), "hive_surface", "SBARHIVE_SURFACE", t("yes: that path wins", "نعم: يغلب ذلك المسار")], mono=True, size=14)
+    c.box(30, 70, 250, 100, [t("Forced?", "هل فُرض؟"), "hive_surface", "KAWARO_SURFACE", t("yes: that path wins", "نعم: يغلب ذلك المسار")], mono=True, size=14)
     c.box(350, 70, 250, 100, [t("Wayland with four globals?", "ويلاند مع أربع واجهات؟"), "layer-shell, subcompositor", "viewporter, single-pixel-buffer"], size=13)
     c.box(670, 70, 250, 100, [t("Screen reader running?", "هل يعمل قارئ شاشة؟"), t("not just the flag", "لا العلَم وحده")], size=14)
     c.arrow(280, 120, 350, 120)
@@ -289,10 +289,10 @@ def hero(lang):
     tx = 730 if not rtl else 230
     anchor = "start" if not rtl else "end"
     tx = 520 if not rtl else 440
-    c.add(f'<text class="t" x="{tx + (0 if not rtl else 0)}" y="190" text-anchor="{anchor}" font-size="46" font-weight="600">{T(lang, "SbarHive", "صبار هايف")}</text>')
+    c.add(f'<text class="t" x="{tx + (0 if not rtl else 0)}" y="190" text-anchor="{anchor}" font-size="46" font-weight="600">{T(lang, "Kawaro", "كوارو")}</text>')
     c.add(f'<text class="t2" x="{tx}" y="232" text-anchor="{anchor}" font-size="19">{T(lang, "Select. Pick a cell.", "حدّد. اختر خلية.")}</text>')
     c.add(f'<text class="t2" x="{tx}" y="262" text-anchor="{anchor}" font-size="19">{T(lang, "The result lands beside the original.", "الناتج بجانب الأصل.")}</text>')
-    return lambda s: c.svg(s, T(lang, "The SbarHive hive for one image", "خلية صبار هايف لصورة واحدة"),
+    return lambda s: c.svg(s, T(lang, "The Kawaro hive for one image", "خلية كوارو لصورة واحدة"),
                  T(lang, "A pointy top hexagon hive: the centre cell names the selection, the first ring holds target formats, the second ring holds image actions.",
                    "خلية سداسية الرؤوس: الخلية المركزية تسمّي التحديد، والحلقة الأولى فيها صيغ الهدف، والثانية إجراءات الصورة."))
 

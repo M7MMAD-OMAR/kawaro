@@ -11,13 +11,13 @@
 //! - the `HKCU\` prefix of a `reg.exe` key becomes Root `1` and is cut off;
 //! - `/ve` (the default value) becomes an empty Name column;
 //! - `[INSTALLDIR]\` becomes `[INSTALLDIR]`, because the MSI property already
-//!   ends with a backslash (the literal of AC5 is `[INSTALLDIR]sbarhived.exe`).
+//!   ends with a backslash (the literal of AC5 is `[INSTALLDIR]kawarod.exe`).
 //!
 //! The AUMID key is taken from `install_commands`, not written here, so the
 //! test does not depend on `APP_ID` (S-049) and cannot drift from it.
 
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::registry::install_commands;
+use kawaro_core::i18n::Lang;
+use kawaro_core::registry::install_commands;
 
 type Row = Vec<String>;
 
@@ -81,18 +81,18 @@ fn ac5_every_s050_row_is_in_the_msi_registry_table() {
 #[ignore = "needs an MSI export, run by tests/windows/test_s051.sh"]
 fn ac5_the_literal_strings_of_the_acceptance_criterion() {
     let rows = registry_rows();
-    let shell = r"Software\Classes\*\shell\SbarHive";
+    let shell = r"Software\Classes\*\shell\Kawaro";
     assert_eq!(find(&rows, shell, "MultiSelectModel")[0][4], "Player");
     assert_eq!(
         find(&rows, &format!(r"{shell}\command"), "")[0][4],
-        r#""[INSTALLDIR]sbarhived.exe" open "%1""#
+        r#""[INSTALLDIR]kawarod.exe" open "%1""#
     );
     let aumid = install_commands("[INSTALLDIR]", Lang::En).unwrap()[4][1]
         .strip_prefix("HKCU\\")
         .unwrap()
         .to_string();
     assert!(aumid.starts_with(r"Software\Classes\AppUserModelId\"));
-    assert_eq!(find(&rows, &aumid, "DisplayName")[0][4], "SbarHive");
+    assert_eq!(find(&rows, &aumid, "DisplayName")[0][4], "Kawaro");
 }
 
 #[test]
@@ -102,11 +102,11 @@ fn ac5_run_value_starts_the_daemon_at_logon() {
     let hits = find(
         &rows,
         r"Software\Microsoft\Windows\CurrentVersion\Run",
-        "SbarHive",
+        "Kawaro",
     );
-    assert_eq!(hits.len(), 1, "one Run value named SbarHive (AC5)");
+    assert_eq!(hits.len(), 1, "one Run value named Kawaro (AC5)");
     assert_eq!(hits[0][1], "1", "Run value is under HKCU (AC5)");
-    assert_eq!(hits[0][4], r#""[INSTALLDIR]sbarhived.exe""#);
+    assert_eq!(hits[0][4], r#""[INSTALLDIR]kawarod.exe""#);
 }
 
 #[test]

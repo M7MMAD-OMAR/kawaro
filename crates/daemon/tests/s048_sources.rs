@@ -85,7 +85,7 @@ fn ac6_tray_loads_the_icon_from_the_exe_folder_with_loadfromfile() {
     let s = code_lines(&read("crates/daemon/src/tray/windows.rs"))
         + &code_lines(&read("crates/daemon/src/shell.rs"));
     assert!(s.contains("LR_LOADFROMFILE"));
-    assert!(s.contains("sbarhive.ico"));
+    assert!(s.contains("kawaro.ico"));
     assert!(s.contains("current_exe"));
 }
 
@@ -106,7 +106,7 @@ fn ico_sizes(bytes: &[u8]) -> Vec<(u32, u32)> {
 
 #[test]
 fn ac6_icon_is_a_windows_icon_with_16_32_and_48() {
-    let path = root().join("design/brand/sbarhive.ico");
+    let path = root().join("design/brand/kawaro.ico");
     let bytes =
         std::fs::read(&path).unwrap_or_else(|e| panic!("{} must exist: {e}", path.display()));
     let sizes = ico_sizes(&bytes);
@@ -124,7 +124,7 @@ fn ac6_icon_is_a_windows_icon_with_16_32_and_48() {
 #[test]
 fn ac6_file_reports_a_windows_icon_resource() {
     let out = Command::new("file")
-        .arg(root().join("design/brand/sbarhive.ico"))
+        .arg(root().join("design/brand/kawaro.ico"))
         .output()
         .expect("file(1) must be installed");
     let text = String::from_utf8_lossy(&out.stdout);
@@ -143,16 +143,16 @@ fn ac6_make_ico_regenerates_an_identical_file_twice() {
     let script = root().join("scripts/windows/make-ico.sh");
     let src = read("scripts/windows/make-ico.sh");
     assert!(src.starts_with("#!/usr/bin/env bash"));
-    assert!(src.contains("design/brand/sbarhive.svg"));
-    assert!(src.contains("sbarhive.ico"));
-    let ico = root().join("design/brand/sbarhive.ico");
+    assert!(src.contains("design/brand/kawaro.svg"));
+    assert!(src.contains("kawaro.ico"));
+    let ico = root().join("design/brand/kawaro.ico");
     let run = || {
         let st = Command::new("bash")
             .arg(&script)
             .status()
             .expect("bash must run");
         assert!(st.success(), "make-ico.sh exited with {st}");
-        std::fs::read(&ico).expect("the script writes design/brand/sbarhive.ico")
+        std::fs::read(&ico).expect("the script writes design/brand/kawaro.ico")
     };
     let first = run();
     let second = run();

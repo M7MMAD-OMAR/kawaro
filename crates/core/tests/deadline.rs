@@ -3,7 +3,7 @@
 //! pipe on Windows. Tested on Linux with a fake read.
 //!
 //! Contract (tester, from AC10; do not edit). In
-//! `sbarhive_core::transport::deadline` (`pub mod`, every platform):
+//! `kawaro_core::transport::deadline` (`pub mod`, every platform):
 //! `pub fn read_with_deadline<T, R, C>(timeout: Duration, read: R, cancel: C)
 //! -> std::io::Result<T>` where `R: FnOnce() -> std::io::Result<T>` runs on
 //! the calling thread and `C: FnOnce() + Send + 'static` is owned by the
@@ -18,7 +18,7 @@
 //!   never called, not even later.
 //! - On return no watcher is alive: it has ended and dropped `cancel`.
 
-use sbarhive_core::transport::deadline::read_with_deadline;
+use kawaro_core::transport::deadline::read_with_deadline;
 use std::io::{self, ErrorKind};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};

@@ -39,6 +39,6 @@ def on_activate(app):
     w.present()
 
 
-app = Gtk.Application(application_id="org.sbarhive.HyprKeys")
+app = Gtk.Application(application_id="org.kawaro.HyprKeys")
 app.connect("activate", on_activate)
 app.run([])

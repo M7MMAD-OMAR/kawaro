@@ -9,7 +9,7 @@ from gi.repository import Gtk
 def log(m):
     print(m, flush=True)
 
-app = Gtk.Application(application_id="org.sbarhive.OverlayOther")
+app = Gtk.Application(application_id="org.kawaro.OverlayOther")
 def on_activate(a):
     w = Gtk.ApplicationWindow(application=a, title="other window")
     w.set_child(Gtk.Label(label="other window"))

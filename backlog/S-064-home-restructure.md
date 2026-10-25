@@ -11,7 +11,7 @@ The owner judged the S-063 home page "very bad, complicated and trivial" and ask
 - Type stopped at 96 px semibold, so nothing on the page had the weight of the references the owner sent.
 
 ## Story
-As a visitor, I want to see the product working in the first screen and then read one clear idea per section, so that I understand what SbarHive does and how to get it without scrolling through empty space.
+As a visitor, I want to see the product working in the first screen and then read one clear idea per section, so that I understand what Kawaro does and how to get it without scrolling through empty space.
 
 ## Acceptance criteria
 - AC1 (structure): the home page has, in order: hero, conversion band, facts grid (`#why`), try it (`#sim`), formats (`#formats`), download (`#download`), open source and support (`#open`). Each section has exactly one `h2`, except the hero (one `h1`). No `#scene`, no `scene.js`, no `scene.css`.

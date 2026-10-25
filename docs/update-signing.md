@@ -1,20 +1,20 @@
 # Update signing
 
-How the SbarHive update feed is signed (ADR 0006, `docs/adr/0006-auto-update.md`).
+How the Kawaro update feed is signed (ADR 0006, `docs/adr/0006-auto-update.md`).
 Every release publishes a manifest (`stable.json`, `beta.json`) with a minisign
 signature, and the app only trusts a manifest signed by the key committed in
-`packaging/keys/sbarhive-update.pub`. Its key id is `FBABD7AD2ECE1452`.
+`packaging/keys/kawaro-update.pub`. Its key id is `FBABD7AD2ECE1452`.
 
 ## Generate the key
 
 Do this once, on a real machine you control, never in CI:
 
 ```
-minisign -G -p sbarhive-update.pub -s sbarhive-update.key
+minisign -G -p kawaro-update.pub -s kawaro-update.key
 ```
 
 Choose a strong passphrase when asked. Commit only the `.pub` file, as
-`packaging/keys/sbarhive-update.pub`. The key id is on its first line.
+`packaging/keys/kawaro-update.pub`. The key id is on its first line.
 
 ## Where the private key lives
 
@@ -30,7 +30,7 @@ The release job reads two GitHub secrets:
 - `UPDATE_SIGNING_PASSWORD`: its passphrase.
 
 Both are stored in the protected environment `release-signing` of
-`M7MMAD-OMAR/sbarhive`, so only the `update-manifest` job of a tag build in that
+`M7MMAD-OMAR/kawaro`, so only the `update-manifest` job of a tag build in that
 repository can read them, never a pull request or a fork. The job writes the
 key to a file with `umask 077`, signs with `scripts/sign-update-manifest.sh`
 (the passphrase goes to minisign on standard input) and deletes the file.
@@ -38,9 +38,9 @@ key to a file with `umask 077`, signs with `scripts/sign-update-manifest.sh`
 ## Rotation
 
 To rotate, generate a new pair, commit the new public key as
-`packaging/keys/sbarhive-update-next.pub` and ship a normal release: the app
+`packaging/keys/kawaro-update-next.pub` and ship a normal release: the app
 accepts a signature from either key. Once most users run that release, switch
-the secrets to the new key, replace `sbarhive-update.pub` with the new public
+the secrets to the new key, replace `kawaro-update.pub` with the new public
 key and remove the `next` file in a later release.
 
 ## If the key leaks

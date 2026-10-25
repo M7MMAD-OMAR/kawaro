@@ -2,8 +2,8 @@
 //! only use operations the FFmpeg engine declares.
 
 mod ffmpeg {
-    use sbarhive_core::{ActionDef, Engine, MediaKind, OutputMode};
-    use sbarhive_engines::ffmpeg::FfmpegEngine;
+    use kawaro_core::{ActionDef, Engine, MediaKind, OutputMode};
+    use kawaro_engines::ffmpeg::FfmpegEngine;
     use serde::Deserialize;
     use std::collections::HashSet;
     use std::path::PathBuf;

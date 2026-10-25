@@ -8,8 +8,8 @@
 # digits read as 0 to 9.
 #   AC22  integrations/linux/hyprland/README.md, in an Arabic and in an
 #         English section each: a hyprlang press bind that runs
-#         `sbarhive drop --hold` with the non consuming flag n (bindn...), a
-#         hyprlang release bind that runs `sbarhive drop --release` with the
+#         `kawaro drop --hold` with the non consuming flag n (bindn...), a
+#         hyprlang release bind that runs `kawaro drop --release` with the
 #         flags r, n and i (bindrni, bindnir...), a Lua `hl.bind(` that runs
 #         `drop --hold` and one that runs `drop --release` with
 #         `non_consuming = true`, the words
@@ -96,8 +96,8 @@ text = DIAC.sub("", open(sys.argv[1], encoding="utf-8").read()).translate(HAMZA)
 parts = re.split(r"(?m)^#{1,6} .*$", text)
 heads = re.findall(r"(?m)^#{1,6} .*$", text)
 KEYS = {
-    "press-hyprlang": re.compile(r"^\s*bind[a-z]*n[a-z]*\s*=.*\bexec\s*,.*\bsbarhive drop --hold\b", re.M),
-    "release-hyprlang": re.compile(r"^\s*bind(?=[a-z]*r)(?=[a-z]*n)(?=[a-z]*i)[a-z]*\s*=.*\bexec\s*,.*\bsbarhive drop --release\b", re.M),
+    "press-hyprlang": re.compile(r"^\s*bind[a-z]*n[a-z]*\s*=.*\bexec\s*,.*\bkawaro drop --hold\b", re.M),
+    "release-hyprlang": re.compile(r"^\s*bind(?=[a-z]*r)(?=[a-z]*n)(?=[a-z]*i)[a-z]*\s*=.*\bexec\s*,.*\bkawaro drop --release\b", re.M),
     "press-lua": re.compile(r"hl\.bind\(.{0,300}?\bdrop --hold\b", re.S),
     "release-lua": re.compile(r"hl\.bind\(.{0,300}?\bdrop --release\b[^{}]{0,40}\{[^}]*\bnon_consuming = true\b", re.S),
     "ignore_mods": re.compile(r"ignore_mods"),

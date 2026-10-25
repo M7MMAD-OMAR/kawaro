@@ -1,12 +1,12 @@
 @echo off
 rem Runs every Windows test program on this disc, one thread each, and
-rem writes the results outside the disc, in %USERPROFILE%\sbarhive-tests:
+rem writes the results outside the disc, in %USERPROFILE%\kawaro-tests:
 rem   results.txt  one line "<exe> <errorlevel>" per program, then
 rem                "total N failed F"
 rem   log.txt      the full output of every program
 setlocal EnableDelayedExpansion
 set "DISC=%~dp0"
-set "OUT=%USERPROFILE%\sbarhive-tests"
+set "OUT=%USERPROFILE%\kawaro-tests"
 if not exist "%OUT%" mkdir "%OUT%"
 set "RES=%OUT%\results.txt"
 set "LOG=%OUT%\log.txt"

@@ -29,6 +29,6 @@ def on_activate(app):
     print("source: shown", flush=True)
 
 
-app = Gtk.Application(application_id="dev.sbarhive.DragSource", flags=Gio.ApplicationFlags.NON_UNIQUE)
+app = Gtk.Application(application_id="dev.kawaro.DragSource", flags=Gio.ApplicationFlags.NON_UNIQUE)
 app.connect("activate", on_activate)
 app.run([])

@@ -21,16 +21,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use sbarhive_core::update::manifest::Manifest;
-use sbarhive_core::update::policy::{Decision, Platform, evaluate, select_asset};
-use sbarhive_core::update::verify::verify_manifest;
-use sbarhive_core::update::{Channel, UpdateError};
+use kawaro_core::update::manifest::Manifest;
+use kawaro_core::update::policy::{Decision, Platform, evaluate, select_asset};
+use kawaro_core::update::verify::verify_manifest;
+use kawaro_core::update::{Channel, UpdateError};
 
 const VERSION: &str = "0.4.0-beta.1";
-const BASE: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0-beta.1/";
-const RPM: &str = "sbarhive-0.4.0~beta.1-1.x86_64.rpm";
-const DEB: &str = "sbarhive_0.4.0~beta.1_amd64.deb";
-const MSI: &str = "SbarHive-0.4.0-beta.1-x64.msi";
+const BASE: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0-beta.1/";
+const RPM: &str = "kawaro-0.4.0~beta.1-1.x86_64.rpm";
+const DEB: &str = "kawaro_0.4.0~beta.1_amd64.deb";
+const MSI: &str = "Kawaro-0.4.0-beta.1-x64.msi";
 
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
@@ -156,7 +156,7 @@ fn ac3_signature_verifies_with_the_throwaway_key_only() {
     let sig = fs::read_to_string(&f.sig).expect("MANIFEST.minisig exists");
     assert_eq!(verify_manifest(&bytes, &sig, &[f.pubkey.as_str()]), Ok(()));
     // the committed release key must not verify a throwaway signature
-    let real = include_str!("../../../packaging/keys/sbarhive-update.pub");
+    let real = include_str!("../../../packaging/keys/kawaro-update.pub");
     assert_eq!(
         verify_manifest(&bytes, &sig, &[real]),
         Err(UpdateError::BadSignature)

@@ -3117,7 +3117,7 @@ dependencies = [
  "md-5",
  "png 0.17.16",
  "rustix 1.1.5",
- "sbarhive-ui",
+ "kawaro-ui",
  "slint",
  "slint-build",
  "wayland-client",
@@ -3738,7 +3738,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sbarhive-core"
+name = "kawaro-core"
 version = "0.2.2"
 dependencies = [
  "serde",
@@ -3748,11 +3748,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "sbarhive-ui"
+name = "kawaro-ui"
 version = "0.2.2"
 dependencies = [
  "rustix 1.1.5",
- "sbarhive-core",
+ "kawaro-core",
  "serde_json",
  "slint",
  "slint-build",

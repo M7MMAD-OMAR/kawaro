@@ -9,7 +9,7 @@
 
 use crate::locate::{self, Program};
 use crate::process::ProcessTree;
-use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
+use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
@@ -174,7 +174,7 @@ impl Engine for FfmpegEngine {
             });
         }
         let info = self.probe(input);
-        let ext = sbarhive_core::media::extension(&task.output);
+        let ext = kawaro_core::media::extension(&task.output);
         let codec_args = plan(&task.op, &ext, &params, &info, encoders)?;
         let args = command_args(input, &task.output, &ext, codec_args)?;
         let tree = ProcessTree::spawn(

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Kawaro daemon
+Name[ar]=خدمة كوارو
+Comment=Starts the Kawaro background service at login
+Comment[ar]=يشغّل خدمة كوارو الخلفية عند تسجيل الدخول
+Exec=kawarod
+Icon=kawaro
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-KDE-autostart-phase=2

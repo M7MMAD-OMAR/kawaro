@@ -15,7 +15,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 # shellcheck source=../no_portal.sh
 source "$ROOT/tests/no_portal.sh"
 BIN="${1:-$ROOT/target/release}"
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 # S-018 AC18: Esc closes the shown hive before the memory checks; on the layer
 # path focus loss no longer closes it. Input comes from fake input.
 INPUT="$ROOT/tests/drop/kwin-input/target/release/kwin-input"
@@ -40,25 +40,25 @@ inner() {
   ffmpeg -loglevel error -f lavfi -i testsrc=size=80x60:rate=1 -frames:v 1 "$W/b.jpg"
 
   # Auto-start: open with no daemon running must start one within 2 s.
-  check "open starts the daemon" '"$BIN/sbarhive" open "$W/b.jpg" && "$BIN/sbarhive" ping | grep -q pong'
-  "$BIN/sbarhive" quit >/dev/null 2>&1
-  for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/sbarhive.sock" ] || break; sleep 0.1; done
+  check "open starts the daemon" '"$BIN/kawaro" open "$W/b.jpg" && "$BIN/kawaro" ping | grep -q pong'
+  "$BIN/kawaro" quit >/dev/null 2>&1
+  for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/kawaro.sock" ] || break; sleep 0.1; done
 
   # S-014a AC4: drop with no daemon running must start one within 2 s, like open.
-  check "drop starts the daemon" '"$BIN/sbarhive" drop && "$BIN/sbarhive" ping | grep -q pong'
-  "$BIN/sbarhive" quit >/dev/null 2>&1
-  for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/sbarhive.sock" ] || break; sleep 0.1; done
+  check "drop starts the daemon" '"$BIN/kawaro" drop && "$BIN/kawaro" ping | grep -q pong'
+  "$BIN/kawaro" quit >/dev/null 2>&1
+  for _ in $(seq 30); do [ -S "$XDG_RUNTIME_DIR/kawaro.sock" ] || break; sleep 0.1; done
 
   # S-018 AC18: the hive surface and focus lines and the Wayland trace show
   # the hive as a layer and its close by Esc below.
-  SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$SANDBOX/daemon.log" 2>&1 &
+  KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$SANDBOX/daemon.log" 2>&1 &
   local d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
-  check "daemon answers ping" '"$BIN/sbarhive" ping | grep -q pong'
-  local inode; inode=$(stat -c %i "$XDG_RUNTIME_DIR/sbarhive.sock")
-  check "single instance" '"$BIN/sbarhived" 2>&1 | grep -q "already running"'
-  check "second instance leaves the socket alone" '[ "$(stat -c %i "$XDG_RUNTIME_DIR/sbarhive.sock")" = "$inode" ] && "$BIN/sbarhive" ping | grep -q pong'
-  notes() { grep -c "sbarhived: notify:" "$SANDBOX/daemon.log"; }
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  check "daemon answers ping" '"$BIN/kawaro" ping | grep -q pong'
+  local inode; inode=$(stat -c %i "$XDG_RUNTIME_DIR/kawaro.sock")
+  check "single instance" '"$BIN/kawarod" 2>&1 | grep -q "already running"'
+  check "second instance leaves the socket alone" '[ "$(stat -c %i "$XDG_RUNTIME_DIR/kawaro.sock")" = "$inode" ] && "$BIN/kawaro" ping | grep -q pong'
+  notes() { grep -c "kawarod: notify:" "$SANDBOX/daemon.log"; }
   rss_mb() { awk '/^VmRSS:/ {print int($2 / 1024)}' "/proc/$d/status"; }
   # S-001 AC2: the idle service stays within 40 MB.
   sleep 2
@@ -66,20 +66,20 @@ inner() {
   echo "INFO idle memory at start: ${rss0} MB"
   check "idle memory at start within 40 MB" '[ "$rss0" -le 40 ]'
 
-  check "actions listed for images" '"$BIN/sbarhive" actions "$W/b.jpg" | grep -q "image.to-webp\|webp"'
-  out=$("$BIN/sbarhive" run image.to-webp --wait "$W/sub dir/صورة 1.png" 2>&1)
+  check "actions listed for images" '"$BIN/kawaro" actions "$W/b.jpg" | grep -q "image.to-webp\|webp"'
+  out=$("$BIN/kawaro" run image.to-webp --wait "$W/sub dir/صورة 1.png" 2>&1)
   check "run --wait prints output path" '[ -f "$W/sub dir/صورة 1.webp" ] && grep -q "صورة 1.webp" <<<"$out"'
   check "output is WebP" '[ "$(head -c 4 "$W/sub dir/صورة 1.webp")" = RIFF ]'
   check "original untouched" '[ -f "$W/sub dir/صورة 1.png" ]'
-  "$BIN/sbarhive" run image.to-webp --wait "$W/sub dir/صورة 1.png" >/dev/null 2>&1
+  "$BIN/kawaro" run image.to-webp --wait "$W/sub dir/صورة 1.png" >/dev/null 2>&1
   check "second run does not overwrite" '[ -f "$W/sub dir/صورة 1 (1).webp" ]'
   check "no temp files left" '[ -z "$(find "$W" -name ".*" -type f)" ]'
 
-  pdf_id=$("$BIN/sbarhive" actions "$W/b.jpg" "$W/sub dir/صورة 1.png" | awk -F'\t' '$1 ~ /pdf/ {print $1; exit}')
-  [ -n "$pdf_id" ] && "$BIN/sbarhive" run "$pdf_id" --wait "$W/b.jpg" "$W/sub dir/صورة 1.png" >/dev/null 2>&1
+  pdf_id=$("$BIN/kawaro" actions "$W/b.jpg" "$W/sub dir/صورة 1.png" | awk -F'\t' '$1 ~ /pdf/ {print $1; exit}')
+  [ -n "$pdf_id" ] && "$BIN/kawaro" run "$pdf_id" --wait "$W/b.jpg" "$W/sub dir/صورة 1.png" >/dev/null 2>&1
   check "combined PDF from two images" '[ -n "$pdf_id" ] && ls "$W"/b*.pdf >/dev/null 2>&1 && [ "$(head -c 4 "$W"/b*.pdf)" = %PDF ]'
 
-  check "open shows the hive" '"$BIN/sbarhive" open "$W/b.jpg"'
+  check "open shows the hive" '"$BIN/kawaro" open "$W/b.jpg"'
   # S-018 AC18: close the hive explicitly, so the memory check below measures
   # the daemon after a hide. On KWin the hive is a layer surface (AC1) and
   # takes the keyboard (AC4), so Esc from fake input closes it (AC9).
@@ -102,39 +102,39 @@ inner() {
 
   # v0.2 engines through the daemon.
   ffmpeg -loglevel error -f lavfi -i testsrc=size=160x120:rate=10 -f lavfi -i sine=frequency=440 -t 1 -shortest "$W/clip.mp4"
-  "$BIN/sbarhive" run video.extract-mp3 --wait "$W/clip.mp4" >/dev/null 2>&1
+  "$BIN/kawaro" run video.extract-mp3 --wait "$W/clip.mp4" >/dev/null 2>&1
   check "video: extract audio to MP3" '[ -f "$W/clip.mp3" ] && ffprobe -v error -show_entries stream=codec_type -of csv=p=0 "$W/clip.mp3" | grep -qx audio'
-  check "video actions offered for mp4" '"$BIN/sbarhive" actions "$W/clip.mp4" | grep -q "^video.to-webm"'
+  check "video actions offered for mp4" '"$BIN/kawaro" actions "$W/clip.mp4" | grep -q "^video.to-webm"'
   cp "$W"/b*.pdf "$W/one.pdf"; cp "$W/one.pdf" "$W/two.pdf"
-  "$BIN/sbarhive" run pdf.merge --wait "$W/one.pdf" "$W/two.pdf" >/dev/null 2>&1
+  "$BIN/kawaro" run pdf.merge --wait "$W/one.pdf" "$W/two.pdf" >/dev/null 2>&1
   check "pdf: merge two files" 'ls "$W"/one*merged*.pdf >/dev/null 2>&1'
-  printf 'SbarHive e2e\nسطر عربي\n' >"$W/note.txt"
+  printf 'Kawaro e2e\nسطر عربي\n' >"$W/note.txt"
   if command -v soffice >/dev/null; then
-    timeout 120 "$BIN/sbarhive" run documents.to-pdf --wait "$W/note.txt" >/dev/null 2>&1
+    timeout 120 "$BIN/kawaro" run documents.to-pdf --wait "$W/note.txt" >/dev/null 2>&1
     check "documents: text to PDF" '[ "$(head -c 4 "$W/note.pdf" 2>/dev/null)" = %PDF ]'
   fi
   local n0; n0=$(notes)
-  check "open with no matching actions fails" '! "$BIN/sbarhive" open "$ROOT/LICENSE"'
+  check "open with no matching actions fails" '! "$BIN/kawaro" open "$ROOT/LICENSE"'
   check "and sends exactly one notification" '[ "$(notes)" -eq $((n0 + 1)) ]'
 
   n0=$(notes)
-  "$BIN/sbarhive" run image.to-png --wait "$W/b.jpg" >/dev/null 2>&1
+  "$BIN/kawaro" run image.to-png --wait "$W/b.jpg" >/dev/null 2>&1
   # The notification follows the Finished event the client waits for.
   for _ in $(seq 20); do [ "$(notes)" -gt "$n0" ] && break; sleep 0.1; done
   sleep 0.3
   check "a finished job sends one notification" '[ "$(notes)" -eq $((n0 + 1)) ]'
 
-  mkdir -p "$XDG_CONFIG_HOME/sbarhive"
-  printf 'notify = false\noutput = "subfolder"\noutput-folder = "out"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
-  # No `sbarhive reload`: the daemon notices the edited file by itself.
+  mkdir -p "$XDG_CONFIG_HOME/kawaro"
+  printf 'notify = false\noutput = "subfolder"\noutput-folder = "out"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
+  # No `kawaro reload`: the daemon notices the edited file by itself.
   sleep 3
   n0=$(notes)
-  "$BIN/sbarhive" run image.to-gif --wait "$W/b.jpg" >/dev/null 2>&1
+  "$BIN/kawaro" run image.to-gif --wait "$W/b.jpg" >/dev/null 2>&1
   check "edited settings apply without reload: output in out/" '[ -f "$W/out/b.gif" ] && [ ! -f "$W/b.gif" ]'
   sleep 1
   check "notify = false sends no notification" '[ "$(notes)" -eq "$n0" ]'
-  printf 'portal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"; "$BIN/sbarhive" reload
-  check "convert works without daemon" '"$BIN/sbarhive" convert --to png "$W/b.jpg" >/dev/null && [ -f "$W/b.png" ]'
+  printf 'portal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"; "$BIN/kawaro" reload
+  check "convert works without daemon" '"$BIN/kawaro" convert --to png "$W/b.jpg" >/dev/null && [ -f "$W/b.png" ]'
 
   sleep 2
   local rss1; rss1=$(rss_mb)
@@ -143,7 +143,7 @@ inner() {
 
   # S-018 AC27: 20 shows of one file whose only thumbnail is a 1024 px
   # "xx-large" one (written into the sandbox cache by tests/overlay/thumbs.py),
-  # each closed by Esc, then the memory again. With SBARHIVE_DEBUG_FOCUS the
+  # each closed by Esc, then the memory again. With KAWARO_DEBUG_FOCUS the
   # hive prints "hive preview: thumb W H" per show (the size handed to Slint).
   mkdir -p "$W/preview"
   ffmpeg -loglevel error -f lavfi -i testsrc=size=1024x1024:rate=1 -frames:v 1 "$W/preview/photo.png"
@@ -156,7 +156,7 @@ inner() {
   exec 4>"$pf"
   sleep 0.5
   for i in $(seq 20); do
-    "$BIN/sbarhive" open "$W/preview/photo.png" || break
+    "$BIN/kawaro" open "$W/preview/photo.png" || break
     for _ in $(seq 30); do [ "$(layers)" -ge $((l0 + i)) ] && break; sleep 0.1; done
     sleep 0.3
     echo "keydown 1" >&4; echo "sleep 40" >&4; echo "keyup 1" >&4
@@ -174,11 +174,11 @@ inner() {
   echo "INFO memory after 20 preview shows: ${rss2} MB"
   check "S-018 AC27: memory after 20 preview shows within 40 MB" '[ "$rss2" -le 40 ]'
   # After the idle measurement: the settings window stays open until closed.
-  check "settings opens from the launcher command" '"$BIN/sbarhive" settings && sleep 0.5 && ! grep -q "cannot .*settings" "$SANDBOX/daemon.log"'
+  check "settings opens from the launcher command" '"$BIN/kawaro" settings && sleep 0.5 && ! grep -q "cannot .*settings" "$SANDBOX/daemon.log"'
 
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   for _ in $(seq 30); do kill -0 $d 2>/dev/null || break; sleep 0.1; done
-  check "quit stops the daemon and removes the socket" '! kill -0 $d 2>/dev/null && [ ! -S "$XDG_RUNTIME_DIR/sbarhive.sock" ]'
+  check "quit stops the daemon and removes the socket" '! kill -0 $d 2>/dev/null && [ ! -S "$XDG_RUNTIME_DIR/kawaro.sock" ]'
   kill $d 2>/dev/null
   kill $kwin 2>/dev/null
   timeout 5 tail --pid=$kwin -f /dev/null || kill -9 $kwin
@@ -193,17 +193,17 @@ rss_inner() {
   unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP
   local fail=0
   check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; fail=1; fi; }
-  mkdir -p "$XDG_CONFIG_HOME/sbarhive/actions"
+  mkdir -p "$XDG_CONFIG_HOME/kawaro/actions"
   cat >"$XDG_CONFIG_HOME/kwinoutputconfig.json" <<'JSON'
 [{"name": "outputs", "data": [{"connectorName": "Virtual-0", "mode": {"width": 1920, "height": 1200, "refreshRate": 60000}, "scale": 1.5, "transform": "Normal"}]},
  {"name": "setups", "data": [{"lidClosed": false, "outputs": [{"enabled": true, "outputIndex": 0, "position": {"x": 0, "y": 0}, "priority": 0}]}]}]
 JSON
-  printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+  printf 'language = "en"\ntheme = "light"\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
   local xa
   for xa in xa xb xc; do
     printf '[[action]]\nid = "extra.%s"\nengine = "image"\nop = "convert"\nring = 1\norder = 900\naccepts = ["image"]\noutput = { mode = "per-file", ext = "webp" }\ncode = { ar = "%s", en = "%s" }\nlabel = { ar = "%s", en = "%s" }\nicon = "image"\n\n' \
       "$xa" "${xa^^}" "${xa^^}" "${xa^^}" "${xa^^}"
-  done >"$XDG_CONFIG_HOME/sbarhive/actions/extra.toml"
+  done >"$XDG_CONFIG_HOME/kawaro/actions/extra.toml"
   kwin_wayland --virtual --socket "$WAYLAND_DISPLAY" --width 1920 --height 1200 >"$SANDBOX/kwin-rss.log" 2>&1 &
   local kwin=$!
   for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
@@ -211,10 +211,10 @@ JSON
   local W="$SANDBOX/work-rss"; mkdir -p "$W"
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo.png"
   local log="$SANDBOX/daemon-rss.log"
-  SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$log" 2>&1 &
+  KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$log" 2>&1 &
   local d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
-  local nact; nact=$("$BIN/sbarhive" actions "$W/photo.png" 2>/dev/null | grep -c .)
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  local nact; nact=$("$BIN/kawaro" actions "$W/photo.png" 2>/dev/null | grep -c .)
   check "S-019 AC7 setup: photo.png has 18 actions" '[ "$nact" -eq 18 ]'
   local inf="$XDG_RUNTIME_DIR/in-rss"; mkfifo "$inf"
   "$INPUT" <"$inf" >"$SANDBOX/input-rss.log" 2>&1 &
@@ -228,7 +228,7 @@ JSON
   local l0 c0 shows=0 i
   l0=$(layers); c0=$(closes)
   for i in $(seq 20); do
-    "$BIN/sbarhive" open "$W/photo.png" || break
+    "$BIN/kawaro" open "$W/photo.png" || break
     for _ in $(seq 30); do [ "$(layers)" -ge $((l0 + i)) ] && break; sleep 0.1; done
     sleep 0.3
     echo "keydown 1" >&3; echo "sleep 40" >&3; echo "keyup 1" >&3
@@ -252,7 +252,7 @@ JSON
   local rss; rss=$(awk '/^VmRSS:/ {print int($2 / 1024)}' "/proc/$d/status")
   echo "INFO S-019 AC7: memory after 20 shows of the largest hive at scale 1.5: ${rss} MB"
   check "S-019 AC7: memory after 20 shows of the largest hive within 40 MB" '[ -n "$rss" ] && [ "$rss" -le 40 ]'
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   for _ in $(seq 30); do kill -0 $d 2>/dev/null || break; sleep 0.1; done
   kill $d $ip 2>/dev/null
   kill $kwin 2>/dev/null

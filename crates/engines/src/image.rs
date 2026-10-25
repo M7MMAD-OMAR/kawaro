@@ -12,7 +12,7 @@ mod pdf;
 
 use encode::Target;
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, imageops::FilterType};
-use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
+use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Cursor;
 use std::path::Path;
 

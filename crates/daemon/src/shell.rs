@@ -10,10 +10,10 @@ use crate::shell_logic::{
 };
 use crate::state::{Shared, lock};
 use crate::tray::windows::{self as tray, WM_REFRESH};
-use sbarhive_core::hotkey::{self, Hotkey};
-use sbarhive_core::ipc::Request;
-use sbarhive_core::queue::Queue;
-use sbarhive_core::{hold, win::wide};
+use kawaro_core::hotkey::{self, Hotkey};
+use kawaro_core::ipc::Request;
+use kawaro_core::queue::Queue;
+use kawaro_core::{hold, win::wide};
 use std::cell::{OnceCell, RefCell};
 use std::sync::Arc;
 use std::time::Instant;
@@ -64,7 +64,7 @@ fn run(queue: Arc<Queue>, state: Shared, ready: std::sync::mpsc::Sender<Result<i
     let shortcut = lock(&state).config.shortcut.clone();
     unsafe {
         let hinst = GetModuleHandleW(std::ptr::null());
-        let class = wide("SbarHiveShell");
+        let class = wide("KawaroShell");
         let wc = WNDCLASSEXW {
             cbSize: std::mem::size_of::<WNDCLASSEXW>() as u32,
             lpfnWndProc: Some(window_proc),
@@ -92,7 +92,7 @@ fn run(queue: Arc<Queue>, state: Shared, ready: std::sync::mpsc::Sender<Result<i
         let hwnd = CreateWindowExW(
             0,
             class.as_ptr(),
-            wide("SbarHive").as_ptr(),
+            wide("Kawaro").as_ptr(),
             0,
             0,
             0,
@@ -124,7 +124,7 @@ unsafe fn register_shortcut(hwnd: HWND, shortcut: &str, parsed: Result<Hotkey, S
     let ok = match parsed {
         Ok(h) => unsafe { RegisterHotKey(hwnd, HOTKEY_ID, MOD_NOREPEAT | h.mods, h.vk) != 0 },
         Err(e) => {
-            eprintln!("sbarhived: shortcut {shortcut}: {e}");
+            eprintln!("kawarod: shortcut {shortcut}: {e}");
             false
         }
     };
@@ -159,7 +159,7 @@ unsafe extern "system" fn window_proc(
         WM_REFRESH => notify_icon(hwnd, NIM_MODIFY),
         tray::WM_TRAY if lparam as u32 == WM_RBUTTONUP => show_menu(hwnd),
         WM_HOTKEY => {
-            // The same as `sbarhive drop --hold`: the long press gate shows
+            // The same as `kawaro drop --hold`: the long press gate shows
             // the hive after hold_ms; the release comes from the poll below.
             let press = Request::Drop {
                 token: None,
@@ -264,6 +264,6 @@ pub fn icon_data(hwnd: HWND) -> NOTIFYICONDATAW {
 pub fn notify_icon(hwnd: HWND, action: u32) {
     let nid = icon_data(hwnd);
     if unsafe { Shell_NotifyIconW(action, &nid) } == 0 && action == NIM_ADD {
-        eprintln!("sbarhived: no tray icon");
+        eprintln!("kawarod: no tray icon");
     }
 }

@@ -4,10 +4,10 @@
 //! live session bus only and is covered by tests/drop/portal.sh.
 
 use crate::portal::{self, Reason, Reload, TokenStep};
-use sbarhive_core::hold::{self, Signal};
-use sbarhive_core::i18n::Lang;
+use kawaro_core::hold::{self, Signal};
+use kawaro_core::i18n::Lang;
 
-const OURS: &str = "/org/freedesktop/portal/desktop/session/1_42/sbarhive";
+const OURS: &str = "/org/freedesktop/portal/desktop/session/1_42/kawaro";
 const OTHER: &str = "/org/freedesktop/portal/desktop/session/1_42/other";
 
 fn arabic(c: char) -> bool {
@@ -16,8 +16,8 @@ fn arabic(c: char) -> bool {
 
 #[test]
 fn ac13_registers_as_the_desktop_file_id() {
-    // packaging/io.github.m7mmad_omar.SbarHive.desktop
-    assert_eq!(portal::APP_ID, "io.github.m7mmad_omar.SbarHive");
+    // packaging/io.github.m7mmad_omar.Kawaro.desktop
+    assert_eq!(portal::APP_ID, "io.github.m7mmad_omar.Kawaro");
 }
 
 #[test]

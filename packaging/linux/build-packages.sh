@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Builds sbarhive-VERSION-1.x86_64.rpm and sbarhive_VERSION_amd64.deb from
+# Builds kawaro-VERSION-1.x86_64.rpm and kawaro_VERSION_amd64.deb from
 # release binaries. Needs rpmbuild and dpkg-deb.
 #
 #   packaging/linux/build-packages.sh BIN_DIR OUT_DIR
@@ -21,21 +21,21 @@ trap 'rm -rf "$WORK"' EXIT
 "$ROOT/packaging/linux/stage.sh" "$BIN_DIR" "$WORK/stage"
 
 # RPM
-rpmbuild -bb "$ROOT/packaging/linux/sbarhive.spec" \
+rpmbuild -bb "$ROOT/packaging/linux/kawaro.spec" \
   --define "_topdir $WORK/rpm" \
   --define "pkg_version $VERSION" \
   --define "stage $WORK/stage" >/dev/null 2>"$WORK/rpmbuild.log" || { cat "$WORK/rpmbuild.log"; exit 1; }
-cp "$WORK"/rpm/RPMS/x86_64/sbarhive-"$VERSION"-1*.rpm "$OUT/sbarhive-$VERSION-1.x86_64.rpm"
+cp "$WORK"/rpm/RPMS/x86_64/kawaro-"$VERSION"-1*.rpm "$OUT/kawaro-$VERSION-1.x86_64.rpm"
 
 # DEB
 D="$WORK/deb"
 cp -a "$WORK/stage" "$D"
-mkdir -p "$D/DEBIAN" "$D/usr/share/doc/sbarhive"
-mv "$D/usr/share/licenses/sbarhive/LICENSE" "$D/usr/share/doc/sbarhive/copyright"
+mkdir -p "$D/DEBIAN" "$D/usr/share/doc/kawaro"
+mv "$D/usr/share/licenses/kawaro/LICENSE" "$D/usr/share/doc/kawaro/copyright"
 rm -r "$D/usr/share/licenses"
-GLIBC="$(objdump -T "$BIN_DIR/sbarhived" "$BIN_DIR/sbarhive" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -Vu | tail -1)"
+GLIBC="$(objdump -T "$BIN_DIR/kawarod" "$BIN_DIR/kawaro" | grep -o 'GLIBC_[0-9.]*' | sed 's/GLIBC_//' | sort -Vu | tail -1)"
 cat > "$D/DEBIAN/control" <<CONTROL
-Package: sbarhive
+Package: kawaro
 Version: $VERSION
 Architecture: amd64
 Maintainer: MUHMAD HAJ HMDO <73592103+M7MMAD-OMAR@users.noreply.github.com>
@@ -45,10 +45,10 @@ Recommends: ffmpeg, ghostscript, libreoffice-writer | libreoffice-core, wl-clipb
 Suggests: python3-nautilus
 Section: utils
 Priority: optional
-Homepage: https://github.com/M7MMAD-OMAR/sbarhive
+Homepage: https://github.com/M7MMAD-OMAR/kawaro
 Description: Local file converter with a honeycomb picker in your file manager
- SbarHive converts and processes files entirely on your machine. Select
- files in Dolphin, Nautilus or Nemo, choose SbarHive from the right-click
+ Kawaro converts and processes files entirely on your machine. Select
+ files in Dolphin, Nautilus or Nemo, choose Kawaro from the right-click
  menu, and pick an action from the hexagonal hive. The result is saved next
  to the original, which is never modified. Arabic and English.
 CONTROL
@@ -56,17 +56,17 @@ cat > "$D/DEBIAN/postinst" <<'SCRIPT'
 #!/bin/sh
 set -e
 if [ "$1" = configure ]; then
-  systemctl --global enable sbarhive.service >/dev/null 2>&1 || true
+  systemctl --global enable kawaro.service >/dev/null 2>&1 || true
 fi
 SCRIPT
 cat > "$D/DEBIAN/prerm" <<'SCRIPT'
 #!/bin/sh
 set -e
 if [ "$1" = remove ]; then
-  systemctl --global disable sbarhive.service >/dev/null 2>&1 || true
+  systemctl --global disable kawaro.service >/dev/null 2>&1 || true
 fi
 SCRIPT
 chmod 755 "$D/DEBIAN/postinst" "$D/DEBIAN/prerm"
-dpkg-deb --root-owner-group --build "$D" "$OUT/sbarhive_${VERSION}_amd64.deb" >/dev/null
+dpkg-deb --root-owner-group --build "$D" "$OUT/kawaro_${VERSION}_amd64.deb" >/dev/null
 
 ls -l "$OUT"

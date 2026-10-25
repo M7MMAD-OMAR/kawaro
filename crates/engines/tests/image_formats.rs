@@ -5,7 +5,7 @@ mod image_common;
 use image_common::*;
 
 use image::GenericImageView;
-use sbarhive_core::EngineError;
+use kawaro_core::EngineError;
 use tempfile::tempdir;
 
 fn magic_ok(ext: &str, b: &[u8]) -> bool {

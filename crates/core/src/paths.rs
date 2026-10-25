@@ -1,9 +1,9 @@
 //! Where the settings, the user actions and the service log live (S-041,
 //! ADR 0005 section 4).
 //!
-//! - Linux: `XDG_CONFIG_HOME/sbarhive`, else `HOME/.config/sbarhive`; the
+//! - Linux: `XDG_CONFIG_HOME/kawaro`, else `HOME/.config/kawaro`; the
 //!   log stays on stderr, so there is no log folder.
-//! - Windows: `%APPDATA%\SbarHive` and `%LOCALAPPDATA%\SbarHive\logs`; when
+//! - Windows: `%APPDATA%\Kawaro` and `%LOCALAPPDATA%\Kawaro\logs`; when
 //!   the variable is missing or empty, the known folder from
 //!   `SHGetKnownFolderPath` (`paths/windows.rs`).
 //!
@@ -51,8 +51,8 @@ pub fn config_dir_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
         Os::Linux => env("XDG_CONFIG_HOME")
             .map(PathBuf::from)
             .or_else(|| env("HOME").map(|h| PathBuf::from(h).join(".config")))
-            .map(|base| base.join("sbarhive")),
-        Os::Windows => windows_base(env, "APPDATA", known).map(|base| base.join("SbarHive")),
+            .map(|base| base.join("kawaro")),
+        Os::Windows => windows_base(env, "APPDATA", known).map(|base| base.join("Kawaro")),
     }
 }
 
@@ -61,7 +61,7 @@ pub fn log_dir_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
     match os {
         Os::Linux => None,
         Os::Windows => {
-            windows_base(env, "LOCALAPPDATA", known).map(|base| base.join("SbarHive").join("logs"))
+            windows_base(env, "LOCALAPPDATA", known).map(|base| base.join("Kawaro").join("logs"))
         }
     }
 }
@@ -75,9 +75,9 @@ pub fn config_dir() -> Option<PathBuf> {
     config_dir_with(CURRENT, &|k| std::env::var_os(k), &known)
 }
 
-/// The service log file: [`log_dir_with`] joined with `sbarhived.log`.
+/// The service log file: [`log_dir_with`] joined with `kawarod.log`.
 pub fn log_file_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
-    log_dir_with(os, env, known).map(|dir| dir.join("sbarhived.log"))
+    log_dir_with(os, env, known).map(|dir| dir.join("kawarod.log"))
 }
 
 /// The cache folder: downloaded updates live under it (S-053b).
@@ -86,8 +86,8 @@ pub fn cache_dir_with(os: Os, env: EnvFn, known: KnownFn) -> Option<PathBuf> {
         Os::Linux => env("XDG_CACHE_HOME")
             .map(PathBuf::from)
             .or_else(|| env("HOME").map(|h| PathBuf::from(h).join(".cache")))
-            .map(|base| base.join("sbarhive")),
-        Os::Windows => windows_base(env, "LOCALAPPDATA", known).map(|base| base.join("SbarHive")),
+            .map(|base| base.join("kawaro")),
+        Os::Windows => windows_base(env, "LOCALAPPDATA", known).map(|base| base.join("Kawaro")),
     }
 }
 

@@ -3,12 +3,12 @@
 # shellcheck disable=SC2016,SC2034
 # S-014b drop receiver on KWin (AC5, AC6, AC7), on the layer path since
 # S-018d (S-018 AC13, AC14). A GTK 4 window drags a PNG,
-# `sbarhive drop` is run mid-drag (what the shortcut does), and the file is
+# `kawaro drop` is run mid-drag (what the shortcut does), and the file is
 # dropped: show 1 on the WEBP cell, show 2 on a transparent corner, show 3 on
 # the WEBP cell with Shift held, show 4 on the centre cell. The daemon runs
 # with WAYLAND_DEBUG=1 so the trace shows a wl_data_device per new surface.
 # S-014c (AC8, AC9, AC10): show 5 drags a PDF and drops it on a corner; every
-# show's cells at enter must equal `sbarhive actions` for its file. In show 1
+# show's cells at enter must equal `kawaro actions` for its file. In show 1
 # ScreenShot2 shots are taken before the drag enters the hive and while the
 # drag is over the WEBP cell (it must be highlighted with color.light.accent,
 # a cell across the centre not), and the over box is compared with the maintainer
@@ -25,13 +25,13 @@
 # no new file, and a new drag after it (AC6); the late show's 300 ms window
 # and the decision 12 bounds count from the catcher's ready commit (its
 # first commit after the first configure). Last, the waiting hive on the
-# window path (question 4): a daemon with SBARHIVE_SURFACE=window, a PNG
+# window path (question 4): a daemon with KAWARO_SURFACE=window, a PNG
 # drag, the waiting text in the centre, no probe line, and its crop
 # compared with drop-en-light-waiting.png (retaken there; the maintainer
 # approves the candidate).
 # Candidates are always written to the output folder; a missing reference is
 # a FAIL until the maintainer approves one and it is copied there. The daemon runs
-# light (SBARHIVE_COLOR_SCHEME) with reduced motion (SBARHIVE_REDUCED_MOTION),
+# light (KAWARO_COLOR_SCHEME) with reduced motion (KAWARO_REDUCED_MOTION),
 # so the highlight is drawn at once and the shots are stable.
 # Runs in a private kwin_wayland --virtual with a throwaway HOME, XDG dirs,
 # runtime dir and session bus. Never touches the live desktop or profile.
@@ -39,7 +39,7 @@
 # users to (System Settings, Shortcuts, Add New, Command: a .desktop entry in
 # XDG_DATA_HOME/applications and a [services] entry in kglobalshortcutsrc,
 # launched by the kglobalacceld inside this private KWin) to a wrapper that
-# marks the time and execs `sbarhive drop`. Three drags each press Super+Z
+# marks the time and execs `kawaro drop`. Three drags each press Super+Z
 # mid-drag and drop on the WEBP cell, then Esc is pressed mid-drag over the
 # hive and before the hive (tests/drop/lib.sh, shortcut_shows). The five
 # S-014b and S-014c shows are not run in this mode.
@@ -50,11 +50,11 @@
 # decision 12 path (layer.sh mode "still"). Three kinds of shows follow, with
 # the drag held at P:
 #   jitter  a 1 px drag motion around P every 10 ms for 600 ms, started
-#           before `sbarhive drop`: P = (400, 500) three times, each dropped
+#           before `kawaro drop`: P = (400, 500) three times, each dropped
 #           on the WEBP cell (the layout there is plan_rings, so the cell is
 #           where it is today relative to the hive), and P = (100, 700),
 #           released over the centre cell;
-#   still   the drag stands still for 1 s after `sbarhive drop`, then the
+#   still   the drag stands still for 1 s after `kawaro drop`, then the
 #           jitter at (400, 500), outside the centred hive (decision 12):
 #           one anchor line, "hive anchor: none", one
 #           wl_subsurface.set_position, in the middle (444, 219), the
@@ -62,11 +62,11 @@
 #           frame (layer.sh), and the drop on that centred hive's WEBP cell
 #           writes the file; positioning a still hand is --at only;
 #   at      the drag stands still at (400, 500) and the command is
-#           `sbarhive drop --at 400,500`: anchored at once, one
+#           `kawaro drop --at 400,500`: anchored at once, one
 #           set_position at (204, 319), no "hive anchor: none", and the drop
 #           on the WEBP cell writes the file.
 #   late    (coverage of decision 12, accepted by the manager) the drag
-#           stands still, `sbarhive drop`, and the drag moves to P =
+#           stands still, `kawaro drop`, and the drag moves to P =
 #           (400, 500) LATE_MS (170 ms by default) after the command
 #           returns, inside the 300 ms window (the daemon counts it from
 #           the placement, S-021 AC4; the check from the earlier catcher
@@ -87,8 +87,8 @@
 # Every show's "hive preview" lines are checked by preview_checks (lib.sh):
 # "icon image" for the PNGs, "icon pdf" for show 5, "thumb W H" for 13.
 # S-019e (AC11 to AC13, AC17 to AC19, amended 2026-10-21), after those
-# shows and their checks, with `sbarhive drop --hold` (the press) and
-# `sbarhive drop --release` (the release); each command must exit 0 within
+# shows and their checks, with `kawaro drop --hold` (the press) and
+# `kawaro drop --release` (the release); each command must exit 0 within
 # 200 ms, or the cycle's other checks cannot pass (they would pass for a
 # rejected option). Times are from a UTC stamp taken just before the press
 # to the daemon trace's stamps:
@@ -106,7 +106,7 @@
 #                (release)"); since S-021 the press is `drop --hold --at
 #                640,400` with the pointer at (100, 700), outside the hive,
 #                or KWin's pointer enter at the bind would hide it first;
-#   lone release `sbarhive drop --release` with no press (AC19): exit 0, no
+#   lone release `kawaro drop --release` with no press (AC19): exit 0, no
 #                surface within 1000 ms;
 #   hold_ms      `hold_ms = 1000` written to the sandbox's config.toml with
 #                the daemon running (AC18): the next press shows after
@@ -123,7 +123,7 @@
 # 640,400` twice 1 s apart with the pointer at (100, 700), then a move to
 # (640, 400): "hidden (replaced)" then "hidden (pointer)", nothing drawn
 # (layer.sh replace_checks).
-# Daemon lines (SBARHIVE_DEBUG_FOCUS): "hive anchor: X Y" or
+# Daemon lines (KAWARO_DEBUG_FOCUS): "hive anchor: X Y" or
 # "hive anchor: none" before each placement's "hive surface: layer X Y W H";
 # the drop-mode move to the first position prints both again.
 # S-014e2 (AC20 for KDE, AC21), mode "portal-real", tests/drop/portal_real.sh:
@@ -156,7 +156,7 @@ done
 [ -n "$REBIND" ] && [ "$MODE" != portal-real ] && { echo "rebind needs portal-real"; exit 2; }
 TAG="kwin-l$LEVEL${MODE:+-$MODE}${REBIND:+-rebind}"
 INPUT="$HERE/kwin-input/target/release/kwin-input"
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 [ -x "$INPUT" ] || { echo "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"; exit 2; }
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
@@ -187,9 +187,9 @@ inner() {
   # S-014d AC11: a KDE custom command shortcut, as the docs describe it.
   if [ "$MODE" = shortcut ]; then
     make_shortcut_wrap
-    printf '[Desktop Entry]\nExec=%s\nName=SbarHive drop\nNoDisplay=true\nStartupNotify=false\nType=Application\nX-KDE-GlobalAccel-CommandShortcut=true\n' \
-      "$SHORTCUT_WRAP" >"$XDG_DATA_HOME/applications/net.local.sbarhive-drop.desktop"
-    printf '[services][net.local.sbarhive-drop.desktop]\n_launch=Meta+Z\n' >"$XDG_CONFIG_HOME/kglobalshortcutsrc"
+    printf '[Desktop Entry]\nExec=%s\nName=Kawaro drop\nNoDisplay=true\nStartupNotify=false\nType=Application\nX-KDE-GlobalAccel-CommandShortcut=true\n' \
+      "$SHORTCUT_WRAP" >"$XDG_DATA_HOME/applications/net.local.kawaro-drop.desktop"
+    printf '[services][net.local.kawaro-drop.desktop]\n_launch=Meta+Z\n' >"$XDG_CONFIG_HOME/kglobalshortcutsrc"
   fi
   kbuildsycoca6 --noincremental >/dev/null 2>&1
   # KWIN_WAYLAND_NO_PERMISSION_CHECKS lets the test's own input client use
@@ -302,10 +302,10 @@ inner() {
   else
   # English layout, so the WEBP cell is top right of the centre. No warm-up
   # show: the first drop-mode show is part of AC5.
-  SBARHIVE_LANG=en SBARHIVE_COLOR_SCHEME=light SBARHIVE_REDUCED_MOTION=1 \
-    SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  KAWARO_LANG=en KAWARO_COLOR_SCHEME=light KAWARO_REDUCED_MOTION=1 \
+    KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$DLOG" 2>&1 &
   d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
   fi
 
   GTK_A11Y=none python3 "$HERE/source.py" "$NEXT" >"$SLOG" 2>&1 &
@@ -455,23 +455,23 @@ inner() {
       jitter)
         # The motion starts before the command and lasts 600 ms (AC10).
         jitter "$x" "$y" 600
-        "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+        "$BIN/kawaro" drop >>"$OUT_LOG-cli.log" 2>&1
         ;;
       still)
-        "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+        "$BIN/kawaro" drop >>"$OUT_LOG-cli.log" 2>&1
         sleep 1
         jitter "$x" "$y" 600
         ;;
       at)
         ptr_move "$x" "$y"; sleep 0.5
-        "$BIN/sbarhive" drop --at "$x,$y" >>"$OUT_LOG-cli.log" 2>&1
+        "$BIN/kawaro" drop --at "$x,$y" >>"$OUT_LOG-cli.log" 2>&1
         ;;
       late)
         # Queued on the input client as soon as the command returns, so no
         # polling delay: the move comes LATE_MS after the command returns.
         # No hive is drawn before the drag enters (S-021), so the window is
         # timed from the catcher's ready commit, as in the check below.
-        "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+        "$BIN/kawaro" drop >>"$OUT_LOG-cli.log" 2>&1
         echo "sleep ${LATE_MS:-170}" >&3
         jitter "$x" "$y" 600
         ;;
@@ -553,10 +553,10 @@ inner() {
 
   # S-019e: the long press (AC11 to AC13, AC17 to AC19). Not in MARKS: two
   # of these cycles show no hive at all.
-  # cli_ms CMD...: runs `sbarhive CMD...`, sets CLI_RC and CLI_MS.
+  # cli_ms CMD...: runs `kawaro CMD...`, sets CLI_RC and CLI_MS.
   cli_ms() {
     local t0; t0=$(now_ms)
-    "$BIN/sbarhive" "$@" >>"$OUT_LOG-cli.log" 2>&1
+    "$BIN/kawaro" "$@" >>"$OUT_LOG-cli.log" 2>&1
     CLI_RC=$?
     CLI_MS=$(( $(now_ms) - t0 ))
   }
@@ -608,7 +608,7 @@ inner() {
     # --at 640,400` with the pointer at (100, 700), outside the hive
     # rectangle that --at gives the catcher from its first commit, the setup
     # the story gives tests/overlay/kwin.sh drop for its 10 s show.
-    echo "== S-019e held: \`sbarhive drop --hold --at 640,400\`, pointer at (100, 700), no release"
+    echo "== S-019e held: \`kawaro drop --hold --at 640,400\`, pointer at (100, 700), no release"
     ptr_move 100 700; sleep 0.5
     M_PRESS=$(wc -l <"$DLOG"); T_PRESS=$(date -u +%T.%6N)
     cli_ms drop --hold --at 640,400
@@ -618,7 +618,7 @@ inner() {
     local l350=$l x350=$x
     read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1150)"
     echo "INFO S-019e held: press exit $P_RC in $P_MS ms; surfaces by 350 ms: layer $l350 xdg $x350; by 1150 ms: layer $l xdg $x, the first ${first} ms after the press"
-    check "S-019 AC11 held: \`sbarhive drop --hold\` exits 0 within 200 ms (the threshold is the daemon's)" 'cli_ok "$P_RC" "$P_MS"'
+    check "S-019 AC11 held: \`kawaro drop --hold\` exits 0 within 200 ms (the threshold is the daemon's)" 'cli_ok "$P_RC" "$P_MS"'
     check "S-019 AC13 held: no surface at 350 ms from the press, then exactly one get_layer_surface, after 350 ms and by 550 ms" \
       'cli_ok "$P_RC" "$P_MS" && [ "$l350" -eq 0 ] && [ "$x350" -eq 0 ] && [ "$l" -eq 1 ] && [ "$x" -eq 0 ] && in_ms "$first" 350 550'
     release; sleep 0.8
@@ -717,27 +717,27 @@ inner() {
     release; sleep 1
     read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1000)"
     echo "INFO S-019e lone release: exit $R_RC in $R_MS ms, surfaces within 1000 ms: layer $l xdg $x"
-    check "S-019 AC19 lone release: \`sbarhive drop --release\` with no press exits 0 within 200 ms, no surface" \
+    check "S-019 AC19 lone release: \`kawaro drop --release\` with no press exits 0 within 200 ms, no surface" \
       'cli_ok "$R_RC" "$R_MS" && [ "$l" -eq 0 ] && [ "$x" -eq 0 ]'
 
     # hold_ms changed in config.toml with the daemon running (AC18).
     echo "== S-019e hold_ms = 1000 in config.toml"
-    mkdir -p "$XDG_CONFIG_HOME/sbarhive"
-    printf 'hold_ms = 1000\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    mkdir -p "$XDG_CONFIG_HOME/kawaro"
+    printf 'hold_ms = 1000\nportal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
     sleep 1
     press; sleep 1.6
     read -r l x first <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 1500)"
     local l950; read -r l950 _ _ <<<"$(surfaces_by "$M_PRESS" "$T_PRESS" 950)"
     release; sleep 0.8
-    printf 'portal_shortcut = false\n' >"$XDG_CONFIG_HOME/sbarhive/config.toml"
+    printf 'portal_shortcut = false\n' >"$XDG_CONFIG_HOME/kawaro/config.toml"
     echo "INFO S-019e hold_ms 1000: press exit $P_RC in $P_MS ms; surfaces by 950 ms: layer $l950; by 1500 ms: layer $l xdg $x, the first ${first} ms after the press"
     check "S-019 AC18 hold_ms: hold_ms = 1000 written with the daemon running applies at the next press (one get_layer_surface after 950 ms and by 1150 ms)" \
       'cli_ok "$P_RC" "$P_MS" && [ "$l950" -eq 0 ] && [ "$l" -eq 1 ] && [ "$x" -eq 0 ] && in_ms "$first" 950 1150'
     wait_gone 12 || true
   }
 
-  # S-021 AC6: a drag of notes.unknownext (`sbarhive actions` gives
-  # nothing), `sbarhive drop` with the drag still, then the drag moves into
+  # S-021 AC6: a drag of notes.unknownext (`kawaro actions` gives
+  # nothing), `kawaro drop` with the drag still, then the drag moves into
   # the centred hive. Not in MARKS: protocol_checks and enter_cells_checks
   # expect a drop with actions. An empty "drop cells:" line, then "hive
   # probe: hidden (no-actions)", no attach on the hive (probe_checks), no
@@ -750,7 +750,7 @@ inner() {
     before=$(find "$W" -type f | sort)
     m0=$(wc -l <"$DLOG"); smark=$(wc -l <"$SLOG")
     drag_past_threshold
-    "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+    "$BIN/kawaro" drop >>"$OUT_LOG-cli.log" 2>&1
     wait_geo 8 >/dev/null || true
     sleep 0.4
     ptr_move 400 300; sleep 0.1; ptr_move 600 380; sleep 0.1; ptr_move 640 400; sleep 0.8
@@ -779,9 +779,9 @@ inner() {
     local m0 seg
     ptr_move 100 700; sleep 0.5
     m0=$(wc -l <"$DLOG")
-    "$BIN/sbarhive" drop --at 640,400 >>"$OUT_LOG-cli.log" 2>&1
+    "$BIN/kawaro" drop --at 640,400 >>"$OUT_LOG-cli.log" 2>&1
     sleep 1
-    "$BIN/sbarhive" drop --at 640,400 >>"$OUT_LOG-cli.log" 2>&1
+    "$BIN/kawaro" drop --at 640,400 >>"$OUT_LOG-cli.log" 2>&1
     sleep 1
     ptr_move 400 600; sleep 0.1; ptr_move 600 420; sleep 0.1; ptr_move 640 400; sleep 0.8
     wait_gone 12 || true; sleep 0.5
@@ -791,9 +791,9 @@ inner() {
 
   # S-021 question 4 (the maintainer, 2026-10-22): the waiting state is no longer
   # drawn on the layer path, so drop-en-light-waiting.png is retaken on the
-  # window path. A new daemon with SBARHIVE_SURFACE=window (same language,
+  # window path. A new daemon with KAWARO_SURFACE=window (same language,
   # scheme and reduced motion), a PNG drag held still at (210, 180), then
-  # `sbarhive drop`: the hive window waits for the drag. A shot before the
+  # `kawaro drop`: the hive window waits for the drag. A shot before the
   # command and one after the "hive surface: window" line; what the hive
   # draws is where the two differ (tests/overlay/boxdiff.py, tolerance 8),
   # inside the rectangle of that line, which is the crop. Checks, as
@@ -805,12 +805,12 @@ inner() {
   # output folder needs the maintainer's approval.
   window_waiting() {
     echo "== S-021 window path: the waiting hive (drop-en-light-waiting.png)"
-    "$BIN/sbarhive" quit >/dev/null 2>&1
+    "$BIN/kawaro" quit >/dev/null 2>&1
     timeout 5 tail --pid="$d" -f /dev/null || kill "$d" 2>/dev/null
-    SBARHIVE_SURFACE=window SBARHIVE_LANG=en SBARHIVE_COLOR_SCHEME=light SBARHIVE_REDUCED_MOTION=1 \
-      SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >>"$DLOG" 2>&1 &
+    KAWARO_SURFACE=window KAWARO_LANG=en KAWARO_COLOR_SCHEME=light KAWARO_REDUCED_MOTION=1 \
+      KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >>"$DLOG" 2>&1 &
     d=$!
-    for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+    for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
     local file="$W/window wait.png" m0 seg k box="none" bx by bw bh
     cp "$ROOT/tests/fixtures/images/alpha.png" "$file"
     printf '%s\n' "$file" >"$NEXT"
@@ -819,7 +819,7 @@ inner() {
     rm -f "$wb" "$ww" "$OUT/drop-en-light-waiting.png"
     timeout 10 python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/shot.py" "$wb" >>"$log-shot.log" 2>&1
     m0=$(wc -l <"$DLOG")
-    "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+    "$BIN/kawaro" drop >>"$OUT_LOG-cli.log" 2>&1
     for k in $(seq 80); do sed -n "$((m0 + 1)),\$p" "$DLOG" | grep -qE '^hive surface: window ' && break; sleep 0.1; done
     sleep 0.5
     timeout 10 python3 -I -W ignore::DeprecationWarning "$ROOT/tests/overlay/shot.py" "$ww" >>"$log-shot.log" 2>&1
@@ -860,7 +860,7 @@ inner() {
     ESC_NO_KEYBOARD=1
     local comps; comps=$(gdbus call --session --dest org.kde.kglobalaccel --object-path /kglobalaccel \
       --method org.kde.KGlobalAccel.allComponents 2>&1)
-    check "AC11 setup: kglobalacceld lists the custom command shortcut component" 'grep -q sbarhive_drop <<<"$comps"'
+    check "AC11 setup: kglobalacceld lists the custom command shortcut component" 'grep -q kawaro_drop <<<"$comps"'
     shortcut_shows
   elif [ "$MODE" = portal-real ]; then
     if [ -n "$REBIND" ]; then
@@ -904,14 +904,14 @@ inner() {
     layer_drop_show $((i + 1)) "${MARKS[i]}" "${MARKS[i + 1]}" 1 "${MODES[i]:-0}"
   done
   # S-021 AC3, AC4, AC7: shows 1 to 5 each print one "hive reveal: N" line,
-  # N the number of `sbarhive actions` ids for the show's file, draw nothing
+  # N the number of `kawaro actions` ids for the show's file, draw nothing
   # before it, and draw only after the drag's first enter on the catcher.
   # Their drops (WEBP written, refusals) are the AC6 and AC7 checks above.
   local pn
   for ((i = 0; i < 5 && i + 1 < ${#MARKS[@]}; i++)); do
     probe_checks "show $((i + 1))" "$(sed -n "$((MARKS[i] + 1)),$((MARKS[i + 1]))p" "$DLOG")" reveal
     IFS='|' read -r _ _ _ pn _ <<<"$PROBE"
-    check "S-021 AC7 show $((i + 1)): \"hive reveal: N\" with N the number of \`sbarhive actions\` for its file ($(wc -w <<<"${EXPECT[i]}"))" \
+    check "S-021 AC7 show $((i + 1)): \"hive reveal: N\" with N the number of \`kawaro actions\` for its file ($(wc -w <<<"${EXPECT[i]}"))" \
       '[ "$pn" != none ] && [ -n "${EXPECT[i]}" ] && [ "$pn" -eq "$(wc -w <<<"${EXPECT[i]}")" ]'
   done
   # S-021 AC3 for shows 6 to 13: every one is a drag that enters the hive,
@@ -943,7 +943,7 @@ inner() {
   summary
 
   exec 3>&-
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   sleep 0.5
   kill $src $d 2>/dev/null
   kill $kwin 2>/dev/null
@@ -959,9 +959,9 @@ if [ "$MODE" = portal-real ]; then
   # registers (no portal_shortcut = false), hold_ms 400, and the shipped
   # .desktop file is installed in the throwaway data directory.
   DESK=(XDG_CURRENT_DESKTOP=KDE XDG_SESSION_TYPE=wayland)
-  mkdir -p "$SANDBOX/.config/sbarhive" "$SANDBOX/.local/share/applications"
-  printf 'hold_ms = 400\n' >"$SANDBOX/.config/sbarhive/config.toml"
-  cp "$ROOT/packaging/io.github.m7mmad_omar.SbarHive.desktop" "$SANDBOX/.local/share/applications/"
+  mkdir -p "$SANDBOX/.config/kawaro" "$SANDBOX/.local/share/applications"
+  printf 'hold_ms = 400\n' >"$SANDBOX/.config/kawaro/config.toml"
+  cp "$ROOT/packaging/io.github.m7mmad_omar.Kawaro.desktop" "$SANDBOX/.local/share/applications/"
 else
   no_real_portal "$SANDBOX"
 fi

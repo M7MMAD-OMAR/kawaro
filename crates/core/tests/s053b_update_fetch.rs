@@ -18,7 +18,7 @@
 //! - `curl_args(url: &str, dest: &Path, max_bytes: u64) -> Vec<String>`: exactly
 //!   `--silent --show-error --fail --location --proto =https --proto-redir =https
 //!   --max-redirs 5 --max-time <T> --max-filesize <max_bytes> --user-agent
-//!   sbarhive-update --output <dest> <url>`, each flag and value its own element.
+//!   kawaro-update --output <dest> <url>`, each flag and value its own element.
 //!   DECISION: `<T>` is 30 when the url path ends in `.json` or `.minisig` (the
 //!   manifest and its signature), otherwise 1800 (a package); the signature has
 //!   no room for a flag.
@@ -63,7 +63,7 @@
 //!   `<base>/<channel>.json`, fetch `<base>/<channel>.json.minisig`, verify the
 //!   signature, parse, `policy::evaluate`, every asset url checked for the AC9
 //!   characters (`BadUrl`), `select_asset` (none: `Rejected(NoAsset)`).
-//!   `<base>` is `https://github.com/M7MMAD-OMAR/sbarhive/releases/download/updates`.
+//!   `<base>` is `https://github.com/M7MMAD-OMAR/kawaro/releases/download/updates`.
 //! - State (DECISION where the story is silent, marked *): a verified manifest
 //!   (Available, UpToDate, downgrade): `last_check = now`, `failures = 0`,
 //!   `last_seen = Some(manifest version)`. `Offline` and `Unavailable`
@@ -82,8 +82,8 @@
 //!
 //! `paths` (`crates/core/src/paths.rs`), pure like `config_dir_with`:
 //! - `cache_dir_with(os, env, known) -> Option<PathBuf>`: Linux
-//!   `XDG_CACHE_HOME/sbarhive`, else `HOME/.cache/sbarhive`; Windows
-//!   `%LOCALAPPDATA%/SbarHive` (known folder when unset or empty).
+//!   `XDG_CACHE_HOME/kawaro`, else `HOME/.cache/kawaro`; Windows
+//!   `%LOCALAPPDATA%/Kawaro` (known folder when unset or empty).
 //! - `update_dir_with(os, env, known, version: &str) -> Option<PathBuf>`:
 //!   `<cache>/updates/<version>` (DECISION: the name).
 //! - `update_state_file_with(os, env, known) -> Option<PathBuf>`:
@@ -103,25 +103,25 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
-use sbarhive_core::config::Config;
-use sbarhive_core::paths::{
+use kawaro_core::config::Config;
+use kawaro_core::paths::{
     Os, cache_dir_with, config_dir_with, update_dir_with, update_state_file_with,
 };
-use sbarhive_core::update::fetch::{
+use kawaro_core::update::fetch::{
     CurlFetcher, FetchError, Fetcher, MANIFEST_MAX_BYTES, SIGNATURE_MAX_BYTES, curl_args,
     curl_candidates,
 };
-use sbarhive_core::update::flow::{
+use kawaro_core::update::flow::{
     CheckEnv, CheckOutcome, CheckState, Update, check, check_with, download_verified,
 };
-use sbarhive_core::update::manifest::{Asset, Manifest};
-use sbarhive_core::update::policy::{Platform, select_asset};
-use sbarhive_core::update::schedule::State;
-use sbarhive_core::update::{Channel, UpdateError};
+use kawaro_core::update::manifest::{Asset, Manifest};
+use kawaro_core::update::policy::{Platform, select_asset};
+use kawaro_core::update::schedule::State;
+use kawaro_core::update::{Channel, UpdateError};
 
 const DAY: u64 = 86_400;
-const BASE: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/updates";
-const REL: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0";
+const BASE: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/updates";
+const REL: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0";
 const FIRST: &[u8] = b"first-asset-bytes";
 const SECOND: &[u8] = b"second-asset-bytes";
 const SHA_FIRST: &str = "bff5b3ca49e18ea61c9f21a39f95922bcf75f2e0f8ffedf46e07c7cfd70d5d64";
@@ -360,7 +360,7 @@ fn wait_until_executable(path: &Path) {
 }
 
 const PKG_URL: &str =
-    "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0/sbarhive-0.4.0-1.x86_64.rpm";
+    "https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0/kawaro-0.4.0-1.x86_64.rpm";
 
 // ------------------------------------------------------------ AC1
 
@@ -382,7 +382,7 @@ fn expected(url: &str, dest: &str, max: &str, time: &str) -> Vec<String> {
         "--max-filesize",
         max,
         "--user-agent",
-        "sbarhive-update",
+        "kawaro-update",
         "--output",
         dest,
         url,
@@ -412,7 +412,7 @@ fn ac1_curl_args_for_a_package_allow_1800_seconds() {
         curl_args(PKG_URL, Path::new("/tmp/x/p.rpm.part"), 3_145_728),
         expected(PKG_URL, "/tmp/x/p.rpm.part", "3145728", "1800")
     );
-    let deb = format!("{REL}/sbarhive_0.4.0_amd64.deb");
+    let deb = format!("{REL}/kawaro_0.4.0_amd64.deb");
     assert_eq!(
         curl_args(&deb, Path::new("/tmp/x/d"), 1)[12],
         "1800",
@@ -833,12 +833,12 @@ fn ac3_check_disabled_and_not_due_make_no_call() {
 fn rpm_update() -> Update {
     Update {
         version: "0.4.0".into(),
-        notes_url: "https://github.com/M7MMAD-OMAR/sbarhive/releases/tag/v0.4.0".into(),
+        notes_url: "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.0".into(),
         asset: Asset {
             kind: "rpm".into(),
             os: "linux".into(),
             arch: "x86_64".into(),
-            name: "sbarhive-0.4.0-1.x86_64.rpm".into(),
+            name: "kawaro-0.4.0-1.x86_64.rpm".into(),
             url: PKG_URL.into(),
             size: 3_145_728,
             sha256: "a3f1c2d4e5b60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90".into(),
@@ -1090,7 +1090,7 @@ fn update_for(name: &str, payload_len: u64, sha: &str) -> Update {
 }
 
 fn first_update() -> Update {
-    update_for("sbarhive-0.4.0-1.x86_64.rpm", FIRST.len() as u64, SHA_FIRST)
+    update_for("kawaro-0.4.0-1.x86_64.rpm", FIRST.len() as u64, SHA_FIRST)
 }
 
 #[test]
@@ -1099,15 +1099,15 @@ fn ac5_matching_bytes_give_a_verified_package_and_no_part() {
     let u = first_update();
     let fake = Fake::bytes(FIRST.to_vec());
     let pkg = download_verified(&u, t.path(), &fake).unwrap();
-    assert_eq!(pkg.path(), t.path().join("sbarhive-0.4.0-1.x86_64.rpm"));
-    assert_eq!(listing(t.path()), set(&["sbarhive-0.4.0-1.x86_64.rpm"]));
+    assert_eq!(pkg.path(), t.path().join("kawaro-0.4.0-1.x86_64.rpm"));
+    assert_eq!(listing(t.path()), set(&["kawaro-0.4.0-1.x86_64.rpm"]));
     assert_eq!(fs::read(pkg.path()).unwrap(), FIRST);
     let calls = fake.calls();
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0].url, u.asset.url);
     assert_eq!(
         calls[0].dest,
-        t.path().join("sbarhive-0.4.0-1.x86_64.rpm.part")
+        t.path().join("kawaro-0.4.0-1.x86_64.rpm.part")
     );
     assert_eq!(calls[0].max_bytes, 17);
 }
@@ -1217,7 +1217,7 @@ fn ac5_the_directory_is_created_when_missing() {
     let t = tempfile::tempdir().unwrap();
     let dir = t.path().join("updates").join("0.4.0");
     let pkg = download_verified(&first_update(), &dir, &Fake::bytes(FIRST.to_vec())).unwrap();
-    assert_eq!(pkg.path(), dir.join("sbarhive-0.4.0-1.x86_64.rpm"));
+    assert_eq!(pkg.path(), dir.join("kawaro-0.4.0-1.x86_64.rpm"));
     assert!(pkg.path().is_file());
 }
 
@@ -1264,7 +1264,7 @@ fn ac6_after_a_good_download_only_the_new_version_folder_remains() {
     let (t, dir) = updates_tree();
     download_verified(&first_update(), &dir, &Fake::bytes(FIRST.to_vec())).unwrap();
     assert_eq!(listing(&t.path().join("updates")), set(&["0.4.0"]));
-    assert_eq!(listing(&dir), set(&["sbarhive-0.4.0-1.x86_64.rpm"]));
+    assert_eq!(listing(&dir), set(&["kawaro-0.4.0-1.x86_64.rpm"]));
 }
 
 #[test]
@@ -1314,17 +1314,17 @@ fn ac7_linux_cache_dir_prefers_xdg_then_home() {
     let both = env_of(&[("XDG_CACHE_HOME", "/x/cache"), ("HOME", "/home/u")]);
     assert_eq!(
         cache_dir_with(Os::Linux, &both, &no_known),
-        Some(PathBuf::from("/x/cache").join("sbarhive"))
+        Some(PathBuf::from("/x/cache").join("kawaro"))
     );
     let home = env_of(&[("HOME", "/home/u")]);
     assert_eq!(
         cache_dir_with(Os::Linux, &home, &no_known),
-        Some(PathBuf::from("/home/u").join(".cache").join("sbarhive"))
+        Some(PathBuf::from("/home/u").join(".cache").join("kawaro"))
     );
     let xdg = env_of(&[("XDG_CACHE_HOME", "/x/cache")]);
     assert_eq!(
         cache_dir_with(Os::Linux, &xdg, &no_known),
-        Some(PathBuf::from("/x/cache").join("sbarhive"))
+        Some(PathBuf::from("/x/cache").join("kawaro"))
     );
     let none = env_of(&[]);
     assert_eq!(cache_dir_with(Os::Linux, &none, &no_known), None);
@@ -1336,12 +1336,12 @@ fn ac7_linux_ignores_the_windows_variable_and_the_known_folder() {
     let known = || Some(PathBuf::from("/known"));
     assert_eq!(
         cache_dir_with(Os::Linux, &env, &known),
-        Some(PathBuf::from("/home/u").join(".cache").join("sbarhive"))
+        Some(PathBuf::from("/home/u").join(".cache").join("kawaro"))
     );
 }
 
 #[test]
-fn ac7_windows_cache_dir_is_local_app_data_sbarhive() {
+fn ac7_windows_cache_dir_is_local_app_data_kawaro() {
     let env = env_of(&[
         ("LOCALAPPDATA", "C:\\Users\\u\\AppData\\Local"),
         ("APPDATA", "C:\\Users\\u\\AppData\\Roaming"),
@@ -1351,7 +1351,7 @@ fn ac7_windows_cache_dir_is_local_app_data_sbarhive() {
     let known = || Some(PathBuf::from("C:\\known"));
     assert_eq!(
         cache_dir_with(Os::Windows, &env, &known),
-        Some(PathBuf::from("C:\\Users\\u\\AppData\\Local").join("SbarHive"))
+        Some(PathBuf::from("C:\\Users\\u\\AppData\\Local").join("Kawaro"))
     );
 }
 
@@ -1361,12 +1361,12 @@ fn ac7_windows_falls_back_to_the_known_folder_when_unset_or_empty() {
     let unset = env_of(&[]);
     assert_eq!(
         cache_dir_with(Os::Windows, &unset, &known),
-        Some(PathBuf::from("C:\\known").join("SbarHive"))
+        Some(PathBuf::from("C:\\known").join("Kawaro"))
     );
     let empty = env_of(&[("LOCALAPPDATA", "")]);
     assert_eq!(
         cache_dir_with(Os::Windows, &empty, &known),
-        Some(PathBuf::from("C:\\known").join("SbarHive"))
+        Some(PathBuf::from("C:\\known").join("Kawaro"))
     );
     assert_eq!(cache_dir_with(Os::Windows, &unset, &no_known), None);
 }
@@ -1378,7 +1378,7 @@ fn ac7_the_update_folder_is_cache_updates_version() {
         update_dir_with(Os::Linux, &env, &no_known, "0.4.0"),
         Some(
             PathBuf::from("/x/cache")
-                .join("sbarhive")
+                .join("kawaro")
                 .join("updates")
                 .join("0.4.0")
         )
@@ -1388,7 +1388,7 @@ fn ac7_the_update_folder_is_cache_updates_version() {
         update_dir_with(Os::Windows, &win, &no_known, "0.4.0-beta.2"),
         Some(
             PathBuf::from("C:\\L")
-                .join("SbarHive")
+                .join("Kawaro")
                 .join("updates")
                 .join("0.4.0-beta.2")
         )
@@ -1411,7 +1411,7 @@ fn ac7_update_state_sits_next_to_config_toml() {
         update_state_file_with(Os::Linux, &lin, &no_known),
         Some(
             PathBuf::from("/x/conf")
-                .join("sbarhive")
+                .join("kawaro")
                 .join("update-state.json")
         )
     );
@@ -1420,7 +1420,7 @@ fn ac7_update_state_sits_next_to_config_toml() {
         update_state_file_with(Os::Windows, &win, &no_known),
         Some(
             PathBuf::from("C:\\R")
-                .join("SbarHive")
+                .join("Kawaro")
                 .join("update-state.json")
         )
     );
@@ -1484,7 +1484,7 @@ fn ac9_good_urls_with_single_dots_and_other_percent_codes_still_run() {
     for url in [
         PKG_URL.to_string(),
         format!("{BASE}/stable.json.minisig"),
-        format!("{REL}/sbarhive_0.4.0~beta.1_amd64.deb"),
+        format!("{REL}/kawaro_0.4.0~beta.1_amd64.deb"),
         format!("{REL}/a%2fb.rpm"),
         format!("{REL}/a%20b.rpm"),
     ] {
@@ -1549,7 +1549,7 @@ fn ac9_download_verified_refuses_a_bad_url_before_any_fetch() {
 fn ac9_select_asset_returns_the_first_duplicate() {
     let m = Manifest::parse(&fx("s053b/manifest-dup-assets.json")).unwrap();
     let a = select_asset(&m, linux_rpm()).unwrap();
-    assert_eq!(a.name, "sbarhive-0.4.0-1.x86_64.rpm");
+    assert_eq!(a.name, "kawaro-0.4.0-1.x86_64.rpm");
     assert_eq!(a.size, 17);
     assert_eq!(a.sha256, SHA_FIRST);
     assert_eq!(m.assets.len(), 3);
@@ -1562,13 +1562,10 @@ fn ac9_check_selects_the_first_duplicate_and_download_verifies_that_one() {
     let CheckOutcome::Available(update) = r.outcome else {
         panic!("expected Available, got {:?}", r.outcome);
     };
-    assert_eq!(update.asset.name, "sbarhive-0.4.0-1.x86_64.rpm");
+    assert_eq!(update.asset.name, "kawaro-0.4.0-1.x86_64.rpm");
     assert_eq!(update.asset.size, 17);
     assert_eq!(update.asset.sha256, SHA_FIRST);
-    assert_eq!(
-        update.asset.url,
-        format!("{REL}/sbarhive-0.4.0-1.x86_64.rpm")
-    );
+    assert_eq!(update.asset.url, format!("{REL}/kawaro-0.4.0-1.x86_64.rpm"));
 
     // The first asset's bytes pass.
     let t = tempfile::tempdir().unwrap();

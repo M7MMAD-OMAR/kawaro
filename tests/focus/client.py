@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """A focused GTK 4 window that stands in for the file manager.
 
-It logs its own focus, and on a key press it launches `sbarhive open` the way
+It logs its own focus, and on a key press it launches `kawaro open` the way
 the Nautilus extension does:
   F5  with an xdg-activation token from Gdk.AppLaunchContext
   F6  without a token
   F7  with a made-up token (control: a policy that honours tokens rejects it)
-Usage: client.py FILE   (SBARHIVE names the CLI binary, CLIENT_AUTO and
+Usage: client.py FILE   (KAWARO names the CLI binary, CLIENT_AUTO and
 CLIENT_CLICK below)
 """
 
@@ -20,7 +20,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-SBARHIVE = os.environ.get("SBARHIVE", "sbarhive")
+KAWARO = os.environ.get("KAWARO", "kawaro")
 FILE = sys.argv[1]
 
 
@@ -29,9 +29,9 @@ def log(*parts):
 
 
 def launch(with_token, bogus=False):
-    argv = [SBARHIVE, "open"]
+    argv = [KAWARO, "open"]
     if bogus:
-        argv += ["--token", "sbarhive-bogus-token"]
+        argv += ["--token", "kawaro-bogus-token"]
     elif with_token:
         ctx = Gdk.Display.get_default().get_app_launch_context()
         token = ctx.get_startup_notify_id(None, [])
@@ -105,7 +105,7 @@ def on_activate(app):
 
 
 app = Gtk.Application(
-    application_id="org.sbarhive.FocusClient",
+    application_id="org.kawaro.FocusClient",
     flags=Gio.ApplicationFlags.NON_UNIQUE,
 )
 app.connect("activate", on_activate)

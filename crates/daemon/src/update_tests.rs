@@ -65,7 +65,7 @@
 //!   version) pairs already shown.
 //! - `notify_update_with(sink: &mut dyn UpdateSink, sent: &mut Sent, lang: Lang,
 //!   kind: UpdateKind, version: &str)`: first time for a pair: one `log` line
-//!   `sbarhived: notify: <message>` and one `show(app_name, <message>)`; a second
+//!   `kawarod: notify: <message>` and one `show(app_name, <message>)`; a second
 //!   call with the same pair does nothing. DECISION: the AC's
 //!   `notify_update(lang, kind, version)` is the production wrapper over a global
 //!   `Sent` and the real desktop sink; it is only compile checked here, so no
@@ -87,14 +87,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use sbarhive_core::config::{Config, UpdateMode};
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::ipc::Response;
-use sbarhive_core::paths::Os;
-use sbarhive_core::update::fetch::{FetchError, Fetcher};
-use sbarhive_core::update::flow::CheckState;
-use sbarhive_core::update::policy::Platform;
-use sbarhive_core::update::result::{
+use kawaro_core::config::{Config, UpdateMode};
+use kawaro_core::i18n::Lang;
+use kawaro_core::ipc::Response;
+use kawaro_core::paths::Os;
+use kawaro_core::update::fetch::{FetchError, Fetcher};
+use kawaro_core::update::flow::CheckState;
+use kawaro_core::update::policy::Platform;
+use kawaro_core::update::result::{
     Failure, Outcome, RESULT_FILE, UpdateResult, take_result, write_result,
 };
 
@@ -110,8 +110,8 @@ use crate::update::{
 
 const HOUR: u64 = 3600;
 const BASE: u64 = 1_800_000_000;
-const REL: &str = "https://github.com/M7MMAD-OMAR/sbarhive/releases/download/v0.4.0";
-const PKG_NAME: &str = "sbarhive-0.4.0-1.x86_64.rpm";
+const REL: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/download/v0.4.0";
+const PKG_NAME: &str = "kawaro-0.4.0-1.x86_64.rpm";
 const GOOD: &[u8] = b"first-asset-bytes";
 const TAMPERED: &[u8] = b"first-asset-bytez";
 
@@ -416,11 +416,11 @@ fn ac5_menu_labels_in_both_languages_with_update_now_first() {
     let (st, _rig) = state_for("0.3.3", Os::Linux);
     assert_eq!(
         text::menu_labels(Lang::En, &st),
-        vec!["Update now", "Cancel all jobs", "Settings", "Quit SbarHive"]
+        vec!["Update now", "Cancel all jobs", "Settings", "Quit Kawaro"]
     );
     assert_eq!(
         text::menu_labels(Lang::Ar, &st),
-        vec!["حدّث الآن", "إلغاء كل المهام", "الإعدادات", "إنهاء صبار هايف"]
+        vec!["حدّث الآن", "إلغاء كل المهام", "الإعدادات", "إنهاء كوارو"]
     );
     assert_eq!(text::update_now(Lang::En), "Update now");
     assert_eq!(text::update_now(Lang::Ar), "حدّث الآن");
@@ -567,7 +567,7 @@ fn ac6_messages_in_both_languages() {
     );
     assert_eq!(
         text::update_message(Lang::En, UpdateKind::Updated, "0.4.0"),
-        "SbarHive was updated to 0.4.0."
+        "Kawaro was updated to 0.4.0."
     );
     assert_eq!(
         text::update_message(Lang::En, UpdateKind::Failed, "0.4.0"),
@@ -579,7 +579,7 @@ fn ac6_messages_in_both_languages() {
     );
     assert_eq!(
         text::update_message(Lang::Ar, UpdateKind::Updated, "0.4.0"),
-        "تم تحديث صبار هايف إلى 0.4.0."
+        "تم تحديث كوارو إلى 0.4.0."
     );
     assert_eq!(
         text::update_message(Lang::Ar, UpdateKind::Failed, "0.4.0"),
@@ -592,8 +592,8 @@ fn ac6_one_line_and_one_notification_per_kind_and_version() {
     let (mut sink, mut sent) = (Rec::default(), Sent::default());
     notify_update_with(&mut sink, &mut sent, Lang::En, UpdateKind::Ready, "0.4.0");
     let msg = text::update_message(Lang::En, UpdateKind::Ready, "0.4.0");
-    assert_eq!(sink.lines, vec![format!("sbarhived: notify: {msg}")]);
-    assert_eq!(sink.shown, vec![("SbarHive".to_string(), msg)]);
+    assert_eq!(sink.lines, vec![format!("kawarod: notify: {msg}")]);
+    assert_eq!(sink.shown, vec![("Kawaro".to_string(), msg)]);
 
     notify_update_with(&mut sink, &mut sent, Lang::En, UpdateKind::Ready, "0.4.0");
     assert_eq!(
@@ -623,7 +623,7 @@ fn ac6_a_different_version_or_kind_sends_again() {
     assert!(
         sink.lines
             .iter()
-            .all(|l| l.starts_with("sbarhived: notify: "))
+            .all(|l| l.starts_with("kawarod: notify: "))
     );
     notify_update_with(&mut sink, &mut sent, Lang::En, UpdateKind::Failed, "0.4.0");
     assert_eq!(sink.lines.len(), 4);
@@ -633,11 +633,8 @@ fn ac6_a_different_version_or_kind_sends_again() {
 fn ac6_the_arabic_notification_uses_the_arabic_app_name() {
     let (mut sink, mut sent) = (Rec::default(), Sent::default());
     notify_update_with(&mut sink, &mut sent, Lang::Ar, UpdateKind::Updated, "0.4.0");
-    assert_eq!(sink.shown[0].0, "صبار هايف");
-    assert_eq!(
-        sink.lines[0],
-        "sbarhived: notify: تم تحديث صبار هايف إلى 0.4.0."
-    );
+    assert_eq!(sink.shown[0].0, "كوارو");
+    assert_eq!(sink.lines[0], "kawarod: notify: تم تحديث كوارو إلى 0.4.0.");
 }
 
 fn result(version: &str, outcome: Outcome) -> UpdateResult {
@@ -657,7 +654,7 @@ fn ac6_the_start_up_result_is_reported_once_and_the_file_is_removed() {
     assert_eq!(
         sink.lines,
         vec![format!(
-            "sbarhived: notify: {}",
+            "kawarod: notify: {}",
             text::update_message(Lang::En, UpdateKind::Updated, "0.4.0")
         )]
     );
@@ -682,7 +679,7 @@ fn ac6_a_failed_install_result_is_reported_as_failed() {
     assert_eq!(
         sink.lines,
         vec![format!(
-            "sbarhived: notify: {}",
+            "kawarod: notify: {}",
             text::update_message(Lang::Ar, UpdateKind::Failed, "0.4.1")
         )]
     );
@@ -856,7 +853,7 @@ fn ac3_the_update_thread_starts_after_the_socket_is_bound_and_main_never_checks(
 fn ac6_update_notifications_never_open_a_window() {
     let notify = code("notify.rs");
     assert!(notify.contains("notify_update_with"));
-    assert!(notify.contains("sbarhived: notify:"));
+    assert!(notify.contains("kawarod: notify:"));
     let update = code("update.rs");
     for word in [
         "slint",
@@ -892,12 +889,12 @@ fn ac5_the_linux_tray_uses_the_update_menu_and_tooltip_functions() {
 #[test]
 fn update_manual_texts_are_exact_in_both_languages() {
     assert_eq!(
-        text::update_manual(Lang::En, "sudo dnf upgrade -y sbarhive"),
-        "To install the update, run: sudo dnf upgrade -y sbarhive"
+        text::update_manual(Lang::En, "sudo dnf upgrade -y kawaro"),
+        "To install the update, run: sudo dnf upgrade -y kawaro"
     );
     assert_eq!(
-        text::update_manual(Lang::Ar, "sudo dnf upgrade -y sbarhive"),
-        "لتثبيت التحديث نفّذ: sudo dnf upgrade -y sbarhive"
+        text::update_manual(Lang::Ar, "sudo dnf upgrade -y kawaro"),
+        "لتثبيت التحديث نفّذ: sudo dnf upgrade -y kawaro"
     );
     assert_eq!(
         text::update_manual(Lang::En, "https://example.org/releases"),
@@ -1336,27 +1333,24 @@ mod rework1 {
     fn the_restart_command_runs_the_exe_directly_without_a_shell() {
         assert_eq!(RESTART_DELAY, Duration::from_secs(2));
         assert_eq!(
-            restart_command(Path::new("/usr/bin/sbarhived")),
-            (PathBuf::from("/usr/bin/sbarhived"), Vec::<String>::new())
+            restart_command(Path::new("/usr/bin/kawarod")),
+            (PathBuf::from("/usr/bin/kawarod"), Vec::<String>::new())
         );
         assert_eq!(
-            restart_command(Path::new("/opt/sbar hive/sbarhived (deleted)")),
-            (
-                PathBuf::from("/opt/sbar hive/sbarhived"),
-                Vec::<String>::new()
-            )
+            restart_command(Path::new("/opt/kawaro/kawarod (deleted)")),
+            (PathBuf::from("/opt/kawaro/kawarod"), Vec::<String>::new())
         );
         assert_eq!(
-            clean_exe_path(Path::new("/usr/bin/sbarhived (deleted)")),
-            PathBuf::from("/usr/bin/sbarhived")
+            clean_exe_path(Path::new("/usr/bin/kawarod (deleted)")),
+            PathBuf::from("/usr/bin/kawarod")
         );
         assert_eq!(
-            clean_exe_path(Path::new("/usr/bin/sbarhived")),
-            PathBuf::from("/usr/bin/sbarhived")
+            clean_exe_path(Path::new("/usr/bin/kawarod")),
+            PathBuf::from("/usr/bin/kawarod")
         );
         assert_eq!(
-            clean_exe_path(Path::new("/usr/bin/(deleted)/sbarhived")),
-            PathBuf::from("/usr/bin/(deleted)/sbarhived")
+            clean_exe_path(Path::new("/usr/bin/(deleted)/kawarod")),
+            PathBuf::from("/usr/bin/(deleted)/kawarod")
         );
     }
 

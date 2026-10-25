@@ -1,7 +1,7 @@
 //! S-002 AC7 to AC9: output naming, temp paths and finalisation.
 
-use sbarhive_core::action::{OutputMode, OutputSpec};
-use sbarhive_core::output::{final_path, finalize, temp_path};
+use kawaro_core::action::{OutputMode, OutputSpec};
+use kawaro_core::output::{final_path, finalize, temp_path};
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;

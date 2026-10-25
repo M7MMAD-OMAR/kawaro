@@ -1,4 +1,4 @@
-# SbarHive design system
+# Kawaro design system
 
 Short reference. The source of truth is `design/tokens.json`; this file
 explains it and never overrides it.
@@ -59,8 +59,8 @@ The implementations: `spikes/hive/src/geometry.rs` (app) and `site/build.py` and
 
 | Need | File |
 | --- | --- |
-| App launcher, `.desktop` file, about dialog | `design/brand/sbarhive.svg` or `png/sbarhive-*.png` |
-| Tray, panel, any monochrome place | `design/brand/sbarhive-symbolic.svg` |
+| App launcher, `.desktop` file, about dialog | `design/brand/kawaro.svg` or `png/kawaro-*.png` |
+| Tray, panel, any monochrome place | `design/brand/kawaro-symbolic.svg` |
 | README, site header, social images | `design/brand/wordmark.svg` (light) or `wordmark-dark.svg` |
 | Browser tab | `site/favicon.svg`, `site/favicon-32.png` |
 

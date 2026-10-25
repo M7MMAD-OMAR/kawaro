@@ -12,7 +12,7 @@
 
 use crate::locate::{self, Program};
 use crate::process::ProcessTree;
-use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
+use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -93,8 +93,8 @@ impl Engine for OfficeEngine {
         progress(0.0);
         cancel.check()?;
         let input = single_input(task)?;
-        let in_ext = sbarhive_core::media::extension(input);
-        let out_ext = sbarhive_core::media::extension(&task.output);
+        let in_ext = kawaro_core::media::extension(input);
+        let out_ext = kawaro_core::media::extension(&task.output);
         let filter = plan(&task.op, input, &in_ext, &out_ext)?;
         let timeout = timeout_param(task, DEFAULT_TIMEOUT_S)?;
         let program = self
@@ -102,7 +102,7 @@ impl Engine for OfficeEngine {
             .clone()
             .ok_or_else(|| missing("LibreOffice", OFFICE_URL, None))?;
 
-        let work = work_dir(self.temp_root.as_deref(), "sbarhive-office-")?;
+        let work = work_dir(self.temp_root.as_deref(), "kawaro-office-")?;
         let profile = work.path().join("profile");
         let out_dir = work.path().join("out");
         std::fs::create_dir(&out_dir)?;

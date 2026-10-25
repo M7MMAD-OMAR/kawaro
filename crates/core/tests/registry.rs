@@ -1,7 +1,7 @@
 //! S-002 AC1 to AC6: action registry and built-in image actions.
 
-use sbarhive_core::action::{OutputMode, RegistryError};
-use sbarhive_core::{MediaKind, Registry};
+use kawaro_core::action::{OutputMode, RegistryError};
+use kawaro_core::{MediaKind, Registry};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 

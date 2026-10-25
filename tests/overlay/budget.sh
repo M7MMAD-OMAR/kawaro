@@ -4,9 +4,9 @@
 # (1920x1080, scale 1): once without a token and once with SHOW_TOKEN, and
 # checks for each run:
 #   - the hive was a layer surface in every show: the bench daemon runs with
-#     SBARHIVE_DEBUG_FOCUS=1 and prints "hive surface: layer|window X Y W H"
+#     KAWARO_DEBUG_FOCUS=1 and prints "hive surface: layer|window X Y W H"
 #     per show (AC11); one layer line per show and no window line.
-#     SBARHIVE_SURFACE is unset, so the default choice (AC1) is measured.
+#     KAWARO_SURFACE is unset, so the default choice (AC1) is measured.
 #     No WAYLAND_DEBUG: it would slow the frames being timed.
 #   - the median warm first_frame_ms is under 150 ms;
 #   - the daemon's RSS after 60 s idle is 40 MB or less, rounded down to whole
@@ -29,7 +29,7 @@ check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS
 run() { # run NAME [TOKEN]
   local name=$1 token=${2:-} log="$OUT/budget-$1"
   echo "== measure.sh $RUNS $IDLE ($name)"
-  local env=(env -u SBARHIVE_SURFACE -u SHOW_TOKEN SBARHIVE_DEBUG_FOCUS=1 CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}")
+  local env=(env -u KAWARO_SURFACE -u SHOW_TOKEN KAWARO_DEBUG_FOCUS=1 CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}")
   [ -n "$token" ] && env+=(SHOW_TOKEN="$token")
   "${env[@]}" "$ROOT/crates/ui/tests/measure.sh" "$RUNS" "$IDLE" >"$log.txt" 2>&1
   local raw; raw=$(sed -n 's/^raw output: //p' "$log.txt")

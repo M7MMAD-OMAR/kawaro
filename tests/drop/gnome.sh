@@ -2,13 +2,13 @@
 # Conditions are passed to check() in single quotes and expanded by eval.
 # shellcheck disable=SC2016,SC2034
 # S-014b drop receiver on GNOME Shell (Mutter), AC5, AC6, AC7. A GTK 4 window
-# drags a PNG, `sbarhive drop` is run mid-drag (what the shortcut does), and
+# drags a PNG, `kawaro drop` is run mid-drag (what the shortcut does), and
 # the file is dropped: show 1 on the WEBP cell, show 2 on a transparent
 # corner, show 3 on the WEBP cell with Shift held, show 4 on the centre cell.
 # The daemon runs with WAYLAND_DEBUG=1 so the trace shows a wl_data_device
 # per new surface. S-014c (AC8): show 5 drags a PDF and drops it on a
-# corner; every show's cells at enter must equal `sbarhive actions` for its
-# file (the daemon runs with SBARHIVE_DEBUG_FOCUS=1 for its diagnostic lines).
+# corner; every show's cells at enter must equal `kawaro actions` for its
+# file (the daemon runs with KAWARO_DEBUG_FOCUS=1 for its diagnostic lines).
 # The AC9 and AC10 screenshots are taken on KWin only (tests/drop/kwin.sh):
 # both paths draw the same Slint component (S-018 AC7).
 # Runs in a private headless gnome-shell with a throwaway
@@ -18,7 +18,7 @@
 # with global.display.grab_accelerator in the normal action mode (the path
 # the GlobalShortcuts portal backend and gnome-shell's own keybindings take,
 # ADR 0003 result 4) and spawns a wrapper that marks the time and execs
-# `sbarhive drop`. Custom shortcuts through gsd-media-keys are out of scope
+# `kawaro drop`. Custom shortcuts through gsd-media-keys are out of scope
 # (S-014). Three drags each press Super+Z mid-drag and drop on the WEBP
 # cell, then Esc is pressed mid-drag over the hive and before the hive
 # (tests/drop/lib.sh, shortcut_shows). The five S-014b and S-014c shows are
@@ -70,7 +70,7 @@ for a in "$@"; do
 done
 [ -n "$REBIND" ] && { [ "$MODE" != portal-real ] || [ "$POLICY" != smart ]; } && { echo "rebind needs smart portal-real"; exit 2; }
 TAG="gnome-$POLICY${MODE:+-$MODE}${REBIND:+-rebind}"
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 OUT="${DROP_OUT:-$HERE/out}"
 mkdir -p "$OUT"
 export BIN HERE ROOT OUT POLICY MODE TAG REBIND
@@ -108,7 +108,7 @@ inner() {
 
   hive_geo() {
     shell_eval 'global.get_window_actors().map(a => a.meta_window)
-      .filter(w => w.get_title() === "SbarHive" && !w.minimized && w.showing_on_its_workspace())
+      .filter(w => w.get_title() === "Kawaro" && !w.minimized && w.showing_on_its_workspace())
       .filter(w => { const r = w.get_frame_rect(); return r.width > 0 && r.height > 0; })
       .map(w => { const r = w.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(" "); }).join("")' \
       | grep -o '[0-9-]\+ [0-9-]\+ [0-9]\+ [0-9]\+' | head -1
@@ -204,9 +204,9 @@ if ok and v:
   else
   # English layout, so the WEBP cell is top right of the centre. No warm-up
   # show: the first drop-mode show is part of AC5.
-  SBARHIVE_LANG=en SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  KAWARO_LANG=en KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$DLOG" 2>&1 &
   d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
   fi
 
   GTK_A11Y=none python3 "$HERE/source.py" "$NEXT" >"$SLOG" 2>&1 &
@@ -264,7 +264,7 @@ if ok and v:
   summary
 
   echo quit >&3; exec 3>&-
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   sleep 0.5
   kill $src $d $input 2>/dev/null
   kill $shell 2>/dev/null
@@ -284,9 +284,9 @@ fi
 if [ "$MODE" = portal ] || [ "$MODE" = portal-real ]; then
   # The daemon registers (no portal_shortcut = false), hold_ms 400, and the
   # shipped .desktop file is installed in the throwaway data directory.
-  mkdir -p "$SANDBOX/.config/sbarhive" "$SANDBOX/.local/share/applications"
-  printf 'hold_ms = 400\n' >"$SANDBOX/.config/sbarhive/config.toml"
-  cp "$ROOT/packaging/io.github.m7mmad_omar.SbarHive.desktop" "$SANDBOX/.local/share/applications/"
+  mkdir -p "$SANDBOX/.config/kawaro" "$SANDBOX/.local/share/applications"
+  printf 'hold_ms = 400\n' >"$SANDBOX/.config/kawaro/config.toml"
+  cp "$ROOT/packaging/io.github.m7mmad_omar.Kawaro.desktop" "$SANDBOX/.local/share/applications/"
 fi
 RUNDIR="$(mktemp -d)"
 trap 'fusermount3 -u "$RUNDIR/doc" 2>/dev/null; rm -rf "$SANDBOX" "$RUNDIR"' EXIT

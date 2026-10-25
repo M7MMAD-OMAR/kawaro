@@ -27,7 +27,7 @@
 //!   `pkexec`; for a local package, `sudo dnf install -y {file}` or
 //!   `sudo apt-get install -y {file}`, where the literal `{file}` is replaced
 //!   by the daemon. `ShowRelease` carries `RELEASE_PAGE_URL`, which is
-//!   `https://github.com/M7MMAD-OMAR/sbarhive/releases/latest`.
+//!   `https://github.com/M7MMAD-OMAR/kawaro/releases/latest`.
 //! - `struct Programs { dnf: PathBuf, apt_get: PathBuf }` (`Debug + Clone`);
 //!   `install_privileged(file: &Path, sha256: &str, kind: PkgKind, root_dir:
 //!   &Path, programs: &Programs) -> Result<(), UpdateError>` (see the
@@ -88,16 +88,16 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use sbarhive_core::config::UpdateMode;
-use sbarhive_core::paths::Os;
-use sbarhive_core::update::UpdateError;
-use sbarhive_core::update::apply::{
+use kawaro_core::config::UpdateMode;
+use kawaro_core::paths::Os;
+use kawaro_core::update::UpdateError;
+use kawaro_core::update::apply::{
     AutoAction, CommandRunner, DAEMON_EXIT_TIMEOUT, Daemon, EXIT_NOT_ROOT, Facts, HelperOps,
     MsiResult, PkgKind, Plan, RELEASE_PAGE_URL, RETRY_INTERVAL, apply_now, auto_action, can_apply,
     classify_msi, helper_args, linux_plan, msiexec_args, msiexec_path, privileged_argv, root_gate,
     run_helper,
 };
-use sbarhive_core::update::result::{
+use kawaro_core::update::result::{
     Failure, Outcome, RESULT_FILE, UpdateResult, read_result, take_result, write_result,
 };
 
@@ -114,14 +114,14 @@ fn root(name: &str) -> PathBuf {
 #[test]
 fn ac1_msiexec_args_are_exactly_the_quiet_install() {
     let args = msiexec_args(
-        Path::new("C:/Users/a b/sbarhive.msi"),
+        Path::new("C:/Users/a b/kawaro.msi"),
         Path::new("C:/Temp/up date.log"),
     );
     assert_eq!(
         args,
         s(&[
             "/i",
-            "C:/Users/a b/sbarhive.msi",
+            "C:/Users/a b/kawaro.msi",
             "/qn",
             "/norestart",
             "/l*v",
@@ -160,8 +160,8 @@ fn ac1_neighbours_of_the_known_codes_and_negatives_are_failed() {
 
 // ------------------------------------------------------------ AC2
 
-const DNF_REPO: &str = "/usr/bin/pkexec dnf upgrade -y sbarhive";
-const APT_REPO: &str = "/usr/bin/pkexec apt-get install -y --only-upgrade sbarhive";
+const DNF_REPO: &str = "/usr/bin/pkexec dnf upgrade -y kawaro";
+const APT_REPO: &str = "/usr/bin/pkexec apt-get install -y --only-upgrade kawaro";
 
 fn facts(dnf: bool, apt: bool, pkexec: bool, repo: bool, kind: Option<PkgKind>) -> Facts {
     Facts {
@@ -241,11 +241,11 @@ fn ac2_decision_both_managers_follow_the_installed_kind_dnf_first_when_unknown()
 fn ac2_no_pkexec_shows_the_exact_command_for_the_manager_found() {
     assert_eq!(
         linux_plan(&facts(true, false, false, true, Some(PkgKind::Rpm))),
-        Plan::ShowCommand("sudo dnf upgrade -y sbarhive".to_string())
+        Plan::ShowCommand("sudo dnf upgrade -y kawaro".to_string())
     );
     assert_eq!(
         linux_plan(&facts(false, true, false, true, Some(PkgKind::Deb))),
-        Plan::ShowCommand("sudo apt-get install -y --only-upgrade sbarhive".to_string())
+        Plan::ShowCommand("sudo apt-get install -y --only-upgrade kawaro".to_string())
     );
     assert_eq!(
         linux_plan(&facts(true, false, false, false, Some(PkgKind::Rpm))),
@@ -259,7 +259,7 @@ fn ac2_no_pkexec_shows_the_exact_command_for_the_manager_found() {
 
 #[test]
 fn ac2_neither_manager_shows_the_release_page() {
-    let url = "https://github.com/M7MMAD-OMAR/sbarhive/releases/latest";
+    let url = "https://github.com/M7MMAD-OMAR/kawaro/releases/latest";
     assert_eq!(RELEASE_PAGE_URL, url);
     for pkexec in [true, false] {
         for repo in [true, false] {
@@ -334,10 +334,10 @@ impl CommandRunner for Recorder {
 const SHA: &str = "bff5b3ca49e18ea61c9f21a39f95922bcf75f2e0f8ffedf46e07c7cfd70d5d64";
 
 #[test]
-fn ac4_privileged_argv_is_pkexec_then_the_sbarhive_update_call() {
+fn ac4_privileged_argv_is_pkexec_then_the_kawaro_update_call() {
     let argv = privileged_argv(
-        Path::new("/usr/bin/sbarhive"),
-        Path::new("/home/u/.cache/sbarhive/updates/0.4.0/sbarhive-0.4.0-1.x86_64.rpm"),
+        Path::new("/usr/bin/kawaro"),
+        Path::new("/home/u/.cache/kawaro/updates/0.4.0/kawaro-0.4.0-1.x86_64.rpm"),
         SHA,
         PkgKind::Rpm,
     );
@@ -346,10 +346,10 @@ fn ac4_privileged_argv_is_pkexec_then_the_sbarhive_update_call() {
         s(&[
             // S-054b ruling: the absolute path, never found through PATH.
             "/usr/bin/pkexec",
-            "/usr/bin/sbarhive",
+            "/usr/bin/kawaro",
             "update",
             "--install-privileged",
-            "/home/u/.cache/sbarhive/updates/0.4.0/sbarhive-0.4.0-1.x86_64.rpm",
+            "/home/u/.cache/kawaro/updates/0.4.0/kawaro-0.4.0-1.x86_64.rpm",
             "--sha256",
             SHA,
             "--kind",
@@ -357,7 +357,7 @@ fn ac4_privileged_argv_is_pkexec_then_the_sbarhive_update_call() {
         ])
     );
     let deb = privileged_argv(
-        Path::new("/x/sbarhive"),
+        Path::new("/x/kawaro"),
         Path::new("/p.deb"),
         SHA,
         PkgKind::Deb,
@@ -371,7 +371,7 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
     let plan = Plan::RepoUpgrade(DNF_REPO.to_string());
     apply_now(
         &plan,
-        Path::new("/usr/bin/sbarhive"),
+        Path::new("/usr/bin/kawaro"),
         Path::new("/p.rpm"),
         SHA,
         &r,
@@ -379,14 +379,14 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
     .unwrap();
     assert_eq!(
         *r.calls.borrow(),
-        vec![s(&["/usr/bin/pkexec", "dnf", "upgrade", "-y", "sbarhive"])]
+        vec![s(&["/usr/bin/pkexec", "dnf", "upgrade", "-y", "kawaro"])]
     );
 
     let r = Recorder::new(0);
     let plan = Plan::RepoUpgrade(APT_REPO.to_string());
     apply_now(
         &plan,
-        Path::new("/usr/bin/sbarhive"),
+        Path::new("/usr/bin/kawaro"),
         Path::new("/p.deb"),
         SHA,
         &r,
@@ -400,7 +400,7 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
             "install",
             "-y",
             "--only-upgrade",
-            "sbarhive"
+            "kawaro"
         ])]
     );
 }
@@ -408,8 +408,8 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
 #[test]
 fn ac4_apply_now_local_runs_the_privileged_call_once() {
     let r = Recorder::new(0);
-    let exe = Path::new("/usr/bin/sbarhive");
-    let file = Path::new("/c/sbarhive.deb");
+    let exe = Path::new("/usr/bin/kawaro");
+    let file = Path::new("/c/kawaro.deb");
     apply_now(&Plan::Local(PkgKind::Deb), exe, file, SHA, &r).unwrap();
     assert_eq!(
         *r.calls.borrow(),
@@ -666,8 +666,8 @@ fn ac6_outcome_from_msi_maps_the_classes() {
 #[test]
 fn ac7_helper_args_start_the_copy_with_apply_msi() {
     assert_eq!(
-        helper_args(Path::new("C:/Cache/sbarhive 0.4.0.msi")),
-        s(&["update", "--apply-msi", "C:/Cache/sbarhive 0.4.0.msi"])
+        helper_args(Path::new("C:/Cache/kawaro 0.4.0.msi")),
+        s(&["update", "--apply-msi", "C:/Cache/kawaro 0.4.0.msi"])
     );
 }
 
@@ -751,8 +751,8 @@ impl HelperOps for Fake {
     }
 }
 
-const MSI: &str = "C:/Cache/sbarhive.msi";
-const LOG: &str = "C:/Temp/sbarhive-update.log";
+const MSI: &str = "C:/Cache/kawaro.msi";
+const LOG: &str = "C:/Temp/kawaro-update.log";
 
 fn run(fake: &Fake) -> UpdateResult {
     run_helper(fake, Path::new(MSI), Path::new(LOG), "0.4.0", 77)
@@ -852,7 +852,7 @@ fn ac7_windows_only_file_is_wired_and_excluded_from_mutants() {
     let win = fs::read_to_string(root("src/update/apply/windows.rs"))
         .expect("crates/core/src/update/apply/windows.rs exists");
     assert!(win.contains("pub fn apply_msi"));
-    assert!(win.contains("sbarhive.exe"));
+    assert!(win.contains("kawaro.exe"));
     assert!(win.contains("helper_args") || win.contains("--apply-msi"));
     assert!(win.contains("msiexec_path") || win.contains("msiexec.exe"));
     assert!(win.contains("run_helper"));

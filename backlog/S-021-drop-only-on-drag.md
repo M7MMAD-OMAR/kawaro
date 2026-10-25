@@ -3,19 +3,19 @@
 
 بلاغ المشرف (2026-10-22، الإصدار 0.3.0 مثبت): دون تحديد ولا سحب، إمساك Alt وتحريك الفأرة يُظهر الخلية. المطلوب: لا تظهر خلية الإفلات إلا أثناء سحب ملف فعلي، ولملفات لها إجراء واحد على الأقل.
 
-السبب: `~/.config/hypr/keybinds.lua` يربط ضغط ALT_L (وSUPER+Z) بـ `sbarhive drop --hold --at "$(hyprctl cursorpos)"` والترك بـ `drop --release`. بعد `hold_ms` (400 ms) ترسم الخدمة الخلية (`server.rs` `Request::Drop`، ثم `ui::present_drop`، والبوابة `sbarhive_core::hold`، والحالة `Waiting` في `crates/ui/src/dnd.rs`) دون أي فحص لوجود سحب. الملفات لا تُعرف إلا عند `wl_data_device.enter` (`receiver.rs` `enter()` ثم `read_files` و`Note::Enter`). ولملف بلا إجراء تبقى الخلية مرسومة بصفر خلايا.
+السبب: `~/.config/hypr/keybinds.lua` يربط ضغط ALT_L (وSUPER+Z) بـ `kawaro drop --hold --at "$(hyprctl cursorpos)"` والترك بـ `drop --release`. بعد `hold_ms` (400 ms) ترسم الخدمة الخلية (`server.rs` `Request::Drop`، ثم `ui::present_drop`، والبوابة `kawaro_core::hold`، والحالة `Waiting` في `crates/ui/src/dnd.rs`) دون أي فحص لوجود سحب. الملفات لا تُعرف إلا عند `wl_data_device.enter` (`receiver.rs` `enter()` ثم `read_files` و`Note::Enter`). ولملف بلا إجراء تبقى الخلية مرسومة بصفر خلايا.
 
 البحث:
 - لا إشارة عامة في Wayland لوجود سحب: `wl_data_device.enter` يصل لسطح يملكه العميل فقط (https://doc.servo.org/wayland_client/protocol/wl_data_device/struct.WlDataDevice.html)، ولا حدث سحب في IPC الخاص بـ Hyprland (https://wiki.hypr.land/IPC/).
 - أثناء السحب يمسك جهاز البيانات المؤشر، فتذهب أحداثه إليه لا إلى `wl_pointer` (https://phabricator.kde.org/D1046).
 - `wl_data_offer.receive` مسموح قبل الإفلات (https://wayland.app/protocols/wayland#wl_data_offer:request:receive)، و`receiver.rs` يفعله اليوم.
-- بديل مرفوض: `~/.config/hypr/scripts/sbarhive-alt-hold.py` يقرأ BTN_LEFT من `/dev/input`. يحتاج مجموعة `input`، ولا يرى السحب بالنقر على لوحة اللمس، ولا يعرف إن كان للملف إجراء.
+- بديل مرفوض: `~/.config/hypr/scripts/kawaro-alt-hold.py` يقرأ BTN_LEFT من `/dev/input`. يحتاج مجموعة `input`، ولا يرى السحب بالنقر على لوحة اللمس، ولا يعرف إن كان للملف إجراء.
 
 الدليل: Hyprland 0.56.2 خاص متداخل، 2026-10-22، مسار الطبقة، `WAYLAND_DEBUG=1`، بناء 0.3.0 المثبت (سكربت مؤقت من `repro.sh`):
 - P1، `drop --hold` دون سحب والمؤشر ساكن داخل مستطيل الخلية: الخلية مرسومة بعد العتبة، ولا حدث عند الربط. مع أول حركة (بعد نحو 300 ms) يصل `wl_pointer.enter` على الماسك، ولا حدث من جهاز البيانات.
 - P2، المؤشر خارج المستطيل ثم يدخله: `wl_pointer.enter` لحظة العبور.
 - P3، سحب GTK لملف PNG (`tests/drop/source.py`) واليد ساكنة: لا حدث عند الربط. مع أول حركة يصل `wl_data_device.enter` وبين عروضه `text/uri-list`. ثم `set_actions` و`receive` و`accept` خلال 0.4 ms، و`drop cells:` بـ 15 إجراءً للصور، ثم `motion`. الدخول عند 480،270 (نصف حجم السطح، خاصية Hyprland المسجّلة في S-020).
-- P4، سحب `notes.unknownext` (`sbarhive actions` لا يعيد شيئاً): `enter`، ثم `drop cells:` فارغ، والخلية باقية (الخلل).
+- P4، سحب `notes.unknownext` (`kawaro actions` لا يعيد شيئاً): `enter`، ثم `drop cells:` فارغ، والخلية باقية (الخلل).
 
 الخلاصة: على Hyprland يحسم الأمرَ أولُ حدث على الماسك. `wl_pointer.enter` يعني لا سحب، و`wl_data_device.enter` بعرض `text/uri-list` يعني سحب ملفات.
 
@@ -49,7 +49,7 @@
   - `FocusLost` و`ClickOutside` لا يغيّران `Probing`.
   - على مسار النافذة يعطي الظهور `Waiting` كما اليوم، و`PointerEnter` لا أثر له.
 - AC2: كل انتقال من `Probing` إلى `Hidden` يستدعي `on_dismiss` مرة واحدة بالضبط (اختبار في `drop_hive_tests.rs`). `Enter` تعيد له `on_drop_files` صفر خلايا يعطي `Hidden` ولا يضع نص `no_actions` في المركز. سطر `drop cells:` يُطبع قبل فحص القائمة الفارغة كما اليوم (S-014 AC8).
-- AC3: مع `SBARHIVE_DEBUG_FOCUS`، وعلى مسار الطبقة فقط، لكل ظهور إفلات سطر واحد بالضبط من اثنين:
+- AC3: مع `KAWARO_DEBUG_FOCUS`، وعلى مسار الطبقة فقط، لكل ظهور إفلات سطر واحد بالضبط من اثنين:
   - `hive reveal: N`، وN يساوي عدد المعرّفات في سطر `drop cells:` الذي يسبقه.
   - `hive probe: hidden (R)`، وR واحد من `pointer` و`no-uri-list` و`no-actions` و`release` و`cap`.
   - ظهور أُخفي قبل الموضع (قبل انقضاء `ANCHOR_WAIT`) لا يطبع `hive anchor:` ولا `hive surface:`، بل سطر الإخفاء وحده.
@@ -60,7 +60,7 @@
   - (ج) `drop --hold` ثم `drop --release` بعد ظهور الطبقة والمؤشر ساكن: `hidden (release)`، وصفر `attach` على الخلية.
 - AC6: سحب ملف بلا إجراء (`notes.unknownext`) في `repro.sh` وفي `tests/drop/kwin.sh`: `drop cells:` فارغ، ثم `hidden (no-actions)`، وصفر `attach` على الخلية، وصفر `wl_data_offer.accept` بنوع غير `nil` في الظهور، ولا ملف جديد في المجلد، وسحب جديد يبدأ بعده. وسحب نص بلا `text/uri-list` في `repro.sh`: `hidden (no-uri-list)`، وصفر `wl_data_offer.receive`.
 - AC7: سحب PNG في `repro.sh` (حالة `cell`) وفي الظهورات الخمسة لـ `tests/drop/kwin.sh level=1`:
-  - `hive reveal: N` وN يساوي عدد أسطر `sbarhive actions` للملف.
+  - `hive reveal: N` وN يساوي عدد أسطر `kawaro actions` للملف.
   - أول `attach` على الخلية يأتي بعد أول `wl_data_device.enter` على الماسك.
   - الإفلات على WEBP يكتب الملف كما اليوم (فحوص S-020 AC3 وS-014 AC7 خضراء).
 - AC8: الميزانية (تحتاج موافقة المشرف، السؤال 1): من أول `wl_data_device.enter` على الماسك إلى أول `attach` على الخلية، بطوابع أثر الخدمة، 150 ms أو أقل في كل ظهور ظاهر في `repro.sh` و`tests/drop/kwin.sh level=1`. و`tests/drop/budget.sh` يقيس من انقضاء العتبة إلى أول `commit` للماسك (وسيط 20 ظهوراً)، أقل من 150 ms.
@@ -76,7 +76,7 @@
 | AC3، AC4 | `repro.sh` و`tests/drop/kwin.sh`: عدّ الأسطر في كل ظهور، وعدّ `attach` على السطح الفرعي (من `get_subsurface`) قبل `hive reveal:` | تكامل |
 | AC5، AC9 | `repro.sh`: الحالات (أ) و(ب) و(ج) ونقرات `keys.py`، ثم الدورة المتتالية | تكامل |
 | AC6 | `repro.sh` و`kwin.sh`: ملف `notes.unknownext` من `source.py`، وسحب نص (يضيف المختبِر وضعاً لـ `source.py`) | تكامل |
-| AC7 | حالة `cell` والظهورات الخمسة: سطر `hive reveal:` مقابل `sbarhive actions`، وترتيب `enter` ثم `attach`، والملف الناتج | تكامل |
+| AC7 | حالة `cell` والظهورات الخمسة: سطر `hive reveal:` مقابل `kawaro actions`، وترتيب `enter` ثم `attach`، والملف الناتج | تكامل |
 | AC8 | الفرق بين الطابعين في الأثر لكل ظهور ظاهر؛ و`budget.sh` و`measure.sh DROP=1` بالتعريف الجديد | أداء |
 | AC10، AC11 | السكربتات كلها مرة واحدة، والبوابات، و`cargo mutants --in-diff` على الملفين | تكامل، وحدة |
 | AC12 | `tests/drop/hold_docs.sh` | ثابت |
@@ -97,7 +97,7 @@
 - `drop_tests.rs:142` و`312` و`373` (`Show { drop: true }` يعطي `Waiting`): تبقى لمسار النافذة إن جاء التمييز بحقل جديد، وتُضاف نظائرها لمسار الطبقة.
 
 ## خارج النطاق
-- X11 (S-015)، واختصار البوابة (S-014e وS-014f)، والسكربت القديم `sbarhive-alt-hold.py`.
+- X11 (S-015)، واختصار البوابة (S-014e وS-014f)، والسكربت القديم `kawaro-alt-hold.py`.
 - بدء السحب بعد انقضاء العتبة: الماسك الخفي تحت المؤشر يأخذ الضغطة فيُخفى (`pointer`). كان معطوباً قبل هذه القصة أيضاً، والترتيب الموثّق هو السحب أولاً.
 - تغيير مسار النافذة (القرار 1، السؤال 5).
 
@@ -126,11 +126,11 @@
   - المنفذ إلى الآلة في اختبارات الخلية: المنصة المخفية مسار نافذة دائماً، فتضع الاختبارات الآلة في `Probing` بنفسها بعد `present_drop*` بـ `machine.handle(Event::Show { .., layer: true }, t)`، كما يفعل فحص المهلة القائم في `drop_hive_behaviour`. ربط `on_layer` بـ `layer: true` داخل `show()` لا يصله اختبار مخفي، وتفحصه أسطر `hive reveal:` و`hive probe:` في S-021b (AC3 وAC4).
   - مكان قرار القائمة الفارغة: القرار 3 يضعه في `crates/daemon/src/ui.rs`. العقد المُلزِم هو سلوك الخلية أعلاه، فالمنفِّذ حرّ في مكان الحساب ما دام نص `no_actions` لا يُرسم على مسار الطبقة ويبقى على مسار النافذة. سطر `drop cells:` قبل فحص القائمة الفارغة يحرسه اختبار S-014 AC8 القائم (`drop_cells_line_lists_the_ids_in_order`)، ولم يُضف له اختبار.
   - تأكيدات قائمة تغيّرت: ‏`drop_tests.rs` الأسطر 141 و255 و306 و366 قبل التعديل (القصة تسميها 142 و312 و373) أخذت `layer: false`، وتأكيداتها كما هي، وأُضيفت نظائرها لمسار الطبقة. على المنفِّذ أن يضيف الحقل نفسه إلى حرفيات `Event::Show` في وحدة `mod tests` داخل `crates/ui/src/dnd.rs` (الأسطر 133 و178 و192) وفي `show()` في `crates/ui/src/lib.rs`؛ هذا ليس تعديلاً للاختبارات بل لازم من تغيير النوع.
-  - ما ينجح قبل التنفيذ بعد وجود الأسماء: ثلاثة حراس لمسار النافذة لا يُلوَون: ‏`ac1_a_normal_show_on_the_layer_path_does_not_probe` و`ac1_the_window_path_still_waits_and_ignores_pointer_enter` و`ac1_s021a_the_window_path_is_unchanged`. تحقق المختبِر في نسخة مؤقتة (حُذفت): بأسماء بلا سلوك فشل الأربعة عشر الباقون كلهم عند تأكيد `Probing` الأول؛ وبتنفيذ تجريبي صغير نجحت اختبارات `sbarhive-ui --lib` كلها (140)، فالعقد قابل للتنفيذ.
+  - ما ينجح قبل التنفيذ بعد وجود الأسماء: ثلاثة حراس لمسار النافذة لا يُلوَون: ‏`ac1_a_normal_show_on_the_layer_path_does_not_probe` و`ac1_the_window_path_still_waits_and_ignores_pointer_enter` و`ac1_s021a_the_window_path_is_unchanged`. تحقق المختبِر في نسخة مؤقتة (حُذفت): بأسماء بلا سلوك فشل الأربعة عشر الباقون كلهم عند تأكيد `Probing` الأول؛ وبتنفيذ تجريبي صغير نجحت اختبارات `kawaro-ui --lib` كلها (140)، فالعقد قابل للتنفيذ.
   - AC9: الجزء الذي في الوحدة هنا (ظهوران يُخفيان دون سحب، `pointer` ثم `release`، ثم `drop --hold` بسحب PNG يُظهِر ويُشغِّل، وترك المفتاح بعد الإخفاء لا يضيف شيئاً، وكل ظهور يعدّ حدّه من ظهوره). الجزء التكاملي (خروج `drop --release` بـ 0 خلال 200 ms، ولا سطح جديد، ولا خطأ بروتوكول، وسطر `hive reveal:`) يحتاج أسطر S-021b ومؤلِّفاً خاصاً، فينتقل إلى فحوص `repro.sh` في S-021b. لم يُعدَّل `repro.sh` ولم يُشغَّل.
   - مخرجات الفشل:
     ```
-    $ systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -p sbarhive-ui --lib -j 2
+    $ systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -p kawaro-ui --lib -j 2
     error[E0559]: variant `dnd::Event::Show` has no field named `layer`
        --> crates/ui/src/drop_hive_tests.rs:447:13
     error[E0599]: no variant, associated function, or constant named `Probing` found for enum `dnd::State` in the current scope
@@ -141,10 +141,10 @@
        --> crates/ui/src/drop_hive_tests.rs:537:33
     error[E0599]: no variant, associated function, or constant named `PointerEnter` found for enum `dnd::Event` in the current scope
        --> crates/ui/src/drop_tests.rs:511:36
-    error: could not compile `sbarhive-ui` (lib test) due to 35 previous errors
+    error: could not compile `kawaro-ui` (lib test) due to 35 previous errors
     ```
     الأخطاء الخمسة والثلاثون: 13 `Probing`، و8 الحقل `layer`، و6 `Note::PointerEnter`، و6 `Event::PointerEnter`، و2 `Reject`. كلها بنود من العقد، ولا خطأ غيرها.
-  - ملاحظة: كما في S-014a، لا تُبنى اختبارات وحدة `sbarhive-ui` كلها حتى تُضاف هذه البنود.
+  - ملاحظة: كما في S-014a، لا تُبنى اختبارات وحدة `kawaro-ui` كلها حتى تُضاف هذه البنود.
 - 2026-10-22، المشرف: يُسمح للمنفِّذ بإضافة `layer: false` إلى حرفيات `Event::Show` في `mod tests` داخل `crates/ui/src/dnd.rs` (الأسطر 133 و178 و192)، تعديلاً آلياً فقط لا يغيّر أي تأكيد. ونصف AC9 الخاص بـ `repro.sh` (خروج `drop --release` بـ 0 خلال 200 ms، ولا سطح جديد، ولا خطأ بروتوكول، وسطر `hive reveal:`) ينتقل إلى فحوص `repro.sh` في S-021b.
 - 2026-10-22، المنفِّذ (S-021a): نجحت الاختبارات دون تعديل أي تأكيد. الوحيد المسموح: `layer: false` في حرفيات `Event::Show` الثلاث في `mod tests` داخل `dnd.rs`.
   - `dnd.rs`: الحالة `Probing`، والحدثان `PointerEnter` و`Reject`، والحقل `layer` في `Show`. ‏`drop` مع `layer` يعطي `Probing`؛ ومنه `Enter` يعطي `Waiting`، و`PointerEnter` و`Reject` و`Escape` و`Cancel` و`Release` (في `hold`) والحد `ENTER_TIMEOUT` تعطي `Hidden`، والباقي لا يغيّرها.
@@ -152,10 +152,10 @@
   - `receiver.rs`: البند `Note::PointerEnter` فقط. ‏`layer.rs`: ‏`wl_pointer.enter` على الماسك يضيف `Ev::PointerEnter`، والمحوّل في وضع الإفلات ينقله إلى `on_note` (المصرف نفسه) في الدورة التالية عبر `invoke_from_event_loop` كما يفعل المستقبِل.
   - قرار القائمة الفارغة في الخلية (`Inner::drop_files`) لا في `crates/daemon/src/ui.rs`، كما يسمح عقد المختبِر؛ سطر `drop cells:` يبقى قبله في الخدمة.
   - مؤقتاً حتى S-021b: على مسار الطبقة تُرسم الخلية فارغة عند الربط كما اليوم، وتُخفى عند `wl_pointer.enter` أو ملف بلا إجراء. فحوص `repro.sh` و`kwin.sh` القديمة التي تنتظر بقاء الخلية حتى المهلة دون سحب ستفشل حتى يعدّلها المختبِر في S-021b. لم يُشغَّل أي مؤلِّف.
-  - البوابات داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` بـ `-j 2`: ‏`cargo fmt --check` نظيف، و`cargo clippy --all-targets -- -D warnings` نظيف، و`cargo test --all` ‏563 ناجحاً و0 فاشلاً (‏`sbarhive-ui --lib` ‏140)، و`scripts/design-lint.sh` نظيف.
+  - البوابات داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` بـ `-j 2`: ‏`cargo fmt --check` نظيف، و`cargo clippy --all-targets -- -D warnings` نظيف، و`cargo test --all` ‏563 ناجحاً و0 فاشلاً (‏`kawaro-ui --lib` ‏140)، و`scripts/design-lint.sh` نظيف.
 - 2026-10-22، المراجِع (S-021a، المراجعة 1): **PASS**.
   - النطاق: `0f57386..HEAD` (‏3cdba9e و8ab5d2f، و79b6435 سجل القصة فقط). كل شيء داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`، دون أي مؤلِّف.
-  - البوابات: `cargo fmt --check` خرج بـ 0؛ `cargo clippy --all-targets -- -D warnings` (‏`-j 2`) خرج بـ 0 بلا تحذير؛ `cargo test --all` (‏`-j 2`) ‏563 ناجحاً و0 فاشلاً و1 متجاهَلاً (‏`sbarhive-ui --lib` ‏140)؛ `scripts/design-lint.sh` نظيف.
+  - البوابات: `cargo fmt --check` خرج بـ 0؛ `cargo clippy --all-targets -- -D warnings` (‏`-j 2`) خرج بـ 0 بلا تحذير؛ `cargo test --all` (‏`-j 2`) ‏563 ناجحاً و0 فاشلاً و1 متجاهَلاً (‏`kawaro-ui --lib` ‏140)؛ `scripts/design-lint.sh` نظيف.
   - الطفرات (‏cargo-mutants 27.1.0، `--in-place` كما في القصص السابقة، تسلسلياً بـ `CARGO_BUILD_JOBS=1` لأن `--in-place` لا يقبل `-j`): `--file crates/ui/src/dnd.rs`: ‏22 طفرة، 20 مقتولة، 0 ناجية، 0 مهلة، 2 غير قابلة للبناء (`Machine::state` و`Machine::handle` بـ `Default::default()`، فلا `Default` لـ `State`). و`--in-diff` على فرق `lib.rs`: ‏8 طفرات (`on_note` و`Inner::drop_files` و`Inner::focus_lost` و`Hive::show`)، 7 مقتولة، 0 ناجية، 0 مهلة، 1 غير قابلة للبناء (`drop_files` بـ `Default::default()`). ‏`layer.rs` و`receiver.rs` مستثنيان في `.cargo/mutants.toml` (قرار S-018 الخامس، والقرار 3 هنا). البدائل `Probing |` في `matches!` داخل `drop_files` و`focus_lost` وأذرع `Probing` في `Machine::handle` لا تطفّرها الأداة، وتغطيها: `ac2_s021a_enter_without_cells_hides_once_without_the_no_actions_text` (يُسأل `on_drop_files` مرة في `Probing`)، و`ac1_s021a_focus_loss_and_click_outside_keep_a_probing_show`، واختبارات `ac1_*` في `drop_tests.rs` لكل ذراع. شجرة العمل نظيفة بعد التشغيل.
   - سلامة الاختبارات: `git diff 0f57386..HEAD` لا يمس `drop_tests.rs` ولا `drop_hive_tests.rs` ولا أي ملف تحت `tests/`. التغيير الوحيد في شيفرة اختبار: `layer: false` في حرفيات `Event::Show` الثلاث في `mod tests` داخل `dnd.rs`، دون تغيير أي تأكيد، كما سمح المشرف.
   - المعايير: AC1 تغطيه اختبارات `ac1_*` العشرة في `drop_tests.rs` و`ac1_ac2_s021a_*` و`ac1_s021a_*` في `drop_hive_tests.rs`. AC2 تغطيه `ac2_s021a_*` (عدّ `on_dismiss` لكل انتقال، والمركز بلا `no_actions`)، وترتيب سطر `drop cells:` يحرسه `drop_cells_line_lists_the_ids_in_order` (`crates/daemon/src/ui.rs:330`، نجح في التشغيل). نصف AC9 الخاص بالوحدة يغطيه `ac9_two_hides_without_a_drag_then_a_held_drag_reveals_and_runs` و`ac9_s021a_two_hides_without_a_drag_then_a_held_png_drag_reveals`. بنود العقد كلها متحققة في الشيفرة: `Show { drop, hold, layer }` و`Probing` و`PointerEnter` و`Reject` و`Note::PointerEnter`، و`show()` يمرّر `inner.on_layer.get()` بعد إعادة البناء إن حصلت، و`focus_lost` لا يغلق في `Probing`. مسار النافذة دون تغيير: `layer: false` يعطي `Waiting` كما كان، و`drop_files` في `Waiting` يطبّق النص والخلايا كما كان، و`PointerEnter` لا أثر له خارج `Probing`.
@@ -166,7 +166,7 @@
 - 2026-10-22، المختبِر (S-021b: AC3 إلى AC7 وAC10، ونصف AC9 الخاص بـ `repro.sh`): كُتبت الفحوص من المعايير وجدول الحالات وقائمة «تأكيدات تتغير»، دون قراءة شيفرة الميزة. شُغّلت على بناء main ‏(aa84616، `cargo build --release` جديد) داخل `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`، كل مؤلِّف خاص وحده: Hyprland 0.56.2 متداخل، وKWin ‏`--virtual`، وgnome-shell ‏`--headless`، وكلها بـ HOME مؤقت.
   - الملفات: `tests/drop/layer.sh` (‏`catcher_ready` و`probe_show` و`probe_checks`، والمرجع الجديد في `still_region` و`layer_drop_show`)، و`tests/hyprland/repro.sh`، و`tests/drop/kwin.sh`، و`tests/drop/lib.sh` (‏`shortcut_esc` قبل الدخول)، و`tests/overlay/kwin.sh` (أوضاع `drop` و`outputs` و`layer`)، و`tests/drop/source.py` (وضع `text:`)، و`tests/drop/window_path.sh` (جديد، AC10)، وحذف `tests/drop/snapshots/drop-en-light-waiting.png` (السؤال 4).
   - العقد الذي تثبّته الفحوص (لا تُعدَّل):
-    - مع `SBARHIVE_DEBUG_FOCUS` تطبع الخدمة على stderr، في المجرى نفسه الذي يحمل أثر `WAYLAND_DEBUG`، سطراً واحداً بالضبط لكل ظهور إفلات على مسار الطبقة: `hive reveal: N` (التعبير `^hive reveal: [0-9]+$`) أو `hive probe: hidden (R)` (التعبير `^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap)\)$`). لا سطر غيرهما يبدأ بـ `hive reveal:` أو `hive probe:`. إغلاق ظهور ظاهر (إفلات، Esc، مغادرة، ترك المفتاح) لا يطبع شيئاً. الضغطة القصيرة التي لا تربط سطحاً لا تطبع شيئاً. مسار النافذة لا يطبع أياً منهما.
+    - مع `KAWARO_DEBUG_FOCUS` تطبع الخدمة على stderr، في المجرى نفسه الذي يحمل أثر `WAYLAND_DEBUG`، سطراً واحداً بالضبط لكل ظهور إفلات على مسار الطبقة: `hive reveal: N` (التعبير `^hive reveal: [0-9]+$`) أو `hive probe: hidden (R)` (التعبير `^hive probe: hidden \((pointer|no-uri-list|no-actions|release|cap)\)$`). لا سطر غيرهما يبدأ بـ `hive reveal:` أو `hive probe:`. إغلاق ظهور ظاهر (إفلات، Esc، مغادرة، ترك المفتاح) لا يطبع شيئاً. الضغطة القصيرة التي لا تربط سطحاً لا تطبع شيئاً. مسار النافذة لا يطبع أياً منهما.
     - السطران بلا طابع زمني، فـ«قبل» تعني ترتيب الأسطر في ذلك المجرى. ‏N يساوي عدد المعرّفات في آخر سطر `drop cells:` قبله. سطر `drop cells:` الفارغ (‏`drop cells:` بلا شيء بعد النقطتين) يسبق `hidden (no-actions)`.
     - «ظاهر» = أول `-> wl_surface#C.attach(wl_buffer` على السطح الفرعي للخلية، وC هو السطح الأول في `get_subsurface(new id wl_subsurface#S, wl_surface#C, ...)`. سطر `hive reveal:` يأتي قبل أول `attach` كهذا، ويليه واحد على الأقل، وأولها بعد أول `wl_data_device.enter` يسمّي الماسك. في الظهور المخفي صفر `attach` على C.
     - الرسم المؤجَّل يؤجّل مخازن الخلية وحدها: الماسك وبكسله الشفاف (‏`attach` على الماسك مرة على الأقل)، و`get_subsurface`، و`set_position`، و`set_destination`، ومنطقتا الإدخال تُصنع عند الربط كما اليوم. لذلك يبقى فحص S-020 AC1 (منطقة فارغة للسطح الفرعي) وفحوص AC11 في `tests/overlay/kwin.sh` (الموضع والمقصد) على ظهور لا يُظهَر أبداً، ويُطلب فيه صفر مخزن `wl_shm` غير بكسل الماسك.
@@ -176,7 +176,7 @@
     - `source.py`: سطر `text:WORDS` في ملف NEXT يسحب النص WORDS (عروض `text/plain` بلا `text/uri-list`).
   - تأكيدات قائمة تغيّرت (كما في القائمة أعلاه): `repro.sh` (S-020 AC4 صار AC5 (ب)، وفحص القرار 12 على الظهور نفسه بالمرجع الجديد ودون `set_position`، وتعليق الرأس)، و`layer.sh` (المرجع)، و`tests/overlay/kwin.sh drop` (‏drop1 وdrop3 سحب PNG، وdrop2 ‏`hidden (pointer)`، والنقرة في (100، 700) في drop4 ‏`--at 640,400`)، و`outputs at-v1` (سحب PNG ممسوك وحركة 1 px، ولقطة «قبل» مع السحب)، و`tests/drop/kwin.sh` (لقطة ما قبل `enter` بصفر بكسل من الرموز الثلاثة مع حارس من لقطة المصدر وحده، والمرجع في late)، و`lib.sh` (‏`hidden (cap)` على مسار الطبقة فقط، ‏`ESC_NO_KEYBOARD=1`، فلا يتغير `gnome.sh`).
   - تغييرات إعداد خارج القائمة، تحتاج إقرار المشرف (القرار 6 يكسرها بعد التنفيذ الصحيح): (1) ‏`tests/drop/kwin.sh hold_cycles` حالة held: المؤشر في (640، 400) فيُخفي KWin الماسك عند الربط قبل الترك، فصارت `drop --hold --at 640,400` والمؤشر في (100، 700)، والتأكيدات كما هي، مع `hidden (release)`. (2) ‏`tests/overlay/kwin.sh` الوضع الافتراضي، ظهور drop: صار `drop --at 640,400` والمؤشر في (100، 700)، وفحص AC18 «رسم في مخازن wl_shm» صار لهذا الظهور «صفر مخزن wl_shm وبكسل الماسك وحده». الإعداد نفسه الذي اعتمدته القصة لسطري 846 و847.
-  - اللقطة (السؤال 4): حُذف المرجع القديم (أُخذ على مسار الطبقة، ويختلف عن مرشّح مسار النافذة في 0.59 % من بكسلاته). `tests/drop/kwin.sh` يعيد تشغيل الخدمة بـ `SBARHIVE_SURFACE=window` بعد `hold_cycles`، ويلتقط الخلية المنتظرة تحت سحب PNG ساكن، ويقصّها بمستطيل سطر `hive surface: window` (‏393 x 362)، ويفحص نص الانتظار (حبر `text-primary` في المركز) وغياب الخلايا وغياب أسطر S-021، ثم يقارنها بالمرجع. المرشّح في `tests/drop/out/drop-en-light-waiting.png` بعد التشغيل، وفحص المرجع يفشل حتى يعتمده المشرف. لم يعتمده المختبِر.
+  - اللقطة (السؤال 4): حُذف المرجع القديم (أُخذ على مسار الطبقة، ويختلف عن مرشّح مسار النافذة في 0.59 % من بكسلاته). `tests/drop/kwin.sh` يعيد تشغيل الخدمة بـ `KAWARO_SURFACE=window` بعد `hold_cycles`، ويلتقط الخلية المنتظرة تحت سحب PNG ساكن، ويقصّها بمستطيل سطر `hive surface: window` (‏393 x 362)، ويفحص نص الانتظار (حبر `text-primary` في المركز) وغياب الخلايا وغياب أسطر S-021، ثم يقارنها بالمرجع. المرشّح في `tests/drop/out/drop-en-light-waiting.png` بعد التشغيل، وفحص المرجع يفشل حتى يعتمده المشرف. لم يعتمده المختبِر.
   - ما ينجح قبل التنفيذ ولماذا (`repro.sh` ‏18 من 39): حراس سلوك قائم أو سلوك S-021a لا يُلوَون: نقرات `keys.py` والإخفاء خلال 500 ms (‏AC5 (أ) و(ب) و(ج) وAC9 (1)، الآلة من S-021a)، ومنطقة القرار 12 بالمرجع الجديد (‏350.8 ms، والحد 400)، وغياب `receive` في سحب النص، وكتابة WEBP، والنقرة في (100، 700)، وفحوص مسار النافذة، وAC10 كله. كل فحص S-021 لأسطر السجل أو المخازن يفشل.
   - ملاحظة للمشرف (خلل خارج المعايير، ظهر في تشغيل أول): ترك المفتاح (`drop --release`) والسحب فوق خلية ظاهرة، ثم سحب جديد: دخول الظهور التالي لا يُقرأ (لا `drop cells:` ولا `accept`، والخدمة تهدم عرض الظهور السابق `wl_data_offer#4278190080` عند `enter` العرض الجديد)، فلا يُكتب WEBP. أثره في `hypr-layer-daemon.log` من أول تشغيل. تجنّبه AC9 (3) بمغادرة الخلية قبل الترك، فهو ليس من AC9.
   - مخرجات الفشل (بناء main):
@@ -189,7 +189,7 @@
     FAIL S-021 AC4 AC5 (b) pointer into the rectangle: no attach on the hive subsurface in the whole show, and the catcher took its pixel
     FAIL S-021 AC3 AC9 (3) PNG drag, drop --hold: exactly one probe line, "hive reveal: N" ...
     FAIL S-021 AC7 AC7 cell drag: the hive's first attach comes after the first wl_data_device.enter on the catcher
-    FAIL S-021 AC7 cell drag: "hive reveal: N" with N the number of `sbarhive actions` lines for the PNG (15)
+    FAIL S-021 AC7 cell drag: "hive reveal: N" with N the number of `kawaro actions` lines for the PNG (15)
     FAIL S-021 AC6 notes.unknownext: an empty "drop cells:" line before the hide, ...
     FAIL S-021 AC3 AC6 text drag: exactly one probe line, "hive probe: hidden (no-uri-list)" ...
     $ tests/drop/kwin.sh level=1
@@ -291,7 +291,7 @@
   - `layer.rs`: خطّاف قياس `after_catcher_ready(f)` (مخفي من التوثيق، كـ `after_next_frame`) يعمل مرة واحدة بعد أول `configure` لسطح طبقة الظهور، بعد أن يلتزم الفرعان الماسكَ ويدفعا الطلب (`wait_for_anchor` أو `place` ثم `render`)، أي عند «جاهزية الماسك» بتعريف `catcher_ready` في `tests/drop/layer.sh`. ‏`lib.rs`: إعادة تصدير فقط (`pub use layer::after_catcher_ready`)، فلا شيء جديد للطفرات فيه، و`layer.rs` مستثنى في `.cargo/mutants.toml`.
   - `hive_bench.rs`: ‏`show --drop` يطبع `mode=drop catcher_ms=A` من سطر الطلب، و`show --drop --hold` يطبع `mode=hold hold_ms=400 catcher_ms=A press_to_catcher_ms=B`، وA من انقضاء العتبة وB من الطلب. الظهور العادي باقٍ على `first_frame_ms`.
   - المهلة `SETTLE` (250 ms): أول تشغيل دونها أعطى `hive surface layer 0`، لأن جاهزية الماسك تسبق انتظار المرساة (50 ms) فيخفي `measure.sh` الظهور قبل وضعه وقبل سطر `hive surface:`. الزمن يُؤخذ عند الالتزام الجاهز، والمهلة تؤخر كتابة الرد فقط. معقولية القيمة: الوسيط القديم 51.3 ms كان `ANCHOR_WAIT` ونحو 1 ms، فـ `catcher_ms` قرابة 0.6 ms يوافقه. على مسار النافذة في لينكس لا ماسك فلا يعمل الخطّاف؛ المقياس لمسار الطبقة وحده، فسُجّل ذلك ولم يُعالَج.
-  - التوثيق: `integrations/linux/hyprland/README.md` (قسم إمساك المفتاح بالعربية والإنكليزية: الجمل الثلاث، وأن Hyprland يرسل الحدث الأول مع أول حركة، وأن السحب بعد انقضاء المهلة لا يُظهر الخلية، وملاحظة `sbarhive drop` دون `--hold`)، و`docs/architecture.md` (قسم «Probing a drop show (S-021)»، وتصحيح مرحلة الماسك وبند الميزانية ونص الانتظار على مسار النافذة)، وسطر S-021 تحت `### Fixed` في `## [Unreleased]` في CHANGELOG.md. ‏`docs/drop-shortcut.md` و`README.md` يقولان «وأنت تسحب ملفاً»، فلا تعارض.
+  - التوثيق: `integrations/linux/hyprland/README.md` (قسم إمساك المفتاح بالعربية والإنكليزية: الجمل الثلاث، وأن Hyprland يرسل الحدث الأول مع أول حركة، وأن السحب بعد انقضاء المهلة لا يُظهر الخلية، وملاحظة `kawaro drop` دون `--hold`)، و`docs/architecture.md` (قسم «Probing a drop show (S-021)»، وتصحيح مرحلة الماسك وبند الميزانية ونص الانتظار على مسار النافذة)، وسطر S-021 تحت `### Fixed` في `## [Unreleased]` في CHANGELOG.md. ‏`docs/drop-shortcut.md` و`README.md` يقولان «وأنت تسحب ملفاً»، فلا تعارض.
   - النتائج (بناء `cargo build --release` جديد): `cargo fmt --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` نظيف؛ `cargo test --all` ‏563 ناجحاً و0 فاشلاً و1 متجاهَلاً؛ `scripts/design-lint.sh` نظيف؛ `tests/drop/hold_docs.sh` ‏RESULT PASS. ‏`tests/drop/budget.sh 20 1` ‏RESULT PASS (وسيط `catcher_ms` الدافئ 0.6 ms، والأقصى 0.8، و21 سطر `hive surface: layer`). ‏`tests/drop/budget.sh 20 1 hold` ‏RESULT PASS (وسيط `catcher_ms` من العتبة 0.4 ms، والأقصى 0.6، ووسيط `press_to_catcher_ms` ‏401.1 ms، و21 من 21 في نطاق 400 إلى 450). ‏`tests/hyprland/repro.sh --json` ‏`{"total": 40, "failed": 0, "skipped": 0}`. ‏`tests/drop/kwin.sh level=1` ‏RESULT PASS (339 PASS، 0 FAIL)، وزمن AC8 من الدخول إلى أول `attach` في الظهورات 13: أسوأها 6.1 ms.
   - لم يُشغَّل: `cargo mutants` (للمراجِع، ولا شيفرة جديدة قابلة للطفرة خارج `layer.rs` المستثنى)، و`repro.sh --quasimode` و`tests/overlay/kwin.sh` و`tests/drop/window_path.sh` و`tests/drop/kwin.sh shortcut`.
 - 2026-10-22، المراجِع (S-021c، المراجعة 1، وهي مراجعة إغلاق S-021 كلها): **REWORK**. الشيفرة والفحوص سليمة كلها، والسبب توثيق باقٍ على المرجع القديم «أول إطار» يناقض السلوك الحالي والسكربت.
@@ -307,16 +307,16 @@
   - أسباب الإعادة (تناقض باقٍ في التوثيق، والموجز يطلب ألا يبقى تناقض):
     1. `tests/drop/README.md:185` (للمختبِر، فالمنفِّذ ممنوع من `tests/`): «show 12, where the drag moves about 100 ms after the first frame, inside the 300 ms window of manager decision 12». الظهور 12 سحب ممسوك لا تُرسم خليته إلا بعد الدخول، أي بعد الحركة، والسكربت يقيس النافذة من جاهزية الماسك (`tests/drop/kwin.sh:393-406`). تُصحَّح الجملة إلى «بعد جاهزية الماسك» كما في فقرة القرار 12 في الملف نفسه (الأسطر 60 إلى 67). ومعها تعليقا السكربت نفسه، دون أي تأكيد: `tests/drop/kwin.sh:70` (‏«about 100 ms after the first frame») و`kwin.sh:366-367` (‏«the first frame comes some 60 to 80 ms after it»)، وكلاهما يناقض التعليق في `kwin.sh:394-396`.
     2. `docs/architecture.md:147-154` (للمنفِّذ): بند «Anchor and wait» ما زال يعدّ `wl_pointer.enter` على الماسك مرساةً «before the first frame»، ويقول «After the first frame the centre does not follow the pointer»، دون تقييد. في ظهور الإفلات على مسار الطبقة `wl_pointer.enter` يُخفي الظهور ولا إطار قبل الكشف، والمنفِّذ نفسه غيّر المرجع في بند «Catcher phase» تحته إلى «the placement». يكفي تقييد البند بالظهور العادي، أو جعل المرجع الموضع (نهاية `ANCHOR_WAIT`) لا أول إطار، كما في AC4.
-  - ملاحظات غير حاجبة: (أ) `integrations/linux/hyprland/README.md:50`: «انقضاء المهلة» مرتين بمعنى عتبة الضغط المطوّل، والسطر 26 يستعمل «المهلة» لـ `SBARHIVE_COPY_DELAY`، والقصة تسمّي الحد 10 ثوانٍ مهلة أيضاً؛ «انقضاء العتبة» أوضح. (ب) `docs/architecture.md:165-171` لم يُعَد لفّه بعد التعديل، و`docs/architecture.md:215` يتجاوز 80 عموداً. (ج) `crates/ui/tests/measure.sh:19-22` ما زال يصف `first_frame_ms` لـ `HOLD=1` قبل ملاحظة S-021، ويطبع `warm press_to_frame_ms median none` (ملف المختبِر). (د) `docs/drop-shortcut.md:96` و`98` («so the hive shows there at once» و«an immediate show») ليسا من الملفات الأربعة؛ يحسن ذكر أن الخلية تظهر مع سحب ملفات لها إجراء.
+  - ملاحظات غير حاجبة: (أ) `integrations/linux/hyprland/README.md:50`: «انقضاء المهلة» مرتين بمعنى عتبة الضغط المطوّل، والسطر 26 يستعمل «المهلة» لـ `KAWARO_COPY_DELAY`، والقصة تسمّي الحد 10 ثوانٍ مهلة أيضاً؛ «انقضاء العتبة» أوضح. (ب) `docs/architecture.md:165-171` لم يُعَد لفّه بعد التعديل، و`docs/architecture.md:215` يتجاوز 80 عموداً. (ج) `crates/ui/tests/measure.sh:19-22` ما زال يصف `first_frame_ms` لـ `HOLD=1` قبل ملاحظة S-021، ويطبع `warm press_to_frame_ms median none` (ملف المختبِر). (د) `docs/drop-shortcut.md:96` و`98` («so the hive shows there at once» و«an immediate show») ليسا من الملفات الأربعة؛ يحسن ذكر أن الخلية تظهر مع سحب ملفات لها إجراء.
   - بعد الإصلاح يكفي في المراجعة 2: `tests/drop/hold_docs.sh`، وقراءة الملفات المعدّلة، والتأكد أن الفرق لا يمس تأكيداً ولا شيفرة. لم يُضف سطر CHANGELOG.md جديد (سطر S-021 موجود).
 - 2026-10-22، المختبِر (S-021c، إصلاح المراجعة 1، تعليقات وتوثيق فقط): لم يتغير أي تأكيد ولا منطق اختبار.
-  - `tests/drop/README.md` (فقرة S-019e): الظهور 12 يتحرك بعد LATE_MS (‏170 ms افتراضياً) من عودة `sbarhive drop`، والنافذة (300 ms) تُعدّ منذ S-021 AC4 من جاهزية الماسك (`catcher_ready` في `layer.sh`) لا من أول إطار.
+  - `tests/drop/README.md` (فقرة S-019e): الظهور 12 يتحرك بعد LATE_MS (‏170 ms افتراضياً) من عودة `kawaro drop`، والنافذة (300 ms) تُعدّ منذ S-021 AC4 من جاهزية الماسك (`catcher_ready` في `layer.sh`) لا من أول إطار.
   - `tests/drop/kwin.sh`: تعليق النوع `late` في رأس الملف (السطر 70 وجملة «The first enter on the catcher must fall after the first frame») وتعليق الفرع `late` (السطران 366 و367) صارا يقيسان من جاهزية الماسك، موافقَين للتعليق عند الفحص. آخر تشغيل في `tests/drop/out` سجّل الدخول الأول بعد 170.6 ms من جاهزية الماسك، فحُذف رقم «60 إلى 80 ms».
   - `crates/ui/tests/measure.sh`: وصف `HOLD=1` صار `catcher_ms` و`press_to_catcher_ms`، وحُذف سطر الملخص `warm press_to_frame_ms median` الذي يطبع `none` بعد التأكد أن لا سكربت يقرؤه (`grep -rn press_to_frame tests crates scripts`: تعليقات قديمة في `tests/drop/budget.sh:22-27` ومخرجات في `tests/drop/out/` المتجاهَل فقط، و`budget.sh` يقرأ `press_to_catcher_ms`).
   - التشغيل: `bash -n` على `kwin.sh` و`measure.sh` نظيف، و`tests/drop/hold_docs.sh` ‏RESULT PASS، ولا شرطة طويلة في الملفات المعدّلة.
 - 2026-10-22، المنفِّذ (S-021c، إعادة العمل 1، توثيق فقط): أُصلحت أجزاء التوثيق التي للمنفِّذ من أسباب المراجعة 1، دون أي شيفرة أو اختبار. ملفات المختبِر (`tests/drop/README.md` و`tests/drop/kwin.sh` و`crates/ui/tests/measure.sh`) لم تُمسّ.
   - `docs/architecture.md`: بند «Anchor and wait» صار مقيَّداً بالظهور العادي، ومرجعه الموضع (نهاية `ANCHOR_WAIT`) لا أول إطار، ويحيل ظهور الإفلات دون `--at` إلى بند مرحلة الماسك. وأُعيد لفّ بند «Catcher phase» وفقرة المعاينة على 80 عموداً.
-  - `integrations/linux/hyprland/README.md`: «انقضاء المهلة» صارت «انقضاء العتبة» في الموضعين، لأن «المهلة» مستعملة لـ `SBARHIVE_COPY_DELAY` وللحد 10 ثوانٍ.
+  - `integrations/linux/hyprland/README.md`: «انقضاء المهلة» صارت «انقضاء العتبة» في الموضعين، لأن «المهلة» مستعملة لـ `KAWARO_COPY_DELAY` وللحد 10 ثوانٍ.
   - `docs/drop-shortcut.md`: قسما Hyprland بالعربية والإنكليزية يقولان إن الخلية لا تظهر إلا أثناء سحب ملفات لها إجراء، بدل «فوراً» و«at once» و«an immediate show».
   - النتائج: `tests/drop/hold_docs.sh` ‏RESULT PASS؛ `scripts/design-lint.sh` نظيف؛ لا شرطة طويلة في الملفات المعدّلة. لم يُشغَّل غيرهما بطلب المدير، فالتغيير توثيق فقط.
 - 2026-10-22، المراجِع (S-021c، المراجعة 2، الأخيرة قبل الرفع للمشرف): **REWORK**. إصلاحات المراجعة 1 كلها صحيحة، والشيفرة لم تتغير، لكن بقي تناقض «أول إطار» في تعليق اختبار وفي ADR 0003 وADR 0004، والموجز يطلب ألا يبقى تناقض. بعد محاولتي REWORK تتوقف القصة الفرعية وتُرفع للمشرف.

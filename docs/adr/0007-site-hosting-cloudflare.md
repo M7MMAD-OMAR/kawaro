@@ -1,16 +1,16 @@
-# ADR 0007: Hosting the website and docs on Cloudflare at hive.sbarah.com
+# ADR 0007: Hosting the website and docs on Cloudflare at kawaro.sbarah.com
 
 Status: accepted
 Date: 2026-10-25
 
 ## Context
 
-The maintainer wants the public website and the documentation served from `https://hive.sbarah.com`, on Cloudflare, linked to the GitHub repository. The repository is public, so security comes first: anyone can read every file and every workflow, open pull requests from forks, and watch the logs.
+The maintainer wants the public website and the documentation served from `https://kawaro.sbarah.com`, on Cloudflare, linked to the GitHub repository. The repository is public, so security comes first: anyone can read every file and every workflow, open pull requests from forks, and watch the logs.
 
 Facts read in the repository on 2026-10-25 (verified):
 
 - `site/` holds source and output together. `site/build.py`, `site/app.js`, `site/style.css`, `site/tokens.css`, `site/fonts/` are sources; `index.html`, `en/`, `docs/`, `releases/`, the Markdown twins (`docs/*.md`, `releases.md`), `sitemap.xml`, `robots.txt`, `llms.txt`, `llms-full.txt` are written by `scripts/build-site.sh`. `site/pagefind/` is built by `npx --yes pagefind@1.5.2` and is gitignored. `site/.nojekyll` is a GitHub Pages leftover.
-- `BASE` in `site/build.py` is still `https://m7mmad-omar.github.io/sbarhive/`. Canonical links, hreflang, the sitemap, robots, `og:image` and `llms.txt` all use it.
+- `BASE` in `site/build.py` is still `https://m7mmad-omar.github.io/kawaro/`. Canonical links, hreflang, the sitemap, robots, `og:image` and `llms.txt` all use it.
 - Arabic is at the root and English under `/en/`. Docs pages exist in both (`/docs/NAME/` and `/en/docs/NAME/`), with a Markdown twin each, `hreflang` in the head and in `sitemap.xml`, and `x-default` pointing to Arabic.
 - The markup has one inline executable script (`document.documentElement.classList.add("js")` in every head), data blocks that are not executed (`application/ld+json`, `application/json` for `hive-config`), and `style="--i:N"` attributes on hive cells. `app.js` sets custom properties and transforms through the CSSOM, which a CSP allows. `style.css` has only two `url()` values, both fonts in `site/fonts/`, and no `data:`. Pagefind loads a WebAssembly module and starts a same origin worker (`new Worker(workerUrl)`).
 - The GitHub Pages workflow was removed in commit 82a8ffb. Release files, `SHA256SUMS` and the signed update feed (release tag `updates`, ADR 0006) live on GitHub Releases.
@@ -34,7 +34,7 @@ Rejected:
 
 ### 2. Downloads stay on GitHub
 
-The site links to GitHub release files. It never proxies a binary through Cloudflare. The download page shows the `SHA256SUMS` steps. The in-app updater reads `https://github.com/M7MMAD-OMAR/sbarhive/releases/download/updates/<channel>.json`; the site is not on that path and an outage or compromise of the site cannot change what the app installs, because the app trusts only the minisign key committed in the repository (`docs/update-signing.md`).
+The site links to GitHub release files. It never proxies a binary through Cloudflare. The download page shows the `SHA256SUMS` steps. The in-app updater reads `https://github.com/M7MMAD-OMAR/kawaro/releases/download/updates/<channel>.json`; the site is not on that path and an outage or compromise of the site cannot change what the app installs, because the app trusts only the minisign key committed in the repository (`docs/update-signing.md`).
 
 ### 3. Build and deploy: Cloudflare Workers Builds (git integration)
 
@@ -92,7 +92,7 @@ Workers Builds creates its own token. To stay in control, replace it with a cust
 
 ```
 {
-  "name": "sbarhive-site",
+  "name": "kawaro-site",
   "compatibility_date": "2026-10-25",
   "workers_dev": false,
   "preview_urls": true,
@@ -132,7 +132,7 @@ Notes:
 - `style-src-attr 'unsafe-inline'` is a deliberate, narrow exception for `style="--i:N"` on hive cells (a custom property carrying a number cannot inject script). A test bounds it: every `style=` attribute in the built HTML must match `^--[a-z-]+:-?[0-9.]+;?$`. `<style>` elements and style sheets stay under `style-src 'self'`.
 - A hash is fragile if the inline script changes; moving the script to a file would remove the exception, and may be done later.
 - No `report-uri`: a report endpoint would need server code and would collect visitor data.
-- HSTS `preload`: the preload list works on the registrable domain, so submitting means `sbarah.com` and every subdomain of it must serve HTTPS with `includeSubDomains`, and removal takes months. That decision belongs to the whole domain, not to this site, so it is not made here. `includeSubDomains` on `hive.sbarah.com` affects only `*.hive.sbarah.com`.
+- HSTS `preload`: the preload list works on the registrable domain, so submitting means `sbarah.com` and every subdomain of it must serve HTTPS with `includeSubDomains`, and removal takes months. That decision belongs to the whole domain, not to this site, so it is not made here. `includeSubDomains` on `kawaro.sbarah.com` affects only `*.kawaro.sbarah.com`.
 - Do not enable the zone wide Cloudflare HSTS setting. It would apply to every host of `sbarah.com`.
 
 Cache rules (Workers Static Assets sends `ETag` and `Cache-Control: public, max-age=0, must-revalidate` by default, which is right for HTML):
@@ -144,7 +144,7 @@ Cache rules (Workers Static Assets sends `ETag` and `Cache-Control: public, max-
 ### 8. DNS and TLS
 
 - The `sbarah.com` zone must be on the owner's Cloudflare account (owner step; nothing here works otherwise).
-- The custom domain `hive.sbarah.com` is attached to the Worker in the dashboard (Workers, Settings, Domains and routes). Cloudflare creates the proxied DNS record and the certificate. If a record for `hive` already exists, remove it first.
+- The custom domain `kawaro.sbarah.com` is attached to the Worker in the dashboard (Workers, Settings, Domains and routes). Cloudflare creates the proxied DNS record and the certificate. If a record for `hive` already exists, remove it first.
 - Zone settings, which are zone wide and must be checked against everything else served from `sbarah.com` (for example `https://sbarah.com/support`) before they are turned on: SSL mode Full (strict), Always Use HTTPS, minimum TLS 1.2 (TLS 1.3 on), DNSSEC on with the DS record added at the registrar, Automatic HTTPS Rewrites on.
 - Proxy on (orange cloud) for the `hive` host. No wildcard DNS records (`*.sbarah.com`).
 - CAA records: optional hardening. A wrong CAA record can stop Cloudflare from issuing or renewing the certificate, so the owner reads Cloudflare's current CAA documentation first and tests; do not add `issuewild ";"`, because the Universal certificate covers `*.sbarah.com`.
@@ -165,7 +165,7 @@ The site follows `CLAUDE.md`: no analytics, no cookies, no third party request, 
 Keep the docs inside the same site under `/docs` (Arabic) and `/en/docs` (English). Reasons: one domain, one CSP, one search index, one set of headers, and the files already come from `docs/guide/` so nothing is written twice.
 
 - Language: the switch link exists in the header and footer; both languages keep a separate URL (no automatic redirect by browser language, which needs server code and hides one language from crawlers). RTL comes from `dir="rtl"` on the Arabic pages.
-- `hreflang`: each page carries `ar`, `en` and `x-default` (Arabic) in the head and in `sitemap.xml`. After the domain change they must all be absolute `https://hive.sbarah.com/...` URLs; the canonical of a preview URL still points to the production host.
+- `hreflang`: each page carries `ar`, `en` and `x-default` (Arabic) in the head and in `sitemap.xml`. After the domain change they must all be absolute `https://kawaro.sbarah.com/...` URLs; the canonical of a preview URL still points to the production host.
 - Search: Pagefind, built at build time, same origin, loads only when the box is used (as today). It indexes both languages.
 - Agents: keep `llms.txt`, `llms-full.txt` and the Markdown twins.
 - Versioned docs: not now. One "latest" version plus the Releases page is enough while the product is in beta. When a stable release diverges from the previous one, build frozen copies per minor version under `/docs/v0.5/` with `noindex` and a canonical link to the latest page, so search does not index duplicates.

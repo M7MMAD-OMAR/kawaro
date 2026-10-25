@@ -2,7 +2,7 @@
 //! It must behave like `crates/cli/src/clipboard.rs`: CRLF and LF, `#` and
 //! blank lines skipped, only `file:` URIs kept, percent decoding, order kept.
 
-use sbarhive_core::uri_list::parse;
+use kawaro_core::uri_list::parse;
 use std::path::PathBuf;
 
 fn paths(list: &[&str]) -> Vec<PathBuf> {

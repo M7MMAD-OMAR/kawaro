@@ -29,7 +29,7 @@ use crate::shell_logic::{
     Command, HoldPoll, Item, POLL_MS, Poll, menu, menu_right_to_left, shortcut_error_line, tooltip,
 };
 use crate::text;
-use sbarhive_core::i18n::Lang;
+use kawaro_core::i18n::Lang;
 
 fn jobs(v: &[(&str, f32)]) -> Vec<(String, f32)> {
     v.iter().map(|(a, b)| (a.to_string(), *b)).collect()
@@ -219,12 +219,12 @@ fn s054b_the_windows_menu_follows_the_linux_label_list() {
         let state = crate::update::UpdateState::new(crate::update::UpdateEnv {
             installed: String::new(),
             keys: vec![],
-            platform: sbarhive_core::update::policy::Platform {
+            platform: kawaro_core::update::policy::Platform {
                 os: String::new(),
                 arch: String::new(),
                 pkg: String::new(),
             },
-            os: sbarhive_core::paths::Os::Windows,
+            os: kawaro_core::paths::Os::Windows,
             updates_dir: Default::default(),
             scratch: Default::default(),
         });
@@ -296,11 +296,11 @@ fn ac4_a_new_press_rearms_the_poll() {
 fn ac7_error_line_when_the_hotkey_is_taken() {
     assert_eq!(
         shortcut_error_line("Ctrl+Alt+H", false),
-        Some("sbarhived: shortcut Ctrl+Alt+H unavailable".to_string())
+        Some("kawarod: shortcut Ctrl+Alt+H unavailable".to_string())
     );
     assert_eq!(
         shortcut_error_line("shift+f9", false),
-        Some("sbarhived: shortcut shift+f9 unavailable".to_string())
+        Some("kawarod: shortcut shift+f9 unavailable".to_string())
     );
 }
 

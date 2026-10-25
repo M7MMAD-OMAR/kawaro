@@ -4,10 +4,10 @@
 use crate::progress;
 use crate::state::{Shared, lock};
 use crate::text;
+use kawaro_core::i18n::Lang;
+use kawaro_core::queue::Queue;
 use ksni::blocking::{Handle, TrayMethods};
 use ksni::menu::{MenuItem, StandardItem};
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::queue::Queue;
 use std::sync::{Arc, OnceLock, TryLockError};
 
 /// A second handle for updates that do not come from the job pump.
@@ -34,13 +34,13 @@ pub type TrayHandle = Option<Handle<SbarTray>>;
 
 impl ksni::Tray for SbarTray {
     fn id(&self) -> String {
-        "sbarhive".into()
+        "kawaro".into()
     }
     fn title(&self) -> String {
         text::app_name(self.lang).into()
     }
     fn icon_name(&self) -> String {
-        "sbarhive-symbolic".into()
+        "kawaro-symbolic".into()
     }
     fn status(&self) -> ksni::Status {
         if self.active.is_empty() {
@@ -64,7 +64,7 @@ impl ksni::Tray for SbarTray {
         ksni::ToolTip {
             title: text::app_name(self.lang).into(),
             description,
-            icon_name: "sbarhive-symbolic".into(),
+            icon_name: "kawaro-symbolic".into(),
             icon_pixmap: vec![],
         }
     }
@@ -138,7 +138,7 @@ pub fn start(lang: Lang, queue: Arc<Queue>, state: Shared) -> TrayHandle {
             Some(h)
         }
         Err(e) => {
-            eprintln!("sbarhived: no tray icon ({e})");
+            eprintln!("kawarod: no tray icon ({e})");
             None
         }
     }

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # S-018b AC6 on GNOME Shell (Mutter): no zwlr_layer_shell_v1, so the hive stays
 # an xdg_toplevel as today, with no get_layer_surface and no protocol error.
-# S-018c AC11: with SBARHIVE_DEBUG_FOCUS each show prints one
+# S-018c AC11: with KAWARO_DEBUG_FOCUS each show prints one
 # "hive surface: window X Y W H" line, compared with the Shell.Eval frame.
 # The daemon runs with WAYLAND_DEBUG=1 and shows the hive three times (no
 # token, a token, drop mode); each open show is closed with Esc through
@@ -18,14 +18,14 @@ ROOT="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=../no_portal.sh
 source "$ROOT/tests/no_portal.sh"
 BIN="${1:-$ROOT/target/release}"
-[ -x "$BIN/sbarhive" ] && [ -x "$BIN/sbarhived" ] || { echo "build first: cargo build --release"; exit 2; }
+[ -x "$BIN/kawaro" ] && [ -x "$BIN/kawarod" ] || { echo "build first: cargo build --release"; exit 2; }
 OUT="${OVERLAY_OUT:-$HERE/out}"
 mkdir -p "$OUT"
 export BIN HERE ROOT OUT
 
 inner() {
   set -u
-  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE SBARHIVE_SURFACE
+  unset DISPLAY XDG_ACTIVATION_TOKEN DESKTOP_STARTUP_ID HYPRLAND_INSTANCE_SIGNATURE XDG_CURRENT_DESKTOP XDG_SESSION_TYPE KAWARO_SURFACE
   local log="$OUT/gnome"
   local FAILS=0
   check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS + 1)); fi; }
@@ -49,7 +49,7 @@ inner() {
   done
   hive_geo() {
     shell_eval 'global.get_window_actors().map(a => a.meta_window)
-      .filter(w => w.get_title() === "SbarHive" && !w.minimized && w.showing_on_its_workspace())
+      .filter(w => w.get_title() === "Kawaro" && !w.minimized && w.showing_on_its_workspace())
       .filter(w => { const r = w.get_frame_rect(); return r.width > 0 && r.height > 0; })
       .map(w => { const r = w.get_frame_rect(); return [r.x, r.y, r.width, r.height].join(" "); }).join("")' \
       | grep -o '[0-9-]\+ [0-9-]\+ [0-9]\+ [0-9]\+' | head -1
@@ -66,9 +66,9 @@ inner() {
   local W="$XDG_RUNTIME_DIR/work"; mkdir -p "$W"
   cp "$ROOT/tests/fixtures/images/alpha.png" "$W/photo.png"
   local DLOG="$log-daemon.log"
-  SBARHIVE_LANG=en SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" >"$DLOG" 2>&1 &
+  KAWARO_LANG=en KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" >"$DLOG" 2>&1 &
   local d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
 
   local marks=() names=() geos=()
   show() { # show NAME COMMAND...
@@ -80,9 +80,9 @@ inner() {
     geos+=("${g:-none}")
     echo "key Escape" >&3; sleep 1.5
   }
-  show plain "$BIN/sbarhive" open "$W/photo.png"
-  show token "$BIN/sbarhive" open --token sbh-test-token "$W/photo.png"
-  show drop "$BIN/sbarhive" drop
+  show plain "$BIN/kawaro" open "$W/photo.png"
+  show token "$BIN/kawaro" open --token sbh-test-token "$W/photo.png"
+  show drop "$BIN/kawaro" drop
   # Drop mode closes 10 s after showing without a drag entering it.
   sleep 10
   marks+=("$(wc -l <"$DLOG")")
@@ -95,7 +95,7 @@ inner() {
     local seg upto; seg=$(sed -n "$((marks[i] + 1)),$((marks[i + 1]))p" "$DLOG")
     upto=$(head -n "${marks[i + 1]}" "$DLOG")
     echo "INFO show $n ($name): hive window ${geos[i]}"
-    check "AC6 show $n ($name): the hive is a SbarHive window" '[ "${geos[i]}" != none ]'
+    check "AC6 show $n ($name): the hive is a Kawaro window" '[ "${geos[i]}" != none ]'
     check "AC6 show $n ($name): the hive is an xdg_surface as today" \
       '[ "$(count "xdg_wm_base[#@][0-9]+\.get_xdg_surface\(" "$upto")" -ge 1 ]'
     check "AC6 show $n ($name): no get_layer_surface" \
@@ -109,7 +109,7 @@ inner() {
     echo "INFO show $n ($name): ${ns} surface line(s): ${sl:-none}"
     check "AC11 show $n ($name): exactly one \"hive surface: window X Y W H\" line" \
       '[ "$ns" -eq 1 ] && grep -qE "^hive surface: window -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$" <<<"$sl"'
-    check "AC11 show $n ($name): W H equal the SbarHive frame within 1 px, X Y on the 1280x800 screen" \
+    check "AC11 show $n ($name): W H equal the Kawaro frame within 1 px, X Y on the 1280x800 screen" \
       '[ "${kind:-}" = window ] && [ -n "${gh:-}" ] && [ $((sw - gw)) -ge -1 ] && [ $((sw - gw)) -le 1 ] && [ $((sh - gh)) -ge -1 ] && [ $((sh - gh)) -le 1 ] && [ "$sx" -ge 0 ] && [ "$sy" -ge 0 ] && [ $((sx + sw)) -le 1280 ] && [ $((sy + sh)) -le 800 ]'
   done
   # S-019 AC7 (S-019c): the window path has no anchor; the hive stays
@@ -122,7 +122,7 @@ inner() {
   if [ "$FAILS" -eq 0 ]; then echo "RESULT PASS"; else echo "RESULT FAIL ($FAILS)"; fi
 
   echo quit >&3; exec 3>&-
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   sleep 0.5
   kill $d $input 2>/dev/null
   kill $shell 2>/dev/null

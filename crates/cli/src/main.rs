@@ -1,4 +1,4 @@
-//! `sbarhive`: thin client for the daemon, plus in-process conversion.
+//! `kawaro`: thin client for the daemon, plus in-process conversion.
 
 /// Like `println!`, but a closed stdout (for example `| head`) is not a panic.
 macro_rules! out {
@@ -14,11 +14,11 @@ mod integration;
 mod spawn;
 
 use clap::{Parser, Subcommand};
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::ipc::{Event, Request, Response};
-use sbarhive_core::queue::{self, JobEvent};
-use sbarhive_core::update::apply::PkgKind;
-use sbarhive_core::{ActionDef, CancelToken, Engine, Registry};
+use kawaro_core::i18n::Lang;
+use kawaro_core::ipc::{Event, Request, Response};
+use kawaro_core::queue::{self, JobEvent};
+use kawaro_core::update::apply::PkgKind;
+use kawaro_core::{ActionDef, CancelToken, Engine, Registry};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
@@ -26,7 +26,7 @@ use std::sync::mpsc;
 
 #[derive(Parser)]
 #[command(
-    name = "sbarhive",
+    name = "kawaro",
     version,
     about = "Local file conversion from your file manager"
 )]
@@ -66,7 +66,7 @@ enum Cmd {
         #[arg(long)]
         release: bool,
     },
-    /// Update SbarHive. For now only the privileged install step that
+    /// Update Kawaro. For now only the privileged install step that
     /// `pkexec` runs (root only); the rest of the command comes later.
     Update {
         /// Install this verified package as root.
@@ -199,7 +199,7 @@ fn main() -> ExitCode {
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("sbarhive: {e}");
+            eprintln!("kawaro: {e}");
             ExitCode::FAILURE
         }
     }
@@ -209,21 +209,19 @@ fn main() -> ExitCode {
 /// file is looked at), then installs the copy of the package.
 fn update(file: Option<PathBuf>, sha256: Option<String>, kind: Option<PkgKind>) -> ExitCode {
     let (Some(file), Some(sha256), Some(kind)) = (file, sha256, kind) else {
-        eprintln!("sbarhive: update: only --install-privileged is available so far");
+        eprintln!("kawaro: update: only --install-privileged is available so far");
         return ExitCode::FAILURE;
     };
     #[cfg(unix)]
     {
-        use sbarhive_core::update::apply::{
-            Programs, effective_uid, install_privileged, root_gate,
-        };
+        use kawaro_core::update::apply::{Programs, effective_uid, install_privileged, root_gate};
         // An unreadable status counts as not root.
         let uid = std::fs::read_to_string("/proc/self/status")
             .ok()
             .and_then(|s| effective_uid(&s))
             .unwrap_or(u32::MAX);
         if let Err(code) = root_gate(uid) {
-            eprintln!("sbarhive: update --install-privileged must run as root");
+            eprintln!("kawaro: update --install-privileged must run as root");
             return ExitCode::from(code as u8);
         }
         match install_privileged(
@@ -235,7 +233,7 @@ fn update(file: Option<PathBuf>, sha256: Option<String>, kind: Option<PkgKind>) 
         ) {
             Ok(()) => ExitCode::SUCCESS,
             Err(e) => {
-                eprintln!("sbarhive: update: {e}");
+                eprintln!("kawaro: update: {e}");
                 ExitCode::FAILURE
             }
         }
@@ -243,7 +241,7 @@ fn update(file: Option<PathBuf>, sha256: Option<String>, kind: Option<PkgKind>) 
     #[cfg(not(unix))]
     {
         let _ = (file, sha256, kind);
-        eprintln!("sbarhive: update: the privileged install exists on Linux only");
+        eprintln!("kawaro: update: the privileged install exists on Linux only");
         ExitCode::FAILURE
     }
 }
@@ -314,7 +312,7 @@ fn resolve_token(arg: Option<String>, env: &dyn Fn(&str) -> Option<String>) -> O
 }
 
 fn engines() -> Vec<Arc<dyn Engine>> {
-    sbarhive_engines::all()
+    kawaro_engines::all()
 }
 
 fn engine_for(id: &str) -> Res<Arc<dyn Engine>> {
@@ -326,10 +324,10 @@ fn engine_for(id: &str) -> Res<Arc<dyn Engine>> {
 
 fn registry() -> Registry {
     let mut reg = Registry::builtin();
-    if let Some(dir) = sbarhive_core::config::Config::actions_dir()
+    if let Some(dir) = kawaro_core::config::Config::actions_dir()
         && let Err(e) = reg.add_dir(&dir)
     {
-        eprintln!("sbarhive: ignoring user actions: {e}");
+        eprintln!("kawaro: ignoring user actions: {e}");
     }
     reg
 }
@@ -467,16 +465,16 @@ fn doctor() {
         ("wl-paste", "open from clipboard on Wayland"),
         ("xclip", "open from clipboard on X11"),
         ("xdg-open", "open folder from notifications"),
-        ("sbarhived", "background service"),
+        ("kawarod", "background service"),
     ];
     for (tool, why) in tools {
         out!("  {} {tool:<10} {why}", mark(on_path(tool)));
     }
     out!("service");
     out!(
-        "  {} sbarhived answering on {}",
+        "  {} kawarod answering on {}",
         mark(client::daemon_up()),
-        sbarhive_core::transport::endpoint()
+        kawaro_core::transport::endpoint()
     );
 }
 

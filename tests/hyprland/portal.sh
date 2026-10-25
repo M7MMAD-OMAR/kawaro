@@ -12,7 +12,7 @@
 # and KDE: a throwaway HOME, the private bus, the nested Hyprland inside a
 # private headless KWin, never the live desktop or its bus. repro.sh skips
 # tests/no_portal.sh in this mode only, copies the shipped
-# packaging/io.github.m7mmad_omar.SbarHive.desktop to the throwaway
+# packaging/io.github.m7mmad_omar.Kawaro.desktop to the throwaway
 # XDG_DATA_HOME/applications, starts the nested Hyprland with
 # HYPRLAND_NO_SD_VARS=1 (so it runs no `systemctl --user import-environment`
 # and no `dbus-update-activation-environment --systemd`), and then, on the
@@ -27,7 +27,7 @@
 #      registers through the real portal; one "portal shortcuts: bound drop
 #      (T)" line (AC20, AC13's T is the reply's trigger_description);
 #   2. the ID is read from `hyprctl globalshortcuts` of the nested instance,
-#      not guessed, and must be io.github.m7mmad_omar.SbarHive (the
+#      not guessed, and must be io.github.m7mmad_omar.Kawaro (the
 #      identifier AC22 documents); then the private config gets the bind for
 #      the read ID and is reloaded (`hyprctl reload config-only`). The
 #      private config is Lua (as every repro.sh run), so the line is the Lua
@@ -65,7 +65,7 @@ HERE=$DROP_HERE
 # shellcheck source=../drop/portal_real.sh
 source "$DROP_HERE/portal_real.sh"
 HERE=$HERE_SAVED
-APP_ID="io.github.m7mmad_omar.SbarHive"
+APP_ID="io.github.m7mmad_omar.Kawaro"
 
 # The portal_real.sh caller contract, for the nested Hyprland.
 key_down() { echo "keydown 125" >&3; sleep 0.05; echo "keydown 44" >&3; }
@@ -81,9 +81,9 @@ hold_motion() {
   done
 }
 # hive_geo: "X Y W H" of the hive layer (the last "hive surface:" line of
-# the current daemon log) while a layer named sbarhive is listed.
+# the current daemon log) while a layer named kawaro is listed.
 hive_geo() {
-  hyprctl layers 2>/dev/null | grep -q 'namespace: sbarhive' || return 0
+  hyprctl layers 2>/dev/null | grep -q 'namespace: kawaro' || return 0
   grep -E '^hive surface: ' "$DLOG" | tail -1 | cut -d' ' -f4-
 }
 hive_shows() { grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' <<<"$1"; }

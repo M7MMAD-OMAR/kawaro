@@ -16,8 +16,8 @@ use crate::office::{
     failure_message, input_error, is_nonempty_file, missing, missing_on_not_found, move_file,
     run_child, single_input, timeout_param, work_dir,
 };
+use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use lopdf::{Document, Object, ObjectId, dictionary};
-use sbarhive_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -339,7 +339,7 @@ impl GhostscriptEngine {
     ) -> Result<(), EngineError> {
         let preset = preset_param(task)?;
         let input = absolute_input(task)?;
-        let work = work_dir(self.temp_root.as_deref(), "sbarhive-gs-")?;
+        let work = work_dir(self.temp_root.as_deref(), "kawaro-gs-")?;
         let out = work.path().join("out.pdf");
         let args = [
             "-sDEVICE=pdfwrite".to_string(),
@@ -370,7 +370,7 @@ impl GhostscriptEngine {
     ) -> Result<(), EngineError> {
         let dpi = dpi_param(task)?;
         let input = absolute_input(task)?;
-        let work = work_dir(self.temp_root.as_deref(), "sbarhive-gs-")?;
+        let work = work_dir(self.temp_root.as_deref(), "kawaro-gs-")?;
         let args = [
             "-sDEVICE=png16m".to_string(),
             format!("-r{dpi}"),

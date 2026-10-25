@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the website and publishes it as a Cloudflare Worker with static assets
-# (worker "sbarhive-site", custom domain https://hive.sbarah.com/ attached by
+# (worker "kawaro-site", custom domain https://kawaro.sbarah.com/ attached by
 # wrangler.jsonc). Needs `wrangler login` once; no secrets in the repo.
 # Normally Cloudflare Workers Builds does this on every push to main; this
 # script is the manual fallback.

@@ -1,19 +1,19 @@
 [package]
-name = "sbarhive-daemon"
-description = "SbarHive background service"
+name = "kawaro-daemon"
+description = "Kawaro background service"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "sbarhived"
+name = "kawarod"
 path = "src/main.rs"
 
 [dependencies]
 notify-rust = "4.18.2"
-sbarhive-core.workspace = true
-sbarhive-engines.workspace = true
-sbarhive-ui.workspace = true
+kawaro-core.workspace = true
+kawaro-engines.workspace = true
+kawaro-ui.workspace = true
 serde_json.workspace = true
 slint.workspace = true
 

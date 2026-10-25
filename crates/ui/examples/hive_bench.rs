@@ -2,7 +2,7 @@
 //! hive API. Run it only inside crates/ui/tests/measure.sh (private headless
 //! compositor), never on a live desktop.
 //!
-//!     hive_bench daemon [--lang ar|en] [--file PATH]   waits on $XDG_RUNTIME_DIR/sbarhive-ui-bench.sock
+//!     hive_bench daemon [--lang ar|en] [--file PATH]   waits on $XDG_RUNTIME_DIR/kawaro-ui-bench.sock
 //!     hive_bench show [--token T] [--drop [--hold]]   asks for the hive, prints first_frame_ms (catcher_ms in drop mode)
 //!     hive_bench ctl hide|quit
 //!     hive_bench run [--lang ar|en] [--file PATH]      cold start, prints first_frame_epoch_ms
@@ -16,7 +16,7 @@
 //!
 //! `--drop` shows the empty drop hive (`Hive::present_drop`, S-014 AC12) and
 //! prints `mode=drop`. `--drop --hold` passes the request through the long
-//! press gate (`sbarhive_core::hold`, 400 ms) as the daemon does, shows the
+//! press gate (`kawaro_core::hold`, 400 ms) as the daemon does, shows the
 //! hive with `Hive::present_drop_hold` when the gate's timer gives the show,
 //! and prints `mode=hold hold_ms=400` (S-019e AC20).
 //!
@@ -30,8 +30,8 @@
 
 mod common;
 
-use sbarhive_core::hold::{Effect, Gate, Signal};
-use sbarhive_ui::{Hive, HiveCell, Lang};
+use kawaro_core::hold::{Effect, Gate, Signal};
+use kawaro_ui::{Hive, HiveCell, Lang};
 use std::cell::RefCell;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -41,7 +41,7 @@ use std::time::{Duration, Instant};
 
 fn socket_path() -> PathBuf {
     let dir = std::env::var_os("XDG_RUNTIME_DIR").unwrap_or_else(|| "/tmp".into());
-    PathBuf::from(dir).join("sbarhive-ui-bench.sock")
+    PathBuf::from(dir).join("kawaro-ui-bench.sock")
 }
 
 fn arg_after(args: &[String], flag: &str) -> Option<String> {
@@ -54,7 +54,7 @@ fn full_hive() -> Vec<HiveCell> {
             id: format!("action.{i}"),
             code: format!("A{i}"),
             label: format!("Action number {i}"),
-            icon: sbarhive_ui::icon_names()
+            icon: kawaro_ui::icon_names()
                 .nth(i % 21)
                 .unwrap_or_default()
                 .into(),
@@ -87,12 +87,12 @@ fn present(
 /// the layer path has a catcher; elsewhere the first frame stands in.
 #[cfg(target_os = "linux")]
 fn after_catcher_ready(f: impl FnOnce() + 'static) {
-    sbarhive_ui::after_catcher_ready(f);
+    kawaro_ui::after_catcher_ready(f);
 }
 
 #[cfg(not(target_os = "linux"))]
 fn after_catcher_ready(f: impl FnOnce() + 'static) {
-    sbarhive_ui::after_next_frame(f);
+    kawaro_ui::after_next_frame(f);
 }
 
 /// How long a drop show's reply waits after the catcher is ready, so the
@@ -157,7 +157,7 @@ fn hold_show(hive: Rc<Hive>, token: Option<String>, received: Instant, stream: U
 }
 
 fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
-    sbarhive_ui::init()?;
+    kawaro_ui::init()?;
     let hive = Rc::new(Hive::new(lang)?);
     common::preview_source(&hive);
     hive.on_choose(|id| eprintln!("chosen {id}"));
@@ -206,7 +206,7 @@ fn daemon(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Err
                                 reply_later(stream, format!("mode=drop catcher_ms={ms:.1}"));
                             });
                         } else {
-                            sbarhive_ui::after_next_frame(move || {
+                            kawaro_ui::after_next_frame(move || {
                                 let ms = received.elapsed().as_secs_f64() * 1000.0;
                                 writeln!(stream, "first_frame_ms={ms:.1}").ok();
                             });
@@ -252,10 +252,10 @@ fn ctl(cmd: &str) -> Result<(), Box<dyn std::error::Error>> {
 
 fn cold(lang: Lang, files: Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
     let t0 = Instant::now();
-    sbarhive_ui::init()?;
+    kawaro_ui::init()?;
     let hive = Hive::new(lang)?;
     common::preview_source(&hive);
-    sbarhive_ui::after_next_frame(move || {
+    kawaro_ui::after_next_frame(move || {
         println!(
             "first_frame_ms={:.1} first_frame_epoch_ms={}",
             t0.elapsed().as_secs_f64() * 1000.0,

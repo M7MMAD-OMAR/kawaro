@@ -1,5 +1,5 @@
 //! Daemon protocol: one JSON object per line over a Unix socket at
-//! `$XDG_RUNTIME_DIR/sbarhive.sock`. Each connection sends one [`Request`]
+//! `$XDG_RUNTIME_DIR/kawaro.sock`. Each connection sends one [`Request`]
 //! and reads one [`Response`] line, except `Open` and `Run` with
 //! `wait = true`, which keep the connection and stream [`Response::Event`]
 //! lines until the job finishes.
@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
-pub const SOCKET_NAME: &str = "sbarhive.sock";
+pub const SOCKET_NAME: &str = "kawaro.sock";
 
 pub fn socket_path() -> PathBuf {
     let dir = std::env::var_os("XDG_RUNTIME_DIR")
@@ -36,12 +36,12 @@ pub enum Request {
         /// `hyprctl cursorpos` prints it (S-019 decision 1): `"at": [X, Y]`.
         #[serde(default)]
         at: Option<(f64, f64)>,
-        /// The press of a held key (`sbarhive drop --hold`, S-019e): the
+        /// The press of a held key (`kawaro drop --hold`, S-019e): the
         /// daemon's long press gate shows the hive after `hold_ms`.
         #[serde(default)]
         hold: bool,
     },
-    /// The release of that key (`sbarhive drop --release`).
+    /// The release of that key (`kawaro drop --release`).
     DropRelease,
     /// Run an action without showing the hive.
     Run {

@@ -54,7 +54,7 @@ jobs:
           workspaces: ". -> target-windows"
       - run: scripts/windows/check.sh
       - run: scripts/windows/build.sh
-      - run: scripts/windows/check-dlls.sh "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release/sbarhive.exe"
+      - run: scripts/windows/check-dlls.sh "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release/kawaro.exe"
 
   # Tests on real Windows (S-044). FFmpeg is installed because the FFmpeg
   # engine tests require it; the office and PDF engine tests skip themselves
@@ -70,4 +70,4 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: FFmpeg
         run: choco install ffmpeg -y
-      - run: cargo test --no-fail-fast -p sbarhive-core -p sbarhive-engines -p sbarhive-cli
+      - run: cargo test --no-fail-fast -p kawaro-core -p kawaro-engines -p kawaro-cli

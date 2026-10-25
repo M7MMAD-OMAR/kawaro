@@ -68,7 +68,7 @@ class AC1Wrangler(unittest.TestCase):
         self.assertEqual(r.returncode, 0, f"jq cannot read wrangler.jsonc: {r.stderr}")
         cfg = json.loads(r.stdout)
         bad = []
-        if cfg.get("name") != "sbarhive-site":
+        if cfg.get("name") != "kawaro-site":
             bad.append(f"name={cfg.get('name')!r}")
         if (cfg.get("assets") or {}).get("directory") != "./.deploy-out":
             bad.append(f"assets.directory={(cfg.get('assets') or {}).get('directory')!r}")
@@ -343,13 +343,13 @@ class AC5SecurityTxt(unittest.TestCase):
                 k, v = ln.split(":", 1)
                 fields.setdefault(k.strip(), v.strip())
         bad = []
-        if fields.get("Contact") != "https://github.com/M7MMAD-OMAR/sbarhive/security/advisories/new":
+        if fields.get("Contact") != "https://github.com/M7MMAD-OMAR/kawaro/security/advisories/new":
             bad.append(f"Contact={fields.get('Contact')!r}")
         if fields.get("Preferred-Languages") != "en, ar":
             bad.append(f"Preferred-Languages={fields.get('Preferred-Languages')!r}")
         if fields.get("Canonical") != f"https://{S.DOMAIN}/.well-known/security.txt":
             bad.append(f"Canonical={fields.get('Canonical')!r}")
-        if not re.fullmatch(r"https://github\.com/M7MMAD-OMAR/sbarhive/blob/main/SECURITY\.md", fields.get("Policy", "")):
+        if not re.fullmatch(r"https://github\.com/M7MMAD-OMAR/kawaro/blob/main/SECURITY\.md", fields.get("Policy", "")):
             bad.append(f"Policy={fields.get('Policy')!r}")
         exp = fields.get("Expires", "")
         m = re.fullmatch(r"(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z", exp)

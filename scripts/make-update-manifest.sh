@@ -10,7 +10,7 @@
 # SHA-256 is computed from the file of the same name in DIR. Only .msi, .rpm
 # and .deb assets become entries, in input order.
 #
-# Every asset url must start with https://github.com/M7MMAD-OMAR/sbarhive/releases/download/
+# Every asset url must start with https://github.com/M7MMAD-OMAR/kawaro/releases/download/
 # (the client enforces the same prefix, ADR 0006), otherwise exit 2.
 #
 # Exit codes: 0 ok; 2 bad usage or bad input; 3 a package has no local file in
@@ -35,7 +35,7 @@ fi
 jq -e '(.assets | type) == "array"' "$ASSETS" >/dev/null 2>&1 || die 2 "$ASSETS has no assets array"
 
 # One tab separated row per package asset, validated by jq.
-PREFIX="https://github.com/M7MMAD-OMAR/sbarhive/releases/download/"
+PREFIX="https://github.com/M7MMAD-OMAR/kawaro/releases/download/"
 ROWS="$(jq -r --arg prefix "$PREFIX" '
   .assets[] | select(.name | type == "string" and test("\\.(msi|rpm|deb)$"))
   | if (.size | type) == "number" and .size > 0 and .size == (.size | floor)
@@ -64,7 +64,7 @@ done <<<"$ROWS"
 printf '%s\n' "${ENTRIES[@]}" | jq -s \
   --arg channel "$CHANNEL" --arg version "$VERSION" \
   --arg published "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-  --arg notes "https://github.com/M7MMAD-OMAR/sbarhive/releases/tag/v$VERSION" \
+  --arg notes "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v$VERSION" \
   '{schema: 1, channel: $channel, version: $version, published: $published,
     notes_url: $notes, assets: .}' >"$TMPF"
 mv "$TMPF" "$OUT"

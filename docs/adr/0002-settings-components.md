@@ -46,7 +46,7 @@ Sleek-ui and fluent were not needed.
 
 outline maps to `text-secondary`, not `border`, because outline draws the off switch, the segmented buttons and the text field, and `border` is too faint to see on them.
 
-Theme: the window follows the standard `Palette.color-scheme`, which `MaterialPalette` reads. `SBARHIVE_COLOR_SCHEME` wins first (as in the hive), then the theme setting (light or dark); auto follows the system. So the window is rebuilt on every `open`, and no forced theme survives a return to auto. Changing the theme inside the window does not restyle it before save.
+Theme: the window follows the standard `Palette.color-scheme`, which `MaterialPalette` reads. `KAWARO_COLOR_SCHEME` wins first (as in the hive), then the theme setting (light or dark); auto follows the system. So the window is rebuilt on every `open`, and no forced theme survives a return to auto. Changing the theme inside the window does not restyle it before save.
 
 ### Design lint
 

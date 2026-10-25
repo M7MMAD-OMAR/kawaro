@@ -1,11 +1,11 @@
 //! Tests for the shared contracts in engine.rs, action.rs, i18n.rs and ipc.rs.
 
-use sbarhive_core::MediaKind;
-use sbarhive_core::action::Localized;
-use sbarhive_core::engine::{CancelToken, Engine, EngineError, Estimate, Progress, Task};
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::ipc::Event;
-use sbarhive_core::queue::JobEvent;
+use kawaro_core::MediaKind;
+use kawaro_core::action::Localized;
+use kawaro_core::engine::{CancelToken, Engine, EngineError, Estimate, Progress, Task};
+use kawaro_core::i18n::Lang;
+use kawaro_core::ipc::Event;
+use kawaro_core::queue::JobEvent;
 use std::path::PathBuf;
 
 fn task(params: &str, inputs: Vec<PathBuf>) -> Task {
@@ -128,7 +128,7 @@ fn lang_helpers() {
 #[test]
 fn lang_detect_prefers_the_override_then_the_locale() {
     // One test owns the environment so parallel tests do not race on it.
-    let vars = ["SBARHIVE_LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"];
+    let vars = ["KAWARO_LANG", "LC_ALL", "LC_MESSAGES", "LANGUAGE", "LANG"];
     let saved: Vec<_> = vars.iter().map(std::env::var_os).collect();
     let set = |pairs: &[(&str, &str)]| {
         for v in vars {
@@ -146,7 +146,7 @@ fn lang_detect_prefers_the_override_then_the_locale() {
     assert_eq!(Lang::detect(), Lang::En);
     set(&[("LC_ALL", ""), ("LANG", "ar")]);
     assert_eq!(Lang::detect(), Lang::Ar, "empty values are skipped");
-    set(&[("LANG", "en_US.UTF-8"), ("SBARHIVE_LANG", "ar")]);
+    set(&[("LANG", "en_US.UTF-8"), ("KAWARO_LANG", "ar")]);
     assert_eq!(Lang::detect(), Lang::Ar);
     for (v, old) in vars.iter().zip(saved) {
         match old {
@@ -227,8 +227,8 @@ fn every_job_event_maps_to_the_same_ipc_event() {
 #[cfg(unix)]
 #[test]
 fn socket_path_lives_in_the_runtime_dir() {
-    let p = sbarhive_core::ipc::socket_path();
-    assert_eq!(p.file_name().unwrap(), "sbarhive.sock");
+    let p = kawaro_core::ipc::socket_path();
+    assert_eq!(p.file_name().unwrap(), "kawaro.sock");
     if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
         assert_eq!(p.parent().unwrap(), std::path::Path::new(&dir));
     }

@@ -1,16 +1,16 @@
 # S-016 تثبيت وتحديث من مستودعات موقّعة: COPR لـ Fedora وAPT لـ Ubuntu وDebian
 الحالة: مسودة
 
-للإصدار 0.4.0 (`docs/PLAN.md`، صف «التوزيع»)، وissue #3. اليوم: `packages.yml` يبني الحزمتين مرة واحدة على ubuntu-22.04 (المهمة `build`)، ويثبّتهما في حاويات Fedora 41 وlatest وUbuntu 22.04 و24.04 وDebian 12 (`test`)، ويرفقهما بالإصدار (`release`). الحزم غير موقّعة، فيحذّر `dnf install ./sbarhive-*.rpm`: «skipped OpenPGP checks»، ولا تحديث إلا بتنزيل يدوي (README، قسم التثبيت).
+للإصدار 0.4.0 (`docs/PLAN.md`، صف «التوزيع»)، وissue #3. اليوم: `packages.yml` يبني الحزمتين مرة واحدة على ubuntu-22.04 (المهمة `build`)، ويثبّتهما في حاويات Fedora 41 وlatest وUbuntu 22.04 و24.04 وDebian 12 (`test`)، ويرفقهما بالإصدار (`release`). الحزم غير موقّعة، فيحذّر `dnf install ./kawaro-*.rpm`: «skipped OpenPGP checks»، ولا تحديث إلا بتنزيل يدوي (README، قسم التثبيت).
 
 ## القصة
-بصفتي مستخدماً على Fedora أو Ubuntu أو Debian، أريد أن أضيف مستودع صبار هايف مرة واحدة ثم أثبّته وأحدّثه بأمر `dnf` أو `apt` عادي بلا تحذير توقيع، حتى أحصل على كل إصدار جديد دون تنزيل يدوي وأثق بأن الحزمة منه.
+بصفتي مستخدماً على Fedora أو Ubuntu أو Debian، أريد أن أضيف مستودع كوارو مرة واحدة ثم أثبّته وأحدّثه بأمر `dnf` أو `apt` عادي بلا تحذير توقيع، حتى أحصل على كل إصدار جديد دون تنزيل يدوي وأثق بأن الحزمة منه.
 
 ## شروط مسبقة (لا يقوم بها إلا المشرف، ولا يبدأ التنفيذ قبلها)
-- P1: حساب Fedora ومشروع COPR (الاسم يقرره المشرف، مثلاً `m7mmad-omar/sbarhive`)، مع التأكد من وجود chroot لـ `fedora-41` و`fedora-latest` (Fedora 41 قد يكون انتهى دعمه؛ إن غاب chroot يقرر المشرف: إسقاط 41 من الدعم أو بديل).
+- P1: حساب Fedora ومشروع COPR (الاسم يقرره المشرف، مثلاً `m7mmad-omar/kawaro`)، مع التأكد من وجود chroot لـ `fedora-41` و`fedora-latest` (Fedora 41 قد يكون انتهى دعمه؛ إن غاب chroot يقرر المشرف: إسقاط 41 من الدعم أو بديل).
 - P2: رمز COPR API في سر GitHub Actions باسم `COPR_CONFIG` (محتوى `~/.config/copr`). للرمز تاريخ انتهاء، ويُجدَّد يدوياً.
 - P3: مكان استضافة مستودع APT. المقترح GitHub Pages من هذا المستودع تحت `/apt/`؛ للمستودع موقع Pages واحد، و`site/` مخطط له، فيتشاركان. الحد المعلن لموقع Pages 1 GB.
-- P4: مفتاح OpenPGP يُنشأ على جهاز حقيقي (Ed25519 أو RSA 4096)، يُخزَّن الخاص في السر `APT_SIGNING_KEY` وعبارته في `APT_SIGNING_PASSPHRASE`، وشهادة الإبطال تبقى عنده خارج المستودع. **لا يدخل أي مفتاح خاص المستودع أبداً**؛ يُلتزم بالعام وحده في `packaging/keys/sbarhive-archive.asc`.
+- P4: مفتاح OpenPGP يُنشأ على جهاز حقيقي (Ed25519 أو RSA 4096)، يُخزَّن الخاص في السر `APT_SIGNING_KEY` وعبارته في `APT_SIGNING_PASSPHRASE`، وشهادة الإبطال تبقى عنده خارج المستودع. **لا يدخل أي مفتاح خاص المستودع أبداً**؛ يُلتزم بالعام وحده في `packaging/keys/kawaro-archive.asc`.
 
 ## التقسيم (كل قصة فرعية يوم عمل أو أقل، بالترتيب)
 | القصة | المحتوى | المعايير |
@@ -20,14 +20,14 @@
 | S-016c | README بالعربية والإنكليزية مع البصمات، وتحقق حي بعد النشر | AC7 إلى AC9 |
 
 ## معايير القبول
-- AC1: مهمة جديدة بعد `test` تبني مستودعاً بجناح `stable` ومكوّن `main` ومعمارية `amd64` (البناء الواحد على 22.04 يخدم الأنظمة الثلاثة)، فيه `InRelease` و`Release.gpg` موقّعان بمفتاح P4، ويبقي آخر 3 إصدارات في `pool/`. تعمل على دفع وسم `v*` في `M7MMAD-OMAR/sbarhive` وحده، لا على pull_request ولا في fork.
-- AC2: في CI، بمفتاح يُولَّد داخل المهمة ولا يُحفظ: مستودع محلي يُخدَّم عبر HTTP بإصدارين (N وN+1 اختباريين). في حاويات Ubuntu 22.04 و24.04 وDebian 12: تثبيت N بالأوامر الموثّقة، ثم إضافة N+1 وإعادة التوقيع، ثم `apt-get update && apt-get upgrade -y` يجعل `sbarhive --version` يطبع N+1.
-- AC3: في AC2، مخرجات `apt-get update` فيها صفر أسطر `W:` وصفر `NO_PUBKEY` وصفر `not signed`، والتثبيت بلا `--allow-unauthenticated`، و`apt-cache policy sbarhive` يذكر عنوان المستودع والإصدار المتوقع. ومستودع موقّع بمفتاح آخر يُرفض: `apt-get update` يخرج بغير 0.
+- AC1: مهمة جديدة بعد `test` تبني مستودعاً بجناح `stable` ومكوّن `main` ومعمارية `amd64` (البناء الواحد على 22.04 يخدم الأنظمة الثلاثة)، فيه `InRelease` و`Release.gpg` موقّعان بمفتاح P4، ويبقي آخر 3 إصدارات في `pool/`. تعمل على دفع وسم `v*` في `M7MMAD-OMAR/kawaro` وحده، لا على pull_request ولا في fork.
+- AC2: في CI، بمفتاح يُولَّد داخل المهمة ولا يُحفظ: مستودع محلي يُخدَّم عبر HTTP بإصدارين (N وN+1 اختباريين). في حاويات Ubuntu 22.04 و24.04 وDebian 12: تثبيت N بالأوامر الموثّقة، ثم إضافة N+1 وإعادة التوقيع، ثم `apt-get update && apt-get upgrade -y` يجعل `kawaro --version` يطبع N+1.
+- AC3: في AC2، مخرجات `apt-get update` فيها صفر أسطر `W:` وصفر `NO_PUBKEY` وصفر `not signed`، والتثبيت بلا `--allow-unauthenticated`، و`apt-cache policy kawaro` يذكر عنوان المستودع والإصدار المتوقع. ومستودع موقّع بمفتاح آخر يُرفض: `apt-get update` يخرج بغير 0.
 - AC4: صفر ظهور لـ `BEGIN PGP PRIVATE KEY BLOCK` في `git log --all -p` وفي سجلات المهام، ومجلد GNUPGHOME في المهمة مؤقت يُحذف في خطوتها الأخيرة.
 - AC5: مهمة بعد `test` على الوسم نفسه وبالشروط نفسها ترفع البناء إلى COPR بـ `copr-cli` والسر `COPR_CONFIG`، وتنتظر نتيجته: نجاح في chroot `fedora-41` وlatest، أو تفشل المهمة.
-- AC6: في حاويتي `fedora:41` و`fedora:latest`: الأوامر الموثّقة (`dnf install -y 'dnf-command(copr)'` ثم `dnf copr enable -y` ثم `dnf install -y sbarhive`) تخرج بـ 0، وصفر ظهور لـ `skipped OpenPGP checks`، و`rpm -q --qf '%{SIGPGP:pgpsig}' sbarhive` ليس `(none)` ومعرّف مفتاحه يطابق بصمة مفتاح COPR المنشورة.
-- AC7: README يوثّق في قسمي «التثبيت» و«Install» أوامر Fedora وUbuntu وDebian، ومنها `ca-certificates` و`curl` وملف `.sources` بصيغة deb822 مع `Signed-By:` إلى `/etc/apt/keyrings/sbarhive.asc`. الأوامر تُنسخ حرفياً إلى اختبارات AC2 وAC6 وAC8 (مصدر واحد يقرؤه الاختبار، لا نسخة ثانية).
-- AC8: بعد كل وسم، مهمة تحقق في الحاويات الخمس على المستودعين الحيين: تثبيت بالأوامر الموثّقة يعطي `sbarhive --version` مساوياً للوسم، بشروط AC3 وAC6. ومن الوسم الثاني بعد التعبئة: تثبيت الإصدار السابق ثم `dnf upgrade -y` أو `apt-get upgrade -y` يعطي الوسم.
+- AC6: في حاويتي `fedora:41` و`fedora:latest`: الأوامر الموثّقة (`dnf install -y 'dnf-command(copr)'` ثم `dnf copr enable -y` ثم `dnf install -y kawaro`) تخرج بـ 0، وصفر ظهور لـ `skipped OpenPGP checks`، و`rpm -q --qf '%{SIGPGP:pgpsig}' kawaro` ليس `(none)` ومعرّف مفتاحه يطابق بصمة مفتاح COPR المنشورة.
+- AC7: README يوثّق في قسمي «التثبيت» و«Install» أوامر Fedora وUbuntu وDebian، ومنها `ca-certificates` و`curl` وملف `.sources` بصيغة deb822 مع `Signed-By:` إلى `/etc/apt/keyrings/kawaro.asc`. الأوامر تُنسخ حرفياً إلى اختبارات AC2 وAC6 وAC8 (مصدر واحد يقرؤه الاختبار، لا نسخة ثانية).
+- AC8: بعد كل وسم، مهمة تحقق في الحاويات الخمس على المستودعين الحيين: تثبيت بالأوامر الموثّقة يعطي `kawaro --version` مساوياً للوسم، بشروط AC3 وAC6. ومن الوسم الثاني بعد التعبئة: تثبيت الإصدار السابق ثم `dnf upgrade -y` أو `apt-get upgrade -y` يعطي الوسم.
 - AC9: بصمة مفتاح APT (40 حرفاً ست عشرياً، من `gpg --show-keys` على الملف العام الملتزَم) وبصمة مفتاح COPR في README مرتين: في القسم العربي وفي الإنكليزي. وسطر في CHANGELOG.md بالعربية والإنكليزية، ولا شرطة طويلة ولا متوسطة في الملفات المتغيرة.
 
 ## حالات الاختبار
@@ -42,7 +42,7 @@
 | AC9 | سكربت يقارن البصمة من الملف العام بالنص في القسمين، و`scripts/design-lint.sh` | وحدة |
 
 ## قرارات تنتظر المشرف أو المدير
-- بناء COPR: `sbarhive.spec` اليوم ثنائي (`%install` ينسخ `%{stage}` من `stage.sh`)، وCOPR يبني من SRPM. الخيار أ: spec من المصدر بـ BuildRequires وcrates مضمّنة (`cargo vendor`) أو شبكة مفعّلة للمشروع. الخيار ب: SRPM يغلّف ثنائيات الإصدار. المقترح أ.
+- بناء COPR: `kawaro.spec` اليوم ثنائي (`%install` ينسخ `%{stage}` من `stage.sh`)، وCOPR يبني من SRPM. الخيار أ: spec من المصدر بـ BuildRequires وcrates مضمّنة (`cargo vendor`) أو شبكة مفعّلة للمشروع. الخيار ب: SRPM يغلّف ثنائيات الإصدار. المقترح أ.
 - COPR يوقّع بمفتاح خاص بالمشروع لا بمفتاح P4 (يُتأكد عند الإنشاء)، فيُنشر مفتاحان.
 - أداة المستودع: المقترح `apt-ftparchive` من `apt-utils` وgpg، فلا تبعية جديدة.
 

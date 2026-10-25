@@ -29,7 +29,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - هل للاسم `org.gnome.Orca.Service` مالك على ناقل الجلسة (`NameHasOwner`، ثم `NameOwnerChanged`). Orca المثبت هنا يملكه عند كل تشغيل (`orca/orca.py:300`، `dbus_service.py:535`).
   - قيمة `hive_surface` في `config.toml`: `auto` أو `layer` أو `window`، والغياب `auto`.
 
-  النتيجة `true` فقط بالعلم والاسم معاً مع `auto`. `layer` و`window` يسبقان الاثنين، و`SBARHIVE_SURFACE` يسبق الكل كما اليوم.
+  النتيجة `true` فقط بالعلم والاسم معاً مع `auto`. `layer` و`window` يسبقان الاثنين، و`KAWARO_SURFACE` يسبق الكل كما اليوم.
 - AC2: كل تغيّر في قرار السطح يطبع سطراً واحداً دون متغير بيئة، بادئته `hive surface choice:` لا `hive surface:`، ومعه السبب: `screen reader running`، أو `screen reader flag set, no reader running`، أو `config window`، أو `missing <globals>`. في KWin المخفي ببوابة a11y وهمية (`ScreenReaderEnabled=true`) دون مالك للاسم يكون الظهور `get_layer_surface` ومعه السبب الثاني. وبعد أن يملك سكربت Python الاسمَ على الناقل الخاص يصير الظهور التالي `get_xdg_surface`.
 - AC3: دالة صافية جديدة (الاسم المقترح `plan_at(cells, rtl, min_rings, screen, anchor)`)، و`plan` و`plan_rings` و`place` بتواقيعها كما هي.
   - دون مرساة: تساوي `plan_rings` في الخلايا والحجم، والموضع موضع `place`.
@@ -47,10 +47,10 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - حيث تُقبل الخانات كلها يساوي الناتج `plan_rings`: (640، 400) يعطي الموضع (444، 219)، و(400، 500) يعطي (204، 319).
   - المقياس 180 لا يغيّر الخلايا ولا الموضع، والمخزن `ceil(w·1.5) × ceil(h·1.5)`.
 - AC5: على مسار الطبقة، المرساة أول `wl_pointer.enter` أو `motion` على الماسك أو الخلية قبل أول إطار، والانتظار 50 ms على الأكثر من أول `configure` للماسك (القرار 1)، وإلا فلا مرساة.
-  - مع `SBARHIVE_DEBUG_FOCUS` يطبع كل ظهور سطراً واحداً `hive anchor: X Y` أو `hive anchor: none` قبل سطر `hive surface:`، وكل تخطيط سطراً `hive cells: N CX CY`: عدد الخلايا الظاهرة، ومركز الخلية المركزية داخل السطح.
+  - مع `KAWARO_DEBUG_FOCUS` يطبع كل ظهور سطراً واحداً `hive anchor: X Y` أو `hive anchor: none` قبل سطر `hive surface:`، وكل تخطيط سطراً `hive cells: N CX CY`: عدد الخلايا الظاهرة، ومركز الخلية المركزية داخل السطح.
   - صيغة `hive surface:` لا تتغير، وقيمه تساوي `plan_at` للمرساة المطبوعة.
   - المركز لا يتحرك على الشاشة بعد أول إطار في الظهور، ولا يتبع المؤشر. الاستثناء الوحيد في AC8.
-- AC6: KWin المخفي 1280 × 800، وحركة محقونة بفرق 1 px حول P كل 10 ms، تبدأ قبل `sbarhive open` وتدوم 600 ms:
+- AC6: KWin المخفي 1280 × 800، وحركة محقونة بفرق 1 px حول P كل 10 ms، تبدأ قبل `kawaro open` وتدوم 600 ms:
   - P = (400، 500) يعطي (204، 319) بفرق 1 px أو أقل.
   - عند (100، 700) و(1200، 80) و(0، 0): سطر `hive anchor` بفرق 1 px من P، وصندوق اللقطة داخل الشاشة كله، وعدد الخلايا في `hive cells` يساوي AC4.
   - والمؤشر ساكن: يُسجَّل سطر `hive anchor` سطرَ INFO.
@@ -62,16 +62,16 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - بعد أول موضع آخر `set_input_region` على الماسك منطقة فارغة (S-018 AC13)، ولوحة المفاتيح 0 طوال الظهور.
   - نقرة على الماسك في هذه المرحلة لا تغلق الخلية.
 - AC9: مرحلة المرساة لا تصل آلة الوضع: لا `Note::Enter` ولا `Leave` ولا `Drop`، ولا `wl_data_offer.receive`، ولا `accept` بنوع على عرض الماسك. أول `enter` تراه الآلة على سطح الخلية الفرعي (S-018 AC14)، ويبقى سطر واحد لكل دخول في `tests/drop/kwin.sh` (S-014 AC8).
-- AC10: `tests/drop/kwin.sh level=1`: السحب ممسوك عند P بحركة كما AC6، تبدأ قبل `sbarhive drop`.
+- AC10: `tests/drop/kwin.sh level=1`: السحب ممسوك عند P بحركة كما AC6، تبدأ قبل `kawaro drop`.
   - P = (400، 500) يعطي (204، 319) بفرق 1 px أو أقل، ثم الإفلات على خلية WEBP (التخطيط هناك هو `plan_rings` دون تغيير، فموقعها من `hive surface` كما اليوم) يكتب `<الاسم>.webp` خلال 5 ثوانٍ، في 3 من 3.
   - P = (100، 700) يعطي مرساة بفرق 1 px من P.
-  - السحب ساكن 1 ثانية بعد `sbarhive drop` ثم يتحرك إلى P = (400، 500): سطر `hive anchor: none` أولاً، ثم انتقال واحد إلى (204، 319)، و`set_position` مرتين بالضبط في الظهور.
+  - السحب ساكن 1 ثانية بعد `kawaro drop` ثم يتحرك إلى P = (400، 500): سطر `hive anchor: none` أولاً، ثم انتقال واحد إلى (204، 319)، و`set_position` مرتين بالضبط في الظهور.
 - AC11: IPC والسطر:
-  - `sbarhive drop --hold` يرسل `Request::Drop { token, hold: true }`، و`hold` بقيمة افتراضية `false`، فيبقى العميل القديم صالحاً.
-  - `sbarhive drop --release` يرسل `Request::DropRelease`، ولا يشغّل الخدمة إن لم تعمل، ويخرج بـ 0 خلال 200 ms.
+  - `kawaro drop --hold` يرسل `Request::Drop { token, hold: true }`، و`hold` بقيمة افتراضية `false`، فيبقى العميل القديم صالحاً.
+  - `kawaro drop --release` يرسل `Request::DropRelease`، ولا يشغّل الخدمة إن لم تعمل، ويخرج بـ 0 خلال 200 ms.
   - الخياران لا يجتمعان (رمز خروج 2).
   - `drop --hold` حدث «ضغط» فقط: يعود بـ 0 خلال 200 ms دون انتظار العتبة، والمؤقّت في الخدمة لا في العميل (AC17).
-  - `sbarhive drop` دون `--hold` يبقى ظهوراً فورياً كما في S-014، لمن يربطه باختصار ضغطة عادية.
+  - `kawaro drop` دون `--hold` يبقى ظهوراً فورياً كما في S-014، لمن يربطه باختصار ضغطة عادية.
 - AC12: آلة الوضع (`dnd.rs`، وحدة):
   - `Release` في ظهور `hold` في حالة الانتظار أو فوق خلية يعطي `Hidden`، و`on_dismiss` مرة واحدة، ولا ملف.
   - بعد الإفلات (`Running`) لا أثر له.
@@ -132,7 +132,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 ## حالات الاختبار
 | معيار | الاختبار | النوع |
 | --- | --- | --- |
-| AC1 | وحدة بكل تركيبات المدخلات الثلاثة و`SBARHIVE_SURFACE` | وحدة |
+| AC1 | وحدة بكل تركيبات المدخلات الثلاثة و`KAWARO_SURFACE` | وحدة |
 | AC2 | `tests/overlay/kwin.sh a11y` بالوضع الجديد: علم دون قارئ، ثم بقارئ وهمي | تكامل |
 | AC3، AC4 | وحدة بالحالات المذكورة، تحت `cargo mutants` | وحدة |
 | AC5، AC6 | `tests/overlay/kwin.sh anchor`: إدخال `tests/drop/kwin-input` في الخلفية، وأسطر التشخيص، و`set_position` في الأثر، واللقطات | تكامل، لقطة |
@@ -165,7 +165,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 
 تأكيد يتغير بالقرار 2: `tests/overlay/kwin.sh:643`، «لا `wl_pointer.enter` على الماسك»، يصير «بعد سطر `hive anchor`».
 
-دورات `tests/drop/lib.sh` القائمة لا تحرّك المؤشر بعد `sbarhive drop` (السطر 125: KWin لا يرسل الدخول دون حركة)، فتقع في المنتصف بعد المهلة، وتبقى لقطاتها المعتمدة صحيحة. إن تبيّن غير ذلك يضيف المختبِر حركة تهيئة ويسجّلها هنا.
+دورات `tests/drop/lib.sh` القائمة لا تحرّك المؤشر بعد `kawaro drop` (السطر 125: KWin لا يرسل الدخول دون حركة)، فتقع في المنتصف بعد المهلة، وتبقى لقطاتها المعتمدة صحيحة. إن تبيّن غير ذلك يضيف المختبِر حركة تهيئة ويسجّلها هنا.
 
 ## خارج النطاق
 - تحقق حي يجريه المشرف على Hyprland:
@@ -188,7 +188,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   1. ميزانية 150 ms (مبدأ في CLAUDE.md) واليد الساكنة في الإفلات: السحب الساكن لا يولّد حركة، فلا موضع.
      - المقترح (المكتوب في AC8): المنتصف خلال 50 ms، ثم انتقال واحد عند أول حركة للسحب. هذا استثناء من «لا قفز» للإفلات وحده، ويحفظ الميزانية.
      - البديل أ: الانتظار حتى 1000 ms. يخالف المبدأ، ولا يصح إلا إن رفعه المشرف للإفلات.
-     - البديل ب: سكربت Hyprland يمرّر الموضع (`sbarhive drop --hold --at X,Y` من `hyprctl cursorpos`)، فلا انتظار. صيغة مخرج `hyprctl cursorpos` (مُفترَض «X, Y») لم نتحقق منها. ويبقى خاصاً بـ Hyprland.
+     - البديل ب: سكربت Hyprland يمرّر الموضع (`kawaro drop --hold --at X,Y` من `hyprctl cursorpos`)، فلا انتظار. صيغة مخرج `hyprctl cursorpos` (مُفترَض «X, Y») لم نتحقق منها. ويبقى خاصاً بـ Hyprland.
      - الظهور العادي ينتظر 50 ms دون قفز.
   2. في الإفلات يأخذ الماسك الإدخال في مرحلة المرساة، وهذا ينسخ على مسار الطبقة جزء S-018 AC13 «لا دخول للمؤشر على الماسك» في تلك المرحلة. الإفلات عليه فيها مرفوض، والنقر عليه لا يغلق.
   3. إمساك المفتاح:
@@ -207,7 +207,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 
 ### قرارات المدير (2026-10-21، بتفويض من المشرف)
 
-1. **اليد الثابتة أثناء السحب:** نعتمد الخيار B أولاً حيث يتوفر، والمقترح احتياطاً. `sbarhive drop --at X,Y` يأخذ موقع المؤشر بإحداثيات منطقية عامة. تحققت أن `hyprctl cursorpos` يعطي `1198, 1800`، وأن `hyprctl cursorpos -j` يعطي `{"x":..,"y":..}` بالإحداثيات العامة نفسها التي يستعملها `hyprctl monitors`. بلا `--at` نعود إلى المقترح: تظهر الخلية في المنتصف خلال 50 ms، ثم تتحرك مرة واحدة مع أول حركة سحب.
+1. **اليد الثابتة أثناء السحب:** نعتمد الخيار B أولاً حيث يتوفر، والمقترح احتياطاً. `kawaro drop --at X,Y` يأخذ موقع المؤشر بإحداثيات منطقية عامة. تحققت أن `hyprctl cursorpos` يعطي `1198, 1800`، وأن `hyprctl cursorpos -j` يعطي `{"x":..,"y":..}` بالإحداثيات العامة نفسها التي يستعملها `hyprctl monitors`. بلا `--at` نعود إلى المقترح: تظهر الخلية في المنتصف خلال 50 ms، ثم تتحرك مرة واحدة مع أول حركة سحب.
 2. **التقاط موقع السحب:** مقبول كما هو مقترح.
 3. **الضغط المطوّل:** نافذة 300 ms مقبولة. خروج السحب من الخلية لا يغلقها ما دام المفتاح مضغوطاً، وتُغلق عند الإفلات أو عند رفع المفتاح. مهلة 10 ثوان تبقى.
 4. **قارئ الشاشة:** مقبول، ومعه مفتاح الإعداد.
@@ -222,38 +222,38 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 
 - 2026-10-21، المختبِر: كُتبت الاختبارات من المعايير وقرارات المدير وملاحظة S-020 فقط، وفشلت كلها قبل التنفيذ. قبل التثبيت تحققت أن الاختبارات قابلة للنجاح بشيفرة مؤقتة في `config.rs` و`overlay.rs` و`layout.rs` و`settings.rs` تتبع المعايير: نجحت كلها، ثم أُعيدت الملفات الأربعة كما كانت بـ `git checkout`، فلا شيفرة تنفيذ في هذا الالتزام.
 - العقد (يثبّته الاختبار، فلا يُعدَّل):
-  - `sbarhive_core::config::HiveSurface { Auto, Layer, Window }`، والافتراضي `Auto`، والحقل `Config::hive_surface`. المفتاح في الملف `hive_surface` بشرطة سفلية كما في AC1، مع أن بقية مفاتيح `Config` بصيغة kebab (`output-folder`)، فيحتاج الحقل `#[serde(rename = "hive_surface")]` أو ما يعادله. تنبيه للمراجع: هذا تعارض في الأسلوب لا في المعيار، والاختبار يتبع نص المعيار. القيمة المجهولة ملف معطوب: الافتراضيات مع تحذير، كبقية المفاتيح.
+  - `kawaro_core::config::HiveSurface { Auto, Layer, Window }`، والافتراضي `Auto`، والحقل `Config::hive_surface`. المفتاح في الملف `hive_surface` بشرطة سفلية كما في AC1، مع أن بقية مفاتيح `Config` بصيغة kebab (`output-folder`)، فيحتاج الحقل `#[serde(rename = "hive_surface")]` أو ما يعادله. تنبيه للمراجع: هذا تعارض في الأسلوب لا في المعيار، والاختبار يتبع نص المعيار. القيمة المجهولة ملف معطوب: الافتراضيات مع تحذير، كبقية المفاتيح.
   - `overlay::screen_reader_running(flag, reader, config) -> bool`، و`overlay::surface_choice(globals, wayland, flag, reader, config, forced) -> (Surface, String)` يعيد السبب قيمةً لا طباعةً، و`overlay::choice_line(surface, reason) -> String`. في `overlay.rs` لأن `a11y.rs` و`layer.rs` خارج فحص الطفرات. الأسباب الأربعة بنصها الحرفي من AC2، وما لم يحدده المعيار (العودة إلى الطبقة بلا علم مثلاً) يكفي فيه سبب غير فارغ. `choose_surface` باقية كما هي.
   - `layout::MAX_RINGS = 4`، و`layout::plan_at(cells, rtl, min_rings, screen, anchor: Option<(f32, f32)>, scale120) -> (Plan, overlay::Placement)`. المعامل السادس إضافة على الاسم المقترح في AC3، لأن AC4 يطلب المخزن بالمقياس 180. `Placement::x, y` زاوية السطح الفرعي، والمركز على الشاشة `(x, y) + plan.layout.origin`، و`destination` يساوي `ceil(width) × ceil(height)`، و`buffer` يساوي `ceil(destination × scale120 / 120)`. القبول على الحدود شامل بسماح 0.01 px.
   - نافذة الإعدادات لا تملك عنصراً لـ `hive_surface` (القرار 4)، فالحفظ منها يحفظ القيمة التي فُتحت بها ولا يعيدها إلى `auto`. اليوم `FormState::to_config` يبني `Config` من الصفر، فسيُفقد المفتاح دون هذا الشرط.
 - الملفات:
   - `crates/core/tests/config_surface.rs` (7 اختبارات، AC1).
-  - `crates/ui/tests/surface_choice.rs` (19 اختباراً، AC1 وAC2، بكل تركيبات العلم والاسم و`hive_surface` و`SBARHIVE_SURFACE` على عوامّ KWin وGNOME).
+  - `crates/ui/tests/surface_choice.rs` (19 اختباراً، AC1 وAC2، بكل تركيبات العلم والاسم و`hive_surface` و`KAWARO_SURFACE` على عوامّ KWin وGNOME).
   - `crates/ui/src/anchor_tests.rs` (15 اختباراً، AC3 وAC4، داخل الحزمة لأن `layout` خاصة). فيه مرجع مستقل للقواعد، يُقارن بـ `Layout::extent` حيث تُقبل الخانات كلها. المصفوفة: 10 مراسٍ × 18 و12 و6 و3 خلايا × الاتجاهين × `min_rings` 1 و2 × المقياسين 120 و180.
   - `crates/ui/src/settings.rs`: اختبار جديد `ac1_s019_save_keeps_hive_surface`، وأُضيف `hive_surface: HiveSurface::Auto` إلى ثلاثة أمثلة حرفية لـ `Config` في الاختبارات القائمة، والتأكيدات كما هي. وفي `lib.rs` سطر `mod anchor_tests`.
   - `tests/overlay/a11y.py`: أمرا `orca` و`noorca` ووسيط ثالث `orca`، يملك بها السكربت `org.gnome.Orca.Service` على الناقل الخاص ويتركه.
-  - `tests/overlay/kwin.sh a11y` (تعديل التهيئة المذكور أعلاه: البوابة تقدّم قارئاً مسجّلاً). الخدمة تعمل في هذا الوضع دون `SBARHIVE_DEBUG_FOCUS`. الترتيب: علم وقارئ وظهور واحد (فحوص S-018 AC12 كما هي)، ثم يغادر القارئ ويبقى العلم مع ظهورين، ثم يعود القارئ مع ظهورين، ثم يُطفأ العلم مع ظهور واحد. كل مقطع يبدأ قبل تغيير الناقل، فيقع فيه سطر الاختيار سواء طُبع عند وصول التغيير أو عند الظهور التالي. والظهوران في المقطع الواحد يكشفان سطراً يُطبع مع كل ظهور بدل كل تغيير.
+  - `tests/overlay/kwin.sh a11y` (تعديل التهيئة المذكور أعلاه: البوابة تقدّم قارئاً مسجّلاً). الخدمة تعمل في هذا الوضع دون `KAWARO_DEBUG_FOCUS`. الترتيب: علم وقارئ وظهور واحد (فحوص S-018 AC12 كما هي)، ثم يغادر القارئ ويبقى العلم مع ظهورين، ثم يعود القارئ مع ظهورين، ثم يُطفأ العلم مع ظهور واحد. كل مقطع يبدأ قبل تغيير الناقل، فيقع فيه سطر الاختيار سواء طُبع عند وصول التغيير أو عند الظهور التالي. والظهوران في المقطع الواحد يكشفان سطراً يُطبع مع كل ظهور بدل كل تغيير.
   - `tests/hyprland/repro.sh --quasimode`: فحص باسم S-019a يُحسب فاشلاً كبقية فحوص S-019 (شرط المدير الإضافي). لم يُشغَّل Hyprland المتداخل هنا.
 - مخرجات الفشل (`nice -n 19`، `CARGO_BUILD_JOBS=2`، على `3957651`):
-  - `cargo test -p sbarhive-core --test config_surface`:
+  - `cargo test -p kawaro-core --test config_surface`:
     ```
-    error[E0432]: unresolved import `sbarhive_core::config::HiveSurface`
+    error[E0432]: unresolved import `kawaro_core::config::HiveSurface`
     error[E0609]: no field `hive_surface` on type `Config` (5 مرات)
     error[E0560]: struct `Config` has no field named `hive_surface`
-    error: could not compile `sbarhive-core` (test "config_surface") due to 7 previous errors
+    error: could not compile `kawaro-core` (test "config_surface") due to 7 previous errors
     ```
-  - `cargo test -p sbarhive-ui --test surface_choice`:
+  - `cargo test -p kawaro-ui --test surface_choice`:
     ```
-    error[E0432]: unresolved import `sbarhive_core::config::HiveSurface`
-    error[E0432]: unresolved imports `sbarhive_ui::overlay::choice_line`, `sbarhive_ui::overlay::screen_reader_running`, `sbarhive_ui::overlay::surface_choice`
-    error: could not compile `sbarhive-ui` (test "surface_choice") due to 2 previous errors
+    error[E0432]: unresolved import `kawaro_core::config::HiveSurface`
+    error[E0432]: unresolved imports `kawaro_ui::overlay::choice_line`, `kawaro_ui::overlay::screen_reader_running`, `kawaro_ui::overlay::surface_choice`
+    error: could not compile `kawaro-ui` (test "surface_choice") due to 2 previous errors
     ```
-  - `cargo test -p sbarhive-ui --lib` (لا يُبنى هدف اختبارات المكتبة كله حتى التنفيذ، كما في S-018h):
+  - `cargo test -p kawaro-ui --lib` (لا يُبنى هدف اختبارات المكتبة كله حتى التنفيذ، كما في S-018h):
     ```
     error[E0432]: unresolved imports `crate::layout::MAX_RINGS`, `crate::layout::plan_at`
-    error[E0432]: unresolved import `sbarhive_core::config::HiveSurface`
-    error[E0560]: struct `sbarhive_core::config::Config` has no field named `hive_surface` (4 مرات)
-    error: could not compile `sbarhive-ui` (lib test) due to 6 previous errors
+    error[E0432]: unresolved import `kawaro_core::config::HiveSurface`
+    error[E0560]: struct `kawaro_core::config::Config` has no field named `hive_surface` (4 مرات)
+    error: could not compile `kawaro-ui` (lib test) due to 6 previous errors
     ```
   - `tests/overlay/kwin.sh a11y` على بناء الإصدار الحالي (`target/release`، مبني بعد `7b7f295`، آخر تغيير في `crates/`)، مرة واحدة، `RESULT FAIL (6)`:
     ```
@@ -267,7 +267,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
     FAIL S-019 AC2 flag off: exactly one choice line, layer
     ```
     نجحت فحوص S-018 AC12 الأربعة كما هي، ونجح فحصا «عودة القارئ: لا طبقة، وسطح xdg» لأن العلم وحده يفرض النافذة اليوم. هما حارسا انحدار لا اختباران خاطئان. ونجح «سطر واحد على الأكثر في الظهور الأول» لأنه لا سطر اليوم، ويكمّله الفحص الفاشل قبله.
-- 2026-10-21، المختبِر (متابعة): أُعيدت الشيفرة المؤقتة مرة ثانية، ومعها نسخة من `settings.rs` تحفظ `hive_surface` الذي فُتحت به النافذة. نجح `cargo clippy -p sbarhive-core -p sbarhive-ui --all-targets -- -D warnings` على ملفات الاختبار، بعد تصحيح واحد في الاختبار الجديد (`[start]` بدل `[start.clone()]`). ونجح `cargo test -p sbarhive-core -p sbarhive-ui` كله، ومنه `ac1_s019_save_keeps_hive_surface` واختبارات الإعدادات والمكتبة القائمة. ثم أُعيدت الملفات بـ `git checkout`.
+- 2026-10-21، المختبِر (متابعة): أُعيدت الشيفرة المؤقتة مرة ثانية، ومعها نسخة من `settings.rs` تحفظ `hive_surface` الذي فُتحت به النافذة. نجح `cargo clippy -p kawaro-core -p kawaro-ui --all-targets -- -D warnings` على ملفات الاختبار، بعد تصحيح واحد في الاختبار الجديد (`[start]` بدل `[start.clone()]`). ونجح `cargo test -p kawaro-core -p kawaro-ui` كله، ومنه `ac1_s019_save_keeps_hive_surface` واختبارات الإعدادات والمكتبة القائمة. ثم أُعيدت الملفات بـ `git checkout`.
 - فحص الاختبارات القائمة: كل نمط لسطر `hive surface` في `tests/` (`drop/lib.sh` و`drop/kwin.sh` و`drop/budget.sh` و`overlay/budget.sh` و`overlay/gnome.sh` و`e2e/run.sh` و`hyprland/repro.sh`) مقيَّد بـ `^hive surface: ` أو `^hive surface:`. فلا يطابق سطر `hive surface choice: ` الجديد، ولو طُبع في كل تشغيل. ولا اختبار يقارن نص `config.toml` المحفوظ حرفياً، فظهور `hive_surface = "auto"` في الملفات المحفوظة لا يكسر شيئاً.
 - تنبيهات للمنفِّذ والمراجع:
   - قاعدة «سطر واحد لكل تغيير» لا يثبّتها اختبار وحدة، ويغطيها `kwin.sh a11y` بظهورين في كل مقطع. موضعها الطبيعي بجانب دوال التقرير المستثناة من الطفرات (`report_surface` وأمثالها)، وإن وُضعت في ملف تفحصه الطفرات فستنجو طفراتها.
@@ -278,7 +278,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - 2026-10-21، المنفِّذ: S-019a وS-019b جاهزتان للمراجعة (الحالة: مراجعة للقصتين الفرعيتين؛ رأس الملف لم يُغيَّر لأن S-019c إلى S-019f لم تبدأ). لم يُعدَّل أي اختبار.
 - الشيفرة:
   - `crates/core/src/config.rs`: `HiveSurface { Auto, Layer, Window }` والحقل `Config::hive_surface` بـ `#[serde(rename = "hive_surface")]`.
-  - `crates/ui/src/overlay.rs`: `screen_reader_running` و`surface_choice` و`choice_line` كما في عقد المختبِر. الترتيب: `SBARHIVE_SURFACE`، ثم `hive_surface = "window"`، ثم Wayland، ثم العوامّ الناقصة (`missing a, b`)، ثم `layer`، ثم قاعدة القارئ. السطر `hive surface choice: KIND, REASON`. `choose_surface` باقية دون تغيير.
+  - `crates/ui/src/overlay.rs`: `screen_reader_running` و`surface_choice` و`choice_line` كما في عقد المختبِر. الترتيب: `KAWARO_SURFACE`، ثم `hive_surface = "window"`، ثم Wayland، ثم العوامّ الناقصة (`missing a, b`)، ثم `layer`، ثم قاعدة القارئ. السطر `hive surface choice: KIND, REASON`. `choose_surface` باقية دون تغيير.
   - `crates/ui/src/a11y.rs` (خارج الطفرات): خيط ثانٍ يشترك في `NameOwnerChanged` للاسم `org.gnome.Orca.Service` ثم يسأل `NameHasOwner`.
   - `crates/ui/src/layer.rs` (خارج الطفرات): `wanted()` يقرر في كل بناء ويطبع سطر الاختيار حين يختلف السطح أو السبب عن آخر سطر مطبوع، دون متغير بيئة. `start()` يطبعه فقط حين لا يكون مسار الطبقة ممكناً (GNOME، أو `window` مفروضاً)، لأن البناءات لا تقرر بعده. `hive_surface` يُقرأ من `config.toml` عند كل بناء، فلا دالة جديدة في `lib.rs` ولا في الخدمة؛ لكن `hive_surface = "window"` عند التشغيل يمنع إعداد مسار الطبقة حتى إعادة تشغيل الخدمة.
   - `crates/ui/src/settings.rs`: `FormState` كما هو (الاختبارات تبنيه حرفياً)، والنافذة تحفظ `hive_surface` الذي فُتحت به في `Inner` وتعيده عند الحفظ.
@@ -317,35 +317,35 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - 2026-10-21، المختبِر: كُتبت الاختبارات من المعايير وقرارات المدير وملاحظة S-020 فقط، دون قراءة شيفرة التنفيذ (عدا سطر الطفرة في `layout.rs:153` لتحديدها). شُغّل كل أمر cargo وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`، وعلى بناء الإصدار الحالي (`a8da7d8`). لا عمليات باقية ولا مجلدات مؤقتة.
 - العقد (يثبّته الاختبار، فلا يُعدَّل):
   - `Request::Drop` يكسب الحقل `at`، وصيغته في JSON `"at": [X, Y]` (عددان)، وغيابه أو `null` يعني لا موضع، مع `#[serde(default)]`. عُدّلت الأمثلة الحرفية الثلاثة في `ipc_drop.rs` بإضافة `at: None`، والتأكيدات كما هي.
-  - `sbarhive drop --at X,Y` يقبل `400,500` و`"1198, 1800"` (مخرج `hyprctl cursorpos` كما هو) والكسور والسالب (`--at=-1280.5,300.25`)، ويجتمع مع `--token`. القيمة المعطوبة (`400`، `400,500,600`، `x,500`، `400;500`، الفارغة) رمز خروج 2، ورسالة تذكر `--at`، ولا طلب يُرسَل.
+  - `kawaro drop --at X,Y` يقبل `400,500` و`"1198, 1800"` (مخرج `hyprctl cursorpos` كما هو) والكسور والسالب (`--at=-1280.5,300.25`)، ويجتمع مع `--token`. القيمة المعطوبة (`400`، `400,500,600`، `x,500`، `400;500`، الفارغة) رمز خروج 2، ورسالة تذكر `--at`، ولا طلب يُرسَل.
   - الإحداثيات عامة منطقية (القرار 1): على مخرج ثانٍ تُطرح منه زاويته، فيكون `hive anchor` بإحداثيات المخرج نفسه (فحص Hyprland أدناه).
-  - أسطر التشخيص مع `SBARHIVE_DEBUG_FOCUS`: `hive anchor: X Y` أو `hive anchor: none` قبل كل `hive surface: layer X Y W H`، و`hive cells: N CX CY`. والانتقال الوحيد في وضع الإفلات (AC8) يطبع زوجاً ثانياً (`hive anchor` ثم `hive surface`) بالقيم الجديدة، فتقرأ الاختبارات الهندسة من آخر سطر `hive surface` بعد آخر `get_layer_surface`. هذا تفسير المختبِر لـ AC5 («كل ظهور سطر واحد») مع AC10 («`none` أولاً ثم انتقال»).
+  - أسطر التشخيص مع `KAWARO_DEBUG_FOCUS`: `hive anchor: X Y` أو `hive anchor: none` قبل كل `hive surface: layer X Y W H`، و`hive cells: N CX CY`. والانتقال الوحيد في وضع الإفلات (AC8) يطبع زوجاً ثانياً (`hive anchor` ثم `hive surface`) بالقيم الجديدة، فتقرأ الاختبارات الهندسة من آخر سطر `hive surface` بعد آخر `get_layer_surface`. هذا تفسير المختبِر لـ AC5 («كل ظهور سطر واحد») مع AC10 («`none` أولاً ثم انتقال»).
   - المرساة المطبوعة موضع المؤشر الخام (غير المحصور)، والحصر يظهر في `hive cells` (`X + CX`، `Y + CY` عند المرساة المحصورة).
   - «الموضع الأول» في وضع الإفلات هو أول `wl_pointer.enter` أو `wl_data_device.enter` يسمّي الماسك. قبله لا `set_input_region(wl_region)` على الماسك، وبعده آخر منطقة على الماسك هي مستطيل الخلية الأخير (قراءة S-020 AC1 للمنطقة «الفارغة» في AC8). ومع `--at` المستطيل قبل أول commit للماسك. هذا يحل محل فحصي S-020 AC1 القديمين في `layer.sh` (منطقة فارغة قبل أول commit، ثم المستطيل قبل أول إطار)، لأن القرار 2 يعكسهما.
 - الملفات:
   - `crates/ui/src/anchor_tests.rs`: `ac3_anchor_above_the_bottom_edge_keeps_only_slots_within_h_minus_my`. **الطفرة كما سُجّلت (`(h - my) * EPS`) تلتقطها الاختبارات القائمة**: طبّقتها يدوياً فسقط 9 اختبارات. العمود 70 يطابق الطفرة نفسها على نسخة السطر دون الأقواس (`h - my + EPS` إلى `h - my * EPS`، أي حدّ أعلى `h - 0.46`)، وهذه لا تلتقطها مراسي AC4 لأن الصف التالي عند الحافة السفلى نفسها أبعد من `h`. الاختبار الجديد يضع المرساة 70 إلى 110 px فوق الحافة، فيقع مركز الصف التالي بين `h - my` و`h`. طبّقت هذه الطفرة يدوياً: فشل الاختبار الجديد وحده (15 نجحت، 1 فشل)، ثم أُعيد الملف بـ `git checkout`؛ وعلى الشيفرة الصحيحة ينجح (16 من 16). هو حارس حدّ لا اختبار ميزة، فنجاحه قبل التنفيذ مقصود.
   - `crates/core/tests/ipc_drop.rs` (4 اختبارات جديدة) و`crates/cli/tests/cli.rs` (5 اختبارات جديدة)، للقرار 1.
   - `tests/overlay/anchor.py` (جديد): مرجع AC3 وAC4 للسكربتات من الرموز وحدها (المرساة المحصورة، والعدد، والصندوق للحلقات الدنيا 1 و2). يعطي (444، 219) و(204، 319) كما في AC4، والعرض بحساب f64 قد يقل 1 px عن سقف f32 (392 مقابل 393)، فالمقارنة بسماح 1 px.
-  - `tests/overlay/kwin.sh anchor` (جديد، AC5 وAC6): رجّة 1 px كل 10 ms مدة 600 ms تبدأ قبل `sbarhive open` عند (400، 500) و(100، 700) و(1200، 80) و(0، 0)، ثم ظهور والمؤشر ساكن (INFO). لـ photo.png هنا 18 إجراءً (15 مدمجة وثلاثة للمستخدم في `actions/extra.toml` الخاص بالصندوق)، بالإنكليزية والداكن. حافة KWin العليا اليسرى مربوطة افتراضياً بتأثير Overview فرسمت توهجاً في لقطة الزاوية، فعُطّلت حواف الشاشة في هذا الوضع (`[Effect-overview] BorderActivate=9` و`[ElectricBorders]`). المرشّح `tests/overlay/out/hive-en-dark-corner.png`، والمرجع المعتمد في `tests/overlay/snapshots/hive-en-dark-corner.png` غير موجود: فشل حتى يعتمده المشرف.
+  - `tests/overlay/kwin.sh anchor` (جديد، AC5 وAC6): رجّة 1 px كل 10 ms مدة 600 ms تبدأ قبل `kawaro open` عند (400، 500) و(100، 700) و(1200، 80) و(0، 0)، ثم ظهور والمؤشر ساكن (INFO). لـ photo.png هنا 18 إجراءً (15 مدمجة وثلاثة للمستخدم في `actions/extra.toml` الخاص بالصندوق)، بالإنكليزية والداكن. حافة KWin العليا اليسرى مربوطة افتراضياً بتأثير Overview فرسمت توهجاً في لقطة الزاوية، فعُطّلت حواف الشاشة في هذا الوضع (`[Effect-overview] BorderActivate=9` و`[ElectricBorders]`). المرشّح `tests/overlay/out/hive-en-dark-corner.png`، والمرجع المعتمد في `tests/overlay/snapshots/hive-en-dark-corner.png` غير موجود: فشل حتى يعتمده المشرف.
   - `tests/overlay/kwin.sh` بقية الأوضاع (تعديل التهيئة): `move 640 400` قبل كل ظهور في كل الأوضاع. **وفي وضع 1.5 أيضاً (640، 400) لا (960، 600)**: حقن KWin بإحداثيات منطقية، و1920x1200 بمقياس 1.5 يساوي 1280x800 منطقياً، فـ (960، 600) هو المنتصف الفيزيائي. تحقّقت من أثر سابق لهذا الوضع (`tests/overlay/out/kwin-1.5-main-daemon.log`): بعد `move 200 200` وصل `wl_pointer.enter(..., 200.0, 200.0)` على الماسك، لا (133، 133). وفي وضع الطبقة فحص S-019 AC5 (سطر `hive anchor` واحد قبل `hive surface` في كل ظهور)، وفي وضع النافذة فحص AC7 (لا سطر `hive anchor`). وفي وضع drop: النقرة (100، 700) بعد سطر `hive anchor` (التهيئة المذكورة)، و«بعد سطر hive anchor» في فحص kwin.sh:643 القديم (تأكيد القرار 2)، وفي الظهور 2 ضغطة دون حركة على الماسك فور وجوده (AC8). KWin يرسل `wl_pointer.enter` للسطح الجديد بعد 3 إلى 8 ms من `configure` (من الأثر)، فلا يمكن إيقاع النقرة داخل مرحلة المرساة بثبات؛ الفحص يشترط أن تصل الضغطة إلى الماسك (`wl_pointer.button` في الأثر) وأن تبقى الخلية حتى المهلة.
   - `tests/overlay/gnome.sh`: حارس AC7 (لا سطر `hive anchor` على مسار النافذة).
-  - `tests/drop/layer.sh` (AC8 وAC9، بمعامل خامس `AT`)، و`tests/drop/lib.sh` (`ANCHOR_SETTLE`: حركة تهيئة إلى مركز الخلية قبل بقية الحركة، لأن دورات lib.sh القائمة **تتحرك** بعد `sbarhive drop`، إلى زاوية الخلية في `move_to_webp`، فتنقلها لولا التهيئة؛ وفي المنتصف لا يغيّر الانتقال شيئاً. وفي `enter_cells_checks` تُقارن قائمة PNG بأول قائمة تختلف عنها لا بالأخيرة، لأن دورات PNG صارت بعد PDF).
+  - `tests/drop/layer.sh` (AC8 وAC9، بمعامل خامس `AT`)، و`tests/drop/lib.sh` (`ANCHOR_SETTLE`: حركة تهيئة إلى مركز الخلية قبل بقية الحركة، لأن دورات lib.sh القائمة **تتحرك** بعد `kawaro drop`، إلى زاوية الخلية في `move_to_webp`، فتنقلها لولا التهيئة؛ وفي المنتصف لا يغيّر الانتقال شيئاً. وفي `enter_cells_checks` تُقارن قائمة PNG بأول قائمة تختلف عنها لا بالأخيرة، لأن دورات PNG صارت بعد PDF).
   - `tests/drop/kwin.sh level=1` (AC10 والقرار 1): `hive_geo` يعدّ `get_layer_surface` مقابل `destroy` ويأخذ آخر سطر سطح، وست دورات: رجّة عند (400، 500) ثلاث مرات مع الإفلات على WEBP (العدّ 3 من 3 لا يحسب إلا خلية عند (204، 319))، ورجّة عند (100، 700) والإفلات على المركز، وسحب ساكن 1 ثانية ثم (400، 500)، و`drop --at 400,500` والسحب ساكن.
   - `tests/e2e/run.sh` (AC7): جلسة KWin ثانية 1920x1200 بمقياس 1.5، والمؤشر عند (640، 0)، و20 ظهوراً بـ 18 خلية، ثم RSS بحد 40 MB. ويُشترط أن تكون الظهورات مرسوّة فعلاً (20 سطر `hive anchor` عند (640، 0)، والصندوق 366 0 548 294 من المرجع)، وإلا لنجح الفحص قبل التنفيذ.
   - `tests/hyprland/repro.sh --quasimode`: «hive near pointer» و«same output as pointer» صارا فحصين حقيقيين بأربعة فحوص (وصفها في رأس السكربت). المخرج الثاني: `hyprctl output create headless` لا يأخذ نمطاً في Hyprland المتداخل (عرض 0)، فاستُعمل `hyprctl output create wayland SBH-2` بقاعدة `hl.monitor` خاصة به قبل قاعدة المخرج الأول، وصارت قاعدة الأول باسم `WAYLAND-1` بدل الاسم الفارغ؛ و`hl.dsp.cursor.move({ x = X, y = Y })` ينقل المؤشر إليه (تجربتان قصيرتان بـ `--selftest` في نسخة مؤقتة من السكربت، حُذفت). الفحوص الثلاثة الباقية (القارئ، والترك، والشكل) ما زالت `false`.
   - `tests/overlay/run.sh` و`tests/overlay/README.md` و`tests/drop/README.md`: الوضع الجديد والفحوص.
 - مخرجات الفشل:
-  - `cargo test -p sbarhive-core --test ipc_drop`:
+  - `cargo test -p kawaro-core --test ipc_drop`:
     ```
-    error[E0559]: variant `sbarhive_core::ipc::Request::Drop` has no field named `at` (4 مرات)
-    error: could not compile `sbarhive-core` (test "ipc_drop") due to 4 previous errors
+    error[E0559]: variant `kawaro_core::ipc::Request::Drop` has no field named `at` (4 مرات)
+    error: could not compile `kawaro-core` (test "ipc_drop") due to 4 previous errors
     ```
-  - `cargo test -p sbarhive-cli --test cli`: 19 نجحت و5 فشلت، كلها `ac8_s019_decision1_*`:
+  - `cargo test -p kawaro-cli --test cli`: 19 نجحت و5 فشلت، كلها `ac8_s019_decision1_*`:
     ```
     drop failed: error: unexpected argument '--at' found
-    Usage: sbarhive drop [OPTIONS]
+    Usage: kawaro drop [OPTIONS]
     ```
-  - `cargo test -p sbarhive-ui --lib anchor_tests`: 16 من 16 (الحارس الجديد ينجح على الشيفرة الصحيحة كما يجب، ويفشل مع الطفرة كما أعلاه).
+  - `cargo test -p kawaro-ui --lib anchor_tests`: 16 من 16 (الحارس الجديد ينجح على الشيفرة الصحيحة كما يجب، ويفشل مع الطفرة كما أعلاه).
   - `tests/overlay/kwin.sh anchor`، `RESULT FAIL (19)` (التشغيل الثاني بعد تعطيل الحواف؛ الأول `FAIL (20)` بفحص صندوق الزاوية بسبب التوهج):
     ```
     INFO S-019 p400-500 (P = 400 500): no anchor line; hive surface: layer 444 219 393 362; no cells line; set_position x1 ((444, 219) )
@@ -393,16 +393,16 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - `tests/hyprland/repro.sh --json --quasimode` (شُغّل مرتين: الأولى كشفت أن المخرج headless بعرض 0، والثانية بعد الإصلاح): `{"total": 19, "failed": 7, "skipped": 0}`، والفحوص الاثنا عشر الأساسية كلها PASS:
     ```
     INFO quasimode near pointer (open): P (300, 200), output 960x540, no anchor line, hive surface: layer 284 89 393 362
-    FAIL quasimode: hive near pointer (S-019 AC5, AC6): `sbarhive open` with the pointer moving at (300, 200) is anchored within 1 px of it and placed by plan_at for that anchor
+    FAIL quasimode: hive near pointer (S-019 AC5, AC6): `kawaro open` with the pointer moving at (300, 200) is anchored within 1 px of it and placed by plan_at for that anchor
     INFO quasimode near pointer (drop --at): cursorpos 500,300, no surface line, set_position x0
-    FAIL quasimode: hive near pointer (S-019 decision 1): a still drag and `sbarhive drop --at "$(hyprctl cursorpos)"` anchor at the cursor (1 px) at once, with one set_position
+    FAIL quasimode: hive near pointer (S-019 decision 1): a still drag and `kawaro drop --at "$(hyprctl cursorpos)"` anchor at the cursor (1 px) at once, with one set_position
     INFO quasimode same output: output create: ok; SBH-2 at 960 0 1280 720 (x y w h, logical); cursor after hl.dsp.cursor.move to 1260,200: 1260,200
     INFO quasimode same output (open): layer on SBH-2, no anchor line, hive surface: layer 444 179 393 362
-    FAIL quasimode: same output as pointer (S-019 AC5): `sbarhive open` with the pointer on SBH-2 puts the layer there, anchored at the pointer in SBH-2 coordinates (1 px)
-    FAIL quasimode: same output as pointer (S-019 decision 1): `sbarhive drop --at` with global coordinates on SBH-2 puts the layer there, anchored at the same point in SBH-2 coordinates (1 px)
+    FAIL quasimode: same output as pointer (S-019 AC5): `kawaro open` with the pointer on SBH-2 puts the layer there, anchored at the pointer in SBH-2 coordinates (1 px)
+    FAIL quasimode: same output as pointer (S-019 decision 1): `kawaro drop --at` with global coordinates on SBH-2 puts the layer there, anchored at the same point in SBH-2 coordinates (1 px)
     FAIL quasimode: screen reader flag without a reader keeps the layer / key release hides / adaptive shape (S-019, not implemented)
     ```
-- بوابات على ملفات الاختبار: `cargo fmt --all --check` نظيف، و`cargo clippy -p sbarhive-cli -p sbarhive-ui --all-targets -- -D warnings` بلا تحذير (core لا يُبنى هدف `ipc_drop` فيه حتى التنفيذ)، و`scripts/design-lint.sh` نظيف، و`bash -n` لكل سكربت معدّل.
+- بوابات على ملفات الاختبار: `cargo fmt --all --check` نظيف، و`cargo clippy -p kawaro-cli -p kawaro-ui --all-targets -- -D warnings` بلا تحذير (core لا يُبنى هدف `ipc_drop` فيه حتى التنفيذ)، و`scripts/design-lint.sh` نظيف، و`bash -n` لكل سكربت معدّل.
 - لم يُشغَّل (قيد الحمل، وكل تعديل فيها تهيئة أو حارس): `tests/overlay/kwin.sh` بأوضاع layer وwindow وinput وtoken وa11y وscheme و1.5، و`tests/overlay/gnome.sh`، و`tests/drop/gnome.sh`، و`kwin.sh shortcut`، و`measure.sh`، و`budget.sh`، و`tests/focus/*` (تدقيقها أدناه).
 - 2026-10-21، المختبِر (متابعة بعد الالتزام الأول): `tests/hyprland/repro.sh` بفحوصه الاثني عشر الأساسية (بوابة no-freeze) كان سينكسر بعد S-019d دون أن يحق للمنفِّذ إصلاحه، فأُضيفت إليه التهيئة نفسها: المؤشر في منتصف المخرج (480، 270 على 960x540) قبل الظهورين 1 و2 وظهور الإفلات دون سحب، وانتظار سطر `hive anchor` قبل نقرة (40، 40)، وفي `drag_case` حركة السحب إلى مركز الخلية أولاً ثم قراءة الهندسة من **آخر** سطر `hive surface` (كان `geo()` يأخذ الأول). شُغّل مرة ثالثة: `{"total": 19, "failed": 7, "skipped": 0}`، والاثنا عشر كلها PASS (الدخول الأول للسحب صار عند 480، 270)، والسبعة الفاشلة هي فحوص quasimode وحدها.
 - تدقيق السكربتات التي يجب أن تبقى خضراء ولم تُعدَّل (بالبحث فقط): `tests/focus/kwin.sh` و`tests/overlay/focus.sh` يحرّكان المؤشر إلى (640، 400) قبل النقر الذي يطلق الظهور، فالخلية في المنتصف. `tests/focus/gnome.sh` و`tests/drop/gnome.sh` على مسار النافذة. `tests/overlay/budget.sh` و`tests/drop/budget.sh` و`measure.sh` و`snapshots.sh` و`preview.sh` لا تحرّك المؤشر أبداً، و`snapshots.sh` يكتب مخزن الخلية نفسه (`hive_snapshot`) لا لقطة شاشة. السكربتان `budget.sh` يعدّان سطر `hive surface: layer` واحداً لكل ظهور: يبقى صحيحاً لأن الانتقال الثاني في الإفلات لا يحدث إلا بموضع يأتي بعد الظهور، وKWin يرسل دخول المؤشر بعد 3 إلى 8 ms من `configure`، أي داخل مهلة 50 ms. و`tests/integrations/run_all.sh` لا صلة له بالموضع. لم يُضف إليها شيء.
@@ -442,7 +442,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 
 ### المختبِر: تعديل الاختبارات للقرار 12 (2026-10-21)
 
-- كُتبت التعديلات من القرار 12 وحده، دون قراءة شيفرة التنفيذ. كل أمر cargo وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`. الشيفرة في `crates/` مطابقة لـ `fcb5a18` (`git diff fcb5a18 087e3ba -- crates` فارغ)، وأُعيد بناء `sbarhived` للإصدار قبل التشغيل لأن الثنائي كان أقدم من الالتزام. لا عمليات باقية ولا مجلدات مؤقتة من التشغيلين.
+- كُتبت التعديلات من القرار 12 وحده، دون قراءة شيفرة التنفيذ. كل أمر cargo وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`. الشيفرة في `crates/` مطابقة لـ `fcb5a18` (`git diff fcb5a18 087e3ba -- crates` فارغ)، وأُعيد بناء `kawarod` للإصدار قبل التشغيل لأن الثنائي كان أقدم من الالتزام. لا عمليات باقية ولا مجلدات مؤقتة من التشغيلين.
 - العقد الذي تثبّته الاختبارات:
   - «أول إطار» هو أول `attach(wl_buffer)` على سطح الخلية الفرعي، و«التحويل» أول `set_input_region(wl_region)` على الماسك، والزمن من طوابع أثر `WAYLAND_DEBUG` (`[HH:MM:SS.ffffff]`). الحد 400 ms، أي 300 ms من القرار مع 100 ms للحمل.
   - دون موضع ودون `--at`: التحويل بعد أول إطار وخلال 400 ms منه، بإضافة واحدة تساوي آخر سطر `hive surface`، وهو آخر منطقة على الماسك أيضاً (لا انتقال بعده)، ولا `enter` على الماسك قبله.
@@ -473,7 +473,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - `tests/hyprland/repro.sh --json --quasimode`: `{"total": 20, "failed": 7, "skipped": 0}`:
     ```
     INFO drop: last hive surface line 400 ms after the first: hive surface: layer 284 89 393 362
-    INFO drop click at (40, 40): keys.py clicks 0, hive shown after the click yes, hive gone 10028 ms after `sbarhive drop`
+    INFO drop click at (40, 40): keys.py clicks 0, hive shown after the click yes, hive gone 10028 ms after `kawaro drop`
     FAIL S-020 AC4 drop show: a click at (40, 40) outside the hive reaches keys.py once and the hive stays until the timeout
     INFO drop show, still pointer, no --at (decision 12): catcher's first wl_region 3445.5 ms after the first frame, that region (adds, last add) 1 0 0 393 362, last catcher region 1 0 0 393 362, last hive surface 0 0 393 362, enters on the catcher before the region 1, set_position x2
     FAIL S-019 decision 12 drop show, still pointer, no --at: the catcher's input region is the hive rectangle (one add, the last "hive surface" line) within 400 ms of the first frame, and the hive never moves (one set_position)
@@ -493,7 +493,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - الشيفرة: `crates/ui/src/layer.rs` وحده (خارج الطفرات). الثابت `MOVE_WINDOW` = 300 ms. ظهور الإفلات الذي توسّط دون موضع (`decide(None)`) يبدأ مؤقّت الأداة نفسه بعد أول إطار؛ عند انقضائه دون موضع (`keep_centred`) يُطفأ `may_move`، وتصير منطقة الماسك مستطيل الخلية، ويُلتزم الماسك، وتنتهي مرحلة المرساة في المستقبِل (`set_anchoring(false)` و`replay`، كذيل `decide` المنقول إلى `release_held`). موضع قبل انقضائه يمر بـ `decide(Some)` كما كان، و`decide` يوقف المؤقّت. `unmap` يوقفه أيضاً. وحُدّث سطر CHANGELOG.md.
 - لا قرار زمني صافٍ في `overlay.rs` أو `layout.rs`: القرار مؤقّت واحد على حالة المحوّل، ولا اختبار وحدة قائم يغطيه، فبقي في `layer.rs`، وتغطيه `tests/drop/kwin.sh` و`tests/hyprland/repro.sh`.
 - البوابات (كلها داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، بعد `cargo build --release`):
-  - `cargo fmt --all --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test -p sbarhive-ui -p sbarhive-daemon`: 204 نجحت و0 فشل؛ `scripts/design-lint.sh` نظيف.
+  - `cargo fmt --all --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test -p kawaro-ui -p kawaro-daemon`: 204 نجحت و0 فشل؛ `scripts/design-lint.sh` نظيف.
   - `tests/drop/kwin.sh level=1`: `RESULT PASS` (219 PASS). التحويل في الظهورات 1 إلى 5 و10 بعد 299.5 إلى 300.6 ms من أول إطار، دون `enter` قبله، والمنطقة 444 219 393 362 هي الأخيرة؛ الظهور 10: `hive anchor: none` وحده و`set_position` واحد (444، 219)، والإفلات على خلية WEBP كتب الملف.
   - `tests/hyprland/repro.sh --json`: `{"total": 13, "failed": 0, "skipped": 0}`. S-020 AC4 نجح، وفحص القرار 12: التحويل بعد 300.4 ms، المنطقة 284 89 393 362، و`set_position` واحد.
   - `tests/hyprland/repro.sh --json --quasimode`: `{"total": 20, "failed": 5, "skipped": 0}`: الثلاثة الثابتة لـ S-019e/f وفحصا «same output» (SBH-2 لا يظهر، المسألة المعلّقة لدى المدير).
@@ -503,13 +503,13 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 
 ### المختبِر (S-019e وS-019f، AC11 إلى AC23 بتعديل 2026-10-21، والقرارات 9 و10 و11، وفجوتا التغطية)
 
-- 2026-10-21، المختبِر: كُتبت الاختبارات من المعايير المعدّلة وقرارات المدير وحدها. كل أمر cargo وكل سكربت وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`، وعلى بناء إصدار أُعيد عند `f3d1f58`. لا عمليات باقية ولا مجلدات مؤقتة من تشغيلاتي (`Hyprland` و`sbarhived` العاملان على الجهاز هما سطح المشرف الحي، لم يُلمسا).
+- 2026-10-21، المختبِر: كُتبت الاختبارات من المعايير المعدّلة وقرارات المدير وحدها. كل أمر cargo وكل سكربت وكل مؤلِّف داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`، وعلى بناء إصدار أُعيد عند `f3d1f58`. لا عمليات باقية ولا مجلدات مؤقتة من تشغيلاتي (`Hyprland` و`kawarod` العاملان على الجهاز هما سطح المشرف الحي، لم يُلمسا).
 - ما قرأته من الشيفرة، للتواقيع فقط: التواقيع العامة في `lib.rs` و`dnd.rs` (`Event` و`State` و`Machine`)، و`Request` في `ipc.rs`، و`Config` في `config.rs`، و`daemon_binary` في `cli/src/client.rs` (لمعرفة أين يبحث العميل عن الخدمة)، وسطر `Request::Drop` في `daemon/src/server.rs`. وعند التحقق المؤقت أدناه رأيت جسم `Machine::handle` و`FormState::to_config` و`Inner::save`.
 - تحقق قابلية النجاح: كتبت في `core` شيفرة مؤقتة تتبع العقد (`hold.rs`، و`hold_ms` بمدى، و`hold` و`DropRelease`)، فنجحت `hold_gate` (19) و`config_hold` (5) و`ipc_drop` (9) و`config_surface` (7). ثم وضعت في `ui` بدائل لا تنفّذ السلوك (حقل `hold` يُتجاهل، و`present_drop_hold` تساوي `present_drop_at`، و`key_released` فارغة، و`hold_ms: 400` في `to_config`): بُني هدف الاختبار، ونجح 117 وفشل 6، كلها اختبارات الميزة (AC12 ثلاثة في `drop_tests` وواحد في `drop_hive_tests`، وAC14، وAC18 في `settings`). ثم أُعيدت الملفات كلها (`git checkout` و`rm hold.rs` ونسخ محفوظة لملفي الاختبار المعدّلين)، فلا شيفرة تنفيذ في هذا الالتزام.
 
 #### العقد (يثبّته الاختبار، فلا يُعدَّل)
 
-- البوابة صافية في `sbarhive_core::hold` (لا في الخدمة نفسها): الخدمة تستعملها (AC17: في الخدمة لا في الواجهة)، و`hive_bench` يستعملها لقياس AC20 بأداة `measure.sh`، والبوابة اللاحقة لـ GlobalShortcuts تستعملها (AC21)، والطفرات تشملها، واختبارها ملف تكامل لا يمس شيفرة الخدمة.
+- البوابة صافية في `kawaro_core::hold` (لا في الخدمة نفسها): الخدمة تستعملها (AC17: في الخدمة لا في الواجهة)، و`hive_bench` يستعملها لقياس AC20 بأداة `measure.sh`، والبوابة اللاحقة لـ GlobalShortcuts تستعملها (AC21)، والطفرات تشملها، واختبارها ملف تكامل لا يمس شيفرة الخدمة.
   - `Signal { Hold { at: Option<(f64, f64)> }, Release }`، و`Effect { Show { at }, Release }`.
   - `Gate::new(hold_ms: FnMut() -> u64)`: تُستدعى عند كل ضغطة تبدأ مؤقّتاً (AC18، يُقرأ `config.toml` عندها).
   - `Gate::signal(s, now) -> Option<Effect>` دالة الدخول الوحيدة، لا تعيد `Show` أبداً. `Gate::tick(now) -> Option<Effect>` يعيد `Show` مرة واحدة عند `hold_ms` من الضغطة الأولى. `Gate::live_timers() -> usize`.
@@ -530,7 +530,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - `crates/cli/tests/cli.rs` (7 جديدة، AC11 وAC19): `--hold` بطلب واحد خلال 200 ms ولو كان `hold_ms = 2000` في الإعداد، و`--release` خلال 200 ms، و`--release` دون خدمة يخرج بـ 0 ولا يظهر مقبس خلال ثانية، والخياران معاً رمز 2 دون طلب (بعد التأكد أن كلاً منهما وحده مقبول)، و`--hold` مع `--at` و`--token`.
 - `crates/ui/src/drop_tests.rs` (9، AC12 والقرار 3) و`crates/ui/src/drop_hive_tests.rs` (`ac12_s019e_key_release_closes_a_hold_show_once`، و`ac14_s019f_the_drop_hive_previews_the_dragged_files_after_enter` بذاكرة صور مصغّرة خاصة) و`crates/ui/src/settings.rs` (`ac18_s019e_save_keeps_hold_ms`).
 - `tests/drop/kwin.sh level=1`:
-  - الظهور 12 (فجوة التغطية الأولى، القرار 12): السحب ساكن، ثم `sbarhive drop`، ثم حركة السحب إلى (400، 500) بعد نحو 100 ms من أول إطار، مصفوفة على عميل الإدخال فور عودة الأمر (`LATE_MS` = 170 من عودته). يشترط الفحص أن يقع أول دخول على الماسك بعد أول إطار وخلال 300 ms منه، وإلا ففشل تهيئة. ثم `hive anchor: none` يليه سطر عند (400، 500)، و`set_position` مرتين بالضبط (444، 219) ثم (204، 319)، ومنطقة الماسك مستطيل الخلية بعد الموضع (`layer.sh` الوضع 0)، والإفلات على WEBP يكتب الملف.
+  - الظهور 12 (فجوة التغطية الأولى، القرار 12): السحب ساكن، ثم `kawaro drop`، ثم حركة السحب إلى (400، 500) بعد نحو 100 ms من أول إطار، مصفوفة على عميل الإدخال فور عودة الأمر (`LATE_MS` = 170 من عودته). يشترط الفحص أن يقع أول دخول على الماسك بعد أول إطار وخلال 300 ms منه، وإلا ففشل تهيئة. ثم `hive anchor: none` يليه سطر عند (400، 500)، و`set_position` مرتين بالضبط (444، 219) ثم (204، 319)، ومنطقة الماسك مستطيل الخلية بعد الموضع (`layer.sh` الوضع 0)، والإفلات على WEBP يكتب الملف.
   - الظهور 13 (AC15): `thumbed.png` بصورة مصغّرة مزروعة (`thumbs.py`، الصورة `photo`، سماؤها 70 130 200) فوق الخلية المركزية: 200 بكسل أو أكثر بلون السماء في مربع 48 × 48 حول المركز (`pixels.py rgbcount`، جديد). تحققت أن لا لون في الرموز قريب منه.
   - `preview_checks` في `lib.sh` لكل ظهور: لا سطر `hive preview` قبل أول دخول، وسطر لكل دخول (بعدد أسطر `drop cells`)، و`icon image` للـ PNG و`icon pdf` للظهور 5 و`thumb W H` للمزروعة.
   - دورات الضغط المطوّل بعد فحوص الظهورات وخارج `MARKS` (اثنتان منها بلا خلية): ممسوك (صفر عند 350 ms، وواحد بعد 350 وحتى 550 ms، ثم الترك يغلق خلال 500 ms)، وضغطة عابرة (الترك عند 200 ms: صفر `get_layer_surface` وصفر `get_xdg_surface` خلال 1000 ms)، وسحب فوق WEBP يخرج ويعود والمفتاح ممسوك (القرار 3: تبقى) ثم الترك (تُهدم خلال 500 ms، والإفلات بعده لا يكتب ملفاً)، وترك دون ضغطة (AC19)، و`hold_ms = 1000` يُكتب في إعداد الصندوق والخدمة تعمل (AC18: الظهور بعد 950 وحتى 1150 ms). كل فحص سلبي فيها مشروط بخروج الأمر بـ 0 خلال 200 ms، وإلا لنجح لخيار مرفوض.
@@ -544,35 +544,35 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 
 #### مخرجات الفشل على `f3d1f58` (تشغيل واحد لكل سكربت)
 
-- `cargo test -p sbarhive-core --test hold_gate`:
+- `cargo test -p kawaro-core --test hold_gate`:
   ```
-  error[E0432]: unresolved import `sbarhive_core::hold`
-  error[E0559]: variant `sbarhive_core::ipc::Request::Drop` has no field named `hold`
-  error[E0599]: no variant, associated function, or constant named `DropRelease` found for enum `sbarhive_core::ipc::Request` in the current scope (3 مرات)
+  error[E0432]: unresolved import `kawaro_core::hold`
+  error[E0559]: variant `kawaro_core::ipc::Request::Drop` has no field named `hold`
+  error[E0599]: no variant, associated function, or constant named `DropRelease` found for enum `kawaro_core::ipc::Request` in the current scope (3 مرات)
   error[E0609]: no field `hold_ms` on type `Config`
-  error: could not compile `sbarhive-core` (test "hold_gate") due to 6 previous errors
+  error: could not compile `kawaro-core` (test "hold_gate") due to 6 previous errors
   ```
-- `cargo test -p sbarhive-core --test config_hold`:
+- `cargo test -p kawaro-core --test config_hold`:
   ```
   error[E0609]: no field `hold_ms` on type `Config` (مرتان، ومرة على `&Config`)
-  error: could not compile `sbarhive-core` (test "config_hold") due to 3 previous errors
+  error: could not compile `kawaro-core` (test "config_hold") due to 3 previous errors
   ```
-- `cargo test -p sbarhive-core --test ipc_drop`:
+- `cargo test -p kawaro-core --test ipc_drop`:
   ```
-  error[E0559]: variant `sbarhive_core::ipc::Request::Drop` has no field named `hold` (7 مرات)
-  error[E0599]: no variant, associated function, or constant named `DropRelease` found for enum `sbarhive_core::ipc::Request` in the current scope (مرتان)
-  error: could not compile `sbarhive-core` (test "ipc_drop") due to 9 previous errors
+  error[E0559]: variant `kawaro_core::ipc::Request::Drop` has no field named `hold` (7 مرات)
+  error[E0599]: no variant, associated function, or constant named `DropRelease` found for enum `kawaro_core::ipc::Request` in the current scope (مرتان)
+  error: could not compile `kawaro-core` (test "ipc_drop") due to 9 previous errors
   ```
-- `cargo test -p sbarhive-ui --lib` (لا يُبنى هدف اختبارات المكتبة كله حتى التنفيذ، كما في S-019a):
+- `cargo test -p kawaro-ui --lib` (لا يُبنى هدف اختبارات المكتبة كله حتى التنفيذ، كما في S-019a):
   ```
   error[E0559]: variant `dnd::Event::Show` has no field named `hold` (7 مرات)
-  error[E0560]: struct `sbarhive_core::config::Config` has no field named `hold_ms` (3 مرات)
+  error[E0560]: struct `kawaro_core::config::Config` has no field named `hold_ms` (3 مرات)
   error[E0599]: no method named `key_released` found for struct `Hive` in the current scope (7 مرات)
   error[E0599]: no method named `present_drop_hold` found for struct `Hive` in the current scope (4 مرات)
   error[E0599]: no variant, associated function, or constant named `Release` found for enum `dnd::Event` in the current scope (9 مرات)
-  error: could not compile `sbarhive-ui` (lib test) due to 30 previous errors
+  error: could not compile `kawaro-ui` (lib test) due to 30 previous errors
   ```
-- `cargo test -p sbarhive-cli --test cli`: 24 نجحت و7 فشلت، كلها `ac11_s019e_*` و`ac19_s019e_*`:
+- `cargo test -p kawaro-cli --test cli`: 24 نجحت و7 فشلت، كلها `ac11_s019e_*` و`ac19_s019e_*`:
   ```
   assertion `left == right` failed: error: unexpected argument '--release' found
   drop failed: error: unexpected argument '--hold' found
@@ -585,7 +585,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   (الفشلان نفساهما للظهورات 2 إلى 13، و"icon pdf" للظهور 5 و"thumb" للظهور 13)
   INFO S-019 AC15 show 13: hive 444 219 393 362, sky pixels in the centre box 0
   FAIL S-019 AC15 show 13: over the centre cell after enter, 200 or more pixels of the seeded thumbnail's colour in the centre
-  FAIL S-019 AC11 held: `sbarhive drop --hold` exits 0 within 200 ms (the threshold is the daemon's)
+  FAIL S-019 AC11 held: `kawaro drop --hold` exits 0 within 200 ms (the threshold is the daemon's)
   FAIL S-019 AC13 held: no surface at 350 ms from the press, then exactly one get_layer_surface, after 350 ms and by 550 ms
   FAIL S-019 AC12 held: the release closes the waiting hold show within 500 ms (zwlr_layer_surface_v1.destroy)
   INFO S-019e tap: press exit 2 in 2 ms, release exit 2 in 2 ms, 207 ms apart; surfaces within 1000 ms: layer 0 xdg 0
@@ -594,7 +594,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   FAIL S-019 decision 3 hold-over: the drag leaving the hive does not close it while the key is held
   FAIL S-019 AC13 hold-over: the release over the WEBP cell destroys the layer surface within 500 ms
   FAIL S-019 AC13 hold-over: the drop after the release writes no file
-  FAIL S-019 AC19 lone release: `sbarhive drop --release` with no press exits 0 within 200 ms, no surface
+  FAIL S-019 AC19 lone release: `kawaro drop --release` with no press exits 0 within 200 ms, no surface
   FAIL S-019 AC18 hold_ms: hold_ms = 1000 written with the daemon running applies at the next press (one get_layer_surface after 950 ms and by 1150 ms)
   ```
   لقطة الظهور 13 (`tests/drop/out/drop-en-light-thumb.png`) تُظهر في المركز «1 image» بدل الصورة: عَرَض المشرف نفسه.
@@ -630,15 +630,15 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 #### للمدير
 
 - الترك الضائع (القرار 11، خطر مقبول): البوابة بحدثيها فقط لا تعرف أن الخلية أُغلقت بالمهلة والمفتاح مرفوع، فتبقى «ظاهرة بلا ترك» حتى ترك تالٍ، فتُهمل الضغطة الأولى بعد ذلك ثم تعمل الثانية. لم أفرض حدثاً ثالثاً (يخالف «حدثان فقط» في AC17)، ولا اختبار له. إن أراد المدير خلاف ذلك فهو معيار جديد.
-- غير مغطّى: القرار 11 يقول إن `drop --hold` يشغّل الخدمة إن لم تعمل. لا اختبار له، لأن العميل يفضّل `sbarhived` المجاور له (`target/debug`) على `PATH`، فلا يستطيع الاختبار أن يضع خدمة وهمية بنظافة.
-- `tests/drop/docs.sh` (S-014d AC12) يفشل على `f3d1f58` قبل تعديلاتي (`RESULT FAIL (16)`: لا أسطر ربط `sbarhive drop` في README Hyprland ولا في `docs/`). لم أعدّله، وفحوص S-019 في سكربت مستقل `hold_docs.sh` كي لا تختلط بفشل قائم.
-- بوابات على ملفات الاختبار: `cargo fmt --all --check` نظيف، و`cargo clippy -p sbarhive-cli --tests -- -D warnings` بلا تحذير (core وui لا تُبنى أهداف اختبارها حتى التنفيذ)، و`shellcheck -S warning` نظيف على السكربتات المعدّلة، و`bash -n` لكلها، ولا شرطة طويلة في الفرق.
+- غير مغطّى: القرار 11 يقول إن `drop --hold` يشغّل الخدمة إن لم تعمل. لا اختبار له، لأن العميل يفضّل `kawarod` المجاور له (`target/debug`) على `PATH`، فلا يستطيع الاختبار أن يضع خدمة وهمية بنظافة.
+- `tests/drop/docs.sh` (S-014d AC12) يفشل على `f3d1f58` قبل تعديلاتي (`RESULT FAIL (16)`: لا أسطر ربط `kawaro drop` في README Hyprland ولا في `docs/`). لم أعدّله، وفحوص S-019 في سكربت مستقل `hold_docs.sh` كي لا تختلط بفشل قائم.
+- بوابات على ملفات الاختبار: `cargo fmt --all --check` نظيف، و`cargo clippy -p kawaro-cli --tests -- -D warnings` بلا تحذير (core وui لا تُبنى أهداف اختبارها حتى التنفيذ)، و`shellcheck -S warning` نظيف على السكربتات المعدّلة، و`bash -n` لكلها، ولا شرطة طويلة في الفرق.
 - لم يُشغَّل (قيد الحمل، والتعديل فيها تهيئة أو لا يمسها): `tests/overlay/kwin.sh` بأوضاعه الأخرى (`shot.py` دون الوسيط الجديد يبقى `CaptureActiveScreen`)، و`tests/drop/kwin.sh shortcut` و`gnome.sh shortcut`، و`tests/drop/budget.sh` دون `hold` (المسار القديم لم يتغير سوى `-u HOLD`)، و`tests/e2e/run.sh` و`tests/focus/*`.
 
 ### المدير: نقاط المختبِر المفتوحة في S-019e وS-019f (2026-10-21)
 
 - **القرار 14 (ترك ضائع):** تُصفَّر البوابة حين تُغلق الخلية لأي سبب (إفلات، أو مهلة 10 ثوانٍ، أو Esc، أو نقرة)، فلا تُتجاهل الضغطة التالية. هذا مدخل ثالث للبوابة بإذن المدير، استثناءً من AC17. يضيف المختبِر اختبار وحدة له بعد التنفيذ.
-- **بدء الخدمة من `drop --hold`:** فجوة مقبولة بلا اختبار، لأن CLI يفضّل `target/debug/sbarhived`. يُذكر في README أن الخدمة تُشغَّل بـ `exec-once`.
+- **بدء الخدمة من `drop --hold`:** فجوة مقبولة بلا اختبار، لأن CLI يفضّل `target/debug/kawarod`. يُذكر في README أن الخدمة تُشغَّل بـ `exec-once`.
 - **أسطر السجل المتداخلة:** ليست من هذه الميزة. إن أفشلت فحصاً في التشغيل النهائي يُعاد ذلك السكربت مرة واحدة، ويُسجَّل.
 - **`tests/drop/docs.sh`:** يبقى فاشلاً حتى تنفيذ S-014d (التوثيق)، وهو التالي بعد S-019.
 
@@ -659,7 +659,7 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   - `.cargo/mutants.toml`: استثناء `hold_signal` و`gate_tick` و`gate_hive_closed` في الخدمة (حلقة Slint وخلية حية)، كاستثناءات «Daemon glue» القائمة. البوابة نفسها تحت الطفرات.
 - التوثيق: README Hyprland (قسمان عربي وإنكليزي، hyprlang وLua، `ignore_mods`، «مفترضة»، و`exec-once` للخدمة كما طلب المدير)، وقسما الإعداد في README.md، و`docs/architecture.md` (المرساة والانتظار، والشكل المتكيّف، ومرحلة الماسك، وإمساك المفتاح، والمعاينة: AC16 وAC23)، وتعديل ADR 0003 بنص AC20 (وفيه أن حفظ الترك 300 ms أُلغي)، وسطر واحد في CHANGELOG.md لـ S-019e وS-019f.
   - مفتاح Lua `release = true` في ربط الترك مفترض من اسمه، لم أجد له مثالاً في إعداد Hyprland حقيقي. والمفتاحان `non_consuming` و`ignore_mods` منسوخان من `~/.config/hypr/keybinds.lua`، الذي قرأته ولم أعدّله.
-- **اقتراح لنص CLAUDE.md (AC20، للمدير أو للمشرف، لم أعدّله):** «تظهر الخلية خلال أقل من 150 ملي ثانية من الاستدعاء. و"الاستدعاء" في مسار الضغط المطوّل (`sbarhive drop --hold`) هو انقضاء العتبة `hold_ms`، لا الضغط».
+- **اقتراح لنص CLAUDE.md (AC20، للمدير أو للمشرف، لم أعدّله):** «تظهر الخلية خلال أقل من 150 ملي ثانية من الاستدعاء. و"الاستدعاء" في مسار الضغط المطوّل (`kawaro drop --hold`) هو انقضاء العتبة `hold_ms`، لا الضغط».
 - إصلاح جانبي: في أول تشغيل لـ `tests/drop/kwin.sh level=1` فشل فحص واحد (`AC8 show 5`)، لأن سطر أثر libwayland وقع بين نص `drop cells:` وسطره الجديد (`eprintln!` يكتب النص والسطر الجديد بنداءين). صار سطرا `drop cells:` و`hive preview:` نداء كتابة واحداً، فنجح التشغيل الثاني كله.
 - البوابات (كلها داخل `systemd-run --user --scope -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200%` مع `nice -n 19` و`CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، على بناء إصدار بعد آخر تغيير في الشيفرة):
   - `cargo fmt --all --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test --all`: 542 نجحت و0 فشل (فيها `hold_gate` 19، و`config_hold` 5، و`ipc_drop` 9، و`cli` 31، و`ui` 123)؛ `scripts/design-lint.sh` نظيف؛ `tests/drop/hold_docs.sh`: `RESULT PASS`.
@@ -696,12 +696,12 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
    right: [400]
   test result: FAILED. 21 passed; 2 failed
   ```
-- `cargo test -p sbarhive-core`: كله نجح. `cargo clippy -p sbarhive-core --all-targets -- -D warnings` و`cargo fmt --all --check` نظيفان. الشيفرة في `crates/core/src` لم تُلمس (`git status` بعد الطفرات: ملف الاختبار وحده).
+- `cargo test -p kawaro-core`: كله نجح. `cargo clippy -p kawaro-core --all-targets -- -D warnings` و`cargo fmt --all --check` نظيفان. الشيفرة في `crates/core/src` لم تُلمس (`git status` بعد الطفرات: ملف الاختبار وحده).
 
 ### المراجع (2026-10-22، HEAD `6990d26`، سياق جديد)
 
 - **REWORK** (المحاولة الأولى من اثنتين). كل البوابات الوظيفية التي شُغّلت ناجحة، والشيفرة تطابق المعايير والقرارات 1 إلى 14. الأسباب: شرط المدير الإضافي في `repro.sh --quasimode` غير مستوفى، وبوابة الطفرات غير مثبتة لشيفرة S-019a إلى S-019d، وADR 0004 يناقض القرار 12.
-- التشغيل: كل أمر مرة واحدة داخل `systemd-run --user --scope --quiet -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200% nice -n 19 env CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants` (قاعدة الحمل). لم يُلمس سطح المشرف الحي (`Hyprland` 13248 و`sbarhived` 15227)، ولا عمليات باقية.
+- التشغيل: كل أمر مرة واحدة داخل `systemd-run --user --scope --quiet -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200% nice -n 19 env CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants` (قاعدة الحمل). لم يُلمس سطح المشرف الحي (`Hyprland` 13248 و`kawarod` 15227)، ولا عمليات باقية.
 - ما نجح:
   - `cargo fmt --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test --all` كله ناجح بلا فشل (فيه `hold_gate` 23، و`cli` 31، و`ui` 123)؛ `cargo build --release` ناجح؛ `scripts/design-lint.sh` نظيف؛ لا U+2013 ولا U+2014 في `git diff 3957651..HEAD`.
   - `tests/hyprland/repro.sh --json`: `{"total": 13, "failed": 0, "skipped": 0}`، ومنه S-020 AC4 وفحص القرار 12 (بوابة no-freeze).
@@ -752,8 +752,8 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
 - كُتب من AC1 إلى AC4 وبند المراجع ونص `tests/overlay/kwin.sh` و`a11y.py` و`anchor.py` وحدها، دون قراءة الشيفرة. الفحصان الثابتان `false` حُذفا وحلّ محل كل منهما فحص حقيقي واحد، فبقي المجموع 20.
 - `tests/hyprland/repro.sh`:
   - مع `--quasimode` يبدأ `tests/overlay/a11y.py` (بالعلم مطفأ ودون Orca) قبل KWin وHyprland والخدمة، وينتظر `org.a11y.Bus` بـ `gdbus wait`، لأن `/usr/share/dbus-1/services/org.a11y.Bus.service` موجود فيُشغَّل المشغّل الحقيقي لو سأل أحد قبله. التحكم على fd 6 ويُغلق في `finish`.
-  - **S-019b (الشكل المتكيّف، AC3 وAC4):** `sbarhive open` والمؤشر يهتز 1 px حول (4، 4) من قبل الأمر. يشترط: المرساة بفرق 1 px، و`placed` (صندوق `hive surface` يساوي `anchor.py` بفرق 1 px)، وعدد `hive cells` يساوي COUNT من `anchor.py` ومركزها (`X + CX`، `Y + CY`) بفرق 1 px من المرساة المحصورة، والصندوق داخل المخرج 960x540.
-  - **S-019a (قاعدة القارئ، AC1 وAC2)، آخر الفحوص لأنه يبدّل الخدمة:** خدمة واحدة دون `SBARHIVE_SURFACE` (فـ `start_daemon` يفرضه، وAC1 يقدّمه على كل شيء)، و`hive_surface` غائب فهو `auto`. `on` ثم ظهور: `get_layer_surface` واحد على الأقل، وصفر `get_xdg_surface`، وسطر `hive surface choice:` واحد بالضبط فيه `layer` و`screen reader flag set, no reader running`. ثم `orca` (ينتظر الاسم بـ `gdbus wait`) وظهور ثانٍ للخدمة نفسها: صفر `get_layer_surface`، و`get_xdg_surface` واحد على الأقل، وسطر اختيار واحد `window ... screen reader running`. المقطع الثاني يبدأ قبل امتلاك الاسم لأن السطر يأتي مع `NameOwnerChanged`.
+  - **S-019b (الشكل المتكيّف، AC3 وAC4):** `kawaro open` والمؤشر يهتز 1 px حول (4، 4) من قبل الأمر. يشترط: المرساة بفرق 1 px، و`placed` (صندوق `hive surface` يساوي `anchor.py` بفرق 1 px)، وعدد `hive cells` يساوي COUNT من `anchor.py` ومركزها (`X + CX`، `Y + CY`) بفرق 1 px من المرساة المحصورة، والصندوق داخل المخرج 960x540.
+  - **S-019a (قاعدة القارئ، AC1 وAC2)، آخر الفحوص لأنه يبدّل الخدمة:** خدمة واحدة دون `KAWARO_SURFACE` (فـ `start_daemon` يفرضه، وAC1 يقدّمه على كل شيء)، و`hive_surface` غائب فهو `auto`. `on` ثم ظهور: `get_layer_surface` واحد على الأقل، وصفر `get_xdg_surface`، وسطر `hive surface choice:` واحد بالضبط فيه `layer` و`screen reader flag set, no reader running`. ثم `orca` (ينتظر الاسم بـ `gdbus wait`) وظهور ثانٍ للخدمة نفسها: صفر `get_layer_surface`، و`get_xdg_surface` واحد على الأقل، وسطر اختيار واحد `window ... screen reader running`. المقطع الثاني يبدأ قبل امتلاك الاسم لأن السطر يأتي مع `NameOwnerChanged`.
 - كلاهما حارس تراجع ينجح على HEAD عمداً (القصتان منفّذتان)، كحرّاس الفجوات السابقة. لماذا يميّزان:
   - S-019b: الصندوق في المنتصف `284 89 393 362`، وعند الزاوية `0 0 393 362` و15 خلية مركزها (40، 45.57)؛ ظهور غير مرسى أو غير محصور يفشل في المرساة والمركز معاً.
   - S-019a: نصف النافذة يثبت أن الخدمة رأت الناقل الوهمي فعلاً، فلا ينجح نصف الطبقة لمجرد أن الخدمة لم تسأل. خدمة تتبع العلم وحده (سلوك S-018) تعطي `get_xdg_surface` في النصف الأول فتفشل (استنتاج من AC1، لم يُشغَّل). وفي S-019b العدد 15 يساوي عدد الإجراءات والحجم 393x362 كالمنتصف، فالمميِّز هو الموضع والمركز لا العدد.
@@ -767,20 +767,20 @@ S-019a وS-019e وS-019f مستقلة في الشيفرة. لكن S-019d وS-019
   ```
   الفحوص الثلاثة عشر الأساسية نجحت والناقل الوهمي قائم بالعلم مطفأ (زمن الظهور 60 ms).
 - `bash -n` و`shellcheck -S warning` نظيفان على السكربت، ولا شرطة طويلة فيه.
-- لم يُشغَّل: `repro.sh --json` دون `--quasimode` ووضع `window`؛ التغيير خارج فرع `QUASI=1` هو `exec 6>&-` في `finish` وحده. وسطر `hive surface choice:` ما زال `eprintln!` فقد يتداخل مع أثر libwayland ويُفشل S-019a عَرَضاً: يُعاد السكربت مرة ويُسجَّل (قاعدة المدير). لا عمليات باقية ولا `/tmp/sbhh.*`، ولم يُلمس سطح المشرف الحي (`Hyprland` 13248 و`sbarhived` 15227).
+- لم يُشغَّل: `repro.sh --json` دون `--quasimode` ووضع `window`؛ التغيير خارج فرع `QUASI=1` هو `exec 6>&-` في `finish` وحده. وسطر `hive surface choice:` ما زال `eprintln!` فقد يتداخل مع أثر libwayland ويُفشل S-019a عَرَضاً: يُعاد السكربت مرة ويُسجَّل (قاعدة المدير). لا عمليات باقية ولا `/tmp/sbhh.*`، ولم يُلمس سطح المشرف الحي (`Hyprland` 13248 و`kawarod` 15227).
 
 ### المنفِّذ: REWORK 1، بند الأسطر المتقطعة (2026-10-22)
 
 - ملاحظة المراجع (منخفضة): أسطر `hive anchor:` و`hive cells:` و`hive surface choice:` وبقية أسطر `hive ...` التي تقرؤها السكربتات كانت تُطبع بـ `eprintln!`، فقد يدخل فيها أثر libwayland (`WAYLAND_DEBUG`) من خيط آخر.
-- لم يكن هناك مساعد مشترك: `drop cells:` في `crates/daemon/src/ui.rs` و`debug_preview` في `crates/ui/src/lib.rs` كتب كل منهما الكتابة الواحدة بنفسه. استُخرج `sbarhive_ui::stderr_line(line)` (السطر وسطره الجديد في `write_all` واحد) وصار يستعمله الاثنان، ومعهما `hive surface:` و`hive focus:` (المساران) و`hive anchor:` و`hive cells:` و`hive surface choice:`. شروط الطباعة لم تتغير: كلها خلف `SBARHIVE_DEBUG_FOCUS` كما كانت ما عدا سطر الاختيار الذي يُطبع دونه كما كان. لم يبقَ `eprintln!` في `crates/ui/src` إلا أسطر `sbarhive: drop receiver` في `receiver.rs`، ولا يقرؤها أي سكربت.
+- لم يكن هناك مساعد مشترك: `drop cells:` في `crates/daemon/src/ui.rs` و`debug_preview` في `crates/ui/src/lib.rs` كتب كل منهما الكتابة الواحدة بنفسه. استُخرج `kawaro_ui::stderr_line(line)` (السطر وسطره الجديد في `write_all` واحد) وصار يستعمله الاثنان، ومعهما `hive surface:` و`hive focus:` (المساران) و`hive anchor:` و`hive cells:` و`hive surface choice:`. شروط الطباعة لم تتغير: كلها خلف `KAWARO_DEBUG_FOCUS` كما كانت ما عدا سطر الاختيار الذي يُطبع دونه كما كان. لم يبقَ `eprintln!` في `crates/ui/src` إلا أسطر `kawaro: drop receiver` في `receiver.rs`، ولا يقرؤها أي سكربت.
 - `.cargo/mutants.toml`: أُضيف `replace stderr_line with` إلى الاستثناءات بسابقة `debug_preview`، لأن stderr وحده يرى الكتابة. `cargo mutants --in-place --in-diff` على `lib.rs` و`crates/daemon/src/ui.rs`: لا طفرات في الأسطر المتغيرة.
-- لم يُعدَّل أي اختبار. التحقق داخل النطاق المحدود: `cargo fmt --all --check` و`cargo clippy --all-targets -- -D warnings` نظيفان، و`cargo test -p sbarhive-ui` و`-p sbarhive-daemon` نجحا، و`scripts/design-lint.sh` نظيف، ثم `cargo build --release` و`tests/hyprland/repro.sh --json --quasimode` مرة واحدة: `{"total": 20, "failed": 0, "skipped": 0}` و`RESULT PASS`. لم يُلمس سطح المشرف الحي. لا سطر في CHANGELOG.md لأن السلوك لم يتغير.
+- لم يُعدَّل أي اختبار. التحقق داخل النطاق المحدود: `cargo fmt --all --check` و`cargo clippy --all-targets -- -D warnings` نظيفان، و`cargo test -p kawaro-ui` و`-p kawaro-daemon` نجحا، و`scripts/design-lint.sh` نظيف، ثم `cargo build --release` و`tests/hyprland/repro.sh --json --quasimode` مرة واحدة: `{"total": 20, "failed": 0, "skipped": 0}` و`RESULT PASS`. لم يُلمس سطح المشرف الحي. لا سطر في CHANGELOG.md لأن السلوك لم يتغير.
 - الحالة: مراجعة.
 
 ### المراجع (2026-10-22، HEAD `1b48b1f`، سياق جديد، المراجعة الثانية)
 
 - **PASS** للشيفرة والبوابات ومعايير القبول كلها. البنود الثلاثة في REWORK 1 مغلقة، ومعها الملاحظة المنخفضة عن الأسطر المتقطعة. لا تصير الحالة «منتهية» بعد: اللقطة الجديدة `hive-en-dark-corner.png` اعتمدها المدير «بتفويض من المشرف» (087e3ba)، ولا أثر في السجل ولا في git لاعتماد المشرف نفسه، والقاعدة أن المشرف يعتمد كل لقطة جديدة. الحالة: «مراجعة (PASS، تنتظر اعتماد المشرف للقطة)»، وتصير «منتهية» باعتماده دون مراجعة أخرى.
-- التشغيل: كل أمر مرة واحدة داخل `systemd-run --user --scope --quiet -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200% nice -n 19 env CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`. لم يُلمس سطح المشرف الحي (`Hyprland` 13248 و`sbarhived` 15227 قبل التشغيل وبعده)، ولا عمليات باقية.
+- التشغيل: كل أمر مرة واحدة داخل `systemd-run --user --scope --quiet -p MemoryMax=6G -p MemoryHigh=5G -p CPUQuota=200% nice -n 19 env CARGO_BUILD_JOBS=2`، ومؤلِّف واحد في كل مرة، دون `cargo mutants`. لم يُلمس سطح المشرف الحي (`Hyprland` 13248 و`kawarod` 15227 قبل التشغيل وبعده)، ولا عمليات باقية.
 - النتائج:
   - `cargo fmt --check` نظيف؛ `cargo clippy --all-targets -- -D warnings` بلا تحذير؛ `cargo test --all`: 546 نجحت و0 فشل في 33 مجموعة؛ `cargo build --release` ناجح؛ `scripts/design-lint.sh` نظيف؛ لا U+2013 ولا U+2014 في `git diff fac2d51..HEAD`.
   - `tests/hyprland/repro.sh --json --quasimode`: `{"total": 20, "failed": 0, "skipped": 0}`. S-019b: المرساة 3.75 3.75 والصندوق `0 0 393 362` و15 خلية مركزها (40، 45.57) كما يقول `anchor.py`. S-019a: العلم دون قارئ يعطي `get_layer_surface` 1 و`get_xdg_surface` 0 وسطر `layer, screen reader flag set, no reader running`، وبـ Orca وهمي يعطي العكس وسطر `window, screen reader running`. وقاعدة no-freeze للقرار 12: أول منطقة للماسك بعد 300.2 ms من أول إطار، و`set_position` مرة واحدة.

@@ -43,8 +43,8 @@ pub fn read_files_with(wayland: bool, run: Runner) -> Result<Vec<PathBuf>, Strin
     }
 }
 
-/// Shared with drag and drop, see `sbarhive_core::uri_list`.
-pub use sbarhive_core::uri_list::parse as parse_uri_list;
+/// Shared with drag and drop, see `kawaro_core::uri_list`.
+pub use kawaro_core::uri_list::parse as parse_uri_list;
 
 #[cfg(test)]
 mod tests {

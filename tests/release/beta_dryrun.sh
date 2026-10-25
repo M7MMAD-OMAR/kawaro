@@ -6,7 +6,7 @@
 #
 # Contract fixed here (the story leaves it open; DECISION marks a gap):
 #   dry-run.sh VERSION [--no-build]
-#     env BIN_DIR           Linux release binaries (sbarhive, sbarhived); default target/release
+#     env BIN_DIR           Linux release binaries (kawaro, kawarod); default target/release
 #     env CARGO_TARGET_DIR  Windows tree, uses $CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release
 #     env DRYRUN_OUT        output dir (DECISION), default a fresh temp dir; it holds exactly:
 #       rpm, deb, zip, msi, SHA256SUMS (4 lines: rpm, deb, zip, msi), BETA/STABLE manifests
@@ -14,7 +14,7 @@
 #       .minisig for each manifest, and dry-run.pub (the throwaway public key)
 #     stdout: the full path of each file in DRYRUN_OUT, one per line, plus the 6 lines of
 #       check-versions.sh; exit 0 ok, 2 missing tool (message names it) or bad version.
-#     Never calls gh, git push or any network tool; never reads ~/.config/sbarhive-signing;
+#     Never calls gh, git push or any network tool; never reads ~/.config/kawaro-signing;
 #     works on a copy of `git ls-files`; the source tree is left untouched.
 #   check-versions.sh VERSION --out DIR [--root DIR]
 #     --root holds Cargo.toml (default: the repo root), --out is a DRYRUN_OUT style dir.
@@ -44,9 +44,9 @@ done
 
 # fixtures: Linux binaries and a Windows release tree
 mkdir -p "$TMP/bin" "$TMP/wt/x86_64-pc-windows-gnu/release" "$TMP/home"
-cp /usr/bin/true "$TMP/bin/sbarhive"; cp /usr/bin/true "$TMP/bin/sbarhived"
-printf 'MZ fake cli' > "$TMP/wt/x86_64-pc-windows-gnu/release/sbarhive.exe"
-printf 'MZ fake daemon' > "$TMP/wt/x86_64-pc-windows-gnu/release/sbarhived.exe"
+cp /usr/bin/true "$TMP/bin/kawaro"; cp /usr/bin/true "$TMP/bin/kawarod"
+printf 'MZ fake cli' > "$TMP/wt/x86_64-pc-windows-gnu/release/kawaro.exe"
+printf 'MZ fake daemon' > "$TMP/wt/x86_64-pc-windows-gnu/release/kawarod.exe"
 # shims that record any network or publishing call
 NETLOG="$TMP/net.log"; : > "$NETLOG"
 mkdir -p "$TMP/net"
@@ -64,7 +64,7 @@ chmod +x "$TMP/net/git"
 dry() { # dry OUT_NAME VERSION [args]  -> RC in $TMP/rc-NAME, stdout $TMP/out-NAME.txt, files in $TMP/NAME
   local n="$1" v="$2"; shift 2
   local s=$SECONDS
-  (cd "$REPO_ROOT" && HOME="$TMP/home" CI=true SBARHIVE_WIN_SCOPE=1 BIN_DIR="$TMP/bin" \
+  (cd "$REPO_ROOT" && HOME="$TMP/home" CI=true KAWARO_WIN_SCOPE=1 BIN_DIR="$TMP/bin" \
     CARGO_TARGET_DIR="$TMP/wt" DRYRUN_OUT="$TMP/$n" PATH="$TMP/net:$SHIMS:$PATH" \
     timeout 120 "$REPO_ROOT/$DRY" "$v" "$@" >"$TMP/out-$n.txt" 2>"$TMP/err-$n.txt")
   echo $? > "$TMP/rc-$n"
@@ -82,10 +82,10 @@ EXPECT_BETA="SHA256SUMS
 beta.json
 beta.json.minisig
 dry-run.pub
-sbarhive-0.4.0-beta.1-windows-x64.msi
-sbarhive-0.4.0-beta.1-windows-x64.zip
-sbarhive-0.4.0~beta.1-1.x86_64.rpm
-sbarhive_0.4.0~beta.1_amd64.deb"
+kawaro-0.4.0-beta.1-windows-x64.msi
+kawaro-0.4.0-beta.1-windows-x64.zip
+kawaro-0.4.0~beta.1-1.x86_64.rpm
+kawaro_0.4.0~beta.1_amd64.deb"
 check "AC7 the output dir holds exactly the expected files" \
   test "$(ls -1 "$TMP/beta" 2>/dev/null | LC_ALL=C sort)" = "$(LC_ALL=C sort <<<"$EXPECT_BETA")"
 for f in $EXPECT_BETA; do
@@ -103,30 +103,30 @@ check "AC9 SHA256SUMS has exactly 4 lines (rpm, deb, zip, msi)" test "$(wc -l < 
 expect_status "AC9 sha256sum -c SHA256SUMS" 0 bash -c "cd '$B' && sha256sum -c SHA256SUMS"
 check "AC9 SHA256SUMS names the four packages by base name" \
   test "$(awk '{print $2}' "$B/SHA256SUMS" | LC_ALL=C sort | tr '\n' ' ')" = \
-  "sbarhive-0.4.0-beta.1-windows-x64.msi sbarhive-0.4.0-beta.1-windows-x64.zip sbarhive-0.4.0~beta.1-1.x86_64.rpm sbarhive_0.4.0~beta.1_amd64.deb "
+  "kawaro-0.4.0-beta.1-windows-x64.msi kawaro-0.4.0-beta.1-windows-x64.zip kawaro-0.4.0~beta.1-1.x86_64.rpm kawaro_0.4.0~beta.1_amd64.deb "
 # manifest and signature made with the throwaway key
 check "AC7 beta.json version" test "$(jq -r .version "$B/beta.json")" = "$V"
 check "AC7 beta.json channel" test "$(jq -r .channel "$B/beta.json")" = beta
 check "AC7 beta.json has the rpm, deb and msi entries only" \
   test "$(jq -r '[.assets[].kind]|sort|join(",")' "$B/beta.json")" = "deb,msi,rpm"
 check "AC7 every manifest url is under the release download prefix" \
-  test "$(jq -r '[.assets[].url|startswith("https://github.com/M7MMAD-OMAR/sbarhive/releases/download/")]|all' "$B/beta.json")" = true
+  test "$(jq -r '[.assets[].url|startswith("https://github.com/M7MMAD-OMAR/kawaro/releases/download/")]|all' "$B/beta.json")" = true
 expect_status "AC7 beta.json verifies with the throwaway public key" 0 \
   minisign -V -p "$B/dry-run.pub" -m "$B/beta.json"
 check "AC7 the throwaway key is not the real update key" \
-  bash -c '! cmp -s "$1/dry-run.pub" "$2/packaging/keys/sbarhive-update.pub"' _ "$B" "$REPO_ROOT"
+  bash -c '! cmp -s "$1/dry-run.pub" "$2/packaging/keys/kawaro-update.pub"' _ "$B" "$REPO_ROOT"
 # AC6
-RPMF="$B/sbarhive-$M-1.x86_64.rpm"
+RPMF="$B/kawaro-$M-1.x86_64.rpm"
 check "AC5 rpm -qp VERSION is $M" test "$(rpm -qp --qf '%{VERSION}' "$RPMF" 2>/dev/null)" = "$M"
-check "AC5 deb Version is $M" test "$("$SHIMS/dpkg-deb" -f "$B/sbarhive_${M}_amd64.deb" Version)" = "$M"
-MSIF="$B/sbarhive-$V-windows-x64.msi"
+check "AC5 deb Version is $M" test "$("$SHIMS/dpkg-deb" -f "$B/kawaro_${M}_amd64.deb" Version)" = "$M"
+MSIF="$B/kawaro-$V-windows-x64.msi"
 check "AC6 msiinfo export Property: ProductVersion is 0.4.0" \
   test "$(msiinfo export "$MSIF" Property 2>/dev/null | tr -d '\r' | awk -F'\t' '$1=="ProductVersion"{print $2}')" = 0.4.0
-ZIPF="$B/sbarhive-$V-windows-x64.zip"
+ZIPF="$B/kawaro-$V-windows-x64.zip"
 mkdir -p "$TMP/unz"
 unzip -q "$ZIPF" -d "$TMP/unz"
-check "AC6 the zip folder is sbarhive-$V-windows-x64" test -f "$TMP/unz/sbarhive-$V-windows-x64/SHA256SUMS"
-expect_status "AC6 the zip's own SHA256SUMS verifies" 0 bash -c "cd '$TMP/unz/sbarhive-$V-windows-x64' && sha256sum -c SHA256SUMS"
+check "AC6 the zip folder is kawaro-$V-windows-x64" test -f "$TMP/unz/kawaro-$V-windows-x64/SHA256SUMS"
+expect_status "AC6 the zip's own SHA256SUMS verifies" 0 bash -c "cd '$TMP/unz/kawaro-$V-windows-x64' && sha256sum -c SHA256SUMS"
 
 # ---- check-versions on that output (AC1)
 RT="$TMP/root-beta"; mkdir -p "$RT"
@@ -156,7 +156,7 @@ mismatch "AC1 wrong Cargo.toml version: exit 1 naming Cargo.toml" Cargo.toml "$B
 cp -a "$B" "$TMP/o-manifest"; jq '.version="0.4.0"' "$B/beta.json" > "$TMP/o-manifest/beta.json"
 mismatch "AC1 wrong manifest version: exit 1 naming manifest" manifest "$RT" "$TMP/o-manifest"
 # a zip with the wrong file name
-cp -a "$B" "$TMP/o-names"; mv "$TMP/o-names/sbarhive-$V-windows-x64.zip" "$TMP/o-names/sbarhive-0.4.0-windows-x64.zip"
+cp -a "$B" "$TMP/o-names"; mv "$TMP/o-names/kawaro-$V-windows-x64.zip" "$TMP/o-names/kawaro-0.4.0-windows-x64.zip"
 mismatch "AC1 zip name without the version: exit 1 naming names" names "$RT" "$TMP/o-names"
 # rpm and deb built for the plain version (spec define 0.4.0 instead of 0.4.0~beta.1) and msi built for 0.5.0
 mktree() { # mktree DIR VERSION
@@ -166,13 +166,13 @@ mktree() { # mktree DIR VERSION
 }
 mktree "$TMP/t-plain" 0.4.0
 PATH="$SHIMS:$PATH" "$TMP/t-plain/packaging/linux/build-packages.sh" "$TMP/bin" "$TMP/plain-out" >/dev/null 2>&1
-cp -a "$B" "$TMP/o-rpm"; cp "$TMP/plain-out/sbarhive-0.4.0-1.x86_64.rpm" "$TMP/o-rpm/sbarhive-$M-1.x86_64.rpm"
+cp -a "$B" "$TMP/o-rpm"; cp "$TMP/plain-out/kawaro-0.4.0-1.x86_64.rpm" "$TMP/o-rpm/kawaro-$M-1.x86_64.rpm"
 mismatch "AC1 spec define 0.4.0 instead of $M: exit 1 naming RPM" RPM "$RT" "$TMP/o-rpm"
-cp -a "$B" "$TMP/o-deb"; cp "$TMP/plain-out/sbarhive_0.4.0_amd64.deb" "$TMP/o-deb/sbarhive_${M}_amd64.deb"
+cp -a "$B" "$TMP/o-deb"; cp "$TMP/plain-out/kawaro_0.4.0_amd64.deb" "$TMP/o-deb/kawaro_${M}_amd64.deb"
 mismatch "AC1 deb with Version 0.4.0: exit 1 naming DEB" DEB "$RT" "$TMP/o-deb"
 mktree "$TMP/t-msi" 0.5.0
-(cd "$TMP/t-msi" && CI=true SBARHIVE_WIN_SCOPE=1 CARGO_TARGET_DIR="$TMP/wt" scripts/windows/make-msi.sh >/dev/null 2>&1)
-cp -a "$B" "$TMP/o-msi"; cp "$TMP/wt/dist/sbarhive-0.5.0-windows-x64.msi" "$TMP/o-msi/sbarhive-$V-windows-x64.msi"
+(cd "$TMP/t-msi" && CI=true KAWARO_WIN_SCOPE=1 CARGO_TARGET_DIR="$TMP/wt" scripts/windows/make-msi.sh >/dev/null 2>&1)
+cp -a "$B" "$TMP/o-msi"; cp "$TMP/wt/dist/kawaro-0.5.0-windows-x64.msi" "$TMP/o-msi/kawaro-$V-windows-x64.msi"
 mismatch "AC1 MSI ProductVersion 0.5.0: exit 1 naming MSI" MSI "$RT" "$TMP/o-msi"
 # misuse
 expect_status "AC1 check-versions without arguments exits 2" 2 "$CHK"
@@ -186,10 +186,10 @@ EXPECT_PLAIN="SHA256SUMS
 beta.json
 beta.json.minisig
 dry-run.pub
-sbarhive-0.4.0-1.x86_64.rpm
-sbarhive-0.4.0-windows-x64.msi
-sbarhive-0.4.0-windows-x64.zip
-sbarhive_0.4.0_amd64.deb
+kawaro-0.4.0-1.x86_64.rpm
+kawaro-0.4.0-windows-x64.msi
+kawaro-0.4.0-windows-x64.zip
+kawaro_0.4.0_amd64.deb
 stable.json
 stable.json.minisig"
 check "AC7 plain version: exactly the expected files, with stable.json" \
@@ -217,7 +217,7 @@ hidden() { # hidden TOOL: PATH without TOOL (and without the dpkg-deb shim)
 for tool in wixl minisign rpmbuild dpkg-deb; do
   P="$(hidden "$tool")"
   [ "$tool" = dpkg-deb ] || cp "$SHIMS/dpkg-deb" "$P/dpkg-deb"
-  HOME="$TMP/home" CI=true SBARHIVE_WIN_SCOPE=1 BIN_DIR="$TMP/bin" CARGO_TARGET_DIR="$TMP/wt" \
+  HOME="$TMP/home" CI=true KAWARO_WIN_SCOPE=1 BIN_DIR="$TMP/bin" CARGO_TARGET_DIR="$TMP/wt" \
     DRYRUN_OUT="$TMP/h-$tool" PATH="$P" "$REPO_ROOT/$DRY" "$V" --no-build >"$TMP/h-$tool.out" 2>"$TMP/h-$tool.err"
   rc=$?
   check "AC7 $tool hidden: exit 2 (got $rc)" test "$rc" = 2
@@ -228,7 +228,7 @@ check "AC7 a missing tool leaves no output files" test -z "$(ls -A "$TMP/h-wixl"
 # ---- static properties of the script
 check "AC7 no gh, push or curl in the script" \
   bash -c '! grep -Eq "(^|[^a-zA-Z_.-])(gh |git push|curl|wget)" "$1"' _ "$DRY"
-check "AC7 the script never names the real signing key location" bash -c '! grep -q "sbarhive-signing" "$1"' _ "$DRY"
+check "AC7 the script never names the real signing key location" bash -c '! grep -q "kawaro-signing" "$1"' _ "$DRY"
 check "AC7 the script uses a throwaway key (minisign -G -W)" grep -Eq 'minisign -G[^|]* -W|minisign -W[^|]* -G' "$DRY"
 check "AC7 the script calls make-update-manifest.sh with --dist" grep -Eq 'make-update-manifest\.sh"? +--dist' "$DRY"
 check "AC7 the script calls sign-update-manifest.sh" grep -q 'sign-update-manifest\.sh' "$DRY"

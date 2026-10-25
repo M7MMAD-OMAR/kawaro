@@ -5,9 +5,9 @@
 
 use crate::shell_logic::{Command, Item};
 use crate::state::{Shared, lock};
-use sbarhive_core::i18n::Lang;
-use sbarhive_core::queue::Queue;
-use sbarhive_core::win::wide;
+use kawaro_core::i18n::Lang;
+use kawaro_core::queue::Queue;
+use kawaro_core::win::wide;
 use std::sync::atomic::{AtomicIsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
@@ -64,7 +64,7 @@ pub fn start(lang: Lang, queue: Arc<Queue>, state: Shared) -> TrayHandle {
             Some(Handle)
         }
         Err(e) => {
-            eprintln!("sbarhived: no tray icon ({e})");
+            eprintln!("kawarod: no tray icon ({e})");
             None
         }
     }
@@ -98,14 +98,14 @@ pub fn stop() {
     }
 }
 
-/// The icon: `sbarhive.ico` from the folder of the executable, at the size
+/// The icon: `kawaro.ico` from the folder of the executable, at the size
 /// the notification area wants. The stock application icon stands in when
 /// the file is missing, so the tray still shows something.
 /// The bool is true when the handle is ours to destroy (not the shared stock icon).
 pub fn icon() -> (HICON, bool) {
     let path = std::env::current_exe()
         .ok()
-        .and_then(|exe| exe.parent().map(|dir| dir.join("sbarhive.ico")));
+        .and_then(|exe| exe.parent().map(|dir| dir.join("kawaro.ico")));
     if let Some(path) = path {
         let size = unsafe { GetSystemMetrics(SM_CXSMICON) };
         let h = unsafe {
@@ -121,7 +121,7 @@ pub fn icon() -> (HICON, bool) {
         if !h.is_null() {
             return (h as HICON, true);
         }
-        eprintln!("sbarhived: cannot load {}", path.display());
+        eprintln!("kawarod: cannot load {}", path.display());
     }
     (
         unsafe { LoadIconW(std::ptr::null_mut(), IDI_APPLICATION) },

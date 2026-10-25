@@ -75,9 +75,9 @@ pub(crate) fn temp_path(final_path: &Path) -> PathBuf {
         .map(|d| d.as_nanos())
         .unwrap_or_default();
     let count = COUNTER.fetch_add(1, Ordering::Relaxed);
-    // `.sbarhive-<pid>-<count>-<nanos>-<final name>`: hidden, and the final
+    // `.kawaro-<pid>-<count>-<nanos>-<final name>`: hidden, and the final
     // name stays last so the extension (or its absence) is unchanged.
-    let mut name = OsString::from(format!(".sbarhive-{}-{count}-{nanos}-", std::process::id()));
+    let mut name = OsString::from(format!(".kawaro-{}-{count}-{nanos}-", std::process::id()));
     name.push(final_path.file_name().unwrap_or_default());
     dir.join(name)
 }

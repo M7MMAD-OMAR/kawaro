@@ -460,7 +460,7 @@ fn s029_ac11_one_sourced_scope_script() {
         .filter(|p| p.extension().is_some_and(|x| x == "sh"))
         .collect();
     scripts.sort();
-    for word in ["systemd-run", "sbarhive-win-target"] {
+    for word in ["systemd-run", "kawaro-win-target"] {
         let mut hits = Vec::new();
         for s in &scripts {
             let text = std::fs::read_to_string(s).unwrap();
@@ -496,7 +496,7 @@ fn s029_ac11_one_sourced_scope_script() {
         .arg(&scope_path)
         .env("PATH", &path)
         .env_remove("CI")
-        .env_remove("SBARHIVE_WIN_SCOPE")
+        .env_remove("KAWARO_WIN_SCOPE")
         .output()
         .unwrap();
     let stdout = String::from_utf8_lossy(&out.stdout);
@@ -557,7 +557,7 @@ fn s029_ac11_one_sourced_scope_script() {
     }
     let lib = read("tests/windows/lib.sh");
     assert!(
-        lib.contains("sbarhive-win-target"),
+        lib.contains("kawaro-win-target"),
         "tests/windows/lib.sh keeps its own default"
     );
 }

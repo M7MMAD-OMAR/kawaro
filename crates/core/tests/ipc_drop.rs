@@ -1,6 +1,6 @@
 //! S-014a AC4: the `Drop` request on the daemon socket.
 //! S-019d, manager decision 1 (backlog/S-019-hive-at-pointer.md): `drop`
-//! may carry the pointer position, `sbarhive drop --at X,Y`, in global
+//! may carry the pointer position, `kawaro drop --at X,Y`, in global
 //! logical coordinates as `hyprctl cursorpos` prints them.
 //!
 //! Contract (tester, from decision 1; do not edit): `Request::Drop` gains a
@@ -8,15 +8,15 @@
 //! absent or null, and `#[serde(default)]` so a client without it still
 //! parses. The field's Rust type is not fixed here beyond that JSON form.
 //!
-//! S-019e (AC11, amended 2026-10-21): `sbarhive drop --hold` is the press of
-//! a held key and `sbarhive drop --release` its release.
+//! S-019e (AC11, amended 2026-10-21): `kawaro drop --hold` is the press of
+//! a held key and `kawaro drop --release` its release.
 //! Contract (tester, from AC11; do not edit): `Request::Drop` gains
 //! `hold: bool`, `"hold": true` in JSON, with `#[serde(default)]` so a line
 //! without it (an older client) parses as `false`. A new unit variant
 //! `Request::DropRelease` is `{"cmd":"drop-release"}` (the enum's kebab case
 //! tag), with no other field.
 
-use sbarhive_core::ipc::Request;
+use kawaro_core::ipc::Request;
 
 #[test]
 fn ac4_drop_request_is_cmd_drop_with_the_token() {

@@ -1,4 +1,4 @@
-//! SbarHive core. Everything the daemon, the CLI and the engines share.
+//! Kawaro core. Everything the daemon, the CLI and the engines share.
 //!
 //! The contracts in [`engine`], [`action`] and [`ipc`] are the boundary
 //! between crates. Change them only with an ADR.

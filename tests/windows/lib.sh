@@ -8,7 +8,7 @@
 WIN="$REPO_ROOT/scripts/windows"
 FIX="$REPO_ROOT/tests/windows/fixtures"
 # S-028c AC8: the scripts default to the XDG cache of whoever runs them.
-WIN_TARGET_DEFAULT="${XDG_CACHE_HOME:-$HOME/.cache}/sbarhive-win-target"
+WIN_TARGET_DEFAULT="${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target"
 SIX_G=6442450944
 export WIN FIX WIN_TARGET_DEFAULT SIX_G
 
@@ -18,10 +18,10 @@ own_cgroup () { cut -d: -f3 /proc/self/cgroup | head -n 1; }
 # make_fakes: creates $FSB with bin/ and log/. bin/cargo logs one line per
 # call and never builds anything:
 #   CALL|<cgroup>|<memory.max of that cgroup>|<CARGO_TARGET_DIR>|<CARGO_BUILD_JOBS>|<effective target dir>|<argv>
-# It writes a fake sbarhive.exe only when the effective target dir is inside
+# It writes a fake kawaro.exe only when the effective target dir is inside
 # $FSB, so the real cache at $WIN_TARGET_DEFAULT is never touched.
 make_fakes () {
-  FSB="$(mktemp -d "${TMPDIR:-/tmp}/sbarhive-wintest.XXXXXX")"
+  FSB="$(mktemp -d "${TMPDIR:-/tmp}/kawaro-wintest.XXXXXX")"
   mkdir -p "$FSB/bin" "$FSB/log"
   export FSB
   cat > "$FSB/bin/cargo" <<'EOF'
@@ -40,7 +40,7 @@ echo "CALL|$cg|$mm|${CARGO_TARGET_DIR-<unset>}|${CARGO_BUILD_JOBS-<unset>}|${td:
 case "$td" in
   "$FSB"/*)
     mkdir -p "$td/x86_64-pc-windows-gnu/release"
-    printf 'MZfake' > "$td/x86_64-pc-windows-gnu/release/sbarhive.exe"
+    printf 'MZfake' > "$td/x86_64-pc-windows-gnu/release/kawaro.exe"
     ;;
 esac
 exit 0
@@ -49,7 +49,7 @@ EOF
 }
 
 drop_fakes () {
-  case "${FSB:-}" in /tmp/sbarhive-wintest.*|"${TMPDIR:-/nonexistent}"/sbarhive-wintest.*) rm -rf -- "$FSB" ;; esac
+  case "${FSB:-}" in /tmp/kawaro-wintest.*|"${TMPDIR:-/nonexistent}"/kawaro-wintest.*) rm -rf -- "$FSB" ;; esac
 }
 
 # cargo_call WORD: the first logged cargo call whose argv contains WORD.

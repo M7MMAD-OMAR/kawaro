@@ -6,7 +6,7 @@
 # Checks:
 #   - all 21 daemon shows ran (one "first" and 20 warm);
 #   - every show drew the thumbnail, downscaled before Slint: the bench daemon
-#     runs with SBARHIVE_DEBUG_FOCUS=1 and the hive prints one line per show
+#     runs with KAWARO_DEBUG_FOCUS=1 and the hive prints one line per show
 #     with files, "hive preview: thumb W H" (the pixel size handed to Slint)
 #     or "hive preview: icon NAME"; here 21 thumb lines, no icon line, and
 #     W and H between 1 and 128 (the square inscribed in the centre hexagon is
@@ -29,7 +29,7 @@ check() { if eval "$2"; then echo "PASS $1"; else echo "FAIL $1"; FAILS=$((FAILS
 log="$OUT/preview"
 {
   echo "== PREVIEW=1 measure.sh $RUNS $IDLE"
-  env -u SBARHIVE_SURFACE -u SHOW_TOKEN PREVIEW=1 SBARHIVE_DEBUG_FOCUS=1 \
+  env -u KAWARO_SURFACE -u SHOW_TOKEN PREVIEW=1 KAWARO_DEBUG_FOCUS=1 \
     CARGO_BUILD_JOBS="${CARGO_BUILD_JOBS:-2}" \
     "$ROOT/crates/ui/tests/measure.sh" "$RUNS" "$IDLE" >"$log.txt" 2>&1
   raw=$(sed -n 's/^raw output: //p' "$log.txt")

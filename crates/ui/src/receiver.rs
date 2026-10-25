@@ -188,7 +188,7 @@ fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
     let (globals, mut queue) = match registry_queue_init::<Receiver>(&conn) {
         Ok(g) => g,
         Err(e) => {
-            eprintln!("sbarhive: drop receiver: {e}");
+            eprintln!("kawaro: drop receiver: {e}");
             return None;
         }
     };
@@ -196,7 +196,7 @@ fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
     let manager = globals.bind::<WlDataDeviceManager, _, _>(&qh, 1..=3, ());
     let seat = globals.bind::<WlSeat, _, _>(&qh, 1..=7, ());
     let (Ok(manager), Ok(seat)) = (manager, seat) else {
-        eprintln!("sbarhive: drop receiver: no seat or data device manager");
+        eprintln!("kawaro: drop receiver: no seat or data device manager");
         return None;
     };
     let shared = Arc::new(Shared {
@@ -221,13 +221,13 @@ fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
         held: None,
     };
     let spawned = std::thread::Builder::new()
-        .name("sbarhive-drop".into())
+        .name("kawaro-drop".into())
         .spawn(move || {
             while queue.blocking_dispatch(&mut state).is_ok() {}
-            eprintln!("sbarhive: drop receiver stopped");
+            eprintln!("kawaro: drop receiver stopped");
         });
     if let Err(e) = spawned {
-        eprintln!("sbarhive: drop receiver: {e}");
+        eprintln!("kawaro: drop receiver: {e}");
         return None;
     }
     Some(shared)
@@ -377,7 +377,7 @@ fn read_files(offer: &WlDataOffer, conn: &Connection) -> Vec<PathBuf> {
             Err(_) => break,
         }
     }
-    sbarhive_core::uri_list::parse(&String::from_utf8_lossy(&data))
+    kawaro_core::uri_list::parse(&String::from_utf8_lossy(&data))
 }
 
 impl Dispatch<WlRegistry, GlobalListContents> for Receiver {

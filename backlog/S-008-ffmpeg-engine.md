@@ -42,9 +42,9 @@
 
 ## سجل المراجعة
 - 2026-10-19، المخطط: القصة معتمدة مسبقاً من المشرف (غائب، وافق على مسار v0.2 كاملاً).
-- 2026-10-19، المختبر: الاختبارات كُتبت على هيكل يُبنى ويعيد `UnsupportedOp`. التشغيل الأول لـ `cargo test -p sbarhive-engines --no-fail-fast ffmpeg`: `ffmpeg_actions` فشل 2 من 2 (ملفات الإجراءات لم تكن موجودة)، و`ffmpeg_engine` نجح 2 وفشل 21 (نجح فقط اسم المحرك و`unknown_op_is_unsupported` لأن الهيكل يرفض كل عملية).
+- 2026-10-19، المختبر: الاختبارات كُتبت على هيكل يُبنى ويعيد `UnsupportedOp`. التشغيل الأول لـ `cargo test -p kawaro-engines --no-fail-fast ffmpeg`: `ffmpeg_actions` فشل 2 من 2 (ملفات الإجراءات لم تكن موجودة)، و`ffmpeg_engine` نجح 2 وفشل 21 (نجح فقط اسم المحرك و`unknown_op_is_unsupported` لأن الهيكل يرفض كل عملية).
 - 2026-10-19، المنفذ: التنفيذ في `crates/engines/src/ffmpeg.rs`. النتيجة: 19 اختبار وحدة و2 للإجراءات و23 تكامل، كلها ناجحة.
-- 2026-10-19، المراجع: `cargo fmt --all --check` نظيف. `cargo clippy -p sbarhive-engines --all-targets -- -D warnings` يفشل خارج ملفاتنا فقط: `dead_code` في `crates/core/src/queue.rs` (حقل `inner` في هيكل مسار الطابور)، و`default_constructed_unit_structs` على سطر `ImageEngine::default()` في `lib.rs` (مسار الصور). بعد السماح بهاتين القاعدتين بـ `-A` لا تحذير واحد.
+- 2026-10-19، المراجع: `cargo fmt --all --check` نظيف. `cargo clippy -p kawaro-engines --all-targets -- -D warnings` يفشل خارج ملفاتنا فقط: `dead_code` في `crates/core/src/queue.rs` (حقل `inner` في هيكل مسار الطابور)، و`default_constructed_unit_structs` على سطر `ImageEngine::default()` في `lib.rs` (مسار الصور). بعد السماح بهاتين القاعدتين بـ `-A` لا تحذير واحد.
 - 2026-10-19، المراجع: `cargo mutants --file crates/engines/src/ffmpeg*`: 162 طفرة، 154 قُتلت، 5 غير قابلة للبناء، و3 ناجية: (1) `o.status.success()` في `probe` بديلها مكافئ، فبُسّطت الشيفرة بلا حارس لأن الفحص الفاشل لا يطبع شيئاً. (2) `==` إلى `!=` في فحص العملية أول `run`: أُضيف تحقق أن العملية المجهولة تُرفض قبل فحص الأدوات. (3) `>` إلى `>=` في التقدم: صار الاختبار يشترط تقدماً متزايداً بصرامة (لا تكرار للقيمة نفسها). إعادة التشغيل على `supervise|run|probe`: 23 من 23 قُتلت. لا طفرات ناجية.
 - ملاحظة: الجهاز كان محمّلاً (load average نحو 75) أثناء الاختبار. اختبار الإلغاء يقيس الزمن من الإلغاء إلى العودة فقط، فلا يتأثر بزمن توليد المقطع.
 - الحكم: PASS، والحالة مراجعة بانتظار المشرف.

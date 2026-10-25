@@ -53,12 +53,12 @@
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
-use sbarhive_core::config::Config;
-use sbarhive_core::ipc::{Request, Response};
-use sbarhive_core::paths::Os;
-use sbarhive_core::update::apply::{PKEXEC, PkgKind, exe_is_trusted, privileged_argv};
-use sbarhive_core::update::fetch::curl_env;
-use sbarhive_core::update::{Channel, effective_channel};
+use kawaro_core::config::Config;
+use kawaro_core::ipc::{Request, Response};
+use kawaro_core::paths::Os;
+use kawaro_core::update::apply::{PKEXEC, PkgKind, exe_is_trusted, privileged_argv};
+use kawaro_core::update::fetch::curl_env;
+use kawaro_core::update::{Channel, effective_channel};
 
 fn s(v: &[&str]) -> Vec<String> {
     v.iter().map(|x| x.to_string()).collect()
@@ -223,8 +223,8 @@ fn s_pairs(v: &[(&str, &str)]) -> Vec<(String, String)> {
 fn privileged_argv_uses_the_absolute_pkexec() {
     assert_eq!(PKEXEC, "/usr/bin/pkexec");
     let argv = privileged_argv(
-        Path::new("/usr/bin/sbarhive"),
-        Path::new("/c/sbarhive.rpm"),
+        Path::new("/usr/bin/kawaro"),
+        Path::new("/c/kawaro.rpm"),
         "ab",
         PkgKind::Rpm,
     );
@@ -232,10 +232,10 @@ fn privileged_argv_uses_the_absolute_pkexec() {
         argv,
         s(&[
             "/usr/bin/pkexec",
-            "/usr/bin/sbarhive",
+            "/usr/bin/kawaro",
             "update",
             "--install-privileged",
-            "/c/sbarhive.rpm",
+            "/c/kawaro.rpm",
             "--sha256",
             "ab",
             "--kind",

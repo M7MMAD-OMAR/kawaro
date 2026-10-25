@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Kawaro custom action for Thunar. merge_uca.py inserts this <action> into
+  ~/.config/Thunar/uca.xml, keyed by unique-id "kawaro", and replaces the
+  command with the absolute path chosen by scripts/install.sh.
+-->
+<action>
+	<icon>kawaro</icon>
+	<name>Kawaro</name>
+	<name xml:lang="ar">كوارو</name>
+	<submenu></submenu>
+	<unique-id>kawaro</unique-id>
+	<command>kawaro open -- %F</command>
+	<description>Open the selected files in Kawaro</description>
+	<description xml:lang="ar">افتح الملفات المحددة في كوارو</description>
+	<range>*</range>
+	<patterns>*</patterns>
+	<audio-files/>
+	<image-files/>
+	<other-files/>
+	<text-files/>
+	<video-files/>
+</action>

@@ -9,12 +9,12 @@
 //!   config: HiveSurface) -> bool`: `flag` is `org.a11y.Status.
 //!   ScreenReaderEnabled`, `reader` is whether `org.gnome.Orca.Service` has
 //!   an owner on the session bus, `config` is `hive_surface` from
-//!   config.toml (`sbarhive_core::config::HiveSurface`). True only with the
+//!   config.toml (`kawaro_core::config::HiveSurface`). True only with the
 //!   flag and the owner together and `Auto`.
 //! - `overlay::surface_choice(globals: &[&str], wayland: bool, flag: bool,
 //!   reader: bool, config: HiveSurface, forced: Option<&str>)
 //!   -> (Surface, String)`: the surface and the reason for it. `forced` is
-//!   the raw `SBARHIVE_SURFACE`, which beats everything as today (`window`
+//!   the raw `KAWARO_SURFACE`, which beats everything as today (`window`
 //!   always wins, `layer` still needs the globals, other values are
 //!   ignored). Then `hive_surface = "window"` or `"layer"`, then the reader
 //!   rule. Exact reasons from AC2: `screen reader running`,
@@ -28,8 +28,8 @@
 //!   stays the S-018 AC11 geometry line).
 //! - `choose_surface` keeps its signature and behaviour (overlay_pure.rs).
 
-use sbarhive_core::config::HiveSurface;
-use sbarhive_ui::overlay::{Surface, choice_line, screen_reader_running, surface_choice};
+use kawaro_core::config::HiveSurface;
+use kawaro_ui::overlay::{Surface, choice_line, screen_reader_running, surface_choice};
 
 const REQUIRED: [&str; 4] = [
     "zwlr_layer_shell_v1",
@@ -162,7 +162,7 @@ fn ac1_ac2_every_combination_on_kwin_and_gnome() {
                     for forced in FORCED {
                         let ctx = format!(
                             "{name}, flag {flag}, reader {reader}, config {config:?}, \
-                             SBARHIVE_SURFACE {forced:?}"
+                             KAWARO_SURFACE {forced:?}"
                         );
                         let (want, why) = oracle(missing.is_empty(), flag, reader, config, forced);
                         let (got, reason) =

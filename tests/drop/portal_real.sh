@@ -20,7 +20,7 @@
 #              runs (the S-014e1 harness rule of 984bb22): a private
 #              headless compositor, a private session bus and a throwaway
 #              HOME, never the live desktop or its bus. The shipped
-#              packaging/io.github.m7mmad_omar.SbarHive.desktop is copied to
+#              packaging/io.github.m7mmad_omar.Kawaro.desktop is copied to
 #              the throwaway XDG_DATA_HOME/applications, as an install puts
 #              it in a data directory. AC20, AC21.
 #
@@ -113,13 +113,13 @@ fake() { echo "$*" >&4; }
 portal_start_daemon() {
   DLOG="$OUT_LOG-$1-daemon.log"; STAMPS="$DLOG.stamps"
   : >"$DLOG"; : >"$STAMPS"
-  SBARHIVE_LANG=en SBARHIVE_COLOR_SCHEME=light SBARHIVE_REDUCED_MOTION=1 \
-    SBARHIVE_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/sbarhived" > >(python3 -I "$PR" stamp "$DLOG" "$STAMPS") 2>&1 &
+  KAWARO_LANG=en KAWARO_COLOR_SCHEME=light KAWARO_REDUCED_MOTION=1 \
+    KAWARO_DEBUG_FOCUS=1 WAYLAND_DEBUG=1 "$BIN/kawarod" > >(python3 -I "$PR" stamp "$DLOG" "$STAMPS") 2>&1 &
   d=$!
-  for _ in $(seq 50); do "$BIN/sbarhive" ping >/dev/null 2>&1 && break; sleep 0.1; done
+  for _ in $(seq 50); do "$BIN/kawaro" ping >/dev/null 2>&1 && break; sleep 0.1; done
 }
 portal_stop_daemon() {
-  "$BIN/sbarhive" quit >/dev/null 2>&1
+  "$BIN/kawaro" quit >/dev/null 2>&1
   timeout 5 tail --pid="$d" -f /dev/null || kill "$d" 2>/dev/null
   sleep 0.5
 }
@@ -411,7 +411,7 @@ portal_teardown() {
 # before it (dbus-monitor, `real_portal.py last`), and the WEBP is written.
 # The focus window, read by Shell.Eval after the show's "hive surface:
 # window" line and before the drop, is an INFO line only (manager decision
-# 5 of 2026-10-23). The control (c) shows the hive with `sbarhive drop
+# 5 of 2026-10-23). The control (c) shows the hive with `kawaro drop
 # --hold` and no token, so under strict it stays behind the source: no
 # file and no activate request.
 # The caller (gnome.sh) also defines focus_pid: the PID of
@@ -463,7 +463,7 @@ wait_window() {
 
 # config_write TEXT: config.toml replaced atomically, as a settings Save.
 config_write() {
-  local c="$XDG_CONFIG_HOME/sbarhive"
+  local c="$XDG_CONFIG_HOME/kawaro"
   printf '%s\n' "$1" >"$c/.config.toml.ac15"
   mv -f "$c/.config.toml.ac15" "$c/config.toml"
 }
@@ -562,7 +562,7 @@ ac15_real_run() {
   sleep 3
 
   # --- AC15 (c), the control: drop --hold with no token -------------------
-  echo "== AC15 (c) control: sbarhive drop --hold with no token, under strict"
+  echo "== AC15 (c) control: kawaro drop --hold with no token, under strict"
   local file="$W/control.png" base mark f0 f1=none shown=no geo wrote=no seg n
   base="${file%.*}"
   cp "$ROOT/tests/fixtures/images/alpha.png" "$file"
@@ -570,7 +570,7 @@ ac15_real_run() {
   f0=$(focus_pid)
   drag_past_threshold
   mark=$(wc -l <"$DLOG")
-  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/sbarhive" drop --hold >>"$OUT_LOG-cli.log" 2>&1
+  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/kawaro" drop --hold >>"$OUT_LOG-cli.log" 2>&1
   if wait_window "$mark" 4; then shown=yes; sleep 0.3; f1=$(focus_pid); fi
   geo=$(wait_geo 2)
   [ -z "$geo" ] && geo=${AC15_GEO:-}
@@ -578,7 +578,7 @@ ac15_real_run() {
   [ -n "$geo" ] && move_to_webp $geo
   ptr_up
   wait_file "$base.webp" 5 && wrote=yes
-  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/sbarhive" drop --release >>"$OUT_LOG-cli.log" 2>&1
+  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/kawaro" drop --release >>"$OUT_LOG-cli.log" 2>&1
   sleep 0.5
   seg=$(tail -n +$((mark + 1)) "$DLOG")
   n=$(grep -cE -- '-> xdg_activation_v1[#@][0-9]+\.activate\("' <<<"$seg")
@@ -603,9 +603,9 @@ ac15_real_run() {
   printf '%s\n' "$pfile" >"$NEXT"
   pf0=$(focus_pid)
   drag_past_threshold
-  ptok=$(shell_str "(() => { const Gio = imports.gi.Gio; const a = Gio.DesktopAppInfo.new_from_filename('$XDG_DATA_HOME/applications/io.github.m7mmad_omar.SbarHive.desktop'); const c = global.create_app_launch_context(global.get_current_time(), -1); return c.get_startup_notify_id(a, []) || ''; })()")
+  ptok=$(shell_str "(() => { const Gio = imports.gi.Gio; const a = Gio.DesktopAppInfo.new_from_filename('$XDG_DATA_HOME/applications/io.github.m7mmad_omar.Kawaro.desktop'); const c = global.create_app_launch_context(global.get_current_time(), -1); return c.get_startup_notify_id(a, []) || ''; })()")
   mark=$(wc -l <"$DLOG")
-  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/sbarhive" drop --hold --token "${ptok:-none}" >>"$OUT_LOG-cli.log" 2>&1
+  env -u XDG_ACTIVATION_TOKEN -u DESKTOP_STARTUP_ID "$BIN/kawaro" drop --hold --token "${ptok:-none}" >>"$OUT_LOG-cli.log" 2>&1
   local plate="" hivef=""
   if wait_window "$mark" 4; then
     pshown=yes; sleep 0.3; pf1=$(focus_pid); sleep 0.5; plate=$(focus_pid)
@@ -617,7 +617,7 @@ ac15_real_run() {
   [ -n "$geo" ] && move_to_webp $geo
   ptr_up
   wait_file "$pbase.webp" 5 && pwrote=yes
-  "$BIN/sbarhive" drop --release >>"$OUT_LOG-cli.log" 2>&1
+  "$BIN/kawaro" drop --release >>"$OUT_LOG-cli.log" 2>&1
   sleep 0.5
   pseg=$(tail -n +$((mark + 1)) "$DLOG")
   pn=$(grep -cE -- '-> xdg_activation_v1[#@][0-9]+\.activate\("' <<<"$pseg")

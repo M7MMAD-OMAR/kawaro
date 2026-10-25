@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Fails if .slint sources break the SbarHive design rules.
+# Fails if .slint sources break the Kawaro design rules.
 # The generated tokens file is the only place allowed to hold raw values.
 set -u
 ROOT="${1:-crates}"

@@ -11,7 +11,7 @@
 #   shift_down, shift_up
 #   hive_geo       prints "X Y W H" of the visible hive window, or nothing
 # and sets BIN, ROOT, W (work dir), NEXT (source.py's path file), DLOG
-# (daemon log, with WAYLAND_DEBUG=1 and SBARHIVE_DEBUG_FOCUS=1) and SLOG
+# (daemon log, with WAYLAND_DEBUG=1 and KAWARO_DEBUG_FOCUS=1) and SLOG
 # (source log).
 #
 # It may also define, after sourcing this file (S-014c):
@@ -55,10 +55,10 @@ preview_want() {
   else case "$1" in *.pdf) echo "icon pdf" ;; *) echo "icon image" ;; esac; fi
 }
 
-# AC8: the cell ids `sbarhive actions --json FILE` gives, space separated, in
+# AC8: the cell ids `kawaro actions --json FILE` gives, space separated, in
 # order. Run in the same sandbox environment as the daemon.
 action_ids() { # action_ids FILE
-  "$BIN/sbarhive" actions --json "$1" 2>/dev/null |
+  "$BIN/kawaro" actions --json "$1" 2>/dev/null |
     python3 -I -c 'import json, sys; print(" ".join(a["id"] for a in json.load(sys.stdin)))'
 }
 
@@ -144,7 +144,7 @@ wait_file() { # wait_file PATH SECONDS
   return 1
 }
 
-# One show: drag FILE from the source, run `sbarhive drop` mid-drag (as the
+# One show: drag FILE from the source, run `kawaro drop` mid-drag (as the
 # shortcut would), enter the hive, move to TARGET (webp, corner or centre)
 # and release, with Shift held when SHIFT=1.
 cycle() { # cycle N FILE TARGET SHIFT
@@ -160,7 +160,7 @@ cycle() { # cycle N FILE TARGET SHIFT
   local before; before=$(find "$W" -type f | sort)
 
   drag_past_threshold
-  "$BIN/sbarhive" drop >>"$OUT_LOG-cli.log" 2>&1
+  "$BIN/kawaro" drop >>"$OUT_LOG-cli.log" 2>&1
   # Poll instead of a fixed sleep: the hive closes 10 s after showing
   # without an enter (AC3), and the first show can be slow (ADR 0001, 8).
   local geo
@@ -266,7 +266,7 @@ protocol_checks() {
 #   drop cells: ID ID ...
 # the ids of the hive's cells in cell order, separated by one space (nothing
 # after the colon when no action matches). Every such line of a show must
-# equal `sbarhive actions --json` for that show's file, and there must be one.
+# equal `kawaro actions --json` for that show's file, and there must be one.
 enter_cells_checks() {
   local i first="" other=""
   for ((i = 0; i + 1 < ${#MARKS[@]}; i++)); do
@@ -275,9 +275,9 @@ enter_cells_checks() {
     lines=$(grep -E '^drop cells:' <<<"$seg")
     want=${EXPECT[i]}
     got=$(head -1 <<<"$lines" | sed -E 's/^drop cells: ?//')
-    echo "INFO AC8 show $((i + 1)): $(grep -c . <<<"$lines") \"drop cells\" lines, first: ${got:-none}; sbarhive actions: ${want:-none}"
+    echo "INFO AC8 show $((i + 1)): $(grep -c . <<<"$lines") \"drop cells\" lines, first: ${got:-none}; kawaro actions: ${want:-none}"
     check "AC8 show $((i + 1)): the daemon reports the cells built at enter" '[ -n "$lines" ]'
-    check "AC8 show $((i + 1)): every enter's cells equal sbarhive actions for the dragged file" \
+    check "AC8 show $((i + 1)): every enter's cells equal kawaro actions for the dragged file" \
       '[ -n "$want" ] && [ -n "$lines" ] && [ -z "$(grep -vxF "drop cells: $want" <<<"$lines")" ]'
   done
   # The PNG of show 1 and the PDF of a later show (the last one, or the
@@ -291,7 +291,7 @@ enter_cells_checks() {
 }
 
 # S-019f AC15, after protocol_checks (which closes MARKS). The daemon runs
-# with SBARHIVE_DEBUG_FOCUS=1 and prints one "hive preview: thumb W H" or
+# with KAWARO_DEBUG_FOCUS=1 and prints one "hive preview: thumb W H" or
 # "hive preview: icon NAME" line per preview it draws (S-018h). In a drop
 # show the preview comes with the enter (AC14), so per show:
 #   - no "hive preview" line before the first wl_data_device.enter (before
@@ -330,7 +330,7 @@ preview_checks() {
 # S-014d AC11: the shortcut pressed mid-drag. The caller (shortcut mode of
 # kwin.sh and gnome.sh) binds Super+Z in its private compositor to the
 # wrapper $SHORTCUT_WRAP, which appends one UTC time line to $SHORTCUT_MARKS
-# and execs `sbarhive drop`. This script never runs `sbarhive drop` itself in
+# and execs `kawaro drop`. This script never runs `kawaro drop` itself in
 # that mode. The caller also defines:
 #   press_shortcut   Super+Z through the compositor's input path
 #   press_esc        Esc through the compositor's input path
@@ -340,12 +340,12 @@ preview_checks() {
 # mode (S-018 AC13), so Esc must never reach the daemon there.
 
 # Writes the wrapper the caller binds Super+Z to: it appends one UTC time
-# line to $SHORTCUT_MARKS and execs `sbarhive drop`.
+# line to $SHORTCUT_MARKS and execs `kawaro drop`.
 make_shortcut_wrap() {
   SHORTCUT_MARKS="$XDG_RUNTIME_DIR/shortcut-marks"
   SHORTCUT_WRAP="$XDG_RUNTIME_DIR/sbh-drop"
   printf '#!/bin/sh\ndate -u +%%T.%%6N >>"%s"\nexec "%s" drop >>"%s" 2>&1\n' \
-    "$SHORTCUT_MARKS" "$BIN/sbarhive" "$OUT_LOG-cli.log" >"$SHORTCUT_WRAP"
+    "$SHORTCUT_MARKS" "$BIN/kawaro" "$OUT_LOG-cli.log" >"$SHORTCUT_WRAP"
   chmod +x "$SHORTCUT_WRAP"
 }
 
@@ -371,7 +371,7 @@ shortcut_show() { # shortcut_show N
   GEO=$(wait_geo 8)
   m1=$(marks_count)
   echo "INFO AC11 $n: binding ran $((m1 - m0)) time(s), hive ${GEO:-not shown}"
-  check "AC11 $n: Super+Z mid-drag ran the bound \`sbarhive drop\` exactly once" '[ $((m1 - m0)) -eq 1 ]'
+  check "AC11 $n: Super+Z mid-drag ran the bound \`kawaro drop\` exactly once" '[ $((m1 - m0)) -eq 1 ]'
   check "AC11 $n: the hive appeared within 8 s of the shortcut" '[ -n "$GEO" ]'
 }
 

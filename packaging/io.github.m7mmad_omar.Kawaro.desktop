@@ -1,15 +1,15 @@
 [Desktop Entry]
 Type=Application
-Name=SbarHive
-Name[ar]=صبار هايف
+Name=Kawaro
+Name[ar]=كوارو
 GenericName=File Converter
 GenericName[ar]=محوّل ملفات
 Comment=Convert files locally from your file manager. Opens the settings.
 Comment[ar]=حوّل الملفات محلياً من مدير الملفات. يفتح الإعدادات.
-Exec=sbarhive settings
-Icon=sbarhive
+Exec=kawaro settings
+Icon=kawaro
 Terminal=false
 StartupNotify=true
 Categories=Utility;
-Keywords=sbarhive;sbar;convert;converter;image;video;pdf;webp;settings;
-Keywords[ar]=صبار;صبار هايف;تحويل;محول;صورة;صور;فيديو;إعدادات;
+Keywords=kawaro;convert;converter;image;video;pdf;webp;settings;
+Keywords[ar]=كوارو;تحويل;محول;صورة;صور;فيديو;إعدادات;

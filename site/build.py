@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the SbarHive site: every page in Arabic (site root) and English (site/en).
+"""Build the Kawaro site: every page in Arabic (site root) and English (site/en).
 
 Standard library only. Colours, lengths and durations never appear here: the
 markup uses classes and custom properties from tokens.css. Geometry numbers for
@@ -26,8 +26,8 @@ SQRT3 = math.sqrt(3)
 R = TOKENS["hex"]["size"]["md"] / 2
 GAP = TOKENS["hex"]["gap"]
 PAD = 4
-BASE = "https://hive.sbarah.com/"
-REPO = "https://github.com/M7MMAD-OMAR/sbarhive"
+BASE = "https://kawaro.sbarah.com/"
+REPO = "https://github.com/M7MMAD-OMAR/kawaro"
 RELEASES = REPO + "/releases"
 VERSION = "0.4.0-beta.1"
 # S-061: download links point at release assets only once the release exists.
@@ -218,15 +218,15 @@ TAG = "v" + VERSION
 PKGV = VERSION.replace("-", "%7E")
 DL = f"{REPO}/releases/download/{TAG}/"
 FILES = {
-    "msi": DL + f"sbarhive-{VERSION}-windows-x64.msi",
-    "zip": DL + f"sbarhive-{VERSION}-windows-x64.zip",
-    "deb": DL + f"sbarhive_{PKGV}_amd64.deb",
-    "rpm": DL + f"sbarhive-{PKGV}-1.x86_64.rpm",
+    "msi": DL + f"kawaro-{VERSION}-windows-x64.msi",
+    "zip": DL + f"kawaro-{VERSION}-windows-x64.zip",
+    "deb": DL + f"kawaro_{PKGV}_amd64.deb",
+    "rpm": DL + f"kawaro-{PKGV}-1.x86_64.rpm",
 }
 SUPPORT = "https://sbarah.com/support"
 
 AR = {
-    "lang": "ar", "dir": "rtl", "name": "صبار هايف", "locale": "ar_AR", "alt": "en_US",
+    "lang": "ar", "dir": "rtl", "name": "كوارو", "locale": "ar_AR", "alt": "en_US",
     "nav_skip": "انتقل إلى المحتوى",
     "nav": {"index": "الرئيسية", "docs": "التوثيق", "download": "التنزيل", "releases": "الإصدارات", "windows": "ويندوز", "privacy": "الخصوصية"},
     "nav_label": "التنقل الرئيسي",
@@ -234,25 +234,25 @@ AR = {
     "beta": "بيتا",
     "support": "ادعم صبارة",
     "titles": {
-        "index": "صبار هايف: حوّل ملفاتك بأمان على جهازك",
-        "download": "تنزيل صبار هايف " + VERSION + " للينكس وويندوز",
-        "windows": "صبار هايف على ويندوز: تحذير SmartScreen والتحقق من الملف",
-        "privacy": "الخصوصية في صبار هايف: ملفاتك تبقى عندك",
+        "index": "كوارو: حوّل ملفاتك بأمان على جهازك",
+        "download": "تنزيل كوارو " + VERSION + " للينكس وويندوز",
+        "windows": "كوارو على ويندوز: تحذير SmartScreen والتحقق من الملف",
+        "privacy": "الخصوصية في كوارو: ملفاتك تبقى عندك",
     },
     "descs": {
         "index": "محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد الملف، اختر خلية، والناتج بجانب الأصل. ملفاتك تبقى على جهازك.",
-        "download": "أول إصدار بيتا من صبار هايف للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
+        "download": "أول إصدار بيتا من كوارو للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
         "windows": "نسخة ويندوز غير موقّعة بعد. شرح تحذير SmartScreen وطريقة التحقق من ملفك قبل تشغيله.",
         "privacy": "لا تتبع ولا حسابات ولا رفع للملفات. الاتصال الوحيد هو فحص التحديثات الموقّعة.",
     },
-    "og_alt": "شعار صبار هايف بجانب الخلية السداسية، وعلى خلاياها صيغ تحويل الصور",
+    "og_alt": "شعار كوارو بجانب الخلية السداسية، وعلى خلاياها صيغ تحويل الصور",
     "footer_license": "برنامج حر برخصة <bdi dir=\"ltr\">GPLv3</bdi>.",
     "footer_beta": "بيتا <bdi dir=\"ltr\">" + VERSION + "</bdi>",
     "releases": "الإصدارات",
 }
 
 EN = {
-    "lang": "en", "dir": "ltr", "name": "SbarHive", "locale": "en_US", "alt": "ar_AR",
+    "lang": "en", "dir": "ltr", "name": "Kawaro", "locale": "en_US", "alt": "ar_AR",
     "nav_skip": "Skip to content",
     "nav": {"index": "Home", "docs": "Docs", "download": "Download", "releases": "Releases", "windows": "Windows", "privacy": "Privacy"},
     "nav_label": "Main navigation",
@@ -260,18 +260,18 @@ EN = {
     "beta": "beta",
     "support": "Support Sbarah",
     "titles": {
-        "index": "SbarHive: convert files safely, on your machine",
-        "download": "Download SbarHive " + VERSION + " for Linux and Windows",
-        "windows": "SbarHive on Windows: the SmartScreen warning and checking your download",
-        "privacy": "SbarHive privacy: your files stay with you",
+        "index": "Kawaro: convert files safely, on your machine",
+        "download": "Download Kawaro " + VERSION + " for Linux and Windows",
+        "windows": "Kawaro on Windows: the SmartScreen warning and checking your download",
+        "privacy": "Kawaro privacy: your files stay with you",
     },
     "descs": {
         "index": "A free, open source file converter for Linux and Windows. Select the file, pick a cell, and the result lands next to the original. Your files stay on your machine.",
-        "download": "The first SbarHive beta for Linux and Windows, with the SHA256SUMS steps to verify it.",
+        "download": "The first Kawaro beta for Linux and Windows, with the SHA256SUMS steps to verify it.",
         "windows": "The Windows build is not signed yet. What the SmartScreen warning means and how to verify your file before running it.",
         "privacy": "No tracking, no accounts, no uploads. The only network use is the signed update check.",
     },
-    "og_alt": "The SbarHive logo next to a hexagonal hive with image formats",
+    "og_alt": "The Kawaro logo next to a hexagonal hive with image formats",
     "footer_license": "Free software under the GPLv3.",
     "footer_beta": "Beta " + VERSION,
     "releases": "Releases",
@@ -341,7 +341,7 @@ def head(lang, page, root, title=None, desc=None, extra_ld=()):
     other = "en" if lang == "ar" else "ar"
     ld = {
         "@context": "https://schema.org", "@type": "SoftwareApplication",
-        "name": "SbarHive", "alternateName": "صبار هايف",
+        "name": "Kawaro", "alternateName": "كوارو",
         "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux, Windows",
         "softwareVersion": VERSION, "isAccessibleForFree": True,
         "license": "https://www.gnu.org/licenses/gpl-3.0.html",
@@ -619,13 +619,13 @@ T_HOME = {
         "formats_p": "لا يظهر الإجراء في الخلية إن لم تكن أداته مثبتة في جهازك.",
         "formats_all": "كل الصيغ والإجراءات",
         "families": {"images": "صور", "video": "فيديو", "audio": "صوت", "documents": "مستندات", "pdf": "PDF"},
-        "get": "نزّل صبار هايف",
+        "get": "نزّل كوارو",
         "get_p": "مجاني وبلا حساب، ويحوّل ملفاتك دون اتصال بالإنترنت.",
         "open": "مجاني ومفتوح المصدر",
         "open_p": "برخصة <bdi dir=\"ltr\">GPLv3</bdi>: اقرأ الشيفرة، وعدّلها، وشاركها.",
         "gh": "الشيفرة على GitHub",
         "support_h": "ادعم صبارة",
-        "support_p": "صبار هايف مجاني. إن وفّر عليك وقتا فيمكنك دعم صبارة.",
+        "support_p": "كوارو مجاني. إن وفّر عليك وقتا فيمكنك دعم صبارة.",
     },
     "en": {
         "h1a": "Convert files",
@@ -656,13 +656,13 @@ T_HOME = {
         "formats_p": "An action only shows in the hive when its tool is installed on your machine.",
         "formats_all": "All formats and actions",
         "families": {"images": "Images", "video": "Video", "audio": "Audio", "documents": "Documents", "pdf": "PDF"},
-        "get": "Get SbarHive",
+        "get": "Get Kawaro",
         "get_p": "Free, no account, and it converts your files offline.",
         "open": "Free and open source",
         "open_p": "Under the GPLv3: read the code, change it, share it.",
         "gh": "Source on GitHub",
         "support_h": "Support Sbarah",
-        "support_p": "SbarHive is free. If it saves you time, you can support Sbarah.",
+        "support_p": "Kawaro is free. If it saves you time, you can support Sbarah.",
     },
 }
 
@@ -877,28 +877,28 @@ def download(lang):
     ar = lang == "ar"
     win_href = page_href(lang, "download", lang, "windows")
     if ar:
-        h = page_head("نزّل صبار هايف", f"أول إصدار بيتا <code>{VERSION}</code>" + ("" if PUBLISHED else "، قريبا"))
+        h = page_head("نزّل كوارو", f"أول إصدار بيتا <code>{VERSION}</code>" + ("" if PUBLISHED else "، قريبا"))
         top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
 <p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
 <div class="split"><div><h3>لينكس</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
-<div><h3>ويندوز</h3>{code(f"certutil -hashfile sbarhive-{VERSION}-windows-x64.msi SHA256")}</div></div>
+<div><h3>ويندوز</h3>{code(f"certutil -hashfile kawaro-{VERSION}-windows-x64.msi SHA256")}</div></div>
 <p class="section-intro">وإن اختلفت القيمة فلا تشغّل الملف.</p>''', cls="alt s-verify", ident="verify", labelledby="v-title", side="start")
         src = sec(f'''<h2 id="b-title">البناء من الشيفرة على لينكس</h2>
-{code(f"git clone {REPO}" + chr(10) + "cd sbarhive" + chr(10) + "./scripts/install.sh")}
+{code(f"git clone {REPO}" + chr(10) + "cd kawaro" + chr(10) + "./scripts/install.sh")}
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
-        h = page_head("Download SbarHive", f"First beta, <code>{VERSION}</code>" + ("" if PUBLISHED else ", coming soon"))
+        h = page_head("Download Kawaro", f"First beta, <code>{VERSION}</code>" + ("" if PUBLISHED else ", coming soon"))
         top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">Verify the file</h2>
 <p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>
 <div class="split"><div><h3>Linux</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
-<div><h3>Windows</h3>{code(f"certutil -hashfile sbarhive-{VERSION}-windows-x64.msi SHA256")}</div></div>
+<div><h3>Windows</h3>{code(f"certutil -hashfile kawaro-{VERSION}-windows-x64.msi SHA256")}</div></div>
 <p class="section-intro">If a value differs, do not run the file.</p>''', cls="alt s-verify", ident="verify", labelledby="v-title", side="start")
         src = sec(f'''<h2 id="b-title">From source on Linux</h2>
-{code(f"git clone {REPO}" + chr(10) + "cd sbarhive" + chr(10) + "./scripts/install.sh")}
+{code(f"git clone {REPO}" + chr(10) + "cd kawaro" + chr(10) + "./scripts/install.sh")}
 <p class="section-intro">Needs Rust 1.85 or newer. To remove: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     return h + top + ver + src
 
@@ -907,7 +907,7 @@ def windows(lang):
     ar = lang == "ar"
     dl = page_href(lang, "windows", lang, "download")
     if ar:
-        h = page_head("صبار هايف على ويندوز", "غير موقّع بعد، فيظهر تحذير SmartScreen")
+        h = page_head("كوارو على ويندوز", "غير موقّع بعد، فيظهر تحذير SmartScreen")
         a = sec(f'''<h2 id="w1">ثلاث خطوات</h2>
 <ol class="step-row" role="list">{step_cell(1, "تحقق من الملف", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
 <p class="section-intro">ليست لدينا شهادة توقيع بعد، ولا نعد بمتجر أو بموعد.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
@@ -915,7 +915,7 @@ def windows(lang):
 <div class="grid grid-3">{card("لم يُجرَّب على جهاز ويندوز حقيقي", "", ("tag-warn", "تنبيه"))}{card("بلا خلية الإفلات بعد", "", ("tag-warn", "غير جاهز"))}{card("بلا إشعارات بعد", "التقدم في تلميح الأيقونة", ("tag-warn", "غير جاهز"))}</div>''',
                 cls="alt s-w2", ident="gaps", labelledby="w2", side="end")
     else:
-        h = page_head("SbarHive on Windows", "Not signed yet, so SmartScreen warns you")
+        h = page_head("Kawaro on Windows", "Not signed yet, so SmartScreen warns you")
         a = sec(f'''<h2 id="w1">Three steps</h2>
 <ol class="step-row" role="list">{step_cell(1, "Verify the file", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
 <p class="section-intro">We have no signing certificate yet, and promise no store or date.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
@@ -1174,7 +1174,7 @@ def docs_page(lang, slug):
     crumbs = [(p["name"], "index"), (p["nav"]["docs"], "docs/index"), (title, page)]
     ld = [breadcrumb_ld(lang, [(n, "index" if q == "docs/index" and False else q) for n, q in crumbs]),
           {"@context": "https://schema.org", "@type": "TechArticle", "headline": title, "inLanguage": lang,
-           "url": abs_url(lang, page), "author": {"@type": "Organization", "name": "SbarHive"}}]
+           "url": abs_url(lang, page), "author": {"@type": "Organization", "name": "Kawaro"}}]
     edit = ""
     if slug != "formats":
         fn = f"{slug}.ar.md" if ar else f"{slug}.md"
@@ -1251,7 +1251,7 @@ def releases_page(lang):
     root = rel_root(lang, page)
     p = lang_pack(lang)
     title = "الإصدارات" if ar else "Releases"
-    desc = "كل إصدارات صبار هايف وما تغيّر فيها." if ar else "Every SbarHive release and what changed."
+    desc = "كل إصدارات كوارو وما تغيّر فيها." if ar else "Every Kawaro release and what changed."
     latest = (f'<div class="latest"><span class="pill pill-hot"><bdi>{VERSION}</bdi></span>'
               f'<div class="actions">{dl_buttons(lang, "win")}{dl_buttons(lang, "linux")}</div>'
               f'<ul class="fine fine-links" role="list">'
@@ -1277,10 +1277,10 @@ def feed_xml(lang):
         ver = VERSION if r["version"] == "Unreleased" else r["version"]
         upd = (r["date"] + "T00:00:00Z") if r["date"] else now
         summary = "; ".join(html.escape((arx or en) if ar else en) for en, arx in r["items"][:6])
-        entries.append(f"<entry><title>SbarHive {ver}</title><id>{RELEASES}/tag/v{ver}</id>"
+        entries.append(f"<entry><title>Kawaro {ver}</title><id>{RELEASES}/tag/v{ver}</id>"
                        f'<link href="{RELEASES}/tag/v{ver}"/><updated>{upd}</updated><summary>{summary}</summary></entry>')
     return (f'<?xml version="1.0" encoding="utf-8"?>\n<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="{lang}">'
-            f'<title>{"إصدارات صبار هايف" if ar else "SbarHive releases"}</title><id>{abs_url(lang, "releases")}</id>'
+            f'<title>{"إصدارات كوارو" if ar else "Kawaro releases"}</title><id>{abs_url(lang, "releases")}</id>'
             f'<link href="{abs_url(lang, "releases")}"/><updated>{now}</updated>{"".join(entries)}</feed>\n')
 
 
@@ -1303,7 +1303,7 @@ def sitemap():
 
 def llms_files(sources):
     """llms.txt (index) and llms-full.txt (all English docs), for agents."""
-    idx = ["# SbarHive", "",
+    idx = ["# Kawaro", "",
            "> A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. First beta " + VERSION + ".",
            "", "## Docs", ""]
     for slug in DOC_ORDER:
@@ -1316,7 +1316,7 @@ def llms_files(sources):
             f"- [Source]({REPO}): GPL-3.0-or-later",
             "", "## Arabic", "",
             f"- [التوثيق بالعربية]({abs_url('ar', 'docs/index')})", ""]
-    full = ["# SbarHive documentation (English)", ""]
+    full = ["# Kawaro documentation (English)", ""]
     for slug in DOC_ORDER:
         full += [sources[("en", slug)].strip(), "", "---", ""]
     return "\n".join(idx), "\n".join(full)
