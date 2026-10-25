@@ -1,4 +1,4 @@
-# S-067 Hero film: the product film replaces the demo window on the Arabic home page
+# S-068 Hero film: the product film replaces the demo window on the Arabic home page
 Status: in review
 
 Not a Rust change. Files: `site/build.py`, `site/css/film.css`, `site/app.js`, `site/media/`, `scripts/site-headers.py`, `scripts/site/check-deploy.sh`, tests under `tests/site/`. Follows S-065.

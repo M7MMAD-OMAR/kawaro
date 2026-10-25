@@ -1,4 +1,4 @@
-"""S-067 browser checks: the film plays, respects reduced motion, never overflows."""
+"""S-068 browser checks: the film plays, respects reduced motion, never overflows."""
 import sys
 import unittest
 from pathlib import Path

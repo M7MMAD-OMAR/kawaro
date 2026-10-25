@@ -50,7 +50,7 @@ class AC3Hero(unittest.TestCase):
 
 class AC2Demo(unittest.TestCase):
     def test_AC2_reduced_motion_shows_the_end_state(self):
-        for lang in ("en",):  # S-067: the Arabic hero is the film (test_s067_film.py)
+        for lang in ("en",):  # S-068: the Arabic hero is the film (test_s068_film.py)
             pg = B.page(page_path(lang), reduced=True)
             st = pg.evaluate("""() => ({
                 hive: getComputedStyle(document.querySelector('.demo-hive')).display,
@@ -63,7 +63,7 @@ class AC2Demo(unittest.TestCase):
             self.assertEqual(st["anims"], 0, f"{lang}: animations still running with reduced motion")
             pg.context.close()
 
-    @unittest.skip("superseded by S-067: the Arabic hero is the product film, so the demo is no longer drawn in both directions")
+    @unittest.skip("superseded by S-068: the Arabic hero is the product film, so the demo is no longer drawn in both directions")
     def test_AC2_loop_runs_and_mirrors(self):
         xs = {}
         for lang in LANGS:

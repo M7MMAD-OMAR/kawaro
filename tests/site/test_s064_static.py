@@ -62,7 +62,7 @@ class AC1Structure(unittest.TestCase):
 
 class AC2HeroDemo(unittest.TestCase):
     def test_AC2_demo_markup(self):
-        # S-067: the Arabic hero is the product film; the demo window stays on the English page.
+        # S-068: the Arabic hero is the product film; the demo window stays on the English page.
         for lang in ("en",):
             t = home(lang)
             demo = t.split('<figure class="demo"', 1)[1].split("</figure>", 1)[0]
