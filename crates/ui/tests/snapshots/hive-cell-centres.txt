@@ -1,0 +1,21 @@
+# S-062 AC9: pixel centres of the 9 hive cells (doubled: min+max of the fill's box)
+# in the 393x362 hive_snapshot render, taken from the references before S-062.
+# Format: LANG 2X 2Y
+en 391 360
+en 469 226
+en 469 496
+en 547 90
+en 547 360
+en 547 630
+en 625 226
+en 625 496
+en 703 360
+ar 79 360
+ar 157 226
+ar 157 496
+ar 235 90
+ar 235 360
+ar 235 630
+ar 313 226
+ar 313 496
+ar 391 360

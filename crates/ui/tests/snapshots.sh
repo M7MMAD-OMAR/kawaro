@@ -66,6 +66,12 @@ inner() {
             "$BIN" "$out" --lang "$lang" --highlight 0 "${cmp[@]}" 2>"$trace"; then
           echo "FAIL $surface $name (actual: $out)"; fail=1
         fi
+        # S-062 AC6, AC7, AC9, AC10: opaque plate, edge band, cell centres and
+        # complete labels, read from the rendered pixels.
+        if ! python3 -I "$HERE/high_contrast.py" "$out" "$lang" "$scheme" "$ROOT/design/tokens.json" \
+            "$REF/hive-cell-centres.txt" "$ROOT/crates/ui/fonts/IBMPlexSansArabic-SemiBold.otf"; then
+          echo "FAIL S-062 $surface $name"; fail=1
+        fi
         local layer xdg
         layer=$(grep -cE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' "$trace")
         xdg=$(grep -cE -- '-> xdg_wm_base[#@][0-9]+\.get_xdg_surface\(' "$trace")
@@ -119,21 +125,13 @@ preview() {
       fi
     done
   done
-  # The older references stay as they were (AC26).
-  if ! (cd "$REF" && sha256sum --quiet -c - <<'SUMS'
-cce9553fd6e7191cae17ec0bfc05b1bebfcdc569f21a65c5b4e537f8be18762d  hive-ar-dark.png
-db234726d5056ca17949cbbc13511476857dd38497a3a915600a69583328b4a7  hive-ar-light.png
-59bb06535a0648295572e505689e3f145b1eaf29bae53ea87e53bc4fb55bda57  hive-en-dark.png
-ca1c02f8d7bbe4824a9680bc27fbe6381e31fa07f6610f50703d500decebe214  hive-en-light.png
-SUMS
-  ); then
-    echo "FAIL AC26: the four older hive references changed"; fail=1
-  fi
+  # S-062 AC9 regenerated every reference, so the AC26 checksums of the four
+  # older ones are gone; their cell positions are held by hive-cell-centres.txt.
   return $fail
 }
 
 export -f inner preview
-export BIN OUT REF UPDATE SNAP_SURFACES ROOT
+export BIN OUT REF UPDATE SNAP_SURFACES ROOT HERE
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"

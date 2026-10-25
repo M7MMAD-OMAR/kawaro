@@ -43,3 +43,5 @@ serde_json.workspace = true
 [dev-dependencies]
 # Headless Slint platform for the behaviour test; same pinned version as slint.
 i-slint-backend-testing = "=1.18.1"
+# S-062: tests/contrast.rs reads design/tokens.json (already in the tree).
+serde_json.workspace = true

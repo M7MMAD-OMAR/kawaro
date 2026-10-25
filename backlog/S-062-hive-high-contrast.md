@@ -1,5 +1,5 @@
 # S-062 Make the hive high contrast and opaque so it reads on any desktop
-Status: draft
+Status: approved
 
 ## Story
 As a user with a dark (or light) file manager open behind the hive, I want every cell, edge and label to be clearly readable, so that I never lose a cell in the background or mistake one label for another.
@@ -43,4 +43,15 @@ Contrast ratio means the WCAG 2.1 relative luminance ratio, computed from `desig
 - Contrast of the settings window and site.
 
 ## Review log
-- (empty)
+- Tester (2026-10-25). Tests written from the acceptance criteria only; all fail before implementation.
+  - `crates/ui/tests/contrast.rs` (run: `cargo test -p sbarhive-ui --test contrast`; dev-dependency `serde_json` added to `crates/ui/Cargo.toml`, already in the tree). 11 tests, 11 failed:
+    - AC1: `color.light.hive-plate is missing` (all five colour tokens absent); `border-width.hex` is None, want Some(2); generated `tokens.slint` check stops on the same missing token.
+    - AC2, AC3, AC4: `color.<scheme>.hex-ink / hive-edge is missing`.
+    - AC5: `light: accent-ink #3A2500 vs accent #D9921A is 5.59:1, want >= 7:1`. Dark is 8.38:1. This is a real defect in today's tokens: the implementer must darken the light `accent-ink` (for example #1F1200 gives 7.06:1, #140C00 gives 7.46:1) or change `accent`.
+    - AC6: `hive.slint still sets background: transparent` (left: 1, right: 0).
+    - AC7: `hex-cell.slint still uses surface-` (2 hits).
+    - AC8: lint and long dash tests are tied to the new look (they need `Tokens.hive-plate` in `hive.slint`), because `scripts/design-lint.sh` alone already passes today.
+  - `crates/ui/tests/high_contrast.py`, called from `crates/ui/tests/snapshots.sh` for the four main references (AC6 gap midpoints and plate corners exactly `hive-plate` and opaque, AC7 highlighted edge band of `border-width.hex` px, AC9 cell centres equal `crates/ui/tests/snapshots/hive-cell-centres.txt` (taken from the pre-S-062 references, 9 cells per language), AC10 text width inside the cell and equal to the font's width for the English codes WEBP, PNG, JPG, RESIZE, ROTATE, GRAY, PDF, STRIP). Run (window surface): `SNAP_SURFACES=window crates/ui/tests/snapshots.sh`. Result: all four variants `FAIL ... tokens missing in color.<scheme>: hive-plate, hive-edge, hex-fill, hex-fill-centre, hex-ink`. Calibrated against the old render: with the old colours mapped onto the new names, AC9 and AC10 pass and AC6 fails (the 103472 of 142266 pixels are transparent, gaps are 0,0,0,0), which is the transparent window.
+  - The AC26 checksums of the four older references were removed from `snapshots.sh`: AC9 regenerates them, and the cell centre file holds their layout instead. Regenerate every reference with `snapshots.sh --update` (all eight, including thumb, icon and stack).
+  - `crates/ui/tests/hive_p95.sh` (AC11): refuses to run without `Tokens.hive-plate` in `hive.slint` (`FAIL AC11: hive.slint has no plate`), then runs `measure.sh 20 0` and asserts the p95 of warm `first_frame_ms` < 150.
+  - The suggested dark/light values in AC1 need these tunings before they pass: see the AC5 note. Other suggestion that passes all pure ratios: dark plate #1E1B16, edge #B3AA99, fill #0B0A08, centre fill #15130F, ink #F2ECE0; light plate #DFD3BB, edge #5C5446, fill #FFFFFF, centre fill #FAF7F0, ink #1F1A12.
