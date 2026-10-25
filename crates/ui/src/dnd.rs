@@ -5,6 +5,10 @@
 use crate::layout::Plan;
 use std::time::{Duration, Instant};
 
+// The Explorer drop glue (S-047).
+#[cfg(windows)]
+pub mod windows;
+
 /// How long a drop hive waits for the drag to enter it before closing; on
 /// the layer path, the cap of a hidden catcher that gets no event (S-021).
 pub const ENTER_TIMEOUT: Duration = Duration::from_secs(10);

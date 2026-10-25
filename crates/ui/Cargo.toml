@@ -45,3 +45,8 @@ serde_json.workspace = true
 i-slint-backend-testing = "=1.18.1"
 # S-062: tests/contrast.rs reads design/tokens.json (already in the tree).
 serde_json.workspace = true
+# S-047 AC5: the drop runs a real image action through the existing runner
+# and checks the original's SHA-256. All three are already in the tree.
+kawaro-engines.workspace = true
+sha2.workspace = true
+tempfile.workspace = true

@@ -35,6 +35,15 @@ pub fn focus_log(ok: bool) -> Option<&'static str> {
     (!ok).then_some("kawarod: foreground refused")
 }
 
+/// The S-021 rule on Windows (S-047 AC6): a shortcut shows the drop hive
+/// only while the left button is held, that is during a drag.
+#[cfg(windows)]
+pub fn shortcut_drop_allowed() -> bool {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    let state = unsafe { GetAsyncKeyState(i32::from(VK_LBUTTON)) };
+    kawaro_ui::drop_hive_allowed(kawaro_ui::Source::Shortcut, state < 0)
+}
+
 /// Shows the hive for `files`. On Windows Explorer sends one file per
 /// process, so the files of requests closer than the merge window share one
 /// hive (S-046 AC8).
@@ -92,6 +101,11 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         Ok(r) => r,
         Err(e) => return error(&mut stream, format!("bad request: {e}")),
     };
+    // A drop request on Windows comes from a shortcut: no drag, no hive.
+    #[cfg(windows)]
+    if matches!(req, Request::Drop { .. }) && !shortcut_drop_allowed() {
+        return reply(&mut stream, &Response::Ok);
+    }
     // The held drop key (S-019e): the gate on the event loop decides when
     // the hive shows, so the client returns at once.
     if let Some(signal) = kawaro_core::hold::from_request(&req) {

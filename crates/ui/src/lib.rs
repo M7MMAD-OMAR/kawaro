@@ -21,6 +21,9 @@
 mod a11y;
 #[cfg_attr(not(test), allow(dead_code))]
 mod dnd;
+// The pure drop tracker (S-047); only the Windows glue drives it.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod drop_track;
 mod geometry;
 mod icons;
 #[cfg(target_os = "linux")]
@@ -49,6 +52,7 @@ mod tokens {
     include!(concat!(env!("OUT_DIR"), "/tokens.rs"));
 }
 
+pub use drop_track::{Source, drop_hive_allowed};
 pub use icons::icon_names;
 pub use kawaro_core::i18n::Lang;
 pub use settings::SettingsWindow;
@@ -211,6 +215,11 @@ impl CustomApplicationHandler for FocusWatcher {
         slint_window: Option<&slint::Window>,
         event: &winit::event::WindowEvent,
     ) -> EventResult {
+        // Drags from Explorer (S-047): winit's file hover and drop events.
+        #[cfg(windows)]
+        if is_hive_window(slint_window) {
+            dnd::windows::window_event(event);
+        }
         match event {
             winit::event::WindowEvent::Focused(f) if is_hive_window(slint_window) => {
                 // Observation hook for tests/focus: logs the hive's focus changes.
@@ -993,6 +1002,8 @@ mod anchor_tests;
 mod drop_hive_tests;
 #[cfg(test)]
 mod drop_tests;
+#[cfg(test)]
+mod drop_track_tests;
 #[cfg(test)]
 mod monitor_tests;
 #[cfg(test)]
