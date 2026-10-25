@@ -36,7 +36,7 @@
 .hive text {
   fill: var(--color-ink);
   font-family: var(--font-family);
-  font-size: var(--type-small);
+  font-size: calc(var(--type-small) * 0.7);
   font-weight: var(--font-weight-semibold);
   text-anchor: middle;
   dominant-baseline: central;

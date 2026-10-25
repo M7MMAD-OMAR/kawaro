@@ -173,7 +173,7 @@ def static_hive(lang):
         cx, cy = cell_xy(q, r, rtl)
         if i == 0:
             out.append(f'<g class="cell cell-center" style="--i:0"><path d="{hex_path(cx, cy)}"/>'
-                       f'<text x="{cx:.1f}" y="{cy:.1f}">{html.escape(kind["selection"])}</text></g>')
+                       f'<text x="{cx:.1f}" y="{cy:.1f}">{html.escape(kind["label"])}</text></g>')
             continue
         idx = i - 1
         if idx < len(kind["cells"]):
