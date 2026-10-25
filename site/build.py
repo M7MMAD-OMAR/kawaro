@@ -767,21 +767,25 @@ def support_section(lang):
     return sec(inner, cls="s-support", ident="support", labelledby="support-title")
 
 
-def scene_cell(slot, q, r, ring, label, picked=False):
+def scene_cell(q, r, ring, label, picked=False):
     pick = " data-pick" if picked else ""
+    on = f'<span class="scene-hit-label">{html.escape(label)}</span>' if picked else ""
     return (f'<div class="scene-cell" data-ring="{ring}"{pick} style="--q:{q};--r:{r};--k:{ring}">'
-            f'<span class="scene-cell-hit"></span><span class="scene-cell-label">{html.escape(label)}</span></div>')
+            f'<span class="scene-cell-hit">{on}</span><span class="scene-cell-label">{html.escape(label)}</span></div>')
 
 
 def scene_section(lang):
-    """AC6: one pinned scene. Scroll progress drives it (js/scene.js writes --p and data-state)."""
+    """AC6: one pinned scene. Scroll progress drives it (js/scene.js writes --p and data-state).
+    Ghost cells draw the empty hive from the first frame; the real cells fly in over them."""
     t = T_HOME[lang]
     image = kinds(lang)[0]
     slots = spiral(2)
-    cells = [scene_cell(0, 0, 0, 0, image["label"])]
+    ghosts = "".join(f'<i class="scene-ghost" data-ring="{1 if 0 < i <= 6 else 2 if i else 0}" '
+                     f'style="--q:{q};--r:{r}"></i>' for i, (q, r) in enumerate(slots))
+    cells = [scene_cell(0, 0, 0, image["label"])]
     for i, c in enumerate(image["cells"][:12], 1):
         q, r = slots[i]
-        cells.append(scene_cell(i, q, r, 1 if i <= 6 else 2, c["c"], picked=(i == 1)))
+        cells.append(scene_cell(q, r, 1 if i <= 6 else 2, c["c"], picked=(i == 1)))
 
     def tile(cls, ext, name, tag, extra=""):
         return (f'<li class="{cls}">{extra}<span class="scene-ext">{ext}</span>'
@@ -789,21 +793,24 @@ def scene_section(lang):
 
     files = "".join([
         tile("scene-file scene-original", "PNG", "photo.png", t["scene_kept"], '<i class="scene-sel"></i><i class="scene-cursor"></i>'),
-        tile("scene-result", "WEBP", "photo.webp", t["scene_new"]),
+        tile("scene-result", "WEBP", "photo.webp", t["scene_new"], '<i class="scene-halo"></i>'),
         tile("scene-file", "MOV", "clip.mov", ""),
-        tile("scene-file", "DOCX", "report.docx", ""),
-        tile("scene-file", "WAV", "song.wav", ""),
+        tile("scene-file scene-more", "DOCX", "report.docx", ""),
     ])
     steps = "".join(f'<li><span class="num" aria-hidden="true">{i}</span><span class="scene-step-text">{s}</span></li>'
                     for i, s in enumerate(t["scene_steps"], 1))
+    pips = "".join(f'<i class="scene-pip"><s></s><b>{i}</b></i>' for i in range(1, 6))
     inner = f'''<div class="scene-stage">
-  {section_head("scene-title", t["scene_h2"])}
+  <div class="scene-top">
+    {section_head("scene-title", t["scene_h2"])}
+    <div class="scene-progress" aria-hidden="true">{pips}</div>
+  </div>
   <div class="scene-visual" aria-hidden="true">
     <div class="scene-folder">
       <div class="scene-bar"><span class="scene-bar-name">{t["scene_folder"]}</span></div>
       <ul class="scene-files" role="list">{files}</ul>
     </div>
-    <div class="scene-hive">{"".join(cells)}</div>
+    <div class="scene-hive">{ghosts}{"".join(cells)}</div>
   </div>
   <ol class="scene-steps">{steps}</ol>
 </div>'''

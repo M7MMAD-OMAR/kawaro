@@ -289,7 +289,7 @@ class Browser:
             java_script_enabled=js,
             user_agent=user_agent,
         )
-        ctx.set_default_timeout(3000)
+        ctx.set_default_timeout(15000)
         pg = ctx.new_page()
         pg.requests = []
         pg.on("request", lambda r: pg.requests.append(r.url))
