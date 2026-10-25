@@ -89,8 +89,16 @@ fn ac1_new_colour_tokens_exist_in_both_schemes_as_rrggbb() {
 #[test]
 fn ac1_border_width_hex_is_2_and_font_size_cell_is_14() {
     let t = tokens();
-    assert_eq!(t["border-width"]["hex"].as_u64(), Some(2), "border-width.hex");
-    assert_eq!(t["font"]["size"]["cell"].as_u64(), Some(14), "font.size.cell");
+    assert_eq!(
+        t["border-width"]["hex"].as_u64(),
+        Some(2),
+        "border-width.hex"
+    );
+    assert_eq!(
+        t["font"]["size"]["cell"].as_u64(),
+        Some(14),
+        "font.size.cell"
+    );
     assert_eq!(t["font"]["weight"]["semibold"].as_u64(), Some(600));
 }
 
