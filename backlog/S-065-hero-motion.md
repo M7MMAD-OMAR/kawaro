@@ -30,3 +30,13 @@ Decision: one message, one action, one proof. The headline carries the promise (
 ## Review log
 - Frames at ten scroll positions (1440, Arabic) checked by eye: no blank or broken state.
 - Superseded: the S-061 sim browser tests (`AC7Sim`, `AC8SimAccess`).
+
+## Round 2: full responsive audit (owner: "there are problems, check everything")
+Audited 8 pages x 8 widths (320 to 1920) x 2 languages for page overflow, boxes leaving the viewport, clipped text, small targets and overlapping blocks, plus full page shots read by eye. Fixed:
+- Demo: the hive opened over the file being converted and over the result slot, with half covered letters peeking out. It now opens in the free end of the window; the other files' labels recede while it is open.
+- Formats: long family words (Documents, مستندات) ran into their codes from 1024 px up. From 1024 px the list is two shared subgrid columns; below that the codes sit under the word.
+- Docs on phones: the menu was a pile of eleven boxes and pushed the search box off screen. It is one swipeable row that brings the current page into view.
+- Releases and download pages: footer links and GitHub links were 27 to 32 px tall; now 56 px targets.
+- Troubleshooting (Arabic): the quoted English warning broke its line direction; reworded without quote marks.
+- Hero: demo step captions shortened to one line; the page title follows the new message.
+Remaining by design: inline links inside prose sentences keep text height (WCAG inline exception).

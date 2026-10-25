@@ -6,7 +6,8 @@
    with reduced motion, the window shows the end of the story: both files side by
    side and no hive. Keyframe percentages are the script:
      0-12 the cursor reaches photo.png   12-18 select and right click
-     18-28 the hive opens               30-44 the cursor travels to WEBP
+     18-28 the hive opens in the free end of the window, so it never covers
+           the file being converted or the slot where the result lands               30-44 the cursor travels to WEBP
      46 click                           52-58 the hive closes
      58-66 photo.webp lands             92-100 the scene resets */
 .demo { position: relative; margin: 0; display: grid; gap: var(--space-5); }
@@ -80,7 +81,7 @@
 .demo-hive { display: none; position: absolute; inset: 0; pointer-events: none; }
 .demo-cell {
   position: absolute;
-  inset-inline-start: calc(28cqw - 8cqw);
+  inset-inline-start: calc(74cqw - 8cqw);
   inset-block-start: calc(40cqw - 9.24cqw);
   display: grid;
   place-items: center;
@@ -88,7 +89,7 @@
   height: 18.48cqw;
   background: var(--color-ink);
   clip-path: var(--hexagon);
-  translate: calc(var(--x) * 1cqw * var(--dir)) calc(var(--y) * 1cqw);
+  translate: calc(var(--x) * -1cqw * var(--dir)) calc(var(--y) * 1cqw);
   font-size: 3.4cqw;
   font-weight: var(--font-weight-bold);
   color: var(--color-paper);
@@ -154,6 +155,9 @@
     animation-delay: calc(var(--i) * var(--duration-stagger) * 2);
   }
   .demo-cell.demo-hot { animation-name: demo-hot; }
+  /* While the hive is open the other files step back: their labels take the
+     tile colour, so no half covered letters peek out from under the cells. */
+  .demo-file:not(.demo-pick, .demo-slot) > * { animation: demo-recede var(--duration-loop) var(--ease-out) infinite both; }
   .demo-result { animation: demo-result var(--duration-loop) var(--ease-out) infinite both; }
   .demo-step { animation: demo-step-1 var(--duration-loop) var(--ease-out) infinite both; }
   .demo-step:nth-child(2) { animation-name: demo-step-2; }
@@ -167,10 +171,10 @@
   14% { scale: 0.75; }
   17% { scale: 1; }
   30% { translate: 15cqw 26cqw; }
-  44% { translate: 45cqw 40cqw; scale: 1; }
+  44% { translate: 57cqw 40cqw; scale: 1; }
   46% { scale: 0.75; }
   49% { scale: 1; }
-  54% { translate: 45cqw 40cqw; }
+  54% { translate: 57cqw 40cqw; }
   70%, 92% { translate: 88cqw 66cqw; opacity: 1; }
   100% { translate: 88cqw 66cqw; opacity: 0.001; }
 }
@@ -181,10 +185,10 @@
   14% { scale: 0.75; }
   17% { scale: 1; }
   30% { translate: 85cqw 26cqw; }
-  44% { translate: 55cqw 40cqw; scale: 1; }
+  44% { translate: 43cqw 40cqw; scale: 1; }
   46% { scale: 0.75; }
   49% { scale: 1; }
-  54% { translate: 55cqw 40cqw; }
+  54% { translate: 43cqw 40cqw; }
   70%, 92% { translate: 12cqw 66cqw; opacity: 1; }
   100% { translate: 12cqw 66cqw; opacity: 0.001; }
 }
@@ -204,6 +208,11 @@
   47% { scale: 1.14; opacity: 1; }
   52% { scale: 1.06; opacity: 1; }
   58%, 100% { scale: 0.001; opacity: 0.001; }
+}
+@keyframes demo-recede {
+  0%, 17% { color: var(--color-ink); }
+  22%, 54% { color: var(--color-surface-1); }
+  60%, 100% { color: var(--color-ink); }
 }
 @keyframes demo-result {
   0%, 56% { scale: 0.4; opacity: 0.001; }

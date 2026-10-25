@@ -56,6 +56,17 @@
   /* The hero download button follows the visitor's system once the release is
      published (data-rel): a user agent with Windows gets the MSI, Linux gets
      the DEB. Without JS, or on another system, it opens the downloads page. */
+  /* On a narrow screen the docs menu is one swipeable row: bring the current
+     page into view inside that row without moving the page itself. */
+  const cur = doc.querySelector(".docs-nav [aria-current=\"page\"]");
+  if (cur) {
+    const row = cur.closest("ul");
+    if (row.scrollWidth > row.clientWidth) {
+      const r = cur.getBoundingClientRect(), b = row.getBoundingClientRect();
+      row.scrollLeft += r.left - b.left - (b.width - r.width) / 2;
+    }
+  }
+
   const prim = doc.querySelector("a[data-os-default]");
   if (prim && prim.dataset.rel && cfg) {
     const pick = ua.includes("windows") ? ["msi", "win"] : ua.includes("linux") && !ua.includes("android") ? ["deb", "linux"] : null;

@@ -57,6 +57,11 @@ body:lang(ar) .fam-name { line-height: 1.45; }
   .fam:hover .fam-name { background: var(--color-accent); color: var(--color-accent-ink); }
   .fam:hover .fam-codes li { background: var(--color-ink); color: var(--color-paper); translate: 0 calc(var(--space-1) * -1); }
 }
-@media (min-width: 960px) {
-  .fam { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
+/* Narrow: the codes sit under the word. From 1024 px the list becomes two shared
+   columns (subgrid): every word in the first, sized by the widest word, every row
+   of codes in the second, so the codes line up and never run into a word. */
+@media (min-width: 1024px) {
+  .fams { grid-template-columns: max-content minmax(0, 1fr); column-gap: var(--space-8); }
+  .fam { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; }
+  .fam-name { justify-self: start; }
 }
