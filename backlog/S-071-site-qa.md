@@ -39,3 +39,4 @@ Read only checks: every URL in the sitemap, `llms.txt`, `llms-full.txt`, `robots
 
 ## Review log
 - 2026-10-26, builder: audit and fixes as above. `bash scripts/build-site.sh --no-search`, new `tests/site/test_s071_static.py` (AC2, AC3, AC8). Evidence screenshots in `/home/sbarah/.hermes/artifacts/qa/`.
+- 2026-10-26, builder: `tests/site/run_all.sh` in the heavy scope: test_static 35 OK (skipped 4), test_links 10 OK, test_contrast 2 (skipped 2), test_s063_static 26 OK, test_s064_static 18 OK, test_s068_static 5 OK, test_s071_static 5 OK, test_browser 20 OK, test_s064_browser 4 OK, test_s068_browser 2 OK. test_s063_browser had one failure in the full run (`forced_dark_renders_same_pixels`, Arabic, the hero film frame differs between two shots) and passed alone: 19 OK (skipped 11). Known flake caused by the playing film (S-068), not changed here.
