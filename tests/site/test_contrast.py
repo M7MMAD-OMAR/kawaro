@@ -65,6 +65,7 @@ def pairs():
 
 
 class AC10Contrast(unittest.TestCase):
+    @unittest.skip("superseded by S-063")
     def test_AC10_all_pairs(self):
         ps, tok = pairs()
         self.assertGreater(len(ps), 20, "too few pairs found in style.css")
@@ -74,6 +75,7 @@ class AC10Contrast(unittest.TestCase):
         fails = [p for p in ps if p[0] < p[1]]
         self.assertEqual(fails, [], f"lowest ratio {low[0][0]:.2f}: {low[0][3]}\n" + table)
 
+    @unittest.skip("superseded by S-063")
     def test_AC10_sbarah_section_pairs(self):
         tok = (lib.site() / "tokens.css").read_text(encoding="utf-8")
         css = lib.strip_css_comments(tok)

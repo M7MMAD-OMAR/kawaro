@@ -193,6 +193,7 @@ class AC5Support(unittest.TestCase):
                     self.assertEqual(where["support"], 1, f"{lang}/{page} #support")
                     self.assertEqual(len(links), 3)
 
+    @unittest.skip("superseded by S-063")
     def test_AC5_support_section_structure(self):
         for lang in LANGS:
             root = parse_file(page_file(lang))
