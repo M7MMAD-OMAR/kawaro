@@ -12,6 +12,8 @@ mod client;
 mod clipboard;
 mod integration;
 mod spawn;
+mod update;
+mod update_sys;
 
 use clap::{Parser, Subcommand};
 use kawaro_core::i18n::Lang;
@@ -66,18 +68,12 @@ enum Cmd {
         #[arg(long)]
         release: bool,
     },
-    /// Update Kawaro. For now only the privileged install step that
-    /// `pkexec` runs (root only); the rest of the command comes later.
+    /// Check for an update, download and verify it, and install it
+    /// (`kawaro update --help` lists the options).
+    #[command(disable_help_flag = true)]
     Update {
-        /// Install this verified package as root.
-        #[arg(long, value_name = "FILE", requires_all = ["sha256", "kind"])]
-        install_privileged: Option<PathBuf>,
-        /// The signed SHA-256 of the package, lowercase hex.
-        #[arg(long)]
-        sha256: Option<String>,
-        /// The package format.
-        #[arg(long, value_parser = parse_kind)]
-        kind: Option<PkgKind>,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
+        args: Vec<String>,
     },
     /// Convert in this process, without the daemon.
     Convert {
@@ -146,6 +142,21 @@ enum IntegrationCmd {
     },
 }
 
+/// The privileged install step that `pkexec` runs (root only), S-054a.
+#[derive(Parser)]
+#[command(name = "update", bin_name = "kawaro update")]
+struct Privileged {
+    /// Install this verified package as root.
+    #[arg(long, value_name = "FILE")]
+    install_privileged: PathBuf,
+    /// The signed SHA-256 of the package, lowercase hex.
+    #[arg(long)]
+    sha256: String,
+    /// The package format.
+    #[arg(long, value_parser = parse_kind)]
+    kind: PkgKind,
+}
+
 fn parse_kind(text: &str) -> Result<PkgKind, String> {
     PkgKind::parse(text).ok_or_else(|| "expected rpm or deb".to_string())
 }
@@ -158,13 +169,13 @@ fn main() -> ExitCode {
             IntegrationCmd::Uninstall { dry_run } => integration::uninstall(dry_run),
         };
     }
-    if let Cmd::Update {
-        install_privileged,
-        sha256,
-        kind,
-    } = cli.cmd
-    {
-        return update(install_privileged, sha256, kind);
+    if let Cmd::Update { args } = cli.cmd {
+        if args.iter().any(|a| a == "--install-privileged") {
+            let words = std::iter::once("update".to_string()).chain(args);
+            let p = Privileged::parse_from(words);
+            return update(p.install_privileged, p.sha256, p.kind);
+        }
+        return update_sys::run(&args);
     }
     let result = match cli.cmd {
         Cmd::Open {
@@ -207,11 +218,7 @@ fn main() -> ExitCode {
 
 /// `update --install-privileged`: refuses unless root (exit 77, before the
 /// file is looked at), then installs the copy of the package.
-fn update(file: Option<PathBuf>, sha256: Option<String>, kind: Option<PkgKind>) -> ExitCode {
-    let (Some(file), Some(sha256), Some(kind)) = (file, sha256, kind) else {
-        eprintln!("kawaro: update: only --install-privileged is available so far");
-        return ExitCode::FAILURE;
-    };
+fn update(file: PathBuf, sha256: String, kind: PkgKind) -> ExitCode {
     #[cfg(unix)]
     {
         use kawaro_core::update::apply::{Programs, effective_uid, install_privileged, root_gate};

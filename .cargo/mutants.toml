@@ -55,8 +55,13 @@
 # the thread glue (start, run) in update.rs; the live check is S-052 and
 # tests/e2e/run.sh. The rules (tick, check_now, request_apply, tick_due,
 # apply_waiting) stay mutated in update.rs.
+# The CLI update command's system side (S-054c): it probes /usr/bin and the
+# /etc repository folders, finds the system curl and runs pkexec; the live
+# check is S-052 and tests/s054c_update_bin.rs runs it for --status. The
+# command itself stays mutated in crates/cli/src/update.rs.
 exclude_globs = [
   "crates/daemon/src/update_sys.rs",
+  "crates/cli/src/update_sys.rs",
   "crates/cli/src/integration/windows.rs",
   "crates/ui/src/win_window.rs",
   "crates/daemon/src/shell_open.rs",
