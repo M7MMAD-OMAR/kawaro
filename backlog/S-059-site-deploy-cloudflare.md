@@ -47,6 +47,17 @@ Only the owner can do these; the repository work above does not need them to pas
 
 ## Review log
 - 2026-10-25, planner: written from ADR 0007. Notes for the manager: (a) the brief asked for status "approved (manager, by delegation, 2026-10-25)"; the planner role says draft, so this needs the manager's explicit approval. (b) Workers Builds cannot wait for GitHub CI, and CI is red until S-058; the build command's own checks stand in for the gate. (c) The Workers Builds token, Python version and `.well-known` upload are unverified until the first deploy.
+- 2026-10-26, tester: tests written from the criteria as amended by D1 to D4: `tests/site/test_s059_deploy.py` (one test per row, AC1 to AC9) and `tests/site/test_s059_browser.py` (AC3 headless search and CSP), run by `tests/site/run_s059_heavy.sh` (systemd-run scope; the upload set is staged by `scripts/prepare-site-deploy.sh` in a temp repo copy, planted files go into temp copies of `.deploy-out`). Result: `test_s059_deploy.py` Ran 9 tests, FAILED (failures=9); `test_s059_browser.py` Ran 1 test, OK. Real failure lines:
+  - AC1: `workers_dev=True (want false)`; `checker with planted main: exit 127, want 1: not found: [Errno 2] No such file or directory: '.../ac1-main/scripts/site/check-deploy.sh'`
+  - AC2 (14 problems): `/* header names [...]` without X-Frame-Options; `X-Frame-Options=None`; `Permissions-Policy='accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()'`; `Strict-Transport-Security='max-age=86400'`; `CSP style-src=["'self'", "'unsafe-inline'"] want ["'self'"]`; `CSP style-src-attr=None`; `CSP img-src=["'self'", 'data:']`; `CSP worker-src=None`; `CSP object-src=None`; `CSP upgrade-insecure-requests=None`; `CSP forbidden source data:`; `immutable on []`; `/fonts/* cache-control []`
+  - AC3 (64 problems): `style='--q:0;--r:0' in en/index.html`, `style='--q:0;--r:0;--k:0' in en/index.html` and the same on every hive cell; the AC regex `^--[a-z-]+:-?[0-9.]+;?$` allows one custom property per `style=`, so the cells must carry one property each or the manager must widen the regex.
+  - AC4: `no site/.assetsignore`; `no .deploy-out/.assetsignore`; `scripts/site/check-deploy.sh does not exist`
+  - AC5: `Preferred-Languages='ar, en'`; `Policy=None`; `Expires 365 days after build date`
+  - AC6: `no .github/workflows/site-check.yml`
+  - AC7: `no .github/CODEOWNERS`; `no .github/dependabot.yml`
+  - AC8: `missing docs: ['site-security.md', 'site-security.ar.md']`
+  - AC9: `CHANGELOG: 0 added S-059 lines with English and Arabic, want 1`
+  - Not failing before implementation: the AC3 headless test passes on the current staged folder (search `تثبيت` on `/docs/start/` and `install` on `/en/docs/install/` both find results, 0 CSP violations), because `prepare-site-deploy.sh` and `site-headers.py` already exist. It stays as a guard: the implementer's stricter CSP (no `style-src 'unsafe-inline'`, no `data:`, `upgrade-insecure-requests`) must keep it green. Each query runs on the page of its own language because Pagefind searches the index of the page language; an Arabic query on an English page returns 0 by design. The test server is local HTTPS (self signed) that applies the staged `_headers` rules (D3), so `upgrade-insecure-requests` cannot break it.
 
 ## Manager note (2026-10-25)
 
