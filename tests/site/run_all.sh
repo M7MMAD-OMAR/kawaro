@@ -9,7 +9,7 @@ export S061_TMP="$(mktemp -d)"
 trap 'rm -rf "$S061_TMP"' EXIT
 cd "$S061_TMP"
 rc=0
-for t in test_static.py test_links.py test_contrast.py test_s063_static.py test_s064_static.py test_s068_static.py; do
+for t in test_static.py test_links.py test_contrast.py test_s063_static.py test_s064_static.py test_s068_static.py test_s071_static.py; do
   echo "=== $t"; python3 -I "$HERE/$t" || rc=1
 done
 echo "=== test_browser.py"; python3 "$HERE/test_browser.py" || rc=1

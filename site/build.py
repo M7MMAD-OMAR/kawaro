@@ -1194,10 +1194,10 @@ def docs_page(lang, slug):
         fn = f"{slug}.ar.md" if ar else f"{slug}.md"
         edit = (f'<p class="edit"><a href="{EDIT_BASE}{fn}">{"عدّل هذه الصفحة على GitHub" if ar else "Edit this page on GitHub"}</a> · '
                 f'<a href="{REPO}/issues">{"بلّغ عن مشكلة" if ar else "Report an issue"}</a> · '
-                f'<a href="{slug}.md">Markdown</a></p>')
+                f'<a href="../{slug}.md">Markdown</a></p>')
     else:
         edit = (f'<p class="edit"><a href="{REPO}/tree/main/actions">{"ملفات الإجراءات على GitHub" if ar else "Action files on GitHub"}</a> · '
-                f'<a href="{slug}.md">Markdown</a></p>')
+                f'<a href="../{slug}.md">Markdown</a></p>')
     inner = (f'<div class="docs-layout"><aside>{search_box(lang, root)}{docs_nav(lang, page, slug)}</aside>'
              f'<article class="prose" data-pagefind-body data-pagefind-meta="title:{html.escape(title)}">{body}{edit}</article></div>')
     html_out = (head(lang, page, root, full_title, desc, ld) + header(lang, page, root)
@@ -1362,6 +1362,7 @@ def build_extras():
         (r / "index.html").write_text(releases_page(lang), encoding="utf-8")
         (r / "feed.xml").write_text(feed_xml(lang), encoding="utf-8")
         (base / "releases.md").write_text(releases_md(lang), encoding="utf-8")
+    (HERE / "404.html").write_text(not_found(), encoding="utf-8")
     (HERE / "sitemap.xml").write_text(sitemap(), encoding="utf-8")
     (HERE / "robots.txt").write_text(ROBOTS, encoding="utf-8")
     llms, full = llms_files(sources)
@@ -1376,6 +1377,28 @@ def build_extras():
     for f in (ROOT / "docs" / "assets").glob("support-sbarah-*.svg"):
         shutil.copy(f, HERE / "assets" / f.name)
     print("wrote docs, releases, feeds, sitemap, robots, llms files")
+
+
+def not_found():
+    """404.html: the page Cloudflare serves for any unknown path (wrangler not_found_handling 404-page).
+    It is served at any depth, so every URL is made root absolute."""
+    def absolutize(s):
+        return re.sub(r'(href|src)="(?!https?:|#|/|mailto:)([^"]*)"',
+                      lambda m: f'{m.group(1)}="/{m.group(2).lstrip("./") if m.group(2) not in ("./", ".") else ""}"', s)
+    p = AR
+    out = head("ar", "download", "/", title="الصفحة غير موجودة | كوارو",
+               desc="الصفحة التي طلبتها غير موجودة. Page not found.")
+    out = re.sub(r'<link rel="(canonical|alternate)"[^>]*>\n', "", out)
+    out = out.replace('<meta name="color-scheme"', '<meta name="robots" content="noindex">\n<meta name="color-scheme"', 1)
+    out = out.replace('<meta property="og:url" content="https://kawaro.sbarah.com/download/">\n', "")
+    body = ('<section class="page-head sec"><div class="wrap">'
+            '<h1>الصفحة غير موجودة</h1>'
+            '<p class="lead">لم نجد هذه الصفحة. ربما تغير الرابط.</p>'
+            f'<p>{hex_button("/", "الصفحة الرئيسية", "primary")} '
+            f'{hex_button("/en/", "Home (English)", "plain", attrs=' lang="en"')}</p>'
+            '<p lang="en" dir="ltr">Page not found. The link may have changed.</p>'
+            '</div></section>\n')
+    return (out + absolutize(header("ar", "index", "")) + body + absolutize(footer("ar", "index", "")))
 
 
 def check_release_tag():

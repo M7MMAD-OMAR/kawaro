@@ -25,3 +25,5 @@ site/pagefind/
 
 # local signing key and passphrase, never committed
 /.secrets/
+__pycache__/
+*.pyc
