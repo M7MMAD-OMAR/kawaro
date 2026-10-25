@@ -158,6 +158,8 @@ unsafe extern "system" fn window_proc(
     match msg {
         WM_REFRESH => notify_icon(hwnd, NIM_MODIFY),
         tray::WM_TRAY if lparam as u32 == WM_RBUTTONUP => show_menu(hwnd),
+        // The S-021 rule (S-047 AC6): the shortcut shows no hive without a drag.
+        WM_HOTKEY if !crate::server::shortcut_drop_allowed() => {}
         WM_HOTKEY => {
             // The same as `kawaro drop --hold`: the long press gate shows
             // the hive after hold_ms; the release comes from the poll below.

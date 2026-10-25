@@ -59,7 +59,11 @@
 # /etc repository folders, finds the system curl and runs pkexec; the live
 # check is S-052 and tests/s054c_update_bin.rs runs it for --status. The
 # command itself stays mutated in crates/cli/src/update.rs.
+# The Explorer drop glue (S-047): the cursor poll timer, GetCursorPos and the
+# winit drag events build for Windows only; the live check is S-052. The
+# tracker and the S-021 rule stay mutated in drop_track.rs.
 exclude_globs = [
+  "crates/ui/src/dnd/windows.rs",
   "crates/daemon/src/update_sys.rs",
   "crates/cli/src/update_sys.rs",
   "crates/cli/src/integration/windows.rs",
@@ -87,6 +91,14 @@ exclude_globs = [
   "crates/daemon/src/tray/linux.rs",
 ]
 exclude_re = [
+  # The Windows shortcut drop gate (S-047, manager decision): the function and
+  # the one refusal line in handle are cfg(windows), so a Linux run never
+  # compiles them and every mutant there is reported missed. The rule itself
+  # (drop_hive_allowed) stays mutated in crates/ui/src/drop_track.rs; the live
+  # check is S-052.
+  "crates/daemon/src/server.rs:.*replace shortcut_drop_allowed -> bool with",
+  "crates/daemon/src/server.rs:.*in shortcut_drop_allowed$",
+  "crates/daemon/src/server.rs:106:.*in handle$",
   # The production notification wrappers (S-054b) talk to the desktop, which
   # no test may reach (KAWARO_NO_NOTIFY); their rules stay mutated in
   # notify_update_with and report_update_result_with.
