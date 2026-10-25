@@ -91,3 +91,7 @@ h3 + pre { margin-block-start: var(--space-2); }
   .dl-grid { grid-template-columns: 1fr 1fr; }
   .format-grid { grid-template-columns: repeat(6, 1fr); }
 }
+@media (max-width: 719px) {
+  .privacy-map .zone-label { font-size: calc(var(--type-lead) * 1.6); }
+  .privacy-map .zone-label.strong { font-size: calc(var(--type-lead) * 1.2); }
+}

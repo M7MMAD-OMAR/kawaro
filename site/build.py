@@ -459,10 +459,12 @@ ART = {
 
 
 def art(lang, name, lazy=True):
-    """Generated flat art (AC9): WebP in assets/, with width and height and a language matched alt."""
+    """Generated flat art (AC9): WebP in assets/, with width and height and a language matched alt.
+    Below the fold images are small (under 12 KB) and load eagerly: the S-061 zero request after load test
+    forbids a lazy fetch that fires while the demo scrolls."""
     w, h, alt_ar, alt_en = ART[name]
     alt = alt_ar if lang == "ar" else alt_en
-    load = 'loading="lazy" decoding="async"' if lazy else 'fetchpriority="high"'
+    load = 'decoding="async"' if lazy else 'fetchpriority="high"'
     return (f'<img class="art art-{name}" src="{rel_root(lang, "index")}assets/art-{name}.webp" '
             f'width="{w}" height="{h}" alt="{alt}" {load}>')
 

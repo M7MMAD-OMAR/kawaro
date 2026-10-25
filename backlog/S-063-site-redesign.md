@@ -1,5 +1,5 @@
 # S-063 Website redesign: light only, sharp hex language, big type, scroll driven demo
-Status: planned
+Status: review
 
 Not a Rust change. Files: `site/build.py`, `site/style.css` (split into `site/css/`), `site/app.js` (split into `site/js/`), `design/tokens.json` (new `site` block only), `scripts/tokens-to-css.py`, tests under `tests/site/`. Supersedes the parts of S-061 and S-062 that fix dark mode, rounded surfaces and the boxed drop demo (S-061 AC7 and AC8 are replaced by AC6 and AC7 here). Sections ship one at a time; nothing half redesigned is pushed to `main`, because the site deploys from `main`.
 
@@ -137,3 +137,10 @@ AssertionError: 0 != 1 : scene missing
 FAIL: test_AC8_reduced_motion_zero_durations_in_scene (__main__.AC8Feedback.test_AC8_reduced_motion_zero_durations_in_scene)
 AssertionError: 0 not greater than 5 : scene missing
 ```
+
+### Implementer, phase B (2026-10-25)
+
+- Art (AC9): `openai/gpt-image-2.5/flare/text-to-image` through fal, 3 generations (budget was 8), cost not reported by the tool. Hero art, privacy art and formats art are stored as `site/assets/art-*.webp` (10 KB, 9 KB, 9 KB), alt text per language, width and height set. Below the fold images load eagerly because the old S-061 test `test_AC7_zero_network_requests_after_load` fails on a lazy fetch that fires during the demo.
+- The hero hive SVG was replaced by the hero art; the scene shows the hive.
+- Fixes: section head h2 inherited a big top margin (the mark was its first sibling), privacy map labels moved out of the shapes, format cells no longer share edges, hover fills on plates, step cells, format cells, cards and slabs, inner pages use hex plates, step cells and cut corner cards.
+- Results: `run_s063_heavy.sh` 26 static and 19 browser tests green; old suites green (test_static, test_links, test_browser; contrast skipped as superseded); `cargo test -p sbarhive-ui` green; `cargo fmt --check` clean; `design-lint.sh` clean. One browser test errored once on a page load timeout under machine load and passed on rerun.
