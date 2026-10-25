@@ -1,5 +1,5 @@
 # S-063 Website redesign: light only, sharp hex language, big type, scroll driven demo
-Status: review
+Status: done
 
 Not a Rust change. Files: `site/build.py`, `site/style.css` (split into `site/css/`), `site/app.js` (split into `site/js/`), `design/tokens.json` (new `site` block only), `scripts/tokens-to-css.py`, tests under `tests/site/`. Supersedes the parts of S-061 and S-062 that fix dark mode, rounded surfaces and the boxed drop demo (S-061 AC7 and AC8 are replaced by AC6 and AC7 here). Sections ship one at a time; nothing half redesigned is pushed to `main`, because the site deploys from `main`.
 
@@ -190,3 +190,9 @@ Open defects:
 - ar releases: the link line is a list of separate items; the footer GPLv3 fragment is isolated with bdi.
 - art-formats.webp: the fal output was wobbly, so it is now drawn by us (straight polygons, rendered to a lossless transparent WebP, 5 KB) instead of spending more generation calls.
 - Gates: S-063 static 26 and browser 19 green, run_heavy green, design-lint clean, fmt clean, two builds identical.
+
+### Reviewer 3, fresh context (2026-10-25): PASS
+
+Gates: S-063 heavy run green (19 browser tests), `run_heavy.sh` green on rerun (one `Page.goto` timeout on `/en/` in the first run while the machine was loaded, not repeated), design-lint clean, fmt clean, two `build-site.sh --no-search` builds identical, no long dashes in the diff outside vendored pagefind, no .pyc in the new commits (the tracked `lib.cpython-314.pyc` from S-061 is only rewritten by test runs; restored).
+Blockers verified with own screenshots: (1) #sim at 375 in en and ar after picking photo.png: ring one cells PDF, AVIF, GIF, JPG, WEBP, PNG whole, centre label breaks at the space only; (2) #scene with reduced motion and with JS off at 1280 (en, ar): picked WEBP cell amber with ink text, readable.
+Polish: scene at 375 step 5, the "photo.webp" name is clipped by the tile edge and the tile touches the MOV tile; step 4 picked cell overlaps ring cells slightly; scene hive labels at 375 are small in step 3 flight. Formats art is crisp. ar releases footer at 375 reads fine. CHANGELOG already carries the S-063 line.
