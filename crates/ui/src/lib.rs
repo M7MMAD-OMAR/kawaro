@@ -1007,4 +1007,6 @@ mod drop_track_tests;
 #[cfg(test)]
 mod monitor_tests;
 #[cfg(test)]
+mod s067_drop_track_tests;
+#[cfg(test)]
 mod ui_tests;
