@@ -179,7 +179,7 @@ class AC5Components(unittest.TestCase):
     def test_AC5_helpers_exist(self):
         src = (built() / "site/build.py").read_text(encoding="utf-8")
         for h in HELPERS:
-            self.assertRegex(src, rf"^def {h}\(", f"build.py needs def {h}(")
+            self.assertRegex(src, rf"(?m)^def {h}\(", f"build.py needs def {h}(")
 
     def test_AC5_component_css_files_exist_and_are_own(self):
         d = site() / "css/components"
