@@ -7,7 +7,7 @@ As the maintainer, I want Kawaro to build and test on macOS through a GitHub-hos
 ## Acceptance criteria
 - AC1: `.github/workflows/macos.yml` has exactly one job, on `runs-on: macos-14` (Apple silicon).
 - AC2: It triggers on push to `story/**`, on `workflow_dispatch` and on a weekly `schedule` (one five-field cron entry). It does not trigger on `pull_request` or on pushes to main.
-- AC3: It runs `cargo check --workspace --all-targets` and `cargo test --workspace --no-fail-fast`, each with `continue-on-error: true`, so the job never blocks main.
+- AC3: It runs `cargo check --workspace --all-targets --keep-going` (so one failing crate does not hide errors in the others) and `cargo test --workspace --no-fail-fast`, each with `continue-on-error: true`, so the job never blocks main.
 - AC4: Each cargo step tees its output to a file under `logs/`, and the files are uploaded with `actions/upload-artifact@v7` even when a step failed.
 - AC5: The job writes a table with the outcome of both steps to `$GITHUB_STEP_SUMMARY`.
 - AC6: Permissions are `contents: read` only and the file contains no `secrets.` reference.

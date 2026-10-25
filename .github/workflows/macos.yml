@@ -27,7 +27,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          cargo check --workspace --all-targets 2>&1 | tee logs/check.log
+          cargo check --workspace --all-targets --keep-going 2>&1 | tee logs/check.log
       - name: cargo test
         id: test
         continue-on-error: true
