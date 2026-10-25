@@ -329,13 +329,34 @@ fn lock() -> MutexGuard<'static, ()> {
 fn script(dir: &Path, argv: &Path, body: &str) -> PathBuf {
     let path = dir.join("curl");
     let text = format!(
-        "#!/bin/sh\nprintf '%s\\n' \"$@\" > '{}'\nout=\"\"; prev=\"\"\n\
+        "#!/bin/sh\n[ -n \"$FAKE_EXEC_PROBE\" ] && exit 0\nprintf '%s\\n' \"$@\" > '{}'\nout=\"\"; prev=\"\"\n\
          for a in \"$@\"; do if [ \"$prev\" = \"--output\" ]; then out=\"$a\"; fi; prev=\"$a\"; done\n{body}\n",
         argv.display()
     );
     fs::write(&path, text).unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+    wait_until_executable(&path);
     path
+}
+
+/// Waits until a freshly written fake program can be executed. A fork in
+/// another test thread can briefly inherit the write descriptor, and exec then
+/// fails with ETXTBSY ("Text file busy"), which the code under test reports as
+/// a missing program. The probe run exits at once (`FAKE_EXEC_PROBE`).
+fn wait_until_executable(path: &Path) {
+    const ETXTBSY: i32 = 26;
+    for _ in 0..400 {
+        match std::process::Command::new(path)
+            .env("FAKE_EXEC_PROBE", "1")
+            .status()
+        {
+            Err(e) if e.raw_os_error() == Some(ETXTBSY) => {
+                std::thread::sleep(std::time::Duration::from_millis(5))
+            }
+            _ => return,
+        }
+    }
+    panic!("{} stayed busy", path.display());
 }
 
 const PKG_URL: &str =
