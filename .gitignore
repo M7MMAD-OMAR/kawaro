@@ -19,3 +19,4 @@ crates/core/*.deb
 crates/core/*.pkg
 site/pagefind/
 .wrangler/
+.deploy-out/

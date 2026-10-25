@@ -27,7 +27,7 @@ csp = "; ".join([
 ])
 (out / "_headers").write_text(f"""/*
   Content-Security-Policy: {csp}
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Strict-Transport-Security: max-age=86400
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()
