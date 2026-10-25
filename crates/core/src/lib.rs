@@ -5,6 +5,7 @@
 
 pub mod action;
 mod action_impl;
+pub mod appid;
 pub mod config;
 pub mod engine;
 pub mod hold;

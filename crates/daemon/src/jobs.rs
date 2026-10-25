@@ -1,10 +1,12 @@
 //! Job bookkeeping: submission and the event pump that feeds clients, the
 //! tray and the end-of-job notification.
 
+use crate::notify_logic::open_folder_command;
 use crate::state::{JobInfo, Shared, State, lock};
 use crate::{notify, tray};
 use kawaro_core::ActionDef;
 use kawaro_core::ipc::Event;
+use kawaro_core::paths::CURRENT;
 use kawaro_core::queue::{JobEvent, JobId, Queue};
 use std::path::PathBuf;
 use std::sync::mpsc::Receiver;
@@ -72,7 +74,9 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
                     .as_deref()
                     .and_then(std::path::Path::parent)
             {
-                let _ = std::process::Command::new("xdg-open").arg(dir).spawn();
+                let file = info.first_output.as_deref();
+                let (program, args) = open_folder_command(CURRENT, dir, file);
+                let _ = std::process::Command::new(program).args(args).spawn();
             }
         }
         let active: Vec<(String, f32)> = st

@@ -110,6 +110,12 @@ exclude_re = [
   "crates/daemon/src/notify.rs:.*replace send -> ",
   "crates/daemon/src/notify.rs:.*replace finished with",
   "crates/daemon/src/notify.rs:.*replace (notify_update|report_update_result) with",
+  # The notification builder (S-049) and the Open folder click in finished
+  # reach only the desktop, which a test build never calls; the command they
+  # spawn is the pure open_folder_command, mutated in notify_logic.rs. The
+  # Windows app id line is covered by scripts/windows/check.sh and S-052.
+  "crates/daemon/src/notify.rs:.*replace notification -> Notification with",
+  "crates/daemon/src/notify.rs:.*replace == with != in finished$",
   # The accessor of the one static holder (S-054b rework 1); the holder itself
   # is mutated through its own methods.
   "crates/daemon/src/progress.rs:.*replace shared -> ",
