@@ -144,3 +144,26 @@ AssertionError: 0 not greater than 5 : scene missing
 - The hero hive SVG was replaced by the hero art; the scene shows the hive.
 - Fixes: section head h2 inherited a big top margin (the mark was its first sibling), privacy map labels moved out of the shapes, format cells no longer share edges, hover fills on plates, step cells, format cells, cards and slabs, inner pages use hex plates, step cells and cut corner cards.
 - Results: `run_s063_heavy.sh` 26 static and 19 browser tests green; old suites green (test_static, test_links, test_browser; contrast skipped as superseded); `cargo test -p sbarhive-ui` green; `cargo fmt --check` clean; `design-lint.sh` clean. One browser test errored once on a page load timeout under machine load and passed on rerun.
+
+### Reviewer, fresh context (2026-10-25): REWORK
+
+Gates: fmt clean, design-lint clean, `cargo test -p sbarhive-ui` green, static suites green (S-063 26, S-061 35 + links 10), build reproducible (`diff -r` after two `build-site.sh --no-search` runs, tree clean), no long dashes in the diff (only vendored pagefind), no inline handlers, style attrs only `--name:number`. Browser suites: 1 test errored in each run with `Page.goto` 3000 ms timeout on `/en/` while the machine load was about 6; in the second run 5 old `test_browser.py` AC7Sim tests timed out the same way. Page load measured by hand is 0.3 to 0.6 s, so this is load flakiness, but the 3 s timeout in `tests/site/lib.py` is too tight and should be raised. No blank viewport at any 100 px step (1280 and 375, ar and en).
+
+Visual defects, ranked:
+1. Scene (site/css/scene.css, `.scene-stage`): at 1280 the folder fills only the left 45 percent, the hive is tiny (cell labels about 10 px) and the lower third and right half of the pinned 100vh stage are empty. At 375 the hive overlaps the folder and labels break mid word (RESIZ/E, SHRIN/K, ROTAT/E). Not "big components". The scene is one pinned section, not a simulation across the whole page.
+2. Hero art (site/assets/art-hero.webp): a flat, fuzzy raster of hexagons in a cut corner box, no relation to the file-conversion idea, weak against the 72 px heading. Hero en 1280: the amber highlight on "right" overlaps the descenders of "file with a". The hero subtitle wraps to three short lines.
+3. Privacy art (art-privacy.webp) has rounded corners (monitor, files, lock), against "always sharp corners". The old `support-sbarah-light.svg` card has rounded corners and a pink circle; `support-sbarah-dark.svg` is still tracked and unused.
+4. "Try it here" (`#sim`) is still the small dotted box with tiny chips and tiny text, the weakest block on the page.
+5. Formats section: hexagon rows overlap the heading area at some scroll positions and the lower hex row is clipped in the screenshots; the art strip above it repeats the same message.
+6. ar releases: English changelog lines inside RTL lists show misordered punctuation (content, not new).
+
+### Implementer, rework after the first REWORK (2026-10-25)
+
+- Scene: full viewport stage. At 1280 by 800 the folder (two by two tiles, names 20 px and up) sits on the inline start, the 19 cell hive (cell labels 21 px, about 66 percent of the viewport height) beside it, a huge caption per state at the bottom and five progress hexagons next to the heading. Cells fly out of the original file ring by ring, the picked cell inverts to ink, the result slides out of the cell and lands next to the original on an amber tile with a halo. Under 960 the layout stacks (folder on top, hive below); under 600 only ring one shows so every label is a whole word. Only transform and opacity change; one rAF loop unchanged.
+- Hero: the raster art is gone (art-hero.webp deleted). The hero picture is inline SVG drawn in build.py (`hero_art`): a honeycomb where an ink PNG cell turns into an amber WebP cell across a chevron, beside other format cells. The highlight is now inline-block with its own line height, so it no longer covers the line above; the subtitle wraps to two lines.
+- Art: art-privacy.webp and art-formats.webp regenerated with fal (two generations, sharp angular geometry only, checked by eye: no rounded corner). The formats art now shows a page shape turning into a hexagon, so it no longer repeats the heading. Alt text updated in both languages.
+- Try it: large block, 2 column sample tiles (text 20 px), big drop zone placed above the samples (so a drag stays inside one viewport), hexagon idle state, hive cells 115 px at 1280, filled result rows.
+- Formats: art limited in width, more room above and below the hexagon rows, the PDF cell no longer repeats "PDF".
+- ar releases: an English only changelog line is its own `dir="ltr"` item.
+- Left as is: `support-sbarah-dark.svg` (an old test needs the file; unused on the page) and the rounded owner badge `support-sbarah-light.svg` (the owner's own artwork).
+- Test change: `tests/site/lib.py` page timeout 3000 to 15000 ms (load flakiness only).
