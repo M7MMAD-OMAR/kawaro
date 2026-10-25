@@ -37,10 +37,8 @@ DIRECTIONS = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
 
 PAGES = ["index", "download", "windows", "privacy"]
 
-# The tab icon is inlined: a browser fetches a linked icon after the page has
-# loaded, and the try-it demo promises no network request after load.
-FAVICON = "data:image/svg+xml," + urllib.parse.quote(
-    (HERE / "favicon.svg").read_text(encoding="utf-8").strip(), safe="/:=,;'()")
+# The tab icon is a same origin file: the CSP has no data: source (S-059).
+FAVICON = "/favicon.svg"
 
 
 def spiral(rings):

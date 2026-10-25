@@ -1,0 +1,20 @@
+# Second layer after scripts/site/check-deploy.sh (ADR 0007 section 6).
+# Never list *.md (the Markdown twins) or .* (that would drop .well-known/).
+build.py
+*.py
+*.sh
+*.map
+*.toml
+*.lock
+*.log
+*.bak
+*.orig
+*.swp
+.env*
+*.key
+*.pem
+.git*
+.nojekyll
+node_modules/
+backlog/
+__pycache__/

@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""Writes _headers and .well-known/security.txt into a publish folder.
+"""Writes _headers and .well-known/security.txt into a publish folder (S-059).
 
 Usage: site-headers.py OUT_DIR
-The CSP allows only same origin files plus the one inline script, pinned by hash.
+The values follow ADR 0007 section 7. The CSP allows only same origin files
+plus the one inline script, pinned by its hash. security.txt expires 180 days
+after the build date, so a stale deploy shows.
 """
-import base64, hashlib, pathlib, re, sys
+import base64
+import datetime
+import hashlib
+import pathlib
+import re
+import sys
 
 out = pathlib.Path(sys.argv[1])
 hashes = set()
@@ -16,28 +23,53 @@ for f in out.rglob("*.html"):
 csp = "; ".join([
     "default-src 'none'",
     "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(hashes)),
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data:",
+    "style-src 'self'",
+    "style-src-attr 'unsafe-inline'",
+    "img-src 'self'",
     "font-src 'self'",
     "connect-src 'self'",
+    "worker-src 'self'",
     "manifest-src 'self'",
+    "object-src 'none'",
     "base-uri 'none'",
     "form-action 'self'",
     "frame-ancestors 'none'",
+    "upgrade-insecure-requests",
 ])
+permissions = ", ".join(f"{p}=()" for p in (
+    "accelerometer", "autoplay", "browsing-topics", "camera", "clipboard-read",
+    "display-capture", "geolocation", "gyroscope", "magnetometer", "microphone",
+    "midi", "payment", "usb",
+))
+immutable = "public, max-age=31536000, immutable"
 (out / "_headers").write_text(f"""/*
   Content-Security-Policy: {csp}
-  Strict-Transport-Security: max-age=86400
+  Strict-Transport-Security: max-age=86400; includeSubDomains
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
-  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), microphone=(), payment=(), usb=()
+  Permissions-Policy: {permissions}
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
+  X-Frame-Options: DENY
+
+/fonts/*
+  Cache-Control: public, max-age=2592000
+
+/pagefind/fragment/*
+  Cache-Control: {immutable}
+
+/pagefind/index/*
+  Cache-Control: {immutable}
+
+/pagefind/*.pf_meta
+  Cache-Control: {immutable}
 """, encoding="utf-8")
+expires = datetime.datetime.now(datetime.timezone.utc).date() + datetime.timedelta(days=180)
 wk = out / ".well-known"
 wk.mkdir(exist_ok=True)
-(wk / "security.txt").write_text("""Contact: https://github.com/M7MMAD-OMAR/sbarhive/security/advisories/new
-Expires: 2027-10-25T00:00:00.000Z
-Preferred-Languages: ar, en
+(wk / "security.txt").write_text(f"""Contact: https://github.com/M7MMAD-OMAR/sbarhive/security/advisories/new
+Expires: {expires.isoformat()}T00:00:00Z
+Preferred-Languages: en, ar
 Canonical: https://hive.sbarah.com/.well-known/security.txt
+Policy: https://github.com/M7MMAD-OMAR/sbarhive/blob/main/SECURITY.md
 """, encoding="utf-8")

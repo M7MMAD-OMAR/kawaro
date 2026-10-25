@@ -360,7 +360,8 @@ class AC12Finish(unittest.TestCase):
         r = subprocess.run(["python3", str(built() / "scripts/site-headers.py"), str(site())], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stderr)
         h = (site() / "_headers").read_text(encoding="utf-8")
-        for d in ("default-src 'none'", "style-src 'self' 'unsafe-inline'", "img-src 'self' data:", "font-src 'self'",
+        # S-059 AC2 replaced the S-061 values: no data: images, inline style only as attributes.
+        for d in ("default-src 'none'", "style-src 'self';", "style-src-attr 'unsafe-inline'", "img-src 'self';", "font-src 'self'",
                   "connect-src 'self'", "frame-ancestors 'none'"):
             self.assertIn(d, h)
         self.assertNotIn("https://", h.split("Content-Security-Policy:")[1].split("\n")[0])

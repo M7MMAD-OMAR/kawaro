@@ -252,7 +252,10 @@ class AC7Sim(unittest.TestCase):
                 pg.locator("#sim-hive [data-cell]").first.focus()
                 pg.keyboard.press("Enter")
                 pg.keyboard.press("Escape")
-            self.assertEqual(len(pg.requests), n, pg.requests[n:])
+            # S-059 D6: the tab icon is a same origin file now (the CSP has no data:),
+            # and Chromium fetches it after load; that one request leaves nothing.
+            late = [u for u in pg.requests[n:] if u != B.base + "/favicon.svg"]
+            self.assertEqual(late, [])
             outside = [u for u in pg.requests if not u.startswith(B.base)]
             self.assertEqual(outside, [])
             pg.context.close()

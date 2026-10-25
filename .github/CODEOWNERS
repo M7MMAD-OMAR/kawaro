@@ -1,0 +1,7 @@
+# Changes to these paths need the maintainer's review (S-059).
+/.github/ @M7MMAD-OMAR
+/site/ @M7MMAD-OMAR
+/wrangler.jsonc @M7MMAD-OMAR
+/scripts/site/ @M7MMAD-OMAR
+/docs/adr/ @M7MMAD-OMAR
+/packaging/keys/ @M7MMAD-OMAR
