@@ -78,7 +78,7 @@ jobs:
       - name: System packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 msitools wixl
+          sudo apt-get install -y mingw-w64 msitools
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu
@@ -87,7 +87,13 @@ jobs:
           workspaces: ". -> target-windows"
       - run: scripts/windows/build.sh
       - run: scripts/windows/make-zip.sh
-      - run: scripts/windows/make-msi.sh
+      # Ubuntu's wixl (0.101) aborts on the RemoveFile element in
+      # installer/windows/kawaro.wxs; Fedora's wixl (0.106) builds it.
+      - name: MSI (wixl from Fedora)
+        run: |
+          docker run --rm -v "$GITHUB_WORKSPACE:/w" -w /w -e CI=true \
+            -e CARGO_TARGET_DIR=/w/target-windows registry.fedoraproject.org/fedora:44 \
+            bash -c 'dnf install -y -q msitools && scripts/windows/make-msi.sh'
       - uses: actions/upload-artifact@v7
         with:
           name: windows
