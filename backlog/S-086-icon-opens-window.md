@@ -12,10 +12,10 @@ The MSI Start shortcut targets `kawarod.exe` with no arguments, which is daemon 
 
 ## Acceptance criteria
 - AC1: `kawarod.exe settings` with a running daemon opens the existing Settings window through the same `Request::Settings` path as `kawaro settings` and exits 0; with no daemon running it starts the service and opens the window; an unknown argument still exits 2 with the message of today.
-- AC2: the MSI Start shortcut runs `kawarod.exe settings`; clicking it shows a visible window within 1 s on the S-079 reference machine (the owner's Windows test machine, cold start included), no console window appears or flashes (`kawarod` keeps `windows_subsystem = "windows"`), and a second click re-focuses the same window instead of opening another.
+- AC2: the MSI Start shortcut runs `kawarod.exe settings`; clicking it shows a visible window within 1 s on the S-079 reference machine (the owner's Windows test machine, cold start included), no console window appears or flashes (`kawarod` keeps `windows_subsystem = "windows"`), and a second click re-focuses the same window instead of opening another. The re-focus mechanism is stated: `ui::open_settings` currently early-returns when the window exists (`crates/daemon/src/ui.rs`), so this story adds a raise on the existing Slint window (the Windows foreground path the hive already uses for `open`) instead of that silent return.
 - AC3: autostart is unchanged: the `Run` value still starts the silent daemon with no window, and ten clicks of the shortcut leave exactly one window of whatever the `settings` entry currently opens (the S-086 Settings window today, the S-087 welcome window after S-087 lands) and one daemon process.
 - AC4: `kawarod open <files>`, the Explorer menu command and the named-pipe request routing are unchanged; the args tests cover the new mode and the existing modes together.
-- AC5: `docs/windows-beta-checklist.md` gains one owner-run step for the icon click with a 1 s observable expectation; one CHANGELOG line in both languages; no long dashes.
+- AC5: `docs/windows-beta-checklist.md` step W01 (which already ends with "open the Start menu entry") gains the click procedure in its Do and the 1 s observable expectation in its Expect; no new step is added and the S-079 D1 cap of 40 steps and 160 nonblank lines stays satisfied. One CHANGELOG line in both languages; no long dashes.
 
 ## Test cases
 | Criterion | Test | Type |
