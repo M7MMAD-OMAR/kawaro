@@ -71,12 +71,14 @@ impl TargetPixel for Px {
 
 fn render(scheme: &str, lang: Lang, files: &[&str], n: usize) -> Shot {
     slint::platform::set_platform(Box::new(SoftPlatform)).ok();
-    // SAFETY: each test owns its thread and sets this before building.
-    unsafe { std::env::set_var("KAWARO_COLOR_SCHEME", scheme) };
-    let hive = Hive::new(lang).unwrap();
+    let hive = test_env::build(&[("KAWARO_COLOR_SCHEME", scheme)], lang);
     let paths: Vec<PathBuf> = files.iter().map(PathBuf::from).collect();
     hive.present_files("centre", &paths, cells(n), None)
         .unwrap();
+    // S-017 (manager decision 3): the ring-by-ring open starts hidden, so
+    // the S-074 probes read the settled hive. The assertions are unchanged.
+    hive.inner.ui.borrow().set_opened(true);
+    i_slint_backend_testing::mock_elapsed_time(std::time::Duration::from_millis(500));
     let win = WINDOW
         .with(|c| c.borrow().clone())
         .expect("the hive made a window");

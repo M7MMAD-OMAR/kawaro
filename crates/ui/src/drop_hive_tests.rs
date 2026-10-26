@@ -34,10 +34,22 @@ fn state(hive: &Hive) -> dnd::State {
     hive.inner.machine.borrow().state()
 }
 
+/// S-017c (manager decision 3): a user driven close keeps the surface for
+/// the 90 ms of `Tokens.hive-close` and is gone after it. The callbacks run
+/// in the same turn as before, so only the hide is delayed.
+fn after_close(hive: &Hive) {
+    assert!(
+        hive.inner.visible(),
+        "the close animation keeps the surface for 90 ms"
+    );
+    i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(120));
+    assert!(!hive.inner.visible(), "hidden after the 90 ms close");
+}
+
 #[test]
 fn drop_hive_behaviour() {
     i_slint_backend_testing::init_no_event_loop();
-    let hive = Hive::new(Lang::En).unwrap();
+    let hive = test_env::build(&[], Lang::En);
     let log = Rc::new(Log::default());
     let l = log.clone();
     hive.on_choose(move |id| l.chosen.borrow_mut().push(id));
@@ -82,7 +94,7 @@ fn drop_hive_behaviour() {
     on_note(Note::Drop);
     assert_eq!(log.chosen.borrow().as_slice(), ["webp"]);
     assert_eq!(log.dismissed.get(), 0);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
     // A leave after the drop changes nothing.
     on_note(Note::Leave);
     assert_eq!(log.dismissed.get(), 0);
@@ -95,7 +107,7 @@ fn drop_hive_behaviour() {
     on_note(Note::Drop);
     assert_eq!(log.chosen.borrow().len(), 1);
     assert_eq!(log.dismissed.get(), 1);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
 
     // Leave after enter closes; leave before enter does not.
     hive.present_drop("", None).unwrap();
@@ -105,7 +117,7 @@ fn drop_hive_behaviour() {
     assert_eq!(hive.inner.ui.borrow().get_cells().row_count(), 0);
     on_note(Note::Leave);
     assert_eq!(log.dismissed.get(), 2);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
 
     // A normal hive ignores the receiver and still closes on focus loss.
     let entered = log.entered.borrow().len();
@@ -119,7 +131,7 @@ fn drop_hive_behaviour() {
     focus_changed(true);
     focus_changed(false);
     assert_eq!(log.dismissed.get(), 3);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
 
     // The enter timeout closes a hive the drag never reached.
     hive.present_drop("", None).unwrap();
@@ -153,7 +165,7 @@ fn drop_hive_behaviour() {
 #[test]
 fn ac12_s019e_key_release_closes_a_hold_show_once() {
     i_slint_backend_testing::init_no_event_loop();
-    let hive = Hive::new(Lang::En).unwrap();
+    let hive = test_env::build(&[], Lang::En);
     let log = Rc::new(Log::default());
     let l = log.clone();
     hive.on_choose(move |id| l.chosen.borrow_mut().push(id));
@@ -171,10 +183,7 @@ fn ac12_s019e_key_release_closes_a_hold_show_once() {
     assert!(hive.inner.visible());
     assert_eq!(state(&hive), dnd::State::Waiting);
     hive.key_released();
-    assert!(
-        !hive.inner.visible(),
-        "waiting hold show closed by the release"
-    );
+    after_close(&hive); // waiting hold show closed by the release
     assert_eq!(state(&hive), dnd::State::Hidden);
     assert_eq!(log.dismissed.get(), 1);
     hive.key_released();
@@ -187,7 +196,7 @@ fn ac12_s019e_key_release_closes_a_hold_show_once() {
     on_note(Note::Motion(Some(0)));
     assert_eq!(state(&hive), dnd::State::Over(0));
     hive.key_released();
-    assert!(!hive.inner.visible());
+    after_close(&hive);
     assert_eq!(log.dismissed.get(), 2);
     on_note(Note::Drop);
     assert!(
@@ -203,7 +212,7 @@ fn ac12_s019e_key_release_closes_a_hold_show_once() {
     assert!(hive.inner.visible(), "the drag left, the key is still held");
     assert_eq!(log.dismissed.get(), 2);
     hive.key_released();
-    assert!(!hive.inner.visible());
+    after_close(&hive);
     assert_eq!(log.dismissed.get(), 3);
 
     // After a drop on a cell the release changes nothing.
@@ -225,7 +234,7 @@ fn ac12_s019e_key_release_closes_a_hold_show_once() {
     assert_eq!(log.dismissed.get(), dismissed);
     on_note(Note::Enter(vec![png.clone()]));
     on_note(Note::Leave);
-    assert!(!hive.inner.visible(), "S-014: leave after enter closes it");
+    after_close(&hive); // S-014: leave after enter closes it
 
     // A normal show ignores it too.
     hive.present("3 images", cells(), None).unwrap();
@@ -317,7 +326,7 @@ fn ac14_s019f_the_drop_hive_previews_the_dragged_files_after_enter() {
     let doc = s.file("report.pdf");
     let three = vec![s.file("a.png"), s.file("b.png"), s.file("c.png")];
 
-    let hive = Hive::new(Lang::En).unwrap();
+    let hive = test_env::build(&[], Lang::En);
     let mime = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/mime");
     hive.set_preview_source(
         s.thumbnails(),
@@ -415,7 +424,7 @@ const NO_ACTIONS: &str = "No actions";
 /// A hive whose drop callback gives cells to `.png` files only.
 fn probing_hive() -> (Hive, Rc<Log>) {
     i_slint_backend_testing::init_no_event_loop();
-    let hive = Hive::new(Lang::En).unwrap();
+    let hive = test_env::build(&[], Lang::En);
     let log = Rc::new(Log::default());
     let l = log.clone();
     hive.on_choose(move |id| l.chosen.borrow_mut().push(id));
@@ -682,12 +691,9 @@ fn turn() {
 /// A hive built with `KAWARO_REDUCED_MOTION` set to `value`, wired as
 /// `probing_hive` is (the platform is installed by the caller, once).
 fn hive_with_motion(value: &str) -> (Hive, Rc<Log>) {
-    // SAFETY: the variable is read by `Hive::new` only, set and removed in
-    // this one test, which builds every hive that depends on it.
-    unsafe { std::env::set_var("KAWARO_REDUCED_MOTION", value) };
-    let hive = Hive::new(Lang::En);
-    unsafe { std::env::remove_var("KAWARO_REDUCED_MOTION") };
-    let hive = hive.unwrap();
+    // The build lock inside `test_env::build` keeps the variable private to
+    // this build: the environment is shared by every test thread.
+    let hive = test_env::build(&[("KAWARO_REDUCED_MOTION", value)], Lang::En);
     let log = Rc::new(Log::default());
     let l = log.clone();
     hive.on_choose(move |id| l.chosen.borrow_mut().push(id));

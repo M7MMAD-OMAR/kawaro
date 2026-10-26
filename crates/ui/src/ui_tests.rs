@@ -38,6 +38,18 @@ fn key(hive: &Hive, k: Key) {
     w.dispatch_event(WindowEvent::KeyReleased { text });
 }
 
+/// S-017c (manager decision 3): a user driven close keeps the surface for
+/// the 90 ms of `Tokens.hive-close` and is gone after it. The callbacks run
+/// in the same turn as before, so only the hide is delayed.
+fn after_close(hive: &Hive) {
+    assert!(
+        hive.inner.visible(),
+        "the close animation keeps the surface for 90 ms"
+    );
+    i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(120));
+    assert!(!hive.inner.visible(), "hidden after the 90 ms close");
+}
+
 fn click(hive: &Hive, x: f32, y: f32) {
     let ui = hive.inner.ui.borrow();
     let w = ui.window();
@@ -64,7 +76,7 @@ fn origin(hive: &Hive) -> (f32, f32) {
 }
 
 fn wired(lang: Lang) -> (Hive, Rc<Log>) {
-    let hive = Hive::new(lang).unwrap();
+    let hive = test_env::build(&[], lang);
     let log = Rc::new(Log::default());
     let l = log.clone();
     hive.on_choose(move |id| l.chosen.borrow_mut().push(id));
@@ -109,9 +121,9 @@ fn hive_behaviour() {
         "ring 1 starts above the centre"
     );
 
-    // Esc closes and dismisses.
+    // Esc closes and dismisses; the close animation keeps the surface.
     key(&hive, Key::Escape);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
     assert_eq!(log.dismissed.get(), 1);
 
     // Keyboard: Tab twice, then Enter chooses the second ring-1 cell.
@@ -121,7 +133,7 @@ fn hive_behaviour() {
     key(&hive, Key::Tab);
     assert_eq!(ui.get_highlight(), 1);
     key(&hive, Key::Return);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
     assert_eq!(*log.chosen.borrow(), ["png"]);
 
     // Arrows wrap; a fresh present clears the highlight.
@@ -145,20 +157,21 @@ fn hive_behaviour() {
     assert_eq!(ui.get_highlight(), 2);
     click(&hive, x, y);
     assert_eq!(*log.chosen.borrow(), ["png", "jpg"]);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
 
     // Click on the centre dismisses.
     hive.present("3 images", cells(), None).unwrap();
     let (ox, oy) = origin(&hive);
     click(&hive, ox, oy);
     assert_eq!(log.dismissed.get(), 3);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
 
     // Click in the gap between the centre and the first cell dismisses.
     hive.present("3 images", cells(), None).unwrap();
     let (x, y) = centre_of(&hive, 0);
     click(&hive, (ox + x) / 2.0, (oy + y) / 2.0);
     assert_eq!(log.dismissed.get(), 4);
+    after_close(&hive);
 
     // Focus loss dismisses only after the window had focus.
     hive.present("3 images", cells(), None).unwrap();
@@ -169,7 +182,7 @@ fn hive_behaviour() {
     );
     focus_changed(true);
     focus_changed(false);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
     assert_eq!(log.dismissed.get(), 5);
 
     // close() hides without callbacks, and a later focus loss is ignored.
@@ -190,7 +203,7 @@ fn hive_behaviour() {
     assert_eq!(found[0].accessible_role(), Some(AccessibleRole::Button));
     found[0].invoke_accessible_default_action();
     assert_eq!(log.chosen.borrow().last().unwrap(), "gray");
-    assert!(!hive.inner.visible());
+    after_close(&hive);
 
     // More than 18 cells: 18 shown.
     let many: Vec<HiveCell> = (0..25)
@@ -265,7 +278,7 @@ fn hive_behaviour() {
         dismissed + 1,
         "the new window is wired"
     );
-    assert!(!ar.inner.visible());
+    after_close(&ar);
 
     // A window that outlives its hive answers navigation with -1.
     let orphan = ar.inner.ui.borrow().clone_strong();
@@ -297,7 +310,7 @@ fn ac8_ac9_layer_input_reference() {
     assert_eq!(hive.inner.ui.borrow().get_highlight(), 0);
     key(&hive, Key::Return);
     assert_eq!(*log.chosen.borrow(), ["webp"]);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
 
     hive.present("photo.png", cells(), None).unwrap();
     let close = |h: &Hive| {
@@ -308,7 +321,7 @@ fn ac8_ac9_layer_input_reference() {
             .dispatch_event(WindowEvent::CloseRequested)
     };
     close(&hive);
-    assert!(!hive.inner.visible());
+    after_close(&hive);
     assert_eq!(log.dismissed.get(), 1);
     close(&hive);
     assert_eq!(
