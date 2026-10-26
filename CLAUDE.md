@@ -1,6 +1,6 @@
 # Kawaro (كوارو): a local, open source file converter with a honeycomb UI
 
-The name is fixed: Kawaro in Latin script, «كوارو» in Arabic (from «كوّارة», an old Arabic word for a beehive; `docs/adr/0008-name-kawaro.md`). The mark is a saguaro cactus cut out of one hexagon cell (the name changed to Kawaro, the mark did not; ADR 0008). Releases and the plan are in `docs/PLAN.md`, changes in `CHANGELOG.md`.
+The name is fixed: Kawaro in Latin script, «كوارو» in Arabic (from «كوّارة», an old Arabic word for a beehive; `docs/adr/0008-name-kawaro.md`). The logo is a saguaro cactus built from many hive cells on the honeycomb lattice (`design/brand/kawaro-cells.svg`); the single hexagon with the cactus cut out is only the app icon and favicon. The name changed to Kawaro, the mark did not (ADR 0008). Releases and the plan are in `docs/PLAN.md`, changes in `CHANGELOG.md`.
 
 ## What it is
 

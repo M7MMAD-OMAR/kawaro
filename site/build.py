@@ -456,7 +456,7 @@ def header(lang, page, root):
     return f'''<header class="site-header">
   <div class="wrap">
     <a class="brand" href="{page_href(lang, page, lang, "index")}">
-      <img src="{root}favicon.svg" alt="" width="48" height="48">
+      <img src="{root}kawaro-cells.svg" alt="" width="66" height="60">
       <span>{p["name"]}</span>
     </a>
     <nav class="site-nav" aria-label="{p["nav_label"]}">
@@ -472,7 +472,26 @@ def header(lang, page, root):
 '''
 
 
-FOOTER_CELLS = 9
+FOOTER_CACTI = 4
+
+
+def footer_cells():
+    """The foot of every page: the logo cactus made of hive cells, repeated across
+    the width. Each cell grows in as the footer scrolls into view, from the root up."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("kawaro_brand", ROOT / "design" / "brand" / "build.py")
+    brand = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(brand)
+    r = 20
+    cells, w, h = brand.cells_layout(r, extras=False)
+    polys = []
+    pitch = w + r * 3
+    for n in range(FOOTER_CACTI):
+        for x, y, _, row in cells:
+            polys.append(f'<polygon class="fc" style="--i:{10 - int(row)}" points="{brand.cell_points(x + n * pitch, y, r)}"/>')
+    total = pitch * (FOOTER_CACTI - 1) + w
+    return (f'<svg class="footer-cells" viewBox="0 0 {total:.0f} {h:.0f}" preserveAspectRatio="xMidYMax meet" '
+            f'focusable="false">{"".join(polys)}</svg>')
 
 
 def footer(lang, page, root):
@@ -489,10 +508,9 @@ def footer(lang, page, root):
     lang_sw = (f'<a href="{page_href(lang, page, other, page)}" hreflang="{other}" lang="{other}">'
                f'{p["other_lang"]}</a>')
     scripts = f'<script src="{root}app.js" defer></script>'
-    row = lambda n: "".join(f'<img src="{root}favicon.svg" alt="" width="96" height="96">' for _ in range(n))
     # Arabic is stretched with kashida (tatweel), the calligraphic way, never with letter spacing.
     mark_text = "ك" + "\u0640" * 18 + "وارو" if lang == "ar" else p["name"]
-    cells = f'<div class="footer-cell-row">{row(FOOTER_CELLS)}</div><div class="footer-cell-row footer-cell-odd">{row(FOOTER_CELLS - 1)}</div>'
+    cells = footer_cells()
     return f'''</main>
 <footer class="site-footer">
   <div class="wrap">

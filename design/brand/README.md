@@ -1,6 +1,6 @@
 # Kawaro brand
 
-The mark is one hive cell with a saguaro cactus cut out of it. The cell is the same pointy top
+The logo is a saguaro cactus built from many hive cells on the honeycomb lattice (`kawaro-cells.svg`). The app icon and favicon are the short form: one hive cell with the cactus cut out of it. The cell is the same pointy top
 hexagon the app draws (width to height is √3 to 2). Honey amber is the hive's
 own accent token.
 
@@ -11,6 +11,7 @@ own accent token.
 | File | Use |
 | --- | --- |
 | `kawaro.svg` | App icon, full colour, square 512 canvas. `accent` hexagon, `accent-ink` cactus (light tokens) |
+| `kawaro-cells.svg`, `kawaro-cells-dark.svg` | The full logo, the cactus as many cells |
 | `kawaro-symbolic.svg` | Tray and symbolic icon, 16 px. One path, hexagon minus cactus, `#bebebe` through `currentColor` |
 | `wordmark.svg` | Mark plus Kawaro and كوارو, for light backgrounds. Text converted to paths |
 | `wordmark-dark.svg` | Same, dark tokens, for dark backgrounds |

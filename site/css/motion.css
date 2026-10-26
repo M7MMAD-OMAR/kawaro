@@ -79,3 +79,11 @@
 @keyframes from-end { 0% { translate: calc(var(--dir) * 30vw) 0; } }
 @keyframes rise-in { 0% { translate: 0 var(--space-9); scale: 0.9; } }
 @keyframes mark-up { 0% { translate: 0 60%; } }
+
+/* The footer cactus grows cell by cell, root first, as the footer scrolls in. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .fc { transform-box: fill-box; transform-origin: center; animation: fc-pop var(--duration-slow) var(--ease-out) both; animation-timeline: view(); animation-range: entry calc(var(--i) * 3%) entry calc(45% + var(--i) * 3%); }
+  }
+}
+@keyframes fc-pop { 0% { scale: 0; } 100% { scale: 1; } }

@@ -75,6 +75,60 @@ def cactus():
 HEX = hexagon(256, 256, 248, 28)
 
 
+# The full logo: the cactus drawn as many hive cells on the honeycomb lattice
+# (axial offset coordinates: column, row; odd rows sit half a cell right).
+# Solid cells are the plant, ghost cells are empty cells in the plant's place,
+# floats are loose cells beside it.
+def _solid():
+    c = [(5, 0)]
+    for r in range(1, 11):
+        c += [(4, r), (5, r)]
+    c += [(2, 6), (3, 6), (1, 3), (2, 3), (1, 4), (2, 4), (1, 5), (2, 5), (2, 2)]
+    c += [(6, 4), (7, 4), (7, 1), (8, 1), (7, 2), (8, 2), (7, 3), (8, 3), (8, 0)]
+    return c
+
+
+CELLS_GHOST = [(1, 4), (8, 2), (5, 9)]
+CELLS_FLOATS = [(9.0, 6.0), (0.2, 8.8), (9.9, 3.2)]
+CELLS_SOLID = [c for c in _solid() if c not in CELLS_GHOST]
+
+
+def cell_points(cx, cy, r):
+    return " ".join(f"{cx + r * math.cos(math.radians(a)):.2f},{cy + r * math.sin(math.radians(a)):.2f}"
+                    for a in (-90, -30, 30, 90, 150, 210))
+
+
+def cells_layout(r, extras=True):
+    """Cell centres of the cactus for cell radius r, as (x, y, kind, row) with
+    the origin at the top left of the bounding box."""
+    s = r * 1.14
+    pos = lambda c, row: (s * SQRT3 * (c + (0.5 if round(row) % 2 else 0) - 4.75), s * 1.5 * (row - 5))
+    out = [(*pos(c, row), "solid", row) for c, row in CELLS_SOLID]
+    if extras:
+        out += [(*pos(c, row), "ghost", row) for c, row in CELLS_GHOST]
+        out += [(*pos(c, row), "float", row) for c, row in CELLS_FLOATS]
+    x0 = min(x for x, *_ in out) - r * SQRT3 / 2
+    y0 = min(y for _, y, *_ in out) - r
+    out = [(x - x0, y - y0, k, row) for x, y, k, row in out]
+    w = max(x for x, *_ in out) + r * SQRT3 / 2
+    h = max(y for _, y, *_ in out) + r
+    return out, w, h
+
+
+def cells_mark(scheme, r=20):
+    cells, w, h = cells_layout(r)
+    body = []
+    for x, y, kind, _ in cells:
+        pts = cell_points(x, y, r)
+        if kind == "ghost":
+            body.append(f'  <polygon fill="none" stroke="{scheme["border"]}" stroke-width="2" '
+                        f'stroke-linejoin="round" points="{pts}"/>')
+        else:
+            body.append(f'  <polygon fill="{scheme["accent"]}" stroke="{scheme["accent"]}" stroke-width="2" '
+                        f'stroke-linejoin="round" points="{pts}"/>')
+    return svg("  <title>Kawaro</title>\n" + "\n".join(body), view=f"0 0 {w:.0f} {h:.0f}", w=round(w), h=round(h))
+
+
 def svg(body, view="0 0 512 512", w=512, h=512, extra=""):
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
             f'viewBox="{view}"{extra}>\n{body}\n</svg>\n')
@@ -124,10 +178,14 @@ def symbolic():
 
 def wordmark(name, scheme):
     """Mark, then Kawaro and كوارو on one line. Text becomes paths."""
-    mark = (f'<g transform="translate(0,8) scale(0.25)">'
-            f'<path fill="{scheme["accent"]}" d="{HEX}"/>'
-            + "".join(f'<path fill="{scheme["accent-ink"]}" d="{p}"/>' for p in cactus())
-            + "</g>")
+    cells, w, h = cells_layout(20)
+    k = 128 / h
+    polys = "".join(
+        (f'<polygon fill="none" stroke="{scheme["border"]}" stroke-width="2" stroke-linejoin="round" points="{cell_points(x, y, 20)}"/>'
+         if kind == "ghost" else
+         f'<polygon fill="{scheme["accent"]}" stroke="{scheme["accent"]}" stroke-width="2" stroke-linejoin="round" points="{cell_points(x, y, 20)}"/>')
+        for x, y, kind, _ in cells)
+    mark = f'<g transform="translate(0,8) scale({k:.4f})">{polys}</g>'
     font = 'font-family="IBM Plex Sans Arabic" font-weight="600"'
     text = (f'<text x="156" y="104" font-size="84" {font} fill="{scheme["text-primary"]}">Kawaro</text>'
             f'<text x="662" y="104" font-size="84" {font} fill="{scheme["text-secondary"]}" '
@@ -151,6 +209,7 @@ def pngs():
 def site_icons():
     site = ROOT / "site"
     (site / "favicon.svg").write_text(app_icon(), encoding="utf-8")
+    (site / "kawaro-cells.svg").write_text(cells_mark(LIGHT), encoding="utf-8")
     for name, size in (("favicon-32.png", 32), ("apple-touch-icon.png", 180)):
         run("inkscape", str(HERE / "kawaro.svg"), "-w", str(size), "-h", str(size),
             f"--export-filename={site / name}")
@@ -158,6 +217,8 @@ def site_icons():
 
 def main():
     (HERE / "kawaro.svg").write_text(app_icon(), encoding="utf-8")
+    (HERE / "kawaro-cells.svg").write_text(cells_mark(LIGHT), encoding="utf-8")
+    (HERE / "kawaro-cells-dark.svg").write_text(cells_mark(DARK), encoding="utf-8")
     symbolic()
     wordmark("wordmark.svg", LIGHT)
     wordmark("wordmark-dark.svg", DARK)

@@ -21,7 +21,7 @@
   font-weight: var(--font-weight-bold);
   font-size: var(--fs-lead);
 }
-.brand img { width: var(--space-7); height: var(--space-7); }
+.brand img { width: auto; height: calc(var(--space-7) + var(--space-3)); }
 .badge {
   display: inline-flex;
   align-items: center;
@@ -86,13 +86,11 @@
 .site-footer a:focus-visible { background: var(--color-accent); color: var(--color-accent-ink); }
 .site-footer :focus-visible { outline-color: var(--color-accent); }
 .footer-lang a { border: var(--border-default) solid var(--color-paper); }
-/* The band at the foot: two offset rows of hive cells wearing the mark, then the
+/* The band at the foot: the logo cactus built from hive cells, repeated across the width,, then the
    name set as wide as the page. The band owns the container, so the type scales
    with the width it is given (cqw) and always reaches both edges. */
 .footer-band { container-type: inline-size; padding-block-start: var(--space-7); user-select: none; }
-.footer-cell-row { display: flex; }
-.footer-cell-row img { flex: 1 1 0; min-width: 0; height: auto; }
-.footer-cell-odd { margin-block-start: -5.4cqw; padding-inline: calc(50cqw / 9); }
+.footer-cells { display: block; width: 100%; height: auto; fill: var(--color-accent); stroke: var(--color-accent); stroke-width: 2; stroke-linejoin: round; }
 .footer-mark {
   margin: 0;
   padding-block-start: var(--space-4);
