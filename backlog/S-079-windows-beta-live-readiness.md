@@ -130,3 +130,4 @@ $ bash scripts/design-lint.sh
 [design-lint] clean
 (exit code 0)
 ```
+- 2026-10-26, implementer (reviewer fix): W03 is no longer self-contradictory. The missing-file case now keeps kawaro.exe in the portable folder and removes kawarod.exe (or kawaro.ico) beside it before `kawaro.exe integration install`, and its Expect names the real refusal message shape `kawaro: missing next to the executable: <name>`, the missing kawarod.exe or kawaro.ico found by the install preflight, and the nonzero exit. The second registry-failure case is unchanged. Only `docs/windows-beta-checklist.md` was edited; status stays at review.

@@ -24,8 +24,8 @@ Expect: After integration install the Explorer context menu shows Kawaro entries
 Result: PASS | FAIL
 
 W03 Portable integration faults
-Do: Rename kawaro.exe away and run kawaro.exe integration install to hit the missing-file case, then block the first registry value with reg.exe and run integration install again from the portable folder.
-Expect: The missing-file run refuses with a nonzero exit and a message naming the missing kawaro.exe; the second run stops at the first failing registry value and writes no further values.
+Do: Keep kawaro.exe in the portable folder and remove kawarod.exe (or kawaro.ico) beside it before running kawaro.exe integration install to hit the missing-file case, then restore the file, block the first registry value with reg.exe and run integration install again from the portable folder.
+Expect: The missing-file run exits nonzero and prints the refusal message `kawaro: missing next to the executable: <name>`, naming the missing kawarod.exe or kawaro.ico the install preflight found beside the executable, and writes no registry value; the second run stops at the first failing registry value and writes no further values.
 Result: PASS | FAIL
 
 W04 Explorer selections
