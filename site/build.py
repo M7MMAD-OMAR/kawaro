@@ -488,8 +488,8 @@ def footer_cells():
     pitch = w + r * 3
     for n in range(FOOTER_CACTI):
         for x, y, _, row in cells:
-            polys.append(f'<polygon class="fc" style="--i:{10 - int(row)}" points="{brand.cell_points(x + n * pitch, y, r)}"/>')
-    total = pitch * (FOOTER_CACTI - 1) + w
+            polys.append(f'<polygon class="fc" style="--i:{10 - int(row)}" points="{brand.cell_points(x + n * pitch + r * 2, y, r)}"/>')
+    total = pitch * (FOOTER_CACTI - 1) + w + r * 4
     return (f'<svg class="footer-cells" viewBox="0 0 {total:.0f} {h:.0f}" preserveAspectRatio="xMidYMax meet" '
             f'focusable="false">{"".join(polys)}</svg>')
 
