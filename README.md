@@ -63,7 +63,7 @@ Kawaro comes from «كوّارة» (kawwara), an old Arabic word for a beehive. 
 Linux (64 bit) for now.
 
 **Easiest:** download the package for your system from the
-[latest release](https://github.com/M7MMAD-OMAR/kawaro/releases/latest)
+[all releases](https://github.com/M7MMAD-OMAR/kawaro/releases)
 and open it with your software installer, or:
 
 ```bash

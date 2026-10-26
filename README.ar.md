@@ -55,7 +55,7 @@
 
 يعمل الإصدار الحالي على لينكس (64 بت).
 
-**الأسهل:** نزّل الحزمة المناسبة لنظامك من [صفحة آخر إصدار](https://github.com/M7MMAD-OMAR/kawaro/releases/latest) وافتحها بمثبّت البرامج، أو من الطرفية:
+**الأسهل:** نزّل الحزمة المناسبة لنظامك من [صفحة الإصدارات](https://github.com/M7MMAD-OMAR/kawaro/releases) وافتحها بمثبّت البرامج، أو من الطرفية:
 
 ```bash
 sudo dnf install ./kawaro-*.x86_64.rpm     # Fedora

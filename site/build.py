@@ -215,7 +215,7 @@ def privacy_svg(lang):
 # ---------------------------------------------------------------------------
 
 TAG = "v" + VERSION
-PKGV = VERSION.replace("-", "%7E")
+PKGV = VERSION.replace("-", ".")  # GitHub stores "~" as "." (S-073)
 DL = f"{REPO}/releases/download/{TAG}/"
 FILES = {
     "msi": DL + f"kawaro-{VERSION}-windows-x64.msi",
