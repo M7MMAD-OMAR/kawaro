@@ -86,7 +86,7 @@
 .site-footer a:focus-visible { background: var(--color-accent); color: var(--color-accent-ink); }
 .site-footer :focus-visible { outline-color: var(--color-accent); }
 .footer-lang a { border: var(--border-default) solid var(--color-paper); }
-/* The band at the foot: the logo cactus built from hive cells, repeated across the width,, then the
+/* The band at the foot: a honeycomb field that thins out toward the top,, then the
    name set as wide as the page. The band owns the container, so the type scales
    with the width it is given (cqw) and always reaches both edges. */
 .footer-band { container-type: inline-size; padding-block-start: var(--space-7); user-select: none; }

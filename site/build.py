@@ -472,25 +472,28 @@ def header(lang, page, root):
 '''
 
 
-FOOTER_CACTI = 4
-
-
 def footer_cells():
-    """The foot of every page: the logo cactus made of hive cells, repeated across
-    the width. Each cell grows in as the footer scrolls into view, from the root up."""
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("kawaro_brand", ROOT / "design" / "brand" / "build.py")
-    brand = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(brand)
-    r = 20
-    cells, w, h = brand.cells_layout(r, extras=False)
+    """The foot of every page: a honeycomb field that fades out toward the top,
+    so it reads as a gradient rising from the name. Cells grow in as the footer
+    scrolls into view, bottom row first."""
+    r = 16
+    pitch = r * math.sqrt(3)
+    rows, cols = 7, 38
+    h = r * (1.5 * rows + 0.5)
     polys = []
-    pitch = w + r * 3
-    for n in range(FOOTER_CACTI):
-        for x, y, _, row in cells:
-            polys.append(f'<polygon class="fc" style="--i:{10 - int(row)}" points="{brand.cell_points(x + n * pitch + r * 2, y, r)}"/>')
-    total = pitch * (FOOTER_CACTI - 1) + w + r * 4
-    return (f'<svg class="footer-cells" viewBox="0 0 {total:.0f} {h:.0f}" preserveAspectRatio="xMidYMax meet" '
+    for row in range(rows):
+        y = h - r * (1.5 * (rows - 1 - row) + 1)
+        # density rises toward the bottom: a gradient of cells, not of colour
+        density = 0.1 + 0.9 * row / (rows - 1)
+        for col in range(cols + 1):
+            x = pitch * (col + (0.5 if row % 2 else 0)) + pitch / 2
+            if ((col * 31 + row * 17) % 100) / 100 >= density:
+                continue
+            pts = " ".join(f"{x + r * math.cos(math.radians(a)):.1f},{y + r * math.sin(math.radians(a)):.1f}"
+                           for a in (-90, -30, 30, 90, 150, 210))
+            polys.append(f'<polygon class="fc" style="--i:{rows - 1 - row}" points="{pts}"/>')
+    total = pitch * cols + pitch / 2
+    return (f'<svg class="footer-cells" viewBox="0 0 {total:.0f} {h:.0f}"  '
             f'focusable="false">{"".join(polys)}</svg>')
 
 
@@ -511,6 +514,8 @@ def footer(lang, page, root):
     # Arabic is stretched with kashida (tatweel), the calligraphic way, never with letter spacing.
     mark_text = "ك" + "\u0640" * 18 + "وارو" if lang == "ar" else p["name"]
     cells = footer_cells()
+
+
     return f'''</main>
 <footer class="site-footer">
   <div class="wrap">
