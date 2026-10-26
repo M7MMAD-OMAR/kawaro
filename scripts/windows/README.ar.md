@@ -37,3 +37,22 @@ virsh -c qemu:///session attach-disk win11 ${XDG_CACHE_HOME:-$HOME/.cache}/kawar
 ```
 
 ثم شغّل `D:\run-tests.cmd` (أو حرف محرك الأقراص المضغوطة) داخل الآلة.
+
+## نسخة اختبار موقّعة
+
+يوقّع `sign-local.sh` إصداراً لأجهزة ويندوز الخاصة بك بشهادة اختبار ذاتية التوقيع. ليست شهادة عامة: تبقى SmartScreen وأجهزة الآخرين تعامل الملفات كأنها غير موقّعة. أما على جهاز تستورد عليه الشهادة فيعرض ويندوز الناشر «Kawaro test signing» ويتحقق من أن الملفات لم تتغير.
+
+```
+scripts/windows/sign-local.sh kawaro-0.4.0-beta.1-windows-x64.zip dist-signed
+```
+
+يحتاج إلى `osslsigncode` و`openssl` و`wixl` و`zip` و`unzip`، ونسخة من المستودع بنفس إصدار الملف المضغوط. يبقى المفتاح مشفّراً في `~/.config/kawaro-signing/windows/`، ولا تنسخه أبداً إلى جهاز ويندوز.
+
+على جهاز ويندوز انسخ `kawaro-test-signing.cer` وحزمة MSI من ذاكرة USB أو مجلد مشترك محلي (التنزيل من المتصفح يضيف علامة «منزّل من الإنترنت» التي تفحصها SmartScreen)، ثم في PowerShell بصلاحيات المسؤول:
+
+```
+certutil -addstore Root kawaro-test-signing.cer
+certutil -addstore TrustedPublisher kawaro-test-signing.cer
+```
+
+احذفها بعد الاختبار بالأمر `certutil -delstore Root "Kawaro test signing (Muhmad Omar Haj Hmdo)"` ومثله لـ `TrustedPublisher`. لا تستطيع الشهادة إلا توقيع البرامج (`CA:FALSE` واستخدام توقيع الشيفرة)، فلا يمكنها إصدار شهادات لمواقع الويب.

@@ -37,3 +37,34 @@ virsh -c qemu:///session attach-disk win11 ${XDG_CACHE_HOME:-$HOME/.cache}/kawar
 ```
 
 Then run `D:\run-tests.cmd` (or the CD drive letter) in the VM.
+
+## Signed test build
+
+`sign-local.sh` signs a release for your own Windows machines with a
+self-signed test certificate. It is not a public certificate: SmartScreen
+and other people's machines still treat the files as unsigned. On a machine
+where you import the certificate, Windows shows the publisher
+"Kawaro test signing" and verifies that the files were not changed.
+
+```
+scripts/windows/sign-local.sh kawaro-0.4.0-beta.1-windows-x64.zip dist-signed
+```
+
+It needs `osslsigncode`, `openssl`, `wixl`, `zip` and `unzip`, and a checkout
+of the same version as the zip. The key stays encrypted in
+`~/.config/kawaro-signing/windows/`; never copy it to the Windows machine.
+
+On the Windows machine, copy `kawaro-test-signing.cer` and the MSI from a USB
+stick or a local share (a browser download adds the "downloaded from the
+internet" mark, which SmartScreen checks), then in an administrator
+PowerShell:
+
+```
+certutil -addstore Root kawaro-test-signing.cer
+certutil -addstore TrustedPublisher kawaro-test-signing.cer
+```
+
+Remove it after testing with `certutil -delstore Root "Kawaro test signing (Muhmad Omar Haj Hmdo)"`
+and the same for `TrustedPublisher`. The certificate can sign programs only
+(`CA:FALSE`, code signing usage), so it cannot issue certificates for web
+sites.
