@@ -62,9 +62,11 @@ use std::path::{Path, PathBuf};
 
 use kawaro_core::update::Channel;
 use kawaro_core::update::apply::{
-    CommandRunner, ExeStat, Facts, INSTALL_PRIVILEGED_FLAG, PKEXEC, PkgKind, Plan, clean_exe_path,
+    CommandRunner, Facts, INSTALL_PRIVILEGED_FLAG, PKEXEC, PkgKind, Plan, clean_exe_path,
     is_repo_file, linux_plan, pkexec_target, privileged_argv,
 };
+#[cfg(unix)]
+use kawaro_core::update::apply::ExeStat;
 use kawaro_core::update::flow::{part_path, ready_on_disk};
 use semver::Version;
 
