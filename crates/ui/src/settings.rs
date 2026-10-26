@@ -12,11 +12,9 @@
 //! are the only place that knows the order.
 
 use crate::Lang;
-use kawaro_core::config::{
-    Config, HOLD_MS_DEFAULT, HiveSurface, LangSetting, OutputPlace, Quality, Theme,
-};
+use kawaro_core::config::{Config, LangSetting, OutputPlace, Quality, Theme};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
-use std::cell::{Cell, RefCell};
+use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 mod generated {
@@ -60,7 +58,8 @@ fn ordered(items: &[&str], rtl: bool) -> Vec<SharedString> {
     v
 }
 
-/// What the window shows: visual indices for the option lists.
+/// What the window shows: visual indices for the option lists, plus the
+/// complete opened Config so hidden settings survive Save unchanged.
 #[derive(Clone, Debug, PartialEq)]
 struct FormState {
     language: i32,
@@ -70,7 +69,7 @@ struct FormState {
     folder: String,
     notify: bool,
     open_folder: bool,
-    portal_shortcut: bool,
+    opened: Config,
 }
 
 impl FormState {
@@ -83,7 +82,7 @@ impl FormState {
             folder: c.output_folder.clone(),
             notify: c.notify,
             open_folder: c.open_folder_when_done,
-            portal_shortcut: c.portal_shortcut,
+            opened: c.clone(),
         }
     }
 
@@ -102,10 +101,7 @@ impl FormState {
             },
             open_folder_when_done: self.open_folder,
             notify: self.notify,
-            hive_surface: HiveSurface::Auto,
-            hold_ms: HOLD_MS_DEFAULT,
-            portal_shortcut: self.portal_shortcut,
-            ..Config::default()
+            ..self.opened.clone()
         }
     }
 }
@@ -131,7 +127,6 @@ fn strings(lang: Lang) -> Strings {
                 quality: "الجودة".into(),
                 notify: "إشعار عند الانتهاء".into(),
                 open_folder: "فتح المجلد عند الانتهاء".into(),
-                portal_shortcut: "تسجيل اختصار الإفلات لدى سطح المكتب".into(),
                 save: "حفظ".into(),
                 cancel: "إلغاء".into(),
             },
@@ -150,7 +145,6 @@ fn strings(lang: Lang) -> Strings {
                 quality: "Quality".into(),
                 notify: "Notify when done".into(),
                 open_folder: "Open the folder when done".into(),
-                portal_shortcut: "Register the drop shortcut with the desktop".into(),
                 save: "Save".into(),
                 cancel: "Cancel".into(),
             },
@@ -182,11 +176,12 @@ struct Inner {
     strings: Strings,
     ui: RefCell<SettingsUi>,
     on_save: RefCell<Option<SaveFn>>,
-    /// `hive_surface` has no control here (S-019 decision 4): a save keeps
-    /// the value the window was opened with.
-    hive_surface: Cell<HiveSurface>,
-    /// `hold_ms` has no control here either (S-019e AC18).
-    hold_ms: Cell<u16>,
+    /// The complete [`Config`] the window was opened with. `hive_surface`
+    /// and `hold_ms` have no control here (S-019 decision 4, S-019e AC18),
+    /// and `portal_shortcut` is hidden state kept as opened, including a
+    /// remembered denial (S-076a AC3, AC4): a save changes only the fields
+    /// the form shows and preserves every other opened value.
+    opened: RefCell<Config>,
 }
 
 impl Inner {
@@ -224,7 +219,7 @@ impl Inner {
             folder: ui.get_folder().into(),
             notify: ui.get_notify(),
             open_folder: ui.get_open_folder(),
-            portal_shortcut: ui.get_portal_shortcut(),
+            opened: self.opened.borrow().clone(),
         }
     }
 
@@ -237,7 +232,6 @@ impl Inner {
         ui.set_folder(s.folder.as_str().into());
         ui.set_notify(s.notify);
         ui.set_open_folder(s.open_folder);
-        ui.set_portal_shortcut(s.portal_shortcut);
     }
 
     fn visible(&self) -> bool {
@@ -248,11 +242,7 @@ impl Inner {
         if !self.visible() {
             return;
         }
-        let config = Config {
-            hive_surface: self.hive_surface.get(),
-            hold_ms: self.hold_ms.get(),
-            ..self.state().to_config(self.rtl)
-        };
+        let config = self.state().to_config(self.rtl);
         let f = self.on_save.borrow().clone();
         if let Some(f) = f {
             f(config);
@@ -287,8 +277,7 @@ impl SettingsWindow {
             strings: strings(lang),
             ui: RefCell::new(ui),
             on_save: RefCell::new(None),
-            hive_surface: Cell::new(HiveSurface::Auto),
-            hold_ms: Cell::new(HOLD_MS_DEFAULT),
+            opened: RefCell::new(Config::default()),
         });
         let ui = inner.new_ui()?;
         *inner.ui.borrow_mut() = ui;
@@ -307,8 +296,7 @@ impl SettingsWindow {
             ui.global::<Palette>().set_color_scheme(scheme);
         }
         *inner.ui.borrow_mut() = ui;
-        inner.hive_surface.set(config.hive_surface);
-        inner.hold_ms.set(config.hold_ms);
+        *inner.opened.borrow_mut() = config.clone();
         inner.set_state(&FormState::from_config(config, inner.rtl));
         inner.ui.borrow().show()
     }
@@ -336,7 +324,8 @@ impl SettingsWindow {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kawaro_core::config::HiveSurface;
+    use kawaro_core::config::{HiveSurface, UpdateMode};
+    use kawaro_core::update::Channel;
     use slint::language::ColorScheme;
 
     fn every_config() -> Vec<Config> {
@@ -368,6 +357,45 @@ mod tests {
         all
     }
 
+    fn non_default_config(language: LangSetting) -> Config {
+        Config {
+            language,
+            theme: Theme::Dark,
+            output: OutputPlace::Subfolder,
+            output_folder: "Chosen results".into(),
+            quality: Quality::Max,
+            open_folder_when_done: true,
+            notify: false,
+            hive_surface: HiveSurface::Window,
+            hold_ms: 1500,
+            portal_shortcut: false,
+            shortcut: "Ctrl+Alt+F9".into(),
+            update_check: false,
+            update_channel: Channel::Beta,
+            update_mode: UpdateMode::Auto,
+            update_channel_present: true,
+        }
+    }
+
+    #[test]
+    fn s076a_ac3_form_round_trip_preserves_the_complete_non_default_config() {
+        for rtl in [false, true] {
+            let language = if rtl {
+                LangSetting::Ar
+            } else {
+                LangSetting::En
+            };
+            let start = non_default_config(language);
+            assert!(start.update_channel_present);
+            let saved = FormState::from_config(&start, rtl).to_config(rtl);
+            assert_eq!(saved, start, "rtl {rtl}");
+            assert!(
+                saved.update_channel_present,
+                "rtl {rtl}: preserve the explicit update channel key"
+            );
+        }
+    }
+
     #[test]
     fn config_round_trips_through_the_form_in_both_directions() {
         for rtl in [false, true] {
@@ -384,6 +412,7 @@ mod tests {
     #[test]
     fn form_state_of_the_defaults() {
         let c = Config::default();
+        let actual = FormState::from_config(&c, false);
         let ltr = FormState {
             language: 0,
             theme: 0,
@@ -392,31 +421,38 @@ mod tests {
             folder: "Kawaro".into(),
             notify: true,
             open_folder: false,
-            portal_shortcut: true,
+            ..actual.clone()
         };
-        assert_eq!(FormState::from_config(&c, false), ltr);
+        assert!(actual.to_config(false).portal_shortcut);
+        assert_eq!(actual, ltr);
         // Arabic: the lists are mirrored, the middle stays in the middle.
+        let actual = FormState::from_config(&c, true);
         let rtl = FormState {
             language: 2,
             theme: 2,
             output: 1,
-            ..ltr
+            quality: 1,
+            folder: "Kawaro".into(),
+            notify: true,
+            open_folder: false,
+            ..actual.clone()
         };
-        assert_eq!(FormState::from_config(&c, true), rtl);
+        assert!(actual.to_config(true).portal_shortcut);
+        assert_eq!(actual, rtl);
     }
 
-    /// S-029b AC7 (backlog/S-029-review-cleanup.md): the form keeps the
-    /// portal switch, so `portal_shortcut: false` survives the round trip
-    /// from the config and from the form, in both directions.
+    /// S-076a keeps `portal_shortcut` as hidden state. The form has no
+    /// registration control, but a remembered denial still survives a round trip.
     #[test]
     fn s029_ac7_form_round_trip_keeps_portal_shortcut_false() {
         for rtl in [false, true] {
             for mut c in every_config() {
                 c.portal_shortcut = false;
                 let form = FormState::from_config(&c, rtl);
-                assert!(!form.portal_shortcut, "rtl {rtl}");
-                assert_eq!(form.to_config(rtl), c, "rtl {rtl}");
-                assert_eq!(FormState::from_config(&form.to_config(rtl), rtl), form);
+                let saved = form.to_config(rtl);
+                assert!(!saved.portal_shortcut, "rtl {rtl}");
+                assert_eq!(saved, c, "rtl {rtl}");
+                assert_eq!(FormState::from_config(&saved, rtl), form);
             }
         }
     }
@@ -599,7 +635,7 @@ mod tests {
 
     mod window {
         use super::*;
-        use i_slint_backend_testing::{AccessibleRole, ElementHandle};
+        use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementRoot};
         use slint::LogicalPosition;
         use slint::platform::{Key, PointerEventButton, WindowEvent};
 
@@ -610,6 +646,21 @@ mod tests {
                 .collect();
             assert_eq!(found.len(), 1, "{label} {role:?}");
             found.into_iter().next().unwrap()
+        }
+
+        fn label_count(win: &SettingsWindow, label: &str) -> usize {
+            let ui = win.inner.ui.borrow();
+            ElementHandle::find_by_accessible_label(&*ui, label).count()
+        }
+
+        fn accessible_labels(win: &SettingsWindow) -> Vec<String> {
+            let ui = win.inner.ui.borrow();
+            ui.root_element()
+                .query_descendants()
+                .find_all()
+                .into_iter()
+                .filter_map(|e| e.accessible_label().map(|label| label.to_string()))
+                .collect()
         }
 
         fn click(win: &SettingsWindow, e: &ElementHandle) {
@@ -705,9 +756,8 @@ mod tests {
             }
         }
 
-        /// S-014e1, manager answer 5: a save that does not touch the
-        /// `portal_shortcut` switch (S-014f1) keeps a remembered portal
-        /// denial.
+        /// S-014e1, manager answer 5 and S-076a: with no registration
+        /// control in the window, a save keeps a remembered portal denial.
         #[test]
         fn s014e1_save_keeps_a_remembered_portal_denial() {
             i_slint_backend_testing::init_no_event_loop();
@@ -725,143 +775,216 @@ mod tests {
             }
         }
 
-        /// The label of a switch row. Its `Text` has no accessible role (the
-        /// switch carries the label), so it is found by geometry: the one
-        /// `Text` element, apart from the switch, whose vertical span holds
-        /// the switch's centre.
-        fn label_of(win: &SettingsWindow, switch: &ElementHandle) -> ElementHandle {
-            let (p, s) = (switch.absolute_position(), switch.size());
-            let (cx, cy) = (p.x + s.width / 2.0, p.y + s.height / 2.0);
-            let ui = win.inner.ui.borrow();
-            let found: Vec<ElementHandle> = ElementHandle::find_by_element_type_name(&*ui, "Text")
-                .filter(|t| {
-                    let (tp, ts) = (t.absolute_position(), t.size());
-                    ts.width > 0.0
-                        && tp.y <= cy
-                        && cy <= tp.y + ts.height
-                        && !(tp.x <= cx && cx <= tp.x + ts.width)
-                })
-                .collect();
-            assert_eq!(found.len(), 1, "one label Text in the row of {p:?}");
-            found.into_iter().next().unwrap()
-        }
-
-        /// S-014f1 AC23 (backlog/S-014-drop-hive.md): the `portal_shortcut`
-        /// switch. One `Switch` per language with the AC23 label, after
-        /// "Open the folder when done", its state from the opened config,
-        /// Save changes `portal_shortcut` only, Cancel and Esc save nothing,
-        /// and the switch sits at the row's end (right in English, left in
-        /// Arabic).
         #[test]
-        fn ac23_s014f1_portal_shortcut_switch() {
+        fn s076a_ac1_settings_have_no_registration_or_technical_controls() {
             i_slint_backend_testing::init_no_event_loop();
             for lang in [Lang::En, Lang::Ar] {
                 let en = lang == Lang::En;
-                let (label, open_label, notify_label, save_label, cancel_label) = if en {
+                let (old_registration, output, quality, notify, open, save, cancel) = if en {
                     (
                         "Register the drop shortcut with the desktop",
-                        "Open the folder when done",
+                        "In a subfolder",
+                        "Smaller files",
                         "Notify when done",
+                        "Open the folder when done",
                         "Save",
                         "Cancel",
                     )
                 } else {
                     (
                         "تسجيل اختصار الإفلات لدى سطح المكتب",
-                        "فتح المجلد عند الانتهاء",
+                        "في مجلد فرعي",
+                        "ملفات أصغر",
                         "إشعار عند الانتهاء",
+                        "فتح المجلد عند الانتهاء",
                         "حفظ",
                         "إلغاء",
                     )
                 };
-                for value in [false, true] {
-                    let ctx = format!("{lang:?} portal_shortcut={value}");
-                    let (win, saved) = wired(lang);
-                    // Not the defaults, so "differs in portal_shortcut
-                    // only" also covers the kept keys.
-                    let start = Config {
-                        quality: Quality::Max,
-                        hold_ms: 1500,
-                        hive_surface: HiveSurface::Layer,
-                        portal_shortcut: value,
-                        ..Config::default()
-                    };
+                let (win, _saved) = wired(lang);
+                win.open(&Config::default()).unwrap();
+                assert_eq!(
+                    label_count(&win, old_registration),
+                    0,
+                    "{lang:?}: the superseded registration row is absent"
+                );
 
-                    // Control: the row lookup works on an existing switch
-                    // row, so a failure below is the new row's absence.
-                    win.open(&start).unwrap();
-                    let notify = find(&win, notify_label, AccessibleRole::Switch);
-                    let notify_text = label_of(&win, &notify);
-                    assert_eq!(
-                        notify.absolute_position().x > notify_text.absolute_position().x,
-                        en,
-                        "{ctx}: control row, switch x against label x"
-                    );
-                    // And a pointer click toggles a switch (twice: no change
-                    // left behind for the Save below).
-                    click(&win, &notify);
-                    assert_eq!(notify.accessible_checked(), Some(!start.notify), "{ctx}");
-                    click(&win, &notify);
-                    assert_eq!(notify.accessible_checked(), Some(start.notify), "{ctx}");
-
-                    // Found once, after "Open the folder when done", state
-                    // from the opened value, x against its label.
-                    let switch = find(&win, label, AccessibleRole::Switch);
-                    assert_eq!(switch.accessible_checked(), Some(value), "{ctx}: opened");
-                    let open = find(&win, open_label, AccessibleRole::Switch);
-                    assert!(
-                        switch.absolute_position().y > open.absolute_position().y,
-                        "{ctx}: below \"{open_label}\""
-                    );
-                    let text = label_of(&win, &switch);
-                    if en {
+                for text in accessible_labels(&win) {
+                    let lower = text.to_lowercase();
+                    for technical in ["portal", "daemon", "registry", "config", "ipc", "token"] {
                         assert!(
-                            switch.absolute_position().x > text.absolute_position().x,
-                            "{ctx}: English, switch right of its label"
-                        );
-                    } else {
-                        assert!(
-                            switch.absolute_position().x < text.absolute_position().x,
-                            "{ctx}: Arabic, switch left of its label"
+                            !lower.contains(technical),
+                            "{lang:?}: accessible string {text:?} contains {technical:?}"
                         );
                     }
-
-                    // Toggle by pointer, then Save: one Config, only
-                    // portal_shortcut changed.
-                    click(&win, &switch);
-                    assert_eq!(switch.accessible_checked(), Some(!value), "{ctx}: toggled");
-                    click(&win, &find(&win, save_label, AccessibleRole::Button));
-                    assert!(!win.inner.visible(), "{ctx}: Save closes");
-                    assert_eq!(
-                        *saved.borrow(),
-                        [Config {
-                            portal_shortcut: !value,
-                            ..start.clone()
-                        }],
-                        "{ctx}: Save"
-                    );
-                    saved.borrow_mut().clear();
-
-                    // Toggle, then Cancel: nothing saved.
-                    win.open(&start).unwrap();
-                    let switch = find(&win, label, AccessibleRole::Switch);
-                    assert_eq!(switch.accessible_checked(), Some(value), "{ctx}: reopened");
-                    switch.invoke_accessible_default_action();
-                    assert_eq!(switch.accessible_checked(), Some(!value), "{ctx}: toggled");
-                    click(&win, &find(&win, cancel_label, AccessibleRole::Button));
-                    assert!(!win.inner.visible(), "{ctx}: Cancel closes");
-                    assert!(saved.borrow().is_empty(), "{ctx}: Cancel saves nothing");
-
-                    // Toggle, then Esc: nothing saved.
-                    win.open(&start).unwrap();
-                    let switch = find(&win, label, AccessibleRole::Switch);
-                    switch.invoke_accessible_default_action();
-                    assert_eq!(switch.accessible_checked(), Some(!value), "{ctx}: toggled");
-                    key(&win, Key::Escape);
-                    assert!(!win.inner.visible(), "{ctx}: Esc closes");
-                    assert!(saved.borrow().is_empty(), "{ctx}: Esc saves nothing");
-                    win.close();
                 }
+
+                let s = strings(lang);
+                let t = &s.text;
+                let visible = [
+                    &t.title,
+                    &t.language,
+                    &t.theme,
+                    &t.output,
+                    &t.folder,
+                    &t.quality,
+                    &t.notify,
+                    &t.open_folder,
+                    &t.save,
+                    &t.cancel,
+                ]
+                .map(|x| x.to_string())
+                .into_iter()
+                .chain(s.languages.iter().map(|x| x.to_string()))
+                .chain(s.themes.iter().map(|x| x.to_string()))
+                .chain(s.outputs.iter().map(|x| x.to_string()))
+                .chain(s.qualities.iter().map(|x| x.to_string()));
+                for text in visible {
+                    let lower = text.to_lowercase();
+                    for technical in ["portal", "daemon", "registry", "config", "ipc", "token"] {
+                        assert!(
+                            !lower.contains(technical),
+                            "{lang:?}: visible string {text:?} contains {technical:?}"
+                        );
+                    }
+                }
+
+                find(&win, output, AccessibleRole::ListItem);
+                find(&win, quality, AccessibleRole::ListItem);
+                find(&win, notify, AccessibleRole::Switch);
+                find(&win, open, AccessibleRole::Switch);
+                let save_x = find(&win, save, AccessibleRole::Button)
+                    .absolute_position()
+                    .x;
+                let cancel_x = find(&win, cancel, AccessibleRole::Button)
+                    .absolute_position()
+                    .x;
+                assert_eq!(save_x > cancel_x, en, "{lang:?}: action direction");
+                win.close();
+            }
+        }
+
+        #[test]
+        fn s076a_ac2_folder_name_is_conditional_retained_and_cancelled() {
+            i_slint_backend_testing::init_no_event_loop();
+            for lang in [Lang::En, Lang::Ar] {
+                let (folder, beside, subfolder, cancel) = if lang == Lang::En {
+                    (
+                        "Folder name",
+                        "Next to the original",
+                        "In a subfolder",
+                        "Cancel",
+                    )
+                } else {
+                    ("اسم المجلد", "بجانب الملف الأصلي", "في مجلد فرعي", "إلغاء")
+                };
+                let (win, saved) = wired(lang);
+                win.open(&Config::default()).unwrap();
+                assert_eq!(label_count(&win, folder), 0, "{lang:?}: beside original");
+
+                click(&win, &find(&win, subfolder, AccessibleRole::ListItem));
+                let input = find(&win, folder, AccessibleRole::TextInput);
+                assert_eq!(input.accessible_enabled(), Some(true), "{lang:?}");
+                input.set_accessible_value("Typed name");
+
+                click(&win, &find(&win, beside, AccessibleRole::ListItem));
+                assert_eq!(label_count(&win, folder), 0, "{lang:?}: removed again");
+                click(&win, &find(&win, subfolder, AccessibleRole::ListItem));
+                let input = find(&win, folder, AccessibleRole::TextInput);
+                assert_eq!(input.accessible_value().as_deref(), Some("Typed name"));
+
+                click(&win, &find(&win, cancel, AccessibleRole::Button));
+                assert!(!win.inner.visible(), "{lang:?}: Cancel closes");
+                assert!(saved.borrow().is_empty(), "{lang:?}: Cancel saves nothing");
+
+                win.open(&Config::default()).unwrap();
+                click(&win, &find(&win, subfolder, AccessibleRole::ListItem));
+                find(&win, folder, AccessibleRole::TextInput).set_accessible_value("Typed name");
+                click(&win, &find(&win, beside, AccessibleRole::ListItem));
+                let save = if lang == Lang::En { "Save" } else { "حفظ" };
+                click(&win, &find(&win, save, AccessibleRole::Button));
+                assert_eq!(
+                    saved.borrow()[0].output_folder,
+                    "Typed name",
+                    "{lang:?}: another output location preserves the folder name"
+                );
+                win.close();
+            }
+        }
+
+        #[test]
+        fn s076a_ac3_save_preserves_complete_config_and_changes_one_visible_field() {
+            i_slint_backend_testing::init_no_event_loop();
+            for lang in [Lang::En, Lang::Ar] {
+                let language = if lang == Lang::En {
+                    LangSetting::En
+                } else {
+                    LangSetting::Ar
+                };
+                let start = non_default_config(language);
+                let (save, smaller) = if lang == Lang::En {
+                    ("Save", "Smaller files")
+                } else {
+                    ("حفظ", "ملفات أصغر")
+                };
+                let (win, saved) = wired(lang);
+
+                win.open(&start).unwrap();
+                click(&win, &find(&win, save, AccessibleRole::Button));
+                assert_eq!(
+                    saved.borrow().as_slice(),
+                    std::slice::from_ref(&start),
+                    "{lang:?}: unedited Save"
+                );
+                assert!(saved.borrow()[0].update_channel_present, "{lang:?}");
+                saved.borrow_mut().clear();
+
+                win.open(&start).unwrap();
+                click(&win, &find(&win, smaller, AccessibleRole::ListItem));
+                click(&win, &find(&win, save, AccessibleRole::Button));
+                let expected = Config {
+                    quality: Quality::Light,
+                    ..start.clone()
+                };
+                assert_eq!(*saved.borrow(), [expected], "{lang:?}: quality only");
+                assert!(saved.borrow()[0].update_channel_present, "{lang:?}");
+                win.close();
+            }
+        }
+
+        #[test]
+        fn s076a_ac4_visible_change_preserves_hidden_portal_denial() {
+            i_slint_backend_testing::init_no_event_loop();
+            for lang in [Lang::En, Lang::Ar] {
+                let (registration, notify, save) = if lang == Lang::En {
+                    (
+                        "Register the drop shortcut with the desktop",
+                        "Notify when done",
+                        "Save",
+                    )
+                } else {
+                    (
+                        "تسجيل اختصار الإفلات لدى سطح المكتب",
+                        "إشعار عند الانتهاء",
+                        "حفظ",
+                    )
+                };
+                let start = Config {
+                    portal_shortcut: false,
+                    ..Config::default()
+                };
+                let (win, saved) = wired(lang);
+                win.open(&start).unwrap();
+                assert_eq!(label_count(&win, registration), 0, "{lang:?}");
+                find(&win, notify, AccessibleRole::Switch).invoke_accessible_default_action();
+                click(&win, &find(&win, save, AccessibleRole::Button));
+                let expected = Config {
+                    notify: !start.notify,
+                    ..start.clone()
+                };
+                assert_eq!(*saved.borrow(), [expected], "{lang:?}");
+                assert!(!saved.borrow()[0].portal_shortcut, "{lang:?}");
+                win.close();
             }
         }
 
@@ -896,11 +1019,10 @@ mod tests {
             assert!(win.inner.visible());
             assert_eq!(win.inner.state(), FormState::from_config(&start, false));
             assert_eq!(win.inner.ui.borrow().get_text().title, "Kawaro settings");
-            let folder = find(&win, "Folder name", AccessibleRole::TextInput);
             assert_eq!(
-                folder.accessible_enabled(),
-                Some(false),
-                "disabled next to the original"
+                label_count(&win, "Folder name"),
+                0,
+                "no Folder name beside the original"
             );
 
             // English: Save on the right of Cancel.

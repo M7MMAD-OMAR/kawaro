@@ -293,39 +293,19 @@ fn s029_ac6_one_missing_program_helper() {
 }
 
 #[test]
-fn s029_ac7_form_state_keeps_the_portal_switch() {
+fn s029_ac7_form_state_has_no_visible_portal_switch() {
     let f = above_test(&read("crates/ui/src/settings.rs"));
-    let form = body_of(&f, "struct FormState {");
-    assert_eq!(
-        lines_with(&form, "portal_shortcut: bool"),
-        1,
-        "FormState has portal_shortcut: {form}"
-    );
     assert_eq!(lines_with(&f, "portal_shortcut: true"), 0);
-    assert_eq!(lines_with(&f, "get_portal_shortcut"), 1);
-    assert_eq!(lines_with(&f, "set_portal_shortcut"), 1);
-    for (header, word) in [
-        ("fn from_config(", "portal_shortcut"),
-        ("fn to_config(", "portal_shortcut"),
-        ("fn state(", "portal_shortcut"),
-        ("fn set_state(", "portal_shortcut"),
-    ] {
-        let mut body = String::new();
-        let mut inside = false;
-        for l in f.lines() {
-            if !inside && l.contains(header) {
-                inside = true;
-            }
-            if inside {
-                body.push_str(l);
-                body.push('\n');
-                if l == "    }" {
-                    break;
-                }
-            }
-        }
-        assert!(body.contains(word), "{header} maps {word}: {body}");
-    }
+    assert_eq!(
+        lines_with(&f, "get_portal_shortcut"),
+        0,
+        "no visible portal getter"
+    );
+    assert_eq!(
+        lines_with(&f, "set_portal_shortcut"),
+        0,
+        "no visible portal setter"
+    );
 }
 
 #[test]

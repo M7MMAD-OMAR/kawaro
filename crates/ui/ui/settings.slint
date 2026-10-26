@@ -27,7 +27,6 @@ export struct SettingsText {
     quality: string,
     notify: string,
     open-folder: string,
-    portal-shortcut: string,
     save: string,
     cancel: string,
 }
@@ -122,9 +121,9 @@ export component SettingsUi inherits MaterialWindow {
     in-out property <string> folder;
     in-out property <bool> notify;
     in-out property <bool> open-folder;
-    in-out property <bool> portal-shortcut;
     // Visual index of the subfolder option in `output-items` (it depends on
-    // the direction, so Rust sets it). The folder name is editable only then.
+    // the direction, so Rust sets it). The folder name field exists only
+    // then, and its text lives in `folder` across its removal and return.
     in property <int> subfolder-index;
 
     callback save();
@@ -178,10 +177,9 @@ export component SettingsUi inherits MaterialWindow {
                     current <=> root.output;
                 }
 
-                TextField {
+                if root.output == root.subfolder-index: TextField {
                     label: root.text.folder;
                     accessible-label: root.text.folder;
-                    enabled: root.output == root.subfolder-index;
                     horizontal-alignment: root.rtl ? right : left;
                     text <=> root.folder;
                 }
@@ -207,12 +205,6 @@ export component SettingsUi inherits MaterialWindow {
                     rtl: root.rtl;
                     label: root.text.open-folder;
                     checked <=> root.open-folder;
-                }
-
-                SwitchRow {
-                    rtl: root.rtl;
-                    label: root.text.portal-shortcut;
-                    checked <=> root.portal-shortcut;
                 }
             }
 
