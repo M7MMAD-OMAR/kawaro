@@ -15,7 +15,8 @@ explains it and never overrides it.
 | Space | `space-1` to `space-6` | 4, 8, 12, 16, 24, 32 px |
 | Radius | `radius-sm`, `md`, `lg` | 6, 10, 14 px |
 | Border width | `default`, `focus` | 1 and 2 px |
-| Type | IBM Plex Sans Arabic, `label` 12, `body` 14, `title` 16; weights 400, 500, 600 | One family for Arabic and Latin |
+|| Glass | `glass-2`, `glass-3` | Tinted translucent overlays |
+|| Motion | `ring-delay-ms`, `highlight-move`, `press`, `hive-close` | Animation timings and easings |
 | Motion | `hive-open` 120 ms, scale 0.92 to 1, ease-out; `hover` 80 ms | Zero when the system asks for reduced motion |
 
 Generated outputs, never edited by hand:

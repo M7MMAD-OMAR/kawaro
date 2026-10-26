@@ -6,6 +6,8 @@
   --color-surface-1: #F2EDE2;
   --color-surface-2: #E9E1D0;
   --color-surface-3: #DFD3BB;
+  --color-glass-2: #E9E1D0B8;
+  --color-glass-3: #DFD3BBD1;
   --color-paper: #FFFFFF;
   --color-border: #D2C6AE;
   --color-edge: #B3A78D;
@@ -65,6 +67,10 @@
   --duration-base: 240ms;
   --duration-slow: 480ms;
   --duration-stagger: 40ms;
+  --duration-ring-delay: 40ms;
+  --duration-highlight-move: 140ms;
+  --duration-press: 70ms;
+  --duration-hive-close: 90ms;
   --duration-loop: 10000ms;
   --duration-marquee: 48000ms;
   --scene-length: 5;
@@ -83,6 +89,10 @@
     --duration-base: 0ms;
     --duration-slow: 0ms;
     --duration-stagger: 0ms;
+    --duration-ring-delay: 0ms;
+    --duration-highlight-move: 0ms;
+    --duration-press: 0ms;
+    --duration-hive-close: 0ms;
     --duration-loop: 0ms;
     --duration-marquee: 0ms;
   }

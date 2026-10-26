@@ -40,5 +40,16 @@ css_check "shadow"            'box-shadow[[:space:]]*:[[:space:]]*[^n]|text-shad
 css_check "gradient"          '(linear|radial|conic)-gradient'
 css_check "em dash"           $'\xe2\x80\x94'
 css_check "en dash"           $'\xe2\x80\x93'
+# Check tokens.json for 8-digit hex colors outside glass-* keys in the color section only
+tokens_check () {
+  local label="$1" pattern="$2" hits
+  if [ -f "$SITE_BASE/design/tokens.json" ]; then
+    # Extract only the color section and check for 8-digit hex colors
+    hits=$(jq -r '.color | to_entries[] | select(.value | type == "object") | .value | to_entries[] | select(.value | type == "string") | select(.value | test("^#[0-9a-fA-F]{8}$")) | "\(.key): \(.value)"' "$SITE_BASE/design/tokens.json" | grep -v 'glass-' || true)
+    if [ -n "$hits" ]; then echo "[design-lint] tokens.json $label:"; echo "$hits"; fail=1; fi
+  fi
+}
+tokens_check "8-digit hex outside glass keys" '#[0-9a-fA-F]{8}\b'
+
 [ $fail -eq 0 ] && echo "[design-lint] clean"
 exit $fail

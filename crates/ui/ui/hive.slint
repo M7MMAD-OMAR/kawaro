@@ -67,7 +67,7 @@ export component HiveWindow inherits Window {
 
     layer := Rectangle {
         transform-scale: root.opened ? Tokens.hive-scale-to : Tokens.hive-scale-from;
-        animate transform-scale { duration: Tokens.hive-open; easing: ease-out; }
+        animate transform-scale { duration: Tokens.hive-open; easing: Tokens.hive-open-easing; }
 
         // Several files: two hexagons behind the centre, up and to the side,
         // under the action cells too.

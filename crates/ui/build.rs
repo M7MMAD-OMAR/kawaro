@@ -244,6 +244,16 @@ fn slint_tokens(t: &Value) -> String {
         )
         .unwrap();
     }
+    // Add glass colors from the glass section
+    for glass_key in ["glass-2", "glass-3"] {
+        let light = text(t, &["glass", glass_key, "light"]);
+        let dark = text(t, &["glass", glass_key, "dark"]);
+        writeln!(
+            s,
+            "    out property <color> {glass_key}: dark ? {dark} : {light};"
+        )
+        .unwrap();
+    }
     for size in ["sm", "md", "lg"] {
         let v = num(t, &["hex", "size", size]);
         writeln!(s, "    out property <length> hex-{size}: {v}px;").unwrap();
@@ -318,6 +328,22 @@ fn slint_tokens(t: &Value) -> String {
     let from = num(t, &["motion", "hive-open", "scale-from"]);
     let to = num(t, &["motion", "hive-open", "scale-to"]);
     let hover = num(t, &["motion", "hover", "duration-ms"]);
+    let ring_delay = num(t, &["motion", "ring-delay-ms"]);
+    let highlight_move_duration = num(t, &["motion", "highlight-move", "duration-ms"]);
+    let press_duration = num(t, &["motion", "press", "duration-ms"]);
+    let press_scale = num(t, &["motion", "press", "scale-to"]);
+    let hive_close_duration = num(t, &["motion", "hive-close", "duration-ms"]);
+    let hive_close_scale = num(t, &["motion", "hive-close", "scale-to"]);
+    let hive_close_opacity = num(t, &["motion", "hive-close", "opacity-to"]);
+
+    // Read and validate easing values from tokens.json
+    let hive_open_easing = text(t, &["motion", "hive-open", "easing"]);
+    validate_easing(hive_open_easing);
+    let highlight_move_easing = text(t, &["motion", "highlight-move", "easing"]);
+    validate_easing(highlight_move_easing);
+    let hive_close_easing = text(t, &["motion", "hive-close", "easing"]);
+    validate_easing(hive_close_easing);
+
     writeln!(
         s,
         "    out property <duration> hive-open: reduced-motion ? 0ms : {open}ms;"
@@ -332,6 +358,52 @@ fn slint_tokens(t: &Value) -> String {
     writeln!(
         s,
         "    out property <duration> hover: reduced-motion ? 0ms : {hover}ms;"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <duration> ring-delay: reduced-motion ? 0ms : {ring_delay}ms;"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <duration> highlight-move: reduced-motion ? 0ms : {highlight_move_duration}ms;"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <duration> press: reduced-motion ? 0ms : {press_duration}ms;"
+    )
+    .unwrap();
+    writeln!(s, "    out property <float> press-scale-to: {press_scale};").unwrap();
+    writeln!(
+        s,
+        "    out property <duration> hive-close: reduced-motion ? 0ms : {hive_close_duration}ms;"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <float> hive-close-scale-to: {hive_close_scale};"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <float> hive-close-opacity-to: {hive_close_opacity};"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <easing> hive-open-easing: {hive_open_easing};\n"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <easing> highlight-move-easing: {highlight_move_easing};\n"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "    out property <easing> hive-close-easing: {hive_close_easing};\n"
     )
     .unwrap();
     s.push_str("}\n");
@@ -372,4 +444,30 @@ fn rust_tokens(t: &Value) -> String {
     )
     .unwrap();
     s
+}
+
+/// Validate an easing value and panic if invalid.
+/// Valid easing = known name (ease-in, ease-out, ease-in-out, linear) or
+/// well-formed `cubic-bezier(a, b, c, d)` with exactly four numeric arguments.
+fn validate_easing(value: &str) {
+    match value {
+        "ease-in" | "ease-out" | "ease-in-out" | "linear" => {}
+        s if s.starts_with("cubic-bezier(") && s.ends_with(')') => {
+            let args = &s[13..s.len() - 1];
+            let parts: Vec<&str> = args.split(',').map(|s| s.trim()).collect();
+            if parts.len() != 4 {
+                panic!(
+                    "Invalid cubic-bezier: expected 4 arguments, got {} in '{}'",
+                    parts.len(),
+                    value
+                );
+            }
+            for part in parts {
+                part.parse::<f32>().unwrap_or_else(|_| {
+                    panic!("Invalid cubic-bezier argument: '{}' in '{}'", part, value)
+                });
+            }
+        }
+        _ => panic!("Unknown easing: '{}'", value),
+    }
 }
