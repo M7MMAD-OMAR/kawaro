@@ -111,6 +111,21 @@ Checkpoint "phase-0 closure" (S-082): the real Nautilus and Dolphin token focus 
 
 S-072 "Launch assets and rename announcement" stays planned, owned by the site track (the owner of the S-056 to S-071 site stories). It is explicitly non-blocking for the stable code release and every story above unless the maintainer asks otherwise.
 
+## Windows beta feedback (S-083 to S-088)
+
+From the owner's first Windows beta run (2026-10-26): the SmartScreen warning, the missing first-run experience, the Alt conflict with Explorer's create-shortcut modifier, the missing app icon and bilingual name, and the silent Start menu entry. Written as stories on 2026-10-26 with a goldfish review (design, readiness and zoom-out) resolved into them.
+
+| Story | Scope | Status |
+| --- | --- | --- |
+| S-083 | Signing pipeline and honest SmartScreen guidance; needs the maintainer's OV certificate | Approved |
+| S-084 | Windows drag trigger without the Explorer drag modifiers; spike first, default named by manager decision | Approved |
+| S-085 | Windows app identity: icon in the exes, the name "Kawaro \| كوارو" everywhere | Approved |
+| S-086 | Clicking the app icon opens a window instead of nothing (the Start shortcut runs `kawarod settings`) | Approved |
+| S-087 | First-run welcome: demo, Try on an image, Settings entry | Approved |
+| S-088 | Download page: demo film, a sample to try, the honest warning | Approved |
+
+Landing order from the review: S-084 before or with S-076b (its D1 and D2 amend S-076 AC5 and AC6); S-087 and S-088 name no drag key before the S-084 manager decision line exists.
+
 ## 0.5.0 "X11"
 
 Goal: the hive and drop work in an X11 session, with the hive at the pointer as `CLAUDE.md` says.
