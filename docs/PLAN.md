@@ -124,7 +124,7 @@ From the owner's first Windows beta run (2026-10-26): the SmartScreen warning, t
 | S-087 | First-run welcome: demo, Try on an image, Settings entry | Approved |
 | S-088 | Download page: demo film, a sample to try, the honest warning | Approved |
 
-Landing order from the review: S-084 before or with S-076b (its D1 and D2 amend S-076 AC5 and AC6); S-087 and S-088 name no drag key before the S-084 manager decision line exists.
+Landing order from the review: S-084 before or with S-076b (its D1 and D2 amend S-076 AC5 and AC6); S-087 and S-088 name no drag key before the S-084 manager decision line exists. The MSI `StartShortcut` row of `installer/windows/kawaro.wxs` is edited by S-085 (name and icon), S-086 (target command) and S-087 (behavior after the click): they land in that order and each updates the s051 table assertions in its own commit, so the parity test never breaks silently.
 
 ## 0.5.0 "X11"
 

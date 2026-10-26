@@ -12,7 +12,7 @@ The MSI Start shortcut targets `kawarod.exe` with no arguments, which is daemon 
 
 ## Acceptance criteria
 - AC1: `kawarod.exe settings` with a running daemon opens the existing Settings window through the same `Request::Settings` path as `kawaro settings` and exits 0; with no daemon running it starts the service and opens the window; an unknown argument still exits 2 with the message of today.
-- AC2: the MSI Start shortcut runs `kawarod.exe settings`; clicking it shows a visible window within 1 s on the reference machine, no console window appears or flashes (`kawarod` keeps `windows_subsystem = "windows"`), and a second click re-focuses the same window instead of opening another.
+- AC2: the MSI Start shortcut runs `kawarod.exe settings`; clicking it shows a visible window within 1 s on the S-079 reference machine (the owner's Windows test machine, cold start included), no console window appears or flashes (`kawarod` keeps `windows_subsystem = "windows"`), and a second click re-focuses the same window instead of opening another.
 - AC3: autostart is unchanged: the `Run` value still starts the silent daemon with no window, and ten clicks of the shortcut leave exactly one window of whatever the `settings` entry currently opens (the S-086 Settings window today, the S-087 welcome window after S-087 lands) and one daemon process.
 - AC4: `kawarod open <files>`, the Explorer menu command and the named-pipe request routing are unchanged; the args tests cover the new mode and the existing modes together.
 - AC5: `docs/windows-beta-checklist.md` gains one owner-run step for the icon click with a 1 s observable expectation; one CHANGELOG line in both languages; no long dashes.
@@ -28,3 +28,6 @@ The MSI Start shortcut targets `kawarod.exe` with no arguments, which is daemon 
 - What the opened window contains: S-087 makes the `settings` entry open the welcome window on the first run by adding a routing branch inside the same request path, not by retargeting the shortcut; the shortcut command of this story is unchanged by S-087 and every AC here stays valid.
 - First-run auto-popup after install (the hive must never appear without a real invocation, and focus stealing is the top Wayland risk; the window appears only from a user click).
 - The tray menu, which already offers Settings.
+
+## Review log
+- 2026-10-26, planner: written from the owner Windows beta report; three goldfish reviews (design, readiness, zoom-out) applied to the text.

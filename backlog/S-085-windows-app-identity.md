@@ -14,11 +14,11 @@ As a Windows user, I want the app to show its cactus icon and the name "Kawaro |
 `crates/cli/build.rs`, `crates/daemon/build.rs` (new), `crates/cli/Cargo.toml`, `crates/daemon/Cargo.toml`, `installer/windows/kawaro.wxs`, `crates/core/src/registry.rs`, `crates/core/tests/s051_msi_registry.rs` (parity follows the rows), `docs/engines.md`, `scripts/windows/make-msi.sh` (only if the icon flow needs it).
 
 ## Acceptance criteria
-- AC1: both shipped exes carry an embedded Windows icon resource built from `design/brand/kawaro.ico` with 16, 32 and 48 px images, and version info whose ProductName and FileDescription read "Kawaro | كوارو". A test in the windows-cross job lists the icon resources of both built exes and fails when the resource is missing.
+- AC1: both shipped exes carry an embedded Windows icon resource built from `design/brand/kawaro.ico` with 16, 32, 48 and 256 px images (256 for the taskbar and Alt+Tab at 150% scaling), and version info whose ProductName and FileDescription read "Kawaro | كوارو". A test in the windows-cross job lists the icon resources of both built exes and fails when the resource is missing.
 - AC2: the MSI Start menu entry shows that icon and its name is "Kawaro | كوارو", proved by a test that exports the MSI Shortcut table (the s051 pattern with `msiinfo export`) and checks the name and the icon reference.
 - AC3: the AUMID DisplayName is "Kawaro | كوارو" in both `installer/windows/kawaro.wxs` and `core::registry::install_commands`, the MSI Product name is "Kawaro | كوارو", and the s051 registry parity test still passes, proving the two sources cannot drift. The `UpgradeCode` of `kawaro.wxs` is byte-for-byte unchanged (it is what makes a newer package replace an older one), a static test pins its value, and the owner checklist keeps its MSI upgrade step to prove a rename never strands an existing install.
-- AC4: the Explorer menu verb stays language-localized exactly as today (Kawaro in English, كوارو in Arabic), the tray icon still loads and the tray tooltip stays localized; no behavior of S-048 changes.
-- AC5: the build dependency added for the icon and version resource has its licence recorded in `docs/engines.md`; `cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings` and `scripts/design-lint.sh` pass; one CHANGELOG line in both languages.
+- AC4: the Explorer menu verb stays language-localized exactly as today (Kawaro in English, كوارو in Arabic), the tray icon still loads and the tray tooltip stays localized; no behavior of S-048 changes. The bilingual compound name is a single fixed string "Kawaro | كوارو" with the Latin part first in every language (it is a brand string like the release titles `Kawaro X | كوارو X`, not a sentence, so it is never reordered per locale); the story records this policy in one line of the user docs.
+- AC5: the build dependency added for the icon and version resource has its licence recorded in `docs/engines.md`; `cargo fmt --all --check`, `cargo clippy --all-targets -- -D warnings` and `scripts/design-lint.sh` pass (the same commands as the CLAUDE.md quality gates); one CHANGELOG line in both languages.
 
 ## Test cases
 | Criterion | Test | Type |
@@ -32,3 +32,6 @@ As a Windows user, I want the app to show its cactus icon and the name "Kawaro |
 - The Linux icon theme and desktop file names (already correct), macOS.
 - Code signing of these exes (S-083) and anything that changes the mark itself (ADR 0008 fixed it).
 - Live "looks right in Start" confirmation, which belongs to the S-079 checklist, not to a test here.
+
+## Review log
+- 2026-10-26, planner: written from the owner Windows beta report; three goldfish reviews (design, readiness, zoom-out) applied to the text.
