@@ -456,7 +456,7 @@ def header(lang, page, root):
     return f'''<header class="site-header">
   <div class="wrap">
     <a class="brand" href="{page_href(lang, page, lang, "index")}">
-      <img src="{root}kawaro-cells.svg" alt="" width="66" height="60">
+      <img src="{root}favicon.svg" alt="" width="48" height="48">
       <span>{p["name"]}</span>
     </a>
     <nav class="site-nav" aria-label="{p["nav_label"]}">
