@@ -52,12 +52,17 @@ def op(pg, sel):
     return pg.eval_on_selector_all(sel, "els => els.map(e => { let o = 1; for (let n = e; n; n = n.parentElement) o *= parseFloat(getComputedStyle(n).opacity); return o; })")
 
 
+# The hero film is the only moving pixel source and its decoded frame can differ
+# between two loads, so hide it: this test compares the colour scheme, not the film.
+FREEZE_FILM = """() => { for (const v of document.querySelectorAll('video')) { v.pause(); v.style.visibility = 'hidden'; } }"""
+
 class AC1Pixels(unittest.TestCase):
     def test_AC1_forced_dark_renders_same_pixels(self):
         for lang in LANGS:
             shots = {}
             for scheme in ("light", "dark"):
                 pg = B.page(page_path(lang), scheme=scheme, reduced=True)
+                pg.evaluate(FREEZE_FILM)
                 shots[scheme] = [pg.screenshot(full_page=False)]
                 pg.evaluate("scrollTo(0, 1400)")
                 pg.wait_for_timeout(300)

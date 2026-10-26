@@ -35,3 +35,7 @@ S-068 D1 kept the CSS demo on the English page because the film carried Arabic t
 
 ## Review log
 - 2026-10-26, builder: film translated and mirrored, rendered (hero cut 1080p at 30 fps, full film 1080p at 60 fps), encoded (mp4 984 KB, webm 1.1 MB, poster 51 KB). hyperframes check: 0 errors on both projects; reading time warnings only, same timings as the Arabic film. Frames reviewed at 1.5, 2.3, 5, 9, 12.9, 15.5, 19.5 and 21.8 s: no overlap or clipping; the strike line sits slightly below the middle of the x height. Chromium at 1440 and 390 px: plays from hero-en.webm, no console error, no overflow. Site tests: all pass except `test_s063_browser.py::test_AC1_forced_dark_renders_same_pixels`, which also fails on main (the playing film changes the pixels between runs); not changed here.
+
+## Manager decision (2026-10-26, after review)
+
+D6. `test_AC1_forced_dark_renders_same_pixels` compared screenshots that include the playing hero film, and the decoded film frame differs between two page loads, so it failed intermittently on both languages. The test now pauses and hides the film before the screenshots (`FREEZE_FILM` in `tests/site/test_s063_browser.py`). The assertion is unchanged: light and dark colour schemes must render the same pixels. Five consecutive runs pass.
