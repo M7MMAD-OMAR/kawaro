@@ -14,12 +14,11 @@ Result: `cargo check --workspace --all-targets` fails with exactly 2 errors, bot
 | `crates/engines` (`kawaro-engines`) | Compiles | none (engines are external processes, so their tests will still need ffmpeg, Ghostscript and others installed on the runner) | S-069a, then S-069c |
 | `crates/cli` (`kawaro-cli`) | Compiles (`Checking kawaro-cli` finished without errors) | none seen | S-069a |
 | `crates/ui` (`kawaro-ui`) | Fails, 2 errors | Missing `cfg` gate. `crates/ui/src/lib.rs:254` imports `winit::platform::startup_notify` (E0432), which winit 0.30.13 builds only for X11 and Wayland (`cfg(any(x11_platform, wayland_platform))`). `crates/ui/src/lib.rs:258` then calls `with_activation_token` (E0599), which exists only through that trait. The function `token_hook` is gated `#[cfg(unix)]`, and macOS is Unix but has no startup notification. | S-069b: narrow the gate to `cfg(all(unix, not(target_os = "macos")))` with a no-op `token_hook` for macOS |
-| `crates/daemon` (`kawaro-daemon`) | Not reached: depends on `kawaro-ui`, so its own errors are hidden | Unknown. Likely candidates: `ashpd` (GlobalShortcuts portal, gated `cfg(unix)` so it is pulled in on macOS where no portal exists), `libc` use, `/proc` and `XDG_*` paths | S-069b rerun after the ui fix, then S-069d if errors appear |
+| `crates/daemon` (`kawaro-daemon`) | Not reached: depends on `kawaro-ui`, so its own errors are hidden | Unknown. Guesses, not findings: the daemon's use of `ashpd` (the crate itself compiles on macOS; the GlobalShortcuts portal has no macOS backend and is gated `cfg(unix)`), `libc` use, `/proc` and `XDG_*` paths | S-069b rerun after the ui fix, then S-069d if errors appear |
 
 Other facts from the logs:
 - `wayland-*` crates in `crates/ui` are already behind `cfg(target_os = "linux")` and caused no error. Slint's own dependencies built without trouble.
 - The vendored `softbuffer` compiled.
-- `cfg(windows)` crates are skipped as expected.
 
 ## Proposed stories
 

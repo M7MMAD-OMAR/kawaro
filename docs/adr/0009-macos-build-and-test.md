@@ -12,7 +12,7 @@ macOS is the last platform in the order (Linux, X11, Windows, macOS). Nobody on 
 | Option | Cost | What it proves | Verdict |
 | --- | --- | --- | --- |
 | GitHub-hosted macOS runner (`macos-14`, Apple silicon) | Free for public repositories | Real build and the real test suite on real macOS, no GUI session control | Chosen first |
-| Cross compiling from Linux with cargo-zigbuild or osxcross | Free | At best a compile check. Both need the Apple SDK, whose licence limits its use to Apple branded hardware, so we would be using it outside its terms. No tests run. | Rejected as the main path |
+| Cross compiling from Linux with cargo-zigbuild or osxcross | Free | At best a compile check. Linking against the system frameworks needs the Apple SDK (osxcross always, cargo-zigbuild for anything beyond libc), and its licence limits use to Apple branded hardware, so we would be using it outside its terms. No tests run. | Rejected as the main path |
 | macOS virtual machine on Linux (OSX-KVM, Docker-OSX) | Free | Full macOS | Rejected: the macOS licence allows virtualisation on Apple hardware only |
 | A real Mac, or an hourly rental | Hourly rental or hardware | Interactive tests: Finder integration, focus, signing, notarization | Needed later |
 
@@ -27,5 +27,5 @@ macOS is the last platform in the order (Linux, X11, Windows, macOS). Nobody on 
 
 - No Apple SDK leaves Apple branded hardware, so the licence is respected.
 - The runner has no interactive GUI session: UI tests that need a window server stay out until the real Mac step.
-- Runner minutes are free for a public repository, but macOS runners are slow to queue, which is why the job is not a pull request gate yet.
+- Runner minutes are free for a public repository. The job is informational and runs on story branches only, so it does not gate pull requests yet.
 - The workflow uses no secrets and read-only permissions.

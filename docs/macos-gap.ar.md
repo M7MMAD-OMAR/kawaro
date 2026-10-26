@@ -14,12 +14,11 @@
 | `crates/engines` (`kawaro-engines`) | تُترجم | لا شيء (المحركات عمليات خارجية، فاختباراتها ستحتاج ffmpeg وGhostscript وغيرها على المشغّل) | S-069a ثم S-069c |
 | `crates/cli` (`kawaro-cli`) | تُترجم (انتهى `Checking kawaro-cli` بلا أخطاء) | لا شيء ظاهر | S-069a |
 | `crates/ui` (`kawaro-ui`) | تفشل بخطأين | بوابة `cfg` ناقصة. السطر 254 من `crates/ui/src/lib.rs` يستورد `winit::platform::startup_notify` (E0432)، وهي في winit 0.30.13 لا تُبنى إلا لـX11 وWayland. والسطر 258 يستدعي `with_activation_token` (E0599) وهي موجودة عبر تلك السمة فقط. الدالة `token_hook` مقيّدة بـ`#[cfg(unix)]`، وmacOS من عائلة Unix لكن بلا إشعار بدء التشغيل. | S-069b: تضييق البوابة إلى `cfg(all(unix, not(target_os = "macos")))` مع نسخة فارغة من `token_hook` لـmacOS |
-| `crates/daemon` (`kawaro-daemon`) | لم تُبلَغ: تعتمد على `kawaro-ui` فأخطاؤها الخاصة مخفية | مجهول. المرشحون: `ashpd` (بوابة GlobalShortcuts، مقيّدة بـ`cfg(unix)` فتُجلب على macOS حيث لا بوابة)، واستعمال `libc`، ومسارات `/proc` وXDG | إعادة التشغيل بعد إصلاح ui في S-069b، ثم S-069d إن ظهرت أخطاء |
+| `crates/daemon` (`kawaro-daemon`) | لم تُبلَغ: تعتمد على `kawaro-ui` فأخطاؤها الخاصة مخفية | مجهول. تخمينات لا نتائج: استعمال الخدمة لحزمة `ashpd` (الحزمة نفسها تُترجم على macOS، لكن بوابة GlobalShortcuts لا تعمل هناك وهي مقيّدة بـ`cfg(unix)`)، واستعمال `libc`، ومسارات `/proc` وXDG | إعادة التشغيل بعد إصلاح ui في S-069b، ثم S-069d إن ظهرت أخطاء |
 
 حقائق أخرى من السجلات:
 - حزم `wayland-*` في `crates/ui` خلف `cfg(target_os = "linux")` أصلاً ولم تسبب خطأ. وتبعيات Slint بُنيت بلا مشكلة.
 - `softbuffer` المضمّنة ترجمت.
-- حزم `cfg(windows)` تُتخطى كما هو متوقع.
 
 ## القصص المقترحة
 

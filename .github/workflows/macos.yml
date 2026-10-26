@@ -16,6 +16,8 @@ permissions:
 jobs:
   macos:
     runs-on: macos-14
+    env:
+      CARGO_TERM_COLOR: never
     steps:
       - uses: actions/checkout@v7
       - uses: dtolnay/rust-toolchain@stable
@@ -42,6 +44,7 @@ jobs:
           CHECK: ${{ steps.check.outcome }}
           TEST: ${{ steps.test.outcome }}
         run: |
+          count() { grep -c "$1" "$2" || true; }
           {
             echo "## macOS build and test (macos-14, informational)"
             echo
@@ -50,8 +53,8 @@ jobs:
             echo "| cargo check --workspace --all-targets | $CHECK |"
             echo "| cargo test --workspace --no-fail-fast | $TEST |"
             echo
-            echo "Errors in the check log: $(grep -c '^error' logs/check.log || true)"
-            echo "Failed test lines in the test log: $(grep -c '^test .* FAILED' logs/test.log || true)"
+            echo "Errors in the check log: $(count '^error' logs/check.log)"
+            echo "Failed test lines in the test log: $(count '^test .* FAILED' logs/test.log)"
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload logs
         if: always()
