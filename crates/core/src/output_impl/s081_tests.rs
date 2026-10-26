@@ -20,6 +20,8 @@
 //! - Nothing else changes: `MAX_NUMBER`, the never replace rule and the
 //!   `AlreadyExists` continuation stay as they are (S-079 exFAT).
 
+#[cfg(windows)]
+use super::place_no_replace;
 use super::{dir_collision, finalize_with, move_error_kind, temp_path, win_long_path};
 use std::fs;
 use std::io::ErrorKind;

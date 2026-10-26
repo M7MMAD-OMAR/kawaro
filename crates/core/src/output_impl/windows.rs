@@ -5,7 +5,7 @@
 //! calls the system, so it is left out of the mutants run and checked live
 //! in S-052.
 
-use super::win_long_path;
+use super::{move_error_kind, win_long_path};
 use crate::win::wide;
 use std::io;
 use std::path::Path;
