@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use super::{Daemon, HelperOps, UpdateError, UpdateResult, helper_args, msiexec_path, run_helper};
+use super::{
+    Daemon, HelperOps, UpdateError, UpdateResult, helper_args, helper_exe, msiexec_path, run_helper,
+};
 use crate::ipc::Request;
 use crate::paths;
 use crate::transport::{Stream, endpoint};
@@ -21,16 +23,19 @@ const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
 /// The variable that tells the helper copy where the program folder is.
 const PROGRAM_DIR_VAR: &str = "KAWARO_PROGRAM_DIR";
 
-/// Copies `kawaro.exe` to a temporary folder and starts the copy detached
-/// with `update --apply-msi <msi>`. The caller asks the daemon to quit next;
-/// the copy waits for it, so `msiexec` never replaces files of a live daemon.
+/// Copies `kawaro.exe` (the CLI beside this program, `helper_exe`) to a
+/// temporary folder and starts the copy detached with `update --apply-msi
+/// <msi>`. The caller asks the daemon to quit next; the copy waits for it,
+/// so `msiexec` never replaces files of a live daemon. The CLI is the copy
+/// source because only it handles `update --apply-msi` (this runs in the
+/// daemon, whose command line has no `update`).
 pub fn apply_msi(msi: &Path) -> Result<(), UpdateError> {
     let exe = std::env::current_exe().map_err(|_| UpdateError::Io)?;
     let program_dir = exe.parent().ok_or(UpdateError::Io)?;
     let folder = std::env::temp_dir().join(format!("kawaro-update-helper-{}", std::process::id()));
     std::fs::create_dir_all(&folder).map_err(|_| UpdateError::Io)?;
     let copy = folder.join("kawaro.exe");
-    std::fs::copy(&exe, &copy).map_err(|_| UpdateError::Io)?;
+    std::fs::copy(helper_exe(program_dir), &copy).map_err(|_| UpdateError::Io)?;
     Command::new(&copy)
         .args(helper_args(msi))
         .env(PROGRAM_DIR_VAR, program_dir)

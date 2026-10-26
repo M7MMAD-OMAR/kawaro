@@ -19,7 +19,7 @@ use clap::{Parser, Subcommand};
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::{Event, Request, Response};
 use kawaro_core::queue::{self, JobEvent};
-use kawaro_core::update::apply::{INSTALL_PRIVILEGED_FLAG, PkgKind};
+use kawaro_core::update::apply::{APPLY_MSI_FLAG, INSTALL_PRIVILEGED_FLAG, PkgKind};
 use kawaro_core::{ActionDef, CancelToken, Engine, Registry};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -161,6 +161,16 @@ fn parse_kind(text: &str) -> Result<PkgKind, String> {
     PkgKind::parse(text).ok_or_else(|| "expected rpm or deb".to_string())
 }
 
+/// The entry of the detached Windows update helper
+/// (`update --apply-msi <msi>`), S-054a AC7.
+#[derive(Parser)]
+#[command(name = "update", bin_name = "kawaro update")]
+struct ApplyMsi {
+    /// The downloaded MSI the helper installs with msiexec.
+    #[arg(long, value_name = "MSI")]
+    apply_msi: PathBuf,
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
     if let Cmd::Integration { action } = cli.cmd {
@@ -179,6 +189,17 @@ fn main() -> ExitCode {
             let words = std::iter::once("update".to_string()).chain(args);
             let p = Privileged::parse_from(words);
             return update(p.install_privileged, p.sha256, p.kind);
+        }
+        // `--apply-msi FILE` or `--apply-msi=FILE`: the entry of the
+        // detached Windows update helper copy.
+        let msi_flag = |a: &String| {
+            a.strip_prefix(APPLY_MSI_FLAG)
+                .is_some_and(|rest| rest.is_empty() || rest.starts_with('='))
+        };
+        if args.iter().any(msi_flag) {
+            let words = std::iter::once("update".to_string()).chain(args);
+            let p = ApplyMsi::parse_from(words);
+            return apply_msi(p.apply_msi);
         }
         return update_sys::run(&args);
     }
@@ -218,6 +239,32 @@ fn main() -> ExitCode {
             eprintln!("kawaro: {e}");
             ExitCode::FAILURE
         }
+    }
+}
+
+/// `update --apply-msi <msi>`: the entry of the detached helper copy. It
+/// waits for the daemon to exit, runs `msiexec` on the MSI, writes the
+/// result and starts a daemon again (`helper_main`), and the exit code
+/// reports the outcome. The MSI apply exists on Windows only (S-054a AC7).
+fn apply_msi(msi: PathBuf) -> ExitCode {
+    #[cfg(windows)]
+    {
+        use kawaro_core::update::apply::helper_main;
+        use kawaro_core::update::result::Outcome;
+        let result = helper_main(&msi);
+        if result.outcome == Outcome::Installed {
+            println!("kawaro: update: installed {}", result.version);
+            ExitCode::SUCCESS
+        } else {
+            eprintln!("kawaro: update: install failed: {:?}", result.outcome);
+            ExitCode::FAILURE
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = msi;
+        eprintln!("kawaro: update: the MSI apply exists on Windows only");
+        ExitCode::FAILURE
     }
 }
 

@@ -135,36 +135,219 @@ pub fn dir_collision(candidate: &Path) -> bool {
     }
 }
 
-/// Windows long path prefix helper: adds `\\?\` or `\\?\UNC\` prefix for paths
-/// over MAX_PATH (260 characters). This is exposed for testing on all platforms.
+/// Windows long path helper (S-081, amended by the Windows correctness
+/// fixes): the form `MoveFileExW` should receive for `path`, resolved
+/// against `cwd` ([`win_long_path`] passes this process's working
+/// directory). This is exposed for testing on all platforms; the rules and
+/// the boundary cases are pinned in `s081_tests`.
+///
+/// A path that is not valid UTF-8 answers `InvalidFilename` instead of
+/// panicking: this runs inside `place_no_replace` for every job's output
+/// placement in the daemon, so one odd name must fail that job cleanly.
+///
+/// An extended spelling (`\\?\` or `\\.\`) is answered verbatim: `..` and
+/// `/` are literal there. Every other spelling is normalized first (`/` is
+/// a separator like `\`, `.` components drop, `..` pops the previous
+/// component and never crosses the root, repeated and trailing separators
+/// drop), and the `\\?\` prefix (`\\?\UNC\` for a UNC spelling) is added
+/// only when the normalized form does not fit `MAX_PATH` (260 characters
+/// including the terminating NUL), so a short spelling keeps working
+/// exactly as it did before S-081.
+///
+/// A relative or rooted spelling is resolved against `cwd` before that
+/// decision and stays as spelled when it fits; a working directory that
+/// cannot be read leaves it as spelled. A drive relative spelling (`C:a`)
+/// is always answered as spelled: its root is the per drive working
+/// directory, which no call can read.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub(crate) fn win_long_path(path: &Path) -> PathBuf {
-    let path_str = path.to_str().unwrap();
-
-    // Skip if already has an extended prefix
-    if path_str.starts_with(r"\\?\") || path_str.starts_with(r"\\.\") {
-        return path.to_path_buf();
+pub(crate) fn win_long_path_in(cwd: &Path, path: &Path) -> std::io::Result<PathBuf> {
+    let text = path.to_str().ok_or_else(|| {
+        std::io::Error::new(
+            ErrorKind::InvalidFilename,
+            "the output path is not valid UTF-8",
+        )
+    })?;
+    let (norm, root) = normalize(text);
+    let resolved = match root {
+        Root::Extended | Root::Drive | Root::Unc | Root::DriveRelative => {
+            Some((norm.clone(), root))
+        }
+        Root::Rooted => drive_of(cwd).map(|d| normalize(&format!("{d}{norm}"))),
+        Root::Relative => cwd
+            .to_str()
+            .map(|c| normalize(&format!("{c}\\{norm}")))
+            .filter(|(_, r)| matches!(r, Root::Extended | Root::Drive | Root::Unc)),
+    };
+    match resolved {
+        Some((candidate, Root::Extended)) => Ok(PathBuf::from(candidate)),
+        Some((candidate, Root::Drive | Root::Unc)) if utf16_len(&candidate) >= MAX_PATH => {
+            Ok(PathBuf::from(long_form(&candidate)))
+        }
+        _ => Ok(PathBuf::from(norm)),
     }
+}
 
-    // Check if path is absolute (Windows-style on any platform)
-    let is_windows_absolute = path_str.len() >= 3
-        && path_str.chars().nth(1) == Some(':')
-        && path_str.chars().nth(2) == Some('\\');
+/// [`win_long_path_in`] with this process's working directory.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn win_long_path(path: &Path) -> std::io::Result<PathBuf> {
+    win_long_path_in(&std::env::current_dir().unwrap_or_default(), path)
+}
 
-    let is_unc = path_str.starts_with("\\\\");
+/// `MAX_PATH` (260) includes the terminating NUL, so a normalized form of
+/// 260 characters or more does not fit and needs the extended-length form.
+const MAX_PATH: usize = 260;
 
-    if !is_windows_absolute && !is_unc {
-        return path.to_path_buf();
+/// The root of a normalized Windows spelling: what `..` cannot cross and
+/// the shape the extended prefix attaches to.
+#[derive(Clone, Copy)]
+enum Root {
+    /// `\\?\...` or `\\.\...`: already extended, answered verbatim.
+    Extended,
+    /// `C:\`
+    Drive,
+    /// `\\server\share`
+    Unc,
+    /// `\`, rooted on the working directory's drive.
+    Rooted,
+    /// `C:`, relative to drive C's own working directory.
+    DriveRelative,
+    /// No root, relative to the working directory.
+    Relative,
+}
+
+/// The canonical spelling of `text` and its root: `/` is a separator like
+/// `\`, `.` components drop, `..` pops the previous component and never
+/// crosses the root, repeated and trailing separators drop, and a plain
+/// relative spelling keeps its leading `..`. An extended spelling is
+/// answered as it stands.
+fn normalize(text: &str) -> (String, Root) {
+    let bytes = text.as_bytes();
+    if text.starts_with(r"\\?\") || text.starts_with(r"\\.\") {
+        return (text.to_string(), Root::Extended);
     }
-
-    // Transform UNC paths
-    if is_unc {
-        let rest = &path_str[2..]; // Skip initial \\
-        return PathBuf::from(format!(r"\\?\UNC\{rest}"));
+    // Drive spellings: `C:\...` rooted, `C:...` relative to drive C.
+    if bytes.len() >= 2 && bytes[1] == b':' && bytes[0].is_ascii_alphabetic() {
+        let rooted = bytes.len() >= 3 && is_sep(bytes[2] as char);
+        let (head, tail) = if rooted {
+            (format!("{}:\\", &text[..1]), &text[3..])
+        } else {
+            (text[..2].to_string(), &text[2..])
+        };
+        let root = if rooted {
+            Root::Drive
+        } else {
+            Root::DriveRelative
+        };
+        let comps = resolve(segs(tail), root);
+        return (build(&head, &comps), root);
     }
+    // UNC spellings: `\\server\share`, also `//server/share`.
+    if bytes.len() >= 2 && is_sep(bytes[0] as char) && is_sep(bytes[1] as char) {
+        let mut parts: Vec<&str> = segs(&text[2..]);
+        if parts.is_empty() {
+            return (text.to_string(), Root::Unc);
+        }
+        let server = parts.remove(0);
+        let share = if parts.is_empty() {
+            ""
+        } else {
+            parts.remove(0)
+        };
+        let head = if share.is_empty() {
+            format!("\\\\{server}")
+        } else {
+            format!("\\\\{server}\\{share}")
+        };
+        let comps = resolve(parts, Root::Unc);
+        return (build(&head, &comps), Root::Unc);
+    }
+    // Rooted on the working directory's drive: `\...`.
+    if bytes.first().is_some_and(|b| is_sep(*b as char)) {
+        let comps = resolve(segs(&text[1..]), Root::Rooted);
+        return (build("\\", &comps), Root::Rooted);
+    }
+    let comps = resolve(segs(text), Root::Relative);
+    (build("", &comps), Root::Relative)
+}
 
-    // Transform regular absolute paths
-    PathBuf::from(format!(r"\\?\{path_str}"))
+/// True for the separators Windows accepts outside an extended spelling.
+fn is_sep(c: char) -> bool {
+    c == '/' || c == '\\'
+}
+
+/// The non empty components of a path spelling.
+fn segs(s: &str) -> Vec<&str> {
+    s.split(is_sep).filter(|p| !p.is_empty()).collect()
+}
+
+/// Resolves `.` and `..` in the components after a root. `..` pops the
+/// previous component and never crosses a root (`C:\`, `\\server\share`,
+/// `\`); a plain relative or drive relative spelling keeps its leading
+/// `..`, since its root is a working directory the caller cannot see.
+fn resolve<'a>(segs: impl IntoIterator<Item = &'a str>, root: Root) -> Vec<&'a str> {
+    let mut comps: Vec<&str> = Vec::new();
+    for comp in segs {
+        if comp == "." {
+            continue;
+        }
+        if comp == ".." {
+            match comps.last().copied() {
+                Some(prev) if prev != ".." => {
+                    comps.pop();
+                }
+                _ if matches!(root, Root::Relative | Root::DriveRelative) => comps.push(comp),
+                _ => {}
+            }
+            continue;
+        }
+        comps.push(comp);
+    }
+    comps
+}
+
+/// Joins a root and its resolved components with `\`; `C:\` and `\` end
+/// with their own separator, `C:` and the empty root glue to the first
+/// component.
+fn build(root: &str, comps: &[&str]) -> String {
+    let mut out = String::from(root);
+    for (i, comp) in comps.iter().enumerate() {
+        let glue = !(i == 0 && (out.is_empty() || out.ends_with(':')));
+        if glue && !out.ends_with('\\') {
+            out.push('\\');
+        }
+        out.push_str(comp);
+    }
+    out
+}
+
+/// The drive of `cwd` as `C:`, what a rooted spelling (`\a`) runs on.
+fn drive_of(cwd: &Path) -> Option<String> {
+    let (norm, root) = normalize(cwd.to_str()?);
+    let bytes = norm.as_bytes();
+    match root {
+        Root::Drive | Root::DriveRelative if bytes.len() >= 2 => Some(norm[..2].to_string()),
+        // `\\?\C:\...`: the drive sits after the extended prefix.
+        Root::Extended
+            if bytes.len() >= 6 && bytes[4].is_ascii_alphabetic() && bytes[5] == b':' =>
+        {
+            Some(norm[4..6].to_string())
+        }
+        _ => None,
+    }
+}
+
+/// The extended-length spelling of a normalized drive or UNC path.
+fn long_form(path: &str) -> String {
+    if let Some(rest) = path.strip_prefix("\\\\") {
+        format!(r"\\?\UNC\{rest}")
+    } else {
+        format!(r"\\?\{path}")
+    }
+}
+
+/// `text` in UTF-16 code units, what `MAX_PATH` counts.
+fn utf16_len(text: &str) -> usize {
+    text.encode_utf16().count()
 }
 
 /// The kind of a Win32 error code from `MoveFileExW`: `ERROR_FILE_EXISTS`

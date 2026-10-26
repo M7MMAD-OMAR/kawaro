@@ -1,15 +1,39 @@
 //! S-081 unit tests (backlog/S-081-windows-long-path-and-dir-candidates.md):
 //! the Windows long-path form and the directory-name output candidates.
 //!
-//! Contract fixed by the tester:
-//! - `win_long_path(path: &Path) -> PathBuf` in `output_impl.rs`, beside the
-//!   pure `move_error_kind`, unit tested on every platform. It answers the
-//!   `\\?\` extended-length form: a drive path `C:\x` becomes `\\?\C:\x`, a
-//!   UNC path `\\server\share\x` becomes `\\?\UNC\server\share\x`, and a path
-//!   already extended (`\\?\` or `\\.\`) or not absolute (no drive, no UNC)
-//!   stays unchanged. `place_no_replace` in `output_impl/windows.rs` sends
-//!   BOTH its arguments through it before `wide`, so the temp file and the
-//!   final name use the long form.
+//! Contract fixed by the tester, amended by the Windows correctness fixes
+//! (the first contract answered the prefixed form for every absolute path
+//! and panicked on a name that is not valid UTF-8):
+//! - `win_long_path(path: &Path) -> std::io::Result<PathBuf>` in
+//!   `output_impl.rs`, beside the pure `move_error_kind`, unit tested on
+//!   every platform. It answers the form `MoveFileExW` should receive:
+//!   - a path that is not valid UTF-8 answers `io::Error` with kind
+//!     `InvalidFilename`, never a panic: it runs inside `place_no_replace`
+//!     for every job's output placement in the daemon, so one odd name must
+//!     fail that job cleanly;
+//!   - a spelling that is already extended (`\\?\` or `\\.\`) is answered
+//!     verbatim: `..` and `/` are literal there;
+//!   - every other spelling is normalized first: `/` is a separator like
+//!     `\`, `.` components drop, `..` pops the previous component and never
+//!     crosses the root (`C:\`, `\\server\share`, `\`), repeated and
+//!     trailing separators drop, and a plain relative spelling keeps its
+//!     leading `..` components;
+//!   - the `\\?\` prefix (`\\?\UNC\` for a UNC spelling) is added only when
+//!     the normalized form does not fit `MAX_PATH` (260 characters
+//!     including the terminating NUL): 259 characters answer without the
+//!     prefix so `MoveFileExW` sees the spelling that worked before S-081,
+//!     260 and more answer the extended form;
+//!   - a relative spelling is resolved against the working directory before
+//!     the prefix decision: `win_long_path_in(cwd, path)` takes that
+//!     directory as an argument and `win_long_path` passes this process's
+//!     working directory. A short relative spelling stays relative. A
+//!     rooted spelling (`\a`) runs on the working directory's drive when it
+//!     needs the prefix, and a drive relative spelling (`C:a`) is answered
+//!     as spelled: its root is the per drive working directory, which no
+//!     call can read.
+//! - `place_no_replace` in `output_impl/windows.rs` sends BOTH its arguments
+//!   through `win_long_path` before `wide`, so the temp file and the final
+//!   name get the right form (the source check is `tests/s081_sources.rs`).
 //! - `dir_collision(candidate: &Path) -> bool` in `output_impl.rs`: true only
 //!   when the candidate name is occupied by a directory. The rule lives in
 //!   `finalize_with`, where the candidate is inspected: when `place` fails
@@ -22,10 +46,181 @@
 
 #[cfg(windows)]
 use super::place_no_replace;
-use super::{dir_collision, finalize_with, move_error_kind, temp_path, win_long_path};
+use super::{
+    dir_collision, finalize_with, move_error_kind, temp_path, win_long_path, win_long_path_in,
+};
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
+
+/// The answer for `path` when the working directory is `cwd`.
+fn asked(cwd: &str, path: &str) -> PathBuf {
+    win_long_path_in(Path::new(cwd), Path::new(path)).unwrap()
+}
+
+/// A spelling of exactly `units` UTF-16 units that starts with `prefix`.
+fn pad(prefix: &str, units: usize) -> String {
+    format!(
+        "{prefix}{}",
+        "x".repeat(units - prefix.encode_utf16().count())
+    )
+}
+
+#[test]
+fn ac1_only_a_form_that_does_not_fit_max_path_gets_the_prefix() {
+    // MAX_PATH (260) includes the terminating NUL: 259 characters fit and
+    // stay the spelling that worked before, 260 do not and get `\\?\`.
+    for units in [3usize, 32, 258, 259] {
+        let p = pad("C:\\", units);
+        assert_eq!(asked("C:\\work", &p), PathBuf::from(&p), "{units}");
+    }
+    for units in [260, 261, 400] {
+        let p = pad("C:\\", units);
+        assert_eq!(
+            asked("C:\\work", &p),
+            PathBuf::from(format!(r"\\?\{p}")),
+            "{units}"
+        );
+    }
+}
+
+#[test]
+fn ac1_long_drive_and_unc_forms_get_the_right_extended_form() {
+    let p = pad("D:\\", 300);
+    assert_eq!(
+        asked("C:\\work", &p),
+        PathBuf::from(format!(r"\\?\{p}")),
+        "the drive letter is not special"
+    );
+    // A UNC spelling: `\\?\UNC\server\share\...`.
+    let u = pad(r"\\server\share\", 300);
+    let want = format!(r"\\?\UNC\{}", &u[2..]);
+    assert_eq!(asked("C:\\work", &u), PathBuf::from(want));
+}
+
+#[test]
+fn ac1_forward_slash_spellings_normalize_and_get_the_prefix() {
+    // `C:/photos/a.png` worked before S-081 and must keep working: it is
+    // normalized before any prefix decision, and a long form is fixed.
+    let p = format!("C:/photos/{}", "x".repeat(300));
+    let want = format!(r"\\?\C:\photos\{}", "x".repeat(300));
+    assert_eq!(asked("C:\\work", &p), PathBuf::from(want));
+    let u = format!("//s/sh/{}", "x".repeat(300));
+    let want = format!(r"\\?\UNC\s\sh\{}", "x".repeat(300));
+    assert_eq!(asked("C:\\work", &u), PathBuf::from(want));
+}
+
+#[test]
+fn ac1_separators_and_dot_components_normalize_before_any_prefix() {
+    let table = [
+        ("C:/photos/./a/../b.png", r"C:\photos\b.png"),
+        (r"C:\a\..\..\b.png", r"C:\b.png"),
+        ("//server/share/a/./..\\b.webp", r"\\server\share\b.webp"),
+        (r"\\server\share\a\..\..\..\b", r"\\server\share\b"),
+        ("out/./x/../a.webp", r"out\a.webp"),
+        (r"..\x\a.webp", r"..\x\a.webp"),
+        (r"C:\a\\b\\", r"C:\a\b"),
+        (r"\a\..\..\b", r"\b"),
+        (r"C:foo\..\x", "C:x"),
+        (r"C:foo\..\..\x", r"C:..\x"),
+    ];
+    for (input, want) in table {
+        assert_eq!(asked("C:\\work", input), PathBuf::from(want), "{input}");
+    }
+}
+
+#[test]
+fn ac1_extended_spellings_stay_verbatim() {
+    for p in [
+        r"\\?\C:\Users\u\a.webp",
+        r"\\?\UNC\server\share\a.webp",
+        r"\\.\C:\a.webp",
+        r"\\?\C:\a\..\b.webp",
+    ] {
+        assert_eq!(asked("C:\\work", p), PathBuf::from(p), "{p}");
+    }
+}
+
+#[test]
+fn ac1_a_relative_spelling_resolves_against_the_working_directory() {
+    let cwd = "C:\\Users\\u";
+    // Short: answered relative, normalized, exactly as spelled.
+    assert_eq!(asked(cwd, "out/./a.webp"), PathBuf::from(r"out\a.webp"));
+    // Long only after the join: the extended form of the resolved path.
+    let rel = format!("out/{}", "x".repeat(250));
+    let want = format!(r"\\?\C:\Users\u\out\{}", "x".repeat(250));
+    assert_eq!(asked(cwd, &rel), PathBuf::from(want));
+    // Short by itself but long in a deep working directory.
+    let deep = pad("C:\\", 400);
+    let want = format!(r"\\?\{deep}\a.webp");
+    assert_eq!(asked(&deep, "a.webp"), PathBuf::from(want));
+}
+
+#[test]
+fn ac1_a_rooted_spelling_runs_on_the_working_directory_drive() {
+    // Short: answered as spelled.
+    assert_eq!(
+        asked("C:\\work", "/photos/./a.png"),
+        PathBuf::from(r"\photos\a.png")
+    );
+    // Long: the drive of the working directory, extended.
+    let rooted = format!(r"\{}", "x".repeat(300));
+    let want = format!(r"\\?\C:{rooted}");
+    assert_eq!(asked("C:\\work", &rooted), PathBuf::from(want));
+}
+
+#[test]
+fn ac1_win_long_path_passes_the_process_working_directory() {
+    assert_eq!(
+        win_long_path(Path::new("out/./a.webp")).unwrap(),
+        PathBuf::from(r"out\a.webp")
+    );
+}
+
+/// A path spelling the platform accepts but UTF-8 cannot hold: a stray byte
+/// on Unix, a lone UTF-16 surrogate on Windows.
+#[cfg(unix)]
+fn non_utf8() -> PathBuf {
+    use std::os::unix::ffi::OsStringExt;
+    PathBuf::from(std::ffi::OsString::from_vec(
+        b"out\\name-\xff.webp".to_vec(),
+    ))
+}
+
+#[cfg(windows)]
+fn non_utf8() -> PathBuf {
+    use std::os::windows::ffi::OsStringExt;
+    let wide: Vec<u16> = "out\\name-"
+        .encode_utf16()
+        .chain([0xD800])
+        .chain(".webp".encode_utf16())
+        .collect();
+    PathBuf::from(std::ffi::OsString::from_wide(&wide))
+}
+
+#[cfg(any(unix, windows))]
+#[test]
+fn ac1_a_path_that_is_not_valid_utf8_is_an_error_not_a_panic() {
+    for cwd in ["C:\\work", ""] {
+        let err = win_long_path_in(Path::new(cwd), &non_utf8()).unwrap_err();
+        assert_eq!(err.kind(), ErrorKind::InvalidFilename, "cwd {cwd:?}");
+    }
+}
+
+#[test]
+fn ac1_win_long_path_prefixes_the_temp_file_and_the_final_name() {
+    // The two shapes `place_no_replace` receives in a deep folder: the temp
+    // file and the final name beside it.
+    let dir = format!("C:\\{}", "s081-segment\\".repeat(24));
+    for name in ["a.webp", ".kawaro-1-2-3-a.webp"] {
+        let p = format!("{dir}{name}");
+        assert_eq!(
+            asked("C:\\work", &p),
+            PathBuf::from(format!(r"\\?\{p}")),
+            "{name}"
+        );
+    }
+}
 
 /// Refuses every name, like a filesystem without hard links (exFAT), so
 /// `finalize_with` falls back to `place` for every candidate.
@@ -54,7 +249,7 @@ std::thread_local! {
     static ASKED: std::cell::RefCell<Vec<PathBuf>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
-fn asked() -> Vec<PathBuf> {
+fn asked_names() -> Vec<PathBuf> {
     ASKED.with(|a| a.borrow().clone())
 }
 
@@ -65,47 +260,6 @@ fn denied(_: &Path, to: &Path) -> std::io::Result<()> {
         ErrorKind::PermissionDenied,
         "denied by policy",
     ))
-}
-
-#[test]
-fn ac1_win_long_path_adds_the_extended_length_prefix() {
-    assert_eq!(
-        win_long_path(Path::new("C:\\Users\\u\\a.webp")),
-        PathBuf::from("\\\\?\\C:\\Users\\u\\a.webp")
-    );
-    assert_eq!(
-        win_long_path(Path::new("\\\\server\\share\\a.webp")),
-        PathBuf::from("\\\\?\\UNC\\server\\share\\a.webp")
-    );
-}
-
-#[test]
-fn ac1_win_long_path_leaves_extended_and_relative_paths_unchanged() {
-    for p in [
-        "\\\\?\\C:\\Users\\u\\a.webp",
-        "\\\\?\\UNC\\server\\share\\a.webp",
-        "\\\\.\\C:\\a.webp",
-        "a.webp",
-        "out\\a.webp",
-    ] {
-        assert_eq!(win_long_path(Path::new(p)), PathBuf::from(p), "{p}");
-    }
-}
-
-#[test]
-fn ac1_win_long_path_prefixes_the_temp_file_and_the_final_name() {
-    // The two shapes `place_no_replace` receives: the temp file and the
-    // final name beside it.
-    for p in [
-        "C:\\Users\\u\\Pictures\\a.webp",
-        "C:\\Users\\u\\Pictures\\.kawaro-1-2-3-a.webp",
-    ] {
-        assert_eq!(
-            win_long_path(Path::new(p)),
-            PathBuf::from(format!("\\\\?\\{p}")),
-            "{p}"
-        );
-    }
 }
 
 #[test]
@@ -163,7 +317,7 @@ fn ac3_a_genuine_permission_failure_keeps_its_original_error_and_the_temp() {
         "the job fails with its original error: {e}"
     );
     assert_eq!(
-        asked(),
+        asked_names(),
         vec![fin.clone()],
         "no retry on another name after a real error"
     );
