@@ -263,12 +263,12 @@ class AC6Downloads(unittest.TestCase):
         for f, a in anchors:
             self.assertEqual(a.attrs["href"], RELEASES, str(f))
 
-    def test_AC6_coming_soon_both_languages(self):
+    def test_AC6_no_soon_or_beta_wording(self):
         en = page_file("en", "download").read_text(encoding="utf-8")
         ar = page_file("ar", "download").read_text(encoding="utf-8")
-        self.assertRegex(en, r"(?i)coming soon")
-        self.assertIn("قريبا", ar)
-        self.assertIn("soon", en)
+        self.assertNotRegex(en, r"(?i)coming soon|>\s*beta\s*<")
+        self.assertNotIn("قريبا", ar)
+        self.assertNotIn("بيتا", ar)
 
     def test_AC6_published_uses_asset_urls(self):
         anchors = self.dl_anchors("1")

@@ -9,14 +9,14 @@
 
 .format-grid { max-width: calc(var(--space-10) * 8); list-style: none; margin: 0 auto; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); }
 
-/* Download band: amber, full bleed. */
-.s-get { --head-lede: var(--color-accent-ink); background: var(--color-accent); color: var(--color-accent-ink); }
+/* Download band: soft amber, full bleed. */
+.s-get { --head-lede: var(--color-accent-ink); background: var(--color-accent-soft); color: var(--color-accent-ink); }
 
 .s-get .facts, .s-get .facts a { color: var(--color-accent-ink); }
 .dl-grid { display: grid; gap: var(--space-5); grid-template-columns: minmax(0, 1fr); }
 .facts { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-5); color: var(--color-text-secondary); font-weight: var(--font-weight-semibold); }
 .facts a { display: inline-flex; align-items: center; min-height: var(--target-min); }
-.facts a:hover, .facts a:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.facts a:hover, .facts a:focus-visible { background: var(--color-accent-soft); color: var(--color-ink); }
 .pill, .tag {
   display: inline-flex;
   align-items: center;
@@ -24,7 +24,7 @@
   padding-inline: var(--space-3);
   background: var(--color-paper);
   color: var(--color-ink);
-  border: var(--border-default) solid var(--color-ink);
+  border: var(--border-default) solid var(--color-edge);
   font-weight: var(--font-weight-semibold);
   font-size: var(--type-small);
 }
@@ -46,7 +46,7 @@
 .card::after { content: ""; position: absolute; z-index: -1; }
 .card::before {
   inset: 0;
-  background: var(--color-ink);
+  background: var(--color-edge);
   clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
 }
 .card::after {
@@ -64,7 +64,7 @@
 .page-head { background: var(--color-accent-soft); }
 .page-head h1 { font-size: var(--fs-h1); }
 .page-head .lead { max-width: 32ch; }
-pre { margin: 0; padding: var(--space-4); background: var(--color-paper); border: var(--border-default) solid var(--color-ink); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; direction: ltr; text-align: start; line-height: 1.6; }
+pre { margin: 0; padding: var(--space-4); background: var(--color-paper); border: var(--border-default) solid var(--color-edge); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; direction: ltr; text-align: start; line-height: 1.6; }
 h3 + pre { margin-block-start: var(--space-2); }
 .sec .wrap > h2 { margin-block-end: var(--space-6); }
 .sec .wrap > h2:not(:first-child) { margin-block-start: var(--space-8); }

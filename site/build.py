@@ -241,13 +241,13 @@ AR = {
     },
     "descs": {
         "index": "محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد الملف، اختر خلية، والناتج بجانب الأصل. ملفاتك تبقى على جهازك.",
-        "download": "أول إصدار بيتا من كوارو للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
+        "download": "كوارو للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
         "windows": "نسخة ويندوز غير موقّعة بعد. شرح تحذير SmartScreen وطريقة التحقق من ملفك قبل تشغيله.",
         "privacy": "لا تتبع ولا حسابات ولا رفع للملفات. الاتصال الوحيد هو فحص التحديثات الموقّعة.",
     },
     "og_alt": "شعار كوارو بجانب الخلية السداسية، وعلى خلاياها صيغ تحويل الصور",
     "footer_license": "برنامج حر برخصة <bdi dir=\"ltr\">GPLv3</bdi>.",
-    "footer_beta": "بيتا <bdi dir=\"ltr\">" + VERSION + "</bdi>",
+    "footer_beta": "<bdi dir=\"ltr\">" + VERSION + "</bdi>",
     "releases": "الإصدارات",
 }
 
@@ -267,13 +267,13 @@ EN = {
     },
     "descs": {
         "index": "A free, open source file converter for Linux and Windows. Select the file, pick a cell, and the result lands next to the original. Your files stay on your machine.",
-        "download": "The first Kawaro beta for Linux and Windows, with the SHA256SUMS steps to verify it.",
+        "download": "Kawaro for Linux and Windows, with the SHA256SUMS steps to verify it.",
         "windows": "The Windows build is not signed yet. What the SmartScreen warning means and how to verify your file before running it.",
         "privacy": "No tracking, no accounts, no uploads. The only network use is the signed update check.",
     },
     "og_alt": "The Kawaro logo next to a hexagonal hive with image formats",
     "footer_license": "Free software under the GPLv3.",
-    "footer_beta": "Beta " + VERSION,
+    "footer_beta": VERSION,
     "releases": "Releases",
 }
 
@@ -457,7 +457,7 @@ def header(lang, page, root):
   <div class="wrap">
     <a class="brand" href="{page_href(lang, page, lang, "index")}">
       <img src="{root}favicon.svg" alt="" width="48" height="48">
-      <span>{p["name"]}</span><span class="badge">{p["beta"]}</span>
+      <span>{p["name"]}</span>
     </a>
     <nav class="site-nav" aria-label="{p["nav_label"]}">
       {"".join(links)}
@@ -470,6 +470,9 @@ def header(lang, page, root):
 <main id="main">
 {meter}
 '''
+
+
+FOOTER_CELLS = 9
 
 
 def footer(lang, page, root):
@@ -486,6 +489,10 @@ def footer(lang, page, root):
     lang_sw = (f'<a href="{page_href(lang, page, other, page)}" hreflang="{other}" lang="{other}">'
                f'{p["other_lang"]}</a>')
     scripts = f'<script src="{root}app.js" defer></script>'
+    row = lambda n: "".join(f'<img src="{root}favicon.svg" alt="" width="96" height="96">' for _ in range(n))
+    # Arabic is stretched with kashida (tatweel), the calligraphic way, never with letter spacing.
+    mark_text = "ك" + "\u0640" * 18 + "وارو" if lang == "ar" else p["name"]
+    cells = f'<div class="footer-cell-row">{row(FOOTER_CELLS)}</div><div class="footer-cell-row footer-cell-odd">{row(FOOTER_CELLS - 1)}</div>'
     return f'''</main>
 <footer class="site-footer">
   <div class="wrap">
@@ -494,7 +501,10 @@ def footer(lang, page, root):
       <ul class="footer-product" role="list">{items}</ul>
       <ul class="footer-lang" role="list"><li>{lang_sw}</li></ul>
     </div>
-    <p class="footer-mark" aria-hidden="true">{p["name"]}</p>
+  </div>
+  <div class="footer-band" aria-hidden="true">
+    <div class="footer-cells">{cells}</div>
+    <p class="footer-mark">{mark_text}</p>
   </div>
 </footer>
 <script id="hive-config" type="application/json">{json.dumps(hive_config(lang), ensure_ascii=False)}</script>
@@ -527,7 +537,6 @@ LIN_ICO = ('<svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable
            '<path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg>')
 
 
-SOON = {"ar": "قريبا", "en": "Coming soon"}
 LATIN = re.compile(r"\b(?:MSI|DEB|RPM|ZIP|EXE)\b|\d+\.\d+\.\d+(?:-[A-Za-z]+\.\d+)?")
 
 
@@ -542,8 +551,7 @@ def bidi(text, lang):
 def dl_link(lang, kind, label, button="plain", size="md"):
     """A download button. Until the release exists it opens the releases page."""
     href = FILES[kind] if PUBLISHED else RELEASES
-    soon = "" if PUBLISHED else f' <span class="soon">{SOON[lang]}</span>'
-    return hex_button(href, f"{label}{soon}", button, size, f' data-dl="{kind}"')
+    return hex_button(href, label, button, size, f' data-dl="{kind}"')
 
 
 def dl_buttons(lang, which):
@@ -552,7 +560,7 @@ def dl_buttons(lang, which):
     word = "تنزيل" if ar else "Download"
     if which == "win":
         return (dl_link(lang, "msi", bidi(f"{word} MSI", lang), "primary", "lg")
-                + dl_link(lang, "zip", bidi("ZIP بلا تثبيت" if ar else "Portable ZIP", lang)))
+                + dl_link(lang, "zip", bidi("ZIP بلا تثبيت" if ar else "Portable ZIP", lang), "primary", "lg"))
     return (dl_link(lang, "deb", bidi(f"{word} DEB", lang), "primary", "lg")
             + dl_link(lang, "rpm", bidi(f"{word} RPM", lang), "primary", "lg"))
 
@@ -597,7 +605,6 @@ T_HOME = {
         "dl": "تنزيل مجاني",
         "win_link": "ويندوز",
         "note": "مفتوح المصدر، للينكس و{win}.",
-        "note_soon": "مفتوح المصدر، للينكس و{win}.",
         "demo_label": "عرض متحرك: تحدّد صورة في مجلد، وتفتح الخلية وتختار WEBP، فيظهر ملف جديد بجانب الأصل",
         "demo_folder": "الصور",
         "demo_centre": "صورة",
@@ -634,7 +641,6 @@ T_HOME = {
         "dl": "Free download",
         "win_link": "Windows",
         "note": "Open source, for Linux and {win}.",
-        "note_soon": "Open source, for Linux and {win}.",
         "demo_label": "Animation: a picture is selected in a folder, the hive opens, WEBP is picked, and a new file appears next to the original",
         "demo_folder": "Pictures",
         "demo_centre": "Image",
@@ -858,7 +864,7 @@ def home(lang):
     win_href = page_href(lang, "index", lang, "windows")
     dl_href = page_href(lang, "index", lang, "download")
     win_a = f'<a href="{win_href}">{t["win_link"]}</a>'
-    note = (t["note"] if PUBLISHED else t["note_soon"]).format(win=win_a)
+    note = t["note"].format(win=win_a)
     rel = ' data-rel="1"' if PUBLISHED else ""
     btn = hex_button(dl_href, t["dl"], "primary", "lg", f' data-os-default="linux"{rel}')
     hero = f'''<section class="hero" aria-labelledby="hero-title">
@@ -898,7 +904,7 @@ def download(lang):
     ar = lang == "ar"
     win_href = page_href(lang, "download", lang, "windows")
     if ar:
-        h = page_head("نزّل كوارو", f"أول إصدار بيتا <code>{VERSION}</code>" + ("" if PUBLISHED else "، قريبا"))
+        h = page_head("نزّل كوارو", f"الإصدار <code>{VERSION}</code>")
         top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
@@ -910,7 +916,7 @@ def download(lang):
 {code(f"git clone {REPO}" + chr(10) + "cd kawaro" + chr(10) + "./scripts/install.sh")}
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
-        h = page_head("Download Kawaro", f"First beta, <code>{VERSION}</code>" + ("" if PUBLISHED else ", coming soon"))
+        h = page_head("Download Kawaro", f"Version <code>{VERSION}</code>")
         top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">Verify the file</h2>
@@ -1246,7 +1252,7 @@ def release_blocks(lang):
     for r in parse_changelog():
         unreleased = r["version"] == "Unreleased"
         ver = VERSION if unreleased else r["version"]
-        pill = ("بيتا، لم يصدر بعد" if ar else "Beta, not tagged yet") if unreleased else ("مستقر" if ar else "Stable")
+        pill = ("لم يصدر بعد" if ar else "Not released yet") if unreleased else ("مستقر" if ar else "Stable")
         cls = "pill pill-hot" if unreleased else "pill"
         # An English line inside the Arabic page is its own LTR run, so its punctuation keeps its place.
         items = "".join((f"<li>{bidi(html.escape(arx), lang)}</li>" if ar and arx else
@@ -1325,7 +1331,7 @@ def sitemap():
 def llms_files(sources):
     """llms.txt (index) and llms-full.txt (all English docs), for agents."""
     idx = ["# Kawaro", "",
-           "> A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. First beta " + VERSION + ".",
+           "> A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. Version " + VERSION + ".",
            "", "## Docs", ""]
     for slug in DOC_ORDER:
         idx.append(f"- [{doc_title(slug, 'en')}]({BASE}en/docs/{slug}.md)")

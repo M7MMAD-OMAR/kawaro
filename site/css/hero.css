@@ -33,7 +33,7 @@ body:lang(en) .hero h1 .hl { line-height: 1.05; }
   font-weight: var(--font-weight-semibold);
   color: var(--color-ink);
 }
-.hero-note a:hover, .hero-note a:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.hero-note a:hover, .hero-note a:focus-visible { background: var(--color-accent-soft); color: var(--color-ink); }
 
 @media (prefers-reduced-motion: no-preference) {
   .h1-line > span { animation: line-in var(--duration-slow) var(--ease-out) backwards; animation-duration: calc(var(--duration-slow) * 2); }

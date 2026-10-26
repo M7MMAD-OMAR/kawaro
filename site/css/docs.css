@@ -4,8 +4,8 @@
 .docs-layout aside { display: grid; gap: var(--space-4); }
 .docs-layout aside > * { min-width: 0; }
 .docs-nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
-.docs-nav a { display: flex; align-items: center; min-height: var(--target-min); padding-inline: var(--space-4); border: var(--border-default) solid var(--color-ink); background: var(--color-paper); text-decoration: none; font-weight: var(--font-weight-semibold); }
-.docs-nav a:hover, .docs-nav a:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.docs-nav a { display: flex; align-items: center; min-height: var(--target-min); padding-inline: var(--space-4); border: var(--border-default) solid var(--color-edge); background: var(--color-paper); text-decoration: none; font-weight: var(--font-weight-semibold); }
+.docs-nav a:hover, .docs-nav a:focus-visible { background: var(--color-accent-soft); color: var(--color-ink); }
 .docs-nav a[aria-current="page"] { background: var(--color-accent); color: var(--color-accent-ink); }
 /* Narrow screens: one swipeable row instead of a pile of eleven boxes. */
 @media (max-width: 719px) {
@@ -24,16 +24,16 @@
 .prose .edit a { display: inline-flex; align-items: center; min-height: var(--target-min); }
 .table-wrap { overflow-x: auto; margin-block: var(--space-4); }
 table { border-collapse: collapse; width: 100%; font-size: var(--type-body-sm); }
-th, td { text-align: start; padding: var(--space-2) var(--space-3); border: var(--border-default) solid var(--color-ink); vertical-align: top; }
+th, td { text-align: start; padding: var(--space-2) var(--space-3); border: var(--border-default) solid var(--color-edge); vertical-align: top; }
 th { background: var(--color-accent-soft); }
 td code, th code { white-space: nowrap; }
 
 .search { position: relative; }
-.search input { width: 100%; min-height: var(--target-min); font: inherit; padding: var(--space-3) var(--space-4); border: var(--border-edge) solid var(--color-ink); background: var(--color-paper); color: var(--color-ink); }
+.search input { width: 100%; min-height: var(--target-min); font: inherit; padding: var(--space-3) var(--space-4); border: var(--border-edge) solid var(--color-edge); background: var(--color-paper); color: var(--color-ink); }
 .search input:focus-visible { background: var(--color-accent-soft); }
 .results { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; gap: var(--space-2); }
 .results:empty { display: none; }
-.results li { background: var(--color-paper); border: var(--border-default) solid var(--color-ink); padding: var(--space-3) var(--space-4); }
+.results li { background: var(--color-paper); border: var(--border-default) solid var(--color-edge); padding: var(--space-3) var(--space-4); }
 .results a { font-weight: var(--font-weight-semibold); }
 .results p { margin: var(--space-1) 0 0; font-size: var(--type-small); color: var(--color-text-secondary); }
 .results mark { background: var(--color-accent); color: var(--color-accent-ink); padding-inline: var(--space-1); }
@@ -55,7 +55,7 @@ td code, th code { white-space: nowrap; }
 .release ul { margin: 0; padding-inline-start: var(--space-5); }
 .release li + li { margin-block-start: var(--space-1); }
 .diagram { margin: var(--space-5) 0; }
-.diagram img { display: block; width: 100%; height: auto; border: var(--border-default) solid var(--color-ink); }
+.diagram img { display: block; width: 100%; height: auto; border: var(--border-default) solid var(--color-edge); }
 
 @media (min-width: 720px) {
   .docs-layout { grid-template-columns: calc(var(--space-10) * 2) minmax(0, 1fr); gap: var(--space-7); }
@@ -65,6 +65,6 @@ td code, th code { white-space: nowrap; }
 
 /* Cut corner edge for tiles and releases: ink layer, paper layer inset by the edge. */
 .doc-tile::before, .doc-tile::after, .release::before, .release::after { content: ""; position: absolute; z-index: -1; }
-.doc-tile::before, .release::before { inset: 0; background: var(--color-ink); clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
+.doc-tile::before, .release::before { inset: 0; background: var(--color-edge); clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut))); }
 .doc-tile::after, .release::after { inset: var(--border-edge); background: var(--color-paper); clip-path: polygon(0 0, calc(100% - var(--cut) + var(--border-edge) * 0.4) 0, 100% calc(var(--cut) - var(--border-edge) * 0.4), 100% 100%, calc(var(--cut) - var(--border-edge) * 0.4) 100%, 0 calc(100% - var(--cut) + var(--border-edge) * 0.4)); }
 .release:hover::after { background: var(--color-accent-soft); }

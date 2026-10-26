@@ -8,6 +8,7 @@
   --color-surface-3: #DFD3BB;
   --color-paper: #FFFFFF;
   --color-border: #D2C6AE;
+  --color-edge: #B3A78D;
   --color-ink: #1F1A12;
   --color-text-primary: #1F1A12;
   --color-text-secondary: #5C5446;
@@ -34,7 +35,7 @@
   --space-10: 128px;
   --border-default: 2px;
   --border-focus: 2px;
-  --border-edge: 3px;
+  --border-edge: 2px;
   --border-ring: 4px;
   --type-h1: 96px;
   --type-h2: 64px;

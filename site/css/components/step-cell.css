@@ -20,7 +20,7 @@
   z-index: -1;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
 }
-.step-cell-num::before { inset: 0; background: var(--color-ink); }
+.step-cell-num::before { inset: 0; background: var(--color-edge); }
 .step-cell-num::after {
   inset-block: calc(var(--border-edge) * 1.1547);
   inset-inline: var(--border-edge);

@@ -16,7 +16,7 @@
   position: relative;
   aspect-ratio: 100 / 72;
   background: var(--color-paper);
-  border: var(--border-edge) solid var(--color-ink);
+  border: var(--border-edge) solid var(--color-edge);
   overflow: clip;
 }
 .demo-bar {

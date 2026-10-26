@@ -18,7 +18,7 @@
 }
 .download-slab::before {
   inset: 0;
-  background: var(--color-ink);
+  background: var(--color-edge);
   clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
 }
 .download-slab::after {
@@ -26,11 +26,8 @@
   background: var(--color-paper);
   clip-path: polygon(0 0, calc(100% - var(--cut) + var(--border-edge) * 0.4) 0, 100% calc(var(--cut) - var(--border-edge) * 0.4), 100% 100%, calc(var(--cut) - var(--border-edge) * 0.4) 100%, 0 calc(100% - var(--cut) + var(--border-edge) * 0.4));
 }
-.download-slab.rec::after { background: var(--color-accent-soft); }
 .download-slab h3 { margin: 0; font-size: var(--fs-h2); }
 .download-slab-sub { margin: 0; color: var(--color-text-secondary); }
 .download-slab .actions { margin-block-start: var(--space-4); }
 .download-slab .os-ico { width: var(--space-9); height: var(--space-9); fill: var(--color-ink); }
 .download-slab .os-ico .line { fill: none; stroke: var(--color-ink); stroke-width: 3; stroke-linejoin: miter; }
-.download-slab:focus-within::after { background: var(--color-accent-soft); }
-.download-slab:hover::after { background: var(--color-accent-soft); }

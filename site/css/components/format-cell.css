@@ -19,7 +19,7 @@
   z-index: -1;
   clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
 }
-.format-cell::before { inset-block: calc(var(--space-1) * 1.1547); inset-inline: var(--space-1); background: var(--color-ink); }
+.format-cell::before { inset-block: calc(var(--space-1) * 1.1547); inset-inline: var(--space-1); background: var(--color-edge); }
 .format-cell::after {
   inset-block: calc((var(--space-1) + var(--border-edge)) * 1.1547);
   inset-inline: calc(var(--space-1) + var(--border-edge));

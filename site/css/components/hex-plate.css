@@ -21,7 +21,7 @@
 }
 .hex-plate::before {
   inset: 0;
-  background: var(--color-ink);
+  background: var(--color-edge);
   clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% 50%, calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 50%);
 }
 .hex-plate::after {

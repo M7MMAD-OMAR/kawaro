@@ -8,5 +8,5 @@
   width: 100%;
   height: auto;
   background: var(--color-paper);
-  border: var(--border-edge) solid var(--color-ink);
+  border: var(--border-edge) solid var(--color-edge);
 }

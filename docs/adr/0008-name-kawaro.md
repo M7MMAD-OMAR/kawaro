@@ -12,7 +12,7 @@ The first name was too long to type as a command and to say. The owner asked for
 The product is **Kawaro** in Latin script and **«كوارو»** in Arabic, pronounced ka-wa-ro.
 
 - Source: «كوّارة» (kawwara), an old Arabic word for a beehive. The app is a hive of actions.
-- The mark is a traditional domed beehive cut out of one honeycomb cell (`design/brand/build.py`).
+- The mark stays the saguaro cactus cut out of one honeycomb cell (`design/brand/build.py`). The owner preferred it to the beehive mark drawn at first for this name.
 - Names checked on 2026-10-26: the crate names `kawaro` and `kawwara` are free on crates.io, and `kawaro.com`, `.app`, `.dev` and `.io` did not resolve.
 - Rejected: foreign-word candidates, because a dropped silent letter can change the vowel for the reader, and other Arabic roots (cell, bees, honey) with a weaker link to the hive.
 

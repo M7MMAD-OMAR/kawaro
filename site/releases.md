@@ -1,12 +1,12 @@
 # الإصدارات
 
 ## 0.4.0-beta.1
+- Site and film polish
 - Hive without a plate (S-074)
 - Release asset names (S-073)
 - Review fixes for the updater and the Windows drop (S-067)
 - Windows notifications (S-049)
 - Drop from Explorer onto a hive cell on Windows (S-047)
-- Update command (S-054c)
 
 ## 0.3.3 (2026-10-23)
 - Drop shortcut through the global shortcuts portal (S-014e)

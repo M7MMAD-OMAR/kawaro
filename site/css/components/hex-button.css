@@ -36,7 +36,7 @@
 }
 .hex-button::before {
   inset: 0;
-  background: var(--btn-edge, var(--color-ink));
+  background: var(--btn-edge, var(--color-edge));
   clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% 50%, calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 50%);
 }
 .hex-button::after {
@@ -49,8 +49,8 @@
 .hex-button.button-support { --fill: var(--btn-fill, var(--color-accent-soft)); }
 .hex-button:hover,
 .hex-button:focus-visible {
-  --fill: var(--btn-hover-fill, var(--color-ink));
-  --ink: var(--btn-hover-ink, var(--color-paper));
+  --fill: var(--btn-hover-fill, var(--color-accent-soft));
+  --ink: var(--btn-hover-ink, var(--color-ink));
 }
 .hex-button-sm { --hb-h: var(--target-min); font-size: var(--type-small); }
 .hex-button-lg { --hb-h: calc(var(--space-8) + var(--space-4)); font-size: var(--fs-lead); }

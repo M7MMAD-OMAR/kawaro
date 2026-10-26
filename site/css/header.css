@@ -44,11 +44,11 @@
   font-weight: var(--font-weight-semibold);
 }
 .site-nav .nav-link:hover,
-.site-nav .nav-link:focus-visible { background: var(--color-ink); color: var(--color-paper); }
+.site-nav .nav-link:focus-visible { background: var(--color-accent-soft); color: var(--color-ink); }
 .site-nav > a.nav-link[aria-current="page"] { background: var(--color-accent-soft); color: var(--color-ink); }
 .site-nav > a.nav-link[aria-current="page"]:hover,
-.site-nav > a.nav-link[aria-current="page"]:focus-visible { background: var(--color-ink); color: var(--color-paper); }
-.site-nav .lang-switch { border: var(--border-default) solid var(--color-ink); }
+.site-nav > a.nav-link[aria-current="page"]:focus-visible { background: var(--color-surface-2); color: var(--color-ink); }
+.site-nav .lang-switch { border: var(--border-default) solid var(--color-edge); }
 .site-nav .nav-cta { margin-inline-start: var(--space-2); }
 .site-nav .nav-support { gap: var(--space-2); }
 .site-nav .nav-support .ico { width: var(--space-5); height: var(--space-5); fill: var(--color-accent); }
@@ -86,17 +86,25 @@
 .site-footer a:focus-visible { background: var(--color-accent); color: var(--color-accent-ink); }
 .site-footer :focus-visible { outline-color: var(--color-accent); }
 .footer-lang a { border: var(--border-default) solid var(--color-paper); }
+/* The band at the foot: two offset rows of hive cells wearing the mark, then the
+   name set as wide as the page. The band owns the container, so the type scales
+   with the width it is given (cqw) and always reaches both edges. */
+.footer-band { container-type: inline-size; padding-block-start: var(--space-7); user-select: none; }
+.footer-cell-row { display: flex; }
+.footer-cell-row img { flex: 1 1 0; min-width: 0; height: auto; }
+.footer-cell-odd { margin-block-start: -5.4cqw; padding-inline: calc(50cqw / 9); }
 .footer-mark {
   margin: 0;
-  font-size: clamp(var(--type-display-sm), 16vw, calc(var(--type-display) * 1.4));
+  padding-block-start: var(--space-4);
+  font-size: var(--mark-size, 24.8cqw);
   font-weight: var(--font-weight-bold);
-  line-height: 1.05;
+  line-height: 1.3;
+  text-align: center;
   color: var(--color-accent);
   white-space: nowrap;
-  margin-block-end: calc(var(--space-6) * -1);
-  user-select: none;
+  overflow: clip;
 }
-body:lang(en) .footer-mark { letter-spacing: calc(var(--border-edge) * -2); line-height: 0.9; margin-block-end: calc(var(--space-4) * -1); }
+body:lang(en) .footer-mark { --mark-size: 26.6cqw; letter-spacing: calc(var(--border-edge) * -1); line-height: 1; }
 @media (min-width: 960px) {
   .footer-row { grid-template-columns: 1fr auto auto; align-items: center; }
 }

@@ -130,7 +130,7 @@ body:lang(ar) h2 { line-height: 1.3; }
 .fine-links li { margin: 0; }
 .fine-links a { display: inline-flex; align-items: center; min-height: var(--target-min); }
 .muted { color: var(--color-text-secondary); }
-.hl { display: inline-block; line-height: 1.05; background: var(--color-accent); color: var(--color-accent-ink); padding-inline: var(--space-2); }
+.hl { display: inline-block; line-height: 1.05; background: var(--color-accent-soft); color: var(--color-accent-ink); padding-inline: var(--space-2); }
 body:lang(ar) .hl { line-height: 1.3; }
 
 /* Sections. Each pins its own surface. Vertical room comes from the section

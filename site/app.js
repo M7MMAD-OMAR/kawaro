@@ -1,15 +1,12 @@
-/* Kawaro site behaviour: the download card for the visitor's system, the hero
+/* Kawaro site behaviour: the hero
    download button, and the docs search. No dependencies. Everything works without
    JS. The home page motion is CSS only (S-064, S-065), except the hero film. */
 (() => {
   const doc = document;
   const cfgNode = doc.getElementById("hive-config");
   const cfg = cfgNode ? JSON.parse(cfgNode.textContent) : null;
-
-  /* Highlight the download card that matches the visitor's system. */
   const ua = (navigator.userAgent || "").toLowerCase();
-  const os = ua.includes("windows") ? "win" : ua.includes("linux") && !ua.includes("android") ? "linux" : "";
-  if (os) doc.querySelectorAll(`.download-slab[data-card="${os}"]`).forEach((c) => c.classList.add("rec"));
+
 
   /* Docs search with Pagefind. The index loads only when the box is used. */
   const form = doc.querySelector("form.search");
