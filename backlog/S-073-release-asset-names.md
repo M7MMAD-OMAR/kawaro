@@ -1,5 +1,5 @@
 # S-073 Release asset names match what GitHub stores, and the update feed job runs
-Status: approved (manager, delegated, 2026-10-26)
+Status: review
 
 ## Story
 As a beta tester, I want the files on the release page, `SHA256SUMS` and the signed update feed to name the same files, so that `sha256sum -c SHA256SUMS` works on what I download and the app finds its update.
@@ -61,3 +61,4 @@ As a beta tester, I want the files on the release page, `SHA256SUMS` and the sig
   FAIL AC5 one CHANGELOG.md line names S-073
   41 checks, 23 failed
   ```
+- 2026-10-26, implementer: new `scripts/release/github-names.sh DIR` (set -eu, executable): collects every `~` name in DIR first and exits 2 with a stderr message, renaming nothing, when a new name exists already or two files would get the same new name (checked by hand: `a~b.c` next to `a.b~c` gives rc 2, both kept); then renames each `~` to `.` and prints the base name; no output and exit 0 when nothing needs renaming; exit 2 on misuse. `packages.yml`: the release job has a step `GitHub asset names` (`scripts/release/github-names.sh dist`) before Checksums; update-manifest runs on `ubuntu-24.04` and has the same step after the two downloads, before Manifests; no `mv` in either job's run texts; the windows job, environments and secrets are unchanged. ADR 0006 has one sentence after the `build-packages.sh` paragraph; one CHANGELOG line in English and Arabic. Gates: `PATH=/usr/bin:$PATH bash tests/release/run_all.sh` rc 0 (manifest 46/0, sign 31/0, workflow 37/0, packages 19/0, docs 38/0, beta_versions 6/0, beta_manifest 10/0, beta_workflow 82/0, beta_notes 54/0, beta_dryrun 86/0, s073_asset_names 41/0 checks/failed); `shellcheck scripts/release/github-names.sh` rc 0; `scripts/design-lint.sh` rc 0 (clean). No test file edited; no crates change, so no cargo gates.
