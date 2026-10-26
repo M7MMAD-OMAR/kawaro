@@ -16,6 +16,14 @@
 //!   runs `argv[0]` with `argv[1..]` and gives the exit code, and on Unix it
 //!   refuses with `UpdateError::Io` when `pkexec_target` is `Some(p)` and `p`
 //!   is not `exe_is_trusted` (or cannot be read). Built on every platform.
+//! - `fn run_checked(argv: &[String], stat: &dyn Fn(&Path) ->
+//!   std::io::Result<(u32, u32)>, spawn: &mut dyn FnMut(&[String]) ->
+//!   Result<i32, UpdateError>) -> Result<i32, UpdateError>` (story, manager
+//!   decision D1): `stat` (owner uid, mode) runs on `pkexec_target(argv)`
+//!   only when that is `Some`; a failing `stat` or an untrusted program is
+//!   `Err(UpdateError::Io)` with no `spawn` call; otherwise `spawn(argv)`.
+//!   `SystemRunner::run` passes the real metadata and `Command`. The refusal
+//!   tests use fakes, so no test here ever starts `pkexec`.
 //! - `fn is_repo_file(name: &str) -> bool`.
 //! - `fn clean_exe_path(exe: &Path) -> PathBuf` (moved from the daemon).
 //! - `fn probe_facts(installed_kind: Option<PkgKind>) -> Facts`: the live
@@ -122,27 +130,106 @@ fn ac1_system_runner_runs_a_plain_command_without_checking_its_arguments() {
     );
 }
 
+/// The privileged step of a local package, as `apply_now` runs it.
 #[cfg(unix)]
-#[test]
-fn ac1_system_runner_refuses_a_privileged_step_whose_program_the_user_owns() {
-    use kawaro_core::update::UpdateError;
-    use kawaro_core::update::apply::SystemRunner;
-    // The refusal comes before anything starts, so pkexec is never run: the
-    // program is a file this user owns (not root), so it is not trusted.
-    let tmp = tempfile::tempdir().unwrap();
-    let exe = tmp.path().join("kawaro");
-    fs::write(&exe, b"#!/bin/sh\n").unwrap();
-    let argv = privileged_argv(&exe, &tmp.path().join("k.rpm"), "ab", PkgKind::Rpm);
-    assert_eq!(pkexec_target(&argv), Some(exe.as_path()));
-    assert_eq!(SystemRunner.run(&argv), Err(UpdateError::Io));
-    // A program that does not exist is refused the same way.
-    let gone = privileged_argv(
-        &tmp.path().join("missing"),
-        &tmp.path().join("k.rpm"),
+fn privileged_step() -> Vec<String> {
+    privileged_argv(
+        Path::new("/usr/bin/kawaro"),
+        Path::new("/c/k.rpm"),
         "ab",
         PkgKind::Rpm,
-    );
-    assert_eq!(SystemRunner.run(&gone), Err(UpdateError::Io));
+    )
+}
+
+/// Runs `run_checked` with a fake `stat` giving `stat_result` and a `spawn`
+/// that records its calls and starts nothing. Returns the result, the paths
+/// `stat` saw and the argv `spawn` saw.
+#[cfg(unix)]
+fn checked(
+    argv: &[String],
+    stat_result: std::io::Result<(u32, u32)>,
+) -> (
+    Result<i32, kawaro_core::update::UpdateError>,
+    Vec<PathBuf>,
+    Vec<Vec<String>>,
+) {
+    use kawaro_core::update::apply::run_checked;
+    use std::cell::RefCell;
+    let stat_result = RefCell::new(Some(stat_result));
+    let stat_calls = RefCell::new(Vec::new());
+    let stat = |p: &Path| -> std::io::Result<(u32, u32)> {
+        stat_calls.borrow_mut().push(p.to_path_buf());
+        stat_result
+            .borrow_mut()
+            .take()
+            .expect("stat is called at most once")
+    };
+    let mut spawn_calls: Vec<Vec<String>> = Vec::new();
+    let mut spawn = |a: &[String]| {
+        spawn_calls.push(a.to_vec());
+        Ok(7)
+    };
+    let result = run_checked(argv, &stat, &mut spawn);
+    (result, stat_calls.into_inner(), spawn_calls)
+}
+
+#[cfg(unix)]
+#[test]
+fn ac1_run_checked_refuses_a_privileged_step_whose_program_root_does_not_own() {
+    use kawaro_core::update::UpdateError;
+    let argv = privileged_step();
+    let (result, stats, spawns) = checked(&argv, Ok((1000, 0o100755)));
+    assert_eq!(result, Err(UpdateError::Io));
+    assert_eq!(stats, vec![PathBuf::from("/usr/bin/kawaro")]);
+    assert!(spawns.is_empty(), "nothing starts: {spawns:?}");
+}
+
+#[cfg(unix)]
+#[test]
+fn ac1_run_checked_refuses_a_privileged_step_whose_program_is_group_writable() {
+    use kawaro_core::update::UpdateError;
+    let argv = privileged_step();
+    let (result, stats, spawns) = checked(&argv, Ok((0, 0o100775)));
+    assert_eq!(result, Err(UpdateError::Io));
+    assert_eq!(stats, vec![PathBuf::from("/usr/bin/kawaro")]);
+    assert!(spawns.is_empty(), "nothing starts: {spawns:?}");
+}
+
+#[cfg(unix)]
+#[test]
+fn ac1_run_checked_refuses_a_privileged_step_whose_program_cannot_be_read() {
+    use kawaro_core::update::UpdateError;
+    let argv = privileged_step();
+    let gone = std::io::Error::from(std::io::ErrorKind::NotFound);
+    let (result, stats, spawns) = checked(&argv, Err(gone));
+    assert_eq!(result, Err(UpdateError::Io));
+    assert_eq!(stats, vec![PathBuf::from("/usr/bin/kawaro")]);
+    assert!(spawns.is_empty(), "nothing starts: {spawns:?}");
+}
+
+#[cfg(unix)]
+#[test]
+fn ac1_run_checked_runs_a_privileged_step_whose_program_root_owns() {
+    let argv = privileged_step();
+    let (result, stats, spawns) = checked(&argv, Ok((0, 0o100755)));
+    assert_eq!(result, Ok(7), "the spawn's exit code comes back");
+    assert_eq!(stats, vec![PathBuf::from("/usr/bin/kawaro")]);
+    assert_eq!(spawns, vec![argv]);
+}
+
+#[cfg(unix)]
+#[test]
+fn ac1_run_checked_runs_a_repository_command_without_stat() {
+    for kind in [PkgKind::Rpm, PkgKind::Deb] {
+        let argv = repo_argv(kind);
+        let (result, stats, spawns) = checked(&argv, Ok((1000, 0o100777)));
+        assert_eq!(result, Ok(7), "{argv:?}");
+        assert!(
+            stats.is_empty(),
+            "a repository command is never stat'ed: {stats:?}"
+        );
+        assert_eq!(spawns, vec![argv]);
+    }
 }
 
 // ---------------------------------------------------------------- AC2
