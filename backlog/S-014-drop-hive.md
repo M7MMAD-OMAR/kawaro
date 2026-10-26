@@ -1,5 +1,5 @@
 # S-014 إفلات ملف مسحوب على خلية بعد اختصار أثناء السحب
-الحالة: S-014d منتهية (المراجعة 2: PASS)؛ S-014e معتمدة (2026-10-22، مقسومة إلى S-014e1 وS-014e2 وS-014e3)، وS-014e1 منتهية (المراجعة 2: PASS)، وS-014e2 منتهية (المراجعة 1: PASS)، وS-014e3 منتهية (المراجعة 2: PASS)؛ S-014f: approved (2026-10-23, for 0.4.0, split into S-014f1 to S-014f4); S-014f1 done (review 1: PASS); S-014f2 done (review 1: PASS); S-014f3 done (review 1: PASS); S-014f4 review
+الحالة: done (every sub-story done: S-014a to S-014d, S-014e1 to S-014e3, S-014f1 to S-014f4; S-014f4 review 1: PASS)
 
 يعتمد على ADR 0003 (مقبول في 2026-10-20). النطاق: المرحلتان الأولى والثانية من «القرار المقترح» فيه، للإصدار 0.3.0.
 
@@ -968,3 +968,9 @@
   - `CHANGELOG.md`: one S-014f line under `## [Unreleased]`, in a new `### Added` group, in English and Arabic: the settings switch applied without a restart, the GNOME activation token so the hive takes the drop under strict focus, and a changed key kept.
   - Gates, inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, `nice -n 19`, `CARGO_BUILD_JOBS=1`, commands in a script file: `tests/drop/portal_docs.sh` RESULT PASS (32 PASS, 0 FAIL, all 8 AC28 checks among them); `tests/drop/docs.sh` and `tests/drop/hold_docs.sh` RESULT PASS; `scripts/design-lint.sh` clean; `tests/integrations/test_static.sh` PASS (43 checks); `cargo fmt --all --check` clean and `git status crates/` empty. No GUI run: no code changed, and the tester's AC16 runs on main stand.
   - Status: S-014f4 review.
+- 2026-10-26, reviewer (S-014f4: AC16, AC28, planner decision 6, review 1), fresh context: **PASS**.
+  - No code to gate: `git show --name-only` on the four S-014f4 commits (`c3b024c`, `216b4c8`, `59bb632`, `4fd5e6f`) lists no file under `crates/` (0 each); the implementer's `4fd5e6f` touches only `CHANGELOG.md`, the two docs and this log. The last commit under `crates/` is `8d6dfa1` (S-067). So `cargo fmt`, `clippy`, `test` and `mutants` have nothing new to check, and no GUI run was needed: the tester's AC16 runs on main (T after the restart names Y, decision 6 finding absent) stand.
+  - AC28 docs: `docs/drop-shortcut.md` line 66 says Kawaro keeps a key changed there, also after a restart of the daemon; at once on KDE; on GNOME at the latest after you log out and back in (not at once, matching the INFO `live rebind: not followed`). `docs/drop-shortcut.ar.md` line 68 says the same in Arabic (في KDE فوراً؛ في GNOME قد لا يسري إلا بعد تسجيل الخروج ثم الدخول).
+  - AC28 CHANGELOG: one line naming S-014f under `## [Unreleased]`, `### Added`, in English and Arabic; `grep -c S-014f CHANGELOG.md` is 1. No second line added on PASS, since AC28 requires exactly one.
+  - `PATH=/usr/bin:$PATH bash tests/drop/portal_docs.sh`: exit 0, RESULT PASS, 32 PASS, 0 FAIL, all AC28 checks among them. `scripts/design-lint.sh`: exit 0, clean. Long dash grep on the added lines of `4fd5e6f` and on the three changed files: no match (grep exit 1).
+  - Status: S-014f4 done. Every sub-story of S-014 is done, so the header is set to done.
