@@ -195,6 +195,7 @@ if [ -s "$TMP/release.sh" ]; then
     ver="${tag#v}"
     w="$(mktemp -d -p "$TMP")"
     mkdir -p "$w/$FOLDER" "$w/docs"
+    ln -s "$REPO_ROOT/scripts" "$w/scripts"
     echo notes > "$w/docs/release-notes-$ver.md"
     local mp="${ver//-/\~}"
     echo rpm > "$w/$FOLDER/kawaro-$mp-1.x86_64.rpm"
@@ -227,7 +228,7 @@ if [ -s "$TMP/release.sh" ]; then
       test "$(grep -n '^gh release create' "$L" | head -1 | cut -d: -f1)" -lt "$(grep -n '^gh release upload' "$L" | head -1 | cut -d: -f1)"
     check "AC3 $tag: upload has --clobber" grep -Eq '^gh release upload .*--clobber' "$L"
     names="$(grep '^gh release upload' "$L" | tr ' ' '\n' | grep -E '(\.rpm|\.deb|\.zip|\.msi|SHA256SUMS)$' | xargs -r -n1 basename | sort | tr '\n' ' ')"
-    mp="${ver//-/\~}"
+    mp="${ver//-/.}" # S-073: GitHub stores `~` as `.`; the release job renames first
     want="$(printf '%s\n' SHA256SUMS "kawaro-$mp-1.x86_64.rpm" "kawaro_${mp}_amd64.deb" "kawaro-$ver-windows-x64.zip" "kawaro-$ver-windows-x64.msi" | sort | tr '\n' ' ')"
     check "AC3 $tag: upload names the four files and SHA256SUMS" test "$names" = "$want"
   done

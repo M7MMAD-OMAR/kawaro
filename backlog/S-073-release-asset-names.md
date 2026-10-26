@@ -30,4 +30,34 @@ As a beta tester, I want the files on the release page, `SHA256SUMS` and the sig
 - The site download page (it links the release page, not file names).
 
 ## Review log
--
+- 2026-10-26, tester: new `tests/release/s073_asset_names.sh` (41 checks, AC number in each name), added to `tests/release/run_all.sh`; `tests/release/beta_workflow.sh` now expects the `.` upload names for the beta tag and links the repo's `scripts` into its throwaway workspace (the release job will call `scripts/release/github-names.sh`). Contracts: AC1 runs the release run texts with a fake gh for `v0.4.0-beta.1` and `v0.4.0`, contents survive the rename; AC2 the call is `scripts/release/github-names.sh dist`, before the first `make-update-manifest.sh` and before the first redirect into SHA256SUMS; AC3 prints one line per renamed file (base name or DIR/base name), prints nothing when nothing needs renaming, and a collision renames nothing at all, also not other files in DIR; no `mv` left in the release and update-manifest run texts; AC4 one ADR 0006 paragraph names GitHub, asset, `~`, a quoted dot, a rename, checksum or SHA256SUMS, and the manifest; AC5 shellcheck on the script and one CHANGELOG line naming S-073. The `v0.4.0` checks and the "untouched" checks pass now as regression guards. `shellcheck -x` clean. Run before implementation (`PATH=/usr/bin:$PATH bash tests/release/run_all.sh`, rc 1; every other file 0 failed):
+  ```
+  == beta_workflow
+  FAIL AC3 v0.4.0-beta.1: upload names the four files and SHA256SUMS
+  82 checks, 1 failed
+  == s073_asset_names
+  FAIL AC2 update-manifest runs-on ubuntu-24.04
+  FAIL AC2 update-manifest calls scripts/release/github-names.sh dist
+  FAIL AC2 update-manifest renames before make-update-manifest.sh
+  FAIL AC2 release calls scripts/release/github-names.sh dist
+  FAIL AC2 release renames before the line that writes SHA256SUMS
+  FAIL AC4 ADR 0006 says GitHub stores ~ as . in asset names and the pipeline renames before checksums and the manifest
+  FAIL AC1 v0.4.0-beta.1: no file name in dist contains ~
+  FAIL AC1 v0.4.0-beta.1: dist holds kawaro-0.4.0.beta.1-1.x86_64.rpm with the rpm content
+  FAIL AC1 v0.4.0-beta.1: dist holds kawaro_0.4.0.beta.1_amd64.deb with the deb content
+  FAIL AC1 v0.4.0-beta.1: SHA256SUMS names kawaro-0.4.0.beta.1-1.x86_64.rpm, kawaro_0.4.0.beta.1_amd64.deb, the zip and the msi
+  FAIL AC1 v0.4.0-beta.1: gh release upload names kawaro-0.4.0.beta.1-1.x86_64.rpm, kawaro_0.4.0.beta.1_amd64.deb, the zip, the msi and SHA256SUMS
+  FAIL AC3 scripts/release/github-names.sh exists and is executable
+  FAIL AC3 a~b.rpm: exit 0
+  FAIL AC3 a~b.rpm becomes a.b.rpm with its content
+  FAIL AC3 a~b.rpm is gone
+  FAIL AC3 every ~ is replaced: x~y~z.deb becomes x.y.z.deb
+  FAIL AC3 the new name a.b.rpm is printed
+  FAIL AC3 the new name x.y.z.deb is printed
+  FAIL AC3 only the two renamed files are printed
+  FAIL AC3 a dir with no ~: exit 0
+  FAIL AC3 a~b next to an existing a.b exits 2
+  FAIL AC5 shellcheck clean on scripts/release/github-names.sh (no script)
+  FAIL AC5 one CHANGELOG.md line names S-073
+  41 checks, 23 failed
+  ```
