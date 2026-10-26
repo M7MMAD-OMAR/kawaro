@@ -198,12 +198,8 @@ fn ac7_hex_cell_uses_only_the_new_tokens() {
 
 #[test]
 fn ac8_design_lint_is_clean_with_the_new_look_in_place() {
-    // Lint alone passes today; tie it to the new look so it can only pass
-    // once the plate and the tokens exist.
-    assert!(
-        source("ui/hive.slint").contains("Tokens.hive-plate"),
-        "the lint result is only meaningful with the plate in hive.slint"
-    );
+    // S-074 D2 part 2: hive.slint no longer uses the plate (AC1); the lint
+    // must stay clean either way.
     let out = Command::new("bash")
         .arg(root().join("scripts/design-lint.sh"))
         .current_dir(root())
@@ -227,8 +223,4 @@ fn ac8_no_long_dashes_in_the_files_this_story_touches() {
     for f in files {
         assert!(!f.contains('\u{2013}') && !f.contains('\u{2014}'));
     }
-    assert!(
-        source("ui/hive.slint").contains("Tokens.hive-plate"),
-        "the new look is not in place yet"
-    );
 }

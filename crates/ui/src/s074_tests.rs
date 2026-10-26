@@ -26,7 +26,7 @@ fn cells(n: usize) -> Vec<HiveCell> {
 /// Presents `files` (none: the plain hive) with `n` cells, in `scheme`
 /// and `lang`, and returns (width, height, RGBA bytes, cell centres,
 /// hive centre) in physical pixels.
-type Shot = (u32, u32, Vec<u8>, Vec<(f32, f32)>, (f32, f32));
+type Shot = (u32, u32, Vec<u8>, Vec<(f32, f32)>, (f32, f32), f32, bool);
 
 thread_local! {
     static WINDOW: RefCell<Option<Rc<MinimalSoftwareWindow>>> = const { RefCell::new(None) };
@@ -105,7 +105,15 @@ fn render(scheme: &str, lang: Lang, files: &[&str], n: usize) -> Shot {
         .collect();
     let o = plan.layout.origin;
     let bytes = buf.iter().flat_map(|p| [p.r, p.g, p.b, p.a]).collect();
-    (w, h, bytes, centres, (o.0 * scale, o.1 * scale))
+    (
+        w,
+        h,
+        bytes,
+        centres,
+        (o.0 * scale, o.1 * scale),
+        plan.layout.radius * scale,
+        plan.layout.rtl,
+    )
 }
 
 fn alpha(s: &Shot, x: f32, y: f32) -> u8 {
@@ -141,32 +149,69 @@ fn corners_clear(s: &Shot, what: &str) {
     }
 }
 
-/// The midpoint (and its 4 neighbours) between two neighbouring cell
-/// centres is the gap between them: alpha 0.
-fn gaps_clear(s: &Shot, what: &str) {
-    let mut pts: Vec<(f32, f32)> = s.3.clone();
-    pts.push(s.4);
-    let d = |a: (f32, f32), b: (f32, f32)| ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt();
-    let mut min = f32::MAX;
-    for i in 0..pts.len() {
-        for j in i + 1..pts.len() {
-            min = min.min(d(pts[i], pts[j]));
-        }
+/// Cell edge ring (`reach` in hex-cell.slint) plus the 1 px of anti-aliasing
+/// the spec allows beyond it. Manager decision D2: the ring and the stack
+/// hexagons are part of the cell look; only what lies outside them is the
+/// plate's territory.
+const GROW: f32 = 3.0;
+/// `stack-offset` in design/tokens.json.
+const STACK_OFFSET: f32 = 4.0;
+/// `badge-size` in design/tokens.json; the badge is grown generously.
+const BADGE: f32 = 18.0;
+
+/// True when (x, y) is inside the pointy top hexagon of circumradius `r`
+/// at `c`, grown by `grow` on every side.
+fn in_hex(c: (f32, f32), r: f32, grow: f32, x: f32, y: f32) -> bool {
+    let (dx, dy) = ((x - c.0).abs(), (y - c.1).abs());
+    let a = r * 3.0_f32.sqrt() / 2.0 + grow;
+    // Grown flat sides: apothem a; the points reach a / cos 30 along y.
+    dx <= a && dx * 0.5 + dy * 3.0_f32.sqrt() / 2.0 <= a
+}
+
+/// Sample points of the window area outside the union of every hexagon the
+/// hive draws (cells, centre, stack hexagons) grown by `GROW`, and outside
+/// the count badge. This is exactly where the old plate painted. All must
+/// be alpha 0, and there must be at least 20 of them.
+fn gaps_clear(s: &Shot, files: usize, what: &str) {
+    let r = s.5;
+    let side = if s.6 { -1.0 } else { 1.0 };
+    let mut hexes: Vec<(f32, f32)> = s.3.clone();
+    hexes.push(s.4);
+    if files > 1 {
+        hexes.push((s.4.0 + side * STACK_OFFSET, s.4.1 - STACK_OFFSET));
     }
-    let mut gaps = 0;
-    for i in 0..pts.len() {
-        for j in i + 1..pts.len() {
-            if d(pts[i], pts[j]) < min * 1.1 {
-                gaps += 1;
-                let (mx, my) = ((pts[i].0 + pts[j].0) / 2.0, (pts[i].1 + pts[j].1) / 2.0);
-                for (ox, oy) in [(0.0, 0.0), (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] {
-                    let a = alpha(s, mx + ox, my + oy);
-                    assert_eq!(a, 0, "{what}: gap pixel near ({mx}, {my}) has alpha {a}");
-                }
+    if files > 2 {
+        hexes.push((
+            s.4.0 + side * 2.0 * STACK_OFFSET,
+            s.4.1 - 2.0 * STACK_OFFSET,
+        ));
+    }
+    let badge = (
+        s.4.0 + side * r * 1.2679492 / 2.0,
+        s.4.1 - r * 1.2679492 / 2.0,
+    );
+    let mut checked = 0;
+    for y in 0..s.1 {
+        for x in 0..s.0 {
+            let (fx, fy) = (x as f32, y as f32);
+            if hexes.iter().any(|&c| in_hex(c, r, GROW, fx, fy)) {
+                continue;
             }
+            if files > 1 && (fx - badge.0).abs() <= BADGE && (fy - badge.1).abs() <= BADGE {
+                continue;
+            }
+            checked += 1;
+            let a = alpha(s, fx, fy);
+            assert_eq!(
+                a, 0,
+                "{what}: pixel ({x}, {y}) outside every cell has alpha {a}"
+            );
         }
     }
-    assert!(gaps >= 6, "{what}: found only {gaps} neighbouring pairs");
+    assert!(
+        checked >= 20,
+        "{what}: only {checked} points outside every cell"
+    );
 }
 
 fn centres_opaque(s: &Shot, what: &str) {
@@ -181,7 +226,7 @@ fn centres_opaque(s: &Shot, what: &str) {
 fn check(scheme: &str, lang: Lang, files: &[&str], n: usize, what: &str) {
     let s = render(scheme, lang, files, n);
     corners_clear(&s, what);
-    gaps_clear(&s, what);
+    gaps_clear(&s, files.len(), what);
     centres_opaque(&s, what);
 }
 

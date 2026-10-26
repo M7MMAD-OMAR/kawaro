@@ -16,8 +16,8 @@ As a user, I want the hive to be only its hexagonal cells over my desktop, so th
 
 ## Acceptance criteria
 - AC1: `hive.slint` has no use of `Tokens.hive-plate`, and the root window background is `transparent`.
-- AC2: in a rendered snapshot of the hive with 8 or more cells (software renderer, `tests/snapshots.sh` path), every pixel in the four window corners and every pixel in the gap between two neighbouring cells has alpha 0; every pixel at a cell centre has alpha 255.
-- AC3: the same holds for a 1 file and a several-files hive in light and dark schemes, and in LTR and RTL.
+- AC2 (amended by D2): in a rendered snapshot of the hive with 8 or more cells (software renderer, `tests/snapshots.sh` path), every pixel in the four window corners has alpha 0; every pixel outside the union of all cell hexagons grown by `reach` + 1 px (and outside the stack hexagons and count badge when several files are shown) has alpha 0, with at least 20 such points per scenario; every pixel at a cell centre has alpha 255.
+- AC3 (amended by D2, same gap rule as AC2): the same holds for a 1 file and a several-files hive in light and dark schemes, and in LTR and RTL.
 - AC4: `geometry` and `drop_tests` pass unchanged (picking is the same); the centre cell still shows the full name and thumbnail.
 - AC5: `text-primary` text still has 4.5:1 or more on every surface it sits on (`contrast.rs` passes unchanged), since no text sits on the removed plate.
 - AC6: nested Hyprland `tests/hyprland/repro.sh`: the screenshot of the shown hive has desktop pixels (the background colour of the test client) in the gap between two cells and in the corners of the hive rectangle. Recorded as an image in the story log.
@@ -45,3 +45,5 @@ Glass or blur (S-017), new motion, any change to cell look.
   - Cause 2: with several files, the stack hexagons (`stack-offset` 4, two layers = 8 px, wider than the 6 px gap) are opaque in the gap between the centre and ring-1 cells: alpha 255 at the gap midpoint (3 files, both LTR and RTL). That is the existing S-0xx design, not the plate.
   - Also failing, same class as D1: `contrast.rs` `ac8_design_lint_is_clean_with_the_new_look_in_place` and `ac8_no_long_dashes_in_the_files_this_story_touches` assert `hive.slint` contains `Tokens.hive-plate`. They contradict AC1 and need the same removal as the S-062 ac6 test.
   - Gates run: fmt OK, clippy OK, design-lint clean; `cargo test --workspace`: lib 173 passed, 5 failed (s074 above); contrast.rs 8 passed, 2 failed (above); everything else green. Snapshots, CHANGELOG, AC6 not done (blocked on the decision).
+  - Manager decision D2: the implementation is right and the tests over-specified. The cell edge ring (`reach` 2 px outside each cell fill, alpha 4 to 75) and the stack hexagons (8 px offset, behind the centre when preview-count > 2) are part of the cell look and stay. AC2 and AC3 are amended above: corners alpha 0; gap check is every point outside all hexagons grown by `reach` + 1 px, the stack hexagons and the badge, alpha 0, at least 20 points per scenario; cell centres alpha 255.
+  - D2 part 2: `contrast.rs` `ac8_design_lint_is_clean_with_the_new_look_in_place` and `ac8_no_long_dashes_in_the_files_this_story_touches` no longer require `Tokens.hive-plate` in hive.slint (they contradicted AC1); design lint clean and no long dashes stay asserted.
