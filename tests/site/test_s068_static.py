@@ -27,10 +27,12 @@ class AC1Film(unittest.TestCase):
         self.assertLess(v.index("hero.webm"), v.index("hero.mp4"), "WebM first")
         self.assertNotIn('class="demo"', t)
 
-    def test_AC1_english_home_keeps_the_demo(self):
+    def test_AC1_english_home_has_its_own_film(self):
+        # S-070 (D-item): the English page used to keep the CSS demo (S-068 D1); it now has
+        # the English film, covered in test_s070_static.py. The demo is on neither home page.
         t = read("en/index.html")
-        self.assertEqual(t.count("<video"), 0)
-        self.assertIn('<figure class="demo"', t)
+        self.assertEqual(t.count("<video"), 1)
+        self.assertNotIn('<figure class="demo"', t)
 
     def test_AC1_media_files_exist_and_are_small(self):
         for name in MEDIA:
