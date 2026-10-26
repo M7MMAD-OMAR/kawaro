@@ -78,7 +78,7 @@ jobs:
       - name: System packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 msitools
+          sudo apt-get install -y mingw-w64 msitools wixl
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu
