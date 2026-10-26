@@ -443,6 +443,12 @@ fn rust_tokens(t: &Value) -> String {
         num(t, &["hex", "ring-2-count"]) as usize
     )
     .unwrap();
+    writeln!(
+        s,
+        "/// Close animation length, tokens motion.hive-close.duration-ms.\npub const HIVE_CLOSE_MS: u64 = {};",
+        num(t, &["motion", "hive-close", "duration-ms"]) as u64
+    )
+    .unwrap();
     s
 }
 

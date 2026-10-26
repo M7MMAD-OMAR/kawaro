@@ -12,6 +12,8 @@
 //!   system colour scheme, through Slint's `Palette.color-scheme`).
 //! - `KAWARO_REDUCED_MOTION=1|0` forces reduced motion on or off (otherwise
 //!   KDE or GNOME settings, see the `motion` module).
+//! - `KAWARO_GLASS=1|0` forces the glass surfaces on or off (S-017; the
+//!   compositor blur detection of S-017d drives [`Hive::set_glass`]).
 
 // Windows has no drop receiver or preview yet, so some items are unused there.
 #![cfg_attr(not(unix), allow(dead_code))]
@@ -376,6 +378,11 @@ struct Inner {
     on_drop_files: RefCell<Option<FilesFn>>,
     /// Pending timer that starts the opening animation after the first frame.
     opener: slint::Timer,
+    /// Pending timer that hides the hive at the end of the close animation
+    /// (S-017c).
+    closer: slint::Timer,
+    /// Glass surfaces on this hive (S-017 AC13), kept across rebuilds.
+    glass: Cell<bool>,
     /// Hive mode (normal or waiting for a drop), see `dnd`.
     machine: RefCell<dnd::Machine>,
     /// Clock for the drop hive's enter timeout.
@@ -393,8 +400,17 @@ impl Inner {
     }
 
     fn close(&self) {
-        // Forget the focus first: hiding drops focus, and that must not be
-        // reported as a dismissal.
+        self.closer.stop();
+        self.ui.borrow().set_closing(false);
+        self.teardown();
+        self.ui.borrow().hide().ok();
+    }
+
+    /// Everything a close does at once: forget the focus first (hiding
+    /// drops focus, and that must not be reported as a dismissal), stop the
+    /// timers, reset the machine and free the pictures. An animated close
+    /// (S-017c) does this at once and hides after `Tokens.hive-close`.
+    fn teardown(&self) {
         WAS_FOCUSED.with(|c| c.set(false));
         self.opener.stop();
         self.ticker.stop();
@@ -406,11 +422,36 @@ impl Inner {
         #[cfg(windows)]
         dnd::windows::hive_closed();
         let ui = self.ui.borrow();
-        ui.hide().ok();
         ui.set_highlight(-1);
         // Never keep a picture while hidden (S-018 AC24, AC27).
         ui.set_preview_image(slint::Image::default());
         ui.set_preview_icon(slint::Image::default());
+    }
+
+    /// The user driven close (S-017c AC8): `on_choose` and `on_dismiss` run
+    /// in the same turn as before, and the surface stays for the 90 ms of
+    /// `Tokens.hive-close` while the hive fades and shrinks. A probing drop
+    /// show has drawn nothing and closes at once (AC9); so does reduced
+    /// motion. `present` during the close cancels it (`close`).
+    fn animate_close(&self) {
+        let probing = self.machine.borrow().state() == dnd::State::Probing;
+        if self.reduced_motion || probing {
+            return self.close();
+        }
+        self.teardown();
+        let ui = self.ui.borrow();
+        ui.set_closing(true);
+        let w = ui.as_weak();
+        self.closer.start(
+            slint::TimerMode::SingleShot,
+            Duration::from_millis(tokens::HIVE_CLOSE_MS),
+            move || {
+                if let Some(ui) = w.upgrade() {
+                    ui.set_closing(false);
+                    ui.hide().ok();
+                }
+            },
+        );
     }
 
     /// Ends the shown hive for a new show, without `on_dismiss` (S-022
@@ -470,6 +511,7 @@ impl Inner {
                     label: p.cell.label.as_str().into(),
                     has_icon: icon.is_some(),
                     icon: icon.unwrap_or_default(),
+                    ring: p.axial.distance(),
                 }
             })
             .collect();
@@ -587,7 +629,8 @@ impl Inner {
             dnd::State::Over(i) => self.ui.borrow().set_highlight(i as i32),
             dnd::State::Waiting => self.ui.borrow().set_highlight(-1),
             dnd::State::Running(i) => self.choose(i as i32),
-            dnd::State::Hidden => self.dismiss(),
+            // A probing show has drawn nothing and hides at once (S-017 AC9).
+            dnd::State::Hidden => self.dismiss_inner(before == dnd::State::Probing),
             _ => {}
         }
     }
@@ -615,10 +658,12 @@ impl Inner {
                 .map(|c| c.cell.id.clone())
         });
         let Some(id) = id else { return };
-        if !self.visible() {
+        // One callback per show: a click or a key during the close (S-017c
+        // AC8) adds nothing.
+        if !self.visible() || self.ui.borrow().get_closing() {
             return;
         }
-        self.close();
+        self.animate_close();
         let f = self.on_choose.borrow().clone();
         if let Some(f) = f {
             f(id);
@@ -626,10 +671,22 @@ impl Inner {
     }
 
     fn dismiss(&self) {
-        if !self.visible() {
+        let probing = self.machine.borrow().state() == dnd::State::Probing;
+        self.dismiss_inner(probing);
+    }
+
+    /// Dismisses with the close at once when `instant` (a probing show has
+    /// drawn nothing, S-017 AC9), and with the animated close otherwise.
+    /// `on_dismiss` runs in the same turn as before, once per show.
+    fn dismiss_inner(&self, instant: bool) {
+        if !self.visible() || self.ui.borrow().get_closing() {
             return;
         }
-        self.close();
+        if instant {
+            self.close();
+        } else {
+            self.animate_close();
+        }
         let f = self.on_dismiss.borrow().clone();
         if let Some(f) = f {
             f();
@@ -646,8 +703,16 @@ pub struct Hive {
 impl Hive {
     pub fn new(lang: Lang) -> Result<Self, slint::PlatformError> {
         let reduced_motion = motion::detect();
+        // The glass surfaces (S-017 AC13) with `KAWARO_GLASS` as the test
+        // and demo switch; the compositor blur detection of S-017d drives
+        // `set_glass` in the daemon.
+        let glass = std::env::var("KAWARO_GLASS")
+            .ok()
+            .as_deref()
+            .and_then(motion::parse_env)
+            .unwrap_or(false);
         let inner = Rc::new(Inner {
-            ui: RefCell::new(build_window(reduced_motion)?),
+            ui: RefCell::new(build_window(reduced_motion, glass)?),
             builds: Cell::new(1),
             on_layer: Cell::new(built_on_layer()),
             rtl: lang.rtl(),
@@ -657,6 +722,8 @@ impl Hive {
             on_dismiss: RefCell::new(None),
             on_drop_files: RefCell::new(None),
             opener: slint::Timer::default(),
+            closer: slint::Timer::default(),
+            glass: Cell::new(glass),
             machine: RefCell::new(dnd::Machine::new()),
             ticker: slint::Timer::default(),
             found: Cell::new(0),
@@ -800,7 +867,7 @@ impl Hive {
             if let Ok(mut t) = PENDING_TOKEN.lock() {
                 *t = token;
             }
-            let fresh = build_window(inner.reduced_motion);
+            let fresh = build_window(inner.reduced_motion, inner.glass.get());
             if let Ok(mut t) = PENDING_TOKEN.lock() {
                 // Never leak a token into another window (the settings window).
                 t.take();
@@ -857,6 +924,8 @@ impl Hive {
         // A probing show opens at its reveal, in `Inner::drag` (S-022).
         let probing = inner.machine.borrow().state() == dnd::State::Probing;
         ui.set_opened(false);
+        // A show cancels any close still animating (S-017c AC8).
+        ui.set_closing(false);
         #[cfg(windows)]
         ui.window().set_position(win_at);
         ui.show()?;
@@ -904,6 +973,14 @@ impl Hive {
         self.inner.ui.borrow().set_highlight(index);
     }
 
+    /// The glass surfaces of S-017 AC13: cells and stacks `glass-2`, the
+    /// centre `glass-3`, only over a compositor blur. The daemon drives it
+    /// from the blur capability (S-017d); `KAWARO_GLASS` forces it at build.
+    pub fn set_glass(&self, glass: bool) {
+        self.inner.glass.set(glass);
+        self.inner.ui.borrow().set_glass(glass);
+    }
+
     /// Snapshot hook: renders the current window content.
     #[doc(hidden)]
     pub fn take_snapshot(
@@ -915,7 +992,7 @@ impl Hive {
 
 /// A new hive component with the theme overrides applied. Creating it
 /// creates its window adapter, which runs the attributes hook.
-fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError> {
+fn build_window(reduced_motion: bool, glass: bool) -> Result<HiveWindow, slint::PlatformError> {
     // Every hive build goes through the surface decision (S-018 AC5).
     #[cfg(target_os = "linux")]
     platform::building_hive(true);
@@ -932,6 +1009,7 @@ fn build_window(reduced_motion: bool) -> Result<HiveWindow, slint::PlatformError
         tokens.set_dark(dark);
     }
     tokens.set_reduced_motion(reduced_motion);
+    ui.set_glass(glass);
     Ok(ui)
 }
 
@@ -992,7 +1070,9 @@ fn wire(inner: &Rc<Inner>) {
     let w = Rc::downgrade(inner);
     ui.window().on_close_requested(move || {
         dismiss_weak(&w);
-        slint::CloseRequestResponse::HideWindow
+        // The close animation keeps the surface for `Tokens.hive-close`;
+        // its timer hides the window (S-017c AC8).
+        slint::CloseRequestResponse::KeepWindowShown
     });
 }
 
@@ -1004,6 +1084,36 @@ fn dismiss_weak(w: &Weak<Inner>) {
 
 #[cfg(test)]
 mod anchor_tests;
+#[cfg(test)]
+pub(crate) mod test_env {
+    //! `KAWARO_*` variables are process wide while the tests run on many
+    //! threads. Every `Hive::new` holds [`hold`], and the tests that set a
+    //! variable around a build hold it across the whole dance, so no build
+    //! can observe another test's environment.
+    use crate::Lang;
+    use std::sync::{Mutex, MutexGuard};
+
+    static LOCK: Mutex<()> = Mutex::new(());
+
+    pub fn hold() -> MutexGuard<'static, ()> {
+        LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// Builds a hive with `vars` set, then removes them again.
+    pub fn build(vars: &[(&str, &str)], lang: Lang) -> crate::Hive {
+        let _g = hold();
+        for (k, v) in vars {
+            // SAFETY: the lock keeps every other build out of this window.
+            unsafe { std::env::set_var(k, v) };
+        }
+        let hive = crate::Hive::new(lang);
+        for (k, _) in vars {
+            // SAFETY: as above.
+            unsafe { std::env::remove_var(k) };
+        }
+        hive.unwrap()
+    }
+}
 #[cfg(all(test, target_os = "linux"))]
 mod drop_hive_tests;
 #[cfg(test)]
@@ -1012,6 +1122,8 @@ mod drop_tests;
 mod drop_track_tests;
 #[cfg(test)]
 mod monitor_tests;
+#[cfg(test)]
+mod s017_motion_tests;
 #[cfg(test)]
 mod s067_drop_track_tests;
 #[cfg(test)]

@@ -13,6 +13,14 @@ pub struct Axial {
     pub r: i32,
 }
 
+impl Axial {
+    /// Distance from the centre in rings: 0 for the centre, k on ring k.
+    /// S-017: a cell's open delay is its ring times `ring-delay-ms`.
+    pub fn distance(self) -> i32 {
+        (self.q.abs() + self.r.abs() + (self.q + self.r).abs()) / 2
+    }
+}
+
 /// Top-right neighbour on screen (y grows downwards). Each ring starts at
 /// `TOP_RIGHT * k`.
 const TOP_RIGHT: Axial = Axial { q: 1, r: -1 };

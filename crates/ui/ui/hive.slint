@@ -18,6 +18,9 @@ export struct CellData {
     label: string,
     icon: image,
     has-icon: bool,
+    // The cell's slot ring (axial distance from the centre), for the
+    // ring-by-ring open (S-017).
+    ring: int,
 }
 
 export component HiveWindow inherits Window {
@@ -42,6 +45,12 @@ export component HiveWindow inherits Window {
     in-out property <int> highlight: -1;
     // False then true again on every present, to replay the opening scale.
     in-out property <bool> opened: true;
+    // True during the 90 ms close (S-017c): the hive fades and shrinks over
+    // `Tokens.hive-close` before the window hides.
+    in-out property <bool> closing: false;
+    // Glass surfaces (`Tokens.glass-2` and `Tokens.glass-3`), on only over
+    // a compositor blur (S-017 AC13); opaque everywhere else.
+    in-out property <bool> glass: false;
 
     // Index into `cells` under the point, -1 for nothing.
     callback pick(length, length) -> int;
@@ -64,10 +73,31 @@ export component HiveWindow inherits Window {
     property <length> preview-side: root.hex-r * 1.2679492;
     property <bool> has-thumb: root.preview-image.width > 0;
     property <float> side-sign: root.rtl ? -1 : 1;
+    // The cell pressed under the pointer, -1 for a gap, the centre or no
+    // press (S-017: it takes the press scale). Set from the touch handlers
+    // below: `pick` is a callback and cannot run in a binding.
+    property <int> pressed-cell: -1;
 
     layer := Rectangle {
-        transform-scale: root.opened ? Tokens.hive-scale-to : Tokens.hive-scale-from;
-        animate transform-scale { duration: Tokens.hive-open; easing: Tokens.hive-open-easing; }
+        // The close (S-017c): the whole hive fades to
+        // `Tokens.hive-close-opacity-to` and shrinks to
+        // `Tokens.hive-close-scale-to` over `Tokens.hive-close`. Only
+        // entering the closing state animates, so the reset at the next
+        // show is instant.
+        opacity: 1;
+        transform-scale: 1;
+        states [
+            closing when root.closing: {
+                layer.opacity: Tokens.hive-close-opacity-to;
+                layer.transform-scale: Tokens.hive-close-scale-to;
+                in {
+                    animate opacity, transform-scale {
+                        duration: Tokens.hive-close;
+                        easing: Tokens.hive-close-easing;
+                    }
+                }
+            }
+        ]
 
         // Several files: two hexagons behind the centre, up and to the side,
         // under the action cells too.
@@ -75,6 +105,9 @@ export component HiveWindow inherits Window {
             x: root.centre-x + root.side-sign * 2 * Tokens.hex-stack-offset - self.width / 2;
             y: root.centre-y - 2 * Tokens.hex-stack-offset - self.height / 2;
             r: root.hex-r;
+            ring: 0;
+            opened: root.opened;
+            glass: root.glass;
             accessible-role: none;
         }
 
@@ -82,17 +115,23 @@ export component HiveWindow inherits Window {
             x: root.centre-x + root.side-sign * Tokens.hex-stack-offset - self.width / 2;
             y: root.centre-y - Tokens.hex-stack-offset - self.height / 2;
             r: root.hex-r;
+            ring: 0;
+            opened: root.opened;
+            glass: root.glass;
             accessible-role: none;
         }
 
-        for cell[i] in root.cells: HexCell {
+        // The cells' fills, under the sliding accent highlight.
+        for cell[i] in root.cells: cell-hex := HexCell {
             x: cell.x - self.width / 2;
             y: cell.y - self.height / 2;
             r: root.hex-r;
-            text: cell.code;
-            icon: cell.icon;
-            has-icon: cell.has-icon;
+            ring: cell.ring;
+            opened: root.opened;
+            pressed: i == root.pressed-cell;
+            glass: root.glass;
             highlighted: i == root.highlight;
+            draw-label: false;
             accessible-role: button;
             accessible-label: cell.label;
             accessible-action-default => {
@@ -100,79 +139,146 @@ export component HiveWindow inherits Window {
             }
         }
 
+        // One accent highlight slides between cell centres (S-017): for the
+        // mouse, the keyboard and the drop drag. Its first appearance is in
+        // place and leaving all cells hides it in place; between two cells
+        // `animate x, y` moves it over `Tokens.highlight-move`.
+        if root.highlight >= 0: highlight := HexCell {
+            x: root.cells[root.highlight].x - self.width / 2;
+            y: root.cells[root.highlight].y - self.height / 2;
+            r: root.hex-r;
+            highlighted: true;
+            opened: true;
+            draw-label: false;
+            animate x, y {
+                duration: Tokens.highlight-move;
+                easing: Tokens.highlight-move-easing;
+            }
+            accessible-role: none;
+        }
+
+        // The cells' labels, over the sliding highlight.
+        for cell[i] in root.cells: cell-label := HexCell {
+            x: cell.x - self.width / 2;
+            y: cell.y - self.height / 2;
+            r: root.hex-r;
+            text: cell.code;
+            icon: cell.icon;
+            has-icon: cell.has-icon;
+            highlighted: i == root.highlight;
+            ring: cell.ring;
+            opened: root.opened;
+            pressed: i == root.pressed-cell;
+            draw-fill: false;
+            accessible-role: none;
+        }
+
         centre := HexCell {
             x: root.centre-x - self.width / 2;
             y: root.centre-y - self.height / 2;
             r: root.hex-r;
             centre: true;
+            ring: 0;
+            opened: root.opened;
+            glass: root.glass;
             text: root.hovering ? root.cells[root.highlight].label : (root.preview-count > 0 ? "" : root.centre-text);
             accessible-role: text;
             accessible-label: root.centre-label;
         }
 
-        // The thumbnail fills the inscribed square; the kind icon sits in it
-        // above the format code. A hover shows the name instead.
-        if root.preview-count > 0 && !root.hovering: VerticalLayout {
-            x: root.centre-x - root.preview-side / 2;
-            y: root.centre-y - root.preview-side / 2;
-            width: root.preview-side;
-            height: root.preview-side;
-            alignment: center;
-            spacing: Tokens.hex-icon-gap;
+        // The preview picture and the count badge fade in with the centre
+        // (ring 0).
+        extras := Rectangle {
+            x: 0;
+            y: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            states [
+                open when root.opened: {
+                    extras.opacity: 1;
+                    in {
+                        animate opacity {
+                            duration: Tokens.hive-open;
+                            easing: Tokens.hive-open-easing;
+                        }
+                    }
+                }
+            ]
 
-            preview := Image {
-                height: root.has-thumb ? root.preview-side : Tokens.hex-preview-icon-size;
-                source: root.has-thumb ? root.preview-image : root.preview-icon;
-                image-fit: contain;
-                colorize: root.has-thumb ? transparent : Tokens.hex-ink;
-                accessible-role: none;
+            // The thumbnail fills the inscribed square; the kind icon sits
+            // in it above the format code. A hover shows the name instead.
+            if root.preview-count > 0 && !root.hovering: VerticalLayout {
+                x: root.centre-x - root.preview-side / 2;
+                y: root.centre-y - root.preview-side / 2;
+                width: root.preview-side;
+                height: root.preview-side;
+                alignment: center;
+                spacing: Tokens.hex-icon-gap;
+
+                preview := Image {
+                    height: root.has-thumb ? root.preview-side : Tokens.hex-preview-icon-size;
+                    source: root.has-thumb ? root.preview-image : root.preview-icon;
+                    image-fit: contain;
+                    colorize: root.has-thumb ? transparent : Tokens.hex-ink;
+                    accessible-role: none;
+                }
+
+                if !root.has-thumb: Text {
+                    horizontal-alignment: center;
+                    overflow: elide;
+                    text: root.preview-code;
+                    font-size: Tokens.font-body;
+                    font-weight: Tokens.weight-semibold;
+                    color: Tokens.hex-ink;
+                    accessible-role: none;
+                }
             }
 
-            if !root.has-thumb: Text {
-                horizontal-alignment: center;
-                overflow: elide;
-                text: root.preview-code;
-                font-size: Tokens.font-body;
-                font-weight: Tokens.weight-semibold;
-                color: Tokens.hex-ink;
-                accessible-role: none;
-            }
-        }
+            // The number of files, on the square's upper corner at the stack
+            // side.
+            if root.preview-count > 1: badge := Rectangle {
+                width: max(Tokens.hex-badge-size, count.preferred-width + 2 * Tokens.space-1);
+                height: Tokens.hex-badge-size;
+                x: root.centre-x + root.side-sign * root.preview-side / 2 - self.width / 2;
+                y: root.centre-y - root.preview-side / 2 - self.height / 2;
+                border-radius: self.height / 2;
+                background: Tokens.accent;
 
-        // The number of files, on the square's upper corner at the stack side.
-        if root.preview-count > 1: badge := Rectangle {
-            width: max(Tokens.hex-badge-size, count.preferred-width + 2 * Tokens.space-1);
-            height: Tokens.hex-badge-size;
-            x: root.centre-x + root.side-sign * root.preview-side / 2 - self.width / 2;
-            y: root.centre-y - root.preview-side / 2 - self.height / 2;
-            border-radius: self.height / 2;
-            background: Tokens.accent;
-
-            count := Text {
-                width: parent.width;
-                height: parent.height;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-                text: root.preview-count;
-                font-size: Tokens.font-label;
-                font-weight: Tokens.weight-semibold;
-                color: Tokens.accent-ink;
-                accessible-role: none;
+                count := Text {
+                    width: parent.width;
+                    height: parent.height;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                    text: root.preview-count;
+                    font-size: Tokens.font-label;
+                    font-weight: Tokens.weight-semibold;
+                    color: Tokens.accent-ink;
+                    accessible-role: none;
+                }
             }
         }
     }
 
     touch := TouchArea {
         // `moved` only fires while pressed; hover needs the position itself.
+        // The press state follows the pointer, so leaving the pressed cell
+        // returns it to 1 (S-017 AC6).
         changed mouse-x => {
             root.highlight = root.pick(self.mouse-x, self.mouse-y);
+            root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
         }
         changed mouse-y => {
             root.highlight = root.pick(self.mouse-x, self.mouse-y);
+            root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
+        }
+        changed pressed => {
+            root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
         }
         changed has-hover => {
             if !self.has-hover {
                 root.highlight = -1;
+                root.pressed-cell = -1;
             }
         }
         clicked => {
