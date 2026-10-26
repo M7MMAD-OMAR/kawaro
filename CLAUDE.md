@@ -94,12 +94,12 @@ A new format is a TOML file in `actions/` plus a small adapter. Never put action
 - The guaranteed entry point is the file manager's right click menu.
 - Windows 11: the modern menu needs IExplorerCommand and a signed sparse package. The legacy menu through registry keys works unsigned.
 
-## Status (2026-10-24)
+## Status (2026-10-26)
 
 - Released on Linux, tagged on GitHub: 0.1.0, 0.2.0 to 0.2.2, 0.3.0, 0.3.1 (S-021), 0.3.2 (S-022) and 0.3.3 (S-014e, S-027). RPM and DEB packages are on the release pages from 0.2.1 on.
-- Windows (ADR 0005) and in-app updates (ADR 0006): S-045 to S-054b are done on main, except S-047 (drop hive) and S-049 (notifications), which are still planned. S-055 (the beta release pipeline) is in review, and the first public beta, 0.4.0-beta.1, is being cut from it. Nothing on Windows is verified on a live machine yet (S-052 checklist).
+- Windows (ADR 0005) and in-app updates (ADR 0006): S-045 to S-055 are done on main, with S-047 (drop hive), S-049 (notifications), S-054c (`kawaro update`) and S-067 (their review fixes). The first public beta, 0.4.0-beta.1, is cut from the S-055 pipeline; the update signing key is in the GitHub environment `release-signing`. Nothing on Windows is verified on a live machine yet (S-052 checklist).
 - Next after the beta: 0.4.0, the rest of the portal follow-ups (S-014f1 to S-014f3 done, S-014f4 in review), signed repositories (S-016) and the glass hive (S-017). Then 0.5.0 for X11 (S-015) and 0.6.0 for Windows. Details in `docs/PLAN.md`.
-- The review of everything since 0.3.3 is done (S-028 fixes, S-029 cleanup, S-030 one process tree for every engine child). The next free story number is S-056.
+- The review of everything since 0.3.3 is done (S-028 fixes, S-029 cleanup, S-030 one process tree for every engine child). The next free story number is S-073 (S-068 to S-072 are taken or reserved).
 - Still open from phase 0: the focus and activation test on real GNOME and KDE, with tokens from Nautilus and Dolphin (needs a virtual machine).
 
 ## Working rules
