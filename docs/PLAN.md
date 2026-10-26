@@ -2,7 +2,7 @@
 
 The original planning document was never exported, so this plan rebuilds it from `CLAUDE.md` and the hive spike (`docs/adr/0001-ui-toolkit.md`). Any later conflict is settled here with a written decision.
 
-## Where we are (2026-10-22)
+## Where we are (2026-10-26)
 
 | Release | State |
 | --- | --- |
@@ -11,9 +11,9 @@ The original planning document was never exported, so this plan rebuilds it from
 | 0.3.0 "Drop" | Released 2026-10-22, with RPM and DEB packages |
 | 0.3.1 | Released 2026-10-22: the drop hive only during a real drag of files with an action (S-021) |
 | 0.3.2 | Released 2026-10-22: the opening animation plays on the layer path, and drop follow-ups (S-022) |
-| 0.3.3 | Released 2026-10-23: the drop shortcut registers through the global shortcuts portal on GNOME and KDE (S-014e), and the layer hive keeps off the keyboard at KDE Extreme without a token (S-027). S-014f, S-016 and S-017 remain for 0.4.0 |
+| 0.3.3 | Released 2026-10-23: the drop shortcut registers through the global shortcuts portal on GNOME and KDE (S-014e), and the layer hive keeps off the keyboard at KDE Extreme without a token (S-027). S-016 and S-017 remain for 0.4.0; the portal follow-ups S-014f1 to S-014f4 shipped in the 0.4.0 line and are done |
 | 0.4.0-beta.1 | Cut 2026-10-26: the first public beta for Linux and Windows, a GitHub prerelease with RPM, DEB, zip, MSI and `SHA256SUMS`, built by CI on a `v0.4.0-beta.1` tag (S-055). Updates from inside the app (ADR 0006); Windows unsigned; the Windows drop hive and notifications are built (S-047, S-049) but not yet run on a live machine; `kawaro update` from the terminal (S-054c) |
-| 0.4.0 "Portal and look" | Next: S-014f, S-016, S-017 |
+| 0.4.0 "Portal and look" | Next: S-016, S-017, and the S-072 to S-082 block below. S-014f and S-074 are done |
 | 0.5.0 "X11" | Planned: S-015 |
 | 0.6.0 "Windows" | Planned: starts with ADR 0005 |
 
@@ -85,9 +85,31 @@ Goal: the shortcut registers through the portal with no manual setup, install an
 
 | Component | Scope |
 | --- | --- |
-| Portal | Register the shortcut through GlobalShortcuts with ashpd, changeable from GNOME and KDE settings, with the activation token on GNOME |
+| Portal | Register the shortcut through GlobalShortcuts with ashpd, changeable from GNOME and KDE settings, with the activation token on GNOME. Done: S-014e (registration) and S-014f1 to S-014f4 (the `portal_shortcut` switch, live apply and docs). Remaining portal work is the fallback role in the S-075 per-desktop contract, see the block below |
 | Distribution | A COPR repo for Fedora and a signed APT repo for Ubuntu and Debian, so install and update are plain `dnf` or `apt`, with packages signed by an OpenPGP key (today dnf warns "skipped OpenPGP checks"). Story: S-016 |
 | Look | Glass hive: a transparent token surface over the compositor's blur (KDE, Hyprland), opaque on GNOME, and token driven motion: open ring by ring, a highlight that slides between cells, press, close, respecting reduced motion. Based on `docs/adr/0004-hive-overlay.md`. Story: S-017 (approved) |
+
+## Linux UX, distribution and Windows readiness (S-072 to S-082)
+
+Decision (2026-10-26, after the specification audit of the stable roadmap): this block is the current work alongside S-016 and S-017. It replaces the earlier assumption that Alt-drag would come from the GlobalShortcuts portal alone, which the measured spike disproved.
+
+| Story | Scope | State |
+| --- | --- | --- |
+| S-074 | The hive shows only its hexagonal cells, no background plate | Done |
+| S-075 | Alt then drag out of the box, as a per-desktop evidence contract with substories S-075a to S-075f: a measured Hyprland compositor bind for Alt (S-075a), native KDE (S-075b spike as prerequisite, then S-075c) and native GNOME (S-075d spike as prerequisite, then S-075e) paths only on measured APIs, and a named non-Alt portal fallback (Super+Z) with the owner priority and conflict semantics recorded (S-075f). The Alt-only GlobalShortcuts mechanism is disproven and removed from every contract | Re-baselined 2026-10-26, top priority |
+| S-076 | Settings without technical words, accessible drag-key picker | Approved |
+| S-077 | A normal open can use the pointer position on the layer path; reproduction and a KDE pointer-source spike first | Approved, spike first |
+| S-078 | AppStream metadata, AUR and winget (substories S-078a to S-078f); publication waits for owner accounts and credentials (exclusion R4-accounts) | Approved |
+| S-079 | Windows beta live readiness checklist (documentation and static tests only); the owner runs the live steps (exclusion R5-live) | Approved |
+| S-080 | Windows `kawaro doctor` engine discovery matches engine lookup, a confirmed S-079 defect | Draft |
+| S-081 | Windows output placement: long paths and directory-name output candidates, a confirmed S-079 defect | Draft |
+| S-082 | Focus and activation with real Nautilus and Dolphin tokens in a virtual machine, closing the phase-0 gap recorded in S-013 | Draft |
+
+Measured facts behind S-075 (recorded 2026-10-26): Alt-only GlobalShortcuts is accepted by the BindShortcuts exchange but never activates on GNOME 50.0 or KDE 6.7.5 portals, so it cannot be the KDE or GNOME default; the Super+Z (`LOGO+z`) portal trigger passed the full real-drag path on both. Evidence: `/home/sbarah/.hermes/checkpoint-runs/kawaro-stable-20261026/alt-portal-spike.md`. Hyprland compositor binds are outside that measurement and count only when the private Hyprland harness records them.
+
+Checkpoint "phase-0 closure" (S-082): the real Nautilus and Dolphin token focus validation needs a virtual machine and remains open until its report exists. It does not block the stories above, and it is never marked done by private compositor evidence alone.
+
+S-072 "Launch assets and rename announcement" stays planned, owned by the site track (the owner of the S-056 to S-071 site stories). It is explicitly non-blocking for the stable code release and every story above unless the maintainer asks otherwise.
 
 ## 0.5.0 "X11"
 
@@ -116,7 +138,7 @@ Before any code: ADR 0005 (`docs/adr/0005-windows.md`) settles the installer and
 
 Needs from the maintainer: a code signing certificate for the sparse package and the installer (without it only the legacy menu works and SmartScreen warns), and a Windows machine or VM for live checks.
 
-Stories: numbered S-040 to S-052 (a block reserved on 2026-10-23, because main had already used S-022 and S-027), per ADR 0005 (proposed): S-040 (IPC over a named pipe), S-041 (paths), S-042 (service start), S-043 (engines), S-044 (build and CI), all done on Linux and the Windows cross build; S-045 (first ui story: cfg gates and the full build), S-046 (hive window and focus), S-047 (drop), S-048 (tray and shortcut), S-049 (notifications), S-050 (Explorer integration), S-051 (installer), S-052 (live checks and the 0.6.0 tag). Out of scope: macOS.
+Stories: numbered S-040 to S-052 (a block reserved on 2026-10-23, because main had already used S-022 and S-027), per ADR 0005 (proposed): S-040 (IPC over a named pipe), S-041 (paths), S-042 (service start), S-043 (engines), S-044 (build and CI), all done on Linux and the Windows cross build; S-045 (first ui story: cfg gates and the full build), S-046 (hive window and focus), S-047 (drop), S-048 (tray and shortcut), S-049 (notifications), S-050 (Explorer integration), S-051 (installer), S-052 (live checks and the 0.6.0 tag). The beta readiness block adds S-079 (the refreshed owner checklist for what actually shipped) and the two confirmed defect fixes S-080 and S-081, which land before the owner live run so the checklist steps they touch are trustworthy. Out of scope: macOS.
 
 ## Work order
 
@@ -126,3 +148,4 @@ Stories: numbered S-040 to S-052 (a block reserved on 2026-10-23, because main h
 4. 0.2 engines in parallel, then settings, review, tag `v0.2.0`.
 5. 0.3.0: drop, layer and hive at the pointer, review, tag `v0.3.0`; follow-ups in 0.3.1 and 0.3.2.
 6. 0.4.0: portal, signed packages and glass; then 0.5.0 for X11; then ADR 0005 and Windows stories for 0.6.0.
+7. The S-072 to S-082 block runs alongside 0.4.0: S-075b and S-075d (the native spikes) come before any native registration, S-076 and S-077 in the Linux UX track, S-078 after the owner accounts exist (R4-accounts), S-080 and S-081 before the owner runs the S-079 live steps (R5-live), and S-082 in a virtual machine. S-072 never blocks this order unless the maintainer asks.

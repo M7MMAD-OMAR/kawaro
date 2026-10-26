@@ -43,8 +43,8 @@ As the owner, I want every shipped Windows feature and deferred live check to ha
 - Production code, installers, release workflows, new test helpers and all fixes.
 - Public code signing and the modern first-level Windows 11 Explorer menu.
 - Custom shortcut reset on Settings save, owned by S-076, not S-079.
-- Confirmed follow-up candidate: Windows `kawaro doctor` engine discovery disagrees with engine lookup because its tool list probes bare `ffmpeg`, `soffice` and `gs` names.
-- Confirmed follow-up candidate: `MoveFileExW` long-path handling and directory-name output candidates need separate coverage; this story requires the existing exFAT no-replace case only.
+- Confirmed follow-up candidate, now owned by S-080: Windows `kawaro doctor` engine discovery disagrees with engine lookup because its tool list probes bare `ffmpeg`, `soffice` and `gs` names.
+- Confirmed follow-up candidate, now owned by S-081: `MoveFileExW` long-path handling and directory-name output candidates need separate coverage; this story requires the existing exFAT no-replace case only.
 
 ## Review log
 - 2026-10-26, planner: approved under manager delegation. Inventory taken from S-052, the deferred live items in S-040 to S-051, the shipped updater and S-067. D1 explicitly replaces the stale line limit; the two confirmed follow-up candidates are recorded separately above.
