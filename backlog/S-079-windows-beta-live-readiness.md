@@ -1,5 +1,5 @@
 # S-079 Windows beta: live readiness checklist for the shipped feature set
-Status: review (2026-10-26, implementer)
+Status: done
 
 Rebuilds the owner-run S-052 checklist for the beta that actually shipped. Covers the live items deferred by S-040 to S-051, the shipped drop, tray, shortcut and notification stories, the Windows updater and the S-067 Windows fixes. Documentation and static tests only; the owner runs the live steps.
 
@@ -131,3 +131,4 @@ $ bash scripts/design-lint.sh
 (exit code 0)
 ```
 - 2026-10-26, implementer (reviewer fix): W03 is no longer self-contradictory. The missing-file case now keeps kawaro.exe in the portable folder and removes kawarod.exe (or kawaro.ico) beside it before `kawaro.exe integration install`, and its Expect names the real refusal message shape `kawaro: missing next to the executable: <name>`, the missing kawarod.exe or kawaro.ico found by the install preflight, and the nonzero exit. The second registry-failure case is unchanged. Only `docs/windows-beta-checklist.md` was edited; status stays at review.
+- 2026-01-26, reviewer: PASS. Gates rerun fresh: `bash tests/windows/test_checklist.sh` reports 95 checks, 0 failed; `shellcheck -x tests/windows/test_checklist.sh` is clean; `bash scripts/design-lint.sh` is clean. W03 verified against the code: the Do keeps kawaro.exe and removes kawarod.exe (or kawaro.ico), the exact files `registry::missing_files` (crates/core/src/registry.rs:65) checks beside the executable, and the Expect message shape `kawaro: missing next to the executable: <name>` matches crates/cli/src/integration/windows.rs:33, which prints the missing names and exits nonzero before any registry write. All prior criteria reconfirmed: 40 consecutive steps W01 to W40 with 160 nonblank step lines, exactly one Do, one observable Expect and one `Result: PASS | FAIL` per step, the Report section names the full W01 to W40 range, no stale shipped-feature absence claim and no SKIPPED step, no public signing or modern first-level Explorer menu step, the two confirmed follow-up candidates are separately named in Out of scope and not claimed by any step, English is primary (the only Arabic is the W21 test path fixture) and no long dashes. Read as a Windows operator: every step names concrete commands and an observable outcome. No live Windows result is claimed by this static review.
