@@ -319,27 +319,56 @@ pub fn pkexec_target(argv: &[String]) -> Option<&Path> {
     }
 }
 
-/// Runs a program and gives its exit code. The privileged step is refused
-/// unless root owns the program `pkexec` would run as root (S-054a).
+/// The trust check in front of a command (S-054a, S-067). For the privileged
+/// step, `stat` gives the (owner uid, mode) of the program `pkexec` would run
+/// as root; the step is refused with `Io`, and `spawn` is never called, when
+/// `stat` fails or the program is not [`exe_is_trusted`]. Any other command,
+/// a repository upgrade included, goes to `spawn` without `stat`.
+pub fn run_checked(
+    argv: &[String],
+    stat: &dyn Fn(&Path) -> std::io::Result<(u32, u32)>,
+    spawn: &mut dyn FnMut(&[String]) -> Result<i32, UpdateError>,
+) -> Result<i32, UpdateError> {
+    if let Some(exe) = pkexec_target(argv) {
+        let (uid, mode) = stat(exe).map_err(|_| UpdateError::Io)?;
+        if !exe_is_trusted(uid, mode) {
+            return Err(UpdateError::Io);
+        }
+    }
+    spawn(argv)
+}
+
+/// Runs a program and gives its exit code, through [`run_checked`] with the
+/// real file metadata and the real process. pkexec exists only on Unix, so
+/// elsewhere the stat gives an error and only the privileged step is refused.
 pub struct SystemRunner;
 
 impl CommandRunner for SystemRunner {
     fn run(&self, argv: &[String]) -> Result<i32, UpdateError> {
-        #[cfg(unix)]
-        if let Some(exe) = pkexec_target(argv) {
-            use std::os::unix::fs::MetadataExt;
-            let meta = std::fs::metadata(exe).map_err(|_| UpdateError::Io)?;
-            if !exe_is_trusted(meta.uid(), meta.mode()) {
-                return Err(UpdateError::Io);
-            }
-        }
-        let (program, args) = argv.split_first().ok_or(UpdateError::Io)?;
-        std::process::Command::new(program)
-            .args(args)
-            .status()
-            .map_err(|_| UpdateError::Io)?
-            .code()
-            .ok_or(UpdateError::Io)
+        run_checked(
+            argv,
+            &|exe: &Path| {
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::MetadataExt;
+                    std::fs::metadata(exe).map(|m| (m.uid(), m.mode()))
+                }
+                #[cfg(not(unix))]
+                {
+                    let _ = exe;
+                    Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
+                }
+            },
+            &mut |argv: &[String]| {
+                let (program, args) = argv.split_first().ok_or(UpdateError::Io)?;
+                std::process::Command::new(program)
+                    .args(args)
+                    .status()
+                    .map_err(|_| UpdateError::Io)?
+                    .code()
+                    .ok_or(UpdateError::Io)
+            },
+        )
     }
 }
 
