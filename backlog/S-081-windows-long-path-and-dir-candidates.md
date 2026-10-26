@@ -1,5 +1,5 @@
 # S-081 Windows output placement: long paths and directory-name candidates
-Status: draft (2026-10-26, planner). Owns the second confirmed follow-up candidate recorded in S-079.
+Status: done (2026-10-26, implemented + merged to main 8361595; long paths and directory candidates, all gates green). Owns the second confirmed follow-up candidate recorded in S-079.
 
 ## Story
 As a Windows user converting a file in a deep or crowded folder, I want the result written correctly even when the output path is over 260 characters or a numbered output name is taken by a directory, so that a long path works and a taken name moves to the next free name instead of failing the job.

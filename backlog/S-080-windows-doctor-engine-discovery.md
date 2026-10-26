@@ -1,5 +1,5 @@
 # S-080 Windows `kawaro doctor` engine discovery matches engine lookup
-Status: draft (2026-10-26, planner). Owns the first confirmed follow-up candidate recorded in S-079.
+Status: done (2026-10-26, implemented + merged to main 1bd98f6; 14 S-080 tests plus all gates green). Owns the first confirmed follow-up candidate recorded in S-079.
 
 ## Story
 As a Windows user running `kawaro doctor`, I want its engine and tool lines to resolve programs exactly as the conversion engines do, so that a green line means the engine will actually run and a red line means it will not.

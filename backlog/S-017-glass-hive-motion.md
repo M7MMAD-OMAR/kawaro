@@ -1,5 +1,5 @@
 # S-017 Glass hive with motion between cells
-Status: approved (2026-10-23), starts after S-014f
+Status: S-017a done (2026-10-26, glass + motion merged to main d067f23; 13/13 glass_tokens tests, all gates green).
 
 From the maintainer after first real use: "a little glassy, fluid, beautiful, smooth transitions from cell to cell". It builds on what shipped: the layer overlay (S-018, ADR 0004), the hive at the pointer with adaptive shape up to `MAX_RINGS` = 4 (S-019), the drop probe and reveal (S-021), the opening animation from the first drawn frame (S-022) and the keyboard request before the catcher's first commit (S-027). The 2026-10-20 Arabic ACs are superseded by this text (see git history). The Arabic log entries are kept as history.
 
