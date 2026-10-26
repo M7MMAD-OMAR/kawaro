@@ -140,7 +140,7 @@ jobs:
             flags=()
             case "${GITHUB_REF_NAME}" in *-*) flags=(--prerelease) ;; esac
             gh release create "${GITHUB_REF_NAME}" "${flags[@]}" --verify-tag \
-              --title "Kawaro ${version}" --notes-file "docs/release-notes-${version}.md" \
+              --title "Kawaro ${version} | كوارو ${version}" --notes-file "docs/release-notes-${version}.md" \
               -R "${GITHUB_REPOSITORY}"
           fi
       - name: Attach to the release
@@ -216,7 +216,7 @@ jobs:
           set -euo pipefail
           if ! gh release view updates -R "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
             gh release create updates --prerelease --latest=false \
-              --title "Update feed" --notes "Signed update manifests (ADR 0006)." \
+              --title "Update feed | قناة التحديث" --notes "Signed update manifests (ADR 0006)." \
               -R "${GITHUB_REPOSITORY}"
           fi
           case "${GITHUB_REF_NAME}" in
