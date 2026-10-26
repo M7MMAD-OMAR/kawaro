@@ -16,9 +16,10 @@ use windows_sys::Win32::Storage::FileSystem::{MOVE_FILE_FLAGS, MoveFileExW};
 /// next to the output, so it is always the same volume).
 const FLAGS: MOVE_FILE_FLAGS = 0;
 
-/// Moves `from` to `to`; `AlreadyExists` when `to` is taken.
+/// Moves `from` to `to`; `AlreadyExists` when `to` is taken. A path that
+/// `win_long_path` refuses fails the move with that error, never a panic.
 pub(super) fn place_no_replace(from: &Path, to: &Path) -> io::Result<()> {
-    let (from, to) = (wide(win_long_path(from)), wide(win_long_path(to)));
+    let (from, to) = (wide(win_long_path(from)?), wide(win_long_path(to)?));
     // SAFETY: both buffers are NUL terminated and outlive the call.
     if unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), FLAGS) } != 0 {
         return Ok(());

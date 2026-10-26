@@ -75,13 +75,25 @@ pub fn classify_msi(code: i32) -> MsiResult {
     }
 }
 
+/// The `kawaro update` flag that runs the Windows helper entry.
+pub const APPLY_MSI_FLAG: &str = "--apply-msi";
+
 /// The arguments of the helper copy of `kawaro.exe`.
 pub fn helper_args(msi: &Path) -> Vec<String> {
     vec![
         "update".to_string(),
-        "--apply-msi".to_string(),
+        APPLY_MSI_FLAG.to_string(),
         msi.to_string_lossy().into_owned(),
     ]
+}
+
+/// The program the helper copy is staged from: `kawaro.exe` beside the
+/// running program. The copy runs `update --apply-msi`, which only the
+/// `kawaro` binary handles: the caller is the daemon (`kawarod.exe`), whose
+/// command line has no `update`, so a copy of the daemon renamed to
+/// `kawaro.exe` could never run `helper_main` (security audit D1).
+pub fn helper_exe(program_dir: &Path) -> PathBuf {
+    program_dir.join("kawaro.exe")
 }
 
 /// `msiexec.exe` by absolute path under `SystemRoot`, never through `PATH`.
