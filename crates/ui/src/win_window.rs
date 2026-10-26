@@ -47,6 +47,7 @@ pub fn attributes(attrs: winit::window::WindowAttributes) -> winit::window::Wind
         return attrs;
     }
     attrs
+        .with_transparent(true)
         .with_decorations(false)
         .with_undecorated_shadow(false)
         .with_skip_taskbar(true)

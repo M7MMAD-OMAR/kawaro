@@ -1,4 +1,4 @@
-// The hive popup: a frameless window on an opaque plate holding the centre cell and
+// The hive popup: a frameless transparent window holding the centre cell and
 // up to 18 action cells. Geometry (cell centres, picking, keyboard order)
 // is computed in Rust (src/layout.rs); this file only draws and forwards input.
 import { Tokens } from "tokens.slint";
@@ -51,7 +51,7 @@ export component HiveWindow inherits Window {
     callback dismiss();
 
     no-frame: true;
-    background: Tokens.hive-plate;
+    background: transparent;
     title: "Kawaro";
     width: root.win-w;
     height: root.win-h;
@@ -68,14 +68,6 @@ export component HiveWindow inherits Window {
     layer := Rectangle {
         transform-scale: root.opened ? Tokens.hive-scale-to : Tokens.hive-scale-from;
         animate transform-scale { duration: Tokens.hive-open; easing: ease-out; }
-
-        // The opaque plate behind every cell: nothing shows through the gaps.
-        plate := Rectangle {
-            width: root.win-w;
-            height: root.win-h;
-            background: Tokens.hive-plate;
-            border-radius: Tokens.radius-lg;
-        }
 
         // Several files: two hexagons behind the centre, up and to the side,
         // under the action cells too.

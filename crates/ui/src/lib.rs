@@ -262,6 +262,9 @@ fn frame_presented() {
 fn token_hook(attrs: winit::window::WindowAttributes) -> winit::window::WindowAttributes {
     use winit::platform::startup_notify::WindowAttributesExtStartupNotify;
     use winit::window::ActivationToken;
+    // The hive has no plate (S-074): ask for an alpha surface so the
+    // transparent window background shows the desktop.
+    let attrs = attrs.with_transparent(true);
     let token = PENDING_TOKEN.lock().ok().and_then(|mut t| t.take());
     match token {
         Some(t) => attrs.with_activation_token(ActivationToken::from_raw(t)),
