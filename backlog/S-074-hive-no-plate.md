@@ -28,4 +28,12 @@ As a user, I want the hive to be only its hexagonal cells over my desktop, so th
 Glass or blur (S-017), new motion, any change to cell look.
 
 ## Review log
-(empty)
+- Tester (2026-10-26): tests in `crates/ui/src/s074_tests.rs` (registered in `lib.rs` under `#[cfg(test)]`). Pixel tests use a private `slint::platform::Platform` with `MinimalSoftwareWindow` (the testing backend cannot `take_snapshot`), a zeroed RGBA buffer, the real `Hive` window, `KAWARO_COLOR_SCHEME` for light and dark, `Lang::En` and `Lang::Ar`.
+  - AC1 `ac1_hive_slint_has_no_plate_and_a_transparent_window`: FAILS (`hive.slint still uses Tokens.hive-plate`).
+  - AC2 `ac2_eight_cells_corners_and_gaps_clear_cell_centres_opaque` (8 cells): FAILS (`corner pixel (0, 0) has alpha 255`).
+  - AC3 `ac3_one_file_light_ltr`, `ac3_one_file_dark_rtl`, `ac3_several_files_light_rtl`, `ac3_several_files_dark_ltr` (9 cells): all FAIL the same way (corner alpha 255).
+  - AC7 `ac7_window_path_requests_an_alpha_surface`: FAILS (`no code asks winit for a transparent window (with_transparent(true))`); source level, it accepts `with_transparent(true)` or `set_transparent(true)` in lib.rs, platform.rs or win_window.rs. GNOME stays "assumed".
+  - AC4 and AC5: existing `drop_tests`, `geometry` and `contrast.rs` must pass unchanged; they pass now and are the regression guard (not new tests).
+  - Removed S-062's `ac6_hive_slint_has_an_opaque_plate_and_no_transparent_window` from `crates/ui/tests/contrast.rs`: it asserts the plate and contradicts AC1 (the rest of contrast.rs is unchanged).
+  - AC6 is not automated by the tester: it needs the 1170-line nested Hyprland harness inside a private KWin and a screenshot; recorded as INFO to run by the reviewer/implementer (grab the hive rectangle, check gap and corner pixels equal the test client's colour).
+  - Run (`cargo test -p kawaro-ui --lib s074`): `test result: FAILED. 0 passed; 7 failed`.

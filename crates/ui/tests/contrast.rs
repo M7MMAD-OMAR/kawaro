@@ -171,27 +171,8 @@ fn ac5_highlight_ink_reads_at_7_to_1_and_its_edge_at_3_to_1() {
     }
 }
 
-#[test]
-fn ac6_hive_slint_has_an_opaque_plate_and_no_transparent_window() {
-    let hive = source("ui/hive.slint");
-    assert_eq!(
-        hive.matches("background: transparent").count(),
-        0,
-        "hive.slint still sets `background: transparent`"
-    );
-    assert!(
-        hive.contains("Tokens.hive-plate"),
-        "hive.slint has no plate in Tokens.hive-plate"
-    );
-    assert!(
-        hive.contains("Tokens.radius-lg"),
-        "the plate is not rounded with Tokens.radius-lg"
-    );
-    assert!(
-        !hive.contains("glass"),
-        "the plate must not use a glass token (S-017)"
-    );
-}
+// S-062 ac6 (the hive has an opaque plate) is replaced by S-074 AC1, tested in
+// crates/ui/src/s074_tests.rs: the plate is gone and the window is transparent.
 
 #[test]
 fn ac7_hex_cell_uses_only_the_new_tokens() {
