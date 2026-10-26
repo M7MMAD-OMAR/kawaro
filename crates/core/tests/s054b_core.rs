@@ -43,7 +43,10 @@
 //!   and the mode has no group or other write bit.
 //! - `apply::privileged_argv_checked(exe, file, sha256, kind) ->
 //!   Result<Vec<String>, UpdateError>` (unix): `Err(UpdateError::Io)` unless
-//!   `exe` is trusted by that rule, otherwise `privileged_argv`'s result.
+//!   the whole path of `exe` is trusted (`apply::path_is_trusted`: an
+//!   absolute name of a plain file under real directories that all pass
+//!   `exe_is_trusted`; a symlink anywhere refuses), otherwise
+//!   `privileged_argv`'s result.
 //!   `apply_now` stays as it is (its tests use fake exe paths).
 //!
 //! Windows quit (manager ruling, S-054a): `apply/windows.rs` sends

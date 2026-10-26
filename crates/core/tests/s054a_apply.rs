@@ -160,8 +160,8 @@ fn ac1_neighbours_of_the_known_codes_and_negatives_are_failed() {
 
 // ------------------------------------------------------------ AC2
 
-const DNF_REPO: &str = "/usr/bin/pkexec dnf upgrade -y kawaro";
-const APT_REPO: &str = "/usr/bin/pkexec apt-get install -y --only-upgrade kawaro";
+const DNF_REPO: &str = "/usr/bin/pkexec /usr/bin/dnf upgrade -y kawaro";
+const APT_REPO: &str = "/usr/bin/pkexec /usr/bin/apt-get install -y --only-upgrade kawaro";
 
 fn facts(dnf: bool, apt: bool, pkexec: bool, repo: bool, kind: Option<PkgKind>) -> Facts {
     Facts {
@@ -241,11 +241,11 @@ fn ac2_decision_both_managers_follow_the_installed_kind_dnf_first_when_unknown()
 fn ac2_no_pkexec_shows_the_exact_command_for_the_manager_found() {
     assert_eq!(
         linux_plan(&facts(true, false, false, true, Some(PkgKind::Rpm))),
-        Plan::ShowCommand("sudo dnf upgrade -y kawaro".to_string())
+        Plan::ShowCommand("sudo /usr/bin/dnf upgrade -y kawaro".to_string())
     );
     assert_eq!(
         linux_plan(&facts(false, true, false, true, Some(PkgKind::Deb))),
-        Plan::ShowCommand("sudo apt-get install -y --only-upgrade kawaro".to_string())
+        Plan::ShowCommand("sudo /usr/bin/apt-get install -y --only-upgrade kawaro".to_string())
     );
     assert_eq!(
         linux_plan(&facts(true, false, false, false, Some(PkgKind::Rpm))),
@@ -379,7 +379,13 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
     .unwrap();
     assert_eq!(
         *r.calls.borrow(),
-        vec![s(&["/usr/bin/pkexec", "dnf", "upgrade", "-y", "kawaro"])]
+        vec![s(&[
+            "/usr/bin/pkexec",
+            "/usr/bin/dnf",
+            "upgrade",
+            "-y",
+            "kawaro"
+        ])]
     );
 
     let r = Recorder::new(0);
@@ -396,7 +402,7 @@ fn ac4_apply_now_repo_upgrade_runs_the_plan_command_once() {
         *r.calls.borrow(),
         vec![s(&[
             "/usr/bin/pkexec",
-            "apt-get",
+            "/usr/bin/apt-get",
             "install",
             "-y",
             "--only-upgrade",

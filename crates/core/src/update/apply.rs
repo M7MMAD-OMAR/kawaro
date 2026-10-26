@@ -2,8 +2,9 @@
 //! decision is pure and tested here: the `msiexec` command and its exit
 //! codes, the Linux plan, the privileged install, the timing rules and the
 //! order of the Windows helper. The only code that talks to the system is
-//! `install_privileged` (fake package managers in the tests) and
-//! `apply/windows.rs`, which is checked live in S-052.
+//! `install_privileged` (fake package managers in the tests), `exe_stat`
+//! (a read only `lstat` walk) and `apply/windows.rs`, which is checked live
+//! in S-052.
 
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -196,10 +197,19 @@ pub enum Plan {
     ShowRelease(String),
 }
 
+/// The repository upgrade command. `{elevate}` is [`PKEXEC`] (the argv
+/// `apply_now` runs) or `sudo` (the text shown to the user). The package
+/// manager is named exactly as [`Programs::system`] holds it: by absolute
+/// path, never found through `PATH`, so `pkexec` cannot be pointed at a
+/// planted program name in the caller's `PATH`.
 fn repo_command(elevate: &str, kind: PkgKind) -> String {
+    let programs = Programs::system();
     match kind {
-        PkgKind::Rpm => format!("{elevate} dnf upgrade -y kawaro"),
-        PkgKind::Deb => format!("{elevate} apt-get install -y --only-upgrade kawaro"),
+        PkgKind::Rpm => format!("{elevate} {} upgrade -y kawaro", programs.dnf.display()),
+        PkgKind::Deb => format!(
+            "{elevate} {} install -y --only-upgrade kawaro",
+            programs.apt_get.display()
+        ),
     }
 }
 
@@ -288,8 +298,67 @@ pub fn exe_is_trusted(owner_uid: u32, mode: u32) -> bool {
     owner_uid == 0 && mode & 0o022 == 0
 }
 
-/// [`privileged_argv`] for an `exe` that passes [`exe_is_trusted`]; any other
-/// program (or one that cannot be read) is refused with `Io`.
+/// What the trust check reads about the path of the program `pkexec`
+/// would run as root: the (owner uid, mode) of the program itself and of
+/// every parent directory (closest first). An entry is `None` when that
+/// component is not a plain file (or a real directory): a symlink is
+/// never trusted, whatever it points at today.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ExeStat {
+    pub program: Option<(u32, u32)>,
+    pub parents: Vec<Option<(u32, u32)>>,
+}
+
+/// True when the whole path is trusted: `exe` is absolute (a bare name
+/// would be resolved through the caller's `PATH` at exec time), the
+/// program is a plain file that passes [`exe_is_trusted`], and every
+/// parent directory is a real directory that passes it too. A symlink
+/// anywhere in the path, or one writable parent, refuses: between the
+/// check and the exec nothing an attacker can write may name the program.
+pub fn path_is_trusted(exe: &Path, stat: &ExeStat) -> bool {
+    exe.is_absolute()
+        && stat
+            .program
+            .is_some_and(|(uid, mode)| exe_is_trusted(uid, mode))
+        && !stat.parents.is_empty()
+        && stat
+            .parents
+            .iter()
+            .all(|p| p.is_some_and(|(uid, mode)| exe_is_trusted(uid, mode)))
+}
+
+/// The [`ExeStat`] of `exe` from `symlink_metadata` on the program and on
+/// every parent directory, so no symlink is ever followed and shows up as
+/// `None` (Unix). Anywhere else the stat gives an error and every
+/// privileged run is refused. The live input of [`path_is_trusted`],
+/// passed by [`SystemRunner`] only; the refusal tests use fakes and never
+/// start a program.
+pub fn exe_stat(exe: &Path) -> std::io::Result<ExeStat> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let entry = |m: &std::fs::Metadata| (m.uid(), m.mode());
+        let meta = std::fs::symlink_metadata(exe)?;
+        let program = meta.file_type().is_file().then(|| entry(&meta));
+        let mut parents = Vec::new();
+        let mut dir = exe.parent();
+        while let Some(d) = dir {
+            let m = std::fs::symlink_metadata(d)?;
+            parents.push(m.file_type().is_dir().then(|| entry(&m)));
+            dir = d.parent();
+        }
+        Ok(ExeStat { program, parents })
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = exe;
+        Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
+    }
+}
+
+/// [`privileged_argv`] for an `exe` whose whole path passes
+/// [`path_is_trusted`]; any other program (or one that cannot be read) is
+/// refused with `Io`.
 #[cfg(unix)]
 pub fn privileged_argv_checked(
     exe: &Path,
@@ -297,78 +366,61 @@ pub fn privileged_argv_checked(
     sha256: &str,
     kind: PkgKind,
 ) -> Result<Vec<String>, UpdateError> {
-    use std::os::unix::fs::MetadataExt;
-    let meta = std::fs::metadata(exe).map_err(|_| UpdateError::Io)?;
-    if !exe_is_trusted(meta.uid(), meta.mode()) {
+    let stat = exe_stat(exe).map_err(|_| UpdateError::Io)?;
+    if !path_is_trusted(exe, &stat) {
         return Err(UpdateError::Io);
     }
     Ok(privileged_argv(exe, file, sha256, kind))
 }
 
-/// The program `pkexec` would run as root, for the privileged step shape
-/// only (`pkexec <exe> update --install-privileged ...`). A repository
-/// upgrade (`pkexec dnf ...`) runs a system package manager and gives `None`.
+/// The program `pkexec` would run as root: `argv[1]` whenever `argv[0]`
+/// is [`PKEXEC`], whatever the rest of the command. The privileged step
+/// (`pkexec <exe> update --install-privileged ...`) and a repository
+/// upgrade (`pkexec /usr/bin/dnf ...`) alike: every program `pkexec`
+/// runs as root goes through the trust check, nothing is exempt.
 pub fn pkexec_target(argv: &[String]) -> Option<&Path> {
     match argv {
-        [pkexec, exe, cmd, flag, ..]
-            if pkexec == PKEXEC && cmd == "update" && flag == INSTALL_PRIVILEGED_FLAG =>
-        {
-            Some(Path::new(exe))
-        }
+        [pkexec, exe, ..] if pkexec == PKEXEC => Some(Path::new(exe)),
         _ => None,
     }
 }
 
-/// The trust check in front of a command (S-054a, S-067). For the privileged
-/// step, `stat` gives the (owner uid, mode) of the program `pkexec` would run
-/// as root; the step is refused with `Io`, and `spawn` is never called, when
-/// `stat` fails or the program is not [`exe_is_trusted`]. Any other command,
-/// a repository upgrade included, goes to `spawn` without `stat`.
+/// The trust check in front of a command (S-054a, S-067). For every
+/// program `pkexec` would run as root, `stat` gives its [`ExeStat`]; the
+/// run is refused with `Io`, and `spawn` is never called, when `stat`
+/// fails or the path is not [`path_is_trusted`]. Any other command goes
+/// to `spawn` without `stat`.
 pub fn run_checked(
     argv: &[String],
-    stat: &dyn Fn(&Path) -> std::io::Result<(u32, u32)>,
+    stat: &dyn Fn(&Path) -> std::io::Result<ExeStat>,
     spawn: &mut dyn FnMut(&[String]) -> Result<i32, UpdateError>,
 ) -> Result<i32, UpdateError> {
     if let Some(exe) = pkexec_target(argv) {
-        let (uid, mode) = stat(exe).map_err(|_| UpdateError::Io)?;
-        if !exe_is_trusted(uid, mode) {
+        let found = stat(exe).map_err(|_| UpdateError::Io)?;
+        if !path_is_trusted(exe, &found) {
             return Err(UpdateError::Io);
         }
     }
     spawn(argv)
 }
 
-/// Runs a program and gives its exit code, through [`run_checked`] with the
-/// real file metadata and the real process. pkexec exists only on Unix, so
-/// elsewhere the stat gives an error and only the privileged step is refused.
+/// Runs a program and gives its exit code, through [`run_checked`] with
+/// the live [`exe_stat`] walk and the real process. pkexec exists only on
+/// Unix, so elsewhere the stat gives an error and every privileged run is
+/// refused.
 pub struct SystemRunner;
 
 impl CommandRunner for SystemRunner {
     fn run(&self, argv: &[String]) -> Result<i32, UpdateError> {
-        run_checked(
-            argv,
-            &|exe: &Path| {
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::MetadataExt;
-                    std::fs::metadata(exe).map(|m| (m.uid(), m.mode()))
-                }
-                #[cfg(not(unix))]
-                {
-                    let _ = exe;
-                    Err(std::io::Error::from(std::io::ErrorKind::Unsupported))
-                }
-            },
-            &mut |argv: &[String]| {
-                let (program, args) = argv.split_first().ok_or(UpdateError::Io)?;
-                std::process::Command::new(program)
-                    .args(args)
-                    .status()
-                    .map_err(|_| UpdateError::Io)?
-                    .code()
-                    .ok_or(UpdateError::Io)
-            },
-        )
+        run_checked(argv, &exe_stat, &mut |argv: &[String]| {
+            let (program, args) = argv.split_first().ok_or(UpdateError::Io)?;
+            std::process::Command::new(program)
+                .args(args)
+                .status()
+                .map_err(|_| UpdateError::Io)?
+                .code()
+                .ok_or(UpdateError::Io)
+        })
     }
 }
 
