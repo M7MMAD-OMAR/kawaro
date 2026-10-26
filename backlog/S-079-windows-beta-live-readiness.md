@@ -1,5 +1,5 @@
 # S-079 Windows beta: live readiness checklist for the shipped feature set
-Status: approved under manager delegation (2026-10-26)
+Status: review (2026-10-26, implementer)
 
 Rebuilds the owner-run S-052 checklist for the beta that actually shipped. Covers the live items deferred by S-040 to S-051, the shipped drop, tray, shortcut and notification stories, the Windows updater and the S-067 Windows fixes. Documentation and static tests only; the owner runs the live steps.
 
@@ -115,4 +115,18 @@ As the owner, I want every shipped Windows feature and deferred live check to ha
   FAIL: AC9 exact commit Windows CI: need exactly one step title matching '^Release readiness', got []
   FAIL: AC9 MSI upgrade downgrade logon and uninstall: need exactly one step title matching '^MSI lifecycle', got []
 test_checklist: 95 checks, 63 failed
+```
+- 2026-10-26, implementer: rewrote `docs/windows-beta-checklist.md` to the D1 envelope: 40 steps W01 to W40, 160 nonblank step lines, one Do, one observable Expect and one `Result: PASS | FAIL` per step. The 39 titled steps carry the AC3 to AC9 coverage table and W40 carries the smoke and log script run, report contents and privacy review from AC10. The stale skipped-features paragraph and the SKIPPED step are gone; no shipped feature is left without a live procedure. Owner-only live execution is preserved, with no public signing and no modern Explorer menu step. `scripts/windows/beta-smoke.cmd` and `scripts/windows/collect-logs.cmd` already satisfy the S-079 static checks, so they were not edited, and `tests/windows/test_checklist.sh` was not changed. No live Windows result is claimed here. Real gate output follows.
+
+```text
+$ bash tests/windows/test_checklist.sh
+test_checklist: 95 checks, 0 failed
+(exit code 0)
+
+$ shellcheck -x tests/windows/test_checklist.sh
+(no output, exit code 0)
+
+$ bash scripts/design-lint.sh
+[design-lint] clean
+(exit code 0)
 ```
