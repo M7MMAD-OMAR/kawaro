@@ -469,18 +469,41 @@ fn doctor() {
         out!("  {} {}", mark(e.available()), e.id());
     }
     out!("tools");
-    let tools: [(&str, &str); 8] = [
-        ("ffmpeg", "video and audio"),
-        ("ffprobe", "video and audio progress"),
-        ("soffice", "documents"),
-        ("gs", "PDF compression and pages to images"),
+    use kawaro_engines::locate::Program;
+    // The four engine tools resolve through the engines' shared lookup so
+    // doctor and the engines never disagree (S-080).
+    let engine_tools: [(&str, &str, Program); 4] = [
+        ("ffmpeg", "video and audio", Program::Ffmpeg),
+        ("ffprobe", "video and audio progress", Program::Ffprobe),
+        ("soffice", "documents", Program::Office),
+        (
+            "gs",
+            "PDF compression and pages to images",
+            Program::Ghostscript,
+        ),
+    ];
+    for (tool, why, program) in engine_tools {
+        let path = kawaro_engines::locate::find(program).map(|p| p.to_string_lossy().into_owned());
+        out!(
+            "  {} {tool:<10} {why} {}",
+            mark(path.is_some()),
+            path.as_deref().unwrap_or("")
+        );
+    }
+    // The plain PATH tools probe PATH directly.
+    let plain_tools: [(&str, &str); 4] = [
         ("wl-paste", "open from clipboard on Wayland"),
         ("xclip", "open from clipboard on X11"),
         ("xdg-open", "open folder from notifications"),
         ("kawarod", "background service"),
     ];
-    for (tool, why) in tools {
-        out!("  {} {tool:<10} {why}", mark(on_path(tool)));
+    for (tool, why) in plain_tools {
+        let path = on_path(tool).then(|| tool.to_string());
+        out!(
+            "  {} {tool:<10} {why} {}",
+            mark(path.is_some()),
+            path.as_deref().unwrap_or("")
+        );
     }
     out!("service");
     out!(

@@ -50,8 +50,9 @@ use std::path::{Path, PathBuf};
 #[cfg(windows)]
 mod windows;
 
+/// Host operating system family for program name selection.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Os {
+pub enum Os {
     Unix,
     Windows,
 }
@@ -60,8 +61,9 @@ pub(crate) enum Os {
 /// order in [`search`] builds and runs everywhere.
 const OS: Os = if cfg!(windows) { Os::Windows } else { Os::Unix };
 
+/// A resolved engine program to look up on the system.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum Program {
+pub enum Program {
     Office,
     Ghostscript,
     Ffmpeg,
@@ -83,7 +85,7 @@ pub(crate) fn names(os: Os, program: Program) -> &'static [&'static str] {
 }
 
 /// Read only view of `HKEY_LOCAL_MACHINE`. Keys are given without the hive.
-pub(crate) trait Registry {
+pub trait Registry {
     /// String value `name` of `key`; `""` is the key's default value.
     fn value(&self, key: &str, name: &str) -> Option<String>;
     /// Names of the direct subkeys of `key`.
@@ -96,7 +98,7 @@ const GS_KEY: &str = "SOFTWARE\\GPL Ghostscript";
 
 /// The first executable `program` found: `path_dirs`, then on Windows the
 /// usual install folder, then the folder the registry names.
-pub(crate) fn search(
+pub fn search(
     os: Os,
     program: Program,
     path_dirs: &[PathBuf],
@@ -175,7 +177,7 @@ fn version(text: &str) -> Option<Vec<u32>> {
 
 /// `program` on this system, from the live `PATH`, environment, executable
 /// folder and registry.
-pub(crate) fn find(program: Program) -> Option<PathBuf> {
+pub fn find(program: Program) -> Option<PathBuf> {
     let exe = std::env::current_exe().ok();
     search(
         OS,
