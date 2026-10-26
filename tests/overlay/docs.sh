@@ -65,6 +65,9 @@ lock_pairs <"$LOCK" >"$TMP/.lock-now"
 newnames=$(comm -13 <(cut -d' ' -f1 "$TMP/.lock-base" | sort -u) <(cut -d' ' -f1 "$TMP/.lock-now" | sort -u))
 missing=""
 for c in $newnames; do
+  # The workspace's own crates are not third party libraries; after the
+  # rename (S-066) they all count as new since the base.
+  case "$c" in kawaro-*) continue ;; esac
   v=$(awk -v n="$c" '$1==n{print $2}' "$TMP/.lock-now" | sort -V | tail -1)
   r=$(row "$c")
   { [ -n "$r" ] && grep -qF "$v" <<<"$r"; } || missing="$missing $c@$v"

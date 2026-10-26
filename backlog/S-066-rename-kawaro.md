@@ -1,5 +1,5 @@
 # S-066 Rename the product to Kawaro (كوارو)
-Status: in progress
+Status: done
 
 Decision in `docs/adr/0008-name-kawaro.md`. Not a feature: a repository wide rename plus a new mark.
 
@@ -12,3 +12,4 @@ Decision in `docs/adr/0008-name-kawaro.md`. Not a feature: a repository wide ren
 
 ## Review log
 - 2026-10-26, manager: rename applied by one script over tracked files, mark redrawn.
+- 2026-10-26, manager: every AC holds on main (repo, route, README origin, binaries); status set to done during the post-beta cleanup.

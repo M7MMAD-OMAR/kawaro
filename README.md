@@ -55,7 +55,8 @@ Kawaro comes from «كوّارة» (kawwara), an old Arabic word for a beehive. 
 | Sway and wlroots | Not tested | Expected to work as a layer |
 | X11 | Not supported yet | Planned |
 | Fedora 41 and later (RPM), Ubuntu 22.04 and 24.04, Debian 12 (DEB) | Tested | The packages install and run |
-| Windows and macOS | Not supported yet | Planned |
+| Windows 10 and 11 | Beta, not tested on a live machine yet | Zip and per-user MSI, right click menu, tray icon |
+| macOS | Not supported yet | Planned |
 
 ## Install
 
@@ -131,15 +132,14 @@ place (next to the original or in a subfolder) and quality preset. Your own
 actions go in `~/.config/kawaro/actions/*.toml`.
 
 On Windows the settings file is `%APPDATA%\Kawaro\config.toml`, your own
-actions go in `%APPDATA%\Kawaro\actions\*.toml`. A service log in
-`%LOCALAPPDATA%\Kawaro\logs\` is planned for S-045 and not written yet.
+actions go in `%APPDATA%\Kawaro\actions\*.toml`. The service log is
+`%LOCALAPPDATA%\Kawaro\logs\kawarod.log`.
 
 **Windows beta packages are unsigned.** The portable zip and the per-user MSI (S-051) carry no code signing certificate, so Windows SmartScreen shows "Windows protected your PC": click "More info", then "Run anyway". Compare the SHA-256 of the file you downloaded with the one on the release page before you run it. Neither package needs administrator rights, and neither is verified on a live Windows system yet (S-052).
 
 On Windows `kawaro open` starts the service, `kawarod.exe`, from the
 program folder when it is not running, and it is meant to keep running after
-the terminal closes. The Windows service itself is not built yet (S-045), and
-this behaviour is not verified live (S-052).
+the terminal closes. This behaviour is not verified live yet (S-052).
 
 Kawaro does not download the external engines on Windows. It looks for
 them in `PATH` first, then in their usual install folders: LibreOffice in
