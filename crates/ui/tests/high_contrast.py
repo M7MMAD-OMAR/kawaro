@@ -105,23 +105,20 @@ def main(argv):
     if got != want:
         fails.append(f"AC9 cell centres {got} != committed {want}")
 
-    # AC6: opaque plate. Gap midpoints (between neighbouring cell centres)
-    # and the plate corners are exactly the plate colour, alpha 255.
+    # AC6 (S-074 D3, follows AC1): no plate. Every pixel farther than a
+    # cell's circumradius + 4 px from every cell centre is the compositor
+    # background of the harness (fully transparent), not the plate colour.
     pts = [(x // 2, y // 2) for x, y in got]
-    dmin = min(((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
-               for i, a in enumerate(pts) for b in pts[i + 1:]) if len(pts) > 1 else 0
-    gaps = []
-    for i, a in enumerate(pts):
-        for b in pts[i + 1:]:
-            if ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5 < 1.3 * dmin:
-                gaps.append(((a[0] + b[0]) // 2, (a[1] + b[1]) // 2))
-    corners = [(8, 8), (w - 9, 8), (8, h - 9), (w - 9, h - 9)]
-    bad = [(p, px(*p)) for p in gaps + corners if px(*p) != plate + (255,)]
-    if bad or not gaps:
-        fails.append(f"AC6 {len(bad)} of {len(gaps) + len(corners)} gap and corner samples are not the plate {plate}: {bad[:4]}")
-    clear = sum(1 for y in range(h) for x in range(w) if rows[y][x * bpp + 3] != 255)
-    if clear > w * h // 100:
-        fails.append(f"AC6 {clear} of {w * h} pixels are not opaque (want only the rounded corners)")
+    rad = max((c[5] - c[3]) / 2 for c in cells) + 4 if cells else 0
+    outside = [(x, y) for y in range(0, h, 3) for x in range(0, w, 3)
+               if all((x - a[0]) ** 2 + (y - a[1]) ** 2 > rad ** 2 for a in pts)]
+    bad = [(p, px(*p)) for p in outside if px(*p) != (0, 0, 0, 0)]
+    if len(outside) < 20:
+        fails.append(f"AC6 only {len(outside)} points outside the cells, want 20 or more")
+    if bad:
+        fails.append(f"AC6 {len(bad)} of {len(outside)} points outside every cell are not transparent background: {bad[:4]}")
+    if any(px(*p)[:3] == plate and px(*p)[3] == 255 for p in outside):
+        fails.append(f"AC6 plate colour {plate} found outside the cells")
 
     # AC7: the highlighted cell is the accent component; its edge is
     # `border` px of hive-edge, outside the accent on the mid row.
@@ -138,8 +135,6 @@ def main(argv):
             x -= 1
         if run != border:
             fails.append(f"AC7 highlighted edge band is {run} px of hive-edge {edge} on row {y}, want {border}")
-        elif px(x, y)[:3] != plate:
-            fails.append(f"AC7 beyond the edge band the pixel is {px(x, y)}, want plate {plate}")
 
     # AC10: the code text of every ring cell is complete: inside the cell and
     # as wide as its font says (not elided).

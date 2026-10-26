@@ -66,7 +66,7 @@ inner() {
             "$BIN" "$out" --lang "$lang" --highlight 0 "${cmp[@]}" 2>"$trace"; then
           echo "FAIL $surface $name (actual: $out)"; fail=1
         fi
-        # S-062 AC6, AC7, AC9, AC10: opaque plate, edge band, cell centres and
+        # S-062 AC6, AC7, AC9, AC10 (AC6 per S-074 D3): no plate, edge band, cell centres and
         # complete labels, read from the rendered pixels.
         if ! python3 -I "$HERE/high_contrast.py" "$out" "$lang" "$scheme" "$ROOT/design/tokens.json" \
             "$REF/hive-cell-centres.txt" "$ROOT/crates/ui/fonts/IBMPlexSansArabic-SemiBold.otf"; then
