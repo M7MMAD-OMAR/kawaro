@@ -65,6 +65,8 @@ There is no downgrade feature and no copy of the previous package is kept.
 
 A job `update-manifest` after `release` in `packages.yml`: runs only for a `v*` tag in `M7MMAD-OMAR/kawaro`, in the `release-signing` environment; reads the real asset list, builds the manifest with `scripts/make-update-manifest.sh`, signs it with `scripts/sign-update-manifest.sh`, creates the `updates` release if missing (`--prerelease --latest=false`), and uploads with `--clobber`. `build-packages.sh` maps `-` to `~` in the package version so `0.4.0-beta.1` becomes `0.4.0~beta.1` for RPM and DEB.
 
+GitHub stores `~` in release asset names as `.`, so the `release` and `update-manifest` jobs rename every `~` in `dist` to `.` with `scripts/release/github-names.sh` before they write the checksums (`SHA256SUMS`) and the manifest (S-073).
+
 ## Crates
 
 | Crate | Version | Licence | Where | Note |
