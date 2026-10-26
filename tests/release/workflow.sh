@@ -5,7 +5,8 @@
 # Contract (DECISION marks a gap in the story):
 #   - job `update-manifest`: needs: release; if (a ${{ }} wrapper is allowed)
 #     startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/kawaro';
-#     environment: release-signing. No other job has an environment.
+#     environment: release-signing. No other job has an environment except
+#     windows (S-083: the code signing certificate).
 #   - UPDATE_SIGNING_KEY and UPDATE_SIGNING_PASSWORD appear only in this job,
 #     and every `secrets.` reference in the file is the value of a key under
 #     an `env:` mapping. No `${{` inside any run text of the job (values come
@@ -53,10 +54,18 @@ cond = re.sub(r"^\$\{\{\s*|\s*\}\}$", "", str(job.get("if", "")).strip())
 ok("AC4 if is the tag and repository condition",
    cond == "startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/kawaro'")
 ok("AC4 environment: release-signing", job.get("environment") == "release-signing")
-ok("AC4 no other job has an environment",
-   all("environment" not in j for n, j in jobs.items() if n != "update-manifest"))
+# S-083 D-item: the windows job also carries release-signing, for the code
+# signing certificate; update-manifest keeps the update keys.
+ok("AC4 no job except update-manifest and windows has an environment",
+   all("environment" not in j for n, j in jobs.items()
+       if n not in ("update-manifest", "windows")))
 others = yaml.dump({n: j for n, j in jobs.items() if n != "update-manifest"})
-ok("AC4 the secrets appear only in this job", "UPDATE_SIGNING" not in others and "release-signing" not in others)
+ok("AC4 UPDATE_SIGNING stays only in this job", "UPDATE_SIGNING" not in others)
+ok("AC4 release-signing appears only here and in windows",
+   "release-signing" not in yaml.dump({n: j for n, j in jobs.items()
+                                      if n not in ("update-manifest", "windows")}))
+ok("AC4 the windows signing secrets stay only in windows",
+   "WINDOWS_SIGNING" not in yaml.dump({n: j for n, j in jobs.items() if n != "windows"}))
 ok("AC4 the job uses both secrets", "secrets.UPDATE_SIGNING_KEY" in yaml.dump(job) and "secrets.UPDATE_SIGNING_PASSWORD" in yaml.dump(job))
 
 bad = []

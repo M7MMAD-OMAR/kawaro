@@ -586,20 +586,33 @@ def dl_buttons(lang, which):
             + dl_link(lang, "rpm", bidi(f"{word} RPM", lang), "primary", "lg"))
 
 
-def download_slab(lang, which):
+def download_slab(lang, which, note=False):
     """One operating system: a cut corner slab with its icon, its note and its buttons."""
     ar = lang == "ar"
     if which == "win":
         title, sub, icon, card = ("ويندوز" if ar else "Windows"), ("10 و11، 64 بت" if ar else "10 and 11, 64 bit"), WIN_ICO, "win"
     else:
         title, sub, icon, card = ("لينكس" if ar else "Linux"), ("فيدورا وأوبونتو وديبيان، 64 بت" if ar else "Fedora, Ubuntu, Debian, 64 bit"), LIN_ICO, "linux"
+    n = ""
+    if which == "win" and note:
+        # The two-line honest note of S-083 (the story owns this text): it
+        # never says the build is safe to run unverified. Once the real
+        # certificate signs a release (S-083 AC6) line one may say so.
+        guide = REPO + "/blob/main/docs/windows-smartscreen" + (".ar.md" if ar else ".md")
+        label = "دليل كوارو وتحذير SmartScreen" if ar else "Windows and SmartScreen guide"
+        text = ("يظهر تحذير SmartScreen عند فتح مثبّت كوارو على ويندوز."
+                "<br>تحقق من الملف مقابل SHA256SUMS أولاً، ثم انقر More info وRun anyway. "
+                if ar else
+                "Windows shows a SmartScreen warning when you open the Kawaro installer."
+                "<br>Verify the file against SHA256SUMS first, then click More info and Run anyway. ")
+        n = f'<p class="download-note">{text}<a href="{guide}">{label}</a></p>'
     return (f'<div class="download-slab" data-card="{card}">{icon}<h3>{title}</h3>'
             f'<p class="download-slab-sub">{sub}</p>'
-            f'<div class="actions">{dl_buttons(lang, which)}</div></div>')
+            f'<div class="actions">{dl_buttons(lang, which)}</div>{n}</div>')
 
 
-def dl_cards(lang):
-    return f'<div class="dl-grid">{download_slab(lang, "win")}{download_slab(lang, "linux")}</div>'
+def dl_cards(lang, note=False):
+    return f'<div class="dl-grid">{download_slab(lang, "win", note)}{download_slab(lang, "linux")}</div>'
 
 
 def pills(lang, verify_href, win_href):
@@ -926,7 +939,7 @@ def download(lang):
     win_href = page_href(lang, "download", lang, "windows")
     if ar:
         h = page_head("نزّل كوارو", f"الإصدار <code>{VERSION}</code>")
-        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
+        top = sec(f'{dl_cards(lang, True)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
 <p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
@@ -938,7 +951,7 @@ def download(lang):
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
         h = page_head("Download Kawaro", f"Version <code>{VERSION}</code>")
-        top = sec(f'{dl_cards(lang)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
+        top = sec(f'{dl_cards(lang, True)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">Verify the file</h2>
 <p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>

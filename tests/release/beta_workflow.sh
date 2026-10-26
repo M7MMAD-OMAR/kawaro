@@ -11,6 +11,10 @@
 #     msitools, runs scripts/windows/{build,make-zip,make-msi}.sh with CI=true (job env
 #     or step env or an inline prefix), uploads artifact `windows` whose path lists
 #     exactly one .zip and one .msi (two lines, no directory wildcard) (DECISION).
+#     S-083 D-item: since the signing pipeline the job carries
+#     environment: release-signing and exactly the WINDOWS_SIGNING_PFX and
+#     WINDOWS_SIGNING_PASS secrets; the signing steps themselves are tested by
+#     tests/release/s083_windows_signing.sh.
 #   - `release` job: needs includes test and windows; if is exactly
 #     startsWith(github.ref, 'refs/tags/v'); checks out the repo (the notes file lives
 #     there); downloads `packages` and `windows` into ONE folder (explicit names with the
@@ -73,8 +77,10 @@ if len(ups) == 1:
     lines = [l.strip() for l in str(wi.get("path", "")).splitlines() if l.strip()]
     ok("AC2 artifact path is exactly one .zip and one .msi", len(lines) == 2
        and sum(l.endswith(".zip") for l in lines) == 1 and sum(l.endswith(".msi") for l in lines) == 1)
-ok("AC2 windows has no environment", "environment" not in w)
-ok("AC2 windows has no secrets. reference", "secrets." not in yaml.dump(w))
+ok("AC2 windows environment is release-signing (S-083: the code signing certificate lives here)",
+   w.get("environment") == "release-signing")
+ok("AC2 windows secrets are exactly the WINDOWS_SIGNING pair (S-083)",
+   set(re.findall(r"secrets\.(\w+)", yaml.dump(w))) == {"WINDOWS_SIGNING_PFX", "WINDOWS_SIGNING_PASS"})
 
 # ---- AC3
 r = jobs.get("release") or {}
@@ -115,7 +121,9 @@ open(os.path.join(tmp, "release-folder"), "w").write(rfolder)
 others = yaml.dump({n: j for n, j in jobs.items() if n != "update-manifest"})
 ok("AC8 UPDATE_SIGNING_KEY only in update-manifest", "UPDATE_SIGNING_KEY" not in others)
 ok("AC8 UPDATE_SIGNING_PASSWORD only in update-manifest", "UPDATE_SIGNING_PASSWORD" not in others)
-ok("AC8 release-signing only in update-manifest", "release-signing" not in others)
+ok("AC8 release-signing only in update-manifest and windows (S-083)",
+   "release-signing" not in yaml.dump({n: j for n, j in jobs.items()
+                                      if n not in ("update-manifest", "windows")}))
 ok("AC8 job names are build, test, windows, release, update-manifest",
    sorted(jobs) == sorted(["build", "test", "windows", "release", "update-manifest"]))
 ok("AC5 test matrix still has 5 images", len((jobs.get("test", {}).get("strategy", {}).get("matrix", {}).get("include", []))) == 5)

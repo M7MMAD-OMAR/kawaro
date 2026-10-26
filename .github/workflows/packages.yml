@@ -66,10 +66,19 @@ jobs:
           test -f /usr/lib/systemd/user/kawaro.service
 
   # Windows zip and MSI, cross built on Linux with the same scripts as a
-  # developer machine (S-044, S-051). Unsigned (ADR 0005).
+  # developer machine (S-044, S-051). Tag builds are signed with the
+  # certificate in the release-signing environment (S-083): the exes are
+  # signed before make-zip.sh packs them and before make-msi.sh embeds them,
+  # the MSI is signed before upload, every signature carries an RFC 3161
+  # timestamp, and the job verifies every signed artifact before it is
+  # uploaded. A workflow_dispatch run skips the signing steps with a notice
+  # and uploads unsigned artifacts; a tag build without a certificate fails
+  # loudly. osslsigncode comes from Fedora's repositories in the same
+  # container as wixl, the toolchain the tests dry-run against.
   windows:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
+    environment: release-signing
     env:
       CI: true
       CARGO_TARGET_DIR: ${{ github.workspace }}/target-windows
@@ -86,6 +95,27 @@ jobs:
         with:
           workspaces: ". -> target-windows"
       - run: scripts/windows/build.sh
+      - name: Sign the executables (S-083)
+        env:
+          WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
+          WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::notice::S-083 signing skipped: only tag builds are signed, this workflow_dispatch run uploads unsigned artifacts"
+            exit 0
+          fi
+          if [ -z "${WINDOWS_SIGNING_PFX}" ] || [ -z "${WINDOWS_SIGNING_PASS}" ]; then
+            echo "::error::S-083: no code signing certificate in the release-signing environment; a tag build must be signed"
+            exit 1
+          fi
+          umask 077
+          trap 'rm -f "${RUNNER_TEMP}/cert.pfx"' EXIT
+          printf '%s' "${WINDOWS_SIGNING_PFX}" | base64 -d > "${RUNNER_TEMP}/cert.pfx"
+          docker run --rm -v "${GITHUB_WORKSPACE}:/w" -v "${RUNNER_TEMP}:/rt" -w /w \
+            -e CI=true -e KAWARO_WIN_SIGN_PASS \
+            registry.fedoraproject.org/fedora:44 \
+            bash -c 'dnf install -y -q osslsigncode openssl && scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --sign target-windows/x86_64-pc-windows-gnu/release/kawaro.exe target-windows/x86_64-pc-windows-gnu/release/kawarod.exe'
       - run: scripts/windows/make-zip.sh
       # Ubuntu's wixl (0.101) aborts on the RemoveFile element in
       # installer/windows/kawaro.wxs; Fedora's wixl (0.106) builds it.
@@ -94,6 +124,51 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/w" -w /w -e CI=true \
             -e CARGO_TARGET_DIR=/w/target-windows registry.fedoraproject.org/fedora:44 \
             bash -c 'dnf install -y -q msitools && scripts/windows/make-msi.sh'
+      - name: Sign the MSI (S-083)
+        env:
+          WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
+          WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::notice::S-083 signing skipped: only tag builds are signed, this workflow_dispatch run uploads unsigned artifacts"
+            exit 0
+          fi
+          if [ -z "${WINDOWS_SIGNING_PFX}" ] || [ -z "${WINDOWS_SIGNING_PASS}" ]; then
+            echo "::error::S-083: no code signing certificate in the release-signing environment; a tag build must be signed"
+            exit 1
+          fi
+          umask 077
+          trap 'rm -f "${RUNNER_TEMP}/cert.pfx"' EXIT
+          printf '%s' "${WINDOWS_SIGNING_PFX}" | base64 -d > "${RUNNER_TEMP}/cert.pfx"
+          docker run --rm -v "${GITHUB_WORKSPACE}:/w" -v "${RUNNER_TEMP}:/rt" -w /w \
+            -e CI=true -e KAWARO_WIN_SIGN_PASS \
+            registry.fedoraproject.org/fedora:44 \
+            bash -c 'dnf install -y -q osslsigncode openssl && scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --sign target-windows/dist/kawaro-*-windows-x64.msi'
+      - name: Verify the signatures (S-083)
+        env:
+          WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
+          WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
+            echo "::notice::S-083 verification skipped: nothing was signed on this workflow_dispatch run"
+            exit 0
+          fi
+          if [ -z "${WINDOWS_SIGNING_PFX}" ] || [ -z "${WINDOWS_SIGNING_PASS}" ]; then
+            echo "::error::S-083: no code signing certificate in the release-signing environment; a tag build must be signed"
+            exit 1
+          fi
+          umask 077
+          trap 'rm -rf "${RUNNER_TEMP}/cert.pfx" "${RUNNER_TEMP}/zip-x"' EXIT
+          printf '%s' "${WINDOWS_SIGNING_PFX}" | base64 -d > "${RUNNER_TEMP}/cert.pfx"
+          rm -rf "${RUNNER_TEMP}/zip-x"
+          mkdir -p "${RUNNER_TEMP}/zip-x"
+          unzip -q target-windows/dist/kawaro-*-windows-x64.zip -d "${RUNNER_TEMP}/zip-x"
+          docker run --rm -v "${GITHUB_WORKSPACE}:/w" -v "${RUNNER_TEMP}:/rt" -w /w \
+            -e CI=true -e KAWARO_WIN_SIGN_PASS \
+            registry.fedoraproject.org/fedora:44 \
+            bash -c 'dnf install -y -q osslsigncode openssl unzip && scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --verify target-windows/x86_64-pc-windows-gnu/release/kawaro.exe target-windows/x86_64-pc-windows-gnu/release/kawarod.exe /rt/zip-x/kawaro-*-windows-x64/kawaro.exe /rt/zip-x/kawaro-*-windows-x64/kawarod.exe target-windows/dist/kawaro-*-windows-x64.msi'
       - uses: actions/upload-artifact@v7
         with:
           name: windows

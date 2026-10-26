@@ -43,8 +43,16 @@ virsh -c qemu:///session attach-disk win11 ${XDG_CACHE_HOME:-$HOME/.cache}/kawar
 يوقّع `sign-local.sh` إصداراً لأجهزة ويندوز الخاصة بك بشهادة اختبار ذاتية التوقيع. ليست شهادة عامة: تبقى SmartScreen وأجهزة الآخرين تعامل الملفات كأنها غير موقّعة. أما على جهاز تستورد عليه الشهادة فيعرض ويندوز الناشر «Kawaro test signing» ويتحقق من أن الملفات لم تتغير.
 
 ```
-scripts/windows/sign-local.sh kawaro-0.4.0-beta.1-windows-x64.zip dist-signed
+scripts/windows/sign-local.sh test kawaro-0.4.0-beta.1-windows-x64.zip dist-signed
 ```
+
+المصدر الأول هو مصدر الشهادة (S-083): `test` هي شهادة الاختبار الذاتية
+في `~/.config/kawaro-signing/windows/`، و`pkcs12:PATH` هي شهادة توقيع حقيقية
+في ملف PKCS#12 مع عبارة المرور في `KAWARO_WIN_SIGN_PASS`، وهذا هو المسار
+الذي تستعمله خطوط الإصدار. يوقّع `--sign FILE...` الملفات في مكانها،
+ويفحص `--verify FILE...` الملفات فقط. كل توقيع يحمل ختماً زمنياً من RFC 3161
+ويُتحقق منه فور التوقيع؛ و`KAWARO_WIN_SIGN_TS` هي خادمة الختم الزمني ولا
+يصح أن تكون فارغة.
 
 يحتاج إلى `osslsigncode` و`openssl` و`wixl` و`zip` و`unzip`، ونسخة من المستودع بنفس إصدار الملف المضغوط. يبقى المفتاح مشفّراً في `~/.config/kawaro-signing/windows/`، ولا تنسخه أبداً إلى جهاز ويندوز.
 

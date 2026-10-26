@@ -47,8 +47,17 @@ where you import the certificate, Windows shows the publisher
 "Kawaro test signing" and verifies that the files were not changed.
 
 ```
-scripts/windows/sign-local.sh kawaro-0.4.0-beta.1-windows-x64.zip dist-signed
+scripts/windows/sign-local.sh test kawaro-0.4.0-beta.1-windows-x64.zip dist-signed
 ```
+
+The first argument is the certificate source (S-083): `test` is the
+self-signed throwaway certificate in `~/.config/kawaro-signing/windows/`,
+`pkcs12:PATH` is a real code signing certificate in a PKCS#12 file with its
+passphrase in `KAWARO_WIN_SIGN_PASS`, which is the path the release pipeline
+uses. `--sign FILE...` signs files in place, `--verify FILE...` only checks
+them. Every signature carries an RFC 3161 timestamp and is verified right
+after signing; `KAWARO_WIN_SIGN_TS` names the timestamp server and may not be
+empty.
 
 It needs `osslsigncode`, `openssl`, `wixl`, `zip` and `unzip`, and a checkout
 of the same version as the zip. The key stays encrypted in
