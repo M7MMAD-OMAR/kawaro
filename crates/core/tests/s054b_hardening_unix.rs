@@ -8,7 +8,9 @@ use std::os::unix::fs::{PermissionsExt, symlink};
 use std::path::Path;
 
 use kawaro_core::update::UpdateError;
-use kawaro_core::update::apply::{PkgKind, privileged_argv_checked};
+use kawaro_core::update::apply::{
+    PkgKind, exe_stat, privileged_argv, privileged_argv_checked, run_checked,
+};
 use kawaro_core::update::fetch::{CurlFetcher, FetchError, Fetcher};
 use kawaro_core::update::flow::{Update, download_verified};
 use kawaro_core::update::manifest::Asset;
@@ -99,6 +101,85 @@ fn privileged_argv_checked_refuses_an_exe_that_is_not_root_owned() {
     assert_eq!(argv[0], "/usr/bin/pkexec");
     assert_eq!(argv[1], "/usr/bin/env");
     assert_eq!(argv.last().map(String::as_str), Some("deb"));
+}
+
+#[test]
+fn privileged_argv_checked_refuses_a_symlinked_exe() {
+    let t = tempfile::tempdir().unwrap();
+    let link = t.path().join("kawaro");
+    symlink("/usr/bin/env", &link).unwrap();
+    // The link resolves to a root owned program and would pass a stat
+    // that follows symlinks. The link itself can be swapped by its
+    // owner, so it must be refused whatever it points at today.
+    assert_eq!(
+        privileged_argv_checked(&link, Path::new("/c/kawaro.rpm"), "ab", PkgKind::Rpm),
+        Err(UpdateError::Io)
+    );
+}
+
+/// The demanded refusal end to end against real files: the live
+/// `exe_stat` walk plus a `spawn` that only counts its calls, so the
+/// symlinked exe is refused and nothing ever starts.
+#[test]
+fn run_checked_refuses_a_symlinked_exe_and_never_spawns() {
+    let t = tempfile::tempdir().unwrap();
+    let link = t.path().join("kawaro");
+    symlink("/usr/bin/env", &link).unwrap();
+    let argv = privileged_argv(&link, Path::new("/c/kawaro.rpm"), "ab", PkgKind::Rpm);
+    let mut spawns: Vec<Vec<String>> = Vec::new();
+    let mut spawn = |a: &[String]| {
+        spawns.push(a.to_vec());
+        Ok(0)
+    };
+    let result = run_checked(&argv, &exe_stat, &mut spawn);
+    assert_eq!(result, Err(UpdateError::Io));
+    assert!(spawns.is_empty(), "nothing starts: {spawns:?}");
+}
+
+/// The live trust input: the program and every parent directory as
+/// (owner uid, mode), read with `symlink_metadata` and never followed.
+/// Exact values where the test owns the tree; the walk to the root is
+/// asserted by length, so a truncated walk is caught too.
+#[test]
+fn exe_stat_reads_the_program_and_the_parents_without_following_symlinks() {
+    let t = tempfile::tempdir().unwrap();
+    let a = t.path().join("a");
+    let b = a.join("b");
+    fs::create_dir_all(&b).unwrap();
+    fs::set_permissions(&a, fs::Permissions::from_mode(0o755)).unwrap();
+    fs::set_permissions(&b, fs::Permissions::from_mode(0o755)).unwrap();
+    let exe = b.join("kawaro");
+    fs::write(&exe, b"#!/bin/sh\n").unwrap();
+    fs::set_permissions(&exe, fs::Permissions::from_mode(0o755)).unwrap();
+    let uid = euid();
+
+    let s = exe_stat(&exe).unwrap();
+    assert_eq!(s.program, Some((uid, 0o100755)));
+    assert_eq!(s.parents[0], Some((uid, 0o40755)), "{s:?}");
+    assert_eq!(s.parents[1], Some((uid, 0o40755)), "{s:?}");
+    assert!(s.parents.len() >= 3, "the walk reaches the root: {s:?}");
+
+    // A symlink is no plain file, whatever it points at.
+    let link = b.join("link");
+    symlink("/usr/bin/env", &link).unwrap();
+    let s = exe_stat(&link).unwrap();
+    assert_eq!(s.program, None, "a symlink is no plain file");
+    assert_eq!(s.parents[0], Some((uid, 0o40755)), "{s:?}");
+
+    // Neither is a directory.
+    assert_eq!(exe_stat(&b).unwrap().program, None);
+
+    // A symlinked parent is no real directory.
+    let b2 = a.join("b2");
+    symlink(&b, &b2).unwrap();
+    let s = exe_stat(&b2.join("kawaro")).unwrap();
+    assert_eq!(
+        s.parents[0], None,
+        "a symlinked parent is no real directory"
+    );
+
+    // A missing path cannot be read at all.
+    assert!(exe_stat(&b.join("none")).is_err());
 }
 
 #[test]

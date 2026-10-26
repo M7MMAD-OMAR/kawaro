@@ -12,7 +12,8 @@
 //!   literal with Beta and flag false, loaded back with flag true) fails.
 //!
 //! Ruling (4): the `RepoUpgrade` plan text starts with the absolute
-//! `/usr/bin/pkexec` (the plan carries text only; `apply_now` splits it).
+//! `/usr/bin/pkexec` and names the package manager by absolute path too
+//! (the plan carries text only; `apply_now` splits it).
 
 use std::fs;
 use std::path::Path;
@@ -151,10 +152,12 @@ fn the_repo_upgrade_plan_uses_the_absolute_pkexec() {
     };
     assert_eq!(
         linux_plan(&facts(true, false, PkgKind::Rpm)),
-        Plan::RepoUpgrade("/usr/bin/pkexec dnf upgrade -y kawaro".to_string())
+        Plan::RepoUpgrade("/usr/bin/pkexec /usr/bin/dnf upgrade -y kawaro".to_string())
     );
     assert_eq!(
         linux_plan(&facts(false, true, PkgKind::Deb)),
-        Plan::RepoUpgrade("/usr/bin/pkexec apt-get install -y --only-upgrade kawaro".to_string())
+        Plan::RepoUpgrade(
+            "/usr/bin/pkexec /usr/bin/apt-get install -y --only-upgrade kawaro".to_string()
+        )
     );
 }

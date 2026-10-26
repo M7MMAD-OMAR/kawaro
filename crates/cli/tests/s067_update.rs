@@ -149,8 +149,8 @@ fn ac1_apply_with_a_repository_runs_pkexec_dnf_and_exits_0() {
     assert_eq!(calls.len(), 1, "one install command");
     assert_eq!(
         calls[0],
-        vec![PKEXEC, "dnf", "upgrade", "-y", "kawaro"],
-        "the repository upgrade goes through pkexec dnf"
+        vec![PKEXEC, "/usr/bin/dnf", "upgrade", "-y", "kawaro"],
+        "the repository upgrade goes through pkexec with an absolute manager"
     );
     assert!(r.out.ends_with("installed 0.4.0\n"), "{:?}", r.out);
 }
