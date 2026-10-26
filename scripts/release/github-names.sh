@@ -12,7 +12,10 @@
 # file or another renamed file; then nothing at all is renamed.
 set -eu
 
-[ "$#" -eq 1 ] && [ -d "$1" ] || { echo "usage: $0 DIR" >&2; exit 2; }
+if [ "$#" -ne 1 ] || [ ! -d "$1" ]; then
+  echo "usage: $0 DIR" >&2
+  exit 2
+fi
 dir="$1"
 
 srcs=()
