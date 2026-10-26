@@ -10,6 +10,7 @@
 //!   tracker.
 //! - `on_close(&mut self)`: the hive closed; clears the files and the last
 //!   cell returned by `on_tick`.
+//!
 //! The S-047 methods and their tests are unchanged.
 
 use crate::HiveCell;
