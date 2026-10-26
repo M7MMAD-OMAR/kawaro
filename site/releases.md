@@ -1,12 +1,12 @@
 # الإصدارات
 
 ## 0.4.0-beta.1
-- Hero film (S-068)
-- Rename to Kawaro / كوارو (S-066)
-- Home page focus and motion (S-065)
-- Website deploy hardening (S-059)
-- Home page restructure (S-064)
-- Website redesign, first part (S-063)
+- Review fixes for the updater and the Windows drop (S-067)
+- Windows notifications (S-049)
+- Drop from Explorer onto a hive cell on Windows (S-047)
+- Update command (S-054c)
+- macOS base (S-069, ADR 0009)
+- English hero film (S-070)
 
 ## 0.3.3 (2026-10-23)
 - Drop shortcut through the global shortcuts portal (S-014e)
