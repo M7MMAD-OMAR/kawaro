@@ -31,7 +31,7 @@ As a user of the command line updater and of the Windows hive, I want the review
 | AC8 | Text tests for each item; `--install-privileged=FILE` is routed to the privileged step (exit 77 as a normal user) | unit, integration |
 
 ## Out of scope
-- One shared status enum for the CLI and the daemon over IPC, the daemon restoring a ready package from disk at start, and a lock between a CLI download and a daemon download (S-068).
+- One shared status enum for the CLI and the daemon over IPC, the daemon restoring a ready package from disk at start, and a lock between a CLI download and a daemon download (a later story; S-068 to S-072 are taken).
 - The Explorer `/select,` quoting: checked live in S-052 before any change, since the S-049 test pins today's argument.
 - `Plan::pick` allocating on every 16 ms tick (measured first, then a separate story if it matters).
 
