@@ -50,7 +50,7 @@ class AC3Hero(unittest.TestCase):
 
 class AC2Demo(unittest.TestCase):
     def test_AC2_reduced_motion_shows_the_end_state(self):
-        for lang in ("en",):  # S-068: the Arabic hero is the film (test_s068_film.py)
+        for lang in ():  # S-068, S-070: both heroes are the film (test_s068_browser.py, test_s070_browser.py)
             pg = B.page(page_path(lang), reduced=True)
             st = pg.evaluate("""() => ({
                 hive: getComputedStyle(document.querySelector('.demo-hive')).display,

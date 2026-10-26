@@ -305,7 +305,7 @@ def is_blank(png):
 class AC8Feedback(unittest.TestCase):
     def test_AC8_no_blank_viewport_every_100px(self):
         pg0 = B.page(page_path("en"))
-        self.assertEqual(pg0.locator(".demo").count(), 1, "hero demo missing (S-064 replaced the scene)")
+        self.assertEqual(pg0.locator(".film").count(), 1, "hero film missing (S-070: the English hero is the film)")
         pg0.context.close()
         for lang, w, h in (("en", 1280, 800), ("ar", 375, 667)):
             pg = B.page(page_path(lang), width=w, height=h)

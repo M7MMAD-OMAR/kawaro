@@ -62,16 +62,12 @@ class AC1Structure(unittest.TestCase):
 
 class AC2HeroDemo(unittest.TestCase):
     def test_AC2_demo_markup(self):
-        # S-068: the Arabic hero is the product film; the demo window stays on the English page.
-        for lang in ("en",):
+        # S-068 and S-070: both home pages show the product film; the CSS demo window is no
+        # longer rendered (its code stays until a follow up removes it).
+        for lang in ("en", "ar"):
             t = home(lang)
-            demo = t.split('<figure class="demo"', 1)[1].split("</figure>", 1)[0]
-            self.assertEqual(len(re.findall(r'class="demo-cell', demo)), 7, lang)
-            self.assertEqual(demo.count("demo-result"), 1, lang)
-            self.assertEqual(demo.count('class="demo-step"'), 3, lang)
-            self.assertIn("photo.png", demo)
-            self.assertIn("photo.webp", demo)
-            self.assertRegex(t, r'<figure class="demo" role="img" aria-label="[^"]{20,}"')
+            self.assertNotIn('<figure class="demo"', t, lang)
+            self.assertIn('<figure class="film"', t, lang)
 
     def test_AC2_demo_css_rest_state_and_rtl(self):
         c = lib.strip_css_comments(css("demo.css"))

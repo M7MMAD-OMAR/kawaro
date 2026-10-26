@@ -684,14 +684,21 @@ CURSOR = ('<svg class="demo-cursor-ico" viewBox="0 0 24 24" aria-hidden="true" f
 FILM_LABEL = "فيديو قصير بلا صوت: يسحب المستخدم ملفاً، ويفتح الخلية، ويفلته على الصيغة، فيظهر ملف جديد بجانب الأصل"
 
 
-def hero_film(lang):
-    """The Arabic hero picture: the product film (S-068), silent, looping, one
-    file per format in media/. The poster is the demo scene, so a visitor who
-    prefers reduced motion, or whose browser blocks autoplay, still sees the product."""
-    label = html.escape(FILM_LABEL)
+FILM_LABEL_EN = ("Short silent video: the user drags a file, opens the hive cell with a shortcut "
+                 "and drops the file on the format, and a new file appears next to the original")
+
+
+def hero_film(lang, root=""):
+    """The hero picture: the product film (S-068 Arabic, S-070 English), silent,
+    looping, one file per format in media/. The poster is the demo scene, so a
+    visitor who prefers reduced motion, or whose browser blocks autoplay, still
+    sees the product."""
+    en = lang == "en"
+    label = html.escape(FILM_LABEL_EN if en else FILM_LABEL)
+    stem = "hero-en" if en else "hero"
     return (f'<figure class="film"><video class="film-video" width="1280" height="720" '
-            f'poster="media/hero-poster.webp" autoplay muted loop playsinline preload="auto" aria-label="{label}">'
-            f'<source src="media/hero.webm" type="video/webm"><source src="media/hero.mp4" type="video/mp4">'
+            f'poster="{root}media/{stem}-poster.webp" autoplay muted loop playsinline preload="auto" aria-label="{label}">'
+            f'<source src="{root}media/{stem}.webm" type="video/webm"><source src="{root}media/{stem}.mp4" type="video/mp4">'
             f'</video></figure>')
 
 
@@ -863,7 +870,7 @@ def home(lang):
 <div class="actions">{btn}</div>
 <p class="hero-note">{note}</p>
 </div>
-<div class="hero-stage">{hero_film(lang) if lang == "ar" else hero_demo(lang)}</div>
+<div class="hero-stage">{hero_film(lang, rel_root(lang, "index"))}</div>
 </div>
 </section>
 '''
