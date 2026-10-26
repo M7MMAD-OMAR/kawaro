@@ -5,7 +5,7 @@
 //! calls the system, so it is left out of the mutants run and checked live
 //! in S-052.
 
-use super::move_error_kind;
+use super::win_long_path;
 use crate::win::wide;
 use std::io;
 use std::path::Path;
@@ -18,7 +18,7 @@ const FLAGS: MOVE_FILE_FLAGS = 0;
 
 /// Moves `from` to `to`; `AlreadyExists` when `to` is taken.
 pub(super) fn place_no_replace(from: &Path, to: &Path) -> io::Result<()> {
-    let (from, to) = (wide(from), wide(to));
+    let (from, to) = (wide(win_long_path(from)), wide(win_long_path(to)));
     // SAFETY: both buffers are NUL terminated and outlive the call.
     if unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), FLAGS) } != 0 {
         return Ok(());

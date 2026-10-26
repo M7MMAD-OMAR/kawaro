@@ -128,6 +128,45 @@ fn place_no_replace(from: &Path, to: &Path) -> std::io::Result<()> {
     std::fs::rename(from, to)
 }
 
+pub fn dir_collision(candidate: &Path) -> bool {
+    match std::fs::metadata(candidate) {
+        Ok(metadata) => metadata.is_dir(),
+        Err(_) => false,
+    }
+}
+
+/// Windows long path prefix helper: adds `\\?\` or `\\?\UNC\` prefix for paths
+/// over MAX_PATH (260 characters). This is exposed for testing on all platforms.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn win_long_path(path: &Path) -> PathBuf {
+    let path_str = path.to_str().unwrap();
+
+    // Skip if already has an extended prefix
+    if path_str.starts_with(r"\\?\") || path_str.starts_with(r"\\.\") {
+        return path.to_path_buf();
+    }
+
+    // Check if path is absolute (Windows-style on any platform)
+    let is_windows_absolute = path_str.len() >= 3
+        && path_str.chars().nth(1) == Some(':')
+        && path_str.chars().nth(2) == Some('\\');
+
+    let is_unc = path_str.starts_with("\\\\");
+
+    if !is_windows_absolute && !is_unc {
+        return path.to_path_buf();
+    }
+
+    // Transform UNC paths
+    if is_unc {
+        let rest = &path_str[2..]; // Skip initial \\
+        return PathBuf::from(format!(r"\\?\UNC\{rest}"));
+    }
+
+    // Transform regular absolute paths
+    PathBuf::from(format!(r"\\?\{path_str}"))
+}
+
 /// The kind of a Win32 error code from `MoveFileExW`: `ERROR_FILE_EXISTS`
 /// (80) and `ERROR_ALREADY_EXISTS` (183) mean the name is taken,
 /// `ERROR_ACCESS_DENIED` (5) is a refusal, anything else is `Other`.
@@ -175,6 +214,10 @@ fn finalize_with(
                 if !exists(temp) {
                     return Err(e);
                 }
+                // Skip directory collisions (ERROR_ACCESS_DENIED on Windows)
+                if dir_collision(&candidate) {
+                    continue;
+                }
                 match place(temp, &candidate) {
                     Ok(()) => return Ok(candidate),
                     Err(e) if e.kind() == ErrorKind::AlreadyExists => continue,
@@ -188,6 +231,9 @@ fn finalize_with(
         "no free output name",
     ))
 }
+
+#[cfg(test)]
+mod s081_tests;
 
 #[cfg(test)]
 mod tests {
