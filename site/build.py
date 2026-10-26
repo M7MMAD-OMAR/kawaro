@@ -473,25 +473,23 @@ def header(lang, page, root):
 
 
 def footer_cells():
-    """The foot of every page: a honeycomb field that fades out toward the top,
-    so it reads as a gradient rising from the name. Cells grow in as the footer
-    scrolls into view, bottom row first."""
-    r = 16
+    """The foot of every page: a full honeycomb lattice whose rows fade in steps
+    from the name upward, so the field reads as a gradation, not as clumps.
+    Cells grow in as the footer scrolls into view, bottom row first."""
+    r = 13
     pitch = r * math.sqrt(3)
-    rows, cols = 7, 38
+    rows, cols = 5, 48
     h = r * (1.5 * rows + 0.5)
+    fade = (0.1, 0.18, 0.28, 0.4, 0.52)  # top row first, all translucent
     polys = []
     for row in range(rows):
         y = h - r * (1.5 * (rows - 1 - row) + 1)
-        # density rises toward the bottom: a gradient of cells, not of colour
-        density = 0.1 + 0.9 * row / (rows - 1)
         for col in range(cols + 1):
             x = pitch * (col + (0.5 if row % 2 else 0)) + pitch / 2
-            if ((col * 31 + row * 17) % 100) / 100 >= density:
-                continue
             pts = " ".join(f"{x + r * math.cos(math.radians(a)):.1f},{y + r * math.sin(math.radians(a)):.1f}"
                            for a in (-90, -30, 30, 90, 150, 210))
-            polys.append(f'<polygon class="fc" style="--i:{rows - 1 - row}" points="{pts}"/>')
+            polys.append(f'<polygon class="fc" style="--i:{rows - 1 - row}" opacity="{fade[row]}" '
+                         f'points="{pts}"/>')
     total = pitch * cols + pitch / 2
     return (f'<svg class="footer-cells" viewBox="0 0 {total:.0f} {h:.0f}"  '
             f'focusable="false">{"".join(polys)}</svg>')
