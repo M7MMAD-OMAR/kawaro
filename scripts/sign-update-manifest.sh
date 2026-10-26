@@ -16,8 +16,14 @@ KEY="$1"; MANIFEST="$2"
 [ -f "$MANIFEST" ] || { echo "sign-update-manifest: manifest not found: $MANIFEST" >&2; exit 2; }
 [ -n "${UPDATE_SIGNING_PASSWORD+x}" ] || { echo "sign-update-manifest: UPDATE_SIGNING_PASSWORD is not set" >&2; exit 2; }
 
-if ! printf '%s\n' "$UPDATE_SIGNING_PASSWORD" | minisign -S -s "$KEY" -m "$MANIFEST" >/dev/null 2>&1; then
+# A here-string, not a pipe: with an unencrypted key minisign never reads its
+# standard input, and under pipefail a writer that loses the race with minisign's
+# exit would fail the whole pipeline with SIGPIPE. minisign's own error text (it
+# never contains the passphrase) is kept, so a CI failure says why.
+ERR="$(mktemp)"
+trap 'rm -f "$ERR"' EXIT
+if ! minisign -S -s "$KEY" -m "$MANIFEST" >/dev/null 2>"$ERR" <<<"$UPDATE_SIGNING_PASSWORD"; then
   rm -f "$MANIFEST.minisig"
-  echo "sign-update-manifest: minisign failed" >&2
+  echo "sign-update-manifest: minisign failed: $(head -c 300 "$ERR" | tr '\n' ' ')" >&2
   exit 1
 fi
