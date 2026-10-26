@@ -99,7 +99,7 @@ Tools (not shipped): `minisign` (to sign and to make fixtures), `jq`, `gh`.
 - Windows in tomorrow's beta depends on P3; Linux does not.
 - Whether the beta default channel should be `beta` for builds with a prerelease version.
 - A polkit policy file for a named prompt, or the generic `pkexec` text.
-- `minisign` availability in the ubuntu-22.04 runner image (assumed in universe).
+- Settled by S-073: ubuntu-22.04 has no `minisign` package, so `update-manifest` runs on ubuntu-24.04.
 
 ## Manager decisions (2026-10-24)
 
