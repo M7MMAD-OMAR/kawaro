@@ -242,7 +242,7 @@ AR = {
     "descs": {
         "index": "محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد الملف، اختر خلية، والناتج بجانب الأصل. ملفاتك تبقى على جهازك.",
         "download": "كوارو للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
-        "windows": "نسخة ويندوز غير موقّعة بعد. شرح تحذير SmartScreen وطريقة التحقق من ملفك قبل تشغيله.",
+        "windows": "بناء ويندوز موقَّع بشهادة اختبار ذاتية، لا بناشر موثَّق، فيظهر تحذير SmartScreen. تحقق من الملف بـ SHA256SUMS ثم More info وRun anyway.",
         "privacy": "لا تتبع ولا حسابات ولا رفع للملفات. الاتصال الوحيد هو فحص التحديثات الموقّعة.",
     },
     "og_alt": "شعار كوارو بجانب الخلية السداسية، وعلى خلاياها صيغ تحويل الصور",
@@ -268,7 +268,7 @@ EN = {
     "descs": {
         "index": "A free, open source file converter for Linux and Windows. Select the file, pick a cell, and the result lands next to the original. Your files stay on your machine.",
         "download": "Kawaro for Linux and Windows, with the SHA256SUMS steps to verify it.",
-        "windows": "The Windows build is not signed yet. What the SmartScreen warning means and how to verify your file before running it.",
+        "windows": "The Windows build is test-signed with a self-signed certificate, not a verified publisher, so SmartScreen warns on first run. Verify against SHA256SUMS, then click More info and Run anyway.",
         "privacy": "No tracking, no accounts, no uploads. The only network use is the signed update check.",
     },
     "og_alt": "The Kawaro logo next to a hexagonal hive with image formats",
@@ -619,7 +619,7 @@ def pills(lang, verify_href, win_href):
     ar = lang == "ar"
     return (f'<ul class="facts" role="list">'
             f'<li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li>'
-            f'<li><a href="{win_href}">{"نسخة ويندوز غير موقّعة" if ar else "Windows is unsigned"}</a></li>'
+            f'<li><a href="{win_href}">{"ويندوز بتوقيع اختباري" if ar else "Windows is test-signed"}</a></li>'
             f'<li><a href="{verify_href}">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
             f'</ul>')
 
@@ -1042,7 +1042,7 @@ def download(lang):
     stage = dl_stage(lang, rel_root(lang, "download"))
     if ar:
         h = page_head("نزّل كوارو", f"الإصدار <code>{VERSION}</code>")
-        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
+        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">ويندوز بتوقيع اختباري</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
 <p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
@@ -1054,7 +1054,7 @@ def download(lang):
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
         h = page_head("Download Kawaro", f"Version <code>{VERSION}</code>")
-        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
+        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is test-signed</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">Verify the file</h2>
 <p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>
@@ -1071,18 +1071,18 @@ def windows(lang):
     ar = lang == "ar"
     dl = page_href(lang, "windows", lang, "download")
     if ar:
-        h = page_head("كوارو على ويندوز", "غير موقّع بعد، فيظهر تحذير SmartScreen")
+        h = page_head("كوارو على ويندوز", "موقَّع بشهادة اختبار ذاتية، لا بناشر موثَّق، فيظهر تحذير SmartScreen")
         a = sec(f'''<h2 id="w1">ثلاث خطوات</h2>
 <ol class="step-row" role="list">{step_cell(1, "تحقق من الملف", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
-<p class="section-intro">ليست لدينا شهادة توقيع بعد، ولا نعد بمتجر أو بموعد.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
+<p class="section-intro">البناء موقَّع بشهادة اختبار ذاتية، لا بشهادة من سلطة موثوقة، فلا يظهر الناشر موثَّقاً. شهادة موثوقة مطلوبة للثقة الكاملة، ولا نعد بموعد.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
         b = sec(f'''<h2 id="w2">لم يكتمل بعد</h2>
 <div class="grid grid-3">{card("لم يُجرَّب على جهاز ويندوز حقيقي", "", ("tag-warn", "تنبيه"))}{card("بلا خلية الإفلات بعد", "", ("tag-warn", "غير جاهز"))}{card("بلا إشعارات بعد", "التقدم في تلميح الأيقونة", ("tag-warn", "غير جاهز"))}</div>''',
                 cls="alt s-w2", ident="gaps", labelledby="w2", side="end")
     else:
-        h = page_head("Kawaro on Windows", "Not signed yet, so SmartScreen warns you")
+        h = page_head("Kawaro on Windows", "Test-signed with a self-signed certificate, not a verified publisher, so SmartScreen warns on first run")
         a = sec(f'''<h2 id="w1">Three steps</h2>
 <ol class="step-row" role="list">{step_cell(1, "Verify the file", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
-<p class="section-intro">We have no signing certificate yet, and promise no store or date.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
+<p class="section-intro">The build is test-signed with a self-signed certificate, not one from a trusted authority, so the publisher is not verified. A trusted certificate is still needed for full trust, and we promise no date.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
         b = sec(f'''<h2 id="w2">Not finished yet</h2>
 <div class="grid grid-3">{card("Not run on a real Windows machine", "", ("tag-warn", "Note"))}{card("No drop hive", "", ("tag-warn", "Missing"))}{card("No notifications", "Progress shows in the tray tooltip", ("tag-warn", "Missing"))}</div>''',
                 cls="alt s-w2", ident="gaps", labelledby="w2", side="end")
@@ -1420,7 +1420,7 @@ def releases_page(lang):
               f'<div class="actions">{dl_buttons(lang, "win")}{dl_buttons(lang, "linux")}</div>'
               f'<ul class="fine fine-links" role="list">'
               f'<li><a href="{page_href(lang, page, lang, "download")}#verify">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
-              f'<li><a href="{page_href(lang, page, lang, "windows")}">{"نسخة ويندوز غير موقّعة" if ar else "Windows is unsigned"}</a></li>'
+              f'<li><a href="{page_href(lang, page, lang, "windows")}">{"ويندوز بتوقيع اختباري" if ar else "Windows is test-signed"}</a></li>'
               f'<li><a href="feed.xml">{"موجز الإصدارات" if ar else "Feed"}</a></li></ul></div>')
     inner = f'<h1>{title}</h1>{latest}<div class="releases" data-pagefind-body data-pagefind-meta="title:{title}">{release_blocks(lang)}</div>'
     ld = [breadcrumb_ld(lang, [(p["name"], "index"), (title, page)])]
@@ -1474,7 +1474,7 @@ def llms_files(sources):
         idx.append(f"- [{doc_title(slug, 'en')}]({BASE}en/docs/{slug}.md)")
     idx += ["", "## Project", "",
             f"- [Download]({abs_url('en', 'download')}): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps",
-            f"- [Windows and SmartScreen]({abs_url('en', 'windows')}): the Windows build is unsigned",
+            f"- [Windows and SmartScreen]({abs_url('en', 'windows')}): the Windows build is test-signed with a self-signed certificate, so SmartScreen warns",
             f"- [Privacy]({abs_url('en', 'privacy')}): no tracking, signed updates only",
             f"- [Releases]({BASE}en/releases.md)",
             f"- [Source]({REPO}): GPL-3.0-or-later",
