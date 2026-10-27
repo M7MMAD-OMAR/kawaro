@@ -115,6 +115,13 @@ pub struct Config {
     /// `ask` or `auto` for what happens when an update is ready.
     #[serde(rename = "update_mode")]
     pub update_mode: UpdateMode,
+    /// The one-shot first-run marker (S-087 AC1, D5): written only as
+    /// `welcome_seen = true`, by the welcome window after it is actually
+    /// shown, and by no other write path. Skipped while false, so a config
+    /// written by a portal denial save, a settings save or an updater write
+    /// never hides the welcome. Spelled with an underscore, as `hold_ms` is.
+    #[serde(rename = "welcome_seen", default, skip_serializing_if = "is_false")]
+    pub welcome_seen: bool,
     /// True when the loaded file had an `update_channel` key. It lets the
     /// beta default for a prerelease build survive a save from the settings
     /// window (S-054b). Not part of the file and not part of equality.
@@ -142,6 +149,7 @@ impl PartialEq for Config {
             self.update_check == o.update_check,
             self.update_channel == o.update_channel,
             self.update_mode == o.update_mode,
+            self.welcome_seen == o.welcome_seen,
         ]
         .iter()
         .all(|same| *same)
@@ -169,6 +177,12 @@ fn hold_ms_in_range<'de, D: serde::Deserializer<'de>>(d: D) -> Result<u16, D::Er
         })
 }
 
+/// `welcome_seen` is written only as `true` (S-087 D5): the key is absent
+/// from the file while the welcome has not been shown.
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 impl Default for Config {
     fn default() -> Self {
         Self {
@@ -187,6 +201,7 @@ impl Default for Config {
             update_check: true,
             update_channel: Channel::Stable,
             update_mode: UpdateMode::Ask,
+            welcome_seen: false,
             update_channel_present: false,
         }
     }

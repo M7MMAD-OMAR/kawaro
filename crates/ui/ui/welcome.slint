@@ -1,0 +1,224 @@
+// The first-run welcome window (S-087): the demonstration frames, the
+// caption steps and the two buttons. Strings and captions arrive from Rust
+// (kawaro_core::welcome), so this file only lays out and forwards input.
+//
+// Right to left: `rtl` mirrors the heading alignment and the button row.
+import { Tokens } from "tokens.slint";
+import { SbarMaterial } from "material-tokens.slint";
+import { MaterialPalette, MaterialWindow, FilledButton, TextButton } from "@material";
+import { Palette } from "std-widgets.slint";
+
+import "../fonts/IBMPlexSansArabic-Regular.otf";
+import "../fonts/IBMPlexSansArabic-Medium.otf";
+import "../fonts/IBMPlexSansArabic-SemiBold.otf";
+
+export { Tokens, Palette }
+
+// Every visible string, filled from Rust in the window language.
+export struct WelcomeText {
+    title: string,
+    try-button: string,
+    try-accessible: string,
+    settings-button: string,
+    settings-accessible: string,
+}
+
+export component WelcomeUi inherits MaterialWindow {
+    in property <bool> rtl;
+    in property <WelcomeText> text;
+    // The caption steps of AC2 and AC3, filled from Rust; `caption-index`
+    // steps through them while the demonstration loops.
+    in property <[string]> caption-steps;
+    in-out property <int> caption-index;
+    // The window path shows the hive centred in the demonstration (AC2).
+    in property <bool> centred;
+
+    // The frame set of crates/ui/resources/welcome, rendered by
+    // scripts/gen-welcome-frames.sh: the hive at the pointer (lp, dp) and
+    // centred (lc, dc), each in the light and dark token schemes. One set
+    // shows at a time; the rest stay embedded in the binary.
+    in property <[image]> frames-lp: [
+        @image-url("../resources/welcome/frame-lp-00.png"),
+        @image-url("../resources/welcome/frame-lp-01.png"),
+        @image-url("../resources/welcome/frame-lp-02.png"),
+        @image-url("../resources/welcome/frame-lp-03.png"),
+        @image-url("../resources/welcome/frame-lp-04.png"),
+        @image-url("../resources/welcome/frame-lp-05.png"),
+        @image-url("../resources/welcome/frame-lp-06.png"),
+        @image-url("../resources/welcome/frame-lp-07.png"),
+        @image-url("../resources/welcome/frame-lp-08.png"),
+        @image-url("../resources/welcome/frame-lp-09.png"),
+        @image-url("../resources/welcome/frame-lp-10.png"),
+        @image-url("../resources/welcome/frame-lp-11.png"),
+        @image-url("../resources/welcome/frame-lp-12.png"),
+        @image-url("../resources/welcome/frame-lp-13.png"),
+        @image-url("../resources/welcome/frame-lp-14.png"),
+        @image-url("../resources/welcome/frame-lp-15.png"),
+    ];
+    in property <[image]> frames-lc: [
+        @image-url("../resources/welcome/frame-lc-00.png"),
+        @image-url("../resources/welcome/frame-lc-01.png"),
+        @image-url("../resources/welcome/frame-lc-02.png"),
+        @image-url("../resources/welcome/frame-lc-03.png"),
+        @image-url("../resources/welcome/frame-lc-04.png"),
+        @image-url("../resources/welcome/frame-lc-05.png"),
+        @image-url("../resources/welcome/frame-lc-06.png"),
+        @image-url("../resources/welcome/frame-lc-07.png"),
+        @image-url("../resources/welcome/frame-lc-08.png"),
+        @image-url("../resources/welcome/frame-lc-09.png"),
+        @image-url("../resources/welcome/frame-lc-10.png"),
+        @image-url("../resources/welcome/frame-lc-11.png"),
+        @image-url("../resources/welcome/frame-lc-12.png"),
+        @image-url("../resources/welcome/frame-lc-13.png"),
+        @image-url("../resources/welcome/frame-lc-14.png"),
+        @image-url("../resources/welcome/frame-lc-15.png"),
+    ];
+    in property <[image]> frames-dp: [
+        @image-url("../resources/welcome/frame-dp-00.png"),
+        @image-url("../resources/welcome/frame-dp-01.png"),
+        @image-url("../resources/welcome/frame-dp-02.png"),
+        @image-url("../resources/welcome/frame-dp-03.png"),
+        @image-url("../resources/welcome/frame-dp-04.png"),
+        @image-url("../resources/welcome/frame-dp-05.png"),
+        @image-url("../resources/welcome/frame-dp-06.png"),
+        @image-url("../resources/welcome/frame-dp-07.png"),
+        @image-url("../resources/welcome/frame-dp-08.png"),
+        @image-url("../resources/welcome/frame-dp-09.png"),
+        @image-url("../resources/welcome/frame-dp-10.png"),
+        @image-url("../resources/welcome/frame-dp-11.png"),
+        @image-url("../resources/welcome/frame-dp-12.png"),
+        @image-url("../resources/welcome/frame-dp-13.png"),
+        @image-url("../resources/welcome/frame-dp-14.png"),
+        @image-url("../resources/welcome/frame-dp-15.png"),
+    ];
+    in property <[image]> frames-dc: [
+        @image-url("../resources/welcome/frame-dc-00.png"),
+        @image-url("../resources/welcome/frame-dc-01.png"),
+        @image-url("../resources/welcome/frame-dc-02.png"),
+        @image-url("../resources/welcome/frame-dc-03.png"),
+        @image-url("../resources/welcome/frame-dc-04.png"),
+        @image-url("../resources/welcome/frame-dc-05.png"),
+        @image-url("../resources/welcome/frame-dc-06.png"),
+        @image-url("../resources/welcome/frame-dc-07.png"),
+        @image-url("../resources/welcome/frame-dc-08.png"),
+        @image-url("../resources/welcome/frame-dc-09.png"),
+        @image-url("../resources/welcome/frame-dc-10.png"),
+        @image-url("../resources/welcome/frame-dc-11.png"),
+        @image-url("../resources/welcome/frame-dc-12.png"),
+        @image-url("../resources/welcome/frame-dc-13.png"),
+        @image-url("../resources/welcome/frame-dc-14.png"),
+        @image-url("../resources/welcome/frame-dc-15.png"),
+    ];
+    in-out property <int> frame-index;
+    property <bool> dark: Palette.color-scheme == ColorScheme.dark;
+    property <[image]> frames: root.centred
+        ? (root.dark ? root.frames-dc : root.frames-lc)
+        : (root.dark ? root.frames-dp : root.frames-lp);
+    out property <int> frame-count: root.frames.length;
+
+    callback try-sample();
+    callback open-settings();
+    callback dismissed();
+
+    title: root.text.title;
+    default-font-family: Tokens.font-family;
+    preferred-width: Tokens.space-6 * 20;
+    forward-focus: keys;
+
+    init => {
+        MaterialPalette.schemes = SbarMaterial.schemes;
+    }
+
+    // Esc anywhere closes the window; every other key goes on to the
+    // focused control.
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismissed();
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            padding: Tokens.space-6;
+            spacing: Tokens.space-4;
+
+            Text {
+                text: root.text.title;
+                font-size: Tokens.font-title;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.text-primary;
+                horizontal-alignment: root.rtl ? right : left;
+            }
+
+            // The demonstration area, one frame of the set at a time.
+            demo := Rectangle {
+                width: 100%;
+                height: self.width * 9 / 16;
+                background: Tokens.surface-1;
+                border-color: Tokens.border;
+                border-width: Tokens.border-default;
+                border-radius: Tokens.radius-md;
+                clip: true;
+
+                Image {
+                    width: 100%;
+                    height: 100%;
+                    source: root.frames[root.frame-index];
+                }
+            }
+
+            Text {
+                text: root.caption-steps[root.caption-index];
+                font-size: Tokens.font-body;
+                color: Tokens.text-secondary;
+                wrap: word-wrap;
+                horizontal-alignment: root.rtl ? right : left;
+            }
+
+            // Primary action on the far side of the reading direction.
+            if !root.rtl: HorizontalLayout {
+                alignment: end;
+                spacing: Tokens.space-2;
+
+                FilledButton {
+                    text: root.text.try-button;
+                    accessible-label: root.text.try-accessible;
+                    clicked => {
+                        root.try-sample();
+                    }
+                }
+
+                TextButton {
+                    text: root.text.settings-button;
+                    accessible-label: root.text.settings-accessible;
+                    clicked => {
+                        root.open-settings();
+                    }
+                }
+            }
+
+            if root.rtl: HorizontalLayout {
+                alignment: start;
+                spacing: Tokens.space-2;
+
+                TextButton {
+                    text: root.text.settings-button;
+                    accessible-label: root.text.settings-accessible;
+                    clicked => {
+                        root.open-settings();
+                    }
+                }
+
+                FilledButton {
+                    text: root.text.try-button;
+                    accessible-label: root.text.try-accessible;
+                    clicked => {
+                        root.try-sample();
+                    }
+                }
+            }
+        }
+    }
+}

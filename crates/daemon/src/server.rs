@@ -37,9 +37,14 @@ pub fn focus_log(ok: bool) -> Option<&'static str> {
 
 /// Opens the Settings window for the current config (S-086 AC1): the one
 /// path behind `Request::Settings`, `kawarod settings` and `kawaro settings`.
+/// S-087 AC1 and D1: with no `welcome_seen` marker the same entry opens the
+/// first-run welcome window instead.
 pub fn settings(state: &Shared) {
     let config = lock(state).config.clone();
-    ui::open_settings(config);
+    match kawaro_core::welcome::route(&config) {
+        kawaro_core::welcome::Route::Welcome => ui::present_welcome(state),
+        kawaro_core::welcome::Route::Settings => ui::open_settings(config),
+    }
 }
 
 /// The S-021 rule on Windows (S-047 AC6, S-084 AC3): a drop request shows

@@ -95,7 +95,16 @@ impl ksni::Tray for SbarTray {
             }
             .into(),
             StandardItem {
-                label: labels[1].clone(),
+                // S-087 AC1: the welcome window opens at any time,
+                // regardless of the first-run marker.
+                label: text::get_started(self.lang).to_string(),
+                icon_name: "system-help".into(),
+                activate: Box::new(|t: &mut Self| crate::ui::present_welcome(&t.state)),
+                ..Default::default()
+            }
+            .into(),
+            StandardItem {
+                label: labels[2].clone(),
                 enabled: !self.active.is_empty(),
                 icon_name: "process-stop".into(),
                 activate: Box::new(|t: &mut Self| t.queue.cancel_all()),
@@ -103,7 +112,7 @@ impl ksni::Tray for SbarTray {
             }
             .into(),
             StandardItem {
-                label: labels[2].clone(),
+                label: labels[3].clone(),
                 icon_name: "preferences-system".into(),
                 activate: Box::new(|t: &mut Self| {
                     let config = lock(&t.state).config.clone();
@@ -114,7 +123,7 @@ impl ksni::Tray for SbarTray {
             .into(),
             MenuItem::Separator,
             StandardItem {
-                label: labels[3].clone(),
+                label: labels[4].clone(),
                 icon_name: "application-exit".into(),
                 activate: Box::new(|_| crate::ui::quit()),
                 ..Default::default()

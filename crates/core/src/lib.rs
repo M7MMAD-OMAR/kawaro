@@ -26,6 +26,7 @@ mod sync;
 pub mod transport;
 pub mod update;
 pub mod uri_list;
+pub mod welcome;
 #[cfg(windows)]
 #[doc(hidden)]
 pub mod win;
