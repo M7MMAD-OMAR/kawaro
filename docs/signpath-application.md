@@ -1,8 +1,12 @@
 # SignPath Foundation application draft: Kawaro / كوارو
 
-Status: submitted on 2026-10-27. The application form confirmed submission; approval, account setup and trusted signing are pending. This file records the prepared application data and the evidence
-map the Foundation review checks against
-(<https://signpath.org/terms.html>).
+Status: submitted on 2026-10-27 and declined by the Foundation on the same day. The
+Foundation asks for public visibility signals (community adoption, external articles
+or discussions, institutional backing, sustained engagement) before it issues a
+certificate in its name; this project did not have them yet. The application can be
+resubmitted once it does. This file keeps the prepared application data and the
+evidence map the Foundation review checks against
+(<https://signpath.org/terms.html>) so a resubmission is a copy and paste.
 
 ## Form fields
 
