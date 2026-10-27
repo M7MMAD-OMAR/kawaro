@@ -55,6 +55,12 @@ bindrni = , ALT_L, exec, ~/.local/bin/kawaro drop --release
 
 The release bind needs a running daemon, so start it with the session: `exec-once = ~/.local/bin/kawarod`. The Lua form, and holding Super+Z instead of Alt, are in [the Hyprland guide](../integrations/linux/hyprland/README.md).
 
+## Windows
+
+On Windows no key is held while you drag. Drag the file with the right mouse button, the one whose own menu offers "Copy here / Move here / Create shortcuts here", and the hive opens during the drag, at the dragged file. Drop it on the cell of the action you want. A short right click shows nothing: the hive opens only for a real drag.
+
+Since no key is held, Explorer keeps its own drag behavior: a drop outside the hive copies, moves or creates shortcuts exactly as it always does, and the original file is never touched. Nothing here has run on a live Windows machine yet; the checklist in [docs/windows-beta-checklist.md](windows-beta-checklist.md) owns that.
+
 ## Portal shortcut
 
 On GNOME 48 and later and on KDE 6, the daemon registers Super+Z itself through the desktop's global shortcuts portal, so the manual bind above is not needed. The first time, the desktop opens a dialog asking you to allow the shortcut. On GNOME this dialog may open behind a full screen window; leave full screen to see it.

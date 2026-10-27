@@ -98,7 +98,7 @@ Either way, Nautilus needs `nautilus-python` (Fedora) or `python3-nautilus`
 
 A Windows 10 (22H2) and Windows 11 beta is ready to try. It is for testers: the checklist is in [docs/windows-beta-checklist.md](docs/windows-beta-checklist.md).
 
-**What works:** the right-click menu entry in Explorer, the hive window at the pointer, conversions with the engines below, and the service starting at logon. **What does not exist yet:** the drop hive, the tray icon, the global shortcut and notifications. There is no tray icon yet, so stop the service from Task Manager (end `kawarod.exe`) or uninstall Kawaro.
+**What works:** the right-click menu entry in Explorer, the hive window at the pointer, conversions with the engines below, the drop hive, and the service starting at logon. **To convert while you drag:** drag the file with the right mouse button and the hive opens during the drag, at the dragged file. No key is held while you drag, so Explorer keeps its own drag behavior: a drop outside the hive copies, moves or creates shortcuts as it always does, and the original file is never touched. The tray icon, the global shortcut and the end-of-job notification are built but not yet checked on a live Windows machine (S-079 owns that). Stop the service from the tray icon menu (Quit), or from Task Manager (end `kawarod.exe`); to uninstall Kawaro, run the uninstaller.
 
 **Install.** Download `kawaro-<version>-windows-x64.msi` (per user, no administrator rights) or `kawaro-<version>-windows-x64.zip` (portable) from the release page. Both are unsigned, so Windows SmartScreen asks first: click "More info", then "Run anyway". On Windows 11 the Kawaro item is under "Show more options" in the right-click menu; on Windows 10 it is in the menu directly.
 

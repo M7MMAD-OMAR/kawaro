@@ -35,12 +35,14 @@ pub fn focus_log(ok: bool) -> Option<&'static str> {
     (!ok).then_some("kawarod: foreground refused")
 }
 
-/// The S-021 rule on Windows (S-047 AC6): a shortcut shows the drop hive
-/// only while the primary button is held, that is during a drag. True when
-/// a request must be refused: a drop with the primary button up.
+/// The S-021 rule on Windows (S-047 AC6, S-084 AC3): a drop request shows
+/// the drop hive only during a real drag, that is with the trigger state of
+/// a shipped mechanism (`trigger_down`): the drag button of the S-084
+/// right-button drag (the manager decision D3), or the primary button of a
+/// key hold. True when a request must be refused: a drop with no drag.
 #[cfg_attr(not(windows), allow(dead_code))]
-pub fn drop_refused(is_drop: bool, primary_down: bool) -> bool {
-    is_drop && !kawaro_ui::drop_hive_allowed(kawaro_ui::Source::Shortcut, primary_down)
+pub fn drop_refused(is_drop: bool, trigger_down: bool) -> bool {
+    is_drop && !kawaro_ui::drop_hive_allowed(kawaro_ui::Source::Shortcut, trigger_down)
 }
 
 /// Shows the hive for `files`. On Windows Explorer sends one file per
@@ -100,11 +102,13 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         Ok(r) => r,
         Err(e) => return error(&mut stream, format!("bad request: {e}")),
     };
-    // A drop request on Windows comes from a shortcut: no drag, no hive.
+    // A drop request on Windows shows a hive only during a real drag of a
+    // shipped trigger (S-021, S-084 AC3): the primary button of a key hold
+    // or the drag button of the right-button drag.
     #[cfg(windows)]
     if drop_refused(
         matches!(req, Request::Drop { .. }),
-        crate::shell::primary_button_down(),
+        crate::shell::primary_button_down() || crate::shell::drag_button_down(),
     ) {
         return reply(&mut stream, &Response::Ok);
     }

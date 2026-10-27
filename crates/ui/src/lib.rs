@@ -1129,4 +1129,6 @@ mod s067_drop_track_tests;
 #[cfg(test)]
 mod s074_tests;
 #[cfg(test)]
+mod s084_trigger_tests;
+#[cfg(test)]
 mod ui_tests;

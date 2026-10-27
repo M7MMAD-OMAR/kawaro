@@ -357,24 +357,30 @@ mod tests {
         all
     }
 
+    /// Built as a literal on `Config::default()` with assignments after it
+    /// (S-084 tester repair): an exhaustive struct literal would break the
+    /// whole test module the day a hidden setting is added to `Config`. The
+    /// values stay the complete non-default set.
     fn non_default_config(language: LangSetting) -> Config {
-        Config {
+        let mut c = Config {
             language,
-            theme: Theme::Dark,
-            output: OutputPlace::Subfolder,
-            output_folder: "Chosen results".into(),
-            quality: Quality::Max,
-            open_folder_when_done: true,
-            notify: false,
-            hive_surface: HiveSurface::Window,
-            hold_ms: 1500,
-            portal_shortcut: false,
-            shortcut: "Ctrl+Alt+F9".into(),
-            update_check: false,
-            update_channel: Channel::Beta,
-            update_mode: UpdateMode::Auto,
-            update_channel_present: true,
-        }
+            ..Config::default()
+        };
+        c.theme = Theme::Dark;
+        c.output = OutputPlace::Subfolder;
+        c.output_folder = "Chosen results".into();
+        c.quality = Quality::Max;
+        c.open_folder_when_done = true;
+        c.notify = false;
+        c.hive_surface = HiveSurface::Window;
+        c.hold_ms = 1500;
+        c.portal_shortcut = false;
+        c.shortcut = "Ctrl+Alt+F9".into();
+        c.update_check = false;
+        c.update_channel = Channel::Beta;
+        c.update_mode = UpdateMode::Auto;
+        c.update_channel_present = true;
+        c
     }
 
     #[test]
@@ -392,6 +398,24 @@ mod tests {
             assert!(
                 saved.update_channel_present,
                 "rtl {rtl}: preserve the explicit update channel key"
+            );
+        }
+    }
+
+    #[test]
+    fn s084_ac6_save_keeps_a_custom_windows_shortcut() {
+        for rtl in [false, true] {
+            let language = if rtl {
+                LangSetting::Ar
+            } else {
+                LangSetting::En
+            };
+            let mut start = non_default_config(language);
+            start.shortcut = "Ctrl+Alt+J".into();
+            let saved = FormState::from_config(&start, rtl).to_config(rtl);
+            assert_eq!(
+                saved.shortcut, "Ctrl+Alt+J",
+                "rtl {rtl}: a custom Windows shortcut survives the save (S-084 AC6)"
             );
         }
     }

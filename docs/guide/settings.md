@@ -16,7 +16,8 @@ The file is `config.toml`: `~/.config/kawaro/` on Linux, `%APPDATA%\Kawaro\` on 
 | `hive_surface` | `auto`, `layer`, `window` | `auto` |
 | `hold_ms` | 100 to 2000 | `400` |
 | `portal_shortcut` | `true`, `false` | `true` |
-| `shortcut` | Windows hotkey | `Ctrl+Alt+H` |
+| `shortcut` | Windows hotkey, the internal escape hatch only; holding it during a drag changes what Explorer does with the drag | `Ctrl+Alt+H` |
+| `drop_key` | the drag key chosen in Settings | the right-button drag on Windows, `Alt` on Linux |
 | `update_check` | `true`, `false` | `true` |
 | `update_channel` | `stable`, `beta` | `stable` (`beta` in a beta build) |
 | `update_mode` | `ask`, `auto` | `ask` |

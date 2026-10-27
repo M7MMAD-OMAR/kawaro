@@ -85,17 +85,28 @@ impl DropTracker {
 /// What asked for the drop hive.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
-    /// The global shortcut.
+    /// The global shortcut (a key hold, or the S-084 chosen trigger, the
+    /// right-button drag of the manager decision D3).
     Shortcut,
     /// The tray or context menu.
     Menu,
+    /// The tray icon as a hover drop target (the S-084 manager decision
+    /// D7): the trigger state is the hover over the icon while a drag is in
+    /// progress.
+    Tray,
 }
 
-/// The S-021 rule on Windows: a shortcut shows the drop hive only during a
-/// drag, that is with the left button held; a menu always shows it.
-pub fn drop_hive_allowed(source: Source, left_button_down: bool) -> bool {
+/// The S-021 rule on Windows: the drop hive shows only during a real drag,
+/// that is with `trigger_down`, and a menu invocation always shows it.
+/// `trigger_down` is the trigger state of the chosen mechanism (S-084 AC3):
+/// the right button down for the right-button drag, the left or primary
+/// button down for a key-hold trigger, the hover over the tray icon for the
+/// tray trigger. The swapped-primary-buttons mapping stays in the caller
+/// (S-047). No shipped trigger holds Ctrl, Shift or Alt while the drag is in
+/// progress (AC2, AC2a).
+pub fn drop_hive_allowed(source: Source, trigger_down: bool) -> bool {
     match source {
-        Source::Shortcut => left_button_down,
+        Source::Shortcut | Source::Tray => trigger_down,
         Source::Menu => true,
     }
 }
