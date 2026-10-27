@@ -128,6 +128,16 @@ kawaro open --from-clipboard             # فتح الخلية للملفات ا
 
 <a href="https://sbarah.com/support"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/support-sbarah-dark.svg"><img src="docs/assets/support-sbarah-light.svg" alt="ادعم صبارة" width="380"></picture></a>
 
+## سياسة توقيع الشيفرة
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org/).
+
+(توقيع مجاني للشيفرة مقدَّم من SignPath.io، والشهادة من SignPath Foundation.)
+
+إصدارات كوارو لويندوز موقّعة بشهادة SignPath Foundation. السياسة الكاملة
+وأدوار الفريق وبيان الخصوصية:
+[CODE_SIGNING_POLICY.ar.md](CODE_SIGNING_POLICY.ar.md).
+
 ## الرخصة
 
 GPLv3 أو أحدث (GPL-3.0-or-later). راجع `LICENSE`.

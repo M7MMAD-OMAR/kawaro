@@ -40,6 +40,17 @@
 #   - Secrets: WINDOWS_SIGNING_PFX and WINDOWS_SIGNING_PASS appear only in the
 #     windows job and only as whole values under env:; UPDATE_SIGNING_KEY and
 #     UPDATE_SIGNING_PASSWORD stay only in update-manifest.
+#   - SignPath (added for free SignPath Foundation signing, keeps the S-083
+#     pipeline as the fallback): on a tag build with SIGNPATH_API_TOKEN (whole
+#     value under env:) the exes and the MSI go up as throwaway `unsigned-*`
+#     artifacts and come back signed by signpath/github-action-submit-
+#     signing-request (organization, project and signing policy from the
+#     SIGNPATH_* repository variables, the token from env), installed over the
+#     build output before make-zip.sh, make-msi.sh and the final upload, and
+#     verified against the system trust store. Without the token the three
+#     sign-local.sh steps sign as before; each SignPath step is gated on the
+#     token and a tag build, and the step order check counts the `windows`
+#     upload, not the throwaway ones.
 #   - AC3: docs/windows-smartscreen.md and docs/windows-smartscreen.ar.md each
 #     start with the language switch line, show the dialog before and after
 #     signing (unknown publisher versus the publisher name), the clicks
@@ -107,7 +118,10 @@ zip_i = step_i(lambda s: has(s, "scripts/windows/make-zip.sh"))
 msi_i = step_i(lambda s: has(s, "scripts/windows/make-msi.sh"))
 sign_msi_i = step_i(lambda s: has(s, "sign-local.sh", "--sign", ".msi"))
 ver_i = step_i(lambda s: has(s, "sign-local.sh", "--verify"))
-up_i = step_i(lambda s: str(s.get("uses", "")).startswith("actions/upload-artifact@"))
+# the release upload only: the SignPath throwaway `unsigned-*` uploads sit
+# earlier in the job and must not end the step order
+up_i = step_i(lambda s: str(s.get("uses", "")).startswith("actions/upload-artifact@")
+              and (s.get("with") or {}).get("name") == "windows")
 ok("AC1 the exe sign step exists", sign_exe_i >= 0)
 ok("AC1 the MSI sign step exists", sign_msi_i >= 0)
 ok("AC1 the verify step exists", ver_i >= 0)
@@ -131,6 +145,38 @@ for i, s in enumerate(gate):
     ok(f"{n} materialises the certificate under umask 077 with a trap",
        "umask 077" in r and re.search(r"trap[^\n]*rm[^\n]*cert\.pfx", r) is not None
        and "base64 -d" in r)
+
+# SignPath path: two requests gated on the token and a tag build, each fed by
+# a throwaway unsigned upload; the S-083 sign-local.sh steps stay the fallback
+sp = [s for s in ws if str(s.get("uses", "")).startswith("signpath/github-action-submit-signing-request@")]
+upsu = [(i, s) for i, s in enumerate(ws) if str(s.get("uses", "")).startswith("actions/upload-artifact@")
+        and str((s.get("with") or {}).get("name", "")).startswith("unsigned-")]
+ok("AC1 two SignPath steps sign the executables and the MSI", len(sp) == 2)
+ok("AC1 two throwaway unsigned uploads feed the SignPath requests",
+   sorted((u.get("with") or {}).get("name") for _, u in upsu)
+   == ["unsigned-executables", "unsigned-msi"])
+for i, s in enumerate(sp):
+    cond = str(s.get("if", ""))
+    wi = s.get("with") or {}
+    n = f"AC1 SignPath step {i + 1}"
+    ok(f"{n} runs only with the token on a tag build",
+       "SIGNPATH_API_TOKEN" in cond and "tag" in cond)
+    ok(f"{n} takes its token from env, never from secrets.",
+       "env.SIGNPATH_API_TOKEN" in str(wi.get("api-token", "")))
+    ok(f"{n} names the organization, project and signing policy variables",
+       "vars.SIGNPATH_ORGANIZATION_ID" in str(wi.get("organization-id", ""))
+       and "vars.SIGNPATH_PROJECT_SLUG" in str(wi.get("project-slug", ""))
+       and "vars.SIGNPATH_SIGNING_POLICY" in str(wi.get("signing-policy-slug", "")))
+    feed = [j for j, u in upsu
+            if f"steps.{u.get('id')}.outputs.artifact-id" in str(wi.get("github-artifact-id", ""))]
+    ok(f"{n} signs the artifact of a preceding unsigned upload",
+       len(feed) == 1 and feed[0] < ws.index(s))
+exe_up = [j for j, u in upsu if (u.get("with") or {}).get("name") == "unsigned-executables"]
+msi_up = [j for j, u in upsu if (u.get("with") or {}).get("name") == "unsigned-msi"]
+ok("AC1 the executables reach SignPath before make-zip.sh",
+   len(exe_up) == 1 and exe_up[0] < zip_i)
+ok("AC1 the MSI reaches SignPath after make-msi.sh and before the upload",
+   len(msi_up) == 1 and msi_i < msi_up[0] < up_i)
 
 ok("AC1 the exe sign step names the release exes",
    sign_exe_i >= 0 and "x86_64-pc-windows-gnu/release/kawaro.exe" in ws[sign_exe_i].get("run", "")

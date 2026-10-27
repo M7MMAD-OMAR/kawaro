@@ -14,7 +14,10 @@
 #     S-083 D-item: since the signing pipeline the job carries
 #     environment: release-signing and exactly the WINDOWS_SIGNING_PFX and
 #     WINDOWS_SIGNING_PASS secrets; the signing steps themselves are tested by
-#     tests/release/s083_windows_signing.sh.
+#     tests/release/s083_windows_signing.sh. SignPath D-item: the job also
+#     carries SIGNPATH_API_TOKEN (whole value under env:) for the SignPath
+#     signing path, and its throwaway `unsigned-*` upload-artifact steps sit
+#     before the one `windows` upload that the release job downloads.
 #   - `release` job: needs includes test and windows; if is exactly
 #     startsWith(github.ref, 'refs/tags/v'); checks out the repo (the notes file lives
 #     there); downloads `packages` and `windows` into ONE folder (explicit names with the
@@ -70,17 +73,23 @@ ok("AC2 windows has the 45 minute timeout", w.get("timeout-minutes") == 45)
 ok("AC2 windows uses Swatinem/rust-cache", any(str(s.get("uses", "")).startswith("Swatinem/rust-cache@") for s in steps("windows")))
 ok("AC2 windows checks out the repository", any(str(s.get("uses", "")).startswith("actions/checkout@") for s in steps("windows")))
 ups = [s for s in steps("windows") if str(s.get("uses", "")).startswith("actions/upload-artifact@")]
-ok("AC2 windows has one upload-artifact step", len(ups) == 1)
-if len(ups) == 1:
-    wi = ups[0].get("with") or {}
+final = [s for s in ups if (s.get("with") or {}).get("name") == "windows"]
+ok("AC2 windows has exactly one upload-artifact step named windows", len(final) == 1)
+extra = [s for s in ups if s not in final]
+ok("AC2 extra upload-artifact steps are only the SignPath unsigned artifacts",
+   len(extra) <= 2
+   and all(str((s.get("with") or {}).get("name", "")).startswith("unsigned-") for s in extra))
+if len(final) == 1:
+    wi = final[0].get("with") or {}
     ok("AC2 artifact is named windows", wi.get("name") == "windows")
     lines = [l.strip() for l in str(wi.get("path", "")).splitlines() if l.strip()]
     ok("AC2 artifact path is exactly one .zip and one .msi", len(lines) == 2
        and sum(l.endswith(".zip") for l in lines) == 1 and sum(l.endswith(".msi") for l in lines) == 1)
 ok("AC2 windows environment is release-signing (S-083: the code signing certificate lives here)",
    w.get("environment") == "release-signing")
-ok("AC2 windows secrets are exactly the WINDOWS_SIGNING pair (S-083)",
-   set(re.findall(r"secrets\.(\w+)", yaml.dump(w))) == {"WINDOWS_SIGNING_PFX", "WINDOWS_SIGNING_PASS"})
+ok("AC2 windows secrets are the WINDOWS_SIGNING pair plus SIGNPATH_API_TOKEN (S-083, SignPath)",
+   set(re.findall(r"secrets\.(\w+)", yaml.dump(w)))
+   == {"WINDOWS_SIGNING_PFX", "WINDOWS_SIGNING_PASS", "SIGNPATH_API_TOKEN"})
 
 # ---- AC3
 r = jobs.get("release") or {}

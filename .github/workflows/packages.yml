@@ -66,22 +66,37 @@ jobs:
           test -f /usr/lib/systemd/user/kawaro.service
 
   # Windows zip and MSI, cross built on Linux with the same scripts as a
-  # developer machine (S-044, S-051). Tag builds are signed with the
-  # certificate in the release-signing environment (S-083): the exes are
-  # signed before make-zip.sh packs them and before make-msi.sh embeds them,
-  # the MSI is signed before upload, every signature carries an RFC 3161
-  # timestamp, and the job verifies every signed artifact before it is
-  # uploaded. A workflow_dispatch run skips the signing steps with a notice
-  # and uploads unsigned artifacts; a tag build without a certificate fails
-  # loudly. osslsigncode comes from Fedora's repositories in the same
-  # container as wixl, the toolchain the tests dry-run against.
+  # developer machine (S-044, S-051). Tag builds are signed (S-083): the exes
+  # are signed before make-zip.sh packs them and before make-msi.sh embeds
+  # them, the MSI is signed before upload, every signature is verified and the
+  # job fails on any verification failure. Two signing paths, in this order:
+  # SignPath first (free code signing provided by SignPath.io, certificate by
+  # SignPath Foundation, CODE_SIGNING_POLICY.md), which needs a tag build and
+  # the SIGNPATH_API_TOKEN secret plus the SIGNPATH_ORGANIZATION_ID,
+  # SIGNPATH_PROJECT_SLUG and SIGNPATH_SIGNING_POLICY repository variables;
+  # then the S-083 certificate from the release-signing environment, which
+  # also signs when SignPath is not configured yet. Every signature on that
+  # path carries an RFC 3161 timestamp. A workflow_dispatch run skips the
+  # signing steps with a notice and uploads unsigned artifacts; a tag build
+  # with neither signing path fails loudly. osslsigncode comes from Fedora's
+  # repositories in the same container as wixl, the toolchain the tests
+  # dry-run against.
   windows:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
     environment: release-signing
+    # actions: read lets the SignPath action download the unsigned artifact
+    # with the job token.
+    permissions:
+      contents: read
+      actions: read
     env:
       CI: true
       CARGO_TARGET_DIR: ${{ github.workspace }}/target-windows
+      # The SignPath API token is a secret of the release-signing environment
+      # and is only read through this job env value (repo rule: a secrets.
+      # reference is always a whole value under env:).
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
     steps:
       - uses: actions/checkout@v7
       - name: System packages
@@ -95,12 +110,58 @@ jobs:
         with:
           workspaces: ". -> target-windows"
       - run: scripts/windows/build.sh
+      # SignPath (free code signing provided by SignPath.io, certificate by
+      # SignPath Foundation, see CODE_SIGNING_POLICY.md). On a tag build with
+      # the project configured, the unsigned executables go up as a throwaway
+      # artifact, come back signed by the SignPath Foundation certificate and
+      # are installed over the build output before make-zip.sh and make-msi.sh
+      # read it. Until the SignPath project is approved there is no
+      # SIGNPATH_API_TOKEN and these steps are skipped with the notice above;
+      # a token without the three repository variables fails in the action
+      # instead of silently shipping unsigned artifacts.
+      - name: Notice which signing path this run uses
+        run: |
+          set -euo pipefail
+          if [ -n "${SIGNPATH_API_TOKEN}" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "::notice::SignPath is configured: kawaro.exe and kawarod.exe are signed by the SignPath Foundation certificate and the S-083 certificate path below is not used"
+          else
+            echo "::notice::SignPath signing is inactive (needs a tag build and the SIGNPATH_API_TOKEN secret): the S-083 certificate path signs this run"
+          fi
+      - name: Upload the unsigned executables (SignPath)
+        if: env.SIGNPATH_API_TOKEN != '' && github.ref_type == 'tag'
+        id: signpath-unsigned-exes
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-executables
+          path: |
+            target-windows/x86_64-pc-windows-gnu/release/kawaro.exe
+            target-windows/x86_64-pc-windows-gnu/release/kawarod.exe
+      - name: Sign the executables with SignPath
+        if: env.SIGNPATH_API_TOKEN != '' && github.ref_type == 'tag'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ env.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY }}
+          github-artifact-id: ${{ steps.signpath-unsigned-exes.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-executables
+      - name: Install the SignPath signed executables
+        if: env.SIGNPATH_API_TOKEN != '' && github.ref_type == 'tag'
+        run: |
+          set -euo pipefail
+          cp signed-executables/kawaro.exe signed-executables/kawarod.exe target-windows/x86_64-pc-windows-gnu/release/
       - name: Sign the executables (S-083)
         env:
           WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
           WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
         run: |
           set -euo pipefail
+          if [ -n "${SIGNPATH_API_TOKEN}" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "::notice::S-083 signing skipped: SignPath already signed the executables on this tag build"
+            exit 0
+          fi
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
             echo "::notice::S-083 signing skipped: only tag builds are signed, this workflow_dispatch run uploads unsigned artifacts"
             exit 0
@@ -124,12 +185,41 @@ jobs:
           docker run --rm -v "$GITHUB_WORKSPACE:/w" -w /w -e CI=true \
             -e CARGO_TARGET_DIR=/w/target-windows registry.fedoraproject.org/fedora:44 \
             bash -c 'dnf install -y -q msitools && scripts/windows/make-msi.sh'
+      # The MSI is signed after it is built, so it embeds the already signed
+      # executables (the S-083 order is unchanged).
+      - name: Upload the unsigned MSI (SignPath)
+        if: env.SIGNPATH_API_TOKEN != '' && github.ref_type == 'tag'
+        id: signpath-unsigned-msi
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-msi
+          path: target-windows/dist/kawaro-*-windows-x64.msi
+      - name: Sign the MSI with SignPath
+        if: env.SIGNPATH_API_TOKEN != '' && github.ref_type == 'tag'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ env.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY }}
+          github-artifact-id: ${{ steps.signpath-unsigned-msi.outputs.artifact-id }}
+          wait-for-completion: true
+          output-artifact-directory: signed-msi
+      - name: Install the SignPath signed MSI
+        if: env.SIGNPATH_API_TOKEN != '' && github.ref_type == 'tag'
+        run: |
+          set -euo pipefail
+          cp signed-msi/kawaro-*-windows-x64.msi target-windows/dist/
       - name: Sign the MSI (S-083)
         env:
           WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
           WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
         run: |
           set -euo pipefail
+          if [ -n "${SIGNPATH_API_TOKEN}" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "::notice::S-083 signing skipped: SignPath already signed the MSI on this tag build"
+            exit 0
+          fi
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
             echo "::notice::S-083 signing skipped: only tag builds are signed, this workflow_dispatch run uploads unsigned artifacts"
             exit 0
@@ -151,6 +241,17 @@ jobs:
           WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
         run: |
           set -euo pipefail
+          if [ -n "${SIGNPATH_API_TOKEN}" ] && [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "::notice::S-083 verify: the artifacts carry the SignPath Foundation certificate, verifying each signature against the system trust store"
+            rm -rf "${RUNNER_TEMP}/zip-x"
+            mkdir -p "${RUNNER_TEMP}/zip-x"
+            unzip -q target-windows/dist/kawaro-*-windows-x64.zip -d "${RUNNER_TEMP}/zip-x"
+            docker run --rm -v "${GITHUB_WORKSPACE}:/w" -v "${RUNNER_TEMP}:/rt" -w /w \
+              registry.fedoraproject.org/fedora:44 \
+              bash -c 'set -euo pipefail; dnf install -y -q osslsigncode unzip ca-certificates; for f in target-windows/x86_64-pc-windows-gnu/release/kawaro.exe target-windows/x86_64-pc-windows-gnu/release/kawarod.exe /rt/zip-x/kawaro-*-windows-x64/kawaro.exe /rt/zip-x/kawaro-*-windows-x64/kawarod.exe target-windows/dist/kawaro-*-windows-x64.msi; do osslsigncode verify -CAfile /etc/pki/tls/certs/ca-bundle.crt "$f"; done'
+            rm -rf "${RUNNER_TEMP}/zip-x"
+            exit 0
+          fi
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
             echo "::notice::S-083 verification skipped: nothing was signed on this workflow_dispatch run"
             exit 0
