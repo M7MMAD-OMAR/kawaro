@@ -43,6 +43,10 @@ pub fn set_building(on: bool) {
 pub fn attributes(attrs: winit::window::WindowAttributes) -> winit::window::WindowAttributes {
     use winit::platform::windows::WindowAttributesExtWindows;
     use winit::window::WindowLevel;
+    let attrs = match app_icon() {
+        Some(icon) => attrs.with_window_icon(Some(icon)),
+        None => attrs,
+    };
     if !BUILDING_HIVE.with(Cell::get) {
         return attrs;
     }
@@ -52,6 +56,21 @@ pub fn attributes(attrs: winit::window::WindowAttributes) -> winit::window::Wind
         .with_undecorated_shadow(false)
         .with_skip_taskbar(true)
         .with_window_level(WindowLevel::AlwaysOnTop)
+}
+
+/// Decode the bundled brand image for native window and taskbar icons.
+fn app_icon() -> Option<winit::window::Icon> {
+    let decoder = png::Decoder::new(std::io::Cursor::new(include_bytes!(
+        "../../../site/apple-touch-icon.png"
+    )));
+    let mut reader = decoder.read_info().ok()?;
+    let mut pixels = vec![0; reader.output_buffer_size()];
+    let frame = reader.next_frame(&mut pixels).ok()?;
+    pixels.truncate(frame.buffer_size());
+    if frame.color_type != png::ColorType::Rgba || frame.bit_depth != png::BitDepth::Eight {
+        return None;
+    }
+    winit::window::Icon::from_rgba(pixels, frame.width, frame.height).ok()
 }
 
 /// The work areas of all monitors, in virtual screen pixels.

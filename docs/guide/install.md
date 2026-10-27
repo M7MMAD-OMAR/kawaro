@@ -4,7 +4,7 @@
 
 ## Windows 10 and 11 (64 bit)
 
-Download the MSI. It installs for your user and needs no administrator rights. A portable ZIP is also available. The build is unsigned, so [SmartScreen warns you](site:windows).
+Download the MSI. It installs for your user and needs no administrator rights. A portable ZIP is also available. The build is test-signed with a self-signed certificate, so [SmartScreen warns you](site:windows).
 
 Windows shows the app under the fixed brand name Kawaro | كوارو: the Latin part comes first in every language and is never reordered for your language. In the file name of the Start menu shortcut the bar is its fullwidth form ｜, because Windows file names cannot contain |. The installed apps list (Add or remove programs) still shows Kawaro only, the name inside the MSI, because the tool that builds the MSI cannot write Arabic.
 

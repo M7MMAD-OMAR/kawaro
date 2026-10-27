@@ -7,14 +7,14 @@ use crate::server;
 use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
 use kawaro_core::ActionDef;
-use kawaro_core::config::{Config, Theme};
+use kawaro_core::config::{Config, LangSetting, Theme};
 use kawaro_core::hold::{Effect, Gate, Signal};
 use kawaro_core::i18n::Lang;
 use kawaro_core::queue::Queue;
 #[cfg(unix)]
 use kawaro_ui::thumb;
 use kawaro_ui::welcome::WelcomeWindow;
-use kawaro_ui::{Hive, HiveCell, SettingsWindow};
+use kawaro_ui::{Hive, HiveCell};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -22,7 +22,6 @@ use std::time::{Duration, Instant};
 
 thread_local! {
     static HIVE: RefCell<Option<Hive>> = const { RefCell::new(None) };
-    static SETTINGS: RefCell<Option<SettingsWindow>> = const { RefCell::new(None) };
     /// What the settings window needs when it is first opened. Creating it
     /// lazily avoids an empty unmapped toplevel for a window rarely opened.
     static SETTINGS_ARGS: RefCell<Option<(Lang, Shared, Arc<Queue>)>> = const { RefCell::new(None) };
@@ -119,7 +118,6 @@ pub fn build(
     HIVE.with(|h| *h.borrow_mut() = Some(hive));
     // A language or theme change drops the old settings window; the next
     // open builds one with the new settings.
-    SETTINGS.with(|s| *s.borrow_mut() = None);
     SETTINGS_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone(), queue.clone())));
     // The welcome window follows the same rule (S-087).
     WELCOME.with(|w| *w.borrow_mut() = None);
@@ -127,31 +125,19 @@ pub fn build(
     Ok(())
 }
 
-fn settings_window() -> Result<(), slint::PlatformError> {
-    if SETTINGS.with(|s| s.borrow().is_some()) {
-        return Ok(());
-    }
-    let Some((lang, state, queue)) = SETTINGS_ARGS.with(|a| a.borrow().clone()) else {
-        return Ok(());
-    };
-    let settings = SettingsWindow::new(lang)?;
-    settings.on_save(move |config| save_settings(config, &state, &queue));
-    SETTINGS.with(|s| *s.borrow_mut() = Some(settings));
-    Ok(())
-}
-
 /// Writes the settings and reloads them. Runs on the event loop thread
 /// (settings callback).
-fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) {
+fn save_settings(config: Config, state: &Shared, queue: &Arc<Queue>) -> bool {
     let Some(path) = Config::path() else {
         eprintln!("kawarod: no HOME, settings not saved");
-        return;
+        return false;
     };
     if let Err(e) = config.save_to(&path) {
         eprintln!("kawarod: cannot save {}: {e}", path.display());
-        return;
+        return false;
     }
     reload(state, queue);
+    true
 }
 
 /// Re-reads settings and actions, then follows a language or theme change in
@@ -182,10 +168,13 @@ pub fn reload(state: &Shared, queue: &Arc<Queue>) {
     }
     if (was_lang, was_theme) != (lang, theme) {
         // Rebuild after the settings window's own callback has returned.
+        let was_visible = WELCOME.with(|w| w.borrow().as_ref().is_some_and(|w| w.is_visible()));
         let (state, queue) = (state.clone(), queue.clone());
         slint::Timer::single_shot(std::time::Duration::ZERO, move || {
             if let Err(e) = build(lang, theme, &state, &queue) {
                 eprintln!("kawarod: cannot rebuild windows: {e}");
+            } else if was_visible {
+                present_welcome(&state);
             }
         });
     }
@@ -391,47 +380,33 @@ pub fn open_settings(config: Config) {
     #[cfg(test)]
     SETTINGS_OPENS.with(|c| c.set(c.get() + 1));
     let _ = slint::invoke_from_event_loop(move || {
-        if let Err(e) = settings_window() {
-            eprintln!("kawarod: cannot create settings: {e}");
+        if let Err(e) = welcome_window() {
+            eprintln!("kawarod: cannot create the main window: {e}");
             return;
         }
-        SETTINGS.with(|s| {
-            let slot = s.borrow();
-            let Some(w) = slot.as_ref() else {
-                return;
-            };
-            // S-086 AC2: an already open window is raised, never rebuilt, so
-            // a second click re-focuses the same window instead of opening
-            // another one.
-            if !w.is_visible()
-                && let Err(e) = w.open(&config)
-            {
-                eprintln!("kawarod: cannot open settings: {e}");
-                return;
+        WELCOME.with(|slot| {
+            let slot = slot.borrow();
+            let Some(win) = slot.as_ref() else { return };
+            if !win.is_visible() {
+                let captions =
+                    kawaro_core::welcome::captions(config.lang(), &crate::registration::current());
+                if let Err(e) = win.open(&captions, kawaro_ui::welcome::demo_hive_centred()) {
+                    eprintln!("kawarod: cannot open the main window: {e}");
+                    return;
+                }
             }
-            raise_settings(w);
-        })
+            win.apply_theme(config.theme);
+            if !win.settings_visible() {
+                win.show_settings(&config);
+            }
+            raise_welcome(win);
+        });
     });
 }
 
-/// Takes the foreground for the shown settings window (S-086 AC2): the
-/// Windows foreground path the hive uses for `open`, so a Start click cannot
-/// leave the window behind other windows.
-#[cfg(windows)]
-fn raise_settings(w: &SettingsWindow) {
-    if let Some(hwnd) = w.hwnd() {
-        crate::shell_open::foreground(hwnd);
-    }
-}
-
-/// Nothing outside Windows: Slint exposes no raise and Wayland forbids
-/// foreign raises (S-086 AC2).
-#[cfg(not(windows))]
-fn raise_settings(_w: &SettingsWindow) {}
-
 /// Shows the first-run welcome window (S-087). The `settings` entry and the
-/// tray item both come through here; the one-shot marker is written after
-/// the window is actually shown (AC1).
+/// tray item both come through here. The marker is written when the user
+/// chooses an action in the introduction.
 pub fn present_welcome(state: &Shared) {
     // S-087 AC1: counted before the post, so the routing test sees it
     // without running the event loop.
@@ -449,6 +424,13 @@ pub fn present_welcome(state: &Shared) {
                 return;
             };
             if !win.is_visible() {
+                let choose_language = {
+                    let st = lock(&state);
+                    !st.config.welcome_seen && st.config.language == LangSetting::Auto
+                };
+                if choose_language {
+                    win.choose_language();
+                }
                 let lang = lock(&state).lang;
                 let captions =
                     kawaro_core::welcome::captions(lang, &crate::registration::current());
@@ -458,13 +440,8 @@ pub fn present_welcome(state: &Shared) {
                     return;
                 }
             }
+            win.apply_theme(lock(&state).config.theme);
             raise_welcome(win);
-            // S-087 AC1: the marker only after the welcome is shown.
-            if let Some(path) = Config::path()
-                && let Err(e) = save_welcome_seen(&state, &path)
-            {
-                eprintln!("kawarod: cannot save {}: {e}", path.display());
-            }
         });
     });
 }
@@ -478,9 +455,13 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
         return Ok(());
     };
     let win = WelcomeWindow::new(lang)?;
+    if let Some((_, settings_state, queue)) = SETTINGS_ARGS.with(|a| a.borrow().clone()) {
+        win.on_settings_save(move |config| save_settings(config, &settings_state, &queue));
+    }
     {
         let state = state.clone();
         win.on_try(move || {
+            mark_welcome_complete(&state);
             let dir = std::env::temp_dir().join("kawaro-welcome");
             if let Err(e) = try_sample(&state, &dir) {
                 eprintln!("kawarod: {e}");
@@ -490,8 +471,40 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
     {
         let state = state.clone();
         win.on_settings(move || {
+            mark_welcome_complete(&state);
             let config = lock(&state).config.clone();
             open_settings(config);
+        });
+    }
+    {
+        let state = state.clone();
+        win.on_language(move |lang| {
+            let Some(path) = Config::path() else {
+                return false;
+            };
+            if let Err(e) = save_language_choice(&state, &path, lang) {
+                eprintln!("kawarod: cannot save {}: {e}", path.display());
+                return false;
+            }
+            crate::tray::set_lang(lang);
+            let state = state.clone();
+            slint::Timer::single_shot(Duration::ZERO, move || {
+                let args = SETTINGS_ARGS.with(|a| a.borrow().clone());
+                if let Some((_, _, queue)) = args {
+                    let theme = lock(&state).config.theme;
+                    if let Err(e) = build(lang, theme, &state, &queue) {
+                        eprintln!("kawarod: cannot rebuild windows: {e}");
+                        WELCOME.with(|slot| {
+                            if let Some(win) = slot.borrow().as_ref() {
+                                win.language_reload_failed();
+                            }
+                        });
+                        return;
+                    }
+                    present_welcome(&state);
+                }
+            });
+            true
         });
     }
     WELCOME.with(|w| *w.borrow_mut() = Some(win));
@@ -509,15 +522,38 @@ pub(crate) fn try_sample(state: &Shared, dir: &Path) -> Result<PathBuf, String> 
     Ok(sample)
 }
 
-/// Sets the one-shot marker of AC1 in the running config and saves it
-/// atomically, keeping every other setting as it is.
-pub(crate) fn save_welcome_seen(state: &Shared, path: &Path) -> std::io::Result<()> {
-    let config = {
-        let mut st = lock(state);
-        st.config.welcome_seen = true;
-        st.config.clone()
+/// Persist the language before updating the running state. Failed writes
+/// leave the choice pending and preserve all previous settings.
+pub(crate) fn save_language_choice(state: &Shared, path: &Path, lang: Lang) -> std::io::Result<()> {
+    let mut st = lock(state);
+    let mut config = st.config.clone();
+    config.language = match lang {
+        Lang::Ar => LangSetting::Ar,
+        Lang::En => LangSetting::En,
     };
-    config.save_to(path)
+    config.save_to(path)?;
+    st.config = config;
+    st.lang = lang;
+    Ok(())
+}
+
+/// Mark onboarding complete when the user chooses an action in the introduction.
+fn mark_welcome_complete(state: &Shared) {
+    if let Some(path) = Config::path()
+        && let Err(e) = save_welcome_seen(state, &path)
+    {
+        eprintln!("kawarod: cannot save {}: {e}", path.display());
+    }
+}
+
+/// Persist the welcome marker after an introduction action.
+pub(crate) fn save_welcome_seen(state: &Shared, path: &Path) -> std::io::Result<()> {
+    let mut st = lock(state);
+    let mut config = st.config.clone();
+    config.welcome_seen = true;
+    config.save_to(path)?;
+    st.config = config;
+    Ok(())
 }
 
 /// Takes the foreground for the shown welcome window, like the settings

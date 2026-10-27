@@ -122,6 +122,7 @@ fn run_inner(
     events: &Sender<JobEvent>,
     before_finish: &dyn Fn(),
 ) -> Vec<PathBuf> {
+    let started = std::time::Instant::now();
     let tasks = plan(action, files);
     let n = tasks.len();
     let _ = events.send(JobEvent::Started {
@@ -144,14 +145,20 @@ fn run_inner(
             break;
         }
         let progress = |f: f32| report((i as f32 + f.clamp(0.0, 1.0)) / n as f32);
+        let task_started = std::time::Instant::now();
         let result = match &engine {
             Ok(e) => run_task(*e, task, fin, cancel, &progress),
             Err(msg) => Err((msg.clone(), false)),
         };
+        let task_elapsed = task_started.elapsed();
         match result {
             Ok(path) => {
                 outputs.push(path.clone());
-                let _ = events.send(JobEvent::TaskDone { job, output: path });
+                let _ = events.send(JobEvent::TaskDone {
+                    job,
+                    output: path,
+                    elapsed: task_elapsed,
+                });
             }
             Err((error, was_cancel)) => {
                 failed += 1;
@@ -160,17 +167,21 @@ fn run_inner(
                     job,
                     input: task.inputs[0].clone(),
                     error,
+                    elapsed: task_elapsed,
+                    cancelled: was_cancel,
                 });
             }
         }
         report((i + 1) as f32 / n as f32);
     }
+    let elapsed = started.elapsed();
     before_finish();
     let _ = events.send(JobEvent::Finished {
         job,
         ok: outputs.len(),
         failed,
         cancelled,
+        elapsed,
     });
     outputs
 }

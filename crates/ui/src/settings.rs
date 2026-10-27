@@ -14,20 +14,21 @@
 use crate::Lang;
 use kawaro_core::config::{Config, LangSetting, OutputPlace, Quality, Theme};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
 
-mod generated {
+pub(crate) mod generated {
     include!(concat!(env!("OUT_DIR"), "/settings_ui.rs"));
 }
 
 use generated::{Palette, SettingsText, SettingsUi};
 
 /// Options in reading order, as shown to an English reader from left to right.
-const LANGUAGES: [LangSetting; 3] = [LangSetting::Auto, LangSetting::Ar, LangSetting::En];
-const THEMES: [Theme; 3] = [Theme::Auto, Theme::Light, Theme::Dark];
-const OUTPUTS: [OutputPlace; 2] = [OutputPlace::Beside, OutputPlace::Subfolder];
-const QUALITIES: [Quality; 3] = [Quality::Light, Quality::Balanced, Quality::Max];
+pub(crate) const LANGUAGES: [LangSetting; 3] =
+    [LangSetting::Auto, LangSetting::Ar, LangSetting::En];
+pub(crate) const THEMES: [Theme; 3] = [Theme::Auto, Theme::Light, Theme::Dark];
+pub(crate) const OUTPUTS: [OutputPlace; 2] = [OutputPlace::Beside, OutputPlace::Subfolder];
+pub(crate) const QUALITIES: [Quality; 3] = [Quality::Light, Quality::Balanced, Quality::Max];
 
 /// Visual position of the option at reading position `i` among `n`.
 fn visual(i: usize, n: usize, rtl: bool) -> usize {
@@ -35,7 +36,7 @@ fn visual(i: usize, n: usize, rtl: bool) -> usize {
 }
 
 /// Visual index of `value` in `options`.
-fn to_visual<T: PartialEq>(options: &[T], value: &T, rtl: bool) -> i32 {
+pub(crate) fn to_visual<T: PartialEq>(options: &[T], value: &T, rtl: bool) -> i32 {
     let i = options.iter().position(|o| o == value).unwrap_or(0);
     visual(i, options.len(), rtl) as i32
 }
@@ -50,7 +51,7 @@ fn from_visual<T: Copy + Default>(options: &[T], index: i32, rtl: bool) -> T {
 }
 
 /// `items` in visual order.
-fn ordered(items: &[&str], rtl: bool) -> Vec<SharedString> {
+pub(crate) fn ordered(items: &[&str], rtl: bool) -> Vec<SharedString> {
     let mut v: Vec<SharedString> = items.iter().map(|s| (*s).into()).collect();
     if rtl {
         v.reverse();
@@ -61,19 +62,20 @@ fn ordered(items: &[&str], rtl: bool) -> Vec<SharedString> {
 /// What the window shows: visual indices for the option lists, plus the
 /// complete opened Config so hidden settings survive Save unchanged.
 #[derive(Clone, Debug, PartialEq)]
-struct FormState {
-    language: i32,
-    theme: i32,
-    output: i32,
-    quality: i32,
-    folder: String,
-    notify: bool,
-    open_folder: bool,
-    opened: Config,
+pub(crate) struct FormState {
+    pub(crate) language: i32,
+    pub(crate) theme: i32,
+    pub(crate) output: i32,
+    pub(crate) quality: i32,
+    pub(crate) folder: String,
+    pub(crate) notify: bool,
+    pub(crate) notify_long_only: bool,
+    pub(crate) open_folder: bool,
+    pub(crate) opened: Config,
 }
 
 impl FormState {
-    fn from_config(c: &Config, rtl: bool) -> Self {
+    pub(crate) fn from_config(c: &Config, rtl: bool) -> Self {
         Self {
             language: to_visual(&LANGUAGES, &c.language, rtl),
             theme: to_visual(&THEMES, &c.theme, rtl),
@@ -81,13 +83,14 @@ impl FormState {
             quality: to_visual(&QUALITIES, &c.quality, rtl),
             folder: c.output_folder.clone(),
             notify: c.notify,
+            notify_long_only: c.notify_long_only,
             open_folder: c.open_folder_when_done,
             opened: c.clone(),
         }
     }
 
     /// The folder name is trimmed; an empty one goes back to the default.
-    fn to_config(&self, rtl: bool) -> Config {
+    pub(crate) fn to_config(&self, rtl: bool) -> Config {
         let folder = self.folder.trim();
         Config {
             language: from_visual(&LANGUAGES, self.language, rtl),
@@ -101,21 +104,22 @@ impl FormState {
             },
             open_folder_when_done: self.open_folder,
             notify: self.notify,
+            notify_long_only: self.notify_long_only,
             ..self.opened.clone()
         }
     }
 }
 
 /// All strings of the window in reading order.
-struct Strings {
-    text: SettingsText,
-    languages: [&'static str; 3],
-    themes: [&'static str; 3],
-    outputs: [&'static str; 2],
-    qualities: [&'static str; 3],
+pub(crate) struct Strings {
+    pub(crate) text: SettingsText,
+    pub(crate) languages: [&'static str; 3],
+    pub(crate) themes: [&'static str; 3],
+    pub(crate) outputs: [&'static str; 2],
+    pub(crate) qualities: [&'static str; 3],
 }
 
-fn strings(lang: Lang) -> Strings {
+pub(crate) fn strings(lang: Lang) -> Strings {
     match lang {
         Lang::Ar => Strings {
             text: SettingsText {
@@ -125,7 +129,8 @@ fn strings(lang: Lang) -> Strings {
                 output: "مكان النتائج".into(),
                 folder: "اسم المجلد".into(),
                 quality: "الجودة".into(),
-                notify: "إشعار عند الانتهاء".into(),
+                notify: "إشعار عند انتهاء ملف أو عملية".into(),
+                notify_long_only: "فقط إن استغرق 10 ثوانٍ أو أكثر".into(),
                 open_folder: "فتح المجلد عند الانتهاء".into(),
                 save: "حفظ".into(),
                 cancel: "إلغاء".into(),
@@ -143,7 +148,8 @@ fn strings(lang: Lang) -> Strings {
                 output: "Where results go".into(),
                 folder: "Folder name".into(),
                 quality: "Quality".into(),
-                notify: "Notify when done".into(),
+                notify: "Notify when a file or operation finishes".into(),
+                notify_long_only: "Only if it took 10 seconds or more".into(),
                 open_folder: "Open the folder when done".into(),
                 save: "Save".into(),
                 cancel: "Cancel".into(),
@@ -158,7 +164,10 @@ fn strings(lang: Lang) -> Strings {
 
 /// Colour scheme the window is drawn in: `KAWARO_COLOR_SCHEME` first (as
 /// for the hive), then the theme being edited. `None` follows the system.
-fn forced_scheme(env: Option<&str>, theme: Theme) -> Option<slint::language::ColorScheme> {
+pub(crate) fn forced_scheme(
+    env: Option<&str>,
+    theme: Theme,
+) -> Option<slint::language::ColorScheme> {
     use slint::language::ColorScheme;
     match (env, theme) {
         (Some("light"), _) => Some(ColorScheme::Light),
@@ -172,8 +181,8 @@ fn forced_scheme(env: Option<&str>, theme: Theme) -> Option<slint::language::Col
 type SaveFn = Rc<dyn Fn(Config)>;
 
 struct Inner {
-    rtl: bool,
-    strings: Strings,
+    rtl: Cell<bool>,
+    initial_lang: Lang,
     ui: RefCell<SettingsUi>,
     on_save: RefCell<Option<SaveFn>>,
     /// The complete [`Config`] the window was opened with. `hive_surface`
@@ -187,18 +196,12 @@ struct Inner {
 impl Inner {
     fn new_ui(self: &Rc<Self>) -> Result<SettingsUi, slint::PlatformError> {
         let ui = SettingsUi::new()?;
-        let s = &self.strings;
-        let list = |items: &[&str]| ModelRc::new(VecModel::from(ordered(items, self.rtl)));
-        ui.set_rtl(self.rtl);
-        ui.set_text(s.text.clone());
-        ui.set_language_items(list(&s.languages));
-        ui.set_theme_items(list(&s.themes));
-        ui.set_output_items(list(&s.outputs));
-        ui.set_quality_items(list(&s.qualities));
-        ui.set_subfolder_index(to_visual(&OUTPUTS, &OutputPlace::Subfolder, self.rtl));
+        self.apply_language(&ui, if self.rtl.get() { Lang::Ar } else { Lang::En });
 
         let w = Rc::downgrade(self);
         ui.on_save(move || with(&w, Inner::save));
+        let w = Rc::downgrade(self);
+        ui.on_language_selected(move || with(&w, Inner::change_language));
         let w = Rc::downgrade(self);
         ui.on_cancel(move || with(&w, Inner::close));
         let w = Rc::downgrade(self);
@@ -207,6 +210,30 @@ impl Inner {
             slint::CloseRequestResponse::HideWindow
         });
         Ok(ui)
+    }
+
+    fn apply_language(&self, ui: &SettingsUi, lang: Lang) {
+        let rtl = lang.rtl();
+        let s = strings(lang);
+        let list = |items: &[&str]| ModelRc::new(VecModel::from(ordered(items, rtl)));
+        ui.set_rtl(rtl);
+        ui.set_text(s.text);
+        ui.set_language_items(list(&s.languages));
+        ui.set_theme_items(list(&s.themes));
+        ui.set_output_items(list(&s.outputs));
+        ui.set_quality_items(list(&s.qualities));
+        ui.set_subfolder_index(to_visual(&OUTPUTS, &OutputPlace::Subfolder, rtl));
+    }
+
+    fn change_language(&self) {
+        let state = self.state();
+        let config = state.to_config(self.rtl.get());
+        let lang = config.lang();
+        self.rtl.set(lang.rtl());
+        self.apply_language(&self.ui.borrow(), lang);
+        let mut translated = FormState::from_config(&config, lang.rtl());
+        translated.folder = state.folder;
+        self.set_state(&translated);
     }
 
     fn state(&self) -> FormState {
@@ -218,6 +245,7 @@ impl Inner {
             quality: ui.get_quality(),
             folder: ui.get_folder().into(),
             notify: ui.get_notify(),
+            notify_long_only: ui.get_notify_long_only(),
             open_folder: ui.get_open_folder(),
             opened: self.opened.borrow().clone(),
         }
@@ -231,6 +259,7 @@ impl Inner {
         ui.set_quality(s.quality);
         ui.set_folder(s.folder.as_str().into());
         ui.set_notify(s.notify);
+        ui.set_notify_long_only(s.notify_long_only);
         ui.set_open_folder(s.open_folder);
     }
 
@@ -242,7 +271,7 @@ impl Inner {
         if !self.visible() {
             return;
         }
-        let config = self.state().to_config(self.rtl);
+        let config = self.state().to_config(self.rtl.get());
         let f = self.on_save.borrow().clone();
         if let Some(f) = f {
             f(config);
@@ -268,13 +297,12 @@ pub struct SettingsWindow {
 }
 
 impl SettingsWindow {
-    /// The window language is fixed here; a language change applies the next
-    /// time the daemon creates the window.
+    /// Creates a window in the requested initial language.
     pub fn new(lang: Lang) -> Result<Self, slint::PlatformError> {
         let ui = SettingsUi::new()?;
         let inner = Rc::new(Inner {
-            rtl: lang.rtl(),
-            strings: strings(lang),
+            rtl: Cell::new(lang.rtl()),
+            initial_lang: lang,
             ui: RefCell::new(ui),
             on_save: RefCell::new(None),
             opened: RefCell::new(Config::default()),
@@ -290,6 +318,11 @@ impl SettingsWindow {
     pub fn open(&self, config: &Config) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         inner.close();
+        let lang = match config.language {
+            LangSetting::Auto => inner.initial_lang,
+            _ => config.lang(),
+        };
+        inner.rtl.set(lang.rtl());
         let ui = inner.new_ui()?;
         let env = std::env::var("KAWARO_COLOR_SCHEME").ok();
         if let Some(scheme) = forced_scheme(env.as_deref(), config.theme) {
@@ -297,7 +330,7 @@ impl SettingsWindow {
         }
         *inner.ui.borrow_mut() = ui;
         *inner.opened.borrow_mut() = config.clone();
-        inner.set_state(&FormState::from_config(config, inner.rtl));
+        inner.set_state(&FormState::from_config(config, inner.rtl.get()));
         inner.ui.borrow().show()
     }
 
@@ -651,6 +684,7 @@ mod tests {
                 &t.folder,
                 &t.quality,
                 &t.notify,
+                &t.notify_long_only,
                 &t.open_folder,
                 &t.save,
                 &t.cancel,
@@ -822,7 +856,7 @@ mod tests {
                         "Register the drop shortcut with the desktop",
                         "In a subfolder",
                         "Smaller files",
-                        "Notify when done",
+                        "Notify when a file or operation finishes",
                         "Open the folder when done",
                         "Save",
                         "Cancel",
@@ -832,7 +866,7 @@ mod tests {
                         "تسجيل اختصار الإفلات لدى سطح المكتب",
                         "في مجلد فرعي",
                         "ملفات أصغر",
-                        "إشعار عند الانتهاء",
+                        "إشعار عند انتهاء ملف أو عملية",
                         "فتح المجلد عند الانتهاء",
                         "حفظ",
                         "إلغاء",
@@ -996,13 +1030,13 @@ mod tests {
                 let (registration, notify, save) = if lang == Lang::En {
                     (
                         "Register the drop shortcut with the desktop",
-                        "Notify when done",
+                        "Notify when a file or operation finishes",
                         "Save",
                     )
                 } else {
                     (
                         "تسجيل اختصار الإفلات لدى سطح المكتب",
-                        "إشعار عند الانتهاء",
+                        "إشعار عند انتهاء ملف أو عملية",
                         "حفظ",
                     )
                 };
@@ -1115,10 +1149,12 @@ mod tests {
                 "العربية by keyboard"
             );
             win.close();
+            assert!(saved.borrow().is_empty(), "changing language does not save");
 
             // Change every field through the controls, then Save.
             win.open(&start).unwrap();
-            for label in ["Dark", "العربية", "In a subfolder", "Smaller files"] {
+            assert_eq!(win.inner.ui.borrow().get_text().title, "Kawaro settings");
+            for label in ["Dark", "In a subfolder", "Smaller files"] {
                 let item = find(&win, label, AccessibleRole::ListItem);
                 click(&win, &item);
                 assert_eq!(item.accessible_item_selected(), Some(true), "{label}");
@@ -1130,12 +1166,24 @@ mod tests {
                 "enabled for a subfolder"
             );
             folder.set_accessible_value("Converted");
-            let notify = find(&win, "Notify when done", AccessibleRole::Switch);
+            find(
+                &win,
+                "Only if it took 10 seconds or more",
+                AccessibleRole::Switch,
+            )
+            .invoke_accessible_default_action();
+            let notify = find(
+                &win,
+                "Notify when a file or operation finishes",
+                AccessibleRole::Switch,
+            );
             notify.invoke_accessible_default_action();
             assert_eq!(notify.accessible_checked(), Some(false));
             find(&win, "Open the folder when done", AccessibleRole::Switch)
                 .invoke_accessible_default_action();
-            click(&win, &find(&win, "Save", AccessibleRole::Button));
+            click(&win, &find(&win, "العربية", AccessibleRole::ListItem));
+            assert_eq!(win.inner.ui.borrow().get_folder(), "Converted");
+            click(&win, &find(&win, "حفظ", AccessibleRole::Button));
             assert!(!win.inner.visible(), "Save closes the window");
             assert_eq!(
                 *saved.borrow(),
@@ -1147,6 +1195,7 @@ mod tests {
                     quality: Quality::Light,
                     open_folder_when_done: true,
                     notify: false,
+                    notify_long_only: true,
                     hive_surface: HiveSurface::Auto,
                     hold_ms: 400,
                     portal_shortcut: true,
@@ -1200,7 +1249,7 @@ mod tests {
             );
             assert!(auto.is_valid());
             click(&ar, &english[0]);
-            click(&ar, &save);
+            click(&ar, &find(&ar, "Save", AccessibleRole::Button));
             assert_eq!(saved.borrow()[0].language, LangSetting::En);
             assert_eq!(saved.borrow()[0].output, OutputPlace::Beside);
         }

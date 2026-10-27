@@ -17,7 +17,7 @@ This is the first official release of Kawaro, for Linux and for Windows. It foll
 ## Known gaps
 
 - Windows: the executables and the MSI are TEST-SIGNED with a self-signed certificate (subject "Kawaro test signing"), not a certificate from a trusted authority, so this is not a verified publisher. Windows SmartScreen will say "Windows protected your PC" with "Unknown publisher". Check your download against SHA256SUMS first, then click "More info", then "Run anyway". A trusted OV certificate from a real certificate authority is still needed for full trust; the warning fades only as the same certificate builds reputation.
-- Nothing on Windows is verified on a live Windows machine by this release: the builds are cross compiled on Linux and tested there. The live checklist (S-079) is run by the project owner, and every Windows live result is owner pending until that report exists.
+- The owner reported installing and successfully running the application on Windows. The exact device, package and features tested were not recorded, so the full live checklist (S-079) remains pending.
 - Linux: the focus and activation tests on real GNOME and KDE desktops are still pending. On those desktops the hive may open without keyboard focus.
 - The tray menu has not been checked on real desktops yet, and the in-app download percentage in the tray tooltip has not been tested live.
 - The Windows update helper, which installs a new MSI while the app is closed, is built and unit tested but has not run on a live Windows machine yet.

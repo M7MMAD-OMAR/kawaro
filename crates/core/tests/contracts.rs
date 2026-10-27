@@ -186,6 +186,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
             JobEvent::TaskDone {
                 job: 1,
                 output: p.clone(),
+                elapsed: std::time::Duration::ZERO,
             },
             Event::TaskDone {
                 job: 1,
@@ -197,6 +198,8 @@ fn every_job_event_maps_to_the_same_ipc_event() {
                 job: 1,
                 input: p.clone(),
                 error: "e".into(),
+                elapsed: std::time::Duration::ZERO,
+                cancelled: false,
             },
             Event::TaskFailed {
                 job: 1,
@@ -210,6 +213,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
                 ok: 1,
                 failed: 2,
                 cancelled: true,
+                elapsed: std::time::Duration::from_secs(12),
             },
             Event::Finished {
                 job: 1,

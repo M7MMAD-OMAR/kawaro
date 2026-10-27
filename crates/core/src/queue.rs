@@ -18,24 +18,26 @@ pub enum JobEvent {
         tasks: usize,
     },
     /// Overall job fraction in `0.0..=1.0`, monotonic.
-    Progress {
-        job: JobId,
-        fraction: f32,
-    },
+    Progress { job: JobId, fraction: f32 },
     TaskDone {
         job: JobId,
         output: PathBuf,
+        elapsed: std::time::Duration,
     },
     TaskFailed {
         job: JobId,
         input: PathBuf,
         error: String,
+        elapsed: std::time::Duration,
+        cancelled: bool,
     },
     Finished {
         job: JobId,
         ok: usize,
         failed: usize,
         cancelled: bool,
+        /// Time spent executing this job, excluding queue wait and event delivery.
+        elapsed: std::time::Duration,
     },
 }
 

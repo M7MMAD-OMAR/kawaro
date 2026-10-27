@@ -1,8 +1,6 @@
 # SignPath Foundation application draft: Kawaro / كوارو
 
-Status: ready to submit, nothing submitted yet. The maintainer submits this at
-<https://signpath.org/apply> with his own email and multi-factor
-authentication. This file is the data to paste into the form plus the evidence
+Status: submitted on 2026-10-27. The application form confirmed submission; approval, account setup and trusted signing are pending. This file records the prepared application data and the evidence
 map the Foundation review checks against
 (<https://signpath.org/terms.html>).
 

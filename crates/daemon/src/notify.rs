@@ -1,5 +1,5 @@
-//! Desktop notifications. They never take focus; the only one per job is
-//! sent when it ends.
+//! Desktop notifications. They never take focus; each completed task may
+//! produce one notification according to the configured policy.
 
 use crate::notify_logic::{log_line, open_folder_command};
 use crate::state::{JobInfo, lock};

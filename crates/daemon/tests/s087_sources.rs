@@ -28,22 +28,13 @@ fn fn_body<'a>(src: &'a str, name: &str) -> &'a str {
 }
 
 #[test]
-fn ac1_the_marker_is_set_only_after_the_welcome_is_shown() {
+fn ac1_the_marker_is_saved_only_after_language_choice() {
     let src = read("crates/daemon/src/ui.rs");
-    let body = fn_body(&src, "present_welcome");
-    let shown = body
-        .find(".open(")
-        .expect("present_welcome opens the window");
-    let marked = body
-        .find("save_welcome_seen(")
-        .expect("present_welcome sets the marker");
-    assert!(
-        marked > shown,
-        "the marker is written after the window is shown: {body}"
-    );
-    // One write of the marker in the whole file, so no other path sets it.
-    let writes = src.matches("save_welcome_seen(").count();
-    assert_eq!(writes, 2, "the definition and the one after-show call");
+    let body = fn_body(&src, "welcome_window");
+    assert!(body.contains("win.on_language("));
+    assert!(body.contains("save_language_choice("));
+    let save = fn_body(&src, "save_language_choice");
+    assert!(save.find("config.save_to(path)?").unwrap() < save.find("st.config = config").unwrap());
 }
 
 #[test]

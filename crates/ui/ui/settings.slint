@@ -8,7 +8,7 @@
 // the label alignment, the switch rows and the button row here.
 import { Tokens } from "tokens.slint";
 import { SbarMaterial } from "material-tokens.slint";
-import { MaterialPalette, MaterialWindow, SegmentedButton, Switch, TextField, FilledButton, TextButton } from "@material";
+import { MaterialPalette, MaterialWindow, SegmentedButton, Switch, TextField, FilledButton, TextButton, ScrollView } from "@material";
 import { Palette } from "std-widgets.slint";
 
 import "../fonts/IBMPlexSansArabic-Regular.otf";
@@ -26,6 +26,7 @@ export struct SettingsText {
     folder: string,
     quality: string,
     notify: string,
+    notify-long-only: string,
     open-folder: string,
     save: string,
     cancel: string,
@@ -47,6 +48,7 @@ component Choice inherits VerticalLayout {
     in property <string> label;
     in property <[string]> items;
     in-out property <int> current;
+    callback selected();
 
     spacing: Tokens.space-2;
 
@@ -69,6 +71,7 @@ component Choice inherits VerticalLayout {
                 { text: root.items[1] },
             ];
             current-index <=> root.current;
+            index-changed(index) => { root.selected(); }
         }
     }
 }
@@ -87,6 +90,7 @@ component SwitchRow inherits Rectangle {
         width: root.width - toggle.width - Tokens.space-4;
         height: root.height;
         text: root.label;
+        wrap: word-wrap;
         font-size: Tokens.font-body;
         color: Tokens.text-primary;
         vertical-alignment: center;
@@ -105,7 +109,8 @@ component SwitchRow inherits Rectangle {
     }
 }
 
-export component SettingsUi inherits MaterialWindow {
+export component SettingsPanel inherits Rectangle {
+    forward-focus: keys;
     in property <bool> rtl;
     in property <SettingsText> text;
     in property <[string]> language-items;
@@ -120,6 +125,8 @@ export component SettingsUi inherits MaterialWindow {
     in-out property <int> quality;
     in-out property <string> folder;
     in-out property <bool> notify;
+    in-out property <bool> notify-long-only;
+    in-out property <bool> save-failed;
     in-out property <bool> open-folder;
     // Visual index of the subfolder option in `output-items` (it depends on
     // the direction, so Rust sets it). The folder name field exists only
@@ -128,15 +135,9 @@ export component SettingsUi inherits MaterialWindow {
 
     callback save();
     callback cancel();
+    callback language-selected();
 
-    title: root.text.title;
-    default-font-family: Tokens.font-family;
-    preferred-width: Tokens.space-6 * 16;
-    forward-focus: keys;
 
-    init => {
-        MaterialPalette.schemes = SbarMaterial.schemes;
-    }
 
     // Esc anywhere closes without saving; every other key goes on to the
     // focused control.
@@ -149,7 +150,14 @@ export component SettingsUi inherits MaterialWindow {
             reject
         }
 
-        VerticalLayout {
+        scroll := ScrollView {
+            width: parent.width;
+            height: parent.height;
+            content-width: self.visible-width;
+            content-height: max(self.visible-height, content.min-height);
+            content := VerticalLayout {
+            width: parent.width;
+            height: max(scroll.visible-height, self.min-height);
             padding: Tokens.space-6;
             spacing: Tokens.space-5;
 
@@ -158,6 +166,7 @@ export component SettingsUi inherits MaterialWindow {
                 label: root.text.language;
                 items: root.language-items;
                 current <=> root.language;
+                selected => { root.language-selected(); }
             }
 
             Choice {
@@ -201,11 +210,24 @@ export component SettingsUi inherits MaterialWindow {
                     checked <=> root.notify;
                 }
 
+                if root.notify: SwitchRow {
+                    rtl: root.rtl;
+                    label: root.text.notify-long-only;
+                    checked <=> root.notify-long-only;
+                }
+
                 SwitchRow {
                     rtl: root.rtl;
                     label: root.text.open-folder;
                     checked <=> root.open-folder;
                 }
+            }
+
+            if root.save-failed: Text {
+                text: root.rtl ? "تعذر حفظ الإعدادات، حاول مرة أخرى." : "Could not save settings. Please try again.";
+                color: Tokens.text-primary;
+                wrap: word-wrap;
+                horizontal-alignment: root.rtl ? right : left;
             }
 
             // Primary action on the far side of the reading direction.
@@ -250,6 +272,43 @@ export component SettingsUi inherits MaterialWindow {
                     }
                 }
             }
+            }
         }
+    }
+}
+
+export component SettingsUi inherits MaterialWindow {
+    forward-focus: panel;
+    in-out property <bool> rtl <=> panel.rtl;
+    in-out property <SettingsText> text <=> panel.text;
+    in-out property <[string]> language-items <=> panel.language-items;
+    in-out property <[string]> theme-items <=> panel.theme-items;
+    in-out property <[string]> output-items <=> panel.output-items;
+    in-out property <[string]> quality-items <=> panel.quality-items;
+    in-out property <int> language <=> panel.language;
+    in-out property <int> theme <=> panel.theme;
+    in-out property <int> output <=> panel.output;
+    in-out property <int> quality <=> panel.quality;
+    in-out property <string> folder <=> panel.folder;
+    in-out property <bool> notify <=> panel.notify;
+    in-out property <bool> notify-long-only <=> panel.notify-long-only;
+    in-out property <bool> save-failed <=> panel.save-failed;
+    in-out property <bool> open-folder <=> panel.open-folder;
+    in-out property <int> subfolder-index <=> panel.subfolder-index;
+    callback save();
+    callback cancel();
+    callback language-selected();
+    title: root.text.title;
+    default-font-family: Tokens.font-family;
+    preferred-width: Tokens.space-6 * 16;
+    preferred-height: Tokens.space-6 * 23 + Tokens.space-5;
+    min-height: Tokens.space-6 * 10;
+    init => { MaterialPalette.schemes = SbarMaterial.schemes; }
+    panel := SettingsPanel {
+        width: parent.width;
+        height: parent.height;
+        save => { root.save(); }
+        cancel => { root.cancel(); }
+        language-selected => { root.language-selected(); }
     }
 }

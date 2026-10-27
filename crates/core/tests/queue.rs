@@ -40,6 +40,7 @@ fn finished_of(events: &[JobEvent], job: u64) -> (usize, usize, bool) {
                 ok,
                 failed,
                 cancelled,
+                ..
             } if *j == job => Some((*ok, *failed, *cancelled)),
             _ => None,
         })
@@ -148,6 +149,50 @@ fn ac1_plan_empty_selection_has_no_tasks() {
     assert!(plan(&action("fake", Combined, "pdf", ""), &[]).is_empty());
 }
 
+#[test]
+fn finished_reports_worker_time_even_when_event_consumer_is_delayed() {
+    let dir = tempfile::tempdir().unwrap();
+    let input = files(dir.path(), &["elapsed.png"]);
+    let engine = FakeEngine {
+        slow: Some(Duration::from_millis(50)),
+        ..FakeEngine::new()
+    };
+    let (tx, rx) = channel();
+    run_job(
+        11,
+        &action("fake", PerFile, "webp", ""),
+        &input,
+        &engine,
+        &CancelToken::new(),
+        &tx,
+    );
+    std::thread::sleep(Duration::from_millis(100));
+    let events = drain(&rx);
+    let elapsed = events
+        .iter()
+        .find_map(|event| match event {
+            JobEvent::Finished { elapsed, .. } => Some(*elapsed),
+            _ => None,
+        })
+        .expect("finished event");
+    assert!(elapsed >= Duration::from_millis(50), "{elapsed:?}");
+    let task_elapsed = events
+        .iter()
+        .find_map(|event| match event {
+            JobEvent::TaskDone { elapsed, .. } => Some(*elapsed),
+            _ => None,
+        })
+        .expect("task completion event");
+    assert!(
+        task_elapsed >= Duration::from_millis(50),
+        "{task_elapsed:?}"
+    );
+    assert!(
+        task_elapsed <= elapsed,
+        "task {task_elapsed:?}, job {elapsed:?}"
+    );
+}
+
 // ---------- run_job ----------
 
 #[test]
@@ -182,37 +227,32 @@ fn ac2_run_job_event_sequence_and_outputs() {
         .filter(|e| !matches!(e, JobEvent::Progress { .. }))
         .collect();
     assert_eq!(important.len(), 5);
-    assert_eq!(
-        *important[1],
-        JobEvent::TaskDone {
-            job: 7,
-            output: d.path().join("a.webp")
-        }
+    assert!(
+        matches!(important[1], JobEvent::TaskDone { job: 7, output, .. } if *output == d.path().join("a.webp"))
     );
     match important[2] {
-        JobEvent::TaskFailed { job, input, error } => {
+        JobEvent::TaskFailed {
+            job, input, error, ..
+        } => {
             assert_eq!(*job, 7);
             assert_eq!(*input, fs[1]);
             assert!(error.contains("fake failure"), "{error}");
         }
         e => panic!("unexpected {e:?}"),
     }
-    assert_eq!(
-        *important[3],
-        JobEvent::TaskDone {
-            job: 7,
-            output: d.path().join("c.webp")
-        }
+    assert!(
+        matches!(important[3], JobEvent::TaskDone { job: 7, output, .. } if *output == d.path().join("c.webp"))
     );
-    assert_eq!(
-        *ev.last().unwrap(),
+    assert!(matches!(
+        ev.last().unwrap(),
         JobEvent::Finished {
             job: 7,
             ok: 2,
             failed: 1,
-            cancelled: false
+            cancelled: false,
+            ..
         }
-    );
+    ));
     assert_eq!(
         std::fs::read_to_string(d.path().join("c.webp")).unwrap(),
         "c.png"

@@ -8,6 +8,8 @@
 //! `ui/welcome.slint`; the strings arrive from Rust in the window language.
 
 use crate::Lang;
+use crate::settings::{self, FormState};
+use kawaro_core::config::{Config, OutputPlace};
 use kawaro_core::welcome::Captions;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
@@ -100,6 +102,8 @@ pub fn install_sample(dir: &Path) -> std::io::Result<PathBuf> {
 }
 
 type Callback = Rc<dyn Fn()>;
+type SettingsSave = Rc<dyn Fn(Config) -> bool>;
+type LanguageSave = Rc<dyn Fn(Lang) -> bool>;
 
 struct Inner {
     rtl: bool,
@@ -107,9 +111,13 @@ struct Inner {
     ui: RefCell<WelcomeUi>,
     on_try: RefCell<Option<Callback>>,
     on_settings: RefCell<Option<Callback>>,
+    on_settings_save: RefCell<Option<SettingsSave>>,
+    settings_opened: RefCell<Config>,
+    on_language: RefCell<Option<LanguageSave>>,
     timer: slint::Timer,
     plan: RefCell<DemoPlan>,
     ticks: Cell<u64>,
+    choose_language: Cell<bool>,
 }
 
 impl Inner {
@@ -128,6 +136,20 @@ impl Inner {
         ui.on_try_sample(move || with(&w, Inner::try_sample));
         let w = Rc::downgrade(self);
         ui.on_open_settings(move || with(&w, Inner::open_settings));
+        let w = Rc::downgrade(self);
+        ui.on_settings_save(move || with(&w, Inner::save_settings));
+        let w = Rc::downgrade(self);
+        ui.on_settings_cancel(move || with(&w, Inner::cancel_settings));
+        let w = Rc::downgrade(self);
+        ui.on_settings_language_selected(move || with(&w, Inner::settings_language_changed));
+        let w = Rc::downgrade(self);
+        ui.on_select_language(move |arabic| {
+            if let Some(inner) = w.upgrade() {
+                let lang = if arabic { Lang::Ar } else { Lang::En };
+                let saved = inner.on_language.borrow().as_ref().is_some_and(|f| f(lang));
+                inner.ui.borrow().set_language_save_failed(!saved);
+            }
+        });
         let w = Rc::downgrade(self);
         ui.on_dismissed(move || with(&w, Inner::close));
         let w = Rc::downgrade(self);
@@ -154,6 +176,86 @@ impl Inner {
         if let Some(f) = f {
             f();
         }
+    }
+
+    fn settings_state(&self) -> FormState {
+        let ui = self.ui.borrow();
+        FormState {
+            language: ui.get_settings_language(),
+            theme: ui.get_settings_theme(),
+            output: ui.get_settings_output(),
+            quality: ui.get_settings_quality(),
+            folder: ui.get_settings_folder().into(),
+            notify: ui.get_settings_notify(),
+            notify_long_only: ui.get_settings_notify_long_only(),
+            open_folder: ui.get_settings_open_folder(),
+            opened: self.settings_opened.borrow().clone(),
+        }
+    }
+
+    fn set_settings_state(&self, state: &FormState, lang: Lang) {
+        let ui = self.ui.borrow();
+        let rtl = lang.rtl();
+        let strings = settings::strings(lang);
+        let text = strings.text;
+        ui.set_rtl(rtl);
+        ui.set_settings_text(generated::SettingsText {
+            title: text.title,
+            language: text.language,
+            theme: text.theme,
+            output: text.output,
+            folder: text.folder,
+            quality: text.quality,
+            notify: text.notify,
+            notify_long_only: text.notify_long_only,
+            open_folder: text.open_folder,
+            save: text.save,
+            cancel: text.cancel,
+        });
+        let list = |items: &[&str]| ModelRc::new(VecModel::from(settings::ordered(items, rtl)));
+        ui.set_settings_language_items(list(&strings.languages));
+        ui.set_settings_theme_items(list(&strings.themes));
+        ui.set_settings_output_items(list(&strings.outputs));
+        ui.set_settings_quality_items(list(&strings.qualities));
+        ui.set_settings_subfolder_index(settings::to_visual(
+            &settings::OUTPUTS,
+            &OutputPlace::Subfolder,
+            rtl,
+        ));
+        ui.set_settings_language(state.language);
+        ui.set_settings_theme(state.theme);
+        ui.set_settings_output(state.output);
+        ui.set_settings_quality(state.quality);
+        ui.set_settings_folder(state.folder.as_str().into());
+        ui.set_settings_notify(state.notify);
+        ui.set_settings_notify_long_only(state.notify_long_only);
+        ui.set_settings_open_folder(state.open_folder);
+    }
+
+    fn settings_language_changed(&self) {
+        let old = self.settings_state();
+        let old_rtl = self.ui.borrow().get_rtl();
+        let config = old.to_config(old_rtl);
+        let lang = config.lang();
+        let mut next = FormState::from_config(&config, lang.rtl());
+        next.folder = old.folder;
+        self.set_settings_state(&next, lang);
+    }
+
+    fn save_settings(&self) {
+        let config = self.settings_state().to_config(self.ui.borrow().get_rtl());
+        let callback = self.on_settings_save.borrow().clone();
+        if callback.is_some_and(|f| f(config)) {
+            self.cancel_settings();
+        } else {
+            self.ui.borrow().set_settings_save_failed(true);
+        }
+    }
+
+    fn cancel_settings(&self) {
+        let ui = self.ui.borrow();
+        ui.set_show_settings(false);
+        ui.set_rtl(self.rtl);
     }
 
     fn close(&self) {
@@ -210,9 +312,13 @@ impl WelcomeWindow {
             ui: RefCell::new(ui),
             on_try: RefCell::new(None),
             on_settings: RefCell::new(None),
+            on_settings_save: RefCell::new(None),
+            settings_opened: RefCell::new(Config::default()),
+            on_language: RefCell::new(None),
             timer: slint::Timer::default(),
             plan: RefCell::new(demo_plan(1, false)),
             ticks: Cell::new(0),
+            choose_language: Cell::new(false),
         });
         let ui = inner.new_ui()?;
         *inner.ui.borrow_mut() = ui;
@@ -230,6 +336,7 @@ impl WelcomeWindow {
             ui.global::<Palette>().set_color_scheme(scheme);
         }
         ui.set_centred(centred);
+        ui.set_choose_language(inner.choose_language.get());
         ui.set_caption_steps(ModelRc::new(VecModel::from(
             captions
                 .steps
@@ -262,6 +369,22 @@ impl WelcomeWindow {
         inner.ui.borrow().show()
     }
 
+    /// Show the language choice before the introduction.
+    pub fn choose_language(&self) {
+        self.inner.choose_language.set(true);
+        self.inner.ui.borrow().set_choose_language(true);
+    }
+
+    /// Reports a failure to reopen after saving the language.
+    pub fn language_reload_failed(&self) {
+        self.inner.ui.borrow().set_language_save_failed(true);
+    }
+
+    /// Persist a chosen language. False leaves the choice visible with an error.
+    pub fn on_language(&self, f: impl Fn(Lang) -> bool + 'static) {
+        *self.inner.on_language.borrow_mut() = Some(Rc::new(f));
+    }
+
     /// Whether the window is currently shown.
     pub fn is_visible(&self) -> bool {
         self.inner.visible()
@@ -276,6 +399,38 @@ impl WelcomeWindow {
     /// Called when Try on an image is pressed, by pointer or keyboard.
     pub fn on_try(&self, f: impl Fn() + 'static) {
         *self.inner.on_try.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Applies the configured theme to the main window.
+    pub fn apply_theme(&self, theme: kawaro_core::config::Theme) {
+        let env = std::env::var("KAWARO_COLOR_SCHEME").ok();
+        if let Some(scheme) = crate::settings::forced_scheme(env.as_deref(), theme) {
+            self.inner
+                .ui
+                .borrow()
+                .global::<Palette>()
+                .set_color_scheme(scheme);
+        }
+    }
+
+    /// Whether the main window is showing its settings panel.
+    pub fn settings_visible(&self) -> bool {
+        self.inner.ui.borrow().get_show_settings()
+    }
+
+    /// Shows settings inside the existing window without replacing it.
+    pub fn show_settings(&self, config: &Config) {
+        *self.inner.settings_opened.borrow_mut() = config.clone();
+        let lang = config.lang();
+        self.inner.ui.borrow().set_settings_save_failed(false);
+        self.inner
+            .set_settings_state(&FormState::from_config(config, lang.rtl()), lang);
+        self.inner.ui.borrow().set_show_settings(true);
+    }
+
+    /// Called when embedded settings are saved.
+    pub fn on_settings_save(&self, f: impl Fn(Config) -> bool + 'static) {
+        *self.inner.on_settings_save.borrow_mut() = Some(Rc::new(f));
     }
 
     /// Called when Open Settings is pressed.
@@ -315,5 +470,101 @@ fn forced_scheme(env: Option<&str>) -> Option<slint::language::ColorScheme> {
         Some("light") => Some(ColorScheme::Light),
         Some("dark") => Some(ColorScheme::Dark),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod unified_tests {
+    use super::*;
+    use i_slint_backend_testing::{AccessibleRole, ElementHandle};
+    use kawaro_core::config::{LangSetting, OutputPlace};
+
+    #[test]
+    fn embedded_settings_switch_language_save_and_cancel_in_same_window() {
+        i_slint_backend_testing::init_no_event_loop();
+        let win = WelcomeWindow::new(Lang::En).unwrap();
+        let captions = Captions {
+            steps: std::array::from_fn(|_| "Step".to_owned()),
+        };
+        win.open(&captions, false).unwrap();
+        if std::env::var_os("KAWARO_COLOR_SCHEME").is_none() {
+            win.apply_theme(kawaro_core::config::Theme::Dark);
+            assert_eq!(
+                win.inner.ui.borrow().global::<Palette>().get_color_scheme(),
+                slint::language::ColorScheme::Dark
+            );
+            win.apply_theme(kawaro_core::config::Theme::Light);
+            assert_eq!(
+                win.inner.ui.borrow().global::<Palette>().get_color_scheme(),
+                slint::language::ColorScheme::Light
+            );
+        }
+        let original = win.inner.ui.borrow().window() as *const slint::Window;
+        let find_button = |label: &str| {
+            let ui = win.inner.ui.borrow();
+            ElementHandle::find_by_accessible_label(&*ui, label)
+                .find(|e| e.accessible_role() == Some(AccessibleRole::Button))
+                .unwrap()
+        };
+        let requested = Rc::new(Cell::new(0));
+        let count = requested.clone();
+        win.on_settings(move || count.set(count.get() + 1));
+        find_button("Settings").invoke_accessible_default_action();
+        assert_eq!(requested.get(), 1);
+        let saved = Rc::new(RefCell::new(Vec::new()));
+        let result = saved.clone();
+        win.on_settings_save(|_| false);
+        let config = Config {
+            output: OutputPlace::Subfolder,
+            ..Config::default()
+        };
+        win.show_settings(&config);
+        assert!(win.settings_visible());
+        find_button("Introduction").invoke_accessible_default_action();
+        assert!(!win.settings_visible());
+        find_button("Settings").invoke_accessible_default_action();
+        assert_eq!(requested.get(), 2);
+        win.show_settings(&config);
+        {
+            let ui = win.inner.ui.borrow();
+            ui.set_settings_folder("  unchanged  ".into());
+            ui.set_settings_notify_long_only(true);
+            ui.set_settings_language(1);
+        }
+        win.inner.settings_language_changed();
+        {
+            let ui = win.inner.ui.borrow();
+            assert!(ui.get_rtl());
+            assert_eq!(ui.get_settings_folder(), "  unchanged  ");
+            assert!(ui.get_settings_notify_long_only());
+            assert_eq!(ui.get_settings_output(), 0);
+            assert_eq!(ui.window() as *const slint::Window, original);
+        }
+        win.inner.save_settings();
+        assert!(win.settings_visible());
+        assert!(win.inner.ui.borrow().get_settings_save_failed());
+        assert_eq!(win.inner.ui.borrow().get_settings_folder(), "  unchanged  ");
+        win.on_settings_save(move |config| {
+            result.borrow_mut().push(config);
+            true
+        });
+        win.inner.save_settings();
+        assert!(!win.settings_visible());
+        assert_eq!(saved.borrow()[0].language, LangSetting::Ar);
+        assert_eq!(saved.borrow()[0].output, OutputPlace::Subfolder);
+        assert_eq!(saved.borrow()[0].output_folder, "unchanged");
+        assert!(saved.borrow()[0].notify_long_only);
+        win.show_settings(&config);
+        win.inner.ui.borrow().set_settings_language(1);
+        win.inner.settings_language_changed();
+        let ui = win.inner.ui.borrow();
+        ui.window()
+            .dispatch_event(slint::platform::WindowEvent::KeyPressed {
+                text: slint::platform::Key::Escape.into(),
+            });
+        drop(ui);
+        assert_eq!(saved.borrow().len(), 1);
+        assert!(!win.settings_visible());
+        win.close();
     }
 }

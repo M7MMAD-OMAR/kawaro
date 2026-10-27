@@ -135,7 +135,7 @@ On Windows the settings file is `%APPDATA%\Kawaro\config.toml`, your own
 actions go in `%APPDATA%\Kawaro\actions\*.toml`. The service log is
 `%LOCALAPPDATA%\Kawaro\logs\kawarod.log`.
 
-**Windows beta packages are unsigned.** The portable zip and the per-user MSI (S-051) carry no code signing certificate, so Windows SmartScreen shows "Windows protected your PC": click "More info", then "Run anyway". Compare the SHA-256 of the file you downloaded with the one on the release page before you run it. Neither package needs administrator rights, and neither is verified on a live Windows system yet (S-052).
+**Windows signing:** The 0.4.0 MSI and executables carry a self-signed test certificate, not a trusted publisher certificate. The portable ZIP contains the test-signed executables. Verify downloads against `SHA256SUMS`; Windows may show a SmartScreen warning. Neither package requires administrator rights.
 
 On Windows `kawaro open` starts the service, `kawarod.exe`, from the
 program folder when it is not running, and it is meant to keep running after
@@ -172,12 +172,13 @@ Kawaro is free and built in the open. If it helps you, you can support its devel
 
 <a href="https://sbarah.com/support"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/support-sbarah-dark.svg"><img src="docs/assets/support-sbarah-light.svg" alt="Support Sbarah" width="380"></picture></a>
 
+## Distribution status
+
+See [distribution status](docs/distribution-status.md) for pending WinGet, SignPath and Microsoft Store steps.
+
 ## Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org/).
-
-The Windows releases are signed with the SignPath Foundation certificate. The
-full policy, the team roles and the privacy statement:
+Kawaro has applied to the SignPath Foundation. Approval and trusted signing are pending; version 0.4.0 is test-signed. The full policy, team roles and privacy statement:
 [CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
 
 ## License

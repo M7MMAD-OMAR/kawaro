@@ -66,8 +66,12 @@ fn ac2_the_existing_settings_window_is_raised_not_reopened() {
     let end = s.find("pub fn quit").expect("quit follows open_settings");
     let body = &s[start..end];
     assert!(
-        body.contains("settings_window()"),
+        body.contains("welcome_window()"),
         "the window is created only when it does not exist yet (AC2): {body}"
+    );
+    assert!(
+        body.contains("settings_visible()"),
+        "a second click preserves the currently edited settings: {body}"
     );
     assert!(
         body.contains("is_visible"),

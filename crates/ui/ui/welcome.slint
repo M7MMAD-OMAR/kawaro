@@ -7,12 +7,13 @@ import { Tokens } from "tokens.slint";
 import { SbarMaterial } from "material-tokens.slint";
 import { MaterialPalette, MaterialWindow, FilledButton, TextButton } from "@material";
 import { Palette } from "std-widgets.slint";
+import { SettingsPanel, SettingsText } from "settings.slint";
 
 import "../fonts/IBMPlexSansArabic-Regular.otf";
 import "../fonts/IBMPlexSansArabic-Medium.otf";
 import "../fonts/IBMPlexSansArabic-SemiBold.otf";
 
-export { Tokens, Palette }
+export { Tokens, Palette, SettingsText }
 
 // Every visible string, filled from Rust in the window language.
 export struct WelcomeText {
@@ -116,9 +117,33 @@ export component WelcomeUi inherits MaterialWindow {
         : (root.dark ? root.frames-dp : root.frames-lp);
     out property <int> frame-count: root.frames.length;
 
+    in-out property <bool> choose-language: false;
+    in-out property <bool> language-save-failed: false;
+    callback select-language(bool);
     callback try-sample();
     callback open-settings();
     callback dismissed();
+
+    in-out property <bool> show-settings: false;
+    in-out property <SettingsText> settings-text <=> settings.text;
+    in-out property <[string]> settings-language-items <=> settings.language-items;
+    in-out property <[string]> settings-theme-items <=> settings.theme-items;
+    in-out property <[string]> settings-output-items <=> settings.output-items;
+    in-out property <[string]> settings-quality-items <=> settings.quality-items;
+    in-out property <int> settings-language <=> settings.language;
+    in-out property <int> settings-theme <=> settings.theme;
+    in-out property <int> settings-output <=> settings.output;
+    in-out property <int> settings-quality <=> settings.quality;
+    in-out property <string> settings-folder <=> settings.folder;
+    in-out property <bool> settings-notify <=> settings.notify;
+    in-out property <bool> settings-notify-long-only <=> settings.notify-long-only;
+    in-out property <bool> settings-open-folder <=> settings.open-folder;
+    in-out property <bool> settings-save-failed <=> settings.save-failed;
+    in-out property <int> settings-subfolder-index <=> settings.subfolder-index;
+    callback settings-save();
+    callback settings-cancel();
+    callback settings-language-selected();
+
 
     title: root.text.title;
     default-font-family: Tokens.font-family;
@@ -129,18 +154,81 @@ export component WelcomeUi inherits MaterialWindow {
         MaterialPalette.schemes = SbarMaterial.schemes;
     }
 
+    if !root.choose-language: HorizontalLayout {
+        y: 0;
+        height: (Tokens.space-6 + Tokens.space-5);
+        width: parent.width;
+        padding-left: Tokens.space-6;
+        padding-right: Tokens.space-6;
+        alignment: root.rtl ? end : start;
+        spacing: Tokens.space-2;
+        TextButton {
+            text: root.rtl ? "⌂ المقدمة" : "⌂ Introduction";
+            accessible-label: root.rtl ? "المقدمة" : "Introduction";
+            clicked => { root.settings-cancel(); }
+        }
+        TextButton {
+            text: root.rtl ? "⚙ الإعدادات" : "⚙ Settings";
+            accessible-label: root.rtl ? "الإعدادات" : "Settings";
+            clicked => { root.open-settings(); }
+        }
+    }
+
     // Esc anywhere closes the window; every other key goes on to the
     // focused control.
     keys := FocusScope {
+        y: root.choose-language ? Tokens.space-1 * 0 : (Tokens.space-6 + Tokens.space-5);
+        width: parent.width;
+        height: parent.height - self.y;
         key-pressed(event) => {
             if event.text == Key.Escape {
-                root.dismissed();
+                if root.show-settings { root.settings-cancel(); } else { root.dismissed(); }
                 return accept;
             }
             reject
         }
 
-        VerticalLayout {
+    settings := SettingsPanel {
+        width: parent.width;
+        height: parent.height;
+        visible: root.show-settings;
+        rtl: root.rtl;
+        save => { root.settings-save(); }
+        cancel => { root.settings-cancel(); }
+        language-selected => { root.settings-language-selected(); }
+    }
+
+
+        if root.choose-language && !root.show-settings: VerticalLayout {
+            padding: Tokens.space-6;
+            spacing: Tokens.space-4;
+            Text {
+                text: "Choose your language / اختر لغتك";
+                font-size: Tokens.font-title;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.text-primary;
+                wrap: word-wrap;
+            }
+            if root.language-save-failed: Text {
+                text: "Could not save. Please try again. / تعذر الحفظ، حاول مرة أخرى.";
+                color: Tokens.text-primary;
+                wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: Tokens.space-4;
+                FilledButton {
+                    text: "العربية";
+                    accessible-label: "العربية";
+                    clicked => { root.select-language(true); }
+                }
+                FilledButton {
+                    text: "English";
+                    accessible-label: "English";
+                    clicked => { root.select-language(false); }
+                }
+            }
+        }
+        if !root.choose-language && !root.show-settings: VerticalLayout {
             padding: Tokens.space-6;
             spacing: Tokens.space-4;
 

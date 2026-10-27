@@ -141,13 +141,16 @@ impl From<crate::queue::JobEvent> for Event {
                 tasks,
             },
             J::Progress { job, fraction } => Event::Progress { job, fraction },
-            J::TaskDone { job, output } => Event::TaskDone { job, output },
-            J::TaskFailed { job, input, error } => Event::TaskFailed { job, input, error },
+            J::TaskDone { job, output, .. } => Event::TaskDone { job, output },
+            J::TaskFailed {
+                job, input, error, ..
+            } => Event::TaskFailed { job, input, error },
             J::Finished {
                 job,
                 ok,
                 failed,
                 cancelled,
+                ..
             } => Event::Finished {
                 job,
                 ok,

@@ -2,23 +2,11 @@
 
 # Code signing policy
 
-Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org/).
-
-Windows releases of Kawaro (`kawaro.exe`, `kawarod.exe`, the portable zip and
-the MSI installer) are code signed by the SignPath Foundation certificate
-through [SignPath.io](https://about.signpath.io). This page is the code signing
-policy of the Kawaro project.
+Kawaro applied to the SignPath Foundation on 2026-10-27. Approval and trusted signing are pending. Version 0.4.0 uses a self-signed test certificate for its executables and MSI. The ZIP contains those executables and is not itself Authenticode signed. This page describes the intended signing policy.
 
 ## What is signed
 
-Only artifacts built from this repository's own source code are signed. The
-Windows job of `.github/workflows/packages.yml` builds `kawaro.exe` and
-`kawarod.exe` from the Rust workspace in this repository on a GitHub Actions
-runner, submits them to SignPath for signing before `make-zip.sh` packs them
-and `make-msi.sh` embeds them, signs the MSI the same way, and verifies every
-signed artifact before upload. No third party binaries are signed with this
-project's certificate. Every signing request requires a manual approval before
-the release is signed.
+Only artifacts built from this repository's own source code are eligible. The Windows job in `.github/workflows/packages.yml` is prepared to submit `kawaro.exe` and `kawarod.exe` to SignPath before packaging, and the MSI after packaging, once SignPath is approved and configured. Every SignPath request requires manual approval. No third-party binaries are signed.
 
 ## Team and code signing roles
 
@@ -31,9 +19,7 @@ member:
 | Reviewers (reviews changes proposed by people who are not committers) | Muhmad Omar Haj Hmdo |
 | Approvers (approves each signing request) | Muhmad Omar Haj Hmdo |
 
-Every signing request is approved by the Approver before any artifact is
-signed. All team members use multi-factor authentication on GitHub and on
-SignPath.
+Every SignPath request must be approved by the Approver. Before using SignPath, the maintainer must confirm multi-factor authentication on GitHub and SignPath.
 
 ## Privacy
 

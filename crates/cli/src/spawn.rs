@@ -75,10 +75,10 @@ pub fn daemon_binary_in(dir: &Path, suffix: &str) -> PathBuf {
 }
 
 /// The process the client lets take the foreground before sending `req`:
-/// the service, for the requests that show the hive (ADR 0005, section 5).
+/// the service, for requests that show a window (ADR 0005, section 5).
 pub fn foreground_grant(req: &Request, server_pid: Option<u32>) -> Option<u32> {
     match req {
-        Request::Open { .. } | Request::Drop { .. } => server_pid,
+        Request::Open { .. } | Request::Drop { .. } | Request::Settings => server_pid,
         _ => None,
     }
 }
@@ -284,7 +284,7 @@ mod tests {
             ),
             (Request::Actions { files: vec![] }, false),
             (Request::CancelAll, false),
-            (Request::Settings, false),
+            (Request::Settings, true),
             (Request::Reload, false),
             (Request::UpdateCheck, false),
             (Request::UpdateApply, false),
@@ -311,7 +311,7 @@ mod tests {
     }
 
     #[test]
-    fn ac5_open_and_drop_grant_the_server_pid_and_nothing_else_does() {
+    fn ac5_window_requests_grant_the_server_pid_and_nothing_else_does() {
         let reqs = every_request();
         assert_eq!(reqs.len(), 13);
         for (req, grants) in reqs {

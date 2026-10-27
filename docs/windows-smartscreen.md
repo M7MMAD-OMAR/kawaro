@@ -38,8 +38,7 @@ Every value must match. If a value differs, do not run the file.
 ## EV certificates
 
 An EV certificate does not remove the warning: under Microsoft's current
-guidance EV no longer bypasses SmartScreen. Kawaro uses an OV certificate and
-promises nothing about when the warning stops appearing.
+guidance EV no longer bypasses SmartScreen. Kawaro 0.4.0 uses a self-signed test certificate. A trusted signing certificate is not active yet, and no date can be promised for a warning to disappear.
 
 ## For the maintainer: one submission per release
 

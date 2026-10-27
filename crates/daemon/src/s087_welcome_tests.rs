@@ -148,13 +148,26 @@ fn ac1_save_welcome_seen_sets_only_the_marker_and_keeps_the_other_settings() {
     };
     c.output_folder = "Out".into();
     let state = state_with(c.clone());
-    ui::save_welcome_seen(&state, &p).unwrap();
-    assert!(state.lock().unwrap().config.welcome_seen);
+    ui::save_language_choice(&state, &p, kawaro_core::i18n::Lang::Ar).unwrap();
+    assert!(!state.lock().unwrap().config.welcome_seen);
     let (loaded, warn) = Config::load_from(&p);
     assert!(warn.is_none());
-    assert!(loaded.welcome_seen);
+    assert!(!loaded.welcome_seen);
+    assert_eq!(loaded.language, kawaro_core::config::LangSetting::Ar);
     assert_eq!(loaded.quality, c.quality);
     assert_eq!(loaded.output_folder, c.output_folder);
+}
+
+#[test]
+fn language_choice_does_not_change_state_if_save_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let original = Config::default();
+    let state = state_with(original.clone());
+    let result = ui::save_language_choice(&state, dir.path(), kawaro_core::i18n::Lang::En);
+    assert!(result.is_err());
+    let st = state.lock().unwrap();
+    assert_eq!(st.config, original);
+    assert_eq!(st.lang, original.lang());
 }
 
 #[test]

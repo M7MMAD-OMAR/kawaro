@@ -81,6 +81,9 @@ pub struct Config {
     pub open_folder_when_done: bool,
     /// Desktop notification when a job ends.
     pub notify: bool,
+    /// Limit job completion notifications to jobs lasting at least 10 seconds.
+    #[serde(default)]
+    pub notify_long_only: bool,
     /// Spelled with an underscore in the file, as S-019 AC1 writes it.
     #[serde(rename = "hive_surface")]
     pub hive_surface: HiveSurface,
@@ -141,6 +144,7 @@ impl PartialEq for Config {
             self.quality == o.quality,
             self.open_folder_when_done == o.open_folder_when_done,
             self.notify == o.notify,
+            self.notify_long_only == o.notify_long_only,
             self.hive_surface == o.hive_surface,
             self.hold_ms == o.hold_ms,
             self.portal_shortcut == o.portal_shortcut,
@@ -193,6 +197,7 @@ impl Default for Config {
             quality: Quality::Balanced,
             open_folder_when_done: false,
             notify: true,
+            notify_long_only: false,
             hive_surface: HiveSurface::Auto,
             hold_ms: HOLD_MS_DEFAULT,
             portal_shortcut: true,
@@ -336,6 +341,7 @@ mod tests {
         assert_eq!(c.quality, Quality::Max);
         assert_eq!(c.output, OutputPlace::Beside);
         assert!(c.notify);
+        assert!(!c.notify_long_only);
     }
 
     #[test]
@@ -356,6 +362,7 @@ mod tests {
             theme: Theme::Dark,
             output: OutputPlace::Subfolder,
             output_folder: "محوّل".into(),
+            notify_long_only: true,
             ..Config::default()
         };
         c.save_to(&p).unwrap();
