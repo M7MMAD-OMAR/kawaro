@@ -296,10 +296,14 @@ d6_start_shortcut_icon_and_cleanup () {
   sc="$(element "$WXS" Shortcut | grep -F 'Id="StartShortcut"')"
   check "D6: one StartShortcut element" test "$(printf '%s\n' "$sc" | grep -c .)" = 1
   check "D6: the Start shortcut keeps the ASCII name Kawaro" grep -qF 'Name="Kawaro"' <<<"$sc"
-  check "D6: the Start shortcut has Icon=\"StartIcon\"" grep -qF 'Icon="StartIcon"' <<<"$sc"
+  check "D6: the Start shortcut has Icon=\"kawaro.ico\"" grep -qF 'Icon="kawaro.ico"' <<<"$sc"
+  # D12: the MSI Icon table name must end in .ico or .exe, or the Start
+  # shortcut shows a blank icon.
+  check "D12: the icon name the Start shortcut references ends in .ico or .exe" \
+    bash -c 'grep -oE "\bIcon=\"[^\"]*\"" <<<"$1" | grep -qiE "\.(ico|exe)\"$"' _ "$sc"
   check "D6: the Start shortcut has an IconIndex" grep -qE 'IconIndex="[0-9]+"' <<<"$sc"
-  icon="$(element "$WXS" Icon | grep -F 'Id="StartIcon"')"
-  check "D6: one Icon element with Id=\"StartIcon\"" test "$(printf '%s\n' "$icon" | grep -c .)" = 1
+  icon="$(element "$WXS" Icon | grep -F 'Id="kawaro.ico"')"
+  check "D6: one Icon element with Id=\"kawaro.ico\"" test "$(printf '%s\n' "$icon" | grep -c .)" = 1
   check "D6: the Icon element reads SourceFile=\"\$(var.Ico)\" (wixl ignores Source)" grep -qF 'SourceFile="$(var.Ico)"' <<<"$icon"
   check "D6: the icon is required, no <?ifdef Ico?> block" bash -c '! grep -qF "<?ifdef Ico?>" "$1"' _ "$WXS"
   body="$(component_body "$WXS" StartMenuShortcut)"

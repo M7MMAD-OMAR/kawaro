@@ -273,13 +273,13 @@ ac6_files_and_start_menu_shortcut () {
   # S-085 AC2, D6: Shortcut columns 9 and 10 are Icon_ and IconIndex.
   row="$(table "$MSI" Shortcut | while IFS=$'\t' read -r _ _ name rest; do [ "$(base "$name")" = Kawaro ] && printf '%s\n' "$rest"; done | head -n 1)"
   icon="$(printf '%s\n' "$row" | cut -f6)"
-  assert_eq "S-085 AC2: the Kawaro shortcut references the icon StartIcon" "$icon" "StartIcon"
+  assert_eq "S-085 AC2: the Kawaro shortcut references the icon kawaro.ico" "$icon" "kawaro.ico"
   assert_eq "S-085 AC2: the Kawaro shortcut uses icon index 0" "$(printf '%s\n' "$row" | cut -f7)" "0"
   # msiinfo export writes the streams of a binary table into ./Icon, so it runs in $T.
-  assert_eq "S-085 AC2: one Icon table row for StartIcon" \
-    "$( (cd "$T" && table "$MSI" Icon) | awk -F'\t' '$1=="StartIcon"' | grep -c .)" "1"
+  assert_eq "S-085 AC2: one Icon table row for kawaro.ico" \
+    "$( (cd "$T" && table "$MSI" Icon) | awk -F'\t' '$1=="kawaro.ico"' | grep -c .)" "1"
   check "S-085 AC2: the Icon table data is design/brand/kawaro.ico byte for byte" \
-    bash -c 'msiinfo extract "$1" "Icon.StartIcon" 2>/dev/null | cmp -s - "$2"' _ "$MSI" "$ICO"
+    bash -c 'msiinfo extract "$1" "Icon.kawaro.ico" 2>/dev/null | cmp -s - "$2"' _ "$MSI" "$ICO"
   # S-085 D6: RemoveFile columns: FileKey, Component_, FileName, DirProperty,
   # InstallMode (2 is on uninstall, 3 is both).
   assert_eq "S-085 D6: StartMenuShortcut removes Kawaro*.lnk from ProgramMenuFolder on uninstall" \

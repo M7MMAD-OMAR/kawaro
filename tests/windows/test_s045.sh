@@ -42,9 +42,10 @@ out="$("$REPO/scripts/windows/check-dlls.sh" "$REL/kawarod.exe" 2>&1)"
 echo "$out" | grep -Eq '^dll check: ok kawarod\.exe [0-9]+ imports$' && ok "dll check" || fail "AC8: check-dlls said: $out"
 
 # AC9: Cargo.lock package count unchanged (baseline 672, 673 since S-053a adds minisign-verify), ui diff is lib.rs only.
+# S-085 adds winresource 0.1.34 (MIT, build dependency); toml and version_check were already locked, so 674.
 echo "== AC9: lock and ui"
 n="$(grep -c '^\[\[package\]\]' Cargo.lock)"
-[ "$n" = 673 ] && ok "lock 673" || fail "AC9: Cargo.lock has $n packages, baseline 673"
+[ "$n" = 674 ] && ok "lock 674" || fail "AC9: Cargo.lock has $n packages, baseline 674"
 git diff --name-only HEAD -- crates/ui | grep -vx 'crates/ui/src/lib.rs' | grep -q . \
   && fail "AC9: crates/ui changed outside lib.rs" || ok "ui diff"
 

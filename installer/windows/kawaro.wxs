@@ -17,7 +17,7 @@
              Description="Kawaro, a local file converter" />
     <Media Id="1" Cabinet="kawaro.cab" EmbedCab="yes" />
     <!-- The Start shortcut icon (S-085 D6). wixl reads SourceFile, not Source. -->
-    <Icon Id="StartIcon" SourceFile="$(var.Ico)" />
+    <Icon Id="kawaro.ico" SourceFile="$(var.Ico)" />
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of Kawaro is already installed." />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -67,7 +67,7 @@
       <Component Id="StartMenuShortcut" Guid="d4a7e0f5-6b82-4d93-9ea4-f50617283d94">
         <Shortcut Id="StartShortcut" Name="Kawaro" Description="Kawaro, a local file converter"
                   Target="[INSTALLDIR]kawarod.exe" WorkingDirectory="INSTALLDIR"
-                  Icon="StartIcon" IconIndex="0" />
+                  Icon="kawaro.ico" IconIndex="0" />
         <!-- The identity sync renames the shortcut (S-085 D6), so uninstall
              removes it by pattern. -->
         <RemoveFile Id="RemoveStartShortcuts" Name="Kawaro*.lnk" On="uninstall" />
