@@ -46,6 +46,8 @@ mod s049_notify_tests;
 #[cfg(test)]
 mod s067_tests;
 #[cfg(test)]
+mod s084_drag_tests;
+#[cfg(test)]
 mod server_tests;
 #[cfg(test)]
 mod shell_logic_tests;
