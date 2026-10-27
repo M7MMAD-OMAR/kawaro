@@ -172,6 +172,14 @@ Kawaro is free and built in the open. If it helps you, you can support its devel
 
 <a href="https://sbarah.com/support"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/support-sbarah-dark.svg"><img src="docs/assets/support-sbarah-light.svg" alt="Support Sbarah" width="380"></picture></a>
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org/).
+
+The Windows releases are signed with the SignPath Foundation certificate. The
+full policy, the team roles and the privacy statement:
+[CODE_SIGNING_POLICY.md](CODE_SIGNING_POLICY.md).
+
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
