@@ -55,6 +55,8 @@ jobs:
       - run: scripts/windows/check.sh
       - run: scripts/windows/build.sh
       - run: scripts/windows/check-dlls.sh "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release/kawaro.exe"
+      # S-085 AC1: the icon and version resources of both built exes.
+      - run: bash tests/windows/test_s085.sh "$CARGO_TARGET_DIR/x86_64-pc-windows-gnu/release"
 
   # Tests on real Windows (S-044). FFmpeg is installed because the FFmpeg
   # engine tests require it; the office and PDF engine tests skip themselves

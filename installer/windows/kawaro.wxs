@@ -2,8 +2,11 @@
 <!--
   Per-user Kawaro package for wixl (msitools), built by scripts/windows/make-msi.sh.
   Defines passed with -D: Version, Release (folder with the exes), Actions
-  (folder with the action TOML files), Ico (path of kawaro.ico, optional).
-  The registry rows must equal core registry::install_commands with INSTALLDIR,
+  (folder with the action TOML files), Ico (path of kawaro.ico, required).
+  Every string stays ASCII: wixl segfaults on anything else, so the daemon
+  applies the bilingual name after install (S-085 D1).
+  The registry rows must equal core registry::install_commands with INSTALLDIR
+  (its ASCII projection: DisplayName is Kawaro here, S-085 D2),
   so a test compares them (crates/core/tests/s051_msi_registry.rs).
   Never change UpgradeCode: it is how a newer package replaces an older one.
 -->
@@ -13,6 +16,8 @@
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser"
              Description="Kawaro, a local file converter" />
     <Media Id="1" Cabinet="kawaro.cab" EmbedCab="yes" />
+    <!-- The Start shortcut icon (S-085 D6). wixl reads SourceFile, not Source. -->
+    <Icon Id="StartIcon" SourceFile="$(var.Ico)" />
     <MajorUpgrade AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer version of Kawaro is already installed." />
 
     <Directory Id="TARGETDIR" Name="SourceDir">
@@ -30,9 +35,7 @@
       <Component Id="ProgramFiles" Guid="a1d4b7c2-3e5f-4a60-8b71-c2d3e4f50a61">
         <File Id="CliExe" Name="kawaro.exe" Source="$(var.Release)/kawaro.exe" KeyPath="yes" />
         <File Id="DaemonExe" Name="kawarod.exe" Source="$(var.Release)/kawarod.exe" />
-<?ifdef Ico?>
         <File Id="IconFile" Name="kawaro.ico" Source="$(var.Ico)" />
-<?endif?>
         <RemoveFile Id="RemoveLeftovers" Name="*" On="uninstall" />
       </Component>
     </DirectoryRef>
@@ -63,7 +66,11 @@
     <DirectoryRef Id="ProgramMenuFolder">
       <Component Id="StartMenuShortcut" Guid="d4a7e0f5-6b82-4d93-9ea4-f50617283d94">
         <Shortcut Id="StartShortcut" Name="Kawaro" Description="Kawaro, a local file converter"
-                  Target="[INSTALLDIR]kawarod.exe" WorkingDirectory="INSTALLDIR" />
+                  Target="[INSTALLDIR]kawarod.exe" WorkingDirectory="INSTALLDIR"
+                  Icon="StartIcon" IconIndex="0" />
+        <!-- The identity sync renames the shortcut (S-085 D6), so uninstall
+             removes it by pattern. -->
+        <RemoveFile Id="RemoveStartShortcuts" Name="Kawaro*.lnk" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\Kawaro" Name="StartMenu" Type="integer" Value="1" KeyPath="yes" />
       </Component>
     </DirectoryRef>

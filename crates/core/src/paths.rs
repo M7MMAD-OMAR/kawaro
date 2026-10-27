@@ -17,6 +17,8 @@ use std::path::PathBuf;
 mod windows;
 #[cfg(windows)]
 pub use windows::log_file;
+#[cfg(windows)]
+pub(crate) use windows::start_menu_programs;
 
 /// The platforms whose folders differ.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

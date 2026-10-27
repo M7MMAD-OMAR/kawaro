@@ -17,19 +17,13 @@ version="$(awk '/^\[workspace.package\]/{p=1;next} /^\[/{p=0} p && /^version *=/
 for f in "$rel/kawaro.exe" "$rel/kawarod.exe"; do
   [ -f "$f" ] || { echo "make-msi: missing $f, run scripts/windows/build.sh first" >&2; exit 2; }
 done
+ico="$root/design/brand/kawaro.ico"
+# The icon is required (S-085 D6): the Start shortcut and the menu use it.
+[ -f "$ico" ] || { echo "make-msi: missing $ico, the kawaro.ico icon is required" >&2; exit 2; }
 command -v wixl >/dev/null || { echo "make-msi: wixl not found, install msitools" >&2; exit 2; }
 mkdir -p "$target/dist"
 out="$target/dist/kawaro-$version-windows-x64.msi"
 rm -f "$out"
-defs=(-D "Version=${version%%[-+]*}" -D "Release=$rel" -D "Actions=$root/actions")
-# wixl has no <?ifdef?>, so the optional icon block is kept or cut here.
-wxs="$(mktemp "${TMPDIR:-/tmp}/kawaro-msi.XXXXXX")"
-trap 'rm -f -- "$wxs"' EXIT
-if [ -f "$root/design/brand/kawaro.ico" ]; then
-  defs+=(-D "Ico=$root/design/brand/kawaro.ico")
-  grep -v '^<?\(ifdef Ico\|endif\)?>$' "$root/installer/windows/kawaro.wxs" > "$wxs"
-else
-  sed '/^<?ifdef Ico?>$/,/^<?endif?>$/d' "$root/installer/windows/kawaro.wxs" > "$wxs"
-fi
-wixl -v -a x64 "${defs[@]}" -o "$out" "$wxs"
+defs=(-D "Version=${version%%[-+]*}" -D "Release=$rel" -D "Actions=$root/actions" -D "Ico=$ico")
+wixl -v -a x64 "${defs[@]}" -o "$out" "$root/installer/windows/kawaro.wxs"
 echo "$out"

@@ -36,7 +36,12 @@ pub fn install(dir: &str, lang: Lang) -> ExitCode {
         return ExitCode::FAILURE;
     }
     match registry::install_commands(dir, lang) {
-        Ok(commands) => run_all(&commands),
+        Ok(commands) => {
+            let code = run_all(&commands);
+            // S-085 D3: the bilingual Start shortcut and app name, best effort.
+            kawaro_core::identity::sync();
+            code
+        }
         Err(e) => {
             eprintln!("kawaro: {e}");
             ExitCode::FAILURE
