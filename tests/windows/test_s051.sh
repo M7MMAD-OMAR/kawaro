@@ -259,13 +259,22 @@ ac6_files_and_start_menu_shortcut () {
   for f in kawaro.exe kawarod.exe $ACTIONS; do
     assert_eq "AC6: File table lists $f once" "$(printf '%s\n' "$names" | grep -cxF "$f")" "1"
   done
-  local sc
+  local sc row
   sc="$(table "$MSI" Shortcut | while IFS=$'\t' read -r _ dir name _; do [ "$(base "$name")" = Kawaro ] && echo "$dir"; done)"
   assert_eq "AC6: exactly one shortcut named Kawaro" "$(printf '%s\n' "$sc" | grep -c .)" "1"
   if [ -n "$sc" ]; then
     assert_eq "AC6: the shortcut folder reaches ProgramMenuFolder" \
       "$(ancestors "$MSI" "$sc" | grep -cxF ProgramMenuFolder)" "1"
   fi
+  # S-086 AC2 (backlog/S-086-icon-opens-window.md): the Start entry runs
+  # `kawarod.exe settings`, so a click opens the window instead of the silent
+  # daemon mode of today. Checked on the built MSI's Shortcut table row, not
+  # on the source text. awk keeps the empty Arguments column, unlike read.
+  row="$(table "$MSI" Shortcut | awk -F'\t' '{n=$3; sub(/^.*\|/, "", n)} n=="Kawaro" {print $5 "\t" $6; exit}')"
+  assert_eq "AC6 (S-086): the shortcut target is [INSTALLDIR]kawarod.exe" \
+    "$(printf '%s\n' "$row" | cut -f1)" "[INSTALLDIR]kawarod.exe"
+  assert_eq "AC6 (S-086): the shortcut arguments are settings" \
+    "$(printf '%s\n' "$row" | cut -f2)" "settings"
 }
 
 ac7_docs_changelog_and_lint () {
