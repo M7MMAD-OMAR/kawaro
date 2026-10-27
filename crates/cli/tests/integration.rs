@@ -52,7 +52,8 @@ fn ac4_dry_run_with_dir_prints_six_reg_lines() {
     );
     assert_eq!(
         l[4],
-        format!("reg.exe add {AUMID} /v DisplayName /t REG_SZ /d Kawaro /f")
+        // S-085 AC3: the bilingual DisplayName, Latin part first.
+        format!("reg.exe add {AUMID} /v DisplayName /t REG_SZ /d Kawaro | كوارو /f")
     );
     assert_eq!(
         l[5],

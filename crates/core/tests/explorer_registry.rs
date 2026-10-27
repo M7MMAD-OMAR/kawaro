@@ -2,6 +2,8 @@
 //! pure `reg.exe` argument lists. `APP_ID` (S-049) and the icon (S-048) are
 //! not available yet, so the AppUserModelId is the literal string of the
 //! acceptance criteria and the icon is only a file name inside `dir`.
+//! S-085 AC3: the AUMID DisplayName is the fixed bilingual brand name in
+//! every language, while the menu verb stays localized.
 
 use kawaro_core::i18n::Lang;
 use kawaro_core::registry::{install_commands, missing_files, uninstall_commands};
@@ -11,6 +13,7 @@ const DIR: &str = r"C:\Users\u\AppData\Local\Programs\Kawaro";
 const SHELL: &str = r"HKCU\Software\Classes\*\shell\Kawaro";
 const CMD_KEY: &str = r"HKCU\Software\Classes\*\shell\Kawaro\command";
 const AUMID: &str = r"HKCU\Software\Classes\AppUserModelId\io.github.m7mmad_omar.Kawaro";
+const DISPLAY_NAME: &str = "Kawaro | كوارو";
 
 fn v(args: &[&str]) -> Vec<String> {
     args.iter().map(|s| s.to_string()).collect()
@@ -36,7 +39,7 @@ fn expected(verb: &str, dir: &str) -> Vec<Vec<String>> {
             &format!(r#""{dir}\kawarod.exe" open "%1""#),
             "/f",
         ]),
-        add_named(AUMID, "DisplayName", "Kawaro"),
+        add_named(AUMID, "DisplayName", DISPLAY_NAME),
         add_named(AUMID, "IconUri", &ico),
     ]
 }
