@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+- WinGet package submission ([S-078](https://github.com/M7MMAD-OMAR/kawaro)): the 0.4.0 manifests are open for review at [microsoft/winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) with the version, installer, English locale and Arabic locale files, the published MSI URL and SHA-256, the per-user scope and the real product code; all twelve automated checks pass, `winget validate --manifest` exits 0, and `winget install --manifest` completes silently on Windows 11 and reports `kawaro 0.4.0`; the package identifier is `Sbarah.Kawaro`, the merge still waits for one approving review from a Microsoft moderator, and the MSI keeps its self-signed test certificate, so nothing here claims a trusted publisher signature. «رزمة WinGet: ملفات النسخة 0.4.0 مفتوحة للمراجعة في [microsoft/winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) بملفات النسخة والمثبّت وملفَّي اللغة الإنجليزية والعربية، ورابط حزمة MSI المنشورة وبصمتها، والنطاق لكل مستخدم ومعرّف المنتج الحقيقي؛ تجتاز الفحوص الآلية الاثنتي عشرة كلها، ويخرج `winget validate --manifest` بالرمز 0، و`winget install --manifest` ينتهي بصمت على ويندوز 11 ويبلّغ `kawaro 0.4.0`؛ ومعرّف الحزمة `Sbarah.Kawaro`، ولا يزال الدمج ينتظر موافقةَ مشرف من مايكروسوفت واحدة، وتحتفظ حزمة MSI بشهادة الاختبار ذاتية التوقيع، فلا شيء هنا يدّعي توقيع ناشر موثوق».
+
 ## [0.4.0] - 2026-10-27 «التحديث وويندوز»
 
 ### Added
