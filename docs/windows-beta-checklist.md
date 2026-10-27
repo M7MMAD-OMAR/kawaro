@@ -14,8 +14,8 @@ The owner runs every step below on a real Windows machine, in order, and marks e
 ## Steps
 
 W01 Install packages
-Do: Download `kawaro-<version>-windows-x64.zip` and `kawaro-<version>-windows-x64.msi` with `SHA256SUMS` from the release page and verify both with certutil -hashfile (or Get-FileHash) against SHA256SUMS, run the per-user MSI and pass SmartScreen with More info then Run anyway, let the daemon start once after install (it renames the Start shortcut and sets the app name), then open the Start menu entry and search Start for Kawaro.
-Expect: The hashes match SHA256SUMS for both files; the unsigned per-user MSI installs without elevation; right after install the Start menu entry shows the cactus icon, and after the daemon sync it shows the cactus icon with the name Kawaro | كوارو (Latin part first) in Start and in Start search.
+Do: Download `kawaro-<version>-windows-x64.zip` and `kawaro-<version>-windows-x64.msi` with `SHA256SUMS` from the release page and verify both with certutil -hashfile (or Get-FileHash) against SHA256SUMS, run the per-user MSI and pass SmartScreen with More info then Run anyway, let the daemon start once after install (it renames the Start shortcut and sets the app name), then click the Kawaro entry in the Start menu (it runs `kawarod.exe settings`) and time the click until its window is visible, then click the same entry nine more times and count the Kawaro windows and the kawarod.exe processes in Task Manager or with `tasklist /FI "IMAGENAME eq kawarod.exe"`.
+Expect: The hashes match SHA256SUMS for both files; the unsigned per-user MSI installs without elevation; right after install the Start menu entry shows the cactus icon, and after the daemon sync it shows the cactus icon with the name Kawaro | كوارو (Latin part first) in Start and in Start search; the click opens one Kawaro window within 1 s (cold start included) with no console window appearing or flashing, the second click brings that same window back instead of opening a second one, and after ten clicks exactly one Kawaro window and one kawarod.exe process remain.
 Result: PASS | FAIL
 
 W02 Portable integration

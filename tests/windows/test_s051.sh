@@ -284,8 +284,16 @@ ac6_files_and_start_menu_shortcut () {
   # InstallMode (2 is on uninstall, 3 is both).
   assert_eq "S-085 D6: StartMenuShortcut removes Kawaro*.lnk from ProgramMenuFolder on uninstall" \
     "$(table "$MSI" RemoveFile | awk -F'\t' '$2=="StartMenuShortcut" && $3=="Kawaro*.lnk" && $4=="ProgramMenuFolder" && ($5=="2" || $5=="3")' | grep -c .)" "1"
+  # S-086 AC2 (backlog/S-086-icon-opens-window.md): the Start entry runs
+  # `kawarod.exe settings`, so a click opens the window instead of the silent
+  # daemon mode of today. Checked on the built MSI's Shortcut table row, not
+  # on the source text. awk keeps the empty Arguments column, unlike read.
+  row="$(table "$MSI" Shortcut | awk -F'\t' '{n=$3; sub(/^.*\|/, "", n)} n=="Kawaro" {print $5 "\t" $6; exit}')"
+  assert_eq "AC6 (S-086): the shortcut target is [INSTALLDIR]kawarod.exe" \
+    "$(printf '%s\n' "$row" | cut -f1)" "[INSTALLDIR]kawarod.exe"
+  assert_eq "AC6 (S-086): the shortcut arguments are settings" \
+    "$(printf '%s\n' "$row" | cut -f2)" "settings"
 }
-
 # S-085 D6: the icon is a required build input. A copy of the MSI inputs in a
 # root without design/brand/kawaro.ico must exit 2 and name the icon.
 d6_msi_needs_the_icon () {

@@ -301,6 +301,19 @@ impl SettingsWindow {
         inner.ui.borrow().show()
     }
 
+    /// Whether the window is currently shown (S-086 AC2): an open window is
+    /// raised, never rebuilt.
+    pub fn is_visible(&self) -> bool {
+        self.inner.visible()
+    }
+
+    /// The native handle of the shown window, for the foreground call
+    /// (S-086 AC2).
+    #[cfg(windows)]
+    pub fn hwnd(&self) -> Option<isize> {
+        crate::win_window::hwnd(self.inner.ui.borrow().window())
+    }
+
     /// Called with the edited settings when Save is pressed, before the
     /// window closes. Cancel, Esc and the window close button do not call it.
     pub fn on_save(&self, f: impl Fn(Config) + 'static) {

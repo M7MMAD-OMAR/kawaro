@@ -355,21 +355,62 @@ fn gate_hive_closed() {
     });
 }
 
+/// Counts `open_settings` calls (S-086 AC1): the routing test proves
+/// `Request::Settings` reaches this function, whose window work is posted to
+/// an event loop no test owns.
+#[cfg(test)]
+pub fn settings_opens() -> u32 {
+    SETTINGS_OPENS.with(|c| c.get())
+}
+
+#[cfg(test)]
+thread_local! {
+    static SETTINGS_OPENS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+}
+
 pub fn open_settings(config: Config) {
+    // S-086 AC1: counted before the post, so the routing test sees it
+    // without running the event loop.
+    #[cfg(test)]
+    SETTINGS_OPENS.with(|c| c.set(c.get() + 1));
     let _ = slint::invoke_from_event_loop(move || {
         if let Err(e) = settings_window() {
             eprintln!("kawarod: cannot create settings: {e}");
             return;
         }
         SETTINGS.with(|s| {
-            if let Some(w) = s.borrow().as_ref()
+            let slot = s.borrow();
+            let Some(w) = slot.as_ref() else {
+                return;
+            };
+            // S-086 AC2: an already open window is raised, never rebuilt, so
+            // a second click re-focuses the same window instead of opening
+            // another one.
+            if !w.is_visible()
                 && let Err(e) = w.open(&config)
             {
                 eprintln!("kawarod: cannot open settings: {e}");
+                return;
             }
+            raise_settings(w);
         })
     });
 }
+
+/// Takes the foreground for the shown settings window (S-086 AC2): the
+/// Windows foreground path the hive uses for `open`, so a Start click cannot
+/// leave the window behind other windows.
+#[cfg(windows)]
+fn raise_settings(w: &SettingsWindow) {
+    if let Some(hwnd) = w.hwnd() {
+        crate::shell_open::foreground(hwnd);
+    }
+}
+
+/// Nothing outside Windows: Slint exposes no raise and Wayland forbids
+/// foreign raises (S-086 AC2).
+#[cfg(not(windows))]
+fn raise_settings(_w: &SettingsWindow) {}
 
 pub fn quit() {
     let _ = slint::invoke_from_event_loop(|| {

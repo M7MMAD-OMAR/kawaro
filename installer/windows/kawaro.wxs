@@ -65,8 +65,10 @@
 
     <DirectoryRef Id="ProgramMenuFolder">
       <Component Id="StartMenuShortcut" Guid="d4a7e0f5-6b82-4d93-9ea4-f50617283d94">
+        <!-- S-086 AC2: `settings`, so a click opens the Settings window
+             instead of exiting as the already running silent daemon. -->
         <Shortcut Id="StartShortcut" Name="Kawaro" Description="Kawaro, a local file converter"
-                  Target="[INSTALLDIR]kawarod.exe" WorkingDirectory="INSTALLDIR"
+                  Target="[INSTALLDIR]kawarod.exe" Arguments="settings" WorkingDirectory="INSTALLDIR"
                   Icon="kawaro.ico" IconIndex="0" />
         <!-- The identity sync renames the shortcut (S-085 D6), so uninstall
              removes it by pattern. -->
