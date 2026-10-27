@@ -86,7 +86,10 @@ fn ac3_the_drag_button_is_the_secondary_button_with_the_swapped_mapping() {
 fn ac2_the_s021_rule_accepts_the_right_drag_trigger_as_a_real_drag() {
     // The trigger state the caller passes is the chosen mechanism's: the
     // drag button down. Without it no drop request shows a hive.
-    assert!(!drop_refused(true, true), "a drag in progress shows the hive");
+    assert!(
+        !drop_refused(true, true),
+        "a drag in progress shows the hive"
+    );
     assert!(drop_refused(true, false), "no drag, no hive");
     assert!(!drop_refused(false, false), "not a drop request");
 }

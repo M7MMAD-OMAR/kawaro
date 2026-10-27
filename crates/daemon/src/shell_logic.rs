@@ -134,3 +134,73 @@ pub fn shortcut_error_line(s: &str, ok: bool) -> Option<String> {
 pub fn primary_button_vk(swapped: bool) -> i32 {
     if swapped { 0x02 } else { 0x01 }
 }
+
+/// The virtual key of the S-084 drag trigger (the manager decision D3): the
+/// secondary button, whose drag shows the shell's own "Copy here / Move here
+/// / Create shortcuts here" menu, `VK_RBUTTON`, or `VK_LBUTTON` when the
+/// user swapped the buttons (`SM_SWAPBUTTON`). The mapping stays in the
+/// caller, as the primary mapping does.
+pub fn drag_button_vk(swapped: bool) -> i32 {
+    if swapped { 0x01 } else { 0x02 }
+}
+
+/// What one poll of the S-084 drag watch found (the manager decision D8).
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum DragPoll {
+    /// Nothing to report: no button down, or a drag already reported.
+    Idle,
+    /// The button went up before the drag threshold: a press, never a drag.
+    PressOnly,
+    /// The pointer reached the drag threshold with the button held: the drag
+    /// has started. Reported once per drag.
+    Started,
+    /// The button went up after the drag had started: the drag ended.
+    Ended,
+}
+
+/// Follows the S-084 drag trigger (the manager decisions D3 and D8): the
+/// right-button drag. The trigger moment is the drag start, that is the
+/// button held and the pointer moved at least the system drag threshold
+/// (`SM_CXDRAG`, `SM_CYDRAG`) from the press point; a momentary press never
+/// shows the hive, and there is no hold threshold at all: `tick` takes no
+/// clock. Pure; the Win32 polling is `shell.rs`.
+#[derive(Default)]
+pub struct DragWatch {
+    /// The press point of the button that is down, and whether its drag has
+    /// started.
+    press: Option<((i32, i32), bool)>,
+}
+
+impl DragWatch {
+    /// One poll: the button state, the pointer position in global pixels and
+    /// the system drag threshold `(SM_CXDRAG, SM_CYDRAG)`.
+    pub fn tick(&mut self, down: bool, at: (i32, i32), threshold: (i32, i32)) -> DragPoll {
+        match (self.press, down) {
+            (None, false) => DragPoll::Idle,
+            (None, true) => {
+                self.press = Some((at, false));
+                DragPoll::Idle
+            }
+            (Some(_), false) => {
+                let started = self.press.take().is_some_and(|(_, s)| s);
+                if started {
+                    DragPoll::Ended
+                } else {
+                    DragPoll::PressOnly
+                }
+            }
+            (Some((from, started)), true) => {
+                if started {
+                    DragPoll::Idle
+                } else if (at.0 - from.0).abs() >= threshold.0
+                    || (at.1 - from.1).abs() >= threshold.1
+                {
+                    self.press = Some((from, true));
+                    DragPoll::Started
+                } else {
+                    DragPoll::Idle
+                }
+            }
+        }
+    }
+}

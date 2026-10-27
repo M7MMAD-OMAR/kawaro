@@ -12,4 +12,4 @@ Hold **Super+Z** while dragging files and the hive appears. Let go and it closes
 
 ## Windows
 
-**Ctrl+Alt+H** shows the hive. Change it with `shortcut` in [settings](settings.md). The drop hive is not in the beta yet.
+Drag a file with the right mouse button and the hive opens during the drag, at the dragged file. Drop it on the cell of the action you want. No key is held while you drag, so Explorer keeps its own drag behavior: a drop outside the hive copies, moves or creates shortcuts as it always does, and the original file is never touched. A short right click shows nothing.

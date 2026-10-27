@@ -16,7 +16,8 @@
 | `hive_surface` | `auto` و`layer` و`window` | `auto` |
 | `hold_ms` | من 100 إلى 2000 (بالميلي ثانية) | `400` |
 | `portal_shortcut` | `true` و`false` | `true` |
-| `shortcut` | اختصار ويندوز | `Ctrl+Alt+H` |
+| `shortcut` | اختصار ويندوز، ملاذ داخلي فقط؛ الاستمرار بالضغط على هذا الاختصار يغيّر ما يفعله Explorer مع السحب | `Ctrl+Alt+H` |
+| `drop_key` | مفتاح السحب المختار في الإعدادات | السحب بزر الفأرة الأيمن على ويندوز، و`Alt` على لينكس |
 | `update_check` | `true` و`false` | `true` |
 | `update_channel` | `stable` و`beta` | `stable` (و`beta` في نسخة بيتا) |
 | `update_mode` | `ask` و`auto` | `ask` |

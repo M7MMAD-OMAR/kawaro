@@ -99,6 +99,13 @@ pub struct Config {
     /// The global shortcut that opens the hive on Windows (S-048), as
     /// `hotkey::parse` reads it.
     pub shortcut: String,
+    /// The drag key of the settings picker (S-076). Resolved by
+    /// [`crate::drop_key::resolve`] (S-084 D1 and D6): a missing key is the
+    /// platform default and a stored Alt on Windows re-resolves to the
+    /// Windows default on read, with no migration write. Spelled with an
+    /// underscore, as `hold_ms` is; written only when the user chose one.
+    #[serde(rename = "drop_key", default, skip_serializing_if = "Option::is_none")]
+    pub drop_key: Option<String>,
     /// Check for updates in the background (S-053a). A manual check ignores it.
     #[serde(rename = "update_check")]
     pub update_check: bool,
@@ -131,6 +138,7 @@ impl PartialEq for Config {
             self.hold_ms == o.hold_ms,
             self.portal_shortcut == o.portal_shortcut,
             self.shortcut == o.shortcut,
+            self.drop_key == o.drop_key,
             self.update_check == o.update_check,
             self.update_channel == o.update_channel,
             self.update_mode == o.update_mode,
@@ -175,6 +183,7 @@ impl Default for Config {
             hold_ms: HOLD_MS_DEFAULT,
             portal_shortcut: true,
             shortcut: "Ctrl+Alt+H".into(),
+            drop_key: None,
             update_check: true,
             update_channel: Channel::Stable,
             update_mode: UpdateMode::Ask,

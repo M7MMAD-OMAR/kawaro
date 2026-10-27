@@ -37,7 +37,10 @@ fn ac4_a_fresh_windows_config_uses_the_right_drag_trigger_and_never_alt() {
         DropTrigger::Key("Alt".into()),
         "Alt is never the Windows default"
     );
-    assert_eq!(drop_key::resolve(None, false), DropTrigger::Key("Alt".into()));
+    assert_eq!(
+        drop_key::resolve(None, false),
+        DropTrigger::Key("Alt".into())
+    );
 }
 
 #[test]
@@ -54,14 +57,22 @@ fn ac4_a_stale_alt_drop_key_re_resolves_to_the_windows_default_on_read() {
 #[test]
 fn ac4_a_stored_drop_key_is_read_from_the_file() {
     let c = load("drop_key = \"Alt\"\n");
-    assert_eq!(c.drop_key.as_deref(), Some("Alt"), "the key is read, not dropped");
+    assert_eq!(
+        c.drop_key.as_deref(),
+        Some("Alt"),
+        "the key is read, not dropped"
+    );
     assert_eq!(
         drop_key::resolve(c.drop_key.as_deref(), true),
         DropTrigger::RightDrag
     );
     let missing = load("hold_ms = 500\n");
     assert_eq!(missing.drop_key, None, "a missing key stays missing");
-    assert_eq!(Config::default().drop_key, None, "a fresh config has no key");
+    assert_eq!(
+        Config::default().drop_key,
+        None,
+        "a fresh config has no key"
+    );
 }
 
 #[test]
@@ -132,7 +143,10 @@ fn ac4_capture_refuses_the_explorer_drag_modifiers_on_windows() {
         drop_key::check_capture("super+z", true),
         Ok("Super+Z".to_string())
     );
-    assert_eq!(drop_key::check_capture("Win+F9", true), Ok("Super+F9".to_string()));
+    assert_eq!(
+        drop_key::check_capture("Win+F9", true),
+        Ok("Super+F9".to_string())
+    );
 }
 
 #[test]
@@ -188,7 +202,12 @@ fn ac3_the_key_hold_trigger_reuses_the_s019e_gate_with_hold_ms() {
     let mut gate = Gate::new(|| 400);
     let press = Instant::now();
     assert_eq!(
-        gate.signal(Signal::Hold { at: Some((320.0, 240.0)) }, press),
+        gate.signal(
+            Signal::Hold {
+                at: Some((320.0, 240.0))
+            },
+            press
+        ),
         None,
         "no show at the press"
     );

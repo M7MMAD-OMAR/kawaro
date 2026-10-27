@@ -7,6 +7,7 @@ pub mod action;
 mod action_impl;
 pub mod appid;
 pub mod config;
+pub mod drop_key;
 pub mod engine;
 pub mod hold;
 pub mod hotkey;

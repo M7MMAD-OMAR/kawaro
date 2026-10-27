@@ -357,13 +357,15 @@ mod tests {
         all
     }
 
-    /// Built by assignment on `Config::default()`, never by an exhaustive
-    /// struct literal (S-084 tester repair): a literal would break the whole
-    /// test module the day a hidden setting is added to `Config`. The values
-    /// stay the complete non-default set.
+    /// Built as a literal on `Config::default()` with assignments after it
+    /// (S-084 tester repair): an exhaustive struct literal would break the
+    /// whole test module the day a hidden setting is added to `Config`. The
+    /// values stay the complete non-default set.
     fn non_default_config(language: LangSetting) -> Config {
-        let mut c = Config::default();
-        c.language = language;
+        let mut c = Config {
+            language,
+            ..Config::default()
+        };
         c.theme = Theme::Dark;
         c.output = OutputPlace::Subfolder;
         c.output_folder = "Chosen results".into();

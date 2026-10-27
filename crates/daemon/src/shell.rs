@@ -6,8 +6,8 @@
 //! S-052; the decisions are in `shell_logic.rs` and `core::hotkey`.
 
 use crate::shell_logic::{
-    Command, HoldPoll, POLL_MS, Poll, fit_tip, menu_right_to_left, primary_button_vk,
-    shortcut_error_line, tooltip,
+    Command, DragPoll, DragWatch, HoldPoll, POLL_MS, Poll, drag_button_vk, fit_tip,
+    menu_right_to_left, primary_button_vk, shortcut_error_line, tooltip,
 };
 use crate::state::{Shared, lock};
 use crate::tray::windows::{self as tray, WM_REFRESH};
@@ -18,7 +18,7 @@ use kawaro_core::{hold, win::wide};
 use std::cell::{OnceCell, RefCell};
 use std::sync::Arc;
 use std::time::Instant;
-use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
+use windows_sys::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, MOD_NOREPEAT, RegisterHotKey, UnregisterHotKey,
@@ -28,14 +28,16 @@ use windows_sys::Win32::UI::Shell::{
     Shell_NotifyIconW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyWindow, DispatchMessageW, GetMessageW,
-    GetSystemMetrics, HICON, KillTimer, MSG, PostQuitMessage, RegisterClassExW,
-    RegisterWindowMessageW, SM_SWAPBUTTON, SetTimer, TranslateMessage, WM_CLOSE, WM_DESTROY,
-    WM_HOTKEY, WM_RBUTTONUP, WM_TIMER, WNDCLASSEXW,
+    CreateWindowExW, DefWindowProcW, DestroyIcon, DestroyWindow, DispatchMessageW, GetCursorPos,
+    GetMessageW, GetSystemMetrics, HICON, KillTimer, MSG, PostQuitMessage, RegisterClassExW,
+    RegisterWindowMessageW, SM_CXDRAG, SM_CYDRAG, SM_SWAPBUTTON, SetTimer, TranslateMessage,
+    WM_CLOSE, WM_DESTROY, WM_HOTKEY, WM_RBUTTONUP, WM_TIMER, WNDCLASSEXW,
 };
 
 const HOTKEY_ID: i32 = 1;
 const TIMER_ID: usize = 1;
+/// The S-084 drag watch (the manager decision D8) polls on its own timer.
+const WATCH_ID: usize = 2;
 
 /// What the window procedure needs; set once, before the first message.
 struct Ctx {
@@ -50,6 +52,8 @@ thread_local! {
     /// The tray icon, loaded once: handle and whether we must destroy it.
     static ICON: OnceCell<(HICON, bool)> = const { OnceCell::new() };
     static HOLD: RefCell<HoldPoll> = RefCell::new(HoldPoll::default());
+    /// The S-084 drag watch (the manager decisions D3 and D8).
+    static WATCH: RefCell<DragWatch> = RefCell::new(DragWatch::default());
 }
 
 /// True while the primary mouse button is held, with the buttons swapped or
@@ -57,6 +61,14 @@ thread_local! {
 pub fn primary_button_down() -> bool {
     let swapped = unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0;
     let state = unsafe { GetAsyncKeyState(primary_button_vk(swapped)) };
+    state < 0
+}
+
+/// True while the S-084 drag button is held (the manager decision D3): the
+/// secondary button, mapped through `SM_SWAPBUTTON` like the primary.
+pub fn drag_button_down() -> bool {
+    let swapped = unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0;
+    let state = unsafe { GetAsyncKeyState(drag_button_vk(swapped)) };
     state < 0
 }
 
@@ -119,6 +131,10 @@ fn run(queue: Arc<Queue>, state: Shared, ready: std::sync::mpsc::Sender<Result<i
         }
         notify_icon(hwnd, NIM_ADD);
         register_shortcut(hwnd, &shortcut, parsed);
+        // The S-084 drag watch (the manager decision D8) polls from the
+        // start: the trigger is the drag itself, so there is no press that
+        // could start it later.
+        SetTimer(hwnd, WATCH_ID, POLL_MS as u32, None);
         let _ = ready.send(Ok(hwnd as isize));
         let mut msg: MSG = std::mem::zeroed();
         while GetMessageW(&mut msg, std::ptr::null_mut(), 0, 0) > 0 {
@@ -182,6 +198,7 @@ unsafe extern "system" fn window_proc(
             HOLD.with(|h| h.borrow_mut().press());
             unsafe { SetTimer(hwnd, TIMER_ID, POLL_MS as u32, None) };
         }
+        WM_TIMER if wparam == WATCH_ID => watch_tick(),
         WM_TIMER if wparam == TIMER_ID => {
             let down = unsafe { GetAsyncKeyState(vk) } as u16 & 0x8000 != 0;
             match HOLD.with(|h| h.borrow_mut().tick(down)) {
@@ -218,6 +235,28 @@ fn signal(req: &Request) {
     let state = CTX.with(|c| c.get().map(|c| c.state.clone()));
     if let (Some(s), Some(state)) = (hold::from_request(req), state) {
         crate::ui::hold_signal(s, None, Instant::now(), state);
+    }
+}
+
+/// One poll of the S-084 drag watch (the manager decisions D3 and D8): the
+/// hive shows at the drag start of the right-button drag, past the system
+/// drag threshold, and never at a momentary press. The drag's own OLE drop
+/// and cancel events close the hive again; the live check is S-052.
+fn watch_tick() {
+    let swapped = unsafe { GetSystemMetrics(SM_SWAPBUTTON) } != 0;
+    let down = unsafe { GetAsyncKeyState(drag_button_vk(swapped)) } < 0;
+    let at = if down {
+        let mut p = POINT { x: 0, y: 0 };
+        unsafe { GetCursorPos(&mut p) };
+        (p.x, p.y)
+    } else {
+        (0, 0)
+    };
+    let threshold = unsafe { (GetSystemMetrics(SM_CXDRAG), GetSystemMetrics(SM_CYDRAG)) };
+    let poll = WATCH.with(|w| w.borrow_mut().tick(down, at, threshold));
+    if poll == DragPoll::Started {
+        let at = (f64::from(at.0), f64::from(at.1));
+        crate::ui::present_drop(crate::text::drop_waiting(tray::lang()), None, Some(at));
     }
 }
 

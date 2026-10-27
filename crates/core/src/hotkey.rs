@@ -57,7 +57,7 @@ pub fn parse(s: &str) -> Result<Hotkey, String> {
     Ok(Hotkey { mods, vk })
 }
 
-fn key_code(key: &str) -> Option<u32> {
+pub(crate) fn key_code(key: &str) -> Option<u32> {
     let upper = key.to_ascii_uppercase();
     let mut chars = upper.chars();
     match (chars.next()?, chars.as_str()) {
