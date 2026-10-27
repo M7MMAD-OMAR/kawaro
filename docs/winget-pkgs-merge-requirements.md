@@ -23,6 +23,37 @@ someone with Write/Admin permission on `microsoft/winget-pkgs`. The repo's own r
 only *enables* auto-merge when `Validation-Completed` is present: auto-merge then waits for the
 required approval.
 
+### Where the approval is actually given
+
+Not on the pull request page of the contributor, and not by the author. The author cannot approve
+their own pull request, and cannot request a review either: the API refuses with `404 Not Found`,
+because requesting a reviewer needs write access to the target repository. The approval comes from
+somebody else entirely:
+
+1. A moderator opens `microsoft/winget-pkgs`, finds the pull request, and writes an **Approve**
+   review. That review is what satisfies `required_approving_review_count: 1`.
+2. The `moderatorTriggers.yml` policy turns that review into the `Moderator-Approved` label.
+3. The auto-merge policy, already armed by `Validation-Completed`, squashes the pull request into
+   `master` and the publish pipeline runs. The package then reaches the community source within
+   about an hour.
+
+The two red markers in the pull request sidebar, "Review required" and "Merging is blocked", are
+this single gate shown twice. They are not a failure and not something the author can clear.
+
+Who reviews: the moderators are the administrators and community moderators listed in
+`doc/Moderation.md`. In the 30 days measured on 2026-10-27, every one of the last 40 merged pull
+requests was approved by the same person, `stephengillie`. For an infrequent contributor the
+documented route is a GitHub @mention: the guide says to check the recently closed pull requests
+labelled `Moderator-Approved` to see who is active, to mention **at most two** moderators at a
+time, and to say plainly what is being asked for. A `Policy-*`, `Validation-Domain` or
+`Validation-Executable-Error` label needs an administrator, and a community moderator cannot
+advance that.
+
+The wait is real: the median of the last 100 merged `New-Package` pull requests was 563 hours
+(about 23 days) from creation to merge, and only 8 of the 100 merged within a day. The queue of
+`New-Package` pull requests with `Validation-Completed` and no moderator decision held 2638 entries
+on 2026-10-27, and this one was the 977th from the oldest end.
+
 ---
 
 ## 1. The `New-Package` label flow
@@ -402,6 +433,11 @@ winget install --id Sbarah.Kawaro --version 0.4.0 --exact
   no `AppsAndFeaturesEntries` is needed now. **If a later release writes a different `DisplayVersion`,
   every manifest in the package must carry `AppsAndFeaturesEntries.DisplayVersion`**, including 0.4.0,
   or step 06 will reject the next version with `Manifest-AppsAndFeaturesVersion-Error`.
+- The mixed set is the silent failure: some manifests carry the field and others do not, the catalog
+  cannot map the installed version to an available one, and the user sees an upgrade loop where the
+  available version is lower than the latest `PackageVersion`. `scripts/release/check-winget-versions.sh`
+  refuses a mixed set, and `tests/release/s078_winget_versions.sh` covers it against a real MSI built
+  with wixl.
 - `winget list` / `winget upgrade` correlate the installed app to the manifest by
   **PackageName + Publisher** (fuzzy, `WordsEditDistanceMatchConfidenceAlgorithm` in
   `src/AppInstallerRepositoryCore/ARPCorrelationAlgorithms.cpp`) and by **ProductCode /
