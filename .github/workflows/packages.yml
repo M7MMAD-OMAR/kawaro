@@ -71,10 +71,15 @@ jobs:
   # signed before make-zip.sh packs them and before make-msi.sh embeds them,
   # the MSI is signed before upload, every signature carries an RFC 3161
   # timestamp, and the job verifies every signed artifact before it is
-  # uploaded. A workflow_dispatch run skips the signing steps with a notice
-  # and uploads unsigned artifacts; a tag build without a certificate fails
-  # loudly. osslsigncode comes from Fedora's repositories in the same
-  # container as wixl, the toolchain the tests dry-run against.
+  # uploaded. The 0.4.0 certificate is self signed (a test signed release):
+  # each step extracts the leaf certificate from the PKCS#12 and trusts it
+  # when it is self signed, because a self signed signature cannot verify
+  # against the system store. A CA issued certificate verifies against the
+  # system store and needs none of this. A workflow_dispatch run skips the
+  # signing steps with a notice and uploads unsigned artifacts; a tag build
+  # without a certificate fails loudly. osslsigncode comes from Fedora's
+  # repositories in the same container as wixl, the toolchain the tests
+  # dry-run against.
   windows:
     runs-on: ubuntu-22.04
     timeout-minutes: 45
@@ -99,6 +104,7 @@ jobs:
         env:
           WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
           WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
+          KAWARO_WIN_SIGN_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
@@ -115,7 +121,13 @@ jobs:
           docker run --rm -v "${GITHUB_WORKSPACE}:/w" -v "${RUNNER_TEMP}:/rt" -w /w \
             -e CI=true -e KAWARO_WIN_SIGN_PASS \
             registry.fedoraproject.org/fedora:44 \
-            bash -c 'dnf install -y -q osslsigncode openssl && scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --sign target-windows/x86_64-pc-windows-gnu/release/kawaro.exe target-windows/x86_64-pc-windows-gnu/release/kawarod.exe'
+            bash -c 'set -e
+              dnf install -y -q osslsigncode openssl
+              openssl pkcs12 -in /rt/cert.pfx -passin env:KAWARO_WIN_SIGN_PASS -clcerts -nokeys -out /rt/cert.pem
+              if [ "$(openssl x509 -in /rt/cert.pem -noout -subject | sed "s/^subject=//")" = "$(openssl x509 -in /rt/cert.pem -noout -issuer | sed "s/^issuer=//")" ]; then
+                export KAWARO_WIN_SIGN_CAFILE=/rt/cert.pem
+              fi
+              scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --sign target-windows/x86_64-pc-windows-gnu/release/kawaro.exe target-windows/x86_64-pc-windows-gnu/release/kawarod.exe'
       - run: scripts/windows/make-zip.sh
       # Ubuntu's wixl (0.101) aborts on the RemoveFile element in
       # installer/windows/kawaro.wxs; Fedora's wixl (0.106) builds it.
@@ -128,6 +140,7 @@ jobs:
         env:
           WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
           WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
+          KAWARO_WIN_SIGN_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
@@ -144,11 +157,18 @@ jobs:
           docker run --rm -v "${GITHUB_WORKSPACE}:/w" -v "${RUNNER_TEMP}:/rt" -w /w \
             -e CI=true -e KAWARO_WIN_SIGN_PASS \
             registry.fedoraproject.org/fedora:44 \
-            bash -c 'dnf install -y -q osslsigncode openssl && scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --sign target-windows/dist/kawaro-*-windows-x64.msi'
+            bash -c 'set -e
+              dnf install -y -q osslsigncode openssl
+              openssl pkcs12 -in /rt/cert.pfx -passin env:KAWARO_WIN_SIGN_PASS -clcerts -nokeys -out /rt/cert.pem
+              if [ "$(openssl x509 -in /rt/cert.pem -noout -subject | sed "s/^subject=//")" = "$(openssl x509 -in /rt/cert.pem -noout -issuer | sed "s/^issuer=//")" ]; then
+                export KAWARO_WIN_SIGN_CAFILE=/rt/cert.pem
+              fi
+              scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --sign target-windows/dist/kawaro-*-windows-x64.msi'
       - name: Verify the signatures (S-083)
         env:
           WINDOWS_SIGNING_PFX: ${{ secrets.WINDOWS_SIGNING_PFX }}
           WINDOWS_SIGNING_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
+          KAWARO_WIN_SIGN_PASS: ${{ secrets.WINDOWS_SIGNING_PASS }}
         run: |
           set -euo pipefail
           if [ "${GITHUB_REF_TYPE}" != "tag" ]; then
@@ -168,7 +188,13 @@ jobs:
           docker run --rm -v "${GITHUB_WORKSPACE}:/w" -v "${RUNNER_TEMP}:/rt" -w /w \
             -e CI=true -e KAWARO_WIN_SIGN_PASS \
             registry.fedoraproject.org/fedora:44 \
-            bash -c 'dnf install -y -q osslsigncode openssl unzip && scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --verify target-windows/x86_64-pc-windows-gnu/release/kawaro.exe target-windows/x86_64-pc-windows-gnu/release/kawarod.exe /rt/zip-x/kawaro-*-windows-x64/kawaro.exe /rt/zip-x/kawaro-*-windows-x64/kawarod.exe target-windows/dist/kawaro-*-windows-x64.msi'
+            bash -c 'set -e
+              dnf install -y -q osslsigncode openssl unzip
+              openssl pkcs12 -in /rt/cert.pfx -passin env:KAWARO_WIN_SIGN_PASS -clcerts -nokeys -out /rt/cert.pem
+              if [ "$(openssl x509 -in /rt/cert.pem -noout -subject | sed "s/^subject=//")" = "$(openssl x509 -in /rt/cert.pem -noout -issuer | sed "s/^issuer=//")" ]; then
+                export KAWARO_WIN_SIGN_CAFILE=/rt/cert.pem
+              fi
+              scripts/windows/sign-local.sh pkcs12:/rt/cert.pfx --verify target-windows/x86_64-pc-windows-gnu/release/kawaro.exe target-windows/x86_64-pc-windows-gnu/release/kawarod.exe /rt/zip-x/kawaro-*-windows-x64/kawaro.exe /rt/zip-x/kawaro-*-windows-x64/kawarod.exe target-windows/dist/kawaro-*-windows-x64.msi'
       - uses: actions/upload-artifact@v7
         with:
           name: windows
