@@ -153,19 +153,15 @@ fn s045_ac8_build_script_builds_the_daemon_in_release() {
 }
 
 #[test]
-fn s045_ac9_changelog_has_the_line_under_unreleased() {
+fn s045_ac9_changelog_has_the_line() {
+    // The line was under [Unreleased] until the 0.4.0 release. The check keeps
+    // guarding the entry form (a list item with Arabic in «»), and no longer
+    // pins the section a release cut moves it out of.
     let text = read("CHANGELOG.md");
-    let unreleased = text
-        .split("## [Unreleased]")
-        .nth(1)
-        .unwrap()
-        .split("\n## [")
-        .next()
-        .unwrap();
-    let line = unreleased
+    let line = text
         .lines()
         .find(|l| l.starts_with("- ") && l.contains("(S-045)"))
-        .expect("an S-045 line under [Unreleased]");
+        .expect("an S-045 changelog line");
     assert!(
         line.contains('«') && line.contains('»'),
         "needs Arabic in «»"
