@@ -321,6 +321,8 @@ Not engines, recorded here because CLAUDE.md asks for every new library.
 | minisign-verify | 0.3.0 | MIT (checked with `cargo info`, 2026-10-24) | core (S-053a) | checks the minisign signature of the update manifest (ADR 0006); no dependencies, so it adds exactly one package to `Cargo.lock`; chosen over the `ed25519-dalek` fallback (which would add six packages and a hand written parser) because it is MIT, tiny and reads the minisign file formats itself |
 | sha2 | 0.11.1 | MIT OR Apache-2.0 | core (S-053b) | SHA-256 of a downloaded update package, streamed in 64 KiB reads (ADR 0006); already in the tree, now a direct dependency of core, so no new package |
 | semver | 1.0.28 | MIT OR Apache-2.0 | core (S-053a) | version precedence for the update rules; already in the tree, now a direct dependency of core |
+| winresource | 0.1.34 | MIT (checked in its Cargo.toml, 2026-10-27) | cli, daemon (build dependency, S-085) | `build.rs` embeds `design/brand/kawaro.ico` and the version resource (ProductName and FileDescription `Kawaro \| كوارو`) in `kawaro.exe` and `kawarod.exe`, for a Windows target only; it writes `#pragma code_page(65001)` into its rc file, so mingw `windres` keeps the Arabic name (S-085 D5), and links the resource object directly; nothing of it is shipped. Its dependencies `toml` 1.1.8 (MIT OR Apache-2.0) and `version_check` 0.9.5 (MIT OR Apache-2.0) were already in the tree, so it adds exactly one package to `Cargo.lock` |
+| windows-sys `Win32_System_Registry` | 0.61.2 | MIT OR Apache-2.0 | core (Windows only, S-085) | `RegSetKeyValueW` writes the bilingual AUMID DisplayName as REG_SZ UTF-16; a feature of a crate already in the tree, no new package |
 
 ## Website build tools
 

@@ -9,7 +9,8 @@ use std::path::PathBuf;
 use std::ptr::null_mut;
 use windows_sys::Win32::System::Com::CoTaskMemFree;
 use windows_sys::Win32::UI::Shell::{
-    FOLDERID_LocalAppData, FOLDERID_RoamingAppData, KF_FLAG_DEFAULT, SHGetKnownFolderPath,
+    FOLDERID_LocalAppData, FOLDERID_Programs, FOLDERID_RoamingAppData, KF_FLAG_DEFAULT,
+    SHGetKnownFolderPath,
 };
 use windows_sys::core::{GUID, PWSTR};
 
@@ -39,6 +40,12 @@ pub(super) fn roaming_app_data() -> Option<PathBuf> {
 /// `FOLDERID_LocalAppData`, the fallback for `%LOCALAPPDATA%`.
 fn local_app_data() -> Option<PathBuf> {
     known_folder(&FOLDERID_LocalAppData)
+}
+
+/// `FOLDERID_Programs`, the user's Start Menu Programs folder, where the
+/// per-user MSI puts its shortcut (S-085).
+pub(crate) fn start_menu_programs() -> Option<PathBuf> {
+    known_folder(&FOLDERID_Programs)
 }
 
 /// The service log file, `%LOCALAPPDATA%\Kawaro\logs\kawarod.log`.

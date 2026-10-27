@@ -107,6 +107,9 @@ fn main() -> ExitCode {
     };
     // Removes the socket file on every return below.
     let _cleanup = listener.cleanup();
+    // S-085 D3: the bilingual Start shortcut and app name on Windows, best
+    // effort; a no-op elsewhere.
+    kawaro_core::identity::sync();
 
     let (config, warning) = Config::load();
     if let Some(w) = warning {

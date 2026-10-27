@@ -15,11 +15,32 @@
 //!
 //! The AUMID key is taken from `install_commands`, not written here, so the
 //! test does not depend on `APP_ID` (S-049) and cannot drift from it.
+//!
+//! S-085 D2: wixl segfaults on any non-ASCII string, so the MSI keeps the
+//! ASCII name everywhere while `install_commands` writes the bilingual
+//! DisplayName. The rows are compared against an ASCII projection that maps
+//! exactly that one value (the AUMID DisplayName, equal to the bilingual name)
+//! to the ASCII name and nothing else; the daemon's identity sync writes the
+//! bilingual value after install (S-085 D1).
 
 use kawaro_core::i18n::Lang;
 use kawaro_core::registry::install_commands;
 
 type Row = Vec<String>;
+
+/// The fixed bilingual brand name of S-085 (Latin part first).
+const DISPLAY_NAME: &str = "Kawaro | كوارو";
+/// The ASCII name the MSI tables carry instead (S-085 D1, D2).
+const MSI_NAME: &str = "Kawaro";
+
+/// S-085 D2: the ASCII projection of one `install_commands` value.
+fn ascii_projection(name: &str, value: String) -> String {
+    if name == "DisplayName" && value == DISPLAY_NAME {
+        MSI_NAME.to_string()
+    } else {
+        value
+    }
+}
 
 fn registry_rows() -> Vec<Row> {
     let path = std::env::var("S051_REGISTRY_EXPORT")
@@ -49,11 +70,8 @@ fn expected(args: &[String]) -> (String, String, String) {
         args[3].clone()
     };
     let at = args.iter().position(|a| a == "/d").expect("/d") + 1;
-    (
-        key,
-        name,
-        args[at].replace("[INSTALLDIR]\\", "[INSTALLDIR]"),
-    )
+    let value = ascii_projection(&name, args[at].replace("[INSTALLDIR]\\", "[INSTALLDIR]"));
+    (key, name, value)
 }
 
 fn find<'a>(rows: &'a [Row], key: &str, name: &str) -> Vec<&'a Row> {
@@ -92,17 +110,52 @@ fn ac5_the_literal_strings_of_the_acceptance_criterion() {
         .unwrap()
         .to_string();
     assert!(aumid.starts_with(r"Software\Classes\AppUserModelId\"));
-    assert_eq!(find(&rows, &aumid, "DisplayName")[0][4], "Kawaro");
+    assert_eq!(find(&rows, &aumid, "DisplayName")[0][4], MSI_NAME);
+}
+
+#[test]
+fn s085_d2_the_projection_maps_only_the_bilingual_display_name() {
+    // Not ignored: the unprojected source must carry the bilingual name, so
+    // the projection above is never a no-op that hides a missing rename.
+    let commands = install_commands("[INSTALLDIR]", Lang::En).unwrap();
+    let names: Vec<(String, String)> = commands
+        .iter()
+        .filter(|c| c[1].contains(r"\AppUserModelId\") && c[3] == "DisplayName")
+        .map(|c| (c[3].clone(), c[c.len() - 2].clone()))
+        .collect();
+    assert_eq!(
+        names,
+        vec![("DisplayName".to_string(), DISPLAY_NAME.to_string())],
+        "install_commands writes the bilingual DisplayName (S-085 AC3)"
+    );
+    let non_ascii: Vec<&Vec<String>> = commands
+        .iter()
+        .filter(|c| !expected(c).2.is_ascii())
+        .collect();
+    assert!(
+        non_ascii.is_empty(),
+        "every projected value is ASCII (S-085 D2): {non_ascii:?}"
+    );
+    assert_eq!(
+        ascii_projection("DisplayName", DISPLAY_NAME.into()),
+        MSI_NAME
+    );
+    assert_eq!(
+        ascii_projection("MUIVerb", DISPLAY_NAME.into()),
+        DISPLAY_NAME
+    );
+    assert_eq!(ascii_projection("DisplayName", "Other".into()), "Other");
 }
 
 #[test]
 #[ignore = "needs an MSI export, run by tests/windows/test_s051.sh"]
 fn ac5_run_value_starts_the_daemon_at_logon() {
     let rows = registry_rows();
+    // S-085 D1: the Run value name stays the ASCII name.
     let hits = find(
         &rows,
         r"Software\Microsoft\Windows\CurrentVersion\Run",
-        "Kawaro",
+        MSI_NAME,
     );
     assert_eq!(hits.len(), 1, "one Run value named Kawaro (AC5)");
     assert_eq!(hits[0][1], "1", "Run value is under HKCU (AC5)");

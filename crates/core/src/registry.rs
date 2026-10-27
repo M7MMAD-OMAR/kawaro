@@ -5,6 +5,8 @@
 //! `HKCU` is written, so no administrator rights are needed.
 
 use crate::i18n::Lang;
+// S-085 AC3: the fixed bilingual name; the menu verb below stays localized.
+use crate::identity::DISPLAY_NAME;
 
 const SHELL_KEY: &str = r"HKCU\Software\Classes\*\shell\Kawaro";
 const COMMAND_KEY: &str = r"HKCU\Software\Classes\*\shell\Kawaro\command";
@@ -47,7 +49,7 @@ pub fn install_commands(dir: &str, lang: Lang) -> Result<Vec<Vec<String>>, Strin
             &command,
             "/f",
         ]),
-        add_named(AUMID_KEY, "DisplayName", "Kawaro"),
+        add_named(AUMID_KEY, "DisplayName", DISPLAY_NAME),
         add_named(AUMID_KEY, "IconUri", &icon),
     ])
 }

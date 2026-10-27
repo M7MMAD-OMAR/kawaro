@@ -12,6 +12,7 @@ pub mod engine;
 pub mod hold;
 pub mod hotkey;
 pub mod i18n;
+pub mod identity;
 pub mod ipc;
 pub mod media;
 pub mod merge;

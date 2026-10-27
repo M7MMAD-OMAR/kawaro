@@ -174,6 +174,10 @@ COVERAGE = [
      [r"unsigned", r"per.user", r"without elevat|no (?:administrator|admin|elevation)"]),
     ("AC3", "Start menu and icon", r"^Install packages$",
      [r"Start menu"], [r"Kawaro", r"icon"]),
+    # S-085 AC2, D8: W01 is extended in place; the owner sees the icon and the
+    # fixed bilingual name (Latin part first) in Start.
+    ("S-085 AC2", "Start icon and bilingual name", r"^Install packages$",
+     [r"Start menu"], [r"Kawaro \| كوارو", r"icon"]),
     ("AC3", "portable integration install and uninstall", r"^Portable integration$",
      [r"integration install", r"integration uninstall", r"\.zip|portable"],
      [r"Explorer|context menu", r"removed|gone"]),

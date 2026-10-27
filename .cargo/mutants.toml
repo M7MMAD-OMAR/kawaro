@@ -64,7 +64,15 @@
 # The Explorer drop glue (S-047): the cursor poll timer, GetCursorPos and the
 # winit drag events build for Windows only; the live check is S-052. The
 # tracker and the S-021 rule stay mutated in drop_track.rs.
+# The Windows identity applier (S-085) renames the Start shortcut and writes
+# the registry for Windows only; the live check is the W01 checklist step.
+# The rename plan and the REG_SZ bytes stay mutated in identity.rs. The two
+# build scripts (S-085 AC1) only act for a Windows target; the resource they
+# embed is read back from the built exes by tests/windows/test_s085.sh.
 exclude_globs = [
+  "crates/core/src/identity/windows.rs",
+  "crates/cli/build.rs",
+  "crates/daemon/build.rs",
   "crates/ui/src/dnd/windows.rs",
   "crates/daemon/src/update_sys.rs",
   "crates/cli/src/update_sys.rs",

@@ -22,13 +22,15 @@ fn lock_entry(lock: &str, name: &str) -> String {
 }
 
 #[test]
-fn ac13_cargo_lock_keeps_673_packages() {
+fn ac13_cargo_lock_keeps_674_packages() {
     // Merge into main (2026-10-23): the portal work on main added ashpd, so
     // the lock holds 672; the Windows stories still add no package. S-053a
-    // adds minisign-verify (MIT, no dependencies), so 673.
+    // adds minisign-verify (MIT, no dependencies), so 673. S-085 adds
+    // winresource 0.1.34 (MIT, build dependency); toml and version_check were
+    // already locked, so 674.
     let lock = read("Cargo.lock");
     let n = lock.lines().filter(|l| *l == "[[package]]").count();
-    assert_eq!(n, 673, "no new package may enter Cargo.lock");
+    assert_eq!(n, 674, "no new package may enter Cargo.lock");
 }
 
 #[test]

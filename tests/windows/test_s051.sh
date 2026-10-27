@@ -242,9 +242,11 @@ ac5_registry_rows_match_s050 () {
   check "AC5: MSI written" test -n "$MSI"
   [ -n "$MSI" ] || return 0
   msiinfo export "$MSI" Registry > "$T/registry.txt" 2>/dev/null
-  (S051_REGISTRY_EXPORT="$T/registry.txt" CARGO_BUILD_JOBS=2 cargo test -p kawaro-core --test s051_msi_registry -- --ignored >"$log" 2>&1)
+  # S-085 D2: --include-ignored also runs the check that the projection only
+  # maps the bilingual DisplayName, so five Rust checks run here.
+  (S051_REGISTRY_EXPORT="$T/registry.txt" CARGO_BUILD_JOBS=2 cargo test -p kawaro-core --test s051_msi_registry -- --include-ignored >"$log" 2>&1)
   assert_eq "AC5: cargo test exit code" "$?" "0"
-  check "AC5: all four Rust checks ran and passed" grep -q 'test result: ok. 4 passed; 0 failed' "$log"
+  check "AC5: all five Rust checks ran and passed" grep -q 'test result: ok. 5 passed; 0 failed' "$log"
   [ -s "$log" ] && grep -E 'panicked|assert|left|right|FAILED|failed' "$log" | head -n 12 >&2
 }
 
@@ -259,13 +261,49 @@ ac6_files_and_start_menu_shortcut () {
   for f in kawaro.exe kawarod.exe $ACTIONS; do
     assert_eq "AC6: File table lists $f once" "$(printf '%s\n' "$names" | grep -cxF "$f")" "1"
   done
-  local sc
+  local sc row icon
+  # S-085 AC2: the MSI keeps the ASCII name (wixl segfaults on anything else);
+  # the daemon renames the shortcut to the bilingual name after install.
   sc="$(table "$MSI" Shortcut | while IFS=$'\t' read -r _ dir name _; do [ "$(base "$name")" = Kawaro ] && echo "$dir"; done)"
-  assert_eq "AC6: exactly one shortcut named Kawaro" "$(printf '%s\n' "$sc" | grep -c .)" "1"
+  assert_eq "AC6: exactly one shortcut named Kawaro (ASCII, S-085 AC2)" "$(printf '%s\n' "$sc" | grep -c .)" "1"
   if [ -n "$sc" ]; then
     assert_eq "AC6: the shortcut folder reaches ProgramMenuFolder" \
       "$(ancestors "$MSI" "$sc" | grep -cxF ProgramMenuFolder)" "1"
   fi
+  # S-085 AC2, D6: Shortcut columns 9 and 10 are Icon_ and IconIndex.
+  row="$(table "$MSI" Shortcut | while IFS=$'\t' read -r _ _ name rest; do [ "$(base "$name")" = Kawaro ] && printf '%s\n' "$rest"; done | head -n 1)"
+  icon="$(printf '%s\n' "$row" | cut -f6)"
+  assert_eq "S-085 AC2: the Kawaro shortcut references the icon kawaro.ico" "$icon" "kawaro.ico"
+  assert_eq "S-085 AC2: the Kawaro shortcut uses icon index 0" "$(printf '%s\n' "$row" | cut -f7)" "0"
+  # msiinfo export writes the streams of a binary table into ./Icon, so it runs in $T.
+  assert_eq "S-085 AC2: one Icon table row for kawaro.ico" \
+    "$( (cd "$T" && table "$MSI" Icon) | awk -F'\t' '$1=="kawaro.ico"' | grep -c .)" "1"
+  check "S-085 AC2: the Icon table data is design/brand/kawaro.ico byte for byte" \
+    bash -c 'msiinfo extract "$1" "Icon.kawaro.ico" 2>/dev/null | cmp -s - "$2"' _ "$MSI" "$ICO"
+  # S-085 D6: RemoveFile columns: FileKey, Component_, FileName, DirProperty,
+  # InstallMode (2 is on uninstall, 3 is both).
+  assert_eq "S-085 D6: StartMenuShortcut removes Kawaro*.lnk from ProgramMenuFolder on uninstall" \
+    "$(table "$MSI" RemoveFile | awk -F'\t' '$2=="StartMenuShortcut" && $3=="Kawaro*.lnk" && $4=="ProgramMenuFolder" && ($5=="2" || $5=="3")' | grep -c .)" "1"
+}
+
+# S-085 D6: the icon is a required build input. A copy of the MSI inputs in a
+# root without design/brand/kawaro.ico must exit 2 and name the icon.
+d6_msi_needs_the_icon () {
+  echo "== S-085 D6: make-msi.sh without kawaro.ico"
+  local root="$T/noico" tree="$T/tree-noico"
+  mkdir -p "$root/scripts/windows" "$root/installer/windows" "$root/design/brand"
+  cp scripts/windows/make-msi.sh scripts/windows/scope.sh "$root/scripts/windows/"
+  cp installer/windows/kawaro.wxs "$root/installer/windows/"
+  cp Cargo.toml "$root/"
+  cp -r actions "$root/actions"
+  make_tree "$tree"
+  rm -f "$T/cargo.log"
+  (cd "$T" && CI=true KAWARO_WIN_SCOPE=1 CARGO_LOG="$T/cargo.log" PATH="$T/bin:$PATH" \
+    CARGO_TARGET_DIR="$tree" timeout 300 "$root/scripts/windows/make-msi.sh" >"$T/noico.out" 2>"$T/noico.err")
+  assert_eq "S-085 D6: make-msi.sh exits 2 without kawaro.ico" "$?" "2"
+  check "S-085 D6: the message names kawaro.ico" grep -q 'kawaro\.ico' "$T/noico.err" "$T/noico.out"
+  assert_eq "S-085 D6: no MSI written without kawaro.ico" \
+    "$(find "$tree" -name '*.msi' | grep -c .)" "0"
 }
 
 ac7_docs_changelog_and_lint () {
@@ -297,5 +335,6 @@ ac4_msi_properties_and_install_folder
 ac4_msi_from_the_real_cross_built_exes
 ac5_registry_rows_match_s050
 ac6_files_and_start_menu_shortcut
+d6_msi_needs_the_icon
 ac7_docs_changelog_and_lint
 finish "S-051 windows installer"
