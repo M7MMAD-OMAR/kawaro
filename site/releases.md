@@ -1,12 +1,12 @@
 # الإصدارات
 
 ## 0.4.0-beta.1
+- Clicking the icon opens a window ([S-086](https
+- Windows app identity ([S-085](https
 - Windows drag trigger without the Explorer drag modifiers ([S-084](https
 - Windows signing pipeline and SmartScreen guide ([S-083](https
 - Windows long output paths and directory collisions ([S-081](https
 - Glass hive and light motion (S-017)
-- Doctor engine discovery (S-080)
-- Windows beta live readiness checklist for the shipped feature set (S-079)
 
 ## 0.3.3 (2026-10-23)
 - Drop shortcut through the global shortcuts portal (S-014e)
