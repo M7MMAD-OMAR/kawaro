@@ -993,16 +993,18 @@ def try_box(lang, root):
 def walk_block(lang):
     """The numbered after-the-download walkthrough (AC2). Every step names the
     control the user will really see: the menu entry and its Show more options
-    line on Windows 11, the tray menu that holds Settings until the welcome
-    window lands (D6), the measured triggers (D2), and the SmartScreen dialog
-    with its two buttons (D5)."""
+    line on Windows 11, the welcome window buttons now that S-087 has landed
+    (the D6 substitution), the measured triggers (D2), and the SmartScreen
+    dialog with its two buttons (D5)."""
     en = lang == "en"
     steps = ([
         ("Install Kawaro", "The MSI on Windows, the DEB or RPM on Linux. If Windows shows "
                            "\"Windows protected your PC\", that is the warning the note under the Windows buttons "
                            "explains: click More info, then Run anyway."),
         ("Open Kawaro", "Right click a file and choose Kawaro (on Windows 11, under Show more options), "
-                        "or open Kawaro from its icon. The Kawaro menu beside the clock has Settings."),
+                        "or open Kawaro from its icon. The first time Settings opens, the welcome window "
+                        "shows the whole flow: Try on an image runs it on a sample, and Open Settings "
+                        "opens the simplified settings."),
         ("Drag a file", "Hold <bdi>Super+Z</bdi> while you drag on Linux. On Windows drag with the right "
                         "mouse button: no key is held."),
         ("Drop on the cell", "Drop the file on the cell of the action you want."),
@@ -1011,7 +1013,9 @@ def walk_block(lang):
         ("ثبّت كوارو", "حزمة MSI على ويندوز، أو DEB أو RPM على لينكس. وإن عرض ويندوز «Windows protected your PC» "
                        "فهو التحذير الذي تشرحه الملاحظة تحت أزرار ويندوز: انقر More info ثم Run anyway."),
         ("افتح كوارو", "انقر بزر الفأرة الأيمن على ملف واختر «كوارو» (على ويندوز 11 تحت «إظهار خيارات إضافية»)، "
-                       "أو افتح كوارو من أيقونته. وفي قائمة كوارو بجانب الساعة بند «الإعدادات»."),
+                       "أو افتح كوارو من أيقونته. وفي المرة الأولى التي تُفتح فيها الإعدادات تظهر نافذة الترحيب "
+                       "بعرض الاستعمال كاملاً: زر «جرّب على صورة» يشغّله على عيّنة، وزر «افتح الإعدادات» يفتح "
+                       "الإعدادات المبسطة."),
         ("اسحب ملفاً", "أمسك <bdi>Super+Z</bdi> أثناء السحب على لينكس. وعلى ويندوز اسحب بزر الفأرة الأيمن، "
                        "دون ضغط أي مفتاح."),
         ("أفلت على الخلية", "أفلت الملف على خلية الإجراء الذي تريده."),

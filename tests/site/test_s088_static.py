@@ -39,14 +39,14 @@ FLOW = {
 WALK = {
     "en": [
         ("Install Kawaro", ["Windows protected your PC", "More info", "Run anyway", "MSI", "DEB", "RPM"]),
-        ("Open Kawaro", ["Show more options", "Kawaro menu", "Settings"]),
+        ("Open Kawaro", ["Show more options", "Try on an image", "Open Settings"]),
         ("Drag a file", ["Super+Z", "right mouse button", "no key is held"]),
         ("Drop on the cell", ["cell of the action"]),
         ("Take the result", ["next to the original"]),
     ],
     "ar": [
         ("ثبّت كوارو", ["Windows protected your PC", "More info", "Run anyway", "MSI", "DEB", "RPM"]),
-        ("افتح كوارو", ["إظهار خيارات إضافية", "قائمة كوارو", "الإعدادات"]),
+        ("افتح كوارو", ["إظهار خيارات إضافية", "جرّب على صورة", "افتح الإعدادات"]),
         ("اسحب ملفاً", ["Super+Z", "زر الفأرة الأيمن", "دون ضغط أي مفتاح"]),
         ("أفلت على الخلية", ["خلية الإجراء"]),
         ("خذ الناتج", ["بجانب الأصل"]),
@@ -203,12 +203,19 @@ class AC2Walkthrough(unittest.TestCase):
             self.assertIn("right mouse button" if lang == "en" else "زر الفأرة الأيمن", drag, lang)
             self.assertIn("no key is held" if lang == "en" else "دون ضغط أي مفتاح", drag, lang)
 
-    def test_AC2_the_walkthrough_names_the_tray_menu_until_the_welcome_window_exists(self):
-        # D6: S-087 has not landed, so the Settings pointer is the tray menu.
-        self.assertFalse((REPO / "crates" / "ui" / "ui" / "welcome.slint").exists(),
-                         "S-087 landed: update the walkthrough wording and this test in the same release")
+    def test_AC2_the_walkthrough_names_the_welcome_buttons_now_that_s087_landed(self):
+        # D6 substitution, executed when S-087 landed in the same release: the
+        # step that opens Kawaro names the welcome window buttons, never the old
+        # tray-menu Settings pointer.
+        self.assertTrue((REPO / "crates" / "ui" / "ui" / "welcome.slint").exists(),
+                        "S-087 landed: the walkthrough must name its welcome buttons")
         for lang in ("ar", "en"):
-            self.assertIn("Kawaro menu" if lang == "en" else "قائمة كوارو", self.steps(lang)[1].text(), lang)
+            step = self.steps(lang)[1].text()
+            for want in (("Try on an image", "Open Settings") if lang == "en"
+                         else ("جرّب على صورة", "افتح الإعدادات")):
+                self.assertIn(want, step, lang)
+            self.assertNotIn("Kawaro menu" if lang == "en" else "قائمة كوارو", step,
+                             f"{lang}: the tray-menu Settings pointer is gone")
 
 
 class AC3Sample(unittest.TestCase):
