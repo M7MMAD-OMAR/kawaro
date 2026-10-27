@@ -64,8 +64,9 @@
 # only if the last `tests/drop/gnome.sh smart portal-real rebind` run, its
 # output in $DROP_OUT or tests/drop/out (gnome-smart-portal-real-rebind.txt),
 # printed "INFO AC16 GNOME live rebind: followed". CHANGELOG.md has exactly
-# one line under "## [Unreleased]" (up to the next "## [") naming S-014f
-# (or S-014f1 to f4), with English and Arabic text. No em dash or en dash in
+# one line naming S-014f (or S-014f1 to f4), with English and Arabic text
+# (it was under "## [Unreleased]" until the 0.4.0 release). No em dash or
+# en dash in
 # any file changed since S014F4_BASE (default 8a6623f, main before S-014f4)
 # or untracked, besides the files above.
 # Usage: tests/drop/portal_docs.sh
@@ -277,13 +278,13 @@ check "AC22: no em dash or en dash in docs/drop-shortcut.md, its Arabic copy, th
 lines=$(grep -E 'S-014e[0-9]?\b' "$LOG" | grep -P "[\x{0600}-\x{06FF}]" | grep -cE "[A-Za-z]{4,} [A-Za-z]{2,}")
 echo "INFO AC22: CHANGELOG.md lines naming S-014e in both languages: $lines"
 check "AC22: CHANGELOG.md has one line that names S-014e, in English and in Arabic (released in 0.3.3)" '[ "$lines" -eq 1 ]'
-# AC28: one S-014f line under "## [Unreleased]", in both languages.
-unrel=$(awk '/^## \[Unreleased\]/ { on = 1; next } /^## \[/ { on = 0 } on' "$LOG")
-fl=$(grep -E 'S-014f[0-9]?\b' <<<"$unrel")
+# AC28: one S-014f line in CHANGELOG.md, in both languages (it was under
+# "## [Unreleased]" until the 0.4.0 release).
+fl=$(grep -E 'S-014f[0-9]?\b' "$LOG")
 fn=$(grep -c . <<<"$fl")
 fb=$(grep -P "[\x{0600}-\x{06FF}]" <<<"$fl" | grep -cE "[A-Za-z]{4,} [A-Za-z]{2,}")
-echo "INFO AC28: CHANGELOG.md lines under [Unreleased] naming S-014f: $fn, with English and Arabic: $fb"
-check "AC28: CHANGELOG.md has exactly one line under \"## [Unreleased]\" naming S-014f, in English and in Arabic" \
+echo "INFO AC28: CHANGELOG.md lines naming S-014f: $fn, with English and Arabic: $fb"
+check "AC28: CHANGELOG.md has exactly one line naming S-014f, in English and in Arabic" \
   '[ "$fn" -eq 1 ] && [ "$fb" -eq 1 ]'
 # AC28: no long dash in any file changed in S-014f4.
 BASE=${S014F4_BASE:-8a6623f}

@@ -76,7 +76,7 @@ cd kawaro
 
 في الطريقتين يحتاج Nautilus إلى `nautilus-python` (Fedora) أو `python3-nautilus` (Ubuntu)، ويحتاج الفتح من الحافظة إلى `wl-clipboard` على Wayland أو `xclip` على X11.
 
-**النسخة التجريبية:** أول إصدار تجريبي علني، 0.4.0-beta.1، إصدار ما قبل النهائي في [صفحة الإصدارات](https://github.com/M7MMAD-OMAR/kawaro/releases) للينكس وويندوز، ومعه ملف `SHA256SUMS` للتحقق من تنزيلك. اقرأ [ملاحظات الإصدار](docs/release-notes-0.4.0-beta.1.ar.md) أولاً بما فيها الثغرات المعروفة.
+**الإصدار:** كوارو 0.4.0 هو أول إصدار رسمي للينكس وويندوز في [صفحة الإصدارات](https://github.com/M7MMAD-OMAR/kawaro/releases)، ومعه ملف `SHA256SUMS` للتحقق من تنزيلك. ملفات ويندوز موقَّعة بشهادة اختبار ذاتية التوقيع وليست من جهة موثوقة، فتحذّر SmartScreen، والطريق: «More info» ثم «Run anyway» بعد التحقق من التنزيل (انظر [docs/windows-smartscreen.ar.md](docs/windows-smartscreen.ar.md)). اقرأ [ملاحظات الإصدار](docs/release-notes-0.4.0.ar.md) أولاً بما فيها الثغرات المعروفة.
 
 ## Windows beta: النسخة التجريبية
 

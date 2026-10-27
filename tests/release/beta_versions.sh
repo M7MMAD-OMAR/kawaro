@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
 # S-055 AC1 (the repository state of the bump). These checks read the real
-# repository, so they are tied to the beta cut: when the workspace moves on to
-# 0.4.0 or later, update EXPECT below in the story that bumps it. Every other
+# repository, so they are tied to the release cut: when the workspace moves
+# on past 0.4.0, update EXPECT below in the story that bumps it. Every other
 # test (S-051, S-053c) rewrites or reads the version dynamically and does not
 # care which version Cargo.toml holds.
 # shellcheck disable=SC2016
@@ -10,7 +10,7 @@ set -u
 # shellcheck source-path=SCRIPTDIR
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 cd "$REPO_ROOT" || exit 1
-EXPECT="0.4.0-beta.1"
+EXPECT="0.4.0"
 WS="$(awk '/^\[workspace.package\]/{p=1;next} /^\[/{p=0} p && /^version *=/{gsub(/"/,"",$3); print $3; exit}' Cargo.toml)"
 check "AC1 Cargo.toml [workspace.package] version is $EXPECT (found $WS)" test "$WS" = "$EXPECT"
 lock_ok() { # every kawaro-* package in Cargo.lock has the expected version; at least 5

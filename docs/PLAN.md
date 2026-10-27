@@ -12,8 +12,8 @@ The original planning document was never exported, so this plan rebuilds it from
 | 0.3.1 | Released 2026-10-22: the drop hive only during a real drag of files with an action (S-021) |
 | 0.3.2 | Released 2026-10-22: the opening animation plays on the layer path, and drop follow-ups (S-022) |
 | 0.3.3 | Released 2026-10-23: the drop shortcut registers through the global shortcuts portal on GNOME and KDE (S-014e), and the layer hive keeps off the keyboard at KDE Extreme without a token (S-027). S-016 and S-017 remain for 0.4.0; the portal follow-ups S-014f1 to S-014f4 shipped in the 0.4.0 line and are done |
-| 0.4.0-beta.1 | Cut 2026-10-26: the first public beta for Linux and Windows, a GitHub prerelease with RPM, DEB, zip, MSI and `SHA256SUMS`, built by CI on a `v0.4.0-beta.1` tag (S-055). Updates from inside the app (ADR 0006); Windows unsigned; the Windows drop hive and notifications are built (S-047, S-049) but not yet run on a live machine; `kawaro update` from the terminal (S-054c) |
-| 0.4.0 "Portal and look" | Next: S-016, S-017, and the S-072 to S-082 block below. S-014f and S-074 are done |
+| 0.4.0-beta.1 | Cut 2026-10-26: the first public beta for Linux and Windows, a GitHub prerelease with RPM, DEB, zip, MSI and `SHA256SUMS`, built by CI on a `v0.4.0-beta.1` tag (S-055). Updates from inside the app (ADR 0006); Windows unsigned; the Windows drop hive and notifications are built (S-047, S-049) but not yet run on a live machine; `kawaro update` from the terminal (S-054c). Superseded by 0.4.0 |
+| 0.4.0 "Portal and look" | Released 2026-10-27: the first official release for Linux and Windows. In-app updates (S-053, S-054, S-054c), the Windows build, installer and Explorer menu (S-045 to S-051), the Windows beta feedback block (S-079 to S-081, S-083 to S-088), the portal shortcut (S-014e, S-014f) and the glass and motion look (S-017a to S-017c). The Windows binaries are test-signed with a self-signed certificate, so SmartScreen warns (More info, then Run anyway) and a trusted OV certificate is still needed; every Windows live result is owner pending until the S-079 checklist report exists. S-016, S-017d to S-017e and the open rows of the block below remain |
 | 0.5.0 "X11" | Planned: S-015 |
 | 0.6.0 "Windows" | Planned: starts with ADR 0005 |
 
@@ -100,9 +100,9 @@ Decision (2026-10-26, after the specification audit of the stable roadmap): this
 | S-076 | Settings without technical words, accessible drag-key picker | Approved |
 | S-077 | A normal open can use the pointer position on the layer path; reproduction and a KDE pointer-source spike first | Approved, spike first |
 | S-078 | AppStream metadata, AUR and winget (substories S-078a to S-078f); publication waits for owner accounts and credentials (exclusion R4-accounts) | Approved |
-| S-079 | Windows beta live readiness checklist (documentation and static tests only); the owner runs the live steps (exclusion R5-live) | Approved |
-| S-080 | Windows `kawaro doctor` engine discovery matches engine lookup, a confirmed S-079 defect | Draft |
-| S-081 | Windows output placement: long paths and directory-name output candidates, a confirmed S-079 defect | Draft |
+| S-079 | Windows beta live readiness checklist (documentation and static tests only); the owner runs the live steps (exclusion R5-live) | Done (2026-10-26); the live steps stay owner run |
+| S-080 | Windows `kawaro doctor` engine discovery matches engine lookup, a confirmed S-079 defect | Done (2026-10-26) |
+| S-081 | Windows output placement: long paths and directory-name output candidates, a confirmed S-079 defect | Done (2026-10-26) |
 | S-082 | Focus and activation with real Nautilus and Dolphin tokens in a virtual machine, closing the phase-0 gap recorded in S-013 | Draft |
 
 Measured facts behind S-075 (recorded 2026-10-26): Alt-only GlobalShortcuts is accepted by the BindShortcuts exchange but never activates on GNOME 50.0 or KDE 6.7.5 portals, so it cannot be the KDE or GNOME default; the Super+Z (`LOGO+z`) portal trigger passed the full real-drag path on both. Evidence: `/home/sbarah/.hermes/checkpoint-runs/kawaro-stable-20261026/alt-portal-spike.md`. Hyprland compositor binds are outside that measurement and count only when the private Hyprland harness records them.
@@ -117,12 +117,12 @@ From the owner's first Windows beta run (2026-10-26): the SmartScreen warning, t
 
 | Story | Scope | Status |
 | --- | --- | --- |
-| S-083 | Signing pipeline and honest SmartScreen guidance; needs the maintainer's OV certificate | Approved |
-| S-084 | Windows drag trigger without the Explorer drag modifiers; spike first, default named by manager decision | Approved |
-| S-085 | Windows app identity: icon in the exes, the name "Kawaro \| كوارو" everywhere | Approved |
-| S-086 | Clicking the app icon opens a window instead of nothing (the Start shortcut runs `kawarod settings`) | Approved |
-| S-087 | First-run welcome: demo, Try on an image, Settings entry | Approved |
-| S-088 | Download page: demo film, a sample to try, the honest warning | Approved |
+| S-083 | Signing pipeline and honest SmartScreen guidance; needs the maintainer's OV certificate | Done (2026-10-27); the 0.4.0 build is test-signed with the self-signed certificate, public signing waits for the OV certificate |
+| S-084 | Windows drag trigger without the Explorer drag modifiers; spike first, default named by manager decision | Done (2026-10-27); the default is the right-button drag |
+| S-085 | Windows app identity: icon in the exes, the name "Kawaro \| كوارو" everywhere | Done (2026-10-27) |
+| S-086 | Clicking the app icon opens a window instead of nothing (the Start shortcut runs `kawarod settings`) | Done (2026-10-27) |
+| S-087 | First-run welcome: demo, Try on an image, Settings entry | Done (2026-10-27) |
+| S-088 | Download page: demo film, a sample to try, the honest warning | Done (2026-10-27) |
 
 Landing order from the review: S-084 before or with S-076b (its D1 and D2 amend S-076 AC5 and AC6); S-087 and S-088 name no drag key before the S-084 manager decision line exists. The MSI `StartShortcut` row of `installer/windows/kawaro.wxs` is edited by S-085 (name and icon), S-086 (target command) and S-087 (behavior after the click): they land in that order and each updates the s051 table assertions in its own commit, so the parity test never breaks silently.
 

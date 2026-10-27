@@ -92,7 +92,7 @@ Either way, Nautilus needs `nautilus-python` (Fedora) or `python3-nautilus`
 (Ubuntu), and opening from the clipboard needs `wl-clipboard` on Wayland or
 `xclip` on X11.
 
-**Beta:** the first public beta, 0.4.0-beta.1, is a prerelease on the [releases page](https://github.com/M7MMAD-OMAR/kawaro/releases) for Linux and Windows, with a `SHA256SUMS` file to verify your download. Read its [release notes](docs/release-notes-0.4.0-beta.1.md) first, including the known gaps.
+**Released:** 0.4.0 is the first official release for Linux and Windows on the [releases page](https://github.com/M7MMAD-OMAR/kawaro/releases), with a `SHA256SUMS` file to verify your download. The Windows files are TEST-SIGNED with a self-signed certificate, not a verified publisher: SmartScreen warns, and the click flow is "More info" then "Run anyway" after you have checked your download (see [docs/windows-smartscreen.md](docs/windows-smartscreen.md)). Read the [release notes](docs/release-notes-0.4.0.md) first, including the known gaps.
 
 ## Windows beta
 
