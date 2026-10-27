@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Fails on a release download link that cannot work (S-061 AC6).
+# Fails on a release download link that cannot work (S-061 AC6), and on a local
+# asset link the built site does not ship (S-088 AC3).
 #
 # Usage: scripts/site/check-links.sh [--online] [--base URL] [ROOT]
 #   ROOT (default: the repository) holds site/**/*.html, README*.md and the git repo.
@@ -29,22 +30,50 @@ urls=$(
     grep -oE 'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/releases/download/[^/"'"'"'<> )]+/[^"'"'"'<> )]+' |
     sort -u
 )
-[ -z "$urls" ] && { echo "check-links: no release download links"; exit 0; }
 
 fail=0
-while IFS= read -r url; do
-  if [ "$online" = 1 ]; then
-    target="$url"
-    [ -n "$base" ] && target="${base%/}/${url#https://github.com/}"
-    code=$(curl -sIL -o /dev/null -w '%{http_code}' --max-time 30 "$target" || echo 000)
-    if [ "$code" = 404 ]; then echo "check-links: HTTP 404 $url"; fail=1; fi
-  else
-    tag=${url#*/releases/download/}
-    tag=${tag%%/*}
-    if [ -z "$(git -C "$root" tag -l "$tag" 2>/dev/null)" ]; then
-      echo "check-links: tag $tag is missing locally: $url"; fail=1
+if [ -n "$urls" ]; then
+  while IFS= read -r url; do
+    if [ "$online" = 1 ]; then
+      target="$url"
+      [ -n "$base" ] && target="${base%/}/${url#https://github.com/}"
+      code=$(curl -sIL -o /dev/null -w '%{http_code}' --max-time 30 "$target" || echo 000)
+      if [ "$code" = 404 ]; then echo "check-links: HTTP 404 $url"; fail=1; fi
+    else
+      tag=${url#*/releases/download/}
+      tag=${tag%%/*}
+      if [ -z "$(git -C "$root" tag -l "$tag" 2>/dev/null)" ]; then
+        echo "check-links: tag $tag is missing locally: $url"; fail=1
+      fi
     fi
-  fi
-done <<< "$urls"
+  done <<< "$urls"
+else
+  echo "check-links: no release download links"
+fi
+
+# Local asset links (S-088 AC3): every href or src that names a file inside the
+# site must resolve to a real file under ROOT/site, so a page never hands out a
+# missing sample image or picture. Network URLs and fragments are not this
+# check's business.
+exts='png|webp|jpe?g|svg|ico|mp4|webm|css|js|woff2|webmanifest|txt|xml|json|md'
+while IFS= read -r -d '' f; do
+  dir=$(dirname "$f")
+  while IFS= read -r href; do
+    [ -z "$href" ] && continue
+    case "$href" in https://*|http://*|data:*|mailto:*|\#*) continue ;; esac
+    target=${href%%#*}
+    target=${target%%\?*}
+    [ -z "$target" ] && continue
+    case "$target" in
+      /*) resolved="$root/site$target" ;;
+      *) resolved="$dir/$target" ;;
+    esac
+    if [ ! -f "$resolved" ]; then
+      echo "check-links: missing asset $f -> $href"
+      fail=1
+    fi
+  done < <(grep -oE '(href|src)="[^"]+"' "$f" | sed -E 's/^(href|src)="//; s/"$//' | grep -E "\.($exts)($|[?#])" | sort -u)
+done < <(find "$root/site" -name '*.html' -not -path '*/pagefind/*' -print0 2>/dev/null)
+
 [ "$fail" = 0 ] && echo "check-links: ok"
 exit "$fail"

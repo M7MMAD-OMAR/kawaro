@@ -1,10 +1,8 @@
 """S-088 static checks: the download page teaches the first try.
 
-DOM contract (download page, both languages), from the ACs and D1 to D6:
+DOM contract (download page, both languages), from the ACs and D1 to D7:
   section#choose .dl-stage
-    .dl-side   the download slabs (win slab keeps the S-083 note) then
-               h2 "After the download" / «بعد التنزيل» and
-               ol.walk > li.step-cell x5 (install, open, drag, drop, result)
+    .dl-side   the download slabs (win slab keeps the S-083 note)
     .dl-demo   figure.film.dl-film
                  video.film-video [controls][autoplay][muted][loop][playsinline]
                    poster media/hero-poster.webp (ar) or media/hero-en-poster.webp (en)
@@ -14,6 +12,8 @@ DOM contract (download page, both languages), from the ACs and D1 to D6:
                               p.flow-trigger (Super+Z on Linux, right mouse button and
                               no key on Windows)
                div.card.try-box (h3, p, a.hex-button[download] to assets/kawaro-sample.png)
+    .dl-walk   h2 "After the download" / «بعد التنزيل» and
+               ol.walk > li.step-cell x5 (install, open, drag, drop, result)
 Run with: python3 -I test_s088_static.py (needs PATH=/usr/bin:$PATH like the others).
 """
 import re

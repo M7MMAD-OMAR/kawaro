@@ -43,6 +43,11 @@ class AC1FilmBrowser(unittest.TestCase):
                 errs = []
                 pg.on("pageerror", lambda e: errs.append(str(e)))
                 pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
+                # The film convention (S-068) is play only while it is on screen,
+                # and at 390px the D7 order can leave it below the fold, so bring
+                # it into view before asserting playback (tester amendment of
+                # 2026-10-27).
+                pg.evaluate("() => document.querySelector('.film-video').scrollIntoView({block: 'center'})")
                 pg.wait_for_timeout(3500)
                 st = pg.evaluate(STATE)
                 self.assertTrue(st["controls"], f"{lang} {w}: native controls")

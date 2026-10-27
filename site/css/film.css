@@ -10,3 +10,17 @@
   background: var(--color-paper);
   border: var(--border-edge) solid var(--color-edge);
 }
+
+/* The reduced-motion variant of the download film (S-088 AC1): the poster and
+   the numbered caption steps instead of the moving film. */
+.film-still {
+  display: none;
+  width: 100%;
+  height: auto;
+  background: var(--color-paper);
+  border: var(--border-edge) solid var(--color-edge);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dl-film .film-video { display: none; }
+  .dl-film .film-still { display: block; }
+}
