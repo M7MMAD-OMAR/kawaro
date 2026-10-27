@@ -220,6 +220,12 @@ ac4_msi_properties_and_install_folder () {
   ver="$(table "$MSI" Property | awk -F'\t' '$1=="ProductVersion"{print $2}')"
   assert_eq "AC4: ProductVersion (numeric part only, an MSI version has no prerelease)" "$ver" "${VERSION%%[-+]*}"
   assert_eq "AC4: no ALLUSERS=1 row" "$(table "$MSI" Property | awk -F'\t' '$1=="ALLUSERS" && $2=="1"' | grep -c .)" "0"
+  # wixl drops InstallScope="perUser", so the .wxs writes the two properties
+  # that make the package per-user for every user, not only the non-elevated
+  # one the Microsoft pipeline installs as. See S-078 and
+  # scripts/release/check-winget-scope.sh.
+  assert_eq "AC4: ALLUSERS=2 (per-user)" "$(table "$MSI" Property | awk -F'\t' '$1=="ALLUSERS"{print $2}')" "2"
+  assert_eq "AC4: MSIINSTALLPERUSER=1 (per-user)" "$(table "$MSI" Property | awk -F'\t' '$1=="MSIINSTALLPERUSER"{print $2}')" "1"
   assert_eq "AC4: the install folder is LocalAppDataFolder\\Programs\\Kawaro" \
     "$(dirpath "$MSI" INSTALLDIR)" 'LocalAppDataFolder\Programs\Kawaro'
 }

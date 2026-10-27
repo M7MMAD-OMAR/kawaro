@@ -517,6 +517,43 @@ winget install --id Sbarah.Kawaro --version 0.4.0 --exact
    (or passed via `InstallerSwitches.Custom`, e.g. `ALLUSERS=2`): this is a property of the MSI
    package, not of the manifest.
 
+#### Measured: does `wixl` bake `ALLUSERS` into a per-user MSI?
+
+**No.** `wixl` (msitools 0.106) accepts `InstallScope="perUser"` and silently drops it: the built
+MSI has no `ALLUSERS` and no `MSIINSTALLPERUSER` row. Measured on this machine with two builds of
+the same `.wxs`:
+
+| build | `.wxs` | `msiinfo export <msi> Property` |
+|---|---|---|
+| A | `<Package ... InstallScope="perUser" />` | no `ALLUSERS`, no `MSIINSTALLPERUSER` |
+| B | A plus explicit `<Property Id="ALLUSERS" Value="2" />` and `<Property Id="MSIINSTALLPERUSER" Value="1" />` | `ALLUSERS=2`, `MSIINSTALLPERUSER=1` |
+
+So the incantation that works with `wixl` is the explicit `<Property>` pair, **not**
+`InstallScope="perUser"`. `strings $(which wixl)` finds the literal `ALLUSERS` in the binary, so
+the compiler does know the name; it just does not map `InstallScope` onto it.
+
+**What that means for the 0.4.0 MSI.** Without `ALLUSERS`, the install scope is decided by
+msiexec's own default, and the registration lands in `HKLM` when the installer runs elevated
+(SYSTEM or an administrator), which is what the local VM test showed: an install as SYSTEM put
+the ARP entry in `HKLM\...\Uninstall\{39472B1E-...}`, and the files under the *installing* profile's
+`LocalAppData`, not under `HKCU` of the target user. The manifest declares `Scope: user`, and
+winget reads `HKEY_CURRENT_USER` for `ScopeEnum::User`
+(`src/AppInstallerRepositoryCore/Microsoft/ARPHelper.cpp`), so an elevated install of this MSI is
+invisible to `winget list` and to the uninstall path.
+
+**Why the PR still passed.** Microsoft's step 08 *does* run the install as a standard
+(non-elevated) user (`doc/Validation.md` step 08: *"runs it in an isolated environment as a
+**standard (non-elevated) user**"*), and it passed on this PR. A standard user's install is
+per-user by construction, so the `HKCU` path is what the pipeline exercised and what it approved.
+The gap only shows up for an **elevated** install, which the pipeline does not test and which a
+moderator may not test either.
+
+**Recommendation.** Add the explicit pair to `installer/windows/kawaro.wxs` so the MSI is
+per-user by construction and the `HKCU` registration is guaranteed for every user, elevated or
+not. This is a change to the next MSI build (0.4.1 or later), not to the submitted 0.4.0
+manifest, so it does not disturb the open pull request. The `Scope: user` declaration stays
+correct either way; the change makes the installer match what the manifest already promises.
+
 ### Nothing special for a "custom" product code
 A per-user MSI with a self-chosen ProductCode is normal; there is no documented requirement that
 the ProductCode match a "known" vendor. It must, however, match the MSI's actual ProductCode, or

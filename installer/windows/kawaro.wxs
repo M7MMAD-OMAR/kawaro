@@ -15,6 +15,14 @@
            Manufacturer="Kawaro" UpgradeCode="6f2d5c1e-8a47-4b39-9d0e-5b1c7a3e2f84">
     <Package InstallerVersion="500" Compressed="yes" InstallScope="perUser"
              Description="Kawaro, a local file converter" />
+    <!-- wixl accepts InstallScope="perUser" and drops it, so the built MSI
+         carries no ALLUSERS property. Without it, msiexec decides the scope
+         itself and an elevated install registers the program under HKLM,
+         where winget does not look for a package that declares Scope: user.
+         The two properties below make the package per-user for every user.
+         See docs/winget-pkgs-merge-requirements.md and the S-078 scope guard. -->
+    <Property Id="ALLUSERS" Value="2" />
+    <Property Id="MSIINSTALLPERUSER" Value="1" />
     <Media Id="1" Cabinet="kawaro.cab" EmbedCab="yes" />
     <!-- The Start shortcut icon (S-085 D6). wixl reads SourceFile, not Source. -->
     <Icon Id="kawaro.ico" SourceFile="$(var.Ico)" />
