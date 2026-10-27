@@ -1,6 +1,8 @@
 # Releases
 
-## 0.4.0-beta.1
+## 0.4.0
+
+## 0.4.0 (2026-10-27)
 - Download page
 - First-run welcome ([S-087](https
 - Clicking the icon opens a window ([S-086](https
