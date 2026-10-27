@@ -2794,6 +2794,7 @@ dependencies = [
  "ksni",
  "notify-rust",
  "serde_json",
+ "sha2",
  "slint",
  "tempfile",
  "windows-sys 0.61.2",

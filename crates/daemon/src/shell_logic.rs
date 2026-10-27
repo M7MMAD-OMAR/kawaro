@@ -46,6 +46,7 @@ pub fn fit_tip(full: String) -> String {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Command {
     UpdateNow,
+    GetStarted,
     CancelAll,
     Settings,
     Quit,
@@ -63,8 +64,8 @@ pub enum Item {
 }
 
 /// The tray menu, as the Linux tray has it: Update now (enabled only when a
-/// verified update is ready), Cancel all (disabled with no running job),
-/// Settings, a separator, Quit.
+/// verified update is ready), Get started (S-087, always enabled), Cancel
+/// all (disabled with no running job), Settings, a separator, Quit.
 pub fn menu(lang: Lang, active_count: usize, update_ready: bool) -> Vec<Item> {
     let action = |command, label: &str, enabled| Item::Action {
         command,
@@ -73,6 +74,7 @@ pub fn menu(lang: Lang, active_count: usize, update_ready: bool) -> Vec<Item> {
     };
     vec![
         action(Command::UpdateNow, text::update_now(lang), update_ready),
+        action(Command::GetStarted, text::get_started(lang), true),
         action(Command::CancelAll, text::cancel_all(lang), active_count > 0),
         action(Command::Settings, text::settings(lang), true),
         Item::Separator,

@@ -441,9 +441,20 @@ fn fixture_run(name: &str, t: &Value) -> std::process::Output {
     std::fs::create_dir_all(&manifest).unwrap();
     std::fs::create_dir_all(tmp.join("kawaro/design")).unwrap();
     let src = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    for dir in ["material", "ui", "components", "fonts", "icons"] {
+    // S-087: `resources` holds the welcome frames and `tests` the sample
+    // image the welcome build embeds; both are part of the crate the build
+    // script reads.
+    for dir in [
+        "material",
+        "ui",
+        "components",
+        "fonts",
+        "icons",
+        "resources",
+    ] {
         std::os::unix::fs::symlink(src.join(dir), manifest.join(dir)).unwrap();
     }
+    std::os::unix::fs::symlink(src.join("../../tests"), tmp.join("kawaro/tests")).unwrap();
     std::fs::write(
         tmp.join("kawaro/design/tokens.json"),
         serde_json::to_string_pretty(t).unwrap(),

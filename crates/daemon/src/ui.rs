@@ -3,6 +3,7 @@
 //! `invoke_from_event_loop`.
 
 use crate::portal::{self, TokenStep};
+use crate::server;
 use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
 use kawaro_core::ActionDef;
@@ -12,9 +13,10 @@ use kawaro_core::i18n::Lang;
 use kawaro_core::queue::Queue;
 #[cfg(unix)]
 use kawaro_ui::thumb;
+use kawaro_ui::welcome::WelcomeWindow;
 use kawaro_ui::{Hive, HiveCell, SettingsWindow};
 use std::cell::RefCell;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -24,6 +26,10 @@ thread_local! {
     /// What the settings window needs when it is first opened. Creating it
     /// lazily avoids an empty unmapped toplevel for a window rarely opened.
     static SETTINGS_ARGS: RefCell<Option<(Lang, Shared, Arc<Queue>)>> = const { RefCell::new(None) };
+    /// The first-run welcome window (S-087), opened on demand like the
+    /// settings window.
+    static WELCOME: RefCell<Option<WelcomeWindow>> = const { RefCell::new(None) };
+    static WELCOME_ARGS: RefCell<Option<(Lang, Shared)>> = const { RefCell::new(None) };
     /// The long press gate of `kawaro drop --hold` (S-019e AC17), on the
     /// event loop thread like the hive it shows.
     static GATE: RefCell<Option<Gate>> = const { RefCell::new(None) };
@@ -115,6 +121,9 @@ pub fn build(
     // open builds one with the new settings.
     SETTINGS.with(|s| *s.borrow_mut() = None);
     SETTINGS_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone(), queue.clone())));
+    // The welcome window follows the same rule (S-087).
+    WELCOME.with(|w| *w.borrow_mut() = None);
+    WELCOME_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone())));
     Ok(())
 }
 
@@ -363,9 +372,17 @@ pub fn settings_opens() -> u32 {
     SETTINGS_OPENS.with(|c| c.get())
 }
 
+/// Counts `present_welcome` calls (S-087 AC1), the same seam for the
+/// first-run route.
+#[cfg(test)]
+pub fn welcome_opens() -> u32 {
+    WELCOME_OPENS.with(|c| c.get())
+}
+
 #[cfg(test)]
 thread_local! {
     static SETTINGS_OPENS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    static WELCOME_OPENS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
 }
 
 pub fn open_settings(config: Config) {
@@ -411,6 +428,109 @@ fn raise_settings(w: &SettingsWindow) {
 /// foreign raises (S-086 AC2).
 #[cfg(not(windows))]
 fn raise_settings(_w: &SettingsWindow) {}
+
+/// Shows the first-run welcome window (S-087). The `settings` entry and the
+/// tray item both come through here; the one-shot marker is written after
+/// the window is actually shown (AC1).
+pub fn present_welcome(state: &Shared) {
+    // S-087 AC1: counted before the post, so the routing test sees it
+    // without running the event loop.
+    #[cfg(test)]
+    WELCOME_OPENS.with(|c| c.set(c.get() + 1));
+    let state = state.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        if let Err(e) = welcome_window() {
+            eprintln!("kawarod: cannot create the welcome window: {e}");
+            return;
+        }
+        WELCOME.with(|w| {
+            let slot = w.borrow();
+            let Some(win) = slot.as_ref() else {
+                return;
+            };
+            if !win.is_visible() {
+                let lang = lock(&state).lang;
+                let captions =
+                    kawaro_core::welcome::captions(lang, &crate::registration::current());
+                let centred = kawaro_ui::welcome::demo_hive_centred();
+                if let Err(e) = win.open(&captions, centred) {
+                    eprintln!("kawarod: cannot open the welcome window: {e}");
+                    return;
+                }
+            }
+            raise_welcome(win);
+            // S-087 AC1: the marker only after the welcome is shown.
+            if let Some(path) = Config::path()
+                && let Err(e) = save_welcome_seen(&state, &path)
+            {
+                eprintln!("kawarod: cannot save {}: {e}", path.display());
+            }
+        });
+    });
+}
+
+/// Creates the welcome window lazily and wires its two buttons.
+fn welcome_window() -> Result<(), slint::PlatformError> {
+    if WELCOME.with(|w| w.borrow().is_some()) {
+        return Ok(());
+    }
+    let Some((lang, state)) = WELCOME_ARGS.with(|a| a.borrow().clone()) else {
+        return Ok(());
+    };
+    let win = WelcomeWindow::new(lang)?;
+    {
+        let state = state.clone();
+        win.on_try(move || {
+            let dir = std::env::temp_dir().join("kawaro-welcome");
+            if let Err(e) = try_sample(&state, &dir) {
+                eprintln!("kawarod: {e}");
+            }
+        });
+    }
+    {
+        let state = state.clone();
+        win.on_settings(move || {
+            let config = lock(&state).config.clone();
+            open_settings(config);
+        });
+    }
+    WELCOME.with(|w| *w.borrow_mut() = Some(win));
+    Ok(())
+}
+
+/// Try on an image (S-087 AC4): copies the bundled sample image into the
+/// writable folder `dir` and opens the hive for exactly that one file
+/// through `server::open`, the same request path the Explorer menu entry
+/// takes.
+pub(crate) fn try_sample(state: &Shared, dir: &Path) -> Result<PathBuf, String> {
+    let sample = kawaro_ui::welcome::install_sample(dir)
+        .map_err(|e| format!("cannot write the sample: {e}"))?;
+    server::open(state, vec![sample.clone()], None)?;
+    Ok(sample)
+}
+
+/// Sets the one-shot marker of AC1 in the running config and saves it
+/// atomically, keeping every other setting as it is.
+pub(crate) fn save_welcome_seen(state: &Shared, path: &Path) -> std::io::Result<()> {
+    let config = {
+        let mut st = lock(state);
+        st.config.welcome_seen = true;
+        st.config.clone()
+    };
+    config.save_to(path)
+}
+
+/// Takes the foreground for the shown welcome window, like the settings
+/// window (S-086 AC2).
+#[cfg(windows)]
+fn raise_welcome(w: &WelcomeWindow) {
+    if let Some(hwnd) = w.hwnd() {
+        crate::shell_open::foreground(hwnd);
+    }
+}
+
+#[cfg(not(windows))]
+fn raise_welcome(_w: &WelcomeWindow) {}
 
 pub fn quit() {
     let _ = slint::invoke_from_event_loop(|| {

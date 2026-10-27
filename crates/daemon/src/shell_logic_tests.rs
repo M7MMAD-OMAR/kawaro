@@ -18,7 +18,10 @@
 //!   `UpdateNow` and `menu` gains a first item `UpdateNow` (label
 //!   `text::update_now(lang)`: "Update now" / «حدّث الآن»), enabled only when
 //!   `update_ready`, then the four S-048 entries unchanged. The Windows menu
-//!   has no other way to apply an update in `ask` mode.
+//!   has no other way to apply an update in `ask` mode. CHANGED BY S-087 D7:
+//!   `Command` gains `GetStarted` and `menu` gains a second item `GetStarted`
+//!   (label `text::get_started(lang)`: "Get started" / «ابدأ هنا», always
+//!   enabled), then the four S-048 entries unchanged.
 //! - `pub const POLL_MS: u64 = 16;` `#[derive(Default)] pub struct HoldPoll`
 //!   with `press(&mut self)` and `tick(&mut self, key_down: bool) -> Poll`,
 //!   `#[derive(Debug, PartialEq, Clone, Copy)] pub enum Poll { Held, Released, Idle }`.
@@ -146,6 +149,8 @@ fn ac3_menu_order_and_labels_in_english_with_jobs() {
         menu(Lang::En, 2, false),
         vec![
             action(Command::UpdateNow, "Update now", false),
+            // S-087 D7: the bilingual Get started item.
+            action(Command::GetStarted, text::get_started(Lang::En), true),
             action(Command::CancelAll, text::cancel_all(Lang::En), true),
             action(Command::Settings, text::settings(Lang::En), true),
             Item::Separator,
@@ -157,24 +162,28 @@ fn ac3_menu_order_and_labels_in_english_with_jobs() {
 #[test]
 fn ac3_cancel_all_is_disabled_without_jobs() {
     let m = menu(Lang::En, 0, false);
-    assert_eq!(m.len(), 5);
+    assert_eq!(m.len(), 6);
     assert_eq!(m[0], action(Command::UpdateNow, "Update now", false));
     assert_eq!(
         m[1],
-        action(Command::CancelAll, text::cancel_all(Lang::En), false)
+        action(Command::GetStarted, text::get_started(Lang::En), true)
     );
     assert_eq!(
         m[2],
+        action(Command::CancelAll, text::cancel_all(Lang::En), false)
+    );
+    assert_eq!(
+        m[3],
         action(Command::Settings, text::settings(Lang::En), true)
     );
-    assert_eq!(m[3], Item::Separator);
-    assert_eq!(m[4], action(Command::Quit, text::quit(Lang::En), true));
+    assert_eq!(m[4], Item::Separator);
+    assert_eq!(m[5], action(Command::Quit, text::quit(Lang::En), true));
 }
 
 #[test]
 fn ac3_one_job_enables_cancel_all() {
     assert_eq!(
-        menu(Lang::En, 1, false)[1],
+        menu(Lang::En, 1, false)[2],
         action(Command::CancelAll, text::cancel_all(Lang::En), true)
     );
 }
@@ -185,6 +194,8 @@ fn ac3_arabic_labels() {
         menu(Lang::Ar, 3, false),
         vec![
             action(Command::UpdateNow, "حدّث الآن", false),
+            // S-087 D7: the bilingual Get started item.
+            action(Command::GetStarted, text::get_started(Lang::Ar), true),
             action(Command::CancelAll, text::cancel_all(Lang::Ar), true),
             action(Command::Settings, text::settings(Lang::Ar), true),
             Item::Separator,
@@ -204,7 +215,8 @@ fn s054b_update_now_is_first_and_enabled_only_when_an_update_is_ready() {
             let on = menu(lang, jobs, true);
             assert_eq!(off[0], action(Command::UpdateNow, label, false));
             assert_eq!(on[0], action(Command::UpdateNow, label, true));
-            assert_eq!(off.len(), 5);
+            // S-087 D7: the menu gains the Get started item.
+            assert_eq!(off.len(), 6);
             // Nothing else depends on the update.
             assert_eq!(off[1..], on[1..]);
         }

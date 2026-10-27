@@ -414,13 +414,26 @@ fn ar_en() -> [Lang; 2] {
 #[test]
 fn ac5_menu_labels_in_both_languages_with_update_now_first() {
     let (st, _rig) = state_for("0.3.3", Os::Linux);
+    // S-087 D7: the tray gains the bilingual "Get started" item at index 1.
     assert_eq!(
         text::menu_labels(Lang::En, &st),
-        vec!["Update now", "Cancel all jobs", "Settings", "Quit Kawaro"]
+        vec![
+            "Update now",
+            "Get started",
+            "Cancel all jobs",
+            "Settings",
+            "Quit Kawaro"
+        ]
     );
     assert_eq!(
         text::menu_labels(Lang::Ar, &st),
-        vec!["حدّث الآن", "إلغاء كل المهام", "الإعدادات", "إنهاء كوارو"]
+        vec![
+            "حدّث الآن",
+            "ابدأ هنا",
+            "إلغاء كل المهام",
+            "الإعدادات",
+            "إنهاء كوارو"
+        ]
     );
     assert_eq!(text::update_now(Lang::En), "Update now");
     assert_eq!(text::update_now(Lang::Ar), "حدّث الآن");

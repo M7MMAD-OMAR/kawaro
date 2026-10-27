@@ -17,6 +17,7 @@ mod portal;
 #[cfg(unix)]
 mod portal_bus;
 mod progress;
+mod registration;
 mod server;
 #[cfg(windows)]
 mod shell;
@@ -47,6 +48,8 @@ mod s049_notify_tests;
 mod s067_tests;
 #[cfg(test)]
 mod s084_drag_tests;
+#[cfg(test)]
+mod s087_welcome_tests;
 #[cfg(test)]
 mod server_tests;
 #[cfg(test)]

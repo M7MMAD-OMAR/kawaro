@@ -272,6 +272,7 @@ fn show_menu(hwnd: HWND) {
     let rtl = menu_right_to_left(lang);
     match tray::track_menu(hwnd, &items, rtl) {
         Some(Command::UpdateNow) => crate::update_sys::apply_from_menu(state.clone()),
+        Some(Command::GetStarted) => crate::ui::present_welcome(&state),
         Some(Command::CancelAll) => queue.cancel_all(),
         Some(Command::Settings) => {
             let config = lock(&state).config.clone();

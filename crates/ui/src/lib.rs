@@ -48,6 +48,7 @@ mod receiver;
 mod settings;
 #[cfg(unix)]
 pub mod thumb;
+pub mod welcome;
 #[cfg(windows)]
 mod win_window;
 mod tokens {

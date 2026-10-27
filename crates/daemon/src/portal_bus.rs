@@ -182,6 +182,18 @@ async fn serve(
         .map(|s| s.trigger_description().to_string())
         .unwrap_or_default();
     kawaro_ui::stderr_line(&portal::bound_line(&trigger));
+    // The registration result the welcome captions read (S-087 AC3): the
+    // key the portal actually bound, as its own reply describes it. A
+    // backend that describes nothing gets the requested trigger in its user
+    // spelling (the xkb `LOGO` is the Super key).
+    let name = if trigger.is_empty() {
+        portal::PREFERRED_TRIGGER
+            .replace("LOGO", "Super")
+            .replace("+z", "+Z")
+    } else {
+        trigger.clone()
+    };
+    crate::registration::record(kawaro_core::welcome::Registration::Fallback(name));
 
     let Some(own) = session_path(session) else {
         return Some(Reason::Error);
