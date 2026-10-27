@@ -1,5 +1,5 @@
 # S-087 First-run welcome: the demo, Try on an image, and Settings
-Status: approved under manager delegation (2026-10-26)
+Status: done (2026-10-27, chain reviewer PASS and merged to main via cdac007; shipped with 0.4.0).
 
 ## Story
 As a new user who just installed Kawaro, I want the first window to show me the drag flow, let me try it on a sample image with one click, and open the simplified Settings, so that I understand the app before I touch my own files.

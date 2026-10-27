@@ -1,5 +1,5 @@
 # S-088 Download page: the demo film, a sample to try, and the honest warning
-Status: approved under manager delegation (2026-10-26)
+Status: done (2026-10-27, chain reviewer PASS and merged to main via 56e5622; shipped with 0.4.0).
 
 ## Story
 As someone downloading Kawaro for the first time, I want the download page to show the drag demo while my file downloads, hand me a sample image to try it on right away, and explain the Windows warning honestly, so that the first try succeeds instead of stalling at a scary dialog.

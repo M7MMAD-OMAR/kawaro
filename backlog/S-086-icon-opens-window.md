@@ -1,5 +1,5 @@
 # S-086 Clicking the app icon opens a window instead of nothing
-Status: done (2026-10-27, tester, implementer and reviewer chain green on the story branch; not yet merged to main).
+Status: done (2026-10-27, tester, implementer and reviewer chain green and merged to main via f509306; shipped with 0.4.0).
 
 ## Story
 As a Windows user, I want clicking Kawaro in Start or search to open its Settings window at once, so that the app never looks dead or broken.

@@ -1,5 +1,5 @@
 # S-085 Windows app identity: the icon everywhere and the name Kawaro | كوارو
-Status: done, chain review PASS (2026-10-27), pending merge to main
+Status: done (2026-10-27, chain review PASS and merged to main via 4dc218d; shipped with 0.4.0).
 
 ## Story
 As a Windows user, I want the app to show its cactus icon and the name "Kawaro | كوارو" wherever the system shows an app, so that I can find and recognize Kawaro in Start, in the taskbar and in the apps list.

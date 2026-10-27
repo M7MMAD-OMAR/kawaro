@@ -1,5 +1,5 @@
 # S-084 Windows drag trigger without the Explorer drag modifiers
-Status: approved under manager delegation (2026-10-26); the default is named only after the measurements below (S-075 rule)
+Status: done (2026-10-27, tester d445b90 and implementation bfd887a merged to main; chain reviewer PASS 2026-10-27; shipped with 0.4.0). The Windows default is the right-button drag, named in the manager decision D3 below; the Explorer side on a live machine stays owner run under S-079.
 
 ## Story
 As a Windows user, I want one key or one button that opens the hive while I drag a document, and it must never change what Explorer does with my drag, so that no drag silently creates a shortcut, copies or moves my file.

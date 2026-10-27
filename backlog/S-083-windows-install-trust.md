@@ -1,5 +1,5 @@
 # S-083 Windows install trust: a signing pipeline and honest SmartScreen guidance
-Status: approved under manager delegation (2026-10-26); the signing part needs the maintainer's certificate first
+Status: done (2026-10-27, implemented and merged to main in c0ab4e3; shipped with 0.4.0). The signing pipeline signs the tag build with the certificate in the `release-signing` environment (`WINDOWS_SIGNING_PFX`, `WINDOWS_SIGNING_PASS`). The 0.4.0 release is test-signed with the self-signed certificate (subject CN=Kawaro test signing): SmartScreen still warns and the click flow is More info then Run anyway, and public signing still needs the maintainer's OV certificate from a real certificate authority.
 
 ## Story
 As a Windows user downloading Kawaro, I want the installer signed and the download page to tell me exactly what the warning means and what to click, so that installing takes one informed decision instead of a scary dead end.
