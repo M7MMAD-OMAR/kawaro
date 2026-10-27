@@ -319,8 +319,8 @@ def abs_url(lang, page):
 
 COMPONENT_STEMS = ("hex-button", "section-head", "hex-plate", "step-cell", "format-cell", "download-slab")
 CSS_BASE = (["style.css", "css/header.css"] + [f"css/components/{s}.css" for s in COMPONENT_STEMS]
-            + ["css/pages.css"])
-CSS_HOME = ["css/hero.css", "css/demo.css", "css/film.css", "css/marquee.css", "css/bento.css",
+            + ["css/pages.css", "css/film.css"])
+CSS_HOME = ["css/hero.css", "css/demo.css", "css/marquee.css", "css/bento.css",
             "css/formats.css", "css/closing.css", "css/motion.css"]
 CSS_DOCS = ["css/docs.css"]
 
@@ -934,12 +934,111 @@ def card(title, body="", tag=""):
     return f'<div class="card">{tg}<h3>{title}</h3>{bd}</div>'
 
 
+# ---------------------------------------------------------------------------
+# S-088: the download page teaches the first try (manager decisions D1 to D6 in
+# backlog/S-088-download-experience.md). The hero demo clip beside the download
+# buttons with its numbered flow caption (the caption masks the key exactly as
+# the film does, D1, and the line under the steps names the measured triggers of
+# D2), a numbered after-the-download walkthrough whose steps name the controls
+# the user really sees (D5, D6), and the one sample image both the page and the
+# app show (D4).
+# ---------------------------------------------------------------------------
+
+def dl_film(lang, root):
+    """The hero demo clip with native controls, its poster, and the numbered
+    flow caption. Under reduced motion CSS shows the poster and the same steps
+    instead of the moving film (AC1)."""
+    en = lang == "en"
+    label = html.escape(FILM_LABEL_EN if en else FILM_LABEL)
+    stem = "hero-en" if en else "hero"
+    steps = (("Drag a file.", "Press your shortcut.", "Drop it on the cell.",
+              "A new copy lands beside the original.")
+             if en else
+             ("اسحب الملف.", "اضغط اختصارك.", "أفلته على الخلية.",
+              "تظهر نسخة جديدة بجانب الأصل."))
+    flow = "".join(f'<li><span class="flow-num">{i}</span>{bidi(s, lang)}</li>' for i, s in enumerate(steps, 1))
+    # D1 and D2: the film's keycap reads "your shortcut", so the caption names
+    # the measured values under the masked step: Super+Z on Linux, and on
+    # Windows the right-button drag where no key is held (S-084 decision D3).
+    trigger = ("<p class=\"flow-trigger\">The shortcut in the film is <bdi>Super+Z</bdi> on Linux. "
+               "On Windows no key is held: drag the file with the right mouse button.</p>"
+               if en else
+               "<p class=\"flow-trigger\">الاختصار في الفيلم هو <bdi>Super+Z</bdi> على لينكس. "
+               "وعلى ويندوز لا يُضغط أي مفتاح: اسحب الملف بزر الفأرة الأيمن.</p>")
+    return (f'<figure class="film dl-film">'
+            f'<video class="film-video" width="1280" height="720" poster="{root}media/{stem}-poster.webp" '
+            f'autoplay muted loop playsinline controls preload="auto" aria-label="{label}">'
+            f'<source src="{root}media/{stem}.webm" type="video/webm">'
+            f'<source src="{root}media/{stem}.mp4" type="video/mp4"></video>'
+            f'<img class="film-still" src="{root}media/{stem}-poster.webp" alt="" width="1280" height="720">'
+            f'<figcaption><ol class="flow" role="list">{flow}</ol>{trigger}</figcaption></figure>')
+
+
+def try_box(lang, root):
+    """The sample button (AC3): the browser's own download flow, and one line
+    telling the user to drag the file onto the hive."""
+    en = lang == "en"
+    title = "A sample to try" if en else "عيّنة تجرّبها"
+    line = ("Drag the sample image onto the hive and pick a cell: the result lands beside it, "
+            "and the sample stays untouched." if en else
+            "اسحب الصورة العيّنة على الخلية واختر خلية، فيظهر الناتج بجانبها وتبقى العيّنة كما هي.")
+    text = "Try it on an image" if en else "جرّب على صورة"
+    aria = ("Try Kawaro on an image: download a small sample image to drag onto the hive" if en else
+            "جرّب كوارو على صورة: نزّل صورة عيّنة صغيرة لتسحبها على الخلية")
+    btn = hex_button(f"{root}assets/kawaro-sample.png", bidi(text, lang), "primary", "lg",
+                     f' download="kawaro-sample.png" aria-label="{html.escape(aria)}"')
+    return f'<div class="card try-box"><h3>{title}</h3><p>{bidi(line, lang)}</p><div class="actions">{btn}</div></div>'
+
+
+def walk_block(lang):
+    """The numbered after-the-download walkthrough (AC2). Every step names the
+    control the user will really see: the menu entry and its Show more options
+    line on Windows 11, the tray menu that holds Settings until the welcome
+    window lands (D6), the measured triggers (D2), and the SmartScreen dialog
+    with its two buttons (D5)."""
+    en = lang == "en"
+    steps = ([
+        ("Install Kawaro", "The MSI on Windows, the DEB or RPM on Linux. If Windows shows "
+                           "\"Windows protected your PC\", that is the warning the note under the Windows buttons "
+                           "explains: click More info, then Run anyway."),
+        ("Open Kawaro", "Right click a file and choose Kawaro (on Windows 11, under Show more options), "
+                        "or open Kawaro from its icon. The Kawaro menu beside the clock has Settings."),
+        ("Drag a file", "Hold <bdi>Super+Z</bdi> while you drag on Linux. On Windows drag with the right "
+                        "mouse button: no key is held."),
+        ("Drop on the cell", "Drop the file on the cell of the action you want."),
+        ("Take the result", "The result appears next to the original, which is never changed."),
+    ] if en else [
+        ("ثبّت كوارو", "حزمة MSI على ويندوز، أو DEB أو RPM على لينكس. وإن عرض ويندوز «Windows protected your PC» "
+                       "فهو التحذير الذي تشرحه الملاحظة تحت أزرار ويندوز: انقر More info ثم Run anyway."),
+        ("افتح كوارو", "انقر بزر الفأرة الأيمن على ملف واختر «كوارو» (على ويندوز 11 تحت «إظهار خيارات إضافية»)، "
+                       "أو افتح كوارو من أيقونته. وفي قائمة كوارو بجانب الساعة بند «الإعدادات»."),
+        ("اسحب ملفاً", "أمسك <bdi>Super+Z</bdi> أثناء السحب على لينكس. وعلى ويندوز اسحب بزر الفأرة الأيمن، "
+                       "دون ضغط أي مفتاح."),
+        ("أفلت على الخلية", "أفلت الملف على خلية الإجراء الذي تريده."),
+        ("خذ الناتج", "يظهر الناتج بجانب الأصل، الذي لا يُغيَّر أبداً."),
+    ])
+    cells = "".join(step_cell(i, bidi(t, lang), bidi(d, lang)) for i, (t, d) in enumerate(steps, 1))
+    title = "After the download" if en else "بعد التنزيل"
+    return f'<h2 id="after-title">{title}</h2><ol class="walk" role="list">{cells}</ol>'
+
+
+def dl_stage(lang, root):
+    """D3 and D7: one stage. At wide widths the slabs and the walkthrough share
+    one column and the film column with its caption and the Try button stands
+    beside them; on small screens the blocks stack as slabs, film and Try, then
+    the walkthrough, so the film stays next to the download buttons."""
+    side = f'<div class="dl-side">{dl_cards(lang, True)}</div>'
+    demo = f'<div class="dl-demo">{dl_film(lang, root)}{try_box(lang, root)}</div>'
+    return f'<div class="dl-stage">{side}{demo}<div class="dl-walk">{walk_block(lang)}</div></div>'
+
+
 def download(lang):
     ar = lang == "ar"
     win_href = page_href(lang, "download", lang, "windows")
+    stage = dl_stage(lang, rel_root(lang, "download"))
     if ar:
         h = page_head("نزّل كوارو", f"الإصدار <code>{VERSION}</code>")
-        top = sec(f'{dl_cards(lang, True)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
+        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">نسخة ويندوز غير موقّعة</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
 <p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
@@ -951,7 +1050,7 @@ def download(lang):
 <p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
     else:
         h = page_head("Download Kawaro", f"Version <code>{VERSION}</code>")
-        top = sec(f'{dl_cards(lang, True)}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
+        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is unsigned</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
                   cls="s-dl", ident="choose", edge=False)
         ver = sec(f'''<h2 id="v-title">Verify the file</h2>
 <p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>

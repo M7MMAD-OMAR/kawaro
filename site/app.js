@@ -65,13 +65,15 @@
   }
 
   /* The hero film plays only when motion is welcome, and only while it is on
-     screen. With reduced motion it stays on its poster and shows controls. */
+     screen. With reduced motion it stays on its poster and shows controls.
+     A film that carries the controls attribute (the download film, S-088) keeps
+     them in every mode: it is watched while a file downloads. */
   const film = doc.querySelector(".film-video");
   if (film) {
     const calm = matchMedia("(prefers-reduced-motion: reduce)");
     let seen = true;
     const sync = () => {
-      film.controls = calm.matches;
+      if (!film.hasAttribute("controls")) film.controls = calm.matches;
       if (calm.matches || !seen) film.pause();
       else film.play().catch(() => {});
     };

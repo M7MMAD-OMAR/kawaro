@@ -23,7 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import lib  # noqa: E402
 from lib import REPO, LANGS, TMP, parse_file, page_file, site, built, html_files, make_copy, run_build  # noqa: E402
 
-APP_KEYS_SHA = "9399aded1a2d5c5bf7ff103e95aa6a30fef356ea43953e7a23d49bd7ee62ba7d"
+# S-088 D8 re-baseline (rule 8, proved red at main d44a05f): the S-017 glass key
+# moved the app-keys hash. The constant keeps guarding every later change.
+APP_KEYS_SHA = "4c0032138886d477b6372c2320d2aee30510dce22d6a49176a660d6b278d4263"
 HELPERS = ("hex_button", "section_head", "hex_plate", "step_cell", "format_cell", "download_slab")
 COMPONENTS = {  # helper -> (css file stem, base class)
     "hex_button": "hex-button", "section_head": "section-head", "hex_plate": "hex-plate",
@@ -95,7 +97,13 @@ class AC2SiteTokens(unittest.TestCase):
             self.assertIn(k, s, f"site.{k}")
         self.assertGreaterEqual(len(s["color"]), 6)
         for name, v in s["color"].items():
-            self.assertRegex(v, r"^#[0-9A-Fa-f]{6}$", name)
+            # S-088 D8 re-baseline (rule 8, proved red at main d44a05f): the
+            # S-017 glass pair carries its alpha channel, every other key is a
+            # plain six digit colour and the shape stays guarded.
+            if name.startswith("glass-"):
+                self.assertRegex(v, r"^#[0-9A-Fa-f]{8}$", name)
+            else:
+                self.assertRegex(v, r"^#[0-9A-Fa-f]{6}$", name)
         for name, v in s["radius"].items():
             self.assertEqual(v, 0, f"site.radius.{name}")
         self.assertGreaterEqual(s["type"]["h1"], 72)
