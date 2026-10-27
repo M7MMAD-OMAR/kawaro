@@ -35,6 +35,13 @@ pub fn focus_log(ok: bool) -> Option<&'static str> {
     (!ok).then_some("kawarod: foreground refused")
 }
 
+/// Opens the Settings window for the current config (S-086 AC1): the one
+/// path behind `Request::Settings`, `kawarod settings` and `kawaro settings`.
+pub fn settings(state: &Shared) {
+    let config = lock(state).config.clone();
+    ui::open_settings(config);
+}
+
 /// The S-021 rule on Windows (S-047 AC6): a shortcut shows the drop hive
 /// only while the primary button is held, that is during a drag. True when
 /// a request must be refused: a drop with the primary button up.
@@ -92,7 +99,9 @@ fn error(stream: &mut Stream, message: impl Into<String>) {
     );
 }
 
-fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
+/// One request per connection. `pub(crate)` for the S-086 routing tests,
+/// which feed it from a fake listener.
+pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     let Ok(line) = read_request(&mut stream) else {
         return;
     };
@@ -164,8 +173,7 @@ fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
             reply(&mut stream, &Response::Ok);
         }
         Request::Settings => {
-            let config = lock(state).config.clone();
-            ui::open_settings(config);
+            settings(state);
             reply(&mut stream, &Response::Ok);
         }
         Request::Reload => {

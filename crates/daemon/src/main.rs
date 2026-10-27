@@ -55,6 +55,7 @@ mod update_tests;
 use state::lock;
 
 use kawaro_core::config::Config;
+use kawaro_core::ipc::Request;
 use kawaro_core::queue::Queue;
 use kawaro_core::transport::{self, Bound, Listener};
 use std::path::PathBuf;
@@ -79,15 +80,25 @@ fn main() -> ExitCode {
         }
     };
     let endpoint = transport::endpoint();
-    // `open` talks to a running service when there is one (S-046 AC6).
-    let open_files = match mode {
+    // `open` and `settings` talk to a running service when there is one
+    // (S-046 AC6, S-086 AC1).
+    let (open_files, open_settings) = match mode {
         args::Mode::Open(files) => {
             if let Some(code) = send_open(&endpoint, &files) {
                 return code;
             }
-            Some(files.into_iter().map(PathBuf::from).collect::<Vec<_>>())
+            (
+                Some(files.into_iter().map(PathBuf::from).collect::<Vec<_>>()),
+                false,
+            )
         }
-        args::Mode::Daemon => None,
+        args::Mode::Settings => {
+            if let Some(code) = send_settings(&endpoint) {
+                return code;
+            }
+            (None, true)
+        }
+        args::Mode::Daemon => (None, false),
     };
     // A daemon the updater started waits for the old one to free the socket.
     let bound =
@@ -148,11 +159,15 @@ fn main() -> ExitCode {
     // After the bind: the thread sleeps 30 s before its first check.
     update::start(state.clone());
     // No service answered: this process is the service and shows the hive
-    // for the files it was started with.
+    // for the files it was started with, or the settings window when it was
+    // started as `kawarod settings` (S-086 AC1).
     if let Some(files) = open_files
         && let Err(e) = server::open(&state, files, None)
     {
         eprintln!("kawarod: {e}");
+    }
+    if open_settings {
+        server::settings(&state);
     }
     #[cfg(unix)]
     {
@@ -176,16 +191,30 @@ fn main() -> ExitCode {
 /// Sends one `open` line to the service on `endpoint` and waits for its
 /// reply. `None` when no service answers, so the caller becomes the service.
 fn send_open(endpoint: &transport::Endpoint, files: &[String]) -> Option<ExitCode> {
-    use kawaro_core::ipc::{Request, Response};
-    use std::io::{BufRead, BufReader, Write};
-    let mut stream = transport::Stream::connect(endpoint).ok()?;
-    #[cfg(windows)]
-    shell_open::allow_foreground();
     let request = Request::Open {
         files: files.iter().map(PathBuf::from).collect(),
         token: None,
     };
-    let line = serde_json::to_string(&request).ok()?;
+    send_request(endpoint, &request)
+}
+
+/// Sends one `settings` request to the service on `endpoint` (S-086 AC1),
+/// the same `Request::Settings` path `kawaro settings` uses, and waits for
+/// its reply. `None` when no service answers, so the caller becomes the
+/// service and opens the window itself.
+fn send_settings(endpoint: &transport::Endpoint) -> Option<ExitCode> {
+    send_request(endpoint, &Request::Settings)
+}
+
+/// Sends one request line to the service on `endpoint` and waits for its
+/// reply. `None` when no service answers, so the caller becomes the service.
+fn send_request(endpoint: &transport::Endpoint, request: &Request) -> Option<ExitCode> {
+    use kawaro_core::ipc::Response;
+    use std::io::{BufRead, BufReader, Write};
+    let mut stream = transport::Stream::connect(endpoint).ok()?;
+    #[cfg(windows)]
+    shell_open::allow_foreground();
+    let line = serde_json::to_string(request).ok()?;
     if writeln!(stream, "{line}").is_err() {
         eprintln!("kawarod: cannot send the request");
         return Some(ExitCode::FAILURE);
