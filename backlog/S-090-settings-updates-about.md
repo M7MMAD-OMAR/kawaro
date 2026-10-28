@@ -1,5 +1,5 @@
 # S-090 Settings: current version, Check for updates, Update now
-Status: draft (2026-10-28, owner priority: very important)
+Status: approved (2026-10-28, owner priority: very important; approved by delegation)
 
 ## Story
 As a user, I want the settings window to show my current version, a "Check for updates" button and an "Update now" button, so that I can see and run an update without knowing the tray menu or `config.toml` exist.
@@ -37,4 +37,4 @@ ADR 0006 (section "Settings window rows" and the Consequences list) and S-054b (
 - Updates in settings (S-090): the settings window shows the installed version, a "Check for updates" button and "Update now", with the automatic check, channel and install mode. «التحديثات في الإعدادات: تعرض النافذة النسخة المثبّتة وزر «ابحث عن تحديث» و«حدّث الآن» مع الفحص التلقائي والقناة ونمط التثبيت».
 
 ## Review log
-- 
+- 2026-10-28 tester: tests in crates/ui/tests/s090_updates.rs (AC1 to AC7, 10 tests). The test file fixes the public API the implementer must add: UpdateState, SettingsWindow::{set_update_view, on_update_check, on_update_apply, show_update_deferred} plus hidden hooks (update_version_text, update_state_line, update_check_enabled, update_apply_enabled, press_update_check, press_update_apply, press_save, press_cancel, set_update_check_auto, set_update_channel, set_update_mode), and kawaro_ui::about_line(Lang). AC8 snapshots and the Windows/Linux screenshots stay manual gates. Failure (cargo test -p kawaro-ui --test s090_updates): does not compile, 44 errors: E0432 unresolved import kawaro_ui::UpdateState; E0425 no function about_line; E0599 no method set_update_view (9), update_state_line (7), update_check_enabled (4), update_apply_enabled (3), press_save (3), and the other hooks listed above.
