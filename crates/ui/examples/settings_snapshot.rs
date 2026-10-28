@@ -2,6 +2,7 @@
 //! reference.
 //!
 //!     settings_snapshot OUT.png [--lang ar|en] [--compare REF.png]
+//!                       [--update-state up-to-date|checking|downloading|ready|failed|unavailable|off]
 //!
 //! The window shows a sample configuration with the subfolder option on, so
 //! the folder field is enabled. With `--compare` the exit code is 1 when more
@@ -10,7 +11,7 @@
 //! crates/ui/tests/settings_snapshots.sh, which starts a private headless one.
 
 use kawaro_core::config::{Config, OutputPlace};
-use kawaro_ui::Lang;
+use kawaro_ui::{Lang, UpdateState};
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -21,6 +22,8 @@ struct Opts {
     out: PathBuf,
     lang: Lang,
     compare: Option<PathBuf>,
+    /// S-090: shows the Updates section in this state (AC8 screenshots).
+    update_state: Option<String>,
 }
 
 fn parse(args: &[String]) -> Result<Opts, String> {
@@ -28,12 +31,14 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         out: PathBuf::new(),
         lang: Lang::En,
         compare: None,
+        update_state: None,
     };
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--lang" => o.lang = it.next().map(|v| Lang::parse(v)).unwrap_or(Lang::En),
             "--compare" => o.compare = it.next().map(PathBuf::from),
+            "--update-state" => o.update_state = it.next().cloned(),
             other => o.out = PathBuf::from(other),
         }
     }
@@ -87,6 +92,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Config::default()
     };
     win.open(&config)?;
+    if let Some(state) = &o.update_state {
+        let (state, running) = match state.as_str() {
+            "up-to-date" => (UpdateState::UpToDate, true),
+            "checking" => (UpdateState::Checking, true),
+            "downloading" => (UpdateState::Downloading(42), true),
+            "ready" => (UpdateState::Ready, true),
+            "failed" => (UpdateState::Failed("signature mismatch".into()), true),
+            "unavailable" => (UpdateState::Unavailable, true),
+            _ => (UpdateState::UpToDate, false),
+        };
+        win.set_update_view(env!("CARGO_PKG_VERSION"), state, running);
+    }
 
     let result = std::rc::Rc::new(std::cell::Cell::new(Ok::<(), String>(())));
     let (w, r) = (win.clone(), result.clone());
