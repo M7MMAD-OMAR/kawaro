@@ -29,7 +29,10 @@ fn root() -> PathBuf {
 }
 
 fn window(lang: Lang) -> SettingsWindow {
-    i_slint_backend_testing::init_no_event_loop();
+    thread_local! {
+        static INIT: std::sync::Once = const { std::sync::Once::new() };
+    }
+    INIT.with(|once| once.call_once(i_slint_backend_testing::init_no_event_loop));
     let w = SettingsWindow::new(lang).expect("window");
     w.open(&Config::default()).expect("open");
     w
@@ -107,11 +110,7 @@ fn ac3_update_now_is_enabled_only_in_ready_and_sends_one_apply() {
     w.on_update_apply(move || n2.set(n2.get() + 1));
     for st in states() {
         w.set_update_view(VERSION, st.clone(), true);
-        assert_eq!(
-            w.update_apply_enabled(),
-            st == UpdateState::Ready,
-            "{st:?}"
-        );
+        assert_eq!(w.update_apply_enabled(), st == UpdateState::Ready, "{st:?}");
         w.press_update_apply();
     }
     assert_eq!(n.get(), 1, "only the Ready state sends update-apply");
@@ -168,7 +167,10 @@ fn ac4_save_writes_the_three_keys_and_cancel_leaves_the_file_unchanged() {
     assert!(!back.update_check);
     assert_eq!(back.update_channel, Channel::Beta);
     assert_eq!(back.update_mode, UpdateMode::Auto);
-    assert!(back.update_channel_present, "an explicit channel stays explicit");
+    assert!(
+        back.update_channel_present,
+        "an explicit channel stays explicit"
+    );
 }
 
 #[test]
@@ -179,7 +181,10 @@ fn ac4_an_untouched_default_channel_is_not_made_explicit() {
     w.on_save(move |c| *s2.borrow_mut() = Some(c));
     w.press_save();
     let out = saved.borrow().clone().expect("saved");
-    assert!(!out.update_channel_present, "update_channel_present unchanged");
+    assert!(
+        !out.update_channel_present,
+        "update_channel_present unchanged"
+    );
     assert_eq!(out.update_channel, Channel::Stable);
 }
 
