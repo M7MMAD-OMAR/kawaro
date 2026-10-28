@@ -9,6 +9,7 @@
 
 use crate::Lang;
 use crate::settings::{self, FormState};
+use crate::updates::{UpdateModel, UpdateState};
 use kawaro_core::config::{Config, OutputPlace};
 use kawaro_core::welcome::Captions;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
@@ -114,6 +115,9 @@ struct Inner {
     on_settings_save: RefCell<Option<SettingsSave>>,
     settings_opened: RefCell<Config>,
     on_language: RefCell<Option<LanguageSave>>,
+    update: RefCell<UpdateModel>,
+    on_update_check: RefCell<Option<Callback>>,
+    on_update_apply: RefCell<Option<Callback>>,
     timer: slint::Timer,
     plan: RefCell<DemoPlan>,
     ticks: Cell<u64>,
@@ -132,6 +136,12 @@ impl Inner {
             settings_button: strings.settings_button.as_str().into(),
             settings_accessible: strings.settings_accessible.as_str().into(),
         });
+        ui.set_version_text(crate::about_line(self.lang).into());
+        self.show_update(&ui, self.lang);
+        let w = Rc::downgrade(self);
+        ui.on_update_check(move || with(&w, Inner::update_check));
+        let w = Rc::downgrade(self);
+        ui.on_update_apply(move || with(&w, Inner::update_apply));
         let w = Rc::downgrade(self);
         ui.on_try_sample(move || with(&w, Inner::try_sample));
         let w = Rc::downgrade(self);
@@ -158,6 +168,44 @@ impl Inner {
             slint::CloseRequestResponse::HideWindow
         });
         Ok(ui)
+    }
+
+    fn show_update(&self, ui: &WelcomeUi, lang: Lang) {
+        let r = self.update.borrow().render(lang);
+        ui.set_settings_update_version_text(r.version_text.into());
+        ui.set_settings_update_state_line(r.state_line.into());
+        ui.set_settings_update_check_enabled(r.check_enabled);
+        ui.set_settings_update_apply_enabled(r.apply_enabled);
+    }
+
+    fn current_lang(&self) -> Lang {
+        if self.ui.borrow().get_rtl() {
+            Lang::Ar
+        } else {
+            Lang::En
+        }
+    }
+
+    fn update_check(&self) {
+        if !self.update.borrow_mut().begin_check() {
+            return;
+        }
+        self.show_update(&self.ui.borrow(), self.current_lang());
+        let f = self.on_update_check.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
+    }
+
+    fn update_apply(&self) {
+        if !self.update.borrow_mut().begin_apply() {
+            return;
+        }
+        self.show_update(&self.ui.borrow(), self.current_lang());
+        let f = self.on_update_apply.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
     }
 
     fn visible(&self) -> bool {
@@ -189,6 +237,9 @@ impl Inner {
             notify: ui.get_settings_notify(),
             notify_long_only: ui.get_settings_notify_long_only(),
             open_folder: ui.get_settings_open_folder(),
+            update_check: ui.get_settings_update_check_auto(),
+            update_channel: ui.get_settings_update_channel(),
+            update_mode: ui.get_settings_update_mode(),
             opened: self.settings_opened.borrow().clone(),
         }
     }
@@ -211,12 +262,21 @@ impl Inner {
             open_folder: text.open_folder,
             save: text.save,
             cancel: text.cancel,
+            updates: text.updates,
+            update_check: text.update_check,
+            update_apply: text.update_apply,
+            update_auto: text.update_auto,
+            update_channel: text.update_channel,
+            update_mode: text.update_mode,
         });
         let list = |items: &[&str]| ModelRc::new(VecModel::from(settings::ordered(items, rtl)));
         ui.set_settings_language_items(list(&strings.languages));
         ui.set_settings_theme_items(list(&strings.themes));
         ui.set_settings_output_items(list(&strings.outputs));
         ui.set_settings_quality_items(list(&strings.qualities));
+        ui.set_settings_update_channel_items(list(&strings.channels));
+        ui.set_settings_update_mode_items(list(&strings.modes));
+        self.show_update(&ui, lang);
         ui.set_settings_subfolder_index(settings::to_visual(
             &settings::OUTPUTS,
             &OutputPlace::Subfolder,
@@ -230,6 +290,9 @@ impl Inner {
         ui.set_settings_notify(state.notify);
         ui.set_settings_notify_long_only(state.notify_long_only);
         ui.set_settings_open_folder(state.open_folder);
+        ui.set_settings_update_check_auto(state.update_check);
+        ui.set_settings_update_channel(state.update_channel);
+        ui.set_settings_update_mode(state.update_mode);
     }
 
     fn settings_language_changed(&self) {
@@ -315,6 +378,9 @@ impl WelcomeWindow {
             on_settings_save: RefCell::new(None),
             settings_opened: RefCell::new(Config::default()),
             on_language: RefCell::new(None),
+            update: RefCell::new(UpdateModel::default()),
+            on_update_check: RefCell::new(None),
+            on_update_apply: RefCell::new(None),
             timer: slint::Timer::default(),
             plan: RefCell::new(demo_plan(1, false)),
             ticks: Cell::new(0),
@@ -394,6 +460,34 @@ impl WelcomeWindow {
     #[cfg(windows)]
     pub fn hwnd(&self) -> Option<isize> {
         crate::win_window::hwnd(self.inner.ui.borrow().window())
+    }
+
+    /// Shows the installed `version`, the update `state` and whether the
+    /// background service answers (S-090), inside the embedded settings.
+    pub fn set_update_view(&self, version: &str, state: UpdateState, service_running: bool) {
+        let inner = &self.inner;
+        inner
+            .update
+            .borrow_mut()
+            .set_view(version, state, service_running);
+        inner.show_update(&inner.ui.borrow(), inner.current_lang());
+    }
+
+    /// Update now was accepted but waits for running jobs (S-054b AC7).
+    pub fn show_update_deferred(&self) {
+        let inner = &self.inner;
+        inner.update.borrow_mut().set_deferred();
+        inner.show_update(&inner.ui.borrow(), inner.current_lang());
+    }
+
+    /// Called when Check for updates is pressed while it is enabled.
+    pub fn on_update_check(&self, f: impl Fn() + 'static) {
+        *self.inner.on_update_check.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Called when Update now is pressed while it is enabled.
+    pub fn on_update_apply(&self, f: impl Fn() + 'static) {
+        *self.inner.on_update_apply.borrow_mut() = Some(Rc::new(f));
     }
 
     /// Called when Try on an image is pressed, by pointer or keyboard.

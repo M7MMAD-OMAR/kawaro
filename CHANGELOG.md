@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+- Updates in settings (S-090): the settings window shows the installed version, a "Check for updates" button and "Update now", with the automatic check, channel and install mode. «التحديثات في الإعدادات: تعرض النافذة النسخة المثبّتة وزر «ابحث عن تحديث» و«حدّث الآن» مع الفحص التلقائي والقناة ونمط التثبيت».
+
 - WinGet per-user scope guard ([S-078](https://github.com/M7MMAD-OMAR/kawaro)): `scripts/release/check-winget-scope.sh` reads the `ALLUSERS` and `MSIINSTALLPERUSER` properties of the built MSI and refuses a manifest that declares `Scope: user` when the installer is not per-user by construction, because winget reads the program entry under the user's own hive while an elevated install without those properties registers it under the machine hive, where winget does not look; the measured cause is that `wixl` accepts `InstallScope="perUser"` and drops it, so the next MSI build writes the two properties explicitly, and `tests/release/s078_winget_scope.sh` builds real MSIs with wixl in both shapes and covers the non-user scopes as well. «حارس نطاق WinGet لكل مستخدم: يقرأ `scripts/release/check-winget-scope.sh` خاصيتي `ALLUSERS` و`MSIINSTALLPERUSER` من حزمة MSI المبنية ويرفض ملف تعريف يعلن `Scope: user` حين لا يكون المثبّت لكل مستخدم secara أصيل، لأن winget يقرأ مدخل البرنامج من خلية المستخدم نفسه بينما يسجّل التثبيت المرفوع بلا هاتين الخاصيتين في خلية الجهاز، حيث لا يبحث winget؛ والسبب المقيس أن `wixl` يقبل `InstallScope="perUser"` ويهملها، ولذلك تكتب الحزمة التالية هاتين الخاصيتين صراحةً، ويبني `tests/release/s078_winget_scope.sh` حزم MSI حقيقية بـ wixl في الصيغتين ويغطي النطاقات غير الخاصة بالمستخدم أيضاً».
 
 

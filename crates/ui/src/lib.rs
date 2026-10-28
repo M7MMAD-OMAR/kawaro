@@ -59,6 +59,8 @@ pub use drop_track::{Source, drop_hive_allowed};
 pub use icons::icon_names;
 pub use kawaro_core::i18n::Lang;
 pub use settings::SettingsWindow;
+mod updates;
+pub use updates::{UpdateState, about_line, state_from_status};
 
 use layout::{Nav, Plan};
 use slint::winit_030::{CustomApplicationHandler, EventResult, winit};

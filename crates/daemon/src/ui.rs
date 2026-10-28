@@ -446,6 +446,54 @@ pub fn present_welcome(state: &Shared) {
     });
 }
 
+/// Sends one update request to the running service on its own thread, so the
+/// window never waits on the network, then shows the answer in the settings
+/// window (S-090 AC2, AC3, AC5). `deferred` marks an install that waits.
+fn update_round_trip(request: kawaro_core::ipc::Request, deferred: bool) {
+    use kawaro_core::ipc::{Request, Response};
+    use kawaro_ui::UpdateState;
+    let is_apply = request == Request::UpdateApply;
+    std::thread::spawn(move || {
+        let answer = exchange(&request);
+        let _ = slint::invoke_from_event_loop(move || {
+            let version = env!("CARGO_PKG_VERSION");
+            WELCOME.with(|slot| {
+                let slot = slot.borrow();
+                let Some(win) = slot.as_ref() else { return };
+                match answer {
+                    None => win.set_update_view(version, UpdateState::Unavailable, false),
+                    Some(Response::Update {
+                        status, current, ..
+                    }) => {
+                        let state = kawaro_ui::state_from_status(&status, None);
+                        win.set_update_view(&current, state, true);
+                    }
+                    Some(Response::Ok) if is_apply && deferred => win.show_update_deferred(),
+                    Some(Response::Ok) if is_apply => {
+                        win.set_update_view(version, UpdateState::Checking, true);
+                    }
+                    Some(Response::Error { message }) => {
+                        win.set_update_view(version, UpdateState::Failed(message), true);
+                    }
+                    Some(_) => win.set_update_view(version, UpdateState::UpToDate, true),
+                }
+            });
+        });
+    });
+}
+
+/// One request line out, one reply line back. `None` when no service answers.
+fn exchange(request: &kawaro_core::ipc::Request) -> Option<kawaro_core::ipc::Response> {
+    use std::io::{BufRead, BufReader, Write};
+    let mut stream =
+        kawaro_core::transport::Stream::connect(&kawaro_core::transport::endpoint()).ok()?;
+    let line = serde_json::to_string(request).ok()?;
+    writeln!(stream, "{line}").ok()?;
+    let mut reply = String::new();
+    BufReader::new(stream).read_line(&mut reply).ok()?;
+    serde_json::from_str(&reply).ok()
+}
+
 /// Creates the welcome window lazily and wires its two buttons.
 fn welcome_window() -> Result<(), slint::PlatformError> {
     if WELCOME.with(|w| w.borrow().is_some()) {
@@ -457,6 +505,17 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
     let win = WelcomeWindow::new(lang)?;
     if let Some((_, settings_state, queue)) = SETTINGS_ARGS.with(|a| a.borrow().clone()) {
         win.on_settings_save(move |config| save_settings(config, &settings_state, &queue));
+    }
+    {
+        win.on_update_check(|| update_round_trip(kawaro_core::ipc::Request::UpdateCheck, false));
+        let state = state.clone();
+        win.on_update_apply(move || {
+            // The daemon answers `Ok` both for "installing now" and for "waits
+            // for the running jobs"; the same rule it applies decides which.
+            let (_, jobs, hive_open) = crate::update_sys::snapshot(&state);
+            let deferred = !kawaro_core::update::apply::can_apply(jobs, hive_open);
+            update_round_trip(kawaro_core::ipc::Request::UpdateApply, deferred);
+        });
     }
     {
         let state = state.clone();

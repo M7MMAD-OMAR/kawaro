@@ -30,6 +30,12 @@ export struct SettingsText {
     open-folder: string,
     save: string,
     cancel: string,
+    updates: string,
+    update-check: string,
+    update-apply: string,
+    update-auto: string,
+    update-channel: string,
+    update-mode: string,
 }
 
 // A section heading, aligned to the reading side.
@@ -133,6 +139,19 @@ export component SettingsPanel inherits Rectangle {
     // then, and its text lives in `folder` across its removal and return.
     in property <int> subfolder-index;
 
+    // The Updates section (S-090). Rust renders the version and state line.
+    in property <string> update-version-text;
+    in property <string> update-state-line;
+    in property <bool> update-check-enabled;
+    in property <bool> update-apply-enabled;
+    in property <[string]> update-channel-items;
+    in property <[string]> update-mode-items;
+    in-out property <bool> update-check-auto;
+    in-out property <int> update-channel;
+    in-out property <int> update-mode;
+    callback update-check();
+    callback update-apply();
+
     callback save();
     callback cancel();
     callback language-selected();
@@ -150,9 +169,9 @@ export component SettingsPanel inherits Rectangle {
             reject
         }
 
+        VerticalLayout {
         scroll := ScrollView {
-            width: parent.width;
-            height: parent.height;
+            vertical-stretch: 1;
             content-width: self.visible-width;
             content-height: max(self.visible-height, content.min-height);
             content := VerticalLayout {
@@ -223,6 +242,96 @@ export component SettingsPanel inherits Rectangle {
                 }
             }
 
+            VerticalLayout {
+                spacing: Tokens.space-3;
+
+                Heading {
+                    rtl: root.rtl;
+                    text: root.text.updates;
+                }
+
+                Text {
+                    text: root.update-version-text;
+                    font-size: Tokens.font-body;
+                    color: Tokens.text-primary;
+                    wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
+                }
+
+                if root.update-state-line != "": Text {
+                    text: root.update-state-line;
+                    font-size: Tokens.font-body;
+                    color: Tokens.text-secondary;
+                    wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
+                }
+
+                if !root.rtl: HorizontalLayout {
+                    alignment: start;
+                    spacing: Tokens.space-2;
+
+                    TextButton {
+                        text: root.text.update-check;
+                        enabled: root.update-check-enabled;
+                        accessible-label: root.text.update-check;
+                        clicked => { root.update-check(); }
+                    }
+
+                    FilledButton {
+                        text: root.text.update-apply;
+                        enabled: root.update-apply-enabled;
+                        accessible-label: root.text.update-apply;
+                        clicked => { root.update-apply(); }
+                    }
+                }
+
+                if root.rtl: HorizontalLayout {
+                    alignment: end;
+                    spacing: Tokens.space-2;
+
+                    FilledButton {
+                        text: root.text.update-apply;
+                        enabled: root.update-apply-enabled;
+                        accessible-label: root.text.update-apply;
+                        clicked => { root.update-apply(); }
+                    }
+
+                    TextButton {
+                        text: root.text.update-check;
+                        enabled: root.update-check-enabled;
+                        accessible-label: root.text.update-check;
+                        clicked => { root.update-check(); }
+                    }
+                }
+
+                SwitchRow {
+                    rtl: root.rtl;
+                    label: root.text.update-auto;
+                    checked <=> root.update-check-auto;
+                }
+
+                Choice {
+                    rtl: root.rtl;
+                    label: root.text.update-channel;
+                    items: root.update-channel-items;
+                    current <=> root.update-channel;
+                }
+
+                Choice {
+                    rtl: root.rtl;
+                    label: root.text.update-mode;
+                    items: root.update-mode-items;
+                    current <=> root.update-mode;
+                }
+            }
+
+            }
+        }
+        // The save row stays in view below the scrolling sections.
+        VerticalLayout {
+            padding: Tokens.space-6;
+            spacing: Tokens.space-3;
+
             if root.save-failed: Text {
                 text: root.rtl ? "تعذر حفظ الإعدادات، حاول مرة أخرى." : "Could not save settings. Please try again.";
                 color: Tokens.text-primary;
@@ -272,7 +381,7 @@ export component SettingsPanel inherits Rectangle {
                     }
                 }
             }
-            }
+        }
         }
     }
 }
@@ -295,13 +404,24 @@ export component SettingsUi inherits MaterialWindow {
     in-out property <bool> save-failed <=> panel.save-failed;
     in-out property <bool> open-folder <=> panel.open-folder;
     in-out property <int> subfolder-index <=> panel.subfolder-index;
+    in-out property <string> update-version-text <=> panel.update-version-text;
+    in-out property <string> update-state-line <=> panel.update-state-line;
+    in-out property <bool> update-check-enabled <=> panel.update-check-enabled;
+    in-out property <bool> update-apply-enabled <=> panel.update-apply-enabled;
+    in-out property <[string]> update-channel-items <=> panel.update-channel-items;
+    in-out property <[string]> update-mode-items <=> panel.update-mode-items;
+    in-out property <bool> update-check-auto <=> panel.update-check-auto;
+    in-out property <int> update-channel <=> panel.update-channel;
+    in-out property <int> update-mode <=> panel.update-mode;
     callback save();
     callback cancel();
     callback language-selected();
+    callback update-check();
+    callback update-apply();
     title: root.text.title;
     default-font-family: Tokens.font-family;
     preferred-width: Tokens.space-6 * 16;
-    preferred-height: Tokens.space-6 * 23 + Tokens.space-5;
+    preferred-height: Tokens.space-6 * 26;
     min-height: Tokens.space-6 * 10;
     init => { MaterialPalette.schemes = SbarMaterial.schemes; }
     panel := SettingsPanel {
@@ -310,5 +430,7 @@ export component SettingsUi inherits MaterialWindow {
         save => { root.save(); }
         cancel => { root.cancel(); }
         language-selected => { root.language-selected(); }
+        update-check => { root.update-check(); }
+        update-apply => { root.update-apply(); }
     }
 }

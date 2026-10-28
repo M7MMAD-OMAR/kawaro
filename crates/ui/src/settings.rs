@@ -12,7 +12,9 @@
 //! are the only place that knows the order.
 
 use crate::Lang;
-use kawaro_core::config::{Config, LangSetting, OutputPlace, Quality, Theme};
+use crate::updates::{UpdateModel, UpdateState};
+use kawaro_core::config::{Config, LangSetting, OutputPlace, Quality, Theme, UpdateMode};
+use kawaro_core::update::Channel;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -29,6 +31,8 @@ pub(crate) const LANGUAGES: [LangSetting; 3] =
 pub(crate) const THEMES: [Theme; 3] = [Theme::Auto, Theme::Light, Theme::Dark];
 pub(crate) const OUTPUTS: [OutputPlace; 2] = [OutputPlace::Beside, OutputPlace::Subfolder];
 pub(crate) const QUALITIES: [Quality; 3] = [Quality::Light, Quality::Balanced, Quality::Max];
+pub(crate) const CHANNELS: [Channel; 2] = [Channel::Stable, Channel::Beta];
+pub(crate) const MODES: [UpdateMode; 2] = [UpdateMode::Ask, UpdateMode::Auto];
 
 /// Visual position of the option at reading position `i` among `n`.
 fn visual(i: usize, n: usize, rtl: bool) -> usize {
@@ -71,6 +75,9 @@ pub(crate) struct FormState {
     pub(crate) notify: bool,
     pub(crate) notify_long_only: bool,
     pub(crate) open_folder: bool,
+    pub(crate) update_check: bool,
+    pub(crate) update_channel: i32,
+    pub(crate) update_mode: i32,
     pub(crate) opened: Config,
 }
 
@@ -85,6 +92,9 @@ impl FormState {
             notify: c.notify,
             notify_long_only: c.notify_long_only,
             open_folder: c.open_folder_when_done,
+            update_check: c.update_check,
+            update_channel: to_visual(&CHANNELS, &c.update_channel, rtl),
+            update_mode: to_visual(&MODES, &c.update_mode, rtl),
             opened: c.clone(),
         }
     }
@@ -92,6 +102,7 @@ impl FormState {
     /// The folder name is trimmed; an empty one goes back to the default.
     pub(crate) fn to_config(&self, rtl: bool) -> Config {
         let folder = self.folder.trim();
+        let channel = from_visual(&CHANNELS, self.update_channel, rtl);
         Config {
             language: from_visual(&LANGUAGES, self.language, rtl),
             theme: from_visual(&THEMES, self.theme, rtl),
@@ -105,6 +116,12 @@ impl FormState {
             open_folder_when_done: self.open_folder,
             notify: self.notify,
             notify_long_only: self.notify_long_only,
+            update_check: self.update_check,
+            update_channel: channel,
+            // Only a changed channel becomes an explicit key (S-053a).
+            update_channel_present: self.opened.update_channel_present
+                || channel != self.opened.update_channel,
+            update_mode: from_visual(&MODES, self.update_mode, rtl),
             ..self.opened.clone()
         }
     }
@@ -117,7 +134,20 @@ pub(crate) struct Strings {
     pub(crate) themes: [&'static str; 3],
     pub(crate) outputs: [&'static str; 2],
     pub(crate) qualities: [&'static str; 3],
+    pub(crate) channels: [&'static str; 2],
+    pub(crate) modes: [&'static str; 2],
 }
+
+/// Automatic install exists only on Windows (S-054b AC4); elsewhere the
+/// choice is kept but the update still waits for the user, and the label says so.
+#[cfg(windows)]
+const AUTO_EN: &str = "Automatic";
+#[cfg(not(windows))]
+const AUTO_EN: &str = "Automatic (Windows only)";
+#[cfg(windows)]
+const AUTO_AR: &str = "تلقائي";
+#[cfg(not(windows))]
+const AUTO_AR: &str = "تلقائي (ويندوز فقط)";
 
 pub(crate) fn strings(lang: Lang) -> Strings {
     match lang {
@@ -134,11 +164,19 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 open_folder: "فتح المجلد عند الانتهاء".into(),
                 save: "حفظ".into(),
                 cancel: "إلغاء".into(),
+                updates: "التحديثات".into(),
+                update_check: "ابحث عن تحديث".into(),
+                update_apply: "حدّث الآن".into(),
+                update_auto: "ابحث عن التحديثات تلقائيًا".into(),
+                update_channel: "قناة التحديث".into(),
+                update_mode: "تثبيت التحديثات".into(),
             },
             languages: ["تلقائي", "العربية", "English"],
             themes: ["تلقائي", "فاتح", "داكن"],
             outputs: ["بجانب الملف الأصلي", "في مجلد فرعي"],
             qualities: ["ملفات أصغر", "متوازنة", "أفضل جودة"],
+            channels: ["مستقرة", "تجريبية"],
+            modes: ["اسألني", AUTO_AR],
         },
         Lang::En => Strings {
             text: SettingsText {
@@ -153,11 +191,19 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 open_folder: "Open the folder when done".into(),
                 save: "Save".into(),
                 cancel: "Cancel".into(),
+                updates: "Updates".into(),
+                update_check: "Check for updates".into(),
+                update_apply: "Update now".into(),
+                update_auto: "Check automatically".into(),
+                update_channel: "Update channel".into(),
+                update_mode: "Install updates".into(),
             },
             languages: ["Automatic", "العربية", "English"],
             themes: ["Automatic", "Light", "Dark"],
             outputs: ["Next to the original", "In a subfolder"],
             qualities: ["Smaller files", "Balanced", "Best quality"],
+            channels: ["Stable", "Beta"],
+            modes: ["Ask me", AUTO_EN],
         },
     }
 }
@@ -179,12 +225,16 @@ pub(crate) fn forced_scheme(
 }
 
 type SaveFn = Rc<dyn Fn(Config)>;
+type Callback = Rc<dyn Fn()>;
 
 struct Inner {
     rtl: Cell<bool>,
     initial_lang: Lang,
     ui: RefCell<SettingsUi>,
     on_save: RefCell<Option<SaveFn>>,
+    update: RefCell<UpdateModel>,
+    on_update_check: RefCell<Option<Callback>>,
+    on_update_apply: RefCell<Option<Callback>>,
     /// The complete [`Config`] the window was opened with. `hive_surface`
     /// and `hold_ms` have no control here (S-019 decision 4, S-019e AC18),
     /// and `portal_shortcut` is hidden state kept as opened, including a
@@ -205,6 +255,10 @@ impl Inner {
         let w = Rc::downgrade(self);
         ui.on_cancel(move || with(&w, Inner::close));
         let w = Rc::downgrade(self);
+        ui.on_update_check(move || with(&w, Inner::update_check));
+        let w = Rc::downgrade(self);
+        ui.on_update_apply(move || with(&w, Inner::update_apply));
+        let w = Rc::downgrade(self);
         ui.window().on_close_requested(move || {
             with(&w, Inner::close);
             slint::CloseRequestResponse::HideWindow
@@ -223,6 +277,43 @@ impl Inner {
         ui.set_output_items(list(&s.outputs));
         ui.set_quality_items(list(&s.qualities));
         ui.set_subfolder_index(to_visual(&OUTPUTS, &OutputPlace::Subfolder, rtl));
+        ui.set_update_channel_items(list(&s.channels));
+        ui.set_update_mode_items(list(&s.modes));
+        self.show_update(ui, lang);
+    }
+
+    fn show_update(&self, ui: &SettingsUi, lang: Lang) {
+        let r = self.update.borrow().render(lang);
+        ui.set_update_version_text(r.version_text.into());
+        ui.set_update_state_line(r.state_line.into());
+        ui.set_update_check_enabled(r.check_enabled);
+        ui.set_update_apply_enabled(r.apply_enabled);
+    }
+
+    fn lang(&self) -> Lang {
+        if self.rtl.get() { Lang::Ar } else { Lang::En }
+    }
+
+    fn update_check(&self) {
+        if !self.update.borrow_mut().begin_check() {
+            return;
+        }
+        self.show_update(&self.ui.borrow(), self.lang());
+        let f = self.on_update_check.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
+    }
+
+    fn update_apply(&self) {
+        if !self.update.borrow_mut().begin_apply() {
+            return;
+        }
+        self.show_update(&self.ui.borrow(), self.lang());
+        let f = self.on_update_apply.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
     }
 
     fn change_language(&self) {
@@ -247,6 +338,9 @@ impl Inner {
             notify: ui.get_notify(),
             notify_long_only: ui.get_notify_long_only(),
             open_folder: ui.get_open_folder(),
+            update_check: ui.get_update_check_auto(),
+            update_channel: ui.get_update_channel(),
+            update_mode: ui.get_update_mode(),
             opened: self.opened.borrow().clone(),
         }
     }
@@ -261,6 +355,9 @@ impl Inner {
         ui.set_notify(s.notify);
         ui.set_notify_long_only(s.notify_long_only);
         ui.set_open_folder(s.open_folder);
+        ui.set_update_check_auto(s.update_check);
+        ui.set_update_channel(s.update_channel);
+        ui.set_update_mode(s.update_mode);
     }
 
     fn visible(&self) -> bool {
@@ -305,6 +402,9 @@ impl SettingsWindow {
             initial_lang: lang,
             ui: RefCell::new(ui),
             on_save: RefCell::new(None),
+            update: RefCell::new(UpdateModel::default()),
+            on_update_check: RefCell::new(None),
+            on_update_apply: RefCell::new(None),
             opened: RefCell::new(Config::default()),
         });
         let ui = inner.new_ui()?;
@@ -351,6 +451,92 @@ impl SettingsWindow {
     /// window closes. Cancel, Esc and the window close button do not call it.
     pub fn on_save(&self, f: impl Fn(Config) + 'static) {
         *self.inner.on_save.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Shows the installed `version`, the update `state` and whether the
+    /// background service answers (S-090 AC1, AC5). An answer re-enables the
+    /// buttons that a pending request had disabled.
+    pub fn set_update_view(&self, version: &str, state: UpdateState, service_running: bool) {
+        let inner = &self.inner;
+        inner
+            .update
+            .borrow_mut()
+            .set_view(version, state, service_running);
+        inner.show_update(&inner.ui.borrow(), inner.lang());
+    }
+
+    /// Update now was accepted but waits for running jobs (S-054b AC7).
+    pub fn show_update_deferred(&self) {
+        let inner = &self.inner;
+        inner.update.borrow_mut().set_deferred();
+        inner.show_update(&inner.ui.borrow(), inner.lang());
+    }
+
+    /// Called when Check for updates is pressed while it is enabled.
+    pub fn on_update_check(&self, f: impl Fn() + 'static) {
+        *self.inner.on_update_check.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Called when Update now is pressed while it is enabled.
+    pub fn on_update_apply(&self, f: impl Fn() + 'static) {
+        *self.inner.on_update_apply.borrow_mut() = Some(Rc::new(f));
+    }
+
+    #[doc(hidden)]
+    pub fn update_version_text(&self) -> String {
+        self.inner.ui.borrow().get_update_version_text().into()
+    }
+
+    #[doc(hidden)]
+    pub fn update_state_line(&self) -> String {
+        self.inner.ui.borrow().get_update_state_line().into()
+    }
+
+    #[doc(hidden)]
+    pub fn update_check_enabled(&self) -> bool {
+        self.inner.ui.borrow().get_update_check_enabled()
+    }
+
+    #[doc(hidden)]
+    pub fn update_apply_enabled(&self) -> bool {
+        self.inner.ui.borrow().get_update_apply_enabled()
+    }
+
+    #[doc(hidden)]
+    pub fn press_update_check(&self) {
+        self.inner.ui.borrow().invoke_update_check();
+    }
+
+    #[doc(hidden)]
+    pub fn press_update_apply(&self) {
+        self.inner.ui.borrow().invoke_update_apply();
+    }
+
+    #[doc(hidden)]
+    pub fn press_save(&self) {
+        self.inner.ui.borrow().invoke_save();
+    }
+
+    #[doc(hidden)]
+    pub fn press_cancel(&self) {
+        self.inner.ui.borrow().invoke_cancel();
+    }
+
+    #[doc(hidden)]
+    pub fn set_update_check_auto(&self, on: bool) {
+        self.inner.ui.borrow().set_update_check_auto(on);
+    }
+
+    #[doc(hidden)]
+    pub fn set_update_channel(&self, channel: Channel) {
+        let i = to_visual(&CHANNELS, &channel, self.inner.rtl.get());
+        self.inner.ui.borrow().set_update_channel(i);
+    }
+
+    #[doc(hidden)]
+    pub fn set_update_mode(&self, mode: UpdateMode) {
+        let i = to_visual(&MODES, &mode, self.inner.rtl.get());
+        self.inner.ui.borrow().set_update_mode(i);
     }
 
     /// Hides the window without saving.
@@ -688,6 +874,12 @@ mod tests {
                 &t.open_folder,
                 &t.save,
                 &t.cancel,
+                &t.updates,
+                &t.update_check,
+                &t.update_apply,
+                &t.update_auto,
+                &t.update_channel,
+                &t.update_mode,
             ]
             .map(|x| x.to_string())
             .into_iter()

@@ -144,6 +144,22 @@ export component WelcomeUi inherits MaterialWindow {
     callback settings-cancel();
     callback settings-language-selected();
 
+    // The Updates section of the embedded settings (S-090).
+    in-out property <string> settings-update-version-text <=> settings.update-version-text;
+    in-out property <string> settings-update-state-line <=> settings.update-state-line;
+    in-out property <bool> settings-update-check-enabled <=> settings.update-check-enabled;
+    in-out property <bool> settings-update-apply-enabled <=> settings.update-apply-enabled;
+    in-out property <[string]> settings-update-channel-items <=> settings.update-channel-items;
+    in-out property <[string]> settings-update-mode-items <=> settings.update-mode-items;
+    in-out property <bool> settings-update-check-auto <=> settings.update-check-auto;
+    in-out property <int> settings-update-channel <=> settings.update-channel;
+    in-out property <int> settings-update-mode <=> settings.update-mode;
+    callback update-check();
+    callback update-apply();
+
+    // The installed version, shown in the footer of the introduction.
+    in property <string> version-text;
+
 
     title: root.text.title;
     default-font-family: Tokens.font-family;
@@ -196,6 +212,8 @@ export component WelcomeUi inherits MaterialWindow {
         save => { root.settings-save(); }
         cancel => { root.settings-cancel(); }
         language-selected => { root.settings-language-selected(); }
+        update-check => { root.update-check(); }
+        update-apply => { root.update-apply(); }
     }
 
 
@@ -306,6 +324,13 @@ export component WelcomeUi inherits MaterialWindow {
                         root.try-sample();
                     }
                 }
+            }
+
+            Text {
+                text: root.version-text;
+                font-size: Tokens.font-body;
+                color: Tokens.text-secondary;
+                horizontal-alignment: root.rtl ? right : left;
             }
         }
     }
