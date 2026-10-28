@@ -450,36 +450,68 @@ pub fn present_welcome(state: &Shared) {
 /// window never waits on the network, then shows the answer in the settings
 /// window (S-090 AC2, AC3, AC5). `deferred` marks an install that waits.
 fn update_round_trip(request: kawaro_core::ipc::Request, deferred: bool) {
-    use kawaro_core::ipc::{Request, Response};
-    use kawaro_ui::UpdateState;
-    let is_apply = request == Request::UpdateApply;
     std::thread::spawn(move || {
         let answer = exchange(&request);
         let _ = slint::invoke_from_event_loop(move || {
             let version = env!("CARGO_PKG_VERSION");
+            let view = update_view(&request, answer, deferred, version);
             WELCOME.with(|slot| {
                 let slot = slot.borrow();
                 let Some(win) = slot.as_ref() else { return };
-                match answer {
-                    None => win.set_update_view(version, UpdateState::Unavailable, false),
-                    Some(Response::Update {
-                        status, current, ..
-                    }) => {
-                        let state = kawaro_ui::state_from_status(&status, None);
-                        win.set_update_view(&current, state, true);
-                    }
-                    Some(Response::Ok) if is_apply && deferred => win.show_update_deferred(),
-                    Some(Response::Ok) if is_apply => {
-                        win.set_update_view(version, UpdateState::Checking, true);
-                    }
-                    Some(Response::Error { message }) => {
-                        win.set_update_view(version, UpdateState::Failed(message), true);
-                    }
-                    Some(_) => win.set_update_view(version, UpdateState::UpToDate, true),
+                match view {
+                    UpdateView::Show {
+                        version,
+                        state,
+                        running,
+                    } => win.set_update_view(&version, state, running),
+                    UpdateView::Deferred => win.show_update_deferred(),
                 }
             });
         });
     });
+}
+
+/// What the settings window shows after one update exchange.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum UpdateView {
+    Show {
+        version: String,
+        state: kawaro_ui::UpdateState,
+        running: bool,
+    },
+    Deferred,
+}
+
+/// Pure mapping from a request and the service answer to the view (S-090).
+pub(crate) fn update_view(
+    request: &kawaro_core::ipc::Request,
+    answer: Option<kawaro_core::ipc::Response>,
+    deferred: bool,
+    version: &str,
+) -> UpdateView {
+    use kawaro_core::ipc::{Request, Response};
+    use kawaro_ui::UpdateState;
+    let is_apply = *request == Request::UpdateApply;
+    let show = |version: &str, state, running| UpdateView::Show {
+        version: version.to_string(),
+        state,
+        running,
+    };
+    match answer {
+        None => show(version, UpdateState::Unavailable, false),
+        Some(Response::Update {
+            status, current, ..
+        }) => show(&current, kawaro_ui::state_from_status(&status, None), true),
+        Some(Response::Ok) if is_apply && deferred => UpdateView::Deferred,
+        Some(Response::Ok) if is_apply => show(version, UpdateState::Checking, true),
+        Some(Response::Error { message }) => show(version, UpdateState::Failed(message), true),
+        Some(_) => show(version, UpdateState::UpToDate, true),
+    }
+}
+
+/// True when an install must wait: the same rule the daemon applies.
+pub(crate) fn apply_deferred(jobs: usize, hive_open: bool) -> bool {
+    !kawaro_core::update::apply::can_apply(jobs, hive_open)
 }
 
 /// One request line out, one reply line back. `None` when no service answers.
@@ -513,7 +545,7 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
             // The daemon answers `Ok` both for "installing now" and for "waits
             // for the running jobs"; the same rule it applies decides which.
             let (_, jobs, hive_open) = crate::update_sys::snapshot(&state);
-            let deferred = !kawaro_core::update::apply::can_apply(jobs, hive_open);
+            let deferred = apply_deferred(jobs, hive_open);
             update_round_trip(kawaro_core::ipc::Request::UpdateApply, deferred);
         });
     }
