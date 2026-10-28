@@ -2788,6 +2788,7 @@ version = "0.4.0"
 dependencies = [
  "ashpd",
  "futures-util",
+ "i-slint-backend-testing",
  "kawaro-core",
  "kawaro-engines",
  "kawaro-ui",

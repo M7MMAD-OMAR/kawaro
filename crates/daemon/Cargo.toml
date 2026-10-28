@@ -41,3 +41,5 @@ tempfile.workspace = true
 # S-087 AC4: the sample stays byte for byte unchanged across the one-click
 # flow, checked by hash. Already in the tree through kawaro-ui.
 sha2.workspace = true
+# S-090: the welcome window is built under the testing backend.
+i-slint-backend-testing = "=1.18.1"

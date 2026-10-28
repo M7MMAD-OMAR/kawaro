@@ -20,8 +20,7 @@ fn saved_after(start: &Config, lang: Lang, edit: impl Fn(&SettingsWindow)) -> Co
     w.on_save(move |c| *s2.borrow_mut() = Some(c));
     edit(&w);
     w.press_save();
-    let out = saved.borrow().clone().expect("Save calls on_save");
-    out
+    saved.borrow().clone().expect("Save calls on_save")
 }
 
 #[test]

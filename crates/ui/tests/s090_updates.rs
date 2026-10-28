@@ -255,3 +255,15 @@ fn ac7_slint_source_has_an_updates_section_with_labelled_buttons_and_no_long_das
     );
     assert!(!src.contains('\u{2014}') && !src.contains('\u{2013}'));
 }
+
+// ------------------------------------------------------------ AC4 (cancel)
+
+/// Cancel must reach the window's cancel path: the settings window closes.
+/// Without this, a no-op `press_cancel` passes the "file unchanged" check.
+#[test]
+fn ac4_cancel_closes_the_settings_window() {
+    let w = window(Lang::En);
+    assert!(w.is_visible(), "open shows the window");
+    w.press_cancel();
+    assert!(!w.is_visible(), "Cancel closes the window");
+}
