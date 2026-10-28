@@ -106,6 +106,8 @@ Decision (2026-10-26, after the specification audit of the stable roadmap): this
 | S-082 | Focus and activation with real Nautilus and Dolphin tokens in a virtual machine, closing the phase-0 gap recorded in S-013 | Draft |
 | S-089 | First run and settings recovery from the owner Windows report: the language choice before the introduction, one settings window, and long-job notifications | Implemented on main (2026-10-27, e32ce3a); the live verification and the owner review are still pending |
 | S-090 | Settings updates section: the installed version, a Check for updates button, Update now, and the three update keys (ADR 0006 and S-054b deferred these, and no story covered them). Owner priority: very important | Draft (2026-10-28) |
+| S-091 | The daemon reports the real download percent and size in `Response::Update` (backward compatible JSON) so the S-090 state line stops showing 0%. After S-090 review, before S-092 | Draft (2026-10-28) |
+| S-092 | Tray About item: the installed version (S-090 `about_line`), Check for updates and Settings, on the Linux tray and the Windows tray menu. After S-091 | Draft (2026-10-28) |
 
 Measured facts behind S-075 (recorded 2026-10-26): Alt-only GlobalShortcuts is accepted by the BindShortcuts exchange but never activates on GNOME 50.0 or KDE 6.7.5 portals, so it cannot be the KDE or GNOME default; the Super+Z (`LOGO+z`) portal trigger passed the full real-drag path on both. Evidence: `/home/sbarah/.hermes/checkpoint-runs/kawaro-stable-20261026/alt-portal-spike.md`. Hyprland compositor binds are outside that measurement and count only when the private Hyprland harness records them.
 
