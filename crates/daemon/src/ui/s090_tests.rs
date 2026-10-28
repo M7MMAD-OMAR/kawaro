@@ -168,3 +168,155 @@ fn s090_welcome_window_is_created_lazily_once_the_service_gave_its_arguments() {
     let second = WELCOME.with(|w| w.borrow().as_ref().map(|x| x as *const WelcomeWindow));
     assert_eq!(first, second);
 }
+
+fn show(version: &str, state: kawaro_ui::UpdateState, running: bool) -> UpdateView {
+    UpdateView::Show {
+        version: version.to_string(),
+        state,
+        running,
+    }
+}
+
+fn update(status: &str, current: &str) -> Response {
+    Response::Update {
+        status: status.to_string(),
+        current: current.to_string(),
+        latest: None,
+    }
+}
+
+#[test]
+fn s090_update_view_table() {
+    use kawaro_ui::UpdateState as S;
+    let apply = Request::UpdateApply;
+    let check = Request::UpdateCheck;
+    let err = || Response::Error {
+        message: "boom".to_string(),
+    };
+    let cases: Vec<(&str, Request, Option<Response>, bool, UpdateView)> = vec![
+        // No service: unavailable, not running, whatever the flags.
+        (
+            "none check",
+            check.clone(),
+            None,
+            false,
+            show("1.0", S::Unavailable, false),
+        ),
+        (
+            "none apply",
+            apply.clone(),
+            None,
+            false,
+            show("1.0", S::Unavailable, false),
+        ),
+        (
+            "none apply deferred",
+            apply.clone(),
+            None,
+            true,
+            show("1.0", S::Unavailable, false),
+        ),
+        // An Update answer shows the service's current version, not ours.
+        (
+            "update up-to-date",
+            check.clone(),
+            Some(update("up-to-date", "2.0")),
+            false,
+            show("2.0", S::UpToDate, true),
+        ),
+        (
+            "update ready",
+            check.clone(),
+            Some(update("ready", "2.0")),
+            false,
+            show("2.0", S::Ready, true),
+        ),
+        (
+            "update downloading",
+            check.clone(),
+            Some(update("downloading", "2.0")),
+            false,
+            show("2.0", S::Downloading(0), true),
+        ),
+        (
+            "update offline",
+            check.clone(),
+            Some(update("offline", "2.0")),
+            false,
+            show("2.0", S::Unavailable, true),
+        ),
+        (
+            "update odd status",
+            apply.clone(),
+            Some(update("weird", "3.1")),
+            true,
+            show("3.1", S::Failed("weird".to_string()), true),
+        ),
+        // Ok for an apply: waiting text when deferred, else checking.
+        (
+            "ok apply deferred",
+            apply.clone(),
+            Some(Response::Ok),
+            true,
+            UpdateView::Deferred,
+        ),
+        (
+            "ok apply",
+            apply.clone(),
+            Some(Response::Ok),
+            false,
+            show("1.0", S::Checking, true),
+        ),
+        // Ok for anything else is up to date, deferred flag or not.
+        (
+            "ok check",
+            check.clone(),
+            Some(Response::Ok),
+            false,
+            show("1.0", S::UpToDate, true),
+        ),
+        (
+            "ok check deferred",
+            check.clone(),
+            Some(Response::Ok),
+            true,
+            show("1.0", S::UpToDate, true),
+        ),
+        // Errors keep the passed version and the message.
+        (
+            "error check",
+            check.clone(),
+            Some(err()),
+            false,
+            show("1.0", S::Failed("boom".to_string()), true),
+        ),
+        (
+            "error apply deferred",
+            apply.clone(),
+            Some(err()),
+            true,
+            show("1.0", S::Failed("boom".to_string()), true),
+        ),
+    ];
+    for (name, request, answer, deferred, want) in cases {
+        assert_eq!(
+            update_view(&request, answer, deferred, "1.0"),
+            want,
+            "{name}"
+        );
+    }
+}
+
+#[test]
+fn s090_apply_deferred_table() {
+    // jobs, hive_open, deferred
+    for (jobs, hive, want) in [
+        (0, false, false),
+        (0, true, true),
+        (1, false, true),
+        (1, true, true),
+        (3, false, true),
+    ] {
+        assert_eq!(apply_deferred(jobs, hive), want, "jobs={jobs} hive={hive}");
+    }
+}
