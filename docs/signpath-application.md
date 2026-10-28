@@ -41,7 +41,7 @@ GPL-3.0-or-later, with Arabic and English user interfaces and full RTL.
 | OSI-approved license, no commercial dual licensing | GPL-3.0-or-later (`LICENSE`), every crate and the site |
 | No proprietary code | All source is in the public repository; the vendored Slint Material components are MIT (`docs/adr/0002-settings-components.md`), dependencies are open source and recorded in `docs/engines.md` |
 | Actively maintained | Main is under daily development; the maintainer answers issues |
-| Already released in the form to be signed | 0.4.0-beta.1 (2026-10) publishes the MSI and the portable zip on the releases page |
+| Already released in the form to be signed | 0.4.0 (2026-10-27) publishes the MSI and the portable zip on the releases page |
 | Documented functionality | <https://kawaro.sbarah.com/> and the README describe what it does; the download page covers install, checksums and SmartScreen |
 | Sign your own projects only | The maintainer owns the repository and builds the artifacts from it |
 | Sign your own binaries only | The signed files are `kawaro.exe`, `kawarod.exe` and the MSI built from this repository's source in its own CI; no upstream binaries are signed |

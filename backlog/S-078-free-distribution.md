@@ -1,6 +1,13 @@
 # S-078 AppStream, AUR, and winget distribution
 
-Status: approved (2026-10-26, manager)
+Status: in progress (2026-10-27). The winget half (S-078d) is submitted and validated; the AppStream half (S-078a) and the AUR half (S-078b to S-078c) are not started, and the PR automation (S-078e) is not built.
+
+## Progress log
+
+- 2026-10-27, the winget half (S-078d): the 0.4.0 manifests for `Sbarah.Kawaro` are open for review at [microsoft/winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805). All twelve automated checks pass, including the installation validation, which Microsoft runs as a standard non-elevated user. `winget validate --manifest` exits 0 and `winget install --manifest` completes silently on Windows 11 and reports `kawaro 0.4.0`. The remaining gate is one approving review from a Microsoft moderator; a submitted PR never satisfies AC7. The publisher-controlled evidence is on the pull request as a comment, and the research behind the merge requirements is in `docs/winget-pkgs-merge-requirements.md`.
+- 2026-10-27, the scope finding: `wixl` accepts `InstallScope="perUser"` and drops it, so the built MSI carried no `ALLUSERS` property and an elevated install would register the program under the machine hive, where winget does not look for a package that declares `Scope: user`. The `.wxs` now writes the two per-user properties explicitly, and `scripts/release/check-winget-scope.sh` keeps the manifest and the installer in agreement. This changes the next MSI build, not the submitted 0.4.0 manifest.
+- 2026-10-27, the DisplayVersion finding: every manifest of the package must make the same choice about `AppsAndFeaturesEntries.DisplayVersion`, or the Microsoft catalog cannot map the installed version to an available one. `scripts/release/check-winget-versions.sh` refuses the mixed set, and `tests/release/s078_winget_versions.sh` covers both shapes and the mixed one.
+- Not started: S-078a (the AppStream stock icon, the screenshots and the bilingual release entries), S-078b and S-078c (the AUR package and its publication), S-078e (the idempotent pull request automation), and the S-078f half of the merged-catalog checks. The owner accounts and credentials are still the gate for the AUR half (exclusion R4-accounts).
 
 ## Context
 
