@@ -4,6 +4,11 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-29 «إصلاح الترقية»
+
+### Fixed
+- MSI upgrade keeps the program files ([S-097](https://github.com/M7MMAD-OMAR/kawaro)): upgrading Windows from an older version with the MSI or the in-app update removed `kawaro.exe` and `kawarod.exe` and left a broken Start shortcut, because the old product was removed before the new files were installed; the installer now removes the old product after `InstallFinalize`, so the shared components keep their files. Users of 0.4.1 on Windows run the 0.4.2 MSI once (or reinstall); a fresh install of 0.4.1 was fine. «ترقية حزمة MSI تحتفظ بملفات البرنامج: كانت الترقية على ويندوز من نسخة أقدم بحزمة MSI أو بالتحديث من داخل التطبيق تحذف `kawaro.exe` و`kawarod.exe` وتترك اختصار قائمة ابدأ معطلاً، لأن المنتج القديم كان يُزال قبل تثبيت الملفات الجديدة؛ صار المثبّت يزيل المنتج القديم بعد `InstallFinalize` فتحتفظ المكونات المشتركة بملفاتها. على مستخدمي 0.4.1 في ويندوز تشغيل حزمة MSI الخاصة بـ 0.4.2 مرة واحدة (أو إعادة التثبيت)؛ والتثبيت الجديد لـ 0.4.1 كان سليماً».
+
 ## [0.4.1] - 2026-10-29 «نافذة الإعداد الجديدة»
 
 ### Added
