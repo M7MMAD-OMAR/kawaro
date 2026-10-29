@@ -128,4 +128,27 @@ altdrag_run() {
   echo "keydown $ALT" >&3; echo "sleep 40" >&3; key $AKEY; echo "keyup $ALT" >&3; sleep 0.5
   check "S-095 AC7: a combination with Alt (Alt+a) reaches the client with the Alt modifier (1 of 1); Alt+Tab, Alt+F4 and the Super drag binds are not covered here" \
     'sed -n "$((k0 + 1)),\$p" "$KLOG" | grep -qE "^keys: key a [0-9]+ mods=ALT"'
+
+  # S-095 re-show limits. (a) Esc with Alt held: no new hive surface after
+  # the Esc. (b) 2 s of continuous pointer motion with Alt held: at most
+  # 1 + 4 = 5 "hive surface" lines (the first show and REARM_MAX re-shows).
+  local m surf
+  # Alt+a above loses the Alt release (Hyprland fires a release bind only
+  # when no other key came between), so the gate may hold a stale press: one
+  # plain tap releases it before the Esc case starts.
+  echo "keydown $ALT" >&3; sleep 0.05; echo "keyup $ALT" >&3; sleep 1.2
+  m=$(wc -l <"$DLOG")
+  echo "keydown $ALT" >&3; sleep 0.8
+  key 1; sleep 1
+  surf=$(sed -n "$((m + 1)),\$p" "$DLOG" | grep -c '^hive surface:')
+  echo "keyup $ALT" >&3; sleep 0.6
+  say "INFO S-095 Esc with Alt held: hive surface lines $surf"
+  check "S-095 re-show: Esc with Alt held shows nothing again (1 hive surface line in all, got $surf)" '[ "$surf" -eq 1 ]'
+  m=$(wc -l <"$DLOG")
+  echo "keydown $ALT" >&3; sleep 0.6
+  for i in $(seq 100); do ptr_move $((200 + (i % 2) * 6)) $((200 + (i % 3) * 4)); sleep 0.02; done
+  surf=$(sed -n "$((m + 1)),\$p" "$DLOG" | grep -c '^hive surface:')
+  echo "keyup $ALT" >&3; sleep 0.6
+  say "INFO S-095 2 s of pointer motion with Alt held: hive surface lines $surf (bound 5)"
+  check "S-095 re-show: 2 s of continuous pointer motion with Alt held gives at most 5 hive surface lines (got $surf)" '[ "$surf" -le 5 ] && [ "$surf" -ge 1 ]'
 }

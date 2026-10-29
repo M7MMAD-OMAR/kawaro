@@ -85,6 +85,19 @@ pub fn doctor_line(
     )
 }
 
+/// Why a shown hive closed without a key release (S-095).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Hide {
+    /// The pointer moved before any drag: a late drag may still come.
+    Pointer,
+    /// Anything else (Esc, the enter cap, a click): the hive stays closed.
+    Other,
+}
+
+/// Most re-shows of one press, so continuous pointer motion with the key
+/// held (an Alt window move) makes at most `1 + REARM_MAX` shows.
+pub const REARM_MAX: u32 = 4;
+
 /// A tick later than this after the threshold is a stalled clock, not a
 /// hold: nothing shows from it.
 const STALE: Duration = Duration::from_millis(1000);
@@ -110,6 +123,7 @@ pub struct Gate {
     hold_max_ms: Box<dyn FnMut() -> u64 + Send>,
     phase: Phase,
     outcome: Option<Outcome>,
+    rearms: u32,
 }
 
 impl Gate {
@@ -127,6 +141,7 @@ impl Gate {
             hold_max_ms: Box::new(hold_max_ms),
             phase: Phase::Idle,
             outcome: None,
+            rearms: 0,
         }
     }
 
@@ -148,6 +163,7 @@ impl Gate {
                 let due = now + Duration::from_millis((self.hold_ms)());
                 let limit = now + Duration::from_millis((self.hold_max_ms)());
                 self.phase = Phase::Timing { due, limit, at };
+                self.rearms = 0;
                 None
             }
             (Phase::Timing { .. }, Signal::Release) => {
@@ -200,22 +216,29 @@ impl Gate {
         }
     }
 
-    /// The shown hive closed with no drag while the key is still held (the
-    /// pointer moved before the drag began, S-095 AC2): the gate shows it
-    /// again at `now`, so a drag that starts later still finds a hive. The
-    /// original limit stays. Returns false when no hive was shown.
-    pub fn rearm(&mut self, now: Instant) -> bool {
-        if let Phase::Shown { limit, at } = self.phase {
+    /// The shown hive closed with no drag while the key may still be held
+    /// (S-095 AC2). Only a [`Hide::Pointer`] close shows it again at `now`,
+    /// so a drag that starts later finds a hive, at most [`REARM_MAX`] times
+    /// per press; the original limit stays. Any other close, or the last
+    /// re-show used, ends the hold with [`Outcome::NoDrag`] for a pointer
+    /// close. Returns true when the hive is to be shown again.
+    pub fn rearm(&mut self, why: Hide, now: Instant) -> bool {
+        let Phase::Shown { limit, at } = self.phase else {
+            return false;
+        };
+        if why == Hide::Pointer && self.rearms < REARM_MAX {
+            self.rearms += 1;
             self.phase = Phase::Timing {
                 due: now,
                 limit,
                 at,
             };
-            self.outcome = Some(Outcome::NoDrag);
-            true
-        } else {
-            false
+            return true;
         }
+        if why == Hide::Pointer {
+            self.outcome = Some(Outcome::NoDrag);
+        }
+        false
     }
 }
 
@@ -236,5 +259,59 @@ pub fn from_portal(signal: &str) -> Option<Signal> {
         "Activated" => Some(Signal::Hold { at: None }),
         "Deactivated" => Some(Signal::Release),
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod rearm_tests {
+    use super::*;
+
+    fn shown() -> (Gate, Instant) {
+        let t0 = Instant::now();
+        let mut g = Gate::new(|| 400);
+        g.signal(Signal::Hold { at: None }, t0);
+        g.tick(t0 + Duration::from_millis(400));
+        (g, t0 + Duration::from_millis(400))
+    }
+
+    #[test]
+    fn a_pointer_close_shows_again_and_logs_nothing() {
+        let (mut g, t) = shown();
+        assert!(g.rearm(Hide::Pointer, t));
+        assert_eq!(g.take_outcome(), None);
+        assert!(matches!(g.tick(t), Some(Effect::Show { .. })));
+    }
+
+    #[test]
+    fn any_other_close_stays_closed() {
+        let (mut g, t) = shown();
+        assert!(!g.rearm(Hide::Other, t));
+        assert_eq!(g.take_outcome(), None);
+        assert_eq!(g.tick(t), None);
+    }
+
+    #[test]
+    fn re_shows_per_press_are_bounded_then_no_drag_is_logged() {
+        let (mut g, mut t) = shown();
+        for _ in 0..REARM_MAX {
+            assert!(g.rearm(Hide::Pointer, t));
+            assert!(matches!(g.tick(t), Some(Effect::Show { .. })));
+            t += Duration::from_millis(10);
+        }
+        assert!(!g.rearm(Hide::Pointer, t));
+        assert_eq!(g.take_outcome(), Some(Outcome::NoDrag));
+    }
+
+    #[test]
+    fn a_new_press_resets_the_count() {
+        let (mut g, t) = shown();
+        for _ in 0..REARM_MAX {
+            g.rearm(Hide::Pointer, t);
+            g.tick(t);
+        }
+        g.signal(Signal::Release, t);
+        g.signal(Signal::Hold { at: None }, t);
+        g.tick(t + Duration::from_millis(400));
+        assert!(g.rearm(Hide::Pointer, t));
     }
 }

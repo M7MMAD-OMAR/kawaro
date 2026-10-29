@@ -8,7 +8,7 @@ use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
 use kawaro_core::ActionDef;
 use kawaro_core::config::{Config, LangSetting, Theme};
-use kawaro_core::hold::{Effect, Gate, Signal};
+use kawaro_core::hold::{Effect, Gate, Hide, Signal};
 use kawaro_core::i18n::Lang;
 use kawaro_core::queue::Queue;
 #[cfg(unix)]
@@ -39,6 +39,8 @@ thread_local! {
     /// A drag entered the hive of the current hold show (S-095): a hive that
     /// closes without one is shown again while the key is held.
     static DRAG_SEEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// When the hive of the current hold show was shown.
+    static SHOWN_AT: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
 }
 
 /// How often the gate's timer is checked while it runs.
@@ -93,7 +95,7 @@ pub fn build(
         let state = state.clone();
         hive.on_dismiss(move || {
             lock(&state).pending = None;
-            if !DRAG_SEEN.with(|d| d.get()) && gate_rearm() {
+            if gate_rearm() {
                 start_gate_timer(&state);
             } else {
                 gate_hive_closed();
@@ -355,6 +357,7 @@ fn gate_tick(state: &Shared) {
             st.lang
         };
         DRAG_SEEN.with(|d| d.set(false));
+        SHOWN_AT.with(|d| d.set(Some(Instant::now())));
         let token = token_step(TokenStep::Show);
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
@@ -387,9 +390,20 @@ fn log_outcome(gate: &mut Gate) {
 /// The hive closed with no drag while the key may still be held: the gate
 /// shows it again (S-095 AC2). False when the key is up or nothing was shown.
 fn gate_rearm() -> bool {
+    // A close with no drag seen, well before the 10 s enter cap, is the
+    // pointer hide (Esc never reaches an unentered catcher); the cap and
+    // every other close stay closed.
+    let early = SHOWN_AT
+        .with(|d| d.get())
+        .is_some_and(|t| t.elapsed() < Duration::from_secs(9));
+    let why = if !DRAG_SEEN.with(|d| d.get()) && early {
+        Hide::Pointer
+    } else {
+        Hide::Other
+    };
     GATE.with(|g| {
         g.borrow_mut().as_mut().is_some_and(|gate| {
-            let again = gate.rearm(Instant::now());
+            let again = gate.rearm(why, Instant::now());
             log_outcome(gate);
             again
         })
