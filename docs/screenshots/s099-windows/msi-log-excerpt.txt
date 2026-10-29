@@ -1,0 +1,18 @@
+206:MSI (s) (08:AC) [14:54:45:222]: Component: ProgramFiles; Installed: Absent;   Request: Local;   Action: Null
+443:MSI (s) (08:AC) [14:54:46:036]: Doing action: RemoveExistingProducts
+446:Action start 14:54:46: RemoveExistingProducts.
+637:MSI (s) (08:C4) [14:54:46:397]: Component: ProgramFiles; Installed: Local;   Request: Absent;   Action: Null
+790:MSI (s) (08:C4) [14:54:46:569]: Doing action: RemoveExistingProducts
+792:MSI (s) (08:C4) [14:54:46:571]: Skipping RemoveExistingProducts action: current configuration is maintenance mode or an uninstall
+793:Action start 14:54:46: RemoveExistingProducts.
+794:MSI (s) (08:C4) [14:54:46:571]: Skipping action: StartDaemon (condition is false)
+795:Action ended 14:54:46: RemoveExistingProducts. Return value 0.
+900:MSI (s) (08:AC) [14:54:46:625]: Doing action: StartDaemon
+901:Action ended 14:54:46: RemoveExistingProducts. Return value 1.
+902:MSI (s) (08:AC) [14:54:46:625]: Note: 1: 2753 2: DaemonExe 
+904:Action start 14:54:46: StartDaemon.
+905:DEBUG: Error 2753:  The File 'DaemonExe' is not marked for installation.
+907:MSI (s) (08:AC) [14:54:46:627]: Product: Kawaro -- The installer has encountered an unexpected error installing this package. This may indicate a problem with this package. The error code is 2753. The arguments are: DaemonExe,
+909:The installer has encountered an unexpected error installing this package. This may indicate a problem with this package. The error code is 2753. The arguments are: DaemonExe, , 
+911:Action ended 14:54:46: StartDaemon. Return value 3.
+1020:MSI (s) (08:AC) [14:54:46:681]: Windows Installer installed the product. Product Name: Kawaro. Product Version: 0.4.3. Product Language: 1033. Manufacturer: Kawaro. Installation success or error status: 1603.
