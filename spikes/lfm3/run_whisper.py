@@ -5,7 +5,7 @@ from pathlib import Path
 from faster_whisper import WhisperModel
 
 root = Path(os.environ["AUDIO_DIR"]); size = sys.argv[1]; tag = sys.argv[2]
-snap = next(Path.home().glob(f".cache/huggingface/hub/models--Systran--faster-whisper-{size}/snapshots/*"), size)
+snap = Path(os.environ["WHISPER_PATH"]) if os.environ.get("WHISPER_PATH") else next(Path.home().glob(f".cache/huggingface/hub/models--Systran--faster-whisper-{size}/snapshots/*"), size)
 m = WhisperModel(str(snap), device="cpu", compute_type="int8", cpu_threads=4)
 exec(open(Path(__file__).with_name("run_audio.py")).read().split("def lev")[1].join(["def lev", ""]).split("def post")[0])
 rows = []

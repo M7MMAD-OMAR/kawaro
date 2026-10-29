@@ -186,6 +186,20 @@ Reading: 4 threads is the sweet spot (8 is slower on this hybrid CPU, so cap at 
 
 Verdict: **VL loses on every real set.** On five pages it produced text longer than the page (CER above 1: loops, invented sentences, up to 128 s for one page), and on the diacritic heavy book pages it rewrote words. The earlier pass on 10 clean synthetic renders (section 8b) does not predict real pages, which is exactly the caveat that was written there. Caveats that cut both ways: dense pages may be downscaled by the vision encoder (a tiling or crop-and-stitch pipeline might help; not tried), book references omit footnotes, and the prompt was not tuned. Even so, Tesseract wins by a wide margin at 0.1 to 0.5 s per page, so **LFM3-VL is not adopted for OCR**. ADR 0010 part B is updated accordingly.
 
+#### Stronger open OCR and Whisper turbo (2026-10-29)
+
+EasyOCR (Arabic plus English, CPU torch) on the same 32 real pages, normalised character error and seconds per page:
+
+| set | Tesseract | EasyOCR | LFM3-VL |
+|---|---|---|---|
+| lines (12) | **0.009** (0.1 s) | 0.078 (5.4 s) | 2.42 (28 s) |
+| book pages (10) | 0.178 (0.5 s) | **0.138** (19.7 s) | 0.485 (55 s) |
+| noisy scans (10) | **0.348** (0.3 s) | 0.459 (12.2 s) | 0.642 (28 s) |
+
+No engine wins everywhere; Tesseract is best on two of three sets and 20 to 40 times faster, EasyOCR is slightly better on diacritic book pages. Tesseract was run without preprocessing (deskew, binarise), so its noisy scan figure is probably pessimistic. Decision: Tesseract stays the default; EasyOCR is not worth a torch dependency (over 1 GB installed) for a 0.04 gain on one set.
+
+Whisper large-v3-turbo (CT2, int8) on the 32 real clips, word error: Arabic read speech 0.109 (small: 0.244), Syrian dialect 0.234 (0.386), English 0.060 (0.101). It takes 4.5 to 5.6 s per 10 s clip on 4 threads (small: 2.0 to 2.2 s), 1.6 GB on disk, 1.8 GB RSS at load. Tiers by hardware are in `docs/research/ai-edition-tiers.md`.
+
 ### Text tasks (48 cases, 8 categories)
 
 37 of 48 pass: tool call 6/6, rename 6/6, summarize 6/6, refuse or say unknown 6/6, classify 5/6, translate 4/6, extract 3/6, rewrite 1/6. Arabic 19/24, English 18/24, so no language gap. Failures are mostly the checker's strictness (extra JSON keys in 2 of 3 extract failures; a valid label with a different case) and one counting error; rewrite fails on length limits (it ignores "at most N words") and leaks its own reasoning tags once. Useful: structured extraction, tool calls, file names, short summaries, honest "I cannot know". Not useful: tight length control, translation as a product feature.
