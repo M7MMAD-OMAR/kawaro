@@ -534,6 +534,29 @@ fn ac5_no_page_scrolls_at_the_default_size_in_both_languages() {
     }
 }
 
+#[test]
+fn ac5_the_rail_shows_all_items_unclipped_at_the_minimum_size() {
+    let _g = init();
+    for lang in [Lang::En, Lang::Ar] {
+        let w = settings(lang);
+        w.sh_set_window_size(560.0, 560.0);
+        let rail = w.sh_rail_rect();
+        assert_eq!(w.sh_rail_labels().len(), 5);
+        for i in 0..5 {
+            let it = w.sh_rail_item_rect(i);
+            assert!(it.w > 0.0 && it.h > 0.0);
+            assert!(
+                it.x >= rail.x - 0.5
+                    && it.y >= rail.y - 0.5
+                    && right(it) <= right(rail) + 0.5
+                    && bottom(it) <= bottom(rail) + 0.5,
+                "{lang:?} item {i} {it:?} outside the rail {rail:?}"
+            );
+        }
+        assert_eq!(rail.w, 96.0, "rail-width token");
+    }
+}
+
 // ------------------------------------------------------------ AC6
 
 #[test]
