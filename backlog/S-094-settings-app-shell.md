@@ -1,5 +1,5 @@
 # S-094 Settings and welcome window as a real app shell
-Status: draft (2026-10-29)
+Status: approved (2026-10-29)
 
 ## Story
 As a user, I want the settings window to look and behave like an application (header with name and version, page rail, centred content, fixed Save row), so that I can find a setting without scrolling one long form and trust what I installed.
@@ -52,4 +52,8 @@ S-091 and S-092 edit `crates/core/src/ipc.rs`, `crates/daemon/src/ui.rs` and `tr
 - New settings or update logic; links, copy version and update shortcut (S-094b); new film frames and sharpness (S-094c); a confirm dialog on Cancel with unsaved changes.
 
 ## Review log
--
+- 2026-10-29 tester: tests written from the acceptance criteria only.
+  - `crates/ui/tests/s094_static.rs` (file reads: AC8 shared shell, AC9 image-fit, AC10 tokens and design rules). Red run: 4 passed 0, 4 failed: `layout` group missing in `design/tokens.json`; `crates/ui/ui/shell.slint` does not exist (3 tests).
+  - `crates/ui/tests/s094_shell.rs` (behaviour in the testing backend, AC1 to AC9, both windows through one `Shell` trait). Red run: does not compile, 33 errors E0599 so far, the type errors stop the compiler before the import errors (`WelcomeWindow::select_page`, `rail_labels`, `page_rows`, `header_rect`, ... not found; `Rect`, `reset_page_memory`, `privacy_statement` are also not exported yet). The hook list is in the file header; the implementer adds them as `#[doc(hidden)] pub` inherent methods with the same name on `SettingsWindow` and `WelcomeWindow`.
+  - Allowed test edits for the implementer, only to point source scans at `shell.slint`: `s087_welcome.rs` `ac6_rtl_mirrors_the_button_row_in_arabic` and `ac4_both_buttons_carry_descriptive_accessible_labels`, `s090_updates.rs` `ac7_slint_source_has_an_updates_section...` and `ac6_one_version_line_...`. Nothing else in them changes. The four welcome PNG snapshots stay until the manager approves candidates.
+  - Not covered by these tests: screenshots (A, B), the snapshot script extension, the Windows 11 live check (C), the real rendered look and the sharpness of the film.
