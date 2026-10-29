@@ -67,7 +67,7 @@ class AC1HeroBrowser(unittest.TestCase):
                             got[name] = (el.inner_text(), el.get_attribute("href"))
                             pg.context.close()
                         self.assertIn(win_word, got["win"][0], got)
-                        self.assertTrue(got["win"][1].endswith((".msi", ".zip")), got)
+                        self.assertTrue(got["win"][1].endswith(".msi"), got)
                         self.assertIn(lin_word, got["lin"][0], got)
                         self.assertTrue(got["lin"][1].endswith((".deb", ".rpm")), got)
             except BaseException as e:  # noqa: BLE001

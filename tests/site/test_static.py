@@ -259,7 +259,7 @@ class AC6Downloads(unittest.TestCase):
 
     def test_AC6_unpublished_buttons_point_to_releases(self):
         anchors = self.dl_anchors("0")
-        self.assertGreaterEqual(len(anchors), 4, "download buttons carry data-dl=msi|zip|deb|rpm")
+        self.assertGreaterEqual(len(anchors), 4, "download buttons carry data-dl=msi|deb|rpm")
         for f, a in anchors:
             self.assertEqual(a.attrs["href"], RELEASES, str(f))
 
@@ -275,9 +275,9 @@ class AC6Downloads(unittest.TestCase):
         self.assertGreaterEqual(len(anchors), 4)
         kinds = set()
         for f, a in anchors:
-            self.assertRegex(a.attrs["href"], r"^" + re.escape(RELEASES) + r"/download/" + lib.TAG + r"/kawaro[-_].*\.(msi|zip|deb|rpm)$")
+            self.assertRegex(a.attrs["href"], r"^" + re.escape(RELEASES) + r"/download/" + lib.TAG + r"/kawaro[-_].*\.(msi|deb|rpm)$")
             kinds.add(a.attrs["data-dl"])
-        self.assertEqual(kinds, {"msi", "zip", "deb", "rpm"})
+        self.assertEqual(kinds, {"msi", "deb", "rpm"})
 
     def test_AC6_published_without_tag_exits_1(self):
         root = lib.make_copy("notag")
@@ -298,7 +298,7 @@ class AC9Rtl(unittest.TestCase):
         self.assertEqual(hits, [])
 
     def test_AC9_latin_tokens_in_arabic_wrapped(self):
-        token = re.compile(r"\b(MSI|DEB|RPM|ZIP|EXE)\b|\d+\.\d+\.\d+")
+        token = re.compile(r"\b(MSI|DEB|RPM|EXE)\b|\d+\.\d+\.\d+")
         bad = []
         skip = {"bdi", "code", "pre", "svg", "script", "style", "head", "title"}
         for f in html_files():
@@ -333,7 +333,7 @@ class AC9Rtl(unittest.TestCase):
             self.assertNotIn("·", foot.text())
 
     def test_AC9_footer_link_text_language(self):
-        allowed = re.compile(r"GitHub|SHA256SUMS|MSI|DEB|RPM|ZIP")
+        allowed = re.compile(r"GitHub|SHA256SUMS|MSI|DEB|RPM")
         for lang in LANGS:
             root = parse_file(page_file(lang))
             foot = root.find_all("footer")[0]

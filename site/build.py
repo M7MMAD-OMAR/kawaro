@@ -185,7 +185,6 @@ PKGV = VERSION.replace("-", ".")  # GitHub stores "~" as "." (S-073)
 DL = f"{REPO}/releases/download/{TAG}/"
 FILES = {
     "msi": DL + f"kawaro-{VERSION}-windows-x64.msi",
-    "zip": DL + f"kawaro-{VERSION}-windows-x64.zip",
     "deb": DL + f"kawaro_{PKGV}_amd64.deb",
     "rpm": DL + f"kawaro-{PKGV}-1.x86_64.rpm",
 }
@@ -524,7 +523,7 @@ LIN_ICO = ('<svg class="os-ico" viewBox="0 0 48 48" aria-hidden="true" focusable
            '<path class="line" d="M14 20L22 26L14 32M26 33H35"/></svg>')
 
 
-LATIN = re.compile(r"\b(?:MSI|DEB|RPM|ZIP|EXE)\b|\d+\.\d+\.\d+(?:-[A-Za-z]+\.\d+)?")
+LATIN = re.compile(r"\b(?:MSI|DEB|RPM|EXE)\b|\d+\.\d+\.\d+(?:-[A-Za-z]+\.\d+)?")
 
 
 def bidi(text, lang):
@@ -546,8 +545,7 @@ def dl_buttons(lang, which):
     ar = lang == "ar"
     word = "تنزيل" if ar else "Download"
     if which == "win":
-        return (dl_link(lang, "msi", bidi(f"{word} MSI", lang), "primary", "lg")
-                + dl_link(lang, "zip", bidi("ZIP بلا تثبيت" if ar else "Portable ZIP", lang), "primary", "lg"))
+        return dl_link(lang, "msi", bidi(f"{word} MSI", lang), "primary", "lg")
     return (dl_link(lang, "deb", bidi(f"{word} DEB", lang), "primary", "lg")
             + dl_link(lang, "rpm", bidi(f"{word} RPM", lang), "primary", "lg"))
 
@@ -1276,7 +1274,7 @@ def llms_files(sources):
     for slug in DOC_ORDER:
         idx.append(f"- [{doc_title(slug, 'en')}]({BASE}en/docs/{slug}.md)")
     idx += ["", "## Project", "",
-            f"- [Download]({abs_url('en', 'index')}#download): Linux DEB and RPM, Windows MSI and ZIP; SHA256SUMS steps in the install guide",
+            f"- [Download]({abs_url('en', 'index')}#download): Linux DEB and RPM, Windows MSI; SHA256SUMS steps in the install guide",
             f"- [Windows and SmartScreen]({abs_url('en', 'windows')}): the Windows build is test-signed with a self-signed certificate, so SmartScreen warns",
             f"- [Releases]({BASE}en/releases.md)",
             f"- [Source]({REPO}): GPL-3.0-or-later",

@@ -35,7 +35,7 @@
 /* Both slabs fill their card width in one column, so every label has the same room. */
 .download-slab { justify-items: stretch; }
 .download-slab .os-ico { justify-self: start; }
-.download-slab .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); align-items: stretch; }
+.download-slab .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); align-content: start; }
 .download-slab .actions > a { width: 100%; }
 @media (min-width: 720px) {
   .download-slab { grid-row: span 5; grid-template-rows: subgrid; row-gap: var(--space-3); }
