@@ -13,9 +13,10 @@
 
 use crate::Lang;
 use crate::shell::{privacy_statement, remember_page, remembered_page};
-use crate::updates::{UpdateModel, UpdateState, about_line};
+use crate::updates::{POLL_TICK, UpdateModel, UpdateState, about_line, clock_ms};
 use kawaro_core::config::{Config, LangSetting, OutputPlace, Quality, Theme, UpdateMode};
 use kawaro_core::update::Channel;
+use kawaro_core::update::manifest::Notes;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
 use std::rc::{Rc, Weak};
@@ -24,7 +25,7 @@ pub(crate) mod generated {
     include!(concat!(env!("OUT_DIR"), "/settings_ui.rs"));
 }
 
-use generated::{FormValues, Palette, SettingsText, SettingsUi};
+use generated::{FormValues, Palette, SettingsText, SettingsUi, UpdateCard};
 
 /// Options in reading order, as shown to an English reader from left to right.
 pub(crate) const LANGUAGES: [LangSetting; 3] =
@@ -200,6 +201,26 @@ macro_rules! form_values {
 }
 pub(crate) use form_values;
 
+/// The cards of an update view as the generated `UpdateCard` model of a window.
+macro_rules! update_cards {
+    ($ty:ident, $cards:expr) => {{
+        let cards: &[crate::updates::Card] = $cards;
+        let mut out = Vec::new();
+        for c in cards {
+            let bullets: Vec<slint::SharedString> =
+                c.bullets.iter().map(|b| b.as_str().into()).collect();
+            let card = $ty {
+                title: c.title.as_str().into(),
+                label: c.label.as_str().into(),
+                bullets: slint::ModelRc::new(slint::VecModel::from(bullets)),
+            };
+            out.push(card);
+        }
+        slint::ModelRc::new(slint::VecModel::from(out))
+    }};
+}
+pub(crate) use update_cards;
+
 /// All strings of the window in reading order.
 pub(crate) struct Strings {
     pub(crate) text: SettingsText,
@@ -355,6 +376,8 @@ struct Inner {
     update: RefCell<UpdateModel>,
     on_update_check: RefCell<Option<Callback>>,
     on_update_apply: RefCell<Option<Callback>>,
+    /// Fires `poll_tick` while the window is open.
+    timer: slint::Timer,
     /// The complete [`Config`] the window was opened with. `hive_surface`
     /// and `hold_ms` have no control here (S-019 decision 4, S-019e AC18),
     /// and `portal_shortcut` is hidden state kept as opened, including a
@@ -407,7 +430,10 @@ impl Inner {
     fn show_update(&self, ui: &SettingsUi, lang: Lang) {
         let r = self.update.borrow().render(lang);
         ui.set_update_version_text(r.version_text.into());
+        ui.set_update_available_text(r.available_text.into());
         ui.set_update_state_line(r.state_line.into());
+        ui.set_update_banner(r.banner.into());
+        ui.set_update_cards(update_cards!(UpdateCard, &r.cards));
         ui.set_update_check_enabled(r.check_enabled);
         ui.set_update_apply_enabled(r.apply_enabled);
     }
@@ -426,6 +452,20 @@ impl Inner {
             return;
         }
         self.show_update(&self.ui.borrow(), self.lang());
+        let f = self.on_update_check.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
+    }
+
+    /// One tick of the poll (S-099 B3): while the update downloads or
+    /// installs, asks the daemon again once a second. A closed window asks
+    /// nothing.
+    fn poll_tick(&self, now_ms: u64) {
+        let fire = self.visible() && self.update.borrow_mut().poll(now_ms);
+        if !fire {
+            return;
+        }
         let f = self.on_update_check.borrow().clone();
         if let Some(f) = f {
             f();
@@ -514,6 +554,7 @@ impl Inner {
     }
 
     fn close(&self) {
+        self.timer.stop();
         self.ui.borrow().hide().ok();
     }
 }
@@ -542,6 +583,7 @@ impl SettingsWindow {
             update: RefCell::new(UpdateModel::default()),
             on_update_check: RefCell::new(None),
             on_update_apply: RefCell::new(None),
+            timer: slint::Timer::default(),
             opened: RefCell::new(Config::default()),
         });
         let ui = inner.new_ui()?;
@@ -555,6 +597,7 @@ impl SettingsWindow {
     pub fn open(&self, config: &Config) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         inner.close();
+        inner.update.borrow_mut().reset_view();
         let lang = match config.language {
             LangSetting::Auto => inner.initial_lang,
             _ => config.lang(),
@@ -572,6 +615,12 @@ impl SettingsWindow {
         let state = FormState::from_config(config, inner.rtl.get());
         inner.set_state(&state);
         inner.set_loaded(&state);
+        let w = Rc::downgrade(inner);
+        inner
+            .timer
+            .start(slint::TimerMode::Repeated, POLL_TICK, move || {
+                with(&w, |i| i.poll_tick(clock_ms()));
+            });
         inner.ui.borrow().show()
     }
 
@@ -606,6 +655,23 @@ impl SettingsWindow {
         inner.show_update(&inner.ui.borrow(), inner.lang());
     }
 
+    /// The update the daemon knows: its version, the download size in bytes
+    /// and the notes of its signed manifest (S-099). Independent of
+    /// `set_update_view`, in either order.
+    pub fn set_update_available(
+        &self,
+        version: Option<&str>,
+        size: Option<u64>,
+        notes: Option<&Notes>,
+    ) {
+        let inner = &self.inner;
+        inner
+            .update
+            .borrow_mut()
+            .set_available(version, size, notes);
+        inner.show_update(&inner.ui.borrow(), inner.lang());
+    }
+
     /// Update now was accepted but waits for running jobs (S-054b AC7).
     pub fn show_update_deferred(&self) {
         let inner = &self.inner;
@@ -626,6 +692,39 @@ impl SettingsWindow {
     #[doc(hidden)]
     pub fn update_version_text(&self) -> String {
         self.inner.ui.borrow().get_update_version_text().into()
+    }
+
+    /// The window clock calls this every 250 ms with monotonic milliseconds.
+    #[doc(hidden)]
+    pub fn poll_tick(&self, now_ms: u64) {
+        self.inner.poll_tick(now_ms);
+    }
+
+    #[doc(hidden)]
+    pub fn update_available_text(&self) -> Option<String> {
+        let t: String = self.inner.ui.borrow().get_update_available_text().into();
+        (!t.is_empty()).then_some(t)
+    }
+
+    #[doc(hidden)]
+    pub fn update_banner(&self) -> Option<String> {
+        let t: String = self.inner.ui.borrow().get_update_banner().into();
+        (!t.is_empty()).then_some(t)
+    }
+
+    #[doc(hidden)]
+    pub fn update_cards(&self) -> Vec<(String, Vec<String>)> {
+        use slint::Model;
+        let ui = self.inner.ui.borrow();
+        ui.get_update_cards()
+            .iter()
+            .map(|c| {
+                (
+                    c.title.to_string(),
+                    c.bullets.iter().map(|b| b.to_string()).collect(),
+                )
+            })
+            .collect()
     }
 
     #[doc(hidden)]
@@ -701,6 +800,30 @@ impl SettingsWindow {
             .ui
             .borrow()
             .set_page(i32::try_from(page).unwrap_or(0));
+    }
+}
+
+#[cfg(feature = "testing-hooks")]
+impl SettingsWindow {
+    #[doc(hidden)]
+    pub fn update_card_labels(&self) -> Vec<String> {
+        crate::shell::probe::card_labels(&*self.inner.ui.borrow())
+    }
+
+    #[doc(hidden)]
+    pub fn update_card_rect(&self, i: usize) -> crate::Rect {
+        crate::shell::probe::card_rect(&*self.inner.ui.borrow(), i)
+    }
+
+    #[doc(hidden)]
+    pub fn update_card_title_rect(&self, i: usize) -> crate::Rect {
+        crate::shell::probe::card_title_rect(&*self.inner.ui.borrow(), i)
+    }
+
+    /// The y of every form row of the Updates page.
+    #[doc(hidden)]
+    pub fn update_row_ys(&self) -> Vec<f32> {
+        crate::shell::probe::row_ys(&*self.inner.ui.borrow())
     }
 }
 

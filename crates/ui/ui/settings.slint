@@ -10,13 +10,13 @@ import { Tokens } from "tokens.slint";
 import { SbarMaterial } from "material-tokens.slint";
 import { MaterialPalette, MaterialWindow } from "@material";
 import { Palette } from "std-widgets.slint";
-import { AppShell, SettingsText, FormValues } from "shell.slint";
+import { AppShell, SettingsText, FormValues, UpdateCard } from "shell.slint";
 
 import "../fonts/IBMPlexSansArabic-Regular.otf";
 import "../fonts/IBMPlexSansArabic-Medium.otf";
 import "../fonts/IBMPlexSansArabic-SemiBold.otf";
 
-export { Tokens, Palette, SettingsText, FormValues }
+export { Tokens, Palette, SettingsText, FormValues, UpdateCard }
 
 export component SettingsUi inherits MaterialWindow {
     forward-focus: shell;
@@ -37,7 +37,10 @@ export component SettingsUi inherits MaterialWindow {
     in-out property <bool> open-folder <=> shell.open-folder;
     in-out property <int> subfolder-index <=> shell.subfolder-index;
     in-out property <string> update-version-text <=> shell.update-version-text;
+    in-out property <string> update-available-text <=> shell.update-available-text;
     in-out property <string> update-state-line <=> shell.update-state-line;
+    in-out property <string> update-banner <=> shell.update-banner;
+    in-out property <[UpdateCard]> update-cards <=> shell.update-cards;
     in-out property <bool> update-check-enabled <=> shell.update-check-enabled;
     in-out property <bool> update-apply-enabled <=> shell.update-apply-enabled;
     in-out property <[string]> update-channel-items <=> shell.update-channel-items;

@@ -1,28 +1,34 @@
 #!/usr/bin/env bash
-# S-090 AC8: renders the settings window with the Updates section in each of
-# the update states, in Arabic and English, into a private headless KWin.
+# S-090 AC8 and S-099b B8: renders the settings window on the Updates page in
+# each update state, in Arabic and English, into a private headless KWin.
 # Nothing touches the live desktop.
 #
-# Usage: crates/ui/tests/updates_screenshots.sh OUTDIR
+# Usage: crates/ui/tests/updates_screenshots.sh [OUTDIR]
+#   With no OUTDIR it writes the 16 S-099b images (four states: downloading,
+#   ready, installing, updated; en and ar; light and dark) to
+#   docs/screenshots/s099 as updates-<lang>-<scheme>-<state>.png.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-OUTDIR="$(mkdir -p "${1:?usage: updates_screenshots.sh OUTDIR}" && cd "$1" && pwd)"
+OUTDIR="$(mkdir -p "${1:-$ROOT/docs/screenshots/s099}" && cd "${1:-$ROOT/docs/screenshots/s099}" && pwd)"
 (cd "$ROOT" && cargo build --quiet --release -p kawaro-ui --example settings_snapshot) || exit 2
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/settings_snapshot"
 
 inner() {
   unset DISPLAY XDG_ACTIVATION_TOKEN
-  kwin_wayland --virtual --socket "$WAYLAND_DISPLAY" --width 1920 --height 1080 >"$OUTDIR/kwin.log" 2>&1 &
+  kwin_wayland --virtual --socket "$WAYLAND_DISPLAY" --width 1920 --height 1400 >"$OUTDIR/kwin.log" 2>&1 &
   local cpid=$!
   for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
   [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "private compositor did not start"; kill $cpid; return 2; }
   sleep 1
   local fail=0
   for lang in en ar; do
-    for state in up-to-date checking downloading ready failed unavailable off; do
-      KAWARO_COLOR_SCHEME=light KAWARO_REDUCED_MOTION=1 \
-        "$BIN" "$OUTDIR/updates-$lang-$state.png" --lang "$lang" --update-state "$state" || fail=1
+    for scheme in light dark; do
+      for state in downloading ready installing updated; do
+        KAWARO_COLOR_SCHEME=$scheme KAWARO_REDUCED_MOTION=1 \
+          "$BIN" "$OUTDIR/updates-$lang-$scheme-$state.png" --lang "$lang" \
+          --page 3 --size 880x1230 --update-state "$state" || fail=1
+      done
     done
   done
   kill $cpid 2>/dev/null

@@ -130,6 +130,43 @@ pub(crate) mod probe {
         rows
     }
 
+    /// The `WhatsNewCard` elements, top to bottom.
+    fn cards(root: &impl ElementRoot) -> Vec<ElementHandle> {
+        let mut cards: Vec<ElementHandle> =
+            ElementHandle::find_by_element_type_name(root, "WhatsNewCard").collect();
+        cards.sort_by(|a, b| rect(a).y.total_cmp(&rect(b).y));
+        cards
+    }
+
+    pub(crate) fn card_labels(root: &impl ElementRoot) -> Vec<String> {
+        cards(root)
+            .iter()
+            .map(|e| e.accessible_label().unwrap_or_default().to_string())
+            .collect()
+    }
+
+    pub(crate) fn card_rect(root: &impl ElementRoot, i: usize) -> Rect {
+        cards(root).get(i).map(rect).unwrap_or(Rect {
+            x: 0.0,
+            y: 0.0,
+            w: 0.0,
+            h: 0.0,
+        })
+    }
+
+    /// The title of card `i`, found by position inside the card.
+    pub(crate) fn card_title_rect(root: &impl ElementRoot, i: usize) -> Rect {
+        let card = card_rect(root, i);
+        ElementHandle::find_by_element_id(root, "WhatsNewCard::title-text")
+            .map(|e| rect(&e))
+            .find(|r| r.y >= card.y - 0.5 && r.y + r.h <= card.y + card.h + 0.5)
+            .unwrap_or(card)
+    }
+
+    pub(crate) fn row_ys(root: &impl ElementRoot) -> Vec<f32> {
+        rows(root).iter().map(|e| rect(e).y).collect()
+    }
+
     pub(crate) fn page_rows(root: &impl ElementRoot) -> Vec<String> {
         rows(root)
             .iter()

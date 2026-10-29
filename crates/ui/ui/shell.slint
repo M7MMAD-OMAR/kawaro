@@ -75,6 +75,15 @@ export struct FormValues {
     update-mode: int,
 }
 
+// One "What is new" card (S-099 B4): a title and the bullets of a release.
+// Rust passes only cards that obey the manifest rule (3 to 5 lines, one line
+// each), and the card always reserves the height of the title and 5 lines.
+export struct UpdateCard {
+    title: string,
+    label: string,
+    bullets: [string],
+}
+
 // The segments of a choice: two or three options, already in visual order.
 component ChoiceButtons inherits SegmentedButton {
     in property <[string]> labels;
@@ -104,6 +113,77 @@ component Card inherits Rectangle {
         padding: Tokens.space-4;
         spacing: Tokens.space-4;
         @children
+    }
+}
+
+// A release's "What is new" card. It is one group for a screen reader, read
+// through its label; the texts inside stay silent so nothing is read twice.
+component WhatsNewCard inherits Rectangle {
+    in property <bool> rtl;
+    in property <bool> wide;
+    in property <string> title;
+    in property <string> label;
+    in property <[string]> bullets;
+    property <length> line-h: Tokens.font-body * 1.5;
+    // A narrow column may wrap a bullet, so each reserves two lines there.
+    property <length> bullet-h: (root.wide ? 1 : 2) * root.line-h;
+
+    background: Tokens.surface-1;
+    border-radius: Tokens.radius-lg;
+    border-width: Tokens.border-default;
+    border-color: Tokens.border;
+    min-height: 2 * Tokens.space-4 + root.line-h + Tokens.space-2 + 5 * root.bullet-h + 4 * Tokens.space-1;
+    preferred-height: root.min-height;
+    accessible-role: groupbox;
+    accessible-label: root.label;
+
+    VerticalLayout {
+        x: 0;
+        y: 0;
+        width: parent.width;
+        padding: Tokens.space-4;
+        spacing: Tokens.space-1;
+        alignment: start;
+
+        HorizontalLayout {
+            alignment: root.rtl ? end : start;
+            padding-bottom: Tokens.space-1;
+            title-text := Text {
+                text: root.title;
+                font-size: Tokens.font-body;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.text-primary;
+                accessible-role: none;
+            }
+        }
+
+        for bullet in root.bullets: Rectangle {
+            height: root.bullet-h;
+
+            Rectangle {
+                x: root.rtl ? parent.width - self.width : 0;
+                y: (root.line-h - self.height) / 2;
+                width: Tokens.space-1;
+                height: Tokens.space-1;
+                border-radius: self.width / 2;
+                background: Tokens.accent;
+            }
+
+            Text {
+                x: root.rtl ? 0 : Tokens.space-3;
+                y: 0;
+                width: parent.width - Tokens.space-3;
+                height: parent.height;
+                text: bullet;
+                wrap: word-wrap;
+                overflow: elide;
+                vertical-alignment: top;
+                horizontal-alignment: root.rtl ? right : left;
+                font-size: Tokens.font-body;
+                color: Tokens.text-primary;
+                accessible-role: none;
+            }
+        }
     }
 }
 
@@ -194,7 +274,11 @@ export component AppShell inherits Rectangle {
 
     // The Updates page (S-090). Rust renders the version and state line.
     in property <string> update-version-text;
+    in property <string> update-available-text;
     in property <string> update-state-line;
+    // The "Updated to X" line: the state line then reads as a success.
+    in property <string> update-banner;
+    in property <[UpdateCard]> update-cards;
     in property <bool> update-check-enabled;
     in property <bool> update-apply-enabled;
     in property <[string]> update-channel-items;
@@ -501,12 +585,35 @@ export component AppShell inherits Rectangle {
                                 text: root.text.updates;
                             }
                             Card {
-                                Text {
-                                    text: root.update-version-text;
-                                    font-size: Tokens.font-body;
-                                    font-weight: Tokens.weight-semibold;
-                                    color: Tokens.text-primary;
-                                    horizontal-alignment: root.rtl ? right : left;
+                                // The installed version and, while an update
+                                // is known, the available one on the same row.
+                                HorizontalLayout {
+                                    alignment: root.rtl ? end : start;
+                                    spacing: Tokens.space-4;
+                                    if !root.rtl: Text {
+                                        text: root.update-version-text;
+                                        font-size: Tokens.font-body;
+                                        font-weight: Tokens.weight-semibold;
+                                        color: Tokens.text-primary;
+                                    }
+                                    if !root.rtl: Text {
+                                        text: root.update-available-text;
+                                        font-size: Tokens.font-body;
+                                        color: Tokens.text-primary;
+                                    }
+                                    if root.rtl: Text {
+                                        text: root.update-available-text;
+                                        font-size: Tokens.font-body;
+                                        color: Tokens.text-primary;
+                                        horizontal-alignment: left;
+                                    }
+                                    if root.rtl: Text {
+                                        text: root.update-version-text;
+                                        font-size: Tokens.font-body;
+                                        font-weight: Tokens.weight-semibold;
+                                        color: Tokens.text-primary;
+                                        horizontal-alignment: right;
+                                    }
                                 }
                                 // Two lines are reserved, so a state change
                                 // never moves the rows below it.
@@ -521,7 +628,8 @@ export component AppShell inherits Rectangle {
                                         text: root.update-state-line;
                                         wrap: word-wrap;
                                         font-size: Tokens.font-body;
-                                        color: Tokens.text-secondary;
+                                        font-weight: root.update-banner != "" ? Tokens.weight-semibold : Tokens.weight-regular;
+                                        color: root.update-banner != "" ? Tokens.success : Tokens.text-secondary;
                                         horizontal-alignment: root.rtl ? right : left;
                                     }
                                 }
@@ -611,6 +719,16 @@ export component AppShell inherits Rectangle {
                                         current-index <=> root.update-mode;
                                     }
                                 }
+                            }
+                        }
+                        VerticalLayout {
+                            spacing: Tokens.space-4;
+                            for card in root.update-cards: whats-new-card := WhatsNewCard {
+                                rtl: root.rtl;
+                                wide: root.wide;
+                                title: card.title;
+                                label: card.label;
+                                bullets: card.bullets;
                             }
                         }
                     }

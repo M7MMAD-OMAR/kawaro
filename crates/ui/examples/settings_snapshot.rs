@@ -2,7 +2,7 @@
 //! reference.
 //!
 //!     settings_snapshot OUT.png [--lang ar|en] [--compare REF.png]
-//!                       [--update-state up-to-date|checking|downloading|ready|failed|unavailable|off]
+//!                       [--update-state up-to-date|checking|downloading|ready|installing|updated|failed|unavailable|off]
 //!
 //! The window shows a sample configuration with the subfolder option on, so
 //! the folder field is enabled. With `--compare` the exit code is 1 when more
@@ -95,6 +95,28 @@ fn diff_pixels(a: &[u8], b: &[u8]) -> usize {
         .count()
 }
 
+/// Four sample bullets in both languages, within the manifest rule.
+fn sample_notes() -> kawaro_core::update::manifest::Notes {
+    kawaro_core::update::manifest::Notes {
+        en: [
+            "Settings show the installed and the new version",
+            "The download shows its percent and size",
+            "Kawaro restarts and reopens settings by itself",
+            "A short list says what changed",
+        ]
+        .map(String::from)
+        .to_vec(),
+        ar: [
+            "تعرض الإعدادات النسخة المثبّتة والنسخة الجديدة",
+            "يعرض التنزيل نسبته وحجمه",
+            "يعيد كوارو التشغيل ويفتح الإعدادات تلقائياً",
+            "قائمة قصيرة تشرح ما تغيّر",
+        ]
+        .map(String::from)
+        .to_vec(),
+    }
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let o = parse(&args)?;
@@ -112,11 +134,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         win.set_window_size(w, h);
     }
     if let Some(state) = &o.update_state {
+        // The versions, the size and the notes the daemon would report
+        // (S-099): a sample update 0.4.3 of 50 MiB. Notes come with the
+        // verified update, so a running download has none yet.
+        let notes = sample_notes();
+        match state.as_str() {
+            "downloading" => win.set_update_available(Some("0.4.3"), Some(50 << 20), None),
+            "ready" | "installing" => {
+                win.set_update_available(Some("0.4.3"), Some(50 << 20), Some(&notes))
+            }
+            _ => {}
+        }
         let (state, running) = match state.as_str() {
             "up-to-date" => (UpdateState::UpToDate, true),
             "checking" => (UpdateState::Checking, true),
             "downloading" => (UpdateState::Downloading(42), true),
             "ready" => (UpdateState::Ready, true),
+            "installing" => (UpdateState::Installing, true),
+            "updated" => (UpdateState::Updated(env!("CARGO_PKG_VERSION").into()), true),
             "failed" => (UpdateState::Failed("signature mismatch".into()), true),
             "unavailable" => (UpdateState::Unavailable, true),
             _ => (UpdateState::UpToDate, false),

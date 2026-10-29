@@ -11,8 +11,9 @@
 use crate::Lang;
 use crate::film;
 use crate::settings::{self, FormState};
-use crate::updates::{UpdateModel, UpdateState};
+use crate::updates::{POLL_TICK, UpdateModel, UpdateState, clock_ms};
 use kawaro_core::config::{Config, OutputPlace};
+use kawaro_core::update::manifest::Notes;
 use kawaro_core::welcome::Captions;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
@@ -28,7 +29,7 @@ mod resources {
     include!(concat!(env!("OUT_DIR"), "/welcome_resources.rs"));
 }
 
-use generated::{FilmPose, FormValues, Palette, Tokens, WelcomeText, WelcomeUi};
+use generated::{FilmPose, FormValues, Palette, Tokens, UpdateCard, WelcomeText, WelcomeUi};
 
 /// How the first welcome demonstration played (S-087 AC2). Kept as the pure
 /// timing rule of that story; the film of S-094c plays only on request, at
@@ -121,6 +122,8 @@ struct Inner {
     on_update_check: RefCell<Option<Callback>>,
     on_update_apply: RefCell<Option<Callback>>,
     timer: slint::Timer,
+    /// Fires `poll_tick` while the window is open (S-099 B3).
+    poll_timer: slint::Timer,
     /// Whether the film loop plays; it never starts on its own.
     playing: Cell<bool>,
     choose_language: Cell<bool>,
@@ -198,7 +201,10 @@ impl Inner {
     fn show_update(&self, ui: &WelcomeUi, lang: Lang) {
         let r = self.update.borrow().render(lang);
         ui.set_settings_update_version_text(r.version_text.into());
+        ui.set_settings_update_available_text(r.available_text.into());
         ui.set_settings_update_state_line(r.state_line.into());
+        ui.set_settings_update_banner(r.banner.into());
+        ui.set_settings_update_cards(settings::update_cards!(UpdateCard, &r.cards));
         ui.set_settings_update_check_enabled(r.check_enabled);
         ui.set_settings_update_apply_enabled(r.apply_enabled);
     }
@@ -216,6 +222,18 @@ impl Inner {
             return;
         }
         self.show_update(&self.ui.borrow(), self.current_lang());
+        let f = self.on_update_check.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
+    }
+
+    /// One tick of the poll (S-099 B3), as in the settings window.
+    fn poll_tick(&self, now_ms: u64) {
+        let fire = self.visible() && self.update.borrow_mut().poll(now_ms);
+        if !fire {
+            return;
+        }
         let f = self.on_update_check.borrow().clone();
         if let Some(f) = f {
             f();
@@ -365,6 +383,7 @@ impl Inner {
 
     fn close(&self) {
         self.timer.stop();
+        self.poll_timer.stop();
         self.playing.set(false);
         self.ui.borrow().set_film_playing(false);
         self.ui.borrow().hide().ok();
@@ -499,6 +518,7 @@ impl WelcomeWindow {
             on_update_check: RefCell::new(None),
             on_update_apply: RefCell::new(None),
             timer: slint::Timer::default(),
+            poll_timer: slint::Timer::default(),
             playing: Cell::new(false),
             choose_language: Cell::new(false),
             settings_loaded: Cell::new(false),
@@ -513,6 +533,7 @@ impl WelcomeWindow {
     pub fn open(&self, captions: &Captions, centred: bool) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         inner.close();
+        inner.update.borrow_mut().reset_view();
         let ui = inner.new_ui()?;
         let env = std::env::var("KAWARO_COLOR_SCHEME").ok();
         if let Some(scheme) = forced_scheme(env.as_deref()) {
@@ -532,6 +553,12 @@ impl WelcomeWindow {
         // Nothing autoplays: the film opens on its poster and waits for
         // Play. Reduced motion also hides the control.
         inner.set_reduced(crate::motion::detect());
+        let w = Rc::downgrade(inner);
+        inner
+            .poll_timer
+            .start(slint::TimerMode::Repeated, POLL_TICK, move || {
+                with(&w, |i| i.poll_tick(clock_ms()));
+            });
         inner.ui.borrow().show()
     }
 
@@ -570,6 +597,22 @@ impl WelcomeWindow {
             .update
             .borrow_mut()
             .set_view(version, state, service_running);
+        inner.show_update(&inner.ui.borrow(), inner.current_lang());
+    }
+
+    /// The update the daemon knows (S-099): version, download size in bytes
+    /// and the notes of its signed manifest.
+    pub fn set_update_available(
+        &self,
+        version: Option<&str>,
+        size: Option<u64>,
+        notes: Option<&Notes>,
+    ) {
+        let inner = &self.inner;
+        inner
+            .update
+            .borrow_mut()
+            .set_available(version, size, notes);
         inner.show_update(&inner.ui.borrow(), inner.current_lang());
     }
 
@@ -629,6 +672,15 @@ impl WelcomeWindow {
         }
         drop(ui);
         inner.set_loaded(&state);
+    }
+
+    /// Shows settings page `page` (0 is General, 3 is Updates) of the
+    /// already open window.
+    pub fn show_settings_page(&self, page: usize) {
+        self.inner
+            .ui
+            .borrow()
+            .set_page(i32::try_from(page + 1).unwrap_or(1));
     }
 
     /// Called when embedded settings are saved.
