@@ -25,7 +25,7 @@ from lib import Browser, LANGS, page_path  # noqa: E402
 B = None
 STATES = ["folder", "select", "open", "pick", "result"]
 PROGRESS = [0.0, 0.26, 0.51, 0.76, 1.0]  # a hair inside each quarter so rounding cannot flip a state
-PAGES = ["", "download", "windows", "privacy", "docs", "releases"]
+PAGES = ["", "windows", "docs", "releases"]
 
 
 def setUpModule():
@@ -139,7 +139,7 @@ class AC4Big(unittest.TestCase):
 
     def test_AC4_targets_at_least_56_high(self):
         for lang in LANGS:
-            for page in ("", "download"):
+            for page in ("", "windows"):
                 for w in (1280, 375):
                     pg = B.page(page_path(lang, page), width=w, height=800 if w > 400 else 667)
                     small = pg.evaluate("""() => [...document.querySelectorAll('a, button, input, summary, [role=button]')]

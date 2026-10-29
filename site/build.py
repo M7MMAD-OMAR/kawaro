@@ -6,7 +6,7 @@ markup uses classes and custom properties from tokens.css. Geometry numbers for
 the hive come from design/tokens.json, the same source as the app.
 
 Run: python3 site/build.py
-Pages: index, download, windows, privacy. Arabic and English are two originals
+Pages: index, windows. Arabic and English are two originals
 that share a structure, not one text translated from the other.
 """
 
@@ -35,7 +35,7 @@ VERSION = "0.4.0"
 PUBLISHED = os.environ.get("RELEASE_PUBLISHED", "0") == "1"
 DIRECTIONS = [(1, 0), (1, -1), (0, -1), (-1, 0), (-1, 1), (0, 1)]
 
-PAGES = ["index", "download", "windows", "privacy"]
+PAGES = ["index", "windows"]
 
 # The tab icon is a same origin file: the CSP has no data: source (S-059).
 FAVICON = "/favicon.svg"
@@ -175,40 +175,6 @@ def mini_cluster(cx, cy, radius, rtl=False, classes=None):
     return "".join(parts)
 
 
-def privacy_svg(lang):
-    ar = lang == "ar"
-    rtl = ar
-    w, h = 720, 290
-
-    def mx(x):
-        return w - x if rtl else x
-
-    t_pc = "جهازك" if ar else "Your machine"
-    t_net = "الإنترنت" if ar else "The internet"
-    t_none = "لا يخرج أي ملف" if ar else "No file leaves"
-    cx_pc, cx_net = mx(170), mx(570)
-    out = [f'<svg class="privacy-map" viewBox="0 0 {w} {h}" role="img" aria-label="{html.escape(t_pc)}: {html.escape(t_none)}">']
-    out.append(f'<path class="zone" d="{hex_path(cx_pc, 125, 118)}"/>')
-    out.append(f'<text class="zone-label" x="{cx_pc}" y="272">{t_pc}</text>')
-    out.append(f'<rect class="doc" x="{cx_pc - 70}" y="100" width="28" height="38"/>')
-    out.append(f'<path class="hop" d="{hex_path(cx_pc, 120, 20)}"/>')
-    out.append(f'<rect class="doc doc-new" x="{cx_pc + 42}" y="100" width="28" height="38"/>')
-    out.append(f'<line class="wire-s" x1="{cx_pc - 40}" y1="119" x2="{cx_pc - 22}" y2="119"/>')
-    out.append(f'<line class="wire-s" x1="{cx_pc + 22}" y1="119" x2="{cx_pc + 40}" y2="119"/>')
-    # internet: dashed zone
-    out.append(f'<path class="zone zone-off" d="{hex_path(cx_net, 125, 80)}"/>')
-    out.append(f'<text class="zone-label" x="{cx_net}" y="272">{t_net}</text>')
-    # blocked link
-    a, b = sorted((cx_pc + (118 * 0.87 if not rtl else -118 * 0.87), cx_net + (-80 * 0.87 if not rtl else 80 * 0.87)))
-    mid = (a + b) / 2
-    out.append(f'<line class="wire-off" x1="{a:.0f}" y1="125" x2="{b:.0f}" y2="125"/>')
-    out.append(f'<g class="cross"><line x1="{mid - 9:.0f}" y1="116" x2="{mid + 9:.0f}" y2="134"/>'
-               f'<line x1="{mid - 9:.0f}" y1="134" x2="{mid + 9:.0f}" y2="116"/></g>')
-    out.append(f'<text class="zone-label strong" x="{mid:.0f}" y="96">{t_none}</text>')
-    out.append("</svg>")
-    return "".join(out)
-
-
 # ---------------------------------------------------------------------------
 # Language packs. Two originals with the same structure. Short on purpose:
 # big headlines, few words, the drawings explain the rest.
@@ -228,22 +194,18 @@ SUPPORT = "https://sbarah.com/support"
 AR = {
     "lang": "ar", "dir": "rtl", "name": "كوارو", "locale": "ar_AR", "alt": "en_US",
     "nav_skip": "انتقل إلى المحتوى",
-    "nav": {"index": "الرئيسية", "docs": "التوثيق", "download": "التنزيل", "releases": "الإصدارات", "windows": "ويندوز", "privacy": "الخصوصية"},
+    "nav": {"index": "الرئيسية", "docs": "التوثيق", "releases": "الإصدارات", "windows": "ويندوز"},
     "nav_label": "التنقل الرئيسي",
     "other_lang": "English",
     "beta": "بيتا",
     "support": "ادعم صبارة",
     "titles": {
         "index": "كوارو: حوّل ملفاتك بأمان على جهازك",
-        "download": "تنزيل كوارو " + VERSION + " للينكس وويندوز",
         "windows": "كوارو على ويندوز: تحذير SmartScreen والتحقق من الملف",
-        "privacy": "الخصوصية في كوارو: ملفاتك تبقى عندك",
     },
     "descs": {
         "index": "محوّل ملفات مجاني ومفتوح المصدر للينكس وويندوز. حدّد الملف، اختر خلية، والناتج بجانب الأصل. ملفاتك تبقى على جهازك.",
-        "download": "كوارو للينكس وويندوز، مع خطوات التحقق بـ SHA256SUMS.",
         "windows": "بناء ويندوز موقَّع بشهادة اختبار ذاتية، لا بناشر موثَّق، فيظهر تحذير SmartScreen. تحقق من الملف بـ SHA256SUMS ثم More info وRun anyway.",
-        "privacy": "لا تتبع ولا حسابات ولا رفع للملفات. الاتصال الوحيد هو فحص التحديثات الموقّعة.",
     },
     "og_alt": "شعار كوارو بجانب الخلية السداسية، وعلى خلاياها صيغ تحويل الصور",
     "footer_license": "برنامج حر برخصة <bdi dir=\"ltr\">GPLv3</bdi>.",
@@ -254,22 +216,18 @@ AR = {
 EN = {
     "lang": "en", "dir": "ltr", "name": "Kawaro", "locale": "en_US", "alt": "ar_AR",
     "nav_skip": "Skip to content",
-    "nav": {"index": "Home", "docs": "Docs", "download": "Download", "releases": "Releases", "windows": "Windows", "privacy": "Privacy"},
+    "nav": {"index": "Home", "docs": "Docs", "releases": "Releases", "windows": "Windows"},
     "nav_label": "Main navigation",
     "other_lang": "العربية",
     "beta": "beta",
     "support": "Support Sbarah",
     "titles": {
         "index": "Kawaro: convert files safely, on your machine",
-        "download": "Download Kawaro " + VERSION + " for Linux and Windows",
         "windows": "Kawaro on Windows: the SmartScreen warning and checking your download",
-        "privacy": "Kawaro privacy: your files stay with you",
     },
     "descs": {
         "index": "A free, open source file converter for Linux and Windows. Select the file, pick a cell, and the result lands next to the original. Your files stay on your machine.",
-        "download": "Kawaro for Linux and Windows, with the SHA256SUMS steps to verify it.",
         "windows": "The Windows build is test-signed with a self-signed certificate, not a verified publisher, so SmartScreen warns on first run. Verify against SHA256SUMS, then click More info and Run anyway.",
-        "privacy": "No tracking, no accounts, no uploads. The only network use is the signed update check.",
     },
     "og_alt": "The Kawaro logo next to a hexagonal hive with image formats",
     "footer_license": "Free software under the GPLv3.",
@@ -296,6 +254,16 @@ def _parts(page):
 def rel_root(lang, page):
     depth = (1 if lang == "en" else 0) + len(_parts(page))
     return "../" * depth
+
+
+def dl_anchor(lang, page):
+    """The download section lives on the home page: one anchor, no separate page."""
+    return page_href(lang, page, lang, "index") + "#download"
+
+
+def verify_href(lang, page):
+    """The checksum steps are the Verify section of the install guide."""
+    return page_href(lang, page, lang, "docs/install") + "#" + ("التحقق" if lang == "ar" else "verify")
 
 
 def page_href(from_lang, from_page, to_lang, to_page):
@@ -443,15 +411,14 @@ def header(lang, page, root):
     p = lang_pack(lang)
     other = "en" if lang == "ar" else "ar"
     links = []
-    for key in ("docs", "releases", "privacy"):
+    for key in ("docs", "releases"):
         cur = ' aria-current="page"' if (key == page or page.startswith(key + "/")) else ""
         links.append(f'<a class="nav-link" href="{page_href(lang, page, lang, key)}"{cur}>{p["nav"][key]}</a>')
     sw = (f'<a class="nav-link lang-switch" href="{page_href(lang, page, other, page)}" '
           f'hreflang="{other}" lang="{other}">{p["other_lang"]}</a>')
-    cur = ' aria-current="page"' if page == "download" else ""
     sup = support_link(lang, "nav-link nav-support")
-    cta = hex_button(page_href(lang, page, lang, "download"), "تنزيل" if lang == "ar" else "Download", "primary", "sm",
-                     cur, extra="nav-cta")
+    cta = hex_button(dl_anchor(lang, page), "تنزيل" if lang == "ar" else "Download", "primary", "sm",
+                     "", extra="nav-cta")
     meter = '<div class="scroll-meter" aria-hidden="true"></div>' if page == "index" else ""
     return f'''<header class="site-header">
   <div class="wrap">
@@ -501,7 +468,6 @@ def footer(lang, page, root):
     product = [
         f'<a href="{REPO}">GitHub</a>',
         f'<a href="{page_href(lang, page, lang, "windows")}">{p["nav"]["windows"]}</a>',
-        f'<a href="{page_href(lang, page, lang, "privacy")}">{p["nav"]["privacy"]}</a>',
         f'<a href="{RELEASES}">GitHub {p["releases"]}</a>',
         support_a("", p["support"]),
     ]
@@ -648,7 +614,6 @@ T_HOME = {
         "privacy_k": "الخصوصية",
         "privacy_h": "ملفاتك لا تغادر جهازك",
         "privacy_p": "كل تحويل يجري في جهازك: لا رفع، ولا حساب، ولا تتبع.",
-        "privacy_a": "صفحة الخصوصية",
         "orig_h": "الأصل لا يتغير",
         "orig_p": "يُحفظ الناتج في ملف جديد بجانبه، ويبقى ملفك كما هو.",
         "orig_kept": "الأصل",
@@ -684,7 +649,6 @@ T_HOME = {
         "privacy_k": "Privacy",
         "privacy_h": "Your files never leave your machine",
         "privacy_p": "Every conversion runs on your machine: no uploads, no account, no tracking.",
-        "privacy_a": "Read the privacy page",
         "orig_h": "The original stays as it is",
         "orig_p": "The result goes to a new file beside it. Your file is never modified.",
         "orig_kept": "Original",
@@ -798,15 +762,13 @@ LOCK = ('<svg class="bento-lock" viewBox="0 0 120 138" aria-hidden="true" focusa
 
 def bento_section(lang):
     t = T_HOME[lang]
-    priv = page_href(lang, "index", lang, "privacy")
     fit_cells = "".join(f'<i style="--q:{q};--r:{r}"{" class=on" if i in (0, 1, 4) else ""}></i>'
                         for i, (q, r) in enumerate(spiral(1)))
     tiles = [
         bento_tile("bento-privacy", f'''{LOCK}
 <p class="bento-kicker">{t["privacy_k"]}</p>
 <h3>{t["privacy_h"]}</h3>
-<p>{t["privacy_p"]}</p>
-<a class="bento-link" href="{priv}">{t["privacy_a"]}</a>'''),
+<p>{t["privacy_p"]}</p>'''),
         bento_tile("bento-orig", f'''<div class="bento-files" aria-hidden="true">
 <span class="bf bf-old"><b>PNG</b><small>{t["orig_kept"]}</small></span>
 <span class="bf bf-new"><b>WEBP</b><small>{t["demo_new"]}</small></span></div>
@@ -866,11 +828,10 @@ def formats_section(lang):
 
 def get_section(lang):
     t = T_HOME[lang]
-    dl_href = page_href(lang, "index", lang, "download")
     win_href = page_href(lang, "index", lang, "windows")
     inner = f'''{section_head("get-title", t["get"], t["get_p"])}
 {dl_cards(lang)}
-{pills(lang, dl_href + "#verify", win_href)}'''
+{pills(lang, verify_href(lang, "index"), win_href)}'''
     return sec(inner, cls="s-get", ident="download", labelledby="get-title")
 
 
@@ -896,11 +857,9 @@ def closing_section(lang):
 def home(lang):
     t = T_HOME[lang]
     win_href = page_href(lang, "index", lang, "windows")
-    dl_href = page_href(lang, "index", lang, "download")
     win_a = f'<a href="{win_href}">{t["win_link"]}</a>'
     note = t["note"].format(win=win_a)
-    rel = ' data-rel="1"' if PUBLISHED else ""
-    btn = hex_button(dl_href, t["dl"], "primary", "lg", f' data-os-default="linux"{rel}')
+    btn = hex_button("#download", t["dl"], "primary", "lg")
     hero = f'''<section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
 <h1 id="hero-title"><span class="h1-line"><span>{t["h1a"]}</span></span>
@@ -934,146 +893,13 @@ def card(title, body="", tag=""):
     return f'<div class="card">{tg}<h3>{title}</h3>{bd}</div>'
 
 
-# ---------------------------------------------------------------------------
-# S-088: the download page teaches the first try (manager decisions D1 to D6 in
-# backlog/S-088-download-experience.md). The hero demo clip beside the download
-# buttons with its numbered flow caption (the caption masks the key exactly as
-# the film does, D1, and the line under the steps names the measured triggers of
-# D2), a numbered after-the-download walkthrough whose steps name the controls
-# the user really sees (D5, D6), and the one sample image both the page and the
-# app show (D4).
-# ---------------------------------------------------------------------------
-
-def dl_film(lang, root):
-    """The hero demo clip with native controls, its poster, and the numbered
-    flow caption. Under reduced motion CSS shows the poster and the same steps
-    instead of the moving film (AC1)."""
-    en = lang == "en"
-    label = html.escape(FILM_LABEL_EN if en else FILM_LABEL)
-    stem = "hero-en" if en else "hero"
-    steps = (("Drag a file.", "Press your shortcut.", "Drop it on the cell.",
-              "A new copy lands beside the original.")
-             if en else
-             ("اسحب الملف.", "اضغط اختصارك.", "أفلته على الخلية.",
-              "تظهر نسخة جديدة بجانب الأصل."))
-    flow = "".join(f'<li><span class="flow-num">{i}</span>{bidi(s, lang)}</li>' for i, s in enumerate(steps, 1))
-    # D1 and D2: the film's keycap reads "your shortcut", so the caption names
-    # the measured values under the masked step: Super+Z on Linux, and on
-    # Windows the right-button drag where no key is held (S-084 decision D3).
-    trigger = ("<p class=\"flow-trigger\">The shortcut in the film is <bdi>Super+Z</bdi> on Linux. "
-               "On Windows no key is held: drag the file with the right mouse button.</p>"
-               if en else
-               "<p class=\"flow-trigger\">الاختصار في الفيلم هو <bdi>Super+Z</bdi> على لينكس. "
-               "وعلى ويندوز لا يُضغط أي مفتاح: اسحب الملف بزر الفأرة الأيمن.</p>")
-    return (f'<figure class="film dl-film">'
-            f'<video class="film-video" width="1280" height="720" poster="{root}media/{stem}-poster.webp" '
-            f'autoplay muted loop playsinline controls preload="auto" aria-label="{label}">'
-            f'<source src="{root}media/{stem}.webm" type="video/webm">'
-            f'<source src="{root}media/{stem}.mp4" type="video/mp4"></video>'
-            f'<img class="film-still" src="{root}media/{stem}-poster.webp" alt="" width="1280" height="720">'
-            f'<figcaption><ol class="flow" role="list">{flow}</ol>{trigger}</figcaption></figure>')
-
-
-def try_box(lang, root):
-    """The sample button (AC3): the browser's own download flow, and one line
-    telling the user to drag the file onto the hive."""
-    en = lang == "en"
-    title = "A sample to try" if en else "عيّنة تجرّبها"
-    line = ("Drag the sample image onto the hive and pick a cell: the result lands beside it, "
-            "and the sample stays untouched." if en else
-            "اسحب الصورة العيّنة على الخلية واختر خلية، فيظهر الناتج بجانبها وتبقى العيّنة كما هي.")
-    text = "Try it on an image" if en else "جرّب على صورة"
-    aria = ("Try Kawaro on an image: download a small sample image to drag onto the hive" if en else
-            "جرّب كوارو على صورة: نزّل صورة عيّنة صغيرة لتسحبها على الخلية")
-    btn = hex_button(f"{root}assets/kawaro-sample.png", bidi(text, lang), "primary", "lg",
-                     f' download="kawaro-sample.png" aria-label="{html.escape(aria)}"')
-    return f'<div class="card try-box"><h3>{title}</h3><p>{bidi(line, lang)}</p><div class="actions">{btn}</div></div>'
-
-
-def walk_block(lang):
-    """The numbered after-the-download walkthrough (AC2). Every step names the
-    control the user will really see: the menu entry and its Show more options
-    line on Windows 11, the welcome window buttons now that S-087 has landed
-    (the D6 substitution), the measured triggers (D2), and the SmartScreen
-    dialog with its two buttons (D5)."""
-    en = lang == "en"
-    steps = ([
-        ("Install Kawaro", "The MSI on Windows, the DEB or RPM on Linux. If Windows shows "
-                           "\"Windows protected your PC\", that is the warning the note under the Windows buttons "
-                           "explains: click More info, then Run anyway."),
-        ("Open Kawaro", "Right click a file and choose Kawaro (on Windows 11, under Show more options), "
-                        "or open Kawaro from its icon. The first time Settings opens, the welcome window "
-                        "shows the whole flow: Try on an image runs it on a sample, and Open Settings "
-                        "opens the simplified settings."),
-        ("Drag a file", "Hold <bdi>Super+Z</bdi> while you drag on Linux. On Windows drag with the right "
-                        "mouse button: no key is held."),
-        ("Drop on the cell", "Drop the file on the cell of the action you want."),
-        ("Take the result", "The result appears next to the original, which is never changed."),
-    ] if en else [
-        ("ثبّت كوارو", "حزمة MSI على ويندوز، أو DEB أو RPM على لينكس. وإن عرض ويندوز «Windows protected your PC» "
-                       "فهو التحذير الذي تشرحه الملاحظة تحت أزرار ويندوز: انقر More info ثم Run anyway."),
-        ("افتح كوارو", "انقر بزر الفأرة الأيمن على ملف واختر «كوارو» (على ويندوز 11 تحت «إظهار خيارات إضافية»)، "
-                       "أو افتح كوارو من أيقونته. وفي المرة الأولى التي تُفتح فيها الإعدادات تظهر نافذة الترحيب "
-                       "بعرض الاستعمال كاملاً: زر «جرّب على صورة» يشغّله على عيّنة، وزر «افتح الإعدادات» يفتح "
-                       "الإعدادات المبسطة."),
-        ("اسحب ملفاً", "أمسك <bdi>Super+Z</bdi> أثناء السحب على لينكس. وعلى ويندوز اسحب بزر الفأرة الأيمن، "
-                       "دون ضغط أي مفتاح."),
-        ("أفلت على الخلية", "أفلت الملف على خلية الإجراء الذي تريده."),
-        ("خذ الناتج", "يظهر الناتج بجانب الأصل، الذي لا يُغيَّر أبداً."),
-    ])
-    cells = "".join(step_cell(i, bidi(t, lang), bidi(d, lang)) for i, (t, d) in enumerate(steps, 1))
-    title = "After the download" if en else "بعد التنزيل"
-    return f'<h2 id="after-title">{title}</h2><ol class="walk" role="list">{cells}</ol>'
-
-
-def dl_stage(lang, root):
-    """D3 and D7: one stage. At wide widths the slabs and the walkthrough share
-    one column and the film column with its caption and the Try button stands
-    beside them; on small screens the blocks stack as slabs, film and Try, then
-    the walkthrough, so the film stays next to the download buttons."""
-    side = f'<div class="dl-side">{dl_cards(lang, True)}</div>'
-    demo = f'<div class="dl-demo">{dl_film(lang, root)}{try_box(lang, root)}</div>'
-    return f'<div class="dl-stage">{side}{demo}<div class="dl-walk">{walk_block(lang)}</div></div>'
-
-
-def download(lang):
-    ar = lang == "ar"
-    win_href = page_href(lang, "download", lang, "windows")
-    stage = dl_stage(lang, rel_root(lang, "download"))
-    if ar:
-        h = page_head("نزّل كوارو", f"الإصدار <code>{VERSION}</code>")
-        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">ويندوز بتوقيع اختباري</a></li><li><a href="{RELEASES}">كل الإصدارات</a></li></ul>',
-                  cls="s-dl", ident="choose", edge=False)
-        ver = sec(f'''<h2 id="v-title">تحقق من الملف</h2>
-<p class="section-intro">نزّل <code>SHA256SUMS</code> في المجلد نفسه الذي فيه الملفات، ويجب أن يظهر OK أمام كل ملف.</p>
-<div class="split"><div><h3>لينكس</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
-<div><h3>ويندوز</h3>{code(f"certutil -hashfile kawaro-{VERSION}-windows-x64.msi SHA256")}</div></div>
-<p class="section-intro">وإن اختلفت القيمة فلا تشغّل الملف.</p>''', cls="alt s-verify", ident="verify", labelledby="v-title", side="start")
-        src = sec(f'''<h2 id="b-title">البناء من الشيفرة على لينكس</h2>
-{code(f"git clone {REPO}" + chr(10) + "cd kawaro" + chr(10) + "./scripts/install.sh")}
-<p class="section-intro">يحتاج Rust 1.85 أو أحدث. للإزالة: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
-    else:
-        h = page_head("Download Kawaro", f"Version <code>{VERSION}</code>")
-        top = sec(f'{stage}<ul class="facts" role="list"><li><span class="pill pill-hot"><bdi>{VERSION}</bdi></span></li><li><a href="{win_href}">Windows is test-signed</a></li><li><a href="{RELEASES}">All releases</a></li></ul>',
-                  cls="s-dl", ident="choose", edge=False)
-        ver = sec(f'''<h2 id="v-title">Verify the file</h2>
-<p class="section-intro">Put <code>SHA256SUMS</code> in the packages folder; every file must say OK.</p>
-<div class="split"><div><h3>Linux</h3>{code("sha256sum -c SHA256SUMS --ignore-missing")}</div>
-<div><h3>Windows</h3>{code(f"certutil -hashfile kawaro-{VERSION}-windows-x64.msi SHA256")}</div></div>
-<p class="section-intro">If a value differs, do not run the file.</p>''', cls="alt s-verify", ident="verify", labelledby="v-title", side="start")
-        src = sec(f'''<h2 id="b-title">From source on Linux</h2>
-{code(f"git clone {REPO}" + chr(10) + "cd kawaro" + chr(10) + "./scripts/install.sh")}
-<p class="section-intro">Needs Rust 1.85 or newer. To remove: <code>./scripts/uninstall.sh</code></p>''', cls="s-build", ident="build", labelledby="b-title", side="end")
-    return h + top + ver + src
-
-
 def windows(lang):
     ar = lang == "ar"
-    dl = page_href(lang, "windows", lang, "download")
+    dl = verify_href(lang, "windows")
     if ar:
         h = page_head("كوارو على ويندوز", "موقَّع بشهادة اختبار ذاتية، لا بناشر موثَّق، فيظهر تحذير SmartScreen")
         a = sec(f'''<h2 id="w1">ثلاث خطوات</h2>
-<ol class="step-row" role="list">{step_cell(1, "تحقق من الملف", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
+<ol class="step-row" role="list">{step_cell(1, "تحقق من الملف", f'<a href="{dl}">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
 <p class="section-intro">البناء موقَّع بشهادة اختبار ذاتية، لا بشهادة من سلطة موثوقة، فلا يظهر الناشر موثَّقاً. شهادة موثوقة مطلوبة للثقة الكاملة، ولا نعد بموعد.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
         b = sec(f'''<h2 id="w2">لم يكتمل بعد</h2>
 <div class="grid grid-3">{card("لم يُجرَّب على جهاز ويندوز حقيقي", "", ("tag-warn", "تنبيه"))}{card("بلا خلية الإفلات بعد", "", ("tag-warn", "غير جاهز"))}{card("بلا إشعارات بعد", "التقدم في تلميح الأيقونة", ("tag-warn", "غير جاهز"))}</div>''',
@@ -1081,7 +907,7 @@ def windows(lang):
     else:
         h = page_head("Kawaro on Windows", "Test-signed with a self-signed certificate, not a verified publisher, so SmartScreen warns on first run")
         a = sec(f'''<h2 id="w1">Three steps</h2>
-<ol class="step-row" role="list">{step_cell(1, "Verify the file", f'<a href="{dl}#verify">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
+<ol class="step-row" role="list">{step_cell(1, "Verify the file", f'<a href="{dl}">SHA256SUMS</a>')}{step_cell(2, "More info")}{step_cell(3, "Run anyway")}</ol>
 <p class="section-intro">The build is test-signed with a self-signed certificate, not one from a trusted authority, so the publisher is not verified. A trusted certificate is still needed for full trust, and we promise no date.</p>''', cls="s-w1", ident="why", labelledby="w1", edge=False, side="start")
         b = sec(f'''<h2 id="w2">Not finished yet</h2>
 <div class="grid grid-3">{card("Not run on a real Windows machine", "", ("tag-warn", "Note"))}{card("No drop hive", "", ("tag-warn", "Missing"))}{card("No notifications", "Progress shows in the tray tooltip", ("tag-warn", "Missing"))}</div>''',
@@ -1089,32 +915,9 @@ def windows(lang):
     return h + a + b
 
 
-def privacy(lang):
-    ar = lang == "ar"
-    if ar:
-        h = page_head("ملفاتك تبقى عندك")
-        a = sec(f'''<div class="split"><div><ul class="plate-list" role="list">{hex_plate("بلا رفع", "li", "accent")}{hex_plate("بلا تتبع", "li")}{hex_plate("بلا حسابات", "li")}</ul></div>
-<div>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
-        b = sec(f'''<h2 id="p2">الاتصال الوحيد هو فحص التحديثات</h2>
-<div class="grid grid-2">{card("مرة في اليوم", "يقرأ البرنامج ملف تحديث موقّعا من صفحة إصدارات GitHub، فيرى GitHub عنوان IP الخاص بك كما في أي تنزيل.")}{card("تحقق قبل التنزيل", "التوقيع، ثم الحجم، ثم SHA-256.")}{card("قناتا التحديث", "<code>beta</code> و<code>stable</code>.")}{card("إيقاف الفحص", "<code>update_check = false</code> في <code>config.toml</code>.")}</div>''',
-                cls="alt s-p2", ident="updates", labelledby="p2", side="end")
-        c = sec(f'''<h2 id="p3">الأصل لا يُمسّ</h2>
-<p class="section-intro">يُكتب الناتج أولا في ملف مؤقت، ثم يُعاد تسميته. الشيفرة مفتوحة على <a href="{REPO}">GitHub</a>.</p>''', cls="s-p3", ident="originals", labelledby="p3", side="start")
-    else:
-        h = page_head("Your files stay with you")
-        a = sec(f'''<div class="split"><div><ul class="plate-list" role="list">{hex_plate("No uploads", "li", "accent")}{hex_plate("No tracking", "li")}{hex_plate("No accounts", "li")}</ul></div>
-<div>{privacy_svg(lang)}</div></div>''', cls="s-p1", ident="never", edge=False, side="start")
-        b = sec(f'''<h2 id="p2">The only connection: updates</h2>
-<div class="grid grid-2">{card("Once a day", "The app reads a signed manifest from GitHub releases. GitHub sees your address, as with any download.")}{card("Verified first", "Signature, then size, then SHA-256.")}{card("Two channels", "<code>beta</code> and <code>stable</code>.")}{card("Turn it off", "<code>update_check = false</code> in <code>config.toml</code>.")}</div>''',
-                cls="alt s-p2", ident="updates", labelledby="p2", side="end")
-        c = sec(f'''<h2 id="p3">The original is never touched</h2>
-<p class="section-intro">The result is written to a temporary file, then renamed. The code is open on <a href="{REPO}">GitHub</a>.</p>''', cls="s-p3", ident="originals", labelledby="p3", side="start")
-    return h + a + b + c
-
-
 def render(lang, page):
     root = rel_root(lang, page)
-    body = home(lang) if page == "index" else {"download": download, "windows": windows, "privacy": privacy}[page](lang)
+    body = home(lang) if page == "index" else windows(lang)
     return head(lang, page, root) + header(lang, page, root) + body + footer(lang, page, root)
 
 
@@ -1419,7 +1222,7 @@ def releases_page(lang):
     latest = (f'<div class="latest"><span class="pill pill-hot"><bdi>{VERSION}</bdi></span>'
               f'<div class="actions">{dl_buttons(lang, "win")}{dl_buttons(lang, "linux")}</div>'
               f'<ul class="fine fine-links" role="list">'
-              f'<li><a href="{page_href(lang, page, lang, "download")}#verify">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
+              f'<li><a href="{verify_href(lang, page)}">{"تحقق من الملف" if ar else "Verify the file"}</a></li>'
               f'<li><a href="{page_href(lang, page, lang, "windows")}">{"ويندوز بتوقيع اختباري" if ar else "Windows is test-signed"}</a></li>'
               f'<li><a href="feed.xml">{"موجز الإصدارات" if ar else "Feed"}</a></li></ul></div>')
     inner = f'<h1>{title}</h1>{latest}<div class="releases" data-pagefind-body data-pagefind-meta="title:{title}">{release_blocks(lang)}</div>'
@@ -1448,7 +1251,7 @@ def feed_xml(lang):
             f'<link href="{abs_url(lang, "releases")}"/><updated>{now}</updated>{"".join(entries)}</feed>\n')
 
 
-ALL_PAGES = (["index", "download", "windows", "privacy", "releases", "docs/index"]
+ALL_PAGES = (["index", "windows", "releases", "docs/index"]
              + ["docs/" + s for s in DOC_ORDER])
 
 
@@ -1473,9 +1276,8 @@ def llms_files(sources):
     for slug in DOC_ORDER:
         idx.append(f"- [{doc_title(slug, 'en')}]({BASE}en/docs/{slug}.md)")
     idx += ["", "## Project", "",
-            f"- [Download]({abs_url('en', 'download')}): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps",
+            f"- [Download]({abs_url('en', 'index')}#download): Linux DEB and RPM, Windows MSI and ZIP; SHA256SUMS steps in the install guide",
             f"- [Windows and SmartScreen]({abs_url('en', 'windows')}): the Windows build is test-signed with a self-signed certificate, so SmartScreen warns",
-            f"- [Privacy]({abs_url('en', 'privacy')}): no tracking, signed updates only",
             f"- [Releases]({BASE}en/releases.md)",
             f"- [Source]({REPO}): GPL-3.0-or-later",
             "", "## Arabic", "",
@@ -1536,11 +1338,11 @@ def not_found():
         return re.sub(r'(href|src)="(?!https?:|#|/|mailto:)([^"]*)"',
                       lambda m: f'{m.group(1)}="/{m.group(2).lstrip("./") if m.group(2) not in ("./", ".") else ""}"', s)
     p = AR
-    out = head("ar", "download", "/", title="الصفحة غير موجودة | كوارو",
+    out = head("ar", "index", "/", title="الصفحة غير موجودة | كوارو",
                desc="الصفحة التي طلبتها غير موجودة. Page not found.")
     out = re.sub(r'<link rel="(canonical|alternate)"[^>]*>\n', "", out)
     out = out.replace('<meta name="color-scheme"', '<meta name="robots" content="noindex">\n<meta name="color-scheme"', 1)
-    out = out.replace('<meta property="og:url" content="https://kawaro.sbarah.com/download/">\n', "")
+    out = out.replace('<meta property="og:url" content="https://kawaro.sbarah.com/">\n', "")
     body = ('<section class="page-head sec"><div class="wrap">'
             '<h1>الصفحة غير موجودة</h1>'
             '<p class="lead">لم نجد هذه الصفحة. ربما تغير الرابط.</p>'
@@ -1569,7 +1371,27 @@ def main():
             out.parent.mkdir(parents=True, exist_ok=True)
             out.write_text(render(lang, page), encoding="utf-8")
             print("wrote", out.relative_to(HERE.parent))
+    write_download_stubs()
     build_extras()
+
+
+def write_download_stubs():
+    """/download/ and /en/download/ are gone as pages; old links land on the home
+    page section. Plain HTML redirect: no script, so the strict CSP is untouched."""
+    for lang, parts, home_path, text in (("ar", ["download"], "/", "انتقل إلى قسم التنزيل"),
+                                         ("en", ["en", "download"], "/en/", "Go to the download section")):
+        target = f"{home_path}#download"
+        out = HERE.joinpath(*parts, "index.html")
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(
+            f'<!doctype html>\n<html lang="{lang}" dir="{"rtl" if lang == "ar" else "ltr"}">\n<head>\n'
+            f'<meta charset="utf-8">\n<title>{"كوارو" if lang == "ar" else "Kawaro"}</title>\n'
+            f'<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+            f'<meta name="color-scheme" content="light">\n<meta name="robots" content="noindex">\n'
+            f'<meta http-equiv="refresh" content="0; url={target}">\n'
+            f'<link rel="canonical" href="{BASE.rstrip("/")}{target}">\n</head>\n'
+            f'<body><p><a href="{target}">{text}</a></p></body>\n</html>\n', encoding="utf-8")
+        print("wrote", out.relative_to(HERE.parent))
 
 
 if __name__ == "__main__":

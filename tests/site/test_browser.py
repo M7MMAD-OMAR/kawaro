@@ -86,7 +86,7 @@ class AC1HeroBrowser(unittest.TestCase):
             pg = B.page(page_path(lang), js=False)
             el = pg.locator(".hero a.button-primary")
             self.assertEqual(el.inner_text().strip(), word)
-            self.assertTrue(el.get_attribute("href").endswith("download/"))
+            self.assertTrue(el.get_attribute("href").endswith("#download"))
             pg.context.close()
 
     @unittest.skip("superseded by S-064 (new hero, 96px section rhythm, Download button at the header end); see test_s064_browser.py")
@@ -107,7 +107,7 @@ class AC2Computed(unittest.TestCase):
     @unittest.skip("superseded by S-064 (new hero, 96px section rhythm, Download button at the header end); see test_s064_browser.py")
     def test_AC2_section_wrap_and_header_gap(self):
         for lang in LANGS:
-            for path in (page_path(lang), page_path(lang, "download")):
+            for path in (page_path(lang), page_path(lang, "windows")):
                 for w, want in ((1280, "64px"), (375, "48px")):
                     pg = B.page(path, width=w)
                     pads = pg.eval_on_selector_all("section.sec", "els => els.map(e => { const s = getComputedStyle(e); return [s.paddingTop, s.paddingBottom]; })")
@@ -131,7 +131,7 @@ class AC3Header(unittest.TestCase):
     def test_AC3_no_overflow_no_overlap_one_support(self):
         for lang in LANGS:
             heights = {}
-            for page in ("", "download"):
+            for page in ("", "windows"):
                 for w in WIDTHS:
                     pg = B.page(page_path(lang, page), width=w)
                     over = pg.eval_on_selector_all("header, header *", "els => els.filter(e => e.scrollWidth > e.clientWidth + 0).map(e => e.tagName + '.' + e.className)")
@@ -341,7 +341,7 @@ class AC9RtlBrowser(unittest.TestCase):
 class AC11Mobile(unittest.TestCase):
     def test_AC11_mobile(self):
         for lang in LANGS:
-            for page in ("", "download"):
+            for page in ("", "windows"):
                 pg = B.page(page_path(lang, page), width=375, height=667)
                 self.assertLessEqual(pg.evaluate("document.documentElement.scrollWidth"), 375, f"{lang}/{page}")
                 small = pg.evaluate("""() => [...document.querySelectorAll('a.button, button, header a, footer a, .hero a, #sim [tabindex], input')]

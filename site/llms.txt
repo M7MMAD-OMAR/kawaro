@@ -16,9 +16,8 @@
 
 ## Project
 
-- [Download](https://kawaro.sbarah.com/en/download/): Linux DEB and RPM, Windows MSI and ZIP, with SHA256SUMS steps
+- [Download](https://kawaro.sbarah.com/en/#download): Linux DEB and RPM, Windows MSI and ZIP; SHA256SUMS steps in the install guide
 - [Windows and SmartScreen](https://kawaro.sbarah.com/en/windows/): the Windows build is test-signed with a self-signed certificate, so SmartScreen warns
-- [Privacy](https://kawaro.sbarah.com/en/privacy/): no tracking, signed updates only
 - [Releases](https://kawaro.sbarah.com/en/releases.md)
 - [Source](https://github.com/M7MMAD-OMAR/kawaro): GPL-3.0-or-later
 

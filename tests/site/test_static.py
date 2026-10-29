@@ -181,7 +181,7 @@ class AC5Support(unittest.TestCase):
 
     def test_AC5_counts_per_page(self):
         for lang in LANGS:
-            for page, has_section in (("", True), ("download", False)):
+            for page, has_section in (("", True), ("windows", False)):
                 root = parse_file(page_file(lang, page))
                 links = [a for a in root.find_all("a") if a.attrs.get("href") == SUPPORT]
                 where = {"header": 0, "footer": 0, "support": 0}
@@ -264,8 +264,8 @@ class AC6Downloads(unittest.TestCase):
             self.assertEqual(a.attrs["href"], RELEASES, str(f))
 
     def test_AC6_no_soon_or_beta_wording(self):
-        en = page_file("en", "download").read_text(encoding="utf-8")
-        ar = page_file("ar", "download").read_text(encoding="utf-8")
+        en = page_file("en", "").read_text(encoding="utf-8")
+        ar = page_file("ar", "").read_text(encoding="utf-8")
         self.assertNotRegex(en, r"(?i)coming soon|>\s*beta\s*<")
         self.assertNotIn("قريبا", ar)
         self.assertNotIn("بيتا", ar)

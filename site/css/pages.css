@@ -10,34 +10,11 @@
 .format-grid { max-width: calc(var(--space-10) * 8); list-style: none; margin: 0 auto; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); }
 
 /* Download band: soft amber, full bleed. */
+.s-get { scroll-margin-block-start: var(--space-8); }
 .s-get { --head-lede: var(--color-accent-ink); background: var(--color-accent-soft); color: var(--color-accent-ink); }
 
 .s-get .facts, .s-get .facts a { color: var(--color-accent-ink); }
 .dl-grid { display: grid; gap: var(--space-5); grid-template-columns: minmax(0, 1fr); }
-/* S-088 teaching stage (D3, D7): the download slabs and the after-the-download
-   walkthrough share one column at wide widths, the film with its caption and
-   the Try button stands beside them, and on small screens the blocks stack as
-   slabs, film and Try, then the walkthrough. */
-.dl-stage { display: grid; gap: var(--space-7); }
-.dl-side, .dl-demo, .dl-walk { display: grid; gap: var(--space-6); align-content: start; min-width: 0; }
-.dl-film figcaption { margin-block-start: var(--space-4); display: grid; gap: var(--space-3); }
-.flow { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-5); }
-.flow li { display: flex; align-items: baseline; gap: var(--space-2); }
-.flow-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: calc(var(--space-5) + var(--space-2));
-  min-height: calc(var(--space-5) + var(--space-2));
-  padding-inline: var(--space-2);
-  background: var(--color-accent-soft);
-  color: var(--color-accent-ink);
-  border: var(--border-default) solid var(--color-edge);
-  font-size: var(--type-small);
-  font-weight: var(--font-weight-semibold);
-}
-.flow-trigger { margin: 0; color: var(--color-text-secondary); }
-.walk { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-6); }
 .facts { list-style: none; margin: var(--space-6) 0 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-5); color: var(--color-text-secondary); font-weight: var(--font-weight-semibold); }
 .facts a { display: inline-flex; align-items: center; min-height: var(--target-min); }
 .facts a:hover, .facts a:focus-visible { background: var(--color-accent-soft); color: var(--color-ink); }
@@ -95,17 +72,6 @@ h3 + pre { margin-block-start: var(--space-2); }
 .section-intro { margin: var(--space-5) 0 0; color: var(--color-text-secondary); max-width: 40ch; }
 
 /* Privacy map */
-.privacy-map { display: block; width: 100%; height: auto; max-width: calc(var(--space-10) * 7); margin-inline: auto; }
-.privacy-map .zone { fill: var(--color-paper); stroke: var(--color-ink); stroke-width: var(--border-edge); stroke-linejoin: miter; }
-.privacy-map .zone-off { fill: none; stroke: var(--color-text-secondary); stroke-dasharray: 6 6; }
-.privacy-map .zone-label { fill: var(--color-text-secondary); font-family: var(--font-family); font-size: var(--type-lead); text-anchor: middle; }
-.privacy-map .zone-label.strong { fill: var(--color-ink); font-weight: var(--font-weight-semibold); }
-.privacy-map .doc { fill: var(--color-surface-2); stroke: var(--color-ink); stroke-width: var(--border-default); }
-.privacy-map .doc-new { fill: var(--color-accent); }
-.privacy-map .hop { fill: var(--color-accent); stroke: var(--color-ink); stroke-width: var(--border-default); }
-.privacy-map .wire-s { stroke: var(--color-ink); stroke-width: var(--border-edge); }
-.privacy-map .wire-off { stroke: var(--color-text-secondary); stroke-width: var(--border-edge); stroke-dasharray: 4 6; }
-.privacy-map .cross line { stroke: var(--color-danger); stroke-width: var(--border-ring); }
 
 @media (min-width: 720px) {
   .grid-3 { grid-template-columns: repeat(3, 1fr); }
@@ -115,15 +81,12 @@ h3 + pre { margin-block-start: var(--space-2); }
   .dl-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
   .format-grid { grid-template-columns: repeat(6, 1fr); }
 }
-@media (min-width: 1000px) {
-  .dl-stage { grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); align-items: start; }
-  .dl-side { grid-column: 1; grid-row: 1; }
-  .dl-walk { grid-column: 1; grid-row: 2; }
-  .dl-demo { grid-column: 2; grid-row: 1 / span 2; }
-}
 @media (max-width: 719px) {
-  .privacy-map .zone-label { font-size: calc(var(--type-lead) * 1.6); }
-  .privacy-map .zone-label.strong { font-size: calc(var(--type-lead) * 1.2); }
-}
+    }
 .s-formats { --head-gap: var(--space-5); }
 .s-formats .format-grid { margin-block-end: var(--space-6); }
+/* Equal download cards: stretch to the taller one and share rows (icon, title, subtitle, buttons, note). */
+.dl-grid { align-items: stretch; }
+@media (min-width: 720px) {
+  .dl-grid { grid-template-rows: repeat(4, auto) 1fr; column-gap: var(--space-5); row-gap: 0; }
+}
