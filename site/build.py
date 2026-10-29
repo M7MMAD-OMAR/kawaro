@@ -828,7 +828,7 @@ def get_section(lang):
     t = T_HOME[lang]
     win_href = page_href(lang, "index", lang, "windows")
     inner = f'''{section_head("get-title", t["get"], t["get_p"])}
-{dl_cards(lang)}
+{dl_cards(lang, note=True)}
 {pills(lang, verify_href(lang, "index"), win_href)}'''
     return sec(inner, cls="s-get", ident="download", labelledby="get-title")
 

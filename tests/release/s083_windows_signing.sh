@@ -60,8 +60,8 @@
 #     https://www.microsoft.com/wdsi/filesubmission, keep the submission
 #     confirmation, expect the warning to fade as downloads accumulate on the
 #     same certificate.
-#   - AC5: the built download pages (site/download/index.html and
-#     site/en/download/index.html) carry the two-line note in the Windows slab
+#   - AC5: the built home pages (site/index.html and
+#     site/en/index.html) carry the two-line note in the Windows slab of the download section
 #     (one <p class="download-note"> with one <br>) naming SmartScreen,
 #     SHA256SUMS, "More info" and "Run anyway", and link the guide
 #     (windows-smartscreen.md in English, windows-smartscreen.ar.md in Arabic).
@@ -281,7 +281,7 @@ for g in "$EN_GUIDE" "$AR_GUIDE"; do
 done
 
 # ---------------------------------------------------------------- AC5
-for page in "$REPO_ROOT/site/download/index.html" "$REPO_ROOT/site/en/download/index.html"; do
+for page in "$REPO_ROOT/site/index.html" "$REPO_ROOT/site/en/index.html"; do
   n="${page#"$REPO_ROOT"/}"
   check "AC5 $n exists (committed build output)" test -s "$page"
   [ -s "$page" ] || continue
