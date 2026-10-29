@@ -1,0 +1,912 @@
+[
+ {
+  "id": "audio.to-mp3",
+  "accepts": [
+   "audio"
+  ],
+  "label": {
+   "ar": "تحويل إلى MP3",
+   "en": "Convert to MP3"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "mp3"
+  },
+  "skip_ext": [
+   "mp3"
+  ]
+ },
+ {
+  "id": "audio.to-m4a",
+  "accepts": [
+   "audio"
+  ],
+  "label": {
+   "ar": "تحويل إلى M4A",
+   "en": "Convert to M4A"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "m4a"
+  },
+  "skip_ext": [
+   "m4a"
+  ]
+ },
+ {
+  "id": "audio.to-ogg",
+  "accepts": [
+   "audio"
+  ],
+  "label": {
+   "ar": "تحويل إلى OGG",
+   "en": "Convert to OGG"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "ogg"
+  },
+  "skip_ext": [
+   "ogg",
+   "oga"
+  ]
+ },
+ {
+  "id": "audio.to-flac",
+  "accepts": [
+   "audio"
+  ],
+  "label": {
+   "ar": "تحويل إلى FLAC",
+   "en": "Convert to FLAC"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "flac"
+  },
+  "skip_ext": [
+   "flac"
+  ]
+ },
+ {
+  "id": "audio.to-opus",
+  "accepts": [
+   "audio"
+  ],
+  "label": {
+   "ar": "تحويل إلى Opus",
+   "en": "Convert to Opus"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "opus"
+  },
+  "skip_ext": [
+   "opus"
+  ]
+ },
+ {
+  "id": "audio.to-wav",
+  "accepts": [
+   "audio"
+  ],
+  "label": {
+   "ar": "تحويل إلى WAV",
+   "en": "Convert to WAV"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "wav"
+  },
+  "skip_ext": [
+   "wav"
+  ]
+ },
+ {
+  "id": "documents.to-pdf",
+  "accepts": [
+   "document"
+  ],
+  "label": {
+   "ar": "تحويل إلى PDF",
+   "en": "Convert to PDF"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "pdf"
+  }
+ },
+ {
+  "id": "documents.to-docx",
+  "accepts": [
+   "document"
+  ],
+  "label": {
+   "ar": "تحويل إلى DOCX",
+   "en": "Convert to DOCX"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "docx"
+  },
+  "skip_ext": [
+   "docx",
+   "xls",
+   "xlsx",
+   "ods",
+   "csv",
+   "ppt",
+   "pptx",
+   "odp"
+  ]
+ },
+ {
+  "id": "documents.to-odt",
+  "accepts": [
+   "document"
+  ],
+  "label": {
+   "ar": "تحويل إلى ODT",
+   "en": "Convert to ODT"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "odt"
+  },
+  "skip_ext": [
+   "odt",
+   "xls",
+   "xlsx",
+   "ods",
+   "csv",
+   "ppt",
+   "pptx",
+   "odp"
+  ]
+ },
+ {
+  "id": "documents.to-xlsx",
+  "accepts": [
+   "document"
+  ],
+  "label": {
+   "ar": "تحويل إلى XLSX",
+   "en": "Convert to XLSX"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "xlsx"
+  },
+  "skip_ext": [
+   "xlsx",
+   "doc",
+   "docx",
+   "odt",
+   "rtf",
+   "txt",
+   "md",
+   "ppt",
+   "pptx",
+   "odp"
+  ]
+ },
+ {
+  "id": "documents.to-ods",
+  "accepts": [
+   "document"
+  ],
+  "label": {
+   "ar": "تحويل إلى ODS",
+   "en": "Convert to ODS"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "ods"
+  },
+  "skip_ext": [
+   "ods",
+   "doc",
+   "docx",
+   "odt",
+   "rtf",
+   "txt",
+   "md",
+   "ppt",
+   "pptx",
+   "odp"
+  ]
+ },
+ {
+  "id": "documents.to-pptx",
+  "accepts": [
+   "document"
+  ],
+  "label": {
+   "ar": "تحويل إلى PPTX",
+   "en": "Convert to PPTX"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "pptx"
+  },
+  "skip_ext": [
+   "pptx",
+   "doc",
+   "docx",
+   "odt",
+   "rtf",
+   "txt",
+   "md",
+   "xls",
+   "xlsx",
+   "ods",
+   "csv"
+  ]
+ },
+ {
+  "id": "documents.to-odp",
+  "accepts": [
+   "document"
+  ],
+  "label": {
+   "ar": "تحويل إلى ODP",
+   "en": "Convert to ODP"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "odp"
+  },
+  "skip_ext": [
+   "odp",
+   "doc",
+   "docx",
+   "odt",
+   "rtf",
+   "txt",
+   "md",
+   "xls",
+   "xlsx",
+   "ods",
+   "csv"
+  ]
+ },
+ {
+  "id": "image.to-webp",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى WebP",
+   "en": "Convert to WebP"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "webp"
+  },
+  "skip_ext": [
+   "webp"
+  ],
+  "params": {
+   "quality": {
+    "type": "int",
+    "default": 85,
+    "min": 1,
+    "max": 100
+   }
+  }
+ },
+ {
+  "id": "image.to-png",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى PNG",
+   "en": "Convert to PNG"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "png"
+  },
+  "skip_ext": [
+   "png"
+  ]
+ },
+ {
+  "id": "image.to-jpg",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى JPG",
+   "en": "Convert to JPG"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "jpg"
+  },
+  "skip_ext": [
+   "jpg",
+   "jpeg",
+   "jpe"
+  ],
+  "params": {
+   "quality": {
+    "type": "int",
+    "default": 90,
+    "min": 1,
+    "max": 100
+   }
+  }
+ },
+ {
+  "id": "image.to-avif",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى AVIF",
+   "en": "Convert to AVIF"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "avif"
+  },
+  "skip_ext": [
+   "avif"
+  ],
+  "params": {
+   "quality": {
+    "type": "int",
+    "default": 70,
+    "min": 1,
+    "max": 100
+   }
+  }
+ },
+ {
+  "id": "image.to-pdf",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "دمج الصور في ملف PDF واحد",
+   "en": "Combine into one PDF"
+  },
+  "output": {
+   "mode": "combined",
+   "ext": "pdf"
+  },
+  "params": {
+   "page": {
+    "type": "string",
+    "default": "fit",
+    "enum": [
+     "fit"
+    ]
+   }
+  }
+ },
+ {
+  "id": "image.to-ico",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى أيقونة ICO",
+   "en": "Convert to ICO"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "ico"
+  },
+  "skip_ext": [
+   "ico"
+  ]
+ },
+ {
+  "id": "image.resize-50",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تصغير إلى النصف",
+   "en": "Resize to 50%"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-50"
+  },
+  "params": {
+   "scale": {
+    "type": "int",
+    "default": 50,
+    "min": 1,
+    "max": 1000
+   }
+  }
+ },
+ {
+  "id": "image.fit-1920",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تصغير الجانب الأطول إلى 1920 بكسل",
+   "en": "Fit to 1920 px"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-1920"
+  },
+  "params": {
+   "max_side": {
+    "type": "int",
+    "default": 1920,
+    "min": 1
+   }
+  }
+ },
+ {
+  "id": "image.rotate-90",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تدوير 90 درجة",
+   "en": "Rotate 90°"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-rotated"
+  },
+  "params": {
+   "degrees": {
+    "type": "int",
+    "default": 90,
+    "enum": [
+     90,
+     180,
+     270
+    ]
+   }
+  }
+ },
+ {
+  "id": "image.flip-h",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "قلب أفقي",
+   "en": "Flip horizontally"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-flipped"
+  },
+  "params": {
+   "axis": {
+    "type": "string",
+    "default": "horizontal",
+    "enum": [
+     "horizontal",
+     "vertical"
+    ]
+   }
+  }
+ },
+ {
+  "id": "image.grayscale",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى الأبيض والأسود",
+   "en": "Grayscale"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-gray"
+  }
+ },
+ {
+  "id": "image.compress",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "ضغط الصورة",
+   "en": "Compress"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-compressed"
+  },
+  "params": {
+   "quality": {
+    "type": "int",
+    "default": 75,
+    "min": 1,
+    "max": 100
+   }
+  }
+ },
+ {
+  "id": "image.strip",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "حذف البيانات الوصفية",
+   "en": "Remove metadata"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-clean"
+  }
+ },
+ {
+  "id": "image.to-gif",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى GIF",
+   "en": "Convert to GIF"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "gif"
+  },
+  "skip_ext": [
+   "gif"
+  ]
+ },
+ {
+  "id": "image.to-tiff",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى TIFF",
+   "en": "Convert to TIFF"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "tiff"
+  },
+  "skip_ext": [
+   "tif",
+   "tiff"
+  ]
+ },
+ {
+  "id": "image.to-bmp",
+  "accepts": [
+   "image"
+  ],
+  "label": {
+   "ar": "تحويل إلى BMP",
+   "en": "Convert to BMP"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "bmp"
+  },
+  "skip_ext": [
+   "bmp"
+  ]
+ },
+ {
+  "id": "pdf.compress",
+  "accepts": [
+   "pdf"
+  ],
+  "label": {
+   "ar": "ضغط ملف PDF",
+   "en": "Compress PDF"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-compressed"
+  },
+  "params": {
+   "preset": {
+    "type": "string",
+    "default": "ebook",
+    "enum": [
+     "screen",
+     "ebook",
+     "printer"
+    ]
+   }
+  }
+ },
+ {
+  "id": "pdf.merge",
+  "accepts": [
+   "pdf"
+  ],
+  "label": {
+   "ar": "دمج ملفات PDF في ملف واحد",
+   "en": "Merge PDFs into one"
+  },
+  "output": {
+   "mode": "combined",
+   "ext": "pdf",
+   "suffix": "-merged"
+  },
+  "min_files": 2
+ },
+ {
+  "id": "pdf.to-images",
+  "accepts": [
+   "pdf"
+  ],
+  "label": {
+   "ar": "تحويل الصفحات إلى صور PNG",
+   "en": "Convert pages to PNG images"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "zip",
+   "suffix": "-pages"
+  },
+  "params": {
+   "dpi": {
+    "type": "int",
+    "default": 150,
+    "min": 36,
+    "max": 600
+   }
+  }
+ },
+ {
+  "id": "pdf.rotate",
+  "accepts": [
+   "pdf"
+  ],
+  "label": {
+   "ar": "تدوير الصفحات 90 درجة",
+   "en": "Rotate pages 90 degrees"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-rotated"
+  },
+  "params": {
+   "degrees": {
+    "type": "int",
+    "default": 90,
+    "enum": [
+     90,
+     180,
+     270
+    ]
+   }
+  }
+ },
+ {
+  "id": "pdf.split",
+  "accepts": [
+   "pdf"
+  ],
+  "label": {
+   "ar": "تقسيم إلى ملف PDF لكل صفحة",
+   "en": "Split into one PDF per page"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "zip",
+   "suffix": "-split"
+  }
+ },
+ {
+  "id": "video.to-mp4",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "تحويل إلى MP4",
+   "en": "Convert to MP4"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "mp4"
+  },
+  "skip_ext": [
+   "mp4"
+  ],
+  "params": {
+   "crf": {
+    "type": "int",
+    "default": 23,
+    "min": 0,
+    "max": 63
+   }
+  }
+ },
+ {
+  "id": "video.to-webm",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "تحويل إلى WebM",
+   "en": "Convert to WebM"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "webm"
+  },
+  "skip_ext": [
+   "webm"
+  ]
+ },
+ {
+  "id": "video.to-gif",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "تحويل إلى صورة GIF متحركة",
+   "en": "Convert to animated GIF"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "gif"
+  },
+  "params": {
+   "fps": {
+    "type": "int",
+    "default": 12,
+    "min": 1,
+    "max": 60
+   },
+   "width": {
+    "type": "int",
+    "default": 480,
+    "min": 16,
+    "max": 4096
+   }
+  }
+ },
+ {
+  "id": "video.extract-mp3",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "استخراج الصوت بصيغة MP3",
+   "en": "Extract audio as MP3"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "mp3"
+  }
+ },
+ {
+  "id": "video.compress",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "ضغط الفيديو",
+   "en": "Compress video"
+  },
+  "output": {
+   "mode": "per-file",
+   "suffix": "-compressed"
+  },
+  "skip_ext": [
+   "wmv",
+   "mpeg",
+   "mpg"
+  ],
+  "params": {
+   "crf": {
+    "type": "int",
+    "default": 28,
+    "min": 0,
+    "max": 63
+   },
+   "max_height": {
+    "type": "int",
+    "default": 1080,
+    "min": 16,
+    "max": 8640
+   }
+  }
+ },
+ {
+  "id": "video.to-mkv",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "تحويل إلى MKV",
+   "en": "Convert to MKV"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "mkv"
+  },
+  "skip_ext": [
+   "mkv"
+  ]
+ },
+ {
+  "id": "video.to-mov",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "تحويل إلى MOV",
+   "en": "Convert to MOV"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "mov"
+  },
+  "skip_ext": [
+   "mov"
+  ]
+ },
+ {
+  "id": "video.extract-ogg",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "استخراج الصوت بصيغة OGG",
+   "en": "Extract audio as OGG"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "ogg"
+  }
+ },
+ {
+  "id": "video.extract-m4a",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "استخراج الصوت بصيغة M4A",
+   "en": "Extract audio as M4A"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "m4a"
+  }
+ },
+ {
+  "id": "video.extract-flac",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "استخراج الصوت بصيغة FLAC",
+   "en": "Extract audio as FLAC"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "flac"
+  }
+ },
+ {
+  "id": "video.extract-wav",
+  "accepts": [
+   "video"
+  ],
+  "label": {
+   "ar": "استخراج الصوت بصيغة WAV",
+   "en": "Extract audio as WAV"
+  },
+  "output": {
+   "mode": "per-file",
+   "ext": "wav"
+  }
+ }
+]

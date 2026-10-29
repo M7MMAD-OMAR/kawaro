@@ -1,0 +1,151 @@
+{
+ "tag": "qad4",
+ "model": "LFM3-VL-2B-QAD-Q4_0.gguf",
+ "mmproj": "mmproj-LFM3-VL-2B-Q8_0.gguf",
+ "threads": "4",
+ "synthetic_renders": true,
+ "mean_cer_norm": {
+  "ara": {
+   "tesseract": 0.2783,
+   "vl": 0.2634
+  },
+  "eng": {
+   "tesseract": 0.0132,
+   "vl": 0.0012
+  }
+ },
+ "max_vl_s": 20.4,
+ "max_vl_rss_mb": 2443,
+ "rows": [
+  {
+   "file": "ar1_clean_diacritics.png",
+   "lang": "ara",
+   "tess_cer_raw": 0.6689,
+   "tess_cer_norm": 0.5535,
+   "vl_cer_raw": 0.4459,
+   "vl_cer_norm": 0.1144,
+   "tess_s": 0.31,
+   "vl_s": 20.4,
+   "tess_rss_mb": 32,
+   "vl_rss_mb": 2443,
+   "vl_text_head": "يشاع بوعد الصيانية ثكية طبية وبعد، ستبدأ أعمال صيانية المصعد يوم الثلائة 14 تشرين الأول، وستمر ثلائة يام من الساعة 8 صباحا إلى 4 عصرا. رتج استخدام الدرج خلال هذ"
+  },
+  {
+   "file": "ar2_small_font.png",
+   "lang": "ara",
+   "tess_cer_raw": 0.0503,
+   "tess_cer_norm": 0.0503,
+   "vl_cer_raw": 0.1687,
+   "vl_cer_norm": 0.1646,
+   "tess_s": 0.25,
+   "vl_s": 16.01,
+   "tess_rss_mb": 27,
+   "vl_rss_mb": 2279,
+   "vl_text_head": "... (transcribe carefully)</think>إعلان عن اجتماع الجمعية السنية يسر مجلس الإدارة دعوة جميع الأضعة إلى الاجتمع السني للجمعية وذلك في تمام الساعة 6:30 مساء يوم ا"
+  },
+  {
+   "file": "ar3_two_columns.png",
+   "lang": "ara",
+   "tess_cer_raw": 0.0957,
+   "tess_cer_norm": 0.0928,
+   "vl_cer_raw": 0.8087,
+   "vl_cer_norm": 0.7942,
+   "tess_s": 0.17,
+   "vl_s": 11.52,
+   "tess_rss_mb": 27,
+   "vl_rss_mb": 2324,
+   "vl_text_head": "القيادة المكية مواعيد الاستعارة قواعد الاستعارة يجب إحضار بطافة المكية عند كل استعارة، يرجى الحفاظ على الهدوء داخل فاعات القراءة، ويعن إدخال الطعام والمشروبات إ"
+  },
+  {
+   "file": "ar4_table_list.png",
+   "lang": "ara",
+   "tess_cer_raw": 0.5389,
+   "tess_cer_norm": 0.5389,
+   "vl_cer_raw": 0.2333,
+   "vl_cer_norm": 0.2333,
+   "tess_s": 0.09,
+   "vl_s": 11.52,
+   "tess_rss_mb": 27,
+   "vl_rss_mb": 2346,
+   "vl_text_head": "الصفن الفاتورة رقم 20457 التاريخ: 5 شهرين الثاني 2025 المجموع السور الكمية دفتر ملاحظات 48 12 4 قلم حبر 30 3 10 ملف بلاستيكي 30 5 6 حقيبة مكتب 85 85 1 ورق طباعة"
+  },
+  {
+   "file": "ar5_noisy_skewed.png",
+   "lang": "ara",
+   "tess_cer_raw": 0.1562,
+   "tess_cer_norm": 0.1562,
+   "vl_cer_raw": 0.0104,
+   "vl_cer_norm": 0.0104,
+   "tess_s": 0.13,
+   "vl_s": 11.06,
+   "tess_rss_mb": 27,
+   "vl_rss_mb": 2337,
+   "vl_text_head": "إيصال استلام رقم الإيصال: 88213 التاريخ: 12 تشرين الثاني 2025 استلمنا مبلغ 250 مقابل خدمات الصيانة طريقية الدفع: نقدا المستلم: قسم المحاسبة يحتفظ المستلم بنسخة "
+  },
+  {
+   "file": "en1_clean_letter.png",
+   "lang": "eng",
+   "tess_cer_raw": 0.0,
+   "tess_cer_norm": 0.0,
+   "vl_cer_raw": 0.0,
+   "vl_cer_norm": 0.0,
+   "tess_s": 0.24,
+   "vl_s": 16.84,
+   "tess_rss_mb": 44,
+   "vl_rss_mb": 2417,
+   "vl_text_head": "Notice of Lift Maintenance Dear residents, The lift in Building B will be serviced on Tuesday, 14 October 2025. Work starts at 8:00 AM and finishes at 4:00 PM o"
+  },
+  {
+   "file": "en2_small_font.png",
+   "lang": "eng",
+   "tess_cer_raw": 0.0012,
+   "tess_cer_norm": 0.0012,
+   "vl_cer_raw": 0.0012,
+   "vl_cer_norm": 0.0012,
+   "tess_s": 0.27,
+   "vl_s": 10.51,
+   "tess_rss_mb": 38,
+   "vl_rss_mb": 2251,
+   "vl_text_head": "Annual Members Meeting: Notice The board invites all members to the annual meeting at 6:30 PM on Thursday, 23 November 2025, in the conference room on the third"
+  },
+  {
+   "file": "en3_two_columns.png",
+   "lang": "eng",
+   "tess_cer_raw": 0.0,
+   "tess_cer_norm": 0.0,
+   "vl_cer_raw": 0.0,
+   "vl_cer_norm": 0.0,
+   "tess_s": 0.21,
+   "vl_s": 10.92,
+   "tess_rss_mb": 39,
+   "vl_rss_mb": 2332,
+   "vl_text_head": "Library Hours The library is open from Saturday to Thursday, from 9:00 AM to 8:00 PM, and is closed on Friday. You can borrow 5 books for 14 days. Each loan can"
+  },
+  {
+   "file": "en4_table_list.png",
+   "lang": "eng",
+   "tess_cer_raw": 0.0,
+   "tess_cer_norm": 0.0,
+   "vl_cer_raw": 0.0,
+   "vl_cer_norm": 0.0,
+   "tess_s": 0.14,
+   "vl_s": 11.74,
+   "tess_rss_mb": 38,
+   "vl_rss_mb": 2345,
+   "vl_text_head": "Invoice 20457 Date: 5/11/2025 Item Qty Price Total Notebook 4 12 48 Ink pen 10 3 30 Plastic folder 6 5 30 Office bag 1 85 85 Printer paper 5 22 110 Total 303"
+  },
+  {
+   "file": "en5_noisy_skewed.png",
+   "lang": "eng",
+   "tess_cer_raw": 0.065,
+   "tess_cer_norm": 0.065,
+   "vl_cer_raw": 0.005,
+   "vl_cer_norm": 0.005,
+   "tess_s": 0.17,
+   "vl_s": 10.55,
+   "tess_rss_mb": 38,
+   "vl_rss_mb": 2331,
+   "vl_text_head": "RECEIPT Receipt no: 88218 Date: 12/11/2025 Received 250 for maintenance services Payment method: cash Received by: accounts office The receiver keeps a copy of "
+  }
+ ]
+}

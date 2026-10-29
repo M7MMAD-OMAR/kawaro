@@ -1,6 +1,6 @@
 # Research: Liquid AI LFM3 as a local model engine for Kawaro
 
-Status: reviewed once by an independent agent, corrections applied (2026-10-29). Not a decision. A decision needs ADR 0010 (see section 8).
+Status: reviewed once by an independent agent, corrections applied; spike results added in section 8b (2026-10-29). Not a decision. A decision needs ADR 0010 (see section 8).
 
 Labels used below: **V** = verified by reading the cited page, **U** = unverified or not found, **M** = marketing figure published by the vendor only. All page text was read through a summarising fetch tool, so numbers are as extracted, not from raw HTML. Re-check any figure before it goes into code or a public doc.
 
@@ -121,6 +121,41 @@ LFM Open License v1.0 (V): commercial use is not licensed for entities at or abo
 1. Spike in `spikes/lfm3/` (outside the workspace, throwaway), inside the 6 GB scope, `CARGO_BUILD_JOBS` 1: run LFM3-1.7B on a fixed set of 30 Arabic and English requests mapped to our real `actions/*.toml` ids, grammar-constrained; record accuracy, first-token time and peak RAM on the owner's CPU. Run VL-2B on five Arabic and five English document images against Tesseract. Result goes into this document.
 2. ADR 0010: opt-in model downloads (reverses the "never downloads" line in `docs/engines.md` for opt-in models), catalog format, data directory, redirect handling, licence display.
 3. Stories from S-093: model catalog and download in the daemon; Models section in settings; the llama.cpp engine adapter; `ai.suggest-action`; `image.to-text`.
+
+## 8b. Spike results (2026-10-29)
+
+Scripts, fixtures and raw results: `spikes/lfm3/` (`out/*.json`). Runtime: llama.cpp b11972, CPU, 4 threads under a 6 GB memory scope, on an i7-14650HX that was busy (load average 13 to 17), so speeds are pessimistic. Pass bars were written before the runs (`spikes/lfm3/README.md`). All figures below are measured here, not vendor numbers.
+
+Natural language to action, LFM3-1.7B QAD-Q4_0, 30 requests (15 Arabic, 15 English, 3 with no right action):
+
+| | first run (headline) | tuned on the same 30 | bar |
+|---|---|---|---|
+| action accuracy | 80% (ar 80, en 80) | 76.7% (ar 80, en 73) | 90% |
+| rejected by registry rules | 18 of 30 | 4 of 30 | 5% |
+| `none` cases answered `none` | 1 of 3 | 0 of 3 | 3 of 3 |
+| cold first request | 18.7 s (2684 prompt tokens) | 7.7 s (1056) | 10 s |
+| median request | 4.8 s | 4.1 s | 3 s |
+| peak RSS | 2.08 GB | 2.08 GB | 2.5 GB |
+
+The tuned column used a per action JSON schema and a compact catalog, tuned on the same items, so it is not an accuracy claim. Findings:
+
+- LFM3 reasons by default and spends the whole token budget before any JSON (empty content, `reasoning_content` full). `enable_thinking: false` is mandatory for the selector.
+- A free form `params` object invites invented keys (file names, copied catalog fields). A per action schema cuts registry rejections from 60% to 13%; the registry check stays necessary.
+- Typical errors: pdf.to-images read as documents.to-pdf, rotate degrees and flip axis swapped, an action proposed for requests with no matching action. Arabic and English score alike.
+- Verdict: **fails the accuracy and `none` bars**. The model may only propose, and the hive must show the proposal for confirmation; it can never run an action by itself. The Q8_0 reference was not measured (download pending), so how much is quantisation is open.
+
+OCR, LFM3-VL-2B QAD-Q4_0 with the Q8_0 mmproj against Tesseract (`ara` for Arabic pages, `eng` for English), 10 synthetic renders, normalised character error rate:
+
+| | Tesseract | VL-2B | bar |
+|---|---|---|---|
+| Arabic mean (5 pages) | 0.278 | 0.263 | VL at most 1.25 times Tesseract |
+| English mean (5 pages) | 0.013 | 0.001 | VL not worse |
+| slowest page | 0.3 s | 20.4 s | 60 s |
+| peak RSS | small | 2.44 GB | 4 GB |
+
+Per page, VL wins on clean diacritic text (0.11 against 0.55), tables (0.23 against 0.54) and noisy skewed pages (0.01 against 0.16), and loses badly on the Arabic two column page (0.79 against 0.09) and on small Arabic text (0.16 against 0.05). **Passes the bars**, but the pages are synthetic and cleaner than real scans, and ten pages cannot support a quality claim. Reading it: VL is a candidate for noisy or table-like pages, Tesseract stays the fast default, and a real-scan test (including real two column Arabic) comes before any story. Time per page is 10 to 20 s on 4 cores, so this is a background action only.
+
+Runtime notes: the official b11972 Linux CPU build runs the model directly. It reports `version: 0.8.0-dev (build 11972)`, so a probe must read the build number. The cold start of a 1 GB model is about 1 to 2 s.
 
 ## 9. Corrections found while researching
 

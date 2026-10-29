@@ -1,0 +1,9 @@
+Invoice 20457
+Date: 5/11/2025
+Item Qty Price Total
+Notebook 4 12 48
+Ink pen 10 3 30
+Plastic folder 6 5 30
+Office bag 1 85 85
+Printer paper 5 22 110
+Total 303

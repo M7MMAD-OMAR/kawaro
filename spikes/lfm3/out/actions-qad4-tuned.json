@@ -1,0 +1,767 @@
+{
+ "tag": "qad4-tuned",
+ "model": "LFM3-1.7B-QAD-Q4_0.gguf",
+ "threads": "4",
+ "load_s": 1.0,
+ "action_acc": 0.767,
+ "action_acc_ar": 0.8,
+ "action_acc_en": 0.733,
+ "params_acc": 0.867,
+ "peak_rss_mb": 2076,
+ "cold_first_request": {
+  "wall_s": 7.68,
+  "prompt_n": 1056,
+  "prompt_ms": 7170.58
+ },
+ "machine": {
+  "cpu": "Intel(R) Core(TM) i7-14650HX",
+  "loadavg": [
+   16.70263671875,
+   17.22119140625,
+   15.68603515625
+  ],
+  "affinity": [
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11,
+   12,
+   13,
+   14,
+   15,
+   16,
+   17,
+   18,
+   19,
+   20,
+   21,
+   22,
+   23
+  ]
+ },
+ "registry_rejected": 4,
+ "none_cases_ok": [
+  false,
+  false,
+  false
+ ],
+ "median_wall_s": 4.1,
+ "rows": [
+  {
+   "raw": "{\"action\": \"image.to-webp\", \"params\": {\"quality\": 100}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.to-webp\", \"params\": {\"quality\": 100}}"
+   },
+   "finish": "stop",
+   "id": 1,
+   "lang": "ar",
+   "expected": "image.to-webp",
+   "got": "image.to-webp",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {
+    "quality": 100
+   },
+   "prompt_ms": 7170.58,
+   "prompt_n": 1056,
+   "cache_n": 0,
+   "decode_tps": 35.58852546853282,
+   "wall_s": 7.68,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"image.to-jpg\", \"params\": {\"quality\": 60}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.to-jpg\", \"params\": {\"quality\": 60}}"
+   },
+   "finish": "stop",
+   "id": 2,
+   "lang": "en",
+   "expected": "image.to-jpg",
+   "got": "image.to-jpg",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "quality": 60
+   },
+   "got_params": {
+    "quality": 60
+   },
+   "prompt_ms": 3464.469,
+   "prompt_n": 519,
+   "cache_n": 540,
+   "decode_tps": 32.8510315223898,
+   "wall_s": 4.02,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"pdf.compress\", \"params\": {\"preset\": \"screen\"}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"pdf.compress\", \"params\": {\"preset\": \"screen\"}}"
+   },
+   "finish": "stop",
+   "id": 3,
+   "lang": "ar",
+   "expected": "pdf.compress",
+   "got": "pdf.compress",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "preset": "screen"
+   },
+   "got_params": {
+    "preset": "screen"
+   },
+   "prompt_ms": 4852.988,
+   "prompt_n": 519,
+   "cache_n": 543,
+   "decode_tps": 29.960551939945738,
+   "wall_s": 5.46,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"image.to-pdf\", \"params\": {\"page\": \"fit\"}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.to-pdf\", \"params\": {\"page\": \"fit\"}}"
+   },
+   "finish": "stop",
+   "id": 4,
+   "lang": "en",
+   "expected": "image.to-pdf",
+   "got": "image.to-pdf",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {
+    "page": "fit"
+   },
+   "prompt_ms": 4854.967,
+   "prompt_n": 515,
+   "cache_n": 546,
+   "decode_tps": 30.54725405642078,
+   "wall_s": 5.45,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"pdf.merge\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"pdf.merge\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 5,
+   "lang": "ar",
+   "expected": "pdf.merge",
+   "got": "pdf.merge",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3485.409,
+   "prompt_n": 517,
+   "cache_n": 546,
+   "decode_tps": 33.36289656667992,
+   "wall_s": 3.85,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"pdf.compress\", \"params\": {\"preset\": \"printer\"}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"pdf.compress\", \"params\": {\"preset\": \"printer\"}}"
+   },
+   "finish": "stop",
+   "id": 6,
+   "lang": "en",
+   "expected": "pdf.compress",
+   "got": "pdf.compress",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "preset": "printer"
+   },
+   "got_params": {
+    "preset": "printer"
+   },
+   "prompt_ms": 3419.576,
+   "prompt_n": 513,
+   "cache_n": 547,
+   "decode_tps": 28.20242214276066,
+   "wall_s": 4.1,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"audio.to-mp3\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"audio.to-mp3\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 7,
+   "lang": "ar",
+   "expected": "audio.to-mp3",
+   "got": "audio.to-mp3",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3479.684,
+   "prompt_n": 510,
+   "cache_n": 547,
+   "decode_tps": 34.278036005649014,
+   "wall_s": 3.92,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"pdf.rotate\", \"params\": {\"degrees\": 180}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"pdf.rotate\", \"params\": {\"degrees\": 180}}"
+   },
+   "finish": "stop",
+   "id": 8,
+   "lang": "en",
+   "expected": "pdf.rotate",
+   "got": "pdf.rotate",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "degrees": 180
+   },
+   "got_params": {
+    "degrees": 180
+   },
+   "prompt_ms": 4285.039,
+   "prompt_n": 510,
+   "cache_n": 547,
+   "decode_tps": 24.00432077773999,
+   "wall_s": 5.04,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"video.extract-mp3\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"video.extract-mp3\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 9,
+   "lang": "ar",
+   "expected": "video.extract-mp3",
+   "got": "video.extract-mp3",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3951.892,
+   "prompt_n": 513,
+   "cache_n": 547,
+   "decode_tps": 38.31087358369489,
+   "wall_s": 4.38,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"audio.to-flac\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"audio.to-flac\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 10,
+   "lang": "en",
+   "expected": "audio.to-flac",
+   "got": "audio.to-flac",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3464.053,
+   "prompt_n": 510,
+   "cache_n": 547,
+   "decode_tps": 28.621135891108846,
+   "wall_s": 3.96,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"documents.to-pdf\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"documents.to-pdf\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 11,
+   "lang": "ar",
+   "expected": "documents.to-pdf",
+   "got": "documents.to-pdf",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3588.08,
+   "prompt_n": 511,
+   "cache_n": 547,
+   "decode_tps": 31.23178146081453,
+   "wall_s": 4.07,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"audio.to-opus\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"audio.to-opus\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 12,
+   "lang": "en",
+   "expected": "audio.to-opus",
+   "got": "audio.to-opus",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3551.927,
+   "prompt_n": 515,
+   "cache_n": 547,
+   "decode_tps": 34.12295475539935,
+   "wall_s": 3.97,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"image.resize-50\", \"params\": {\"scale\": 25}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.resize-50\", \"params\": {\"scale\": 25}}"
+   },
+   "finish": "stop",
+   "id": 13,
+   "lang": "ar",
+   "expected": "image.resize-50",
+   "got": "image.resize-50",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "scale": 25
+   },
+   "got_params": {
+    "scale": 25
+   },
+   "prompt_ms": 3552.9,
+   "prompt_n": 514,
+   "cache_n": 547,
+   "decode_tps": 30.43054144386157,
+   "wall_s": 4.15,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"video.to-webm\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"video.to-webm\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 14,
+   "lang": "en",
+   "expected": "video.to-webm",
+   "got": "video.to-webm",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3578.534,
+   "prompt_n": 513,
+   "cache_n": 547,
+   "decode_tps": 32.286333656196675,
+   "wall_s": 4.02,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"video.compress\", \"params\": {\"crf\": 0, \"max_height\": 720}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"video.compress\", \"params\": {\"crf\": 0, \"max_height\": 720}}"
+   },
+   "finish": "stop",
+   "id": 15,
+   "lang": "ar",
+   "expected": "video.compress",
+   "got": "video.compress",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "max_height": 720
+   },
+   "got_params": {
+    "crf": 0,
+    "max_height": 720
+   },
+   "prompt_ms": 3760.671,
+   "prompt_n": 520,
+   "cache_n": 547,
+   "decode_tps": 29.340932243571988,
+   "wall_s": 4.62,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"video.extract-ogg\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"video.extract-ogg\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 16,
+   "lang": "en",
+   "expected": "video.extract-wav",
+   "got": "video.extract-ogg",
+   "action_ok": false,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3557.319,
+   "prompt_n": 508,
+   "cache_n": 551,
+   "decode_tps": 28.37131622101634,
+   "wall_s": 4.09,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"image.rotate-90\", \"params\": {\"degrees\": 90}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.rotate-90\", \"params\": {\"degrees\": 90}}"
+   },
+   "finish": "stop",
+   "id": 17,
+   "lang": "ar",
+   "expected": "image.rotate-90",
+   "got": "image.rotate-90",
+   "action_ok": true,
+   "params_ok": false,
+   "expected_params": {
+    "degrees": 180
+   },
+   "got_params": {
+    "degrees": 90
+   },
+   "prompt_ms": 3500.831,
+   "prompt_n": 507,
+   "cache_n": 551,
+   "decode_tps": 29.071035074203813,
+   "wall_s": 4.19,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"documents.to-odt\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"documents.to-odt\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 18,
+   "lang": "en",
+   "expected": "documents.to-odt",
+   "got": "documents.to-odt",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 5144.906,
+   "prompt_n": 511,
+   "cache_n": 551,
+   "decode_tps": 22.901309668646675,
+   "wall_s": 5.85,
+   "registry_ok": false
+  },
+  {
+   "raw": "{\"action\": \"documents.to-pdf\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"documents.to-pdf\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 19,
+   "lang": "ar",
+   "expected": "pdf.to-images",
+   "got": "documents.to-pdf",
+   "action_ok": false,
+   "params_ok": false,
+   "expected_params": {
+    "dpi": 300
+   },
+   "got_params": {},
+   "prompt_ms": 3391.807,
+   "prompt_n": 512,
+   "cache_n": 551,
+   "decode_tps": 28.151885050222965,
+   "wall_s": 3.93,
+   "registry_ok": false
+  },
+  {
+   "raw": "{\"action\": \"image.resize-50\", \"params\": {\"scale\": 128}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.resize-50\", \"params\": {\"scale\": 128}}"
+   },
+   "finish": "stop",
+   "id": 20,
+   "lang": "en",
+   "expected": "image.fit-1920",
+   "got": "image.resize-50",
+   "action_ok": false,
+   "params_ok": false,
+   "expected_params": {
+    "max_side": 1280
+   },
+   "got_params": {
+    "scale": 128
+   },
+   "prompt_ms": 3407.009,
+   "prompt_n": 511,
+   "cache_n": 551,
+   "decode_tps": 33.0333416528416,
+   "wall_s": 3.96,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"image.rotate-90\", \"params\": {\"degrees\": 90}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.rotate-90\", \"params\": {\"degrees\": 90}}"
+   },
+   "finish": "stop",
+   "id": 21,
+   "lang": "ar",
+   "expected": "image.flip-h",
+   "got": "image.rotate-90",
+   "action_ok": false,
+   "params_ok": false,
+   "expected_params": {
+    "axis": "vertical"
+   },
+   "got_params": {
+    "degrees": 90
+   },
+   "prompt_ms": 3587.243,
+   "prompt_n": 506,
+   "cache_n": 551,
+   "decode_tps": 32.15005071670501,
+   "wall_s": 4.21,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"image.strip\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.strip\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 22,
+   "lang": "en",
+   "expected": "image.strip",
+   "got": "image.strip",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3500.104,
+   "prompt_n": 519,
+   "cache_n": 551,
+   "decode_tps": 31.53007575100699,
+   "wall_s": 3.89,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"video.to-gif\", \"params\": {\"fps\": 10, \"width\": 16}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"video.to-gif\", \"params\": {\"fps\": 10, \"width\": 16}}"
+   },
+   "finish": "stop",
+   "id": 23,
+   "lang": "ar",
+   "expected": "video.to-gif",
+   "got": "video.to-gif",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "fps": 10
+   },
+   "got_params": {
+    "fps": 10,
+    "width": 16
+   },
+   "prompt_ms": 3612.678,
+   "prompt_n": 516,
+   "cache_n": 554,
+   "decode_tps": 31.552111467299394,
+   "wall_s": 4.41,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"video.to-gif\", \"params\": {\"width\": 320}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"video.to-gif\", \"params\": {\"width\": 320}}"
+   },
+   "finish": "stop",
+   "id": 24,
+   "lang": "en",
+   "expected": "video.to-gif",
+   "got": "video.to-gif",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {
+    "width": 320
+   },
+   "got_params": {
+    "width": 320
+   },
+   "prompt_ms": 3401.703,
+   "prompt_n": 507,
+   "cache_n": 554,
+   "decode_tps": 32.96491983114636,
+   "wall_s": 3.95,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"pdf.split\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"pdf.split\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 25,
+   "lang": "ar",
+   "expected": "pdf.split",
+   "got": "pdf.split",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3584.246,
+   "prompt_n": 505,
+   "cache_n": 554,
+   "decode_tps": 32.733045646232156,
+   "wall_s": 3.96,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"image.grayscale\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.grayscale\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 26,
+   "lang": "en",
+   "expected": "image.grayscale",
+   "got": "image.grayscale",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3532.04,
+   "prompt_n": 502,
+   "cache_n": 554,
+   "decode_tps": 18.186565584003095,
+   "wall_s": 4.31,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"documents.to-ods\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"documents.to-ods\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 27,
+   "lang": "ar",
+   "expected": "documents.to-ods",
+   "got": "documents.to-ods",
+   "action_ok": true,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 6016.318,
+   "prompt_n": 509,
+   "cache_n": 554,
+   "decode_tps": 17.667178622242744,
+   "wall_s": 6.87,
+   "registry_ok": false
+  },
+  {
+   "raw": "{\"action\": \"image.to-png\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"image.to-png\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 28,
+   "lang": "en",
+   "expected": "none",
+   "got": "image.to-png",
+   "action_ok": false,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 4175.772,
+   "prompt_n": 499,
+   "cache_n": 554,
+   "decode_tps": 32.43391011636824,
+   "wall_s": 4.61,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"documents.to-docx\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"documents.to-docx\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 29,
+   "lang": "ar",
+   "expected": "none",
+   "got": "documents.to-docx",
+   "action_ok": false,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3441.618,
+   "prompt_n": 502,
+   "cache_n": 554,
+   "decode_tps": 38.56546745203099,
+   "wall_s": 3.84,
+   "registry_ok": true
+  },
+  {
+   "raw": "{\"action\": \"documents.to-pdf\", \"params\": {}}",
+   "msg": {
+    "role": "assistant",
+    "content": "{\"action\": \"documents.to-pdf\", \"params\": {}}"
+   },
+   "finish": "stop",
+   "id": 30,
+   "lang": "en",
+   "expected": "none",
+   "got": "documents.to-pdf",
+   "action_ok": false,
+   "params_ok": true,
+   "expected_params": {},
+   "got_params": {},
+   "prompt_ms": 3396.776,
+   "prompt_n": 500,
+   "cache_n": 554,
+   "decode_tps": 37.09290536363412,
+   "wall_s": 3.81,
+   "registry_ok": false
+  }
+ ]
+}

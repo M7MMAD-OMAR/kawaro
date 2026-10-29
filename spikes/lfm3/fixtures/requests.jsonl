@@ -1,0 +1,30 @@
+{"id": 1, "lang": "ar", "text": "حوّل الصورة إلى WebP", "files": ["photo.png"], "expected_action": "image.to-webp", "expected_params": {}}
+{"id": 2, "lang": "en", "text": "Convert this photo to JPG with quality 60", "files": ["photo.png"], "expected_action": "image.to-jpg", "expected_params": {"quality": 60}}
+{"id": 3, "lang": "ar", "text": "اضغط ملف PDF لأقل حجم ممكن حتى أرسله بالبريد", "files": ["report.pdf"], "expected_action": "pdf.compress", "expected_params": {"preset": "screen"}}
+{"id": 4, "lang": "en", "text": "Combine these pictures into one PDF", "files": ["a.png", "b.png", "c.png"], "expected_action": "image.to-pdf", "expected_params": {}}
+{"id": 5, "lang": "ar", "text": "ادمج هذه الملفات في ملف PDF واحد", "files": ["a.pdf", "b.pdf", "c.pdf"], "expected_action": "pdf.merge", "expected_params": {}}
+{"id": 6, "lang": "en", "text": "Compress this PDF but keep it good enough to print", "files": ["invoice.pdf"], "expected_action": "pdf.compress", "expected_params": {"preset": "printer"}}
+{"id": 7, "lang": "ar", "text": "حوّل الأغنية إلى MP3", "files": ["song.wav"], "expected_action": "audio.to-mp3", "expected_params": {}}
+{"id": 8, "lang": "en", "text": "Turn every page of this PDF upside down", "files": ["scan.pdf"], "expected_action": "pdf.rotate", "expected_params": {"degrees": 180}}
+{"id": 9, "lang": "ar", "text": "استخرج الصوت من هذا الفيديو بصيغة MP3", "files": ["clip.mp4"], "expected_action": "video.extract-mp3", "expected_params": {}}
+{"id": 10, "lang": "en", "text": "Make a FLAC copy of this recording", "files": ["interview.wav"], "expected_action": "audio.to-flac", "expected_params": {}}
+{"id": 11, "lang": "ar", "text": "حوّل ملف الوورد إلى PDF", "files": ["letter.docx"], "expected_action": "documents.to-pdf", "expected_params": {}}
+{"id": 12, "lang": "en", "text": "I need an Opus version of this for voice notes", "files": ["voice.m4a"], "expected_action": "audio.to-opus", "expected_params": {}}
+{"id": 13, "lang": "ar", "text": "صغّر الصورة إلى 25 بالمئة من حجمها", "files": ["holiday.jpg"], "expected_action": "image.resize-50", "expected_params": {"scale": 25}}
+{"id": 14, "lang": "en", "text": "Turn the video into a WebM for the web", "files": ["trailer.mp4"], "expected_action": "video.to-webm", "expected_params": {}}
+{"id": 15, "lang": "ar", "text": "بدي صغّر حجم هالفيديو، بس لا تخليه أعلى من 720", "files": ["wedding.mov"], "expected_action": "video.compress", "expected_params": {"max_height": 720}}
+{"id": 16, "lang": "en", "text": "Rip the soundtrack from this video as WAV", "files": ["concert.mkv"], "expected_action": "video.extract-wav", "expected_params": {}}
+{"id": 17, "lang": "ar", "text": "لفّلي هالصورة 180 درجة", "files": ["scan.jpg"], "expected_action": "image.rotate-90", "expected_params": {"degrees": 180}}
+{"id": 18, "lang": "en", "text": "Convert these two files to ODT", "files": ["notes.docx", "memo.rtf"], "expected_action": "documents.to-odt", "expected_params": {}}
+{"id": 19, "lang": "ar", "text": "ابغى أحول هالـ PDF إلى صور بدقة 300", "files": ["menu.pdf"], "expected_action": "pdf.to-images", "expected_params": {"dpi": 300}}
+{"id": 20, "lang": "en", "text": "Make the image at most 1280 pixels on the longest side", "files": ["banner.png"], "expected_action": "image.fit-1920", "expected_params": {"max_side": 1280}}
+{"id": 21, "lang": "ar", "text": "اقلب الصورة عمودياً", "files": ["logo.png"], "expected_action": "image.flip-h", "expected_params": {"axis": "vertical"}}
+{"id": 22, "lang": "en", "text": "Strip the EXIF and location data from my photos", "files": ["IMG_0412.jpg", "IMG_0413.jpg"], "expected_action": "image.strip", "expected_params": {}}
+{"id": 23, "lang": "ar", "text": "حوّل الفيديو إلى صورة GIF متحركة بمعدل 10 إطارات في الثانية", "files": ["demo.mp4"], "expected_action": "video.to-gif", "expected_params": {"fps": 10}}
+{"id": 24, "lang": "en", "text": "Convert the clip to a GIF 320 pixels wide", "files": ["reaction.mp4"], "expected_action": "video.to-gif", "expected_params": {"width": 320}}
+{"id": 25, "lang": "ar", "text": "قسّم ملف الـ PDF إلى ملف لكل صفحة", "files": ["book.pdf"], "expected_action": "pdf.split", "expected_params": {}}
+{"id": 26, "lang": "en", "text": "Make this PNG black and white", "files": ["portrait.png"], "expected_action": "image.grayscale", "expected_params": {}}
+{"id": 27, "lang": "ar", "text": "حوّل جدول الإكسل إلى صيغة ODS", "files": ["budget.xlsx"], "expected_action": "documents.to-ods", "expected_params": {}}
+{"id": 28, "lang": "en", "text": "Make it look better", "files": ["photo.png"], "expected_action": "none", "expected_params": {}}
+{"id": 29, "lang": "ar", "text": "ترجم هذا المستند إلى الإنجليزية", "files": ["contract.docx"], "expected_action": "none", "expected_params": {}}
+{"id": 30, "lang": "en", "text": "Email this to my boss", "files": ["report.pdf"], "expected_action": "none", "expected_params": {}}
