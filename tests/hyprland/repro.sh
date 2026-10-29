@@ -149,7 +149,12 @@
 # dbus-run-session. LIBSEAT_BACKEND=seatd with no seatd socket makes
 # aquamarine's DRM backend fail at once, so logind is never asked for the
 # live session's devices.
-# Usage: tests/hyprland/repro.sh [--selftest|--portal|--json [--quasimode]] [layer|window] [BIN_DIR]
+# --altdrag (S-095, ALTN drags per order, default 20; layer only): the
+# documented Alt-hold binds (bindni and bindrni on ALT_L, Lua form) in the
+# private config, real ALT_L key events and a real drag of a PNG, in both
+# orders. Writes $OUT/altdrag-results.tsv, one row per drag, and
+# $OUT/altdrag-N.log per drag (daemon log and `hyprctl layers`).
+# Usage: tests/hyprland/repro.sh [--selftest|--portal|--altdrag|--json [--quasimode]] [layer|window] [BIN_DIR]
 # BIN_DIR defaults to target/release; ~/.local/bin tests the installed build.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -157,7 +162,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=../no_portal.sh
 source "$ROOT/tests/no_portal.sh"
-SELFTEST=0 JSON=0 QUASI=0 PORTAL=0 SURFACE=layer
+SELFTEST=0 JSON=0 QUASI=0 PORTAL=0 ALTDRAG=0 SURFACE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
   case "$a" in
@@ -165,6 +170,7 @@ for a in "$@"; do
     --json) JSON=1 ;;
     --quasimode) QUASI=1 ;;
     --portal) PORTAL=1 ;;
+    --altdrag) ALTDRAG=1 ;;
     layer|window) SURFACE=$a ;;
     *) BIN="$a" ;;
   esac
@@ -176,7 +182,8 @@ if ! command -v Hyprland >/dev/null || ! command -v kwin_wayland >/dev/null; the
 [ -x "$INPUT" ] || need "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"
 OUT="${HYPR_OUT:-$HERE/out}"
 mkdir -p "$OUT"
-export BIN HERE ROOT OUT INPUT SELFTEST JSON QUASI PORTAL SURFACE
+export BIN HERE ROOT OUT INPUT SELFTEST JSON QUASI PORTAL ALTDRAG SURFACE ALTN
+ALTN="${ALTN:-20}"
 export HYPR_SCALE="${HYPR_SCALE:-1.333333}"
 
 inner() {
@@ -260,6 +267,15 @@ hl.window_rule({ match = kawaro, no_anim = true })
 hl.window_rule({ match = kawaro, border_size = 0 })
 hl.layer_rule({ match = { namespace = "^kawaro$" }, no_anim = true })
 LUA
+  if [ "$ALTDRAG" = 1 ]; then
+    # The documented Alt-hold binds (integrations/linux/hyprland/README.md).
+    cat >>"$XDG_CONFIG_HOME/hypr/sbh.lua" <<LUA
+hl.bind("ALT_L", hl.dsp.exec_cmd("$BIN/kawaro drop --hold --at \\"\$(hyprctl cursorpos)\\""),
+  { non_consuming = true, ignore_mods = true })
+hl.bind("ALT_L", hl.dsp.exec_cmd("$BIN/kawaro drop --release"),
+  { release = true, non_consuming = true, ignore_mods = true })
+LUA
+  fi
   # --portal: no systemd or activation environment updates by Hyprland
   # itself (the portal's environment is set below, on this bus only).
   [ "$PORTAL" = 1 ] && export HYPRLAND_NO_SD_VARS=1
@@ -648,10 +664,21 @@ for c in json.load(sys.stdin):
   kill "$kp" 2>/dev/null
   local NEXT="$XDG_RUNTIME_DIR/next" SLOG="$log-source.log"
   GDK_BACKEND=wayland GTK_A11Y=none python3 -I "$ROOT/tests/drop/source.py" "$NEXT" >"$SLOG" 2>&1 &
+  SRCPID=$!
   pids+=("$!")
   sleep 2
   # begin_drag: press on the source and pass GTK's threshold (lib.sh).
   begin_drag() { drag_past_threshold; }
+  if [ "$ALTDRAG" = 1 ]; then
+    # shellcheck source=altdrag.sh
+    source "$HERE/altdrag.sh"
+    altdrag_run
+    finish
+    say "RESULT $([ "$FAILS" -eq 0 ] && echo PASS || echo "FAIL ($FAILS)")"
+    echo "{\"total\": $TOTAL, \"failed\": $FAILS, \"skipped\": 0}" >"$XDG_RUNTIME_DIR/json"
+    [ "$FAILS" -eq 0 ]
+    return
+  fi
   # Layer mode only (S-021 decision 1).
   if [ "$SURFACE" = layer ]; then
     # S-021 AC9 (3), the end of the cycle on the same daemon: a PNG drag, then

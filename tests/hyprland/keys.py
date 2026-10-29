@@ -29,7 +29,10 @@ def on_activate(app):
     w.set_child(area)
 
     k = Gtk.EventControllerKey()
-    k.connect("key-pressed", lambda _c, kv, code, _s: log(f"keys: key {Gdk.keyval_name(kv)} {code}") or False)
+    k.connect(
+        "key-pressed",
+        lambda _c, kv, code, st: log(f"keys: key {Gdk.keyval_name(kv)} {code} mods={'ALT' if st & Gdk.ModifierType.ALT_MASK else ''}") or False,
+    )
     w.add_controller(k)
     c = Gtk.GestureClick()
     c.connect("pressed", lambda *_: log("keys: click"))
