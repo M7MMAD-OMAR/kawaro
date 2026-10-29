@@ -151,6 +151,7 @@ fn ac3_menu_order_and_labels_in_english_with_jobs() {
             action(Command::UpdateNow, "Update now", false),
             // S-087 D7: the bilingual Get started item.
             action(Command::GetStarted, text::get_started(Lang::En), true),
+            action(Command::About, text::about(Lang::En), true),
             action(Command::CancelAll, text::cancel_all(Lang::En), true),
             action(Command::Settings, text::settings(Lang::En), true),
             Item::Separator,
@@ -162,28 +163,29 @@ fn ac3_menu_order_and_labels_in_english_with_jobs() {
 #[test]
 fn ac3_cancel_all_is_disabled_without_jobs() {
     let m = menu(Lang::En, 0, false);
-    assert_eq!(m.len(), 6);
+    assert_eq!(m.len(), 7);
     assert_eq!(m[0], action(Command::UpdateNow, "Update now", false));
     assert_eq!(
         m[1],
         action(Command::GetStarted, text::get_started(Lang::En), true)
     );
+    assert_eq!(m[2], action(Command::About, text::about(Lang::En), true));
     assert_eq!(
-        m[2],
+        m[3],
         action(Command::CancelAll, text::cancel_all(Lang::En), false)
     );
     assert_eq!(
-        m[3],
+        m[4],
         action(Command::Settings, text::settings(Lang::En), true)
     );
-    assert_eq!(m[4], Item::Separator);
-    assert_eq!(m[5], action(Command::Quit, text::quit(Lang::En), true));
+    assert_eq!(m[5], Item::Separator);
+    assert_eq!(m[6], action(Command::Quit, text::quit(Lang::En), true));
 }
 
 #[test]
 fn ac3_one_job_enables_cancel_all() {
     assert_eq!(
-        menu(Lang::En, 1, false)[2],
+        menu(Lang::En, 1, false)[3],
         action(Command::CancelAll, text::cancel_all(Lang::En), true)
     );
 }
@@ -196,6 +198,7 @@ fn ac3_arabic_labels() {
             action(Command::UpdateNow, "حدّث الآن", false),
             // S-087 D7: the bilingual Get started item.
             action(Command::GetStarted, text::get_started(Lang::Ar), true),
+            action(Command::About, text::about(Lang::Ar), true),
             action(Command::CancelAll, text::cancel_all(Lang::Ar), true),
             action(Command::Settings, text::settings(Lang::Ar), true),
             Item::Separator,
@@ -215,8 +218,8 @@ fn s054b_update_now_is_first_and_enabled_only_when_an_update_is_ready() {
             let on = menu(lang, jobs, true);
             assert_eq!(off[0], action(Command::UpdateNow, label, false));
             assert_eq!(on[0], action(Command::UpdateNow, label, true));
-            // S-087 D7: the menu gains the Get started item.
-            assert_eq!(off.len(), 6);
+            // S-087 D7 and S-099b B7: Get started and About.
+            assert_eq!(off.len(), 7);
             // Nothing else depends on the update.
             assert_eq!(off[1..], on[1..]);
         }

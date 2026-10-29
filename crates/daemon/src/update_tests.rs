@@ -82,7 +82,7 @@
 //! DECISION: `Vec<String>` cannot carry "enabled", so a second pure function
 //! does. The tray shows `menu_labels` and `update_item_enabled`.
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -420,6 +420,7 @@ fn ac5_menu_labels_in_both_languages_with_update_now_first() {
         vec![
             "Update now",
             "Get started",
+            "About",
             "Cancel all jobs",
             "Settings",
             "Quit Kawaro"
@@ -430,6 +431,7 @@ fn ac5_menu_labels_in_both_languages_with_update_now_first() {
         vec![
             "حدّث الآن",
             "ابدأ هنا",
+            "حول كوارو",
             "إلغاء كل المهام",
             "الإعدادات",
             "إنهاء كوارو"
@@ -1495,5 +1497,351 @@ mod s099a {
             let (_, percent, size) = fields(&resp);
             assert_eq!((percent, size), (None, None), "{want}");
         }
+    }
+}
+
+// ------------------------------------------------------------ S-099b
+
+/// S-099b (A3, B5, B6, B7) from the acceptance criteria only. Pinned names:
+/// - `update::Phase::Installing(String)`; `update::reply_for(&UpdateState) ->
+///   Response` (the status word of the phase: `installing`, `failed`,
+///   `ready`, `downloading`); `update::apply_with(&mut UpdateState, install:
+///   impl FnOnce(&UpdateState) -> Result<(), String>) -> Result<(), String>`
+///   (no verified update: `Err` and the closure never runs; otherwise the
+///   phase is `Installing(version)` while the closure runs, and `Failed`
+///   when it returns `Err`).
+/// - module `crate::reopen`: `Marker { from, to: String, at: u64 }`
+///   (`Clone, Debug, PartialEq`), `MARKER_FILE = "update-reopen.json"`,
+///   `MAX_AGE_SECS = 3600`, `enum Reopen { None, Updated(String) }`,
+///   `write(dir, &Marker) -> io::Result<()>` (atomic, keys `from`, `to`,
+///   `at`), `reopen_decision(Option<&Marker>, installed, now) -> Reopen`,
+///   `take(dir, installed, now) -> Reopen` (reads and always deletes the
+///   file), `enum ApplyOrigin { Settings, Tray, Auto }`,
+///   `before_install(dir, ApplyOrigin, settings_visible, from, to, now) ->
+///   bool` (true when the marker was written), `on_start(dir, installed, now,
+///   &Config) -> bool` (true when it opened the settings window).
+/// - `ui::open_settings_updates(Config, updated: Option<String>)` opens the
+///   settings window on the Updates page (page 3) with the banner; test spies
+///   `ui::settings_opens()`, `ui::last_settings_page() -> Option<usize>` and
+///   `ui::last_settings_banner() -> Option<String>`; `ui::about(&Shared)`
+///   is the About handler of both trays and calls it with `None`.
+/// - `text::about(Lang)`: "About" / "حول كوارو".
+mod s099b {
+    use super::*;
+    use crate::reopen::{
+        ApplyOrigin, MARKER_FILE, MAX_AGE_SECS, Marker, Reopen, before_install, on_start,
+        reopen_decision, take, write,
+    };
+    use crate::shell_logic::{Command, Item, menu};
+    use crate::state::{Shared, State};
+    use crate::ui;
+    use crate::update::{apply_with, reply_for};
+    use std::sync::{Arc, Mutex};
+
+    const NOW: u64 = 1_800_000_000;
+
+    fn marker(to: &str, at: u64) -> Marker {
+        Marker {
+            from: "0.4.2".into(),
+            to: to.into(),
+            at,
+        }
+    }
+
+    fn word(resp: &Response) -> String {
+        match resp {
+            Response::Update { status, .. } => status.clone(),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn shared(config: Config) -> Shared {
+        Arc::new(Mutex::new(State::new(config, &[])))
+    }
+
+    // ---- A3
+
+    #[test]
+    fn ac_a3_installing_while_the_closure_runs_and_failed_after_it_errors() {
+        let (mut st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
+        assert_eq!(word(&reply_for(&st)), "ready");
+        let seen = RefCell::new(Vec::new());
+        let r = apply_with(&mut st, |s| {
+            seen.borrow_mut().push(reply_for(s));
+            Err("pkexec refused".to_string())
+        });
+        assert!(r.is_err());
+        let seen = seen.into_inner();
+        assert_eq!(seen.len(), 1);
+        assert_eq!(word(&seen[0]), "installing");
+        match &seen[0] {
+            Response::Update {
+                latest,
+                percent,
+                size,
+                ..
+            } => {
+                assert_eq!(latest.as_deref(), Some("0.4.0"));
+                assert!(percent.is_none() && size.is_none());
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(word(&reply_for(&st)), "failed");
+        assert!(matches!(st.phase, Phase::Failed(_)), "{:?}", st.phase);
+    }
+
+    #[test]
+    fn ac_a3_a_successful_install_stays_installing_until_the_daemon_exits() {
+        let (mut st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
+        assert!(apply_with(&mut st, |_| Ok(())).is_ok());
+        assert_eq!(st.phase, Phase::Installing("0.4.0".into()));
+        assert_eq!(word(&reply_for(&st)), "installing");
+    }
+
+    #[test]
+    fn ac_a3_without_a_verified_update_the_closure_never_runs() {
+        let (mut st, _rig) = state_for("0.3.3", Os::Linux);
+        let ran = Cell::new(false);
+        for phase in [
+            Phase::Idle,
+            downloading(1, 2),
+            Phase::Failed("0.4.0".into()),
+        ] {
+            st.phase = phase;
+            assert!(
+                apply_with(&mut st, |_| {
+                    ran.set(true);
+                    Ok(())
+                })
+                .is_err()
+            );
+        }
+        assert!(!ran.get());
+    }
+
+    #[test]
+    fn ac_a3_ready_is_never_reported_while_downloading_or_after_a_wrong_hash() {
+        let (mut st, _rig) = state_for("0.3.3", Os::Linux);
+        st.phase = downloading(1, 2);
+        let resp = reply_for(&st);
+        assert_eq!(word(&resp), "downloading");
+        match resp {
+            Response::Update { percent, size, .. } => {
+                assert_eq!((percent, size), (Some(50), Some(2)))
+            }
+            other => panic!("{other:?}"),
+        }
+        let (mut st, _rig) = state_for("0.3.3", Os::Linux);
+        tick(
+            &mut st,
+            &Config::default(),
+            &Fake::new(Feed::Tampered),
+            BASE,
+        );
+        assert_ne!(word(&reply_for(&st)), "ready");
+        assert!(st.package.is_none());
+    }
+
+    // ---- B5
+
+    #[test]
+    fn ac_b5_decision_table() {
+        let m = marker("0.4.3", NOW - 10);
+        assert_eq!(
+            reopen_decision(Some(&m), "0.4.3", NOW),
+            Reopen::Updated("0.4.3".into())
+        );
+        let edge = marker("0.4.3", NOW - MAX_AGE_SECS);
+        assert_eq!(
+            reopen_decision(Some(&edge), "0.4.3", NOW),
+            Reopen::Updated("0.4.3".into()),
+            "exactly 3600 s old still counts"
+        );
+        let old = marker("0.4.3", NOW - 3601);
+        assert_eq!(reopen_decision(Some(&old), "0.4.3", NOW), Reopen::None);
+        assert_eq!(reopen_decision(Some(&m), "0.4.2", NOW), Reopen::None);
+        assert_eq!(reopen_decision(Some(&m), "0.4.4", NOW), Reopen::None);
+        assert_eq!(reopen_decision(None, "0.4.3", NOW), Reopen::None);
+        assert_eq!(MAX_AGE_SECS, 3600);
+        assert_eq!(MARKER_FILE, "update-reopen.json");
+    }
+
+    #[test]
+    fn ac_b5_write_then_take_round_trips_and_deletes_the_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let m = marker("0.4.3", NOW - 10);
+        write(dir.path(), &m).unwrap();
+        let path = dir.path().join(MARKER_FILE);
+        let json: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(json["from"], "0.4.2");
+        assert_eq!(json["to"], "0.4.3");
+        assert_eq!(json["at"], NOW - 10);
+        assert_eq!(listing(dir.path()), vec![MARKER_FILE.to_string()], "atomic");
+        assert_eq!(
+            take(dir.path(), "0.4.3", NOW),
+            Reopen::Updated("0.4.3".into())
+        );
+        assert!(!path.exists(), "read once, then gone");
+        assert_eq!(take(dir.path(), "0.4.3", NOW), Reopen::None);
+    }
+
+    #[test]
+    fn ac_b5_stale_wrong_version_and_corrupt_markers_give_none_and_are_removed() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join(MARKER_FILE);
+        write(dir.path(), &marker("0.4.3", NOW - 3601)).unwrap();
+        assert_eq!(take(dir.path(), "0.4.3", NOW), Reopen::None);
+        assert!(!path.exists(), "stale");
+        write(dir.path(), &marker("0.4.3", NOW - 5)).unwrap();
+        assert_eq!(take(dir.path(), "0.4.2", NOW), Reopen::None);
+        assert!(!path.exists(), "wrong version");
+        for junk in ["", "not json", "{\"from\":1}", "{\"to\":\"0.4.3\"}"] {
+            fs::write(&path, junk).unwrap();
+            assert_eq!(take(dir.path(), "0.4.3", NOW), Reopen::None, "{junk:?}");
+            assert!(!path.exists(), "corrupt {junk:?}");
+        }
+        assert_eq!(take(dir.path(), "0.4.3", NOW), Reopen::None, "no file");
+    }
+
+    #[test]
+    fn ac_b5_start_with_a_marker_opens_the_settings_window_once_on_updates_with_the_banner() {
+        let dir = tempfile::tempdir().unwrap();
+        write(dir.path(), &marker("0.4.3", NOW - 10)).unwrap();
+        let before = ui::settings_opens();
+        assert!(on_start(dir.path(), "0.4.3", NOW, &Config::default()));
+        assert_eq!(ui::settings_opens(), before + 1, "exactly once");
+        assert_eq!(ui::last_settings_page(), Some(3), "the Updates page");
+        assert_eq!(ui::last_settings_banner(), Some("0.4.3".to_string()));
+        // The marker is consumed: a second start opens nothing.
+        assert!(!on_start(dir.path(), "0.4.3", NOW, &Config::default()));
+        assert_eq!(ui::settings_opens(), before + 1);
+    }
+
+    #[test]
+    fn ac_b5_start_without_a_usable_marker_opens_nothing() {
+        let dir = tempfile::tempdir().unwrap();
+        let before = ui::settings_opens();
+        assert!(!on_start(dir.path(), "0.4.3", NOW, &Config::default()));
+        write(dir.path(), &marker("0.4.3", NOW - 7200)).unwrap();
+        assert!(!on_start(dir.path(), "0.4.3", NOW, &Config::default()));
+        write(dir.path(), &marker("0.4.9", NOW - 5)).unwrap();
+        assert!(!on_start(dir.path(), "0.4.3", NOW, &Config::default()));
+        assert_eq!(ui::settings_opens(), before);
+    }
+
+    #[test]
+    fn ac_b5_update_now_with_the_settings_window_visible_writes_the_marker_first() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(before_install(
+            dir.path(),
+            ApplyOrigin::Settings,
+            true,
+            "0.4.2",
+            "0.4.3",
+            NOW
+        ));
+        let json: serde_json::Value =
+            serde_json::from_slice(&fs::read(dir.path().join(MARKER_FILE)).unwrap()).unwrap();
+        assert_eq!(
+            (json["from"].clone(), json["to"].clone()),
+            ("0.4.2".into(), "0.4.3".into())
+        );
+        assert_eq!(json["at"], NOW);
+    }
+
+    // ---- B6
+
+    #[test]
+    fn ac_b6_no_marker_unless_the_settings_click_with_the_window_visible() {
+        for (origin, visible) in [
+            (ApplyOrigin::Settings, false),
+            (ApplyOrigin::Tray, true),
+            (ApplyOrigin::Tray, false),
+            (ApplyOrigin::Auto, true),
+            (ApplyOrigin::Auto, false),
+        ] {
+            let dir = tempfile::tempdir().unwrap();
+            assert!(!before_install(
+                dir.path(),
+                origin,
+                visible,
+                "0.4.2",
+                "0.4.3",
+                NOW
+            ));
+            assert!(!dir.path().join(MARKER_FILE).exists(), "{visible}");
+        }
+    }
+
+    #[test]
+    fn ac_b6_a_tick_that_finds_a_version_notifies_once_and_opens_no_window() {
+        let dir = tempfile::tempdir().unwrap();
+        let (mut st, _rig) = state_for("0.3.3", Os::Linux);
+        let (s, w) = (ui::settings_opens(), ui::welcome_opens());
+        let effects = tick(&mut st, &Config::default(), &Fake::new(Feed::Good), BASE);
+        let notes = effects
+            .iter()
+            .filter(|e| matches!(e, Effect::Notify(..)))
+            .count();
+        assert_eq!(notes, 1, "{effects:?}");
+        assert!(!effects.contains(&Effect::Apply), "ask mode never applies");
+        assert_eq!((ui::settings_opens(), ui::welcome_opens()), (s, w));
+        assert!(!dir.path().join(MARKER_FILE).exists());
+        assert!(listing(dir.path()).is_empty());
+    }
+
+    // ---- B7
+
+    #[test]
+    fn ac_b7_about_is_bilingual_and_third_in_the_linux_labels() {
+        assert_eq!(text::about(Lang::En), "About");
+        assert_eq!(text::about(Lang::Ar), "حول كوارو");
+        let (st, _rig) = state_for("0.3.3", Os::Linux);
+        for lang in [Lang::En, Lang::Ar] {
+            let labels = text::menu_labels(lang, &st);
+            assert_eq!(labels.len(), 6, "{labels:?}");
+            assert_eq!(labels[1], text::get_started(lang));
+            assert_eq!(labels[2], text::about(lang));
+        }
+    }
+
+    #[test]
+    fn ac_b7_windows_menu_has_about_after_get_started_and_seven_entries() {
+        for lang in [Lang::En, Lang::Ar] {
+            let m = menu(lang, 0, false);
+            assert_eq!(m.len(), 7, "{m:?}");
+            assert_eq!(
+                m[2],
+                Item::Action {
+                    command: Command::About,
+                    label: text::about(lang).to_string(),
+                    enabled: true
+                }
+            );
+            assert!(matches!(
+                &m[1],
+                Item::Action {
+                    command: Command::GetStarted,
+                    ..
+                }
+            ));
+            assert!(matches!(
+                &m[3],
+                Item::Action {
+                    command: Command::CancelAll,
+                    ..
+                }
+            ));
+        }
+    }
+
+    #[test]
+    fn ac_b7_the_about_handler_opens_settings_once_on_the_updates_page() {
+        let state = shared(Config::default());
+        let before = ui::settings_opens();
+        ui::about(&state);
+        assert_eq!(ui::settings_opens(), before + 1);
+        assert_eq!(ui::last_settings_page(), Some(3));
+        assert_eq!(ui::last_settings_banner(), None, "About shows no banner");
     }
 }

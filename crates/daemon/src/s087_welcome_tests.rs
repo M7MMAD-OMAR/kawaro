@@ -129,12 +129,12 @@ fn ac1_the_tray_menu_carries_get_started_at_index_one_in_both_languages() {
     });
     for lang in [Lang::En, Lang::Ar] {
         let labels = crate::text::menu_labels(lang, &state);
-        assert_eq!(labels.len(), 5, "{lang:?} {labels:?}");
+        assert_eq!(labels.len(), 6, "{lang:?} {labels:?}");
         assert_eq!(labels[1], crate::text::get_started(lang), "{lang:?}");
         let mut distinct = labels.clone();
         distinct.sort();
         distinct.dedup();
-        assert_eq!(distinct.len(), 5, "duplicate menu labels: {labels:?}");
+        assert_eq!(distinct.len(), 6, "duplicate menu labels: {labels:?}");
     }
 }
 
