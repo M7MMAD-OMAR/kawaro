@@ -433,6 +433,9 @@ impl Inner {
         ui.set_update_available_text(r.available_text.into());
         ui.set_update_state_line(r.state_line.into());
         ui.set_update_banner(r.banner.into());
+        ui.set_update_banner_failed(r.banner_failed);
+        ui.set_update_auto_text(crate::updates::auto_notice(lang).into());
+        ui.set_update_auto_index(to_visual(&MODES, &UpdateMode::Auto, lang.rtl()));
         ui.set_update_cards(update_cards!(UpdateCard, &r.cards));
         ui.set_update_check_enabled(r.check_enabled);
         ui.set_update_apply_enabled(r.apply_enabled);
@@ -672,6 +675,13 @@ impl SettingsWindow {
         inner.show_update(&inner.ui.borrow(), inner.lang());
     }
 
+    /// Shows how the last install ended as a banner, or clears it (S-101 B3).
+    pub fn show_update_result(&self, result: Option<crate::UpdateResult>) {
+        let inner = &self.inner;
+        inner.update.borrow_mut().set_result(result);
+        inner.show_update(&inner.ui.borrow(), inner.lang());
+    }
+
     /// Update now was accepted but waits for running jobs (S-054b AC7).
     pub fn show_update_deferred(&self) {
         let inner = &self.inner;
@@ -824,6 +834,27 @@ impl SettingsWindow {
     #[doc(hidden)]
     pub fn update_card_title_rect(&self, i: usize) -> crate::Rect {
         crate::shell::probe::card_title_rect(&*self.inner.ui.borrow(), i)
+    }
+
+    /// The automatic install sentence on screen; empty in ask mode.
+    #[doc(hidden)]
+    pub fn update_auto_notice(&self) -> String {
+        self.inner.ui.borrow().get_update_auto_notice().into()
+    }
+
+    #[doc(hidden)]
+    pub fn update_auto_notice_rect(&self) -> crate::Rect {
+        crate::shell::probe::rect_of(&*self.inner.ui.borrow(), "AppShell::auto-notice")
+    }
+
+    #[doc(hidden)]
+    pub fn update_state_line_rect(&self) -> crate::Rect {
+        crate::shell::probe::rect_of(&*self.inner.ui.borrow(), "AppShell::state-line")
+    }
+
+    #[doc(hidden)]
+    pub fn update_banner_rect(&self) -> crate::Rect {
+        crate::shell::probe::rect_of(&*self.inner.ui.borrow(), "AppShell::banner")
     }
 
     /// The y of every form row of the Updates page.

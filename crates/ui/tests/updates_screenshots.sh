@@ -3,14 +3,21 @@
 # each update state, in Arabic and English, into a private headless KWin.
 # Nothing touches the live desktop.
 #
-# Usage: crates/ui/tests/updates_screenshots.sh [OUTDIR]
+# S-101 B4: with the first argument `s101` it writes the 20 images of S-101
+# (auto-notice, downloading, installing, updated, failed; en and ar; light
+# and dark) at the real default size 880x640 to docs/screenshots/s101.
+#
+# Usage: crates/ui/tests/updates_screenshots.sh [OUTDIR | s101]
 #   With no OUTDIR it writes the 16 S-099b images (four states: downloading,
 #   ready, installing, updated; en and ar; light and dark) to
 #   docs/screenshots/s099 as updates-<lang>-<scheme>-<state>.png.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
-OUTDIR="$(mkdir -p "${1:-$ROOT/docs/screenshots/s099}" && cd "${1:-$ROOT/docs/screenshots/s099}" && pwd)"
+SET=s099
+if [ "${1:-}" = "s101" ]; then SET=s101; shift; fi
+DEFAULT_OUT="$ROOT/docs/screenshots/$SET"
+OUTDIR="$(mkdir -p "${1:-$DEFAULT_OUT}" && cd "${1:-$DEFAULT_OUT}" && pwd)"
 (cd "$ROOT" && cargo build --quiet --release -p kawaro-ui --example settings_snapshot) || exit 2
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/settings_snapshot"
 
@@ -22,6 +29,21 @@ inner() {
   [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "private compositor did not start"; kill $cpid; return 2; }
   sleep 1
   local fail=0
+  if [ "$SET" = s101 ]; then
+    for lang in en ar; do
+      for scheme in light dark; do
+        for pair in auto-notice:auto-notice downloading:downloading installing:installing \
+            updated:result-updated failed:result-failed; do
+          KAWARO_COLOR_SCHEME=$scheme KAWARO_REDUCED_MOTION=1 \
+            "$BIN" "$OUTDIR/updates-$lang-$scheme-${pair%%:*}.png" --lang "$lang" \
+            --page 3 --size 880x640 --update-state "${pair##*:}" || fail=1
+        done
+      done
+    done
+    kill $cpid 2>/dev/null
+    timeout 5 tail --pid=$cpid -f /dev/null || kill -9 $cpid 2>/dev/null
+    return $fail
+  fi
   for lang in en ar; do
     for scheme in light dark; do
       for state in downloading ready installing updated; do
@@ -46,7 +68,7 @@ inner() {
   return $fail
 }
 export -f inner
-export BIN OUTDIR
+export BIN OUTDIR SET
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"

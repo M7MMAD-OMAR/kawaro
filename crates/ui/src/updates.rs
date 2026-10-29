@@ -27,6 +27,24 @@ pub enum UpdateState {
     Unavailable,
 }
 
+/// How a finished install ended, shown on the page after a restart
+/// (S-101 B3).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum UpdateResult {
+    /// The app restarted into this version.
+    Updated(String),
+    /// This version did not install; the old one still runs.
+    Failed(String),
+}
+
+/// The line of the automatic install mode (S-101 A4).
+pub(crate) fn auto_notice(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Automatic install is on. A found update installs by itself when no job runs.",
+        Lang::Ar => "التثبيت التلقائي مفعّل. يُثبَّت أي تحديث تلقائياً عند عدم وجود مهام جارية.",
+    }
+}
+
 /// The version string shared by the welcome footer and any About surface.
 pub fn about_line(lang: Lang) -> String {
     let v = env!("CARGO_PKG_VERSION");
@@ -44,6 +62,8 @@ pub(crate) struct Rendered {
     pub(crate) state_line: String,
     /// The `Updated to X` line, empty outside the Updated state.
     pub(crate) banner: String,
+    /// The banner reports a failed install.
+    pub(crate) banner_failed: bool,
     pub(crate) check_enabled: bool,
     pub(crate) apply_enabled: bool,
     pub(crate) cards: Vec<Card>,
@@ -114,6 +134,8 @@ pub(crate) struct UpdateModel {
     kept_available: bool,
     /// When the last poll fired, in the window clock (S-099 B3).
     poll_from: Option<u64>,
+    /// The result of an install, shown until the next check (S-101 B3).
+    result: Option<UpdateResult>,
 }
 
 impl Default for UpdateModel {
@@ -129,6 +151,7 @@ impl Default for UpdateModel {
             notes: Notes::default(),
             kept_available: false,
             poll_from: None,
+            result: None,
         }
     }
 }
@@ -162,13 +185,19 @@ impl UpdateModel {
             self.state = None;
         }
         self.poll_from = None;
+        self.result = None;
+    }
+
+    /// Shows (or clears) the result of an install as a banner.
+    pub(crate) fn set_result(&mut self, result: Option<UpdateResult>) {
+        self.result = result;
     }
 
     fn polling(&self) -> bool {
         self.service
             && matches!(
                 self.state,
-                Some(UpdateState::Downloading(_) | UpdateState::Installing)
+                Some(UpdateState::Checking | UpdateState::Downloading(_) | UpdateState::Installing)
             )
     }
 
@@ -225,6 +254,7 @@ impl UpdateModel {
             return false;
         }
         self.kept_available = self.available_shown();
+        self.result = None;
         self.state = Some(UpdateState::Checking);
         self.deferred = false;
         true
@@ -251,10 +281,26 @@ impl UpdateModel {
             (Some(v), false) => format!("Available version: {v}"),
             (None, _) => String::new(),
         };
-        let banner = match &self.state {
-            Some(UpdateState::Updated(_)) => self.state_line(ar),
+        let banner = match (&self.result, &self.state) {
+            (Some(UpdateResult::Updated(v)), _) => {
+                if ar {
+                    format!("تم التحديث إلى {v}")
+                } else {
+                    format!("Updated to {v}")
+                }
+            }
+            (Some(UpdateResult::Failed(v)), _) => {
+                let now = &self.version;
+                if ar {
+                    format!("لم يُثبَّت التحديث {v}. ما زال كوارو {now}.")
+                } else {
+                    format!("Update to {v} did not install. Kawaro is still {now}.")
+                }
+            }
+            (None, Some(UpdateState::Updated(_))) => self.state_line(ar),
             _ => String::new(),
         };
+        let banner_failed = matches!(self.result, Some(UpdateResult::Failed(_)));
         let mut cards = Vec::new();
         let installed = whats_new::installed(lang);
         if !installed.is_empty() {
@@ -275,6 +321,7 @@ impl UpdateModel {
             available_text,
             state_line: self.state_line(ar),
             banner,
+            banner_failed,
             check_enabled: self.check_enabled(),
             apply_enabled: self.apply_enabled(),
             cards,

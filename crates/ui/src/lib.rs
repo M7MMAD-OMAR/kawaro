@@ -63,7 +63,7 @@ pub use kawaro_core::i18n::Lang;
 pub use settings::SettingsWindow;
 pub use shell::{Rect, privacy_statement, reset_page_memory};
 mod updates;
-pub use updates::{UpdateState, about_line, state_from_status};
+pub use updates::{UpdateResult, UpdateState, about_line, state_from_status};
 
 use layout::{Nav, Plan};
 use slint::winit_030::{CustomApplicationHandler, EventResult, winit};

@@ -2,7 +2,7 @@
 //! reference.
 //!
 //!     settings_snapshot OUT.png [--lang ar|en] [--compare REF.png]
-//!                       [--update-state up-to-date|checking|downloading|ready|installing|updated|failed|unavailable|off]
+//!                       [--update-state up-to-date|checking|downloading|ready|installing|updated|failed|unavailable|off|auto-notice|result-updated|result-failed]
 //!
 //! The window shows a sample configuration with the subfolder option on, so
 //! the folder field is enabled. With `--compare` the exit code is 1 when more
@@ -157,6 +157,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             _ => (UpdateState::UpToDate, false),
         };
         win.set_update_view(env!("CARGO_PKG_VERSION"), state, running);
+    }
+    // S-101: the notice of the automatic mode, and the result banners of a
+    // restart. The old `updated` state above is the S-099 one.
+    match o.update_state.as_deref() {
+        Some("auto-notice") => {
+            win.set_update_mode(kawaro_core::config::UpdateMode::Auto);
+            win.set_update_view(env!("CARGO_PKG_VERSION"), UpdateState::UpToDate, true);
+        }
+        Some("result-updated") => {
+            win.set_update_view(env!("CARGO_PKG_VERSION"), UpdateState::UpToDate, true);
+            win.show_update_result(Some(kawaro_ui::UpdateResult::Updated("0.4.3".into())));
+        }
+        Some("result-failed") => {
+            win.set_update_view(env!("CARGO_PKG_VERSION"), UpdateState::UpToDate, true);
+            win.show_update_result(Some(kawaro_ui::UpdateResult::Failed("0.4.3".into())));
+        }
+        _ => {}
     }
 
     let result = std::rc::Rc::new(std::cell::Cell::new(Ok::<(), String>(())));

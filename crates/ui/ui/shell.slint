@@ -278,6 +278,14 @@ export component AppShell inherits Rectangle {
     in property <string> update-state-line;
     // The "Updated to X" line: the state line then reads as a success.
     in property <string> update-banner;
+    // The banner reports a failed install (S-101 B3).
+    in property <bool> update-banner-failed;
+    // The sentence of the automatic install mode and the visual index of
+    // that mode in `update-mode-items`; the sentence shows while the mode
+    // control sits on it (S-101 A4).
+    in property <string> update-auto-text;
+    in property <int> update-auto-index: -1;
+    out property <string> update-auto-notice: root.update-mode == root.update-auto-index ? root.update-auto-text : "";
     in property <[UpdateCard]> update-cards;
     in property <bool> update-check-enabled;
     in property <bool> update-apply-enabled;
@@ -615,9 +623,10 @@ export component AppShell inherits Rectangle {
                                         horizontal-alignment: right;
                                     }
                                 }
-                                // Two lines are reserved, so a state change
-                                // never moves the rows below it.
-                                Rectangle {
+                                // Two lines are reserved for each of the
+                                // three lines below, so a state change never
+                                // moves the rows below them.
+                                auto-notice := Rectangle {
                                     min-height: Tokens.font-body * 2.7;
                                     max-height: Tokens.font-body * 2.7;
                                     clip: true;
@@ -625,11 +634,41 @@ export component AppShell inherits Rectangle {
                                         x: 0;
                                         y: 0;
                                         width: parent.width;
-                                        text: root.update-state-line;
+                                        text: root.update-auto-notice;
                                         wrap: word-wrap;
                                         font-size: Tokens.font-body;
-                                        font-weight: root.update-banner != "" ? Tokens.weight-semibold : Tokens.weight-regular;
-                                        color: root.update-banner != "" ? Tokens.success : Tokens.text-secondary;
+                                        color: Tokens.text-primary;
+                                        horizontal-alignment: root.rtl ? right : left;
+                                    }
+                                }
+                                banner := Rectangle {
+                                    min-height: Tokens.font-body * 2.7;
+                                    max-height: Tokens.font-body * 2.7;
+                                    clip: true;
+                                    Text {
+                                        x: 0;
+                                        y: 0;
+                                        width: parent.width;
+                                        text: root.update-banner;
+                                        wrap: word-wrap;
+                                        font-size: Tokens.font-body;
+                                        font-weight: Tokens.weight-semibold;
+                                        color: root.update-banner-failed ? Tokens.danger : Tokens.success;
+                                        horizontal-alignment: root.rtl ? right : left;
+                                    }
+                                }
+                                state-line := Rectangle {
+                                    min-height: Tokens.font-body * 2.7;
+                                    max-height: Tokens.font-body * 2.7;
+                                    clip: true;
+                                    Text {
+                                        x: 0;
+                                        y: 0;
+                                        width: parent.width;
+                                        text: root.update-state-line == root.update-banner ? "" : root.update-state-line;
+                                        wrap: word-wrap;
+                                        font-size: Tokens.font-body;
+                                        color: Tokens.text-secondary;
                                         horizontal-alignment: root.rtl ? right : left;
                                     }
                                 }

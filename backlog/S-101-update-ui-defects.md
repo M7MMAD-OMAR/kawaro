@@ -1,5 +1,5 @@
 # S-101 Update page shows what really happens: progress, install mode, installing, result
-Status: draft (waiting for manager approval)
+Status: review
 
 ## Story
 As a user pressing Check for updates, I want the page to show the real download percent, to install only when I press Update now (unless I chose automatic mode, which the page then states), to say "Installing" before the window closes, and to reopen with the result, so that I never watch a frozen line or a window that vanishes.
@@ -47,3 +47,4 @@ The MSI upgrade fix (S-100), a progress bar, speed and time left, Linux pkexec d
 
 ## Review log
 - Tester 2026-10-30: `crates/ui/tests/s101_update_page.rs` (A2, A3 config, A4, B1 line, B3 banners, B4 probe and 20 files) and `crates/daemon/tests/s101_reopen.rs` (B2 table). The S-099b test `ac_b3_no_poll_in_the_other_states` drops Checking, since A2 now polls there. Both new files fail to compile, the expected red for new API: `kawaro_ui::UpdateResult`, `show_update_result`, `update_auto_notice`, `update_auto_notice_rect`, `update_state_line_rect`, `update_banner_rect` (E0432/E0599, 12 errors), and `crates/daemon/src/reopen_logic.rs` missing (pure module, std and kawaro_core only; the contract is in the test header). Not covered, needs in-binary tests in `crates/daemon/src/*_tests.rs` (outside the tester scope): A1, A3 apply counts, B1 fake clock and quit order, B3 daemon start, B2 write/read of the marker with a visible window.
+- Implementer 2026-10-30: A1 to B4 done; tests in crates/daemon/src/s101_tests.rs (child of update_tests.rs). Old `reopen::reopen_decision`/`take` kept for the S-099 tests. B5 (Windows VM) stays with the release step. Screenshots in docs/screenshots/s101 (20). Result file read by `on_start` is the `outcome.failed` form the helper writes, and the `status: failed` form of the test header.

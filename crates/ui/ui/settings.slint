@@ -40,6 +40,10 @@ export component SettingsUi inherits MaterialWindow {
     in-out property <string> update-available-text <=> shell.update-available-text;
     in-out property <string> update-state-line <=> shell.update-state-line;
     in-out property <string> update-banner <=> shell.update-banner;
+    in-out property <bool> update-banner-failed <=> shell.update-banner-failed;
+    in-out property <string> update-auto-text <=> shell.update-auto-text;
+    in-out property <int> update-auto-index <=> shell.update-auto-index;
+    out property <string> update-auto-notice <=> shell.update-auto-notice;
     in-out property <[UpdateCard]> update-cards <=> shell.update-cards;
     in-out property <bool> update-check-enabled <=> shell.update-check-enabled;
     in-out property <bool> update-apply-enabled <=> shell.update-apply-enabled;

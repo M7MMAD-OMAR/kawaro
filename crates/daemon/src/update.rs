@@ -377,33 +377,66 @@ pub fn apply_with(
     result
 }
 
-/// The version being installed, kept apart from the update lock like the
-/// download progress: the install holds the lock, and a poll must still be
-/// answered at once. Tests run in parallel threads, so a test build keeps the
-/// value per thread and no test sees another one's.
+/// The version being installed and when it started, kept apart from the
+/// update lock like the download progress: the install holds the lock, and a
+/// poll must still be answered at once. Tests run in parallel threads, so a
+/// test build keeps the value per thread and no test sees another one's.
+type InstallingNow = Option<(String, std::time::Instant)>;
 #[cfg(not(test))]
-static INSTALLING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+static INSTALLING: std::sync::Mutex<InstallingNow> = std::sync::Mutex::new(None);
 #[cfg(test)]
 thread_local! {
-    static INSTALLING: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+    static INSTALLING: std::cell::RefCell<InstallingNow> = const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(not(test))]
 pub fn set_installing(version: Option<String>) {
-    *lock(&INSTALLING) = version;
+    *lock(&INSTALLING) = version.map(|v| (v, std::time::Instant::now()));
 }
 #[cfg(test)]
 pub fn set_installing(version: Option<String>) {
-    INSTALLING.with(|v| *v.borrow_mut() = version);
+    INSTALLING.with(|v| *v.borrow_mut() = version.map(|v| (v, std::time::Instant::now())));
 }
 
 #[cfg(not(test))]
-fn installing_version() -> Option<String> {
+fn installing_now() -> InstallingNow {
     lock(&INSTALLING).clone()
 }
 #[cfg(test)]
-fn installing_version() -> Option<String> {
+fn installing_now() -> InstallingNow {
     INSTALLING.with(|v| v.borrow().clone())
+}
+
+fn installing_version() -> Option<String> {
+    installing_now().map(|(v, _)| v)
+}
+
+/// The daemon stays alive this long after an install started, so the open
+/// window gets at least one `installing` answer before it exits (S-101 B1).
+pub const INSTALL_HOLD: Duration = Duration::from_millis(1500);
+/// How often the hold looks at the clock.
+const HOLD_STEP: Duration = Duration::from_millis(250);
+
+/// Waits until `INSTALL_HOLD` passed since `since_ms` on `now_ms`'s clock,
+/// sleeping `HOLD_STEP` at a time. Both clocks are injected for the tests.
+pub fn hold_for_installing(
+    since_ms: u64,
+    mut now_ms: impl FnMut() -> u64,
+    mut sleep: impl FnMut(Duration),
+) {
+    let hold = INSTALL_HOLD.as_millis() as u64;
+    while now_ms().saturating_sub(since_ms) < hold {
+        sleep(HOLD_STEP);
+    }
+}
+
+/// Called before the daemon quits for an install: waits out the rest of the
+/// hold. Does nothing when no install runs.
+pub fn hold_before_quit() {
+    let Some((_, since)) = installing_now() else {
+        return;
+    };
+    hold_for_installing(0, || since.elapsed().as_millis() as u64, std::thread::sleep);
 }
 
 /// After an install that did not start: the verified package is still on

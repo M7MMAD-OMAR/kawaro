@@ -29,6 +29,7 @@ mod shell_open;
 mod state;
 // The tray menu text is used by the Windows tray from S-046 on.
 mod reopen;
+mod reopen_logic;
 #[cfg_attr(windows, allow(dead_code))]
 mod text;
 mod tray;

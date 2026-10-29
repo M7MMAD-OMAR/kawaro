@@ -229,6 +229,9 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         }
         Request::Quit => {
             reply(&mut stream, &Response::Ok);
+            // An install asked for this quit: polls are still answered
+            // `installing` for a moment before the window goes (S-101 B1).
+            crate::update::hold_before_quit();
             ui::quit();
         }
     }

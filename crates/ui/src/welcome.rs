@@ -204,6 +204,13 @@ impl Inner {
         ui.set_settings_update_available_text(r.available_text.into());
         ui.set_settings_update_state_line(r.state_line.into());
         ui.set_settings_update_banner(r.banner.into());
+        ui.set_settings_update_banner_failed(r.banner_failed);
+        ui.set_settings_update_auto_text(crate::updates::auto_notice(lang).into());
+        ui.set_settings_update_auto_index(settings::to_visual(
+            &settings::MODES,
+            &kawaro_core::config::UpdateMode::Auto,
+            lang.rtl(),
+        ));
         ui.set_settings_update_cards(settings::update_cards!(UpdateCard, &r.cards));
         ui.set_settings_update_check_enabled(r.check_enabled);
         ui.set_settings_update_apply_enabled(r.apply_enabled);
@@ -613,6 +620,13 @@ impl WelcomeWindow {
             .update
             .borrow_mut()
             .set_available(version, size, notes);
+        inner.show_update(&inner.ui.borrow(), inner.current_lang());
+    }
+
+    /// Shows how the last install ended as a banner, or clears it (S-101 B3).
+    pub fn show_update_result(&self, result: Option<crate::UpdateResult>) {
+        let inner = &self.inner;
+        inner.update.borrow_mut().set_result(result);
         inner.show_update(&inner.ui.borrow(), inner.current_lang());
     }
 

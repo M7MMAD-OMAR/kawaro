@@ -132,6 +132,27 @@ pub fn run_effects(effects: Vec<Effect>, lang: Lang) {
     }
 }
 
+fn config_dir() -> Option<PathBuf> {
+    Config::path().and_then(|p| p.parent().map(std::path::Path::to_path_buf))
+}
+
+/// An install the user did not start with the button (an automatic one, or
+/// one that waited for jobs) still reopens the settings window when it was
+/// visible (S-101 B2). The click already wrote its own marker.
+fn mark_auto_reopen(to: &str) {
+    let Some(dir) = config_dir() else { return };
+    if dir.join(crate::reopen::MARKER_FILE).exists() {
+        return;
+    }
+    crate::reopen::before_auto_install(
+        &dir,
+        crate::ui::settings_visible(),
+        env!("CARGO_PKG_VERSION"),
+        to,
+        unix_now(),
+    );
+}
+
 fn apply(lang: Lang) {
     let mut version = String::new();
     // The install holds the update lock, so a poll is answered from
@@ -144,6 +165,7 @@ fn apply(lang: Lang) {
             };
             version = ready.version.clone();
             crate::update::set_installing(Some(version.clone()));
+            mark_auto_reopen(&version);
             install(
                 lang,
                 package.path(),
@@ -157,12 +179,16 @@ fn apply(lang: Lang) {
     match result {
         Err(_) => {
             crate::update::install_failed(&mut lock(shared()));
+            if let Some(dir) = config_dir() {
+                crate::reopen::clear(&dir);
+            }
             if !version.is_empty() {
                 notify::notify_update(lang, UpdateKind::Failed, &version);
             }
         }
         Ok(()) if cfg!(unix) => {
             notify::notify_update(lang, UpdateKind::Updated, &version);
+            crate::update::hold_before_quit();
             restart_daemon();
         }
         Ok(()) => {}

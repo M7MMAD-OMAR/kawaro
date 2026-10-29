@@ -435,8 +435,15 @@ pub fn last_settings_banner() -> Option<String> {
     LAST_BANNER.with(|c| c.borrow().clone())
 }
 
+/// The result the last `show_settings` call put on the page.
+#[cfg(test)]
+pub fn last_settings_result() -> Option<kawaro_ui::UpdateResult> {
+    LAST_RESULT.with(|c| c.borrow().clone())
+}
+
 #[cfg(test)]
 thread_local! {
+    static LAST_RESULT: RefCell<Option<kawaro_ui::UpdateResult>> = const { RefCell::new(None) };
     static SETTINGS_OPENS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     static WELCOME_OPENS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     static LAST_PAGE: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
@@ -453,7 +460,21 @@ pub fn open_settings(config: Config) {
 /// Opens the settings window on the Updates page, with `Updated to X` when
 /// `updated` names the version (S-099 B5, B7).
 pub fn open_settings_updates(config: Config, updated: Option<String>) {
-    show_settings(config, Some(UPDATES_PAGE), updated);
+    show_settings(
+        config,
+        Some(UPDATES_PAGE),
+        updated.map(kawaro_ui::UpdateResult::Updated),
+    );
+}
+
+/// Opens the settings window on the Updates page with the failed banner:
+/// `version` did not install and the old one still runs (S-101 B3).
+pub fn open_settings_failed(config: Config, version: String) {
+    show_settings(
+        config,
+        Some(UPDATES_PAGE),
+        Some(kawaro_ui::UpdateResult::Failed(version)),
+    );
 }
 
 /// The tray's About item: the Updates page, no banner (S-099 B7).
@@ -462,14 +483,20 @@ pub fn about(state: &Shared) {
     open_settings_updates(config, None);
 }
 
-fn show_settings(config: Config, page: Option<usize>, updated: Option<String>) {
+fn show_settings(config: Config, page: Option<usize>, result: Option<kawaro_ui::UpdateResult>) {
     // S-086 AC1: counted before the post, so the routing test sees it
     // without running the event loop.
     #[cfg(test)]
     {
         SETTINGS_OPENS.with(|c| c.set(c.get() + 1));
         LAST_PAGE.with(|c| c.set(page));
-        LAST_BANNER.with(|c| *c.borrow_mut() = updated.clone());
+        LAST_BANNER.with(|c| {
+            *c.borrow_mut() = match &result {
+                Some(kawaro_ui::UpdateResult::Updated(v)) => Some(v.clone()),
+                _ => None,
+            }
+        });
+        LAST_RESULT.with(|c| *c.borrow_mut() = result.clone());
     }
     let _ = slint::invoke_from_event_loop(move || {
         if let Err(e) = welcome_window() {
@@ -494,12 +521,15 @@ fn show_settings(config: Config, page: Option<usize>, updated: Option<String>) {
             if let Some(page) = page {
                 win.show_settings_page(page);
             }
-            if let Some(version) = &updated {
-                win.set_update_view(
-                    env!("CARGO_PKG_VERSION"),
-                    kawaro_ui::UpdateState::Updated(version.clone()),
-                    true,
-                );
+            if let Some(result) = &result {
+                if matches!(result, kawaro_ui::UpdateResult::Updated(_)) {
+                    win.set_update_view(
+                        env!("CARGO_PKG_VERSION"),
+                        kawaro_ui::UpdateState::UpToDate,
+                        true,
+                    );
+                }
+                win.show_update_result(Some(result.clone()));
             }
             raise_welcome(win);
         });
@@ -670,6 +700,22 @@ pub(crate) fn available_view(answer: &Option<kawaro_core::ipc::Response>) -> Opt
         }),
         _ => None,
     }
+}
+
+/// True while the settings page of the main window is on screen. Asks the
+/// event loop and waits a moment for the answer, so it is for a worker
+/// thread, never the UI thread itself (S-101 B2).
+pub fn settings_visible() -> bool {
+    let (tx, rx) = std::sync::mpsc::channel();
+    let asked = slint::invoke_from_event_loop(move || {
+        let on = WELCOME.with(|w| {
+            w.borrow()
+                .as_ref()
+                .is_some_and(|w| w.is_visible() && w.settings_visible())
+        });
+        let _ = tx.send(on);
+    });
+    asked.is_ok() && rx.recv_timeout(Duration::from_millis(500)).unwrap_or(false)
 }
 
 /// The click on Update now in the visible settings window: leaves the marker

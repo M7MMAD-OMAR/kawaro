@@ -1982,3 +1982,8 @@ mod s099b_rework {
         assert_eq!(st.phase, Phase::Failed("0.4.0".into()));
     }
 }
+
+// S-101 (backlog/S-101-update-ui-defects.md): the in-binary tests of the
+// daemon side, in their own file.
+#[path = "s101_tests.rs"]
+mod s101;
