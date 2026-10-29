@@ -29,7 +29,7 @@ PAD = 4
 BASE = "https://kawaro.sbarah.com/"
 REPO = "https://github.com/M7MMAD-OMAR/kawaro"
 RELEASES = REPO + "/releases"
-VERSION = "0.4.0"
+VERSION = "0.4.1"
 # S-061: download links point at release assets only once the release exists.
 # Set RELEASE_PUBLISHED=1 after the tag and its assets are on GitHub.
 PUBLISHED = os.environ.get("RELEASE_PUBLISHED", "0") == "1"

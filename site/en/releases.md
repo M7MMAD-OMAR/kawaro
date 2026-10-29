@@ -1,11 +1,14 @@
 # Releases
 
-## 0.4.0
+## 0.4.1
+
+## 0.4.1 (2026-10-29)
 - App shell for settings and welcome ([S-094](https
 - Updates in settings (S-090)
 - WinGet per-user scope guard ([S-078](https
 - WinGet version consistency guard ([S-078](https
 - WinGet package submission ([S-078](https
+- README and website simplified
 
 ## 0.4.0 (2026-10-27)
 - Code signing policy and SignPath release signing
