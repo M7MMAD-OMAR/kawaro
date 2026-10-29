@@ -12,7 +12,8 @@
 //! are the only place that knows the order.
 
 use crate::Lang;
-use crate::updates::{UpdateModel, UpdateState};
+use crate::shell::{privacy_statement, remember_page, remembered_page};
+use crate::updates::{UpdateModel, UpdateState, about_line};
 use kawaro_core::config::{Config, LangSetting, OutputPlace, Quality, Theme, UpdateMode};
 use kawaro_core::update::Channel;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
@@ -23,7 +24,7 @@ pub(crate) mod generated {
     include!(concat!(env!("OUT_DIR"), "/settings_ui.rs"));
 }
 
-use generated::{Palette, SettingsText, SettingsUi};
+use generated::{FormValues, Palette, SettingsText, SettingsUi};
 
 /// Options in reading order, as shown to an English reader from left to right.
 pub(crate) const LANGUAGES: [LangSetting; 3] =
@@ -127,6 +128,78 @@ impl FormState {
     }
 }
 
+/// Copies the strings of one generated `SettingsText` into another generated
+/// type with the same fields: the settings window and the welcome window each
+/// compile `ui/shell.slint` into their own Rust module (S-094).
+macro_rules! convert_text {
+    ($ty:path, $src:expr) => {{
+        let t = $src;
+        $ty {
+            title: t.title,
+            language: t.language,
+            theme: t.theme,
+            output: t.output,
+            folder: t.folder,
+            quality: t.quality,
+            notify: t.notify,
+            notify_long_only: t.notify_long_only,
+            open_folder: t.open_folder,
+            save: t.save,
+            cancel: t.cancel,
+            updates: t.updates,
+            update_check: t.update_check,
+            update_apply: t.update_apply,
+            update_auto: t.update_auto,
+            update_channel: t.update_channel,
+            update_mode: t.update_mode,
+            app_name: t.app_name,
+            version: t.version,
+            logo_label: t.logo_label,
+            nav_intro: t.nav_intro,
+            nav_general: t.nav_general,
+            nav_conversion: t.nav_conversion,
+            nav_notifications: t.nav_notifications,
+            nav_about: t.nav_about,
+            group_language: t.group_language,
+            group_results: t.group_results,
+            group_finish: t.group_finish,
+            group_integration: t.group_integration,
+            group_update_settings: t.group_update_settings,
+            folder_hint: t.folder_hint,
+            drop_shortcut: t.drop_shortcut,
+            unsaved: t.unsaved,
+            save_failed: t.save_failed,
+            about_version: t.about_version,
+            about_description: t.about_description,
+            licence_label: t.licence_label,
+            licence: t.licence,
+            privacy: t.privacy,
+        }
+    }};
+}
+pub(crate) use convert_text;
+
+/// The values of a [`FormState`] as the generated `FormValues` of a window.
+macro_rules! form_values {
+    ($ty:path, $state:expr) => {{
+        let s = $state;
+        $ty {
+            language: s.language,
+            theme: s.theme,
+            output: s.output,
+            quality: s.quality,
+            folder: s.folder.as_str().into(),
+            notify: s.notify,
+            notify_long_only: s.notify_long_only,
+            open_folder: s.open_folder,
+            update_check: s.update_check,
+            update_channel: s.update_channel,
+            update_mode: s.update_mode,
+        }
+    }};
+}
+pub(crate) use form_values;
+
 /// All strings of the window in reading order.
 pub(crate) struct Strings {
     pub(crate) text: SettingsText,
@@ -137,6 +210,9 @@ pub(crate) struct Strings {
     pub(crate) channels: [&'static str; 2],
     pub(crate) modes: [&'static str; 2],
 }
+
+/// The header and About name, one string in both languages (S-094 AC1).
+pub(crate) const APP_NAME: &str = "كوارو | Kawaro";
 
 /// Automatic install exists only on Windows (S-054b AC4); elsewhere the
 /// choice is kept but the update still waits for the user, and the label says so.
@@ -170,6 +246,28 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 update_auto: "ابحث عن التحديثات تلقائيًا".into(),
                 update_channel: "قناة التحديث".into(),
                 update_mode: "تثبيت التحديثات".into(),
+                app_name: APP_NAME.into(),
+                version: env!("CARGO_PKG_VERSION").into(),
+                logo_label: "شعار كوارو".into(),
+                nav_intro: "المقدمة".into(),
+                nav_general: "عام".into(),
+                nav_conversion: "التحويل".into(),
+                nav_notifications: "الإشعارات والتكامل".into(),
+                nav_about: "حول".into(),
+                group_language: "اللغة والمظهر".into(),
+                group_results: "النتائج".into(),
+                group_finish: "عند انتهاء المهمة".into(),
+                group_integration: "التكامل".into(),
+                group_update_settings: "إعدادات التحديث".into(),
+                folder_hint: "يُستخدم عند حفظ النتائج في مجلد فرعي.".into(),
+                drop_shortcut: "اختصار الإفلات".into(),
+                unsaved: "تغييرات غير محفوظة".into(),
+                save_failed: "تعذر حفظ الإعدادات، حاول مرة أخرى.".into(),
+                about_version: about_line(Lang::Ar).into(),
+                about_description: "حوّل الملفات وعالجها على جهازك.".into(),
+                licence_label: "الرخصة".into(),
+                licence: env!("CARGO_PKG_LICENSE").into(),
+                privacy: privacy_statement(Lang::Ar).into(),
             },
             languages: ["تلقائي", "العربية", "English"],
             themes: ["تلقائي", "فاتح", "داكن"],
@@ -197,6 +295,28 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 update_auto: "Check automatically".into(),
                 update_channel: "Update channel".into(),
                 update_mode: "Install updates".into(),
+                app_name: APP_NAME.into(),
+                version: env!("CARGO_PKG_VERSION").into(),
+                logo_label: "Kawaro logo".into(),
+                nav_intro: "Introduction".into(),
+                nav_general: "General".into(),
+                nav_conversion: "Conversion".into(),
+                nav_notifications: "Notifications and integration".into(),
+                nav_about: "About".into(),
+                group_language: "Language and appearance".into(),
+                group_results: "Results".into(),
+                group_finish: "When a job finishes".into(),
+                group_integration: "Integration".into(),
+                group_update_settings: "Update settings".into(),
+                folder_hint: "Used when results go in a subfolder.".into(),
+                drop_shortcut: "Drop shortcut".into(),
+                unsaved: "Unsaved changes".into(),
+                save_failed: "Could not save settings. Please try again.".into(),
+                about_version: about_line(Lang::En).into(),
+                about_description: "Convert and process files on your own computer.".into(),
+                licence_label: "Licence".into(),
+                licence: env!("CARGO_PKG_LICENSE").into(),
+                privacy: privacy_statement(Lang::En).into(),
             },
             languages: ["Automatic", "العربية", "English"],
             themes: ["Automatic", "Light", "Dark"],
@@ -258,6 +378,8 @@ impl Inner {
         ui.on_update_check(move || with(&w, Inner::update_check));
         let w = Rc::downgrade(self);
         ui.on_update_apply(move || with(&w, Inner::update_apply));
+        // The page the user picked is remembered while the process runs.
+        ui.on_page_changed(|page| remember_page(usize::try_from(page).unwrap_or(0)));
         let w = Rc::downgrade(self);
         ui.window().on_close_requested(move || {
             with(&w, Inner::close);
@@ -294,6 +416,11 @@ impl Inner {
         if self.rtl.get() { Lang::Ar } else { Lang::En }
     }
 
+    #[cfg(feature = "testing-hooks")]
+    fn is_rtl(&self) -> bool {
+        self.rtl.get()
+    }
+
     fn update_check(&self) {
         if !self.update.borrow_mut().begin_check() {
             return;
@@ -325,6 +452,9 @@ impl Inner {
         let mut translated = FormState::from_config(&config, lang.rtl());
         translated.folder = state.folder;
         self.set_state(&translated);
+        // The loaded values follow the language: same settings, new indices.
+        let opened = self.opened.borrow();
+        self.set_loaded(&FormState::from_config(&opened, lang.rtl()));
     }
 
     fn state(&self) -> FormState {
@@ -360,6 +490,11 @@ impl Inner {
         ui.set_update_mode(s.update_mode);
     }
 
+    /// The values the unsaved marker compares against.
+    fn set_loaded(&self, s: &FormState) {
+        self.ui.borrow().set_loaded(form_values!(FormValues, s));
+    }
+
     fn visible(&self) -> bool {
         self.ui.borrow().window().is_visible()
     }
@@ -368,7 +503,9 @@ impl Inner {
         if !self.visible() {
             return;
         }
-        let config = self.state().to_config(self.rtl.get());
+        let state = self.state();
+        let config = state.to_config(self.rtl.get());
+        self.set_loaded(&state);
         let f = self.on_save.borrow().clone();
         if let Some(f) = f {
             f(config);
@@ -428,9 +565,13 @@ impl SettingsWindow {
         if let Some(scheme) = forced_scheme(env.as_deref(), config.theme) {
             ui.global::<Palette>().set_color_scheme(scheme);
         }
+        ui.set_page(i32::try_from(remembered_page()).unwrap_or(0));
+        ui.set_shortcut_text(config.shortcut.as_str().into());
         *inner.ui.borrow_mut() = ui;
         *inner.opened.borrow_mut() = config.clone();
-        inner.set_state(&FormState::from_config(config, inner.rtl.get()));
+        let state = FormState::from_config(config, inner.rtl.get());
+        inner.set_state(&state);
+        inner.set_loaded(&state);
         inner.ui.borrow().show()
     }
 
@@ -551,7 +692,20 @@ impl SettingsWindow {
     ) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, slint::PlatformError> {
         self.inner.ui.borrow().window().take_snapshot()
     }
+
+    /// Snapshot hook: opens the window on page `page` without touching the
+    /// remembered one.
+    #[doc(hidden)]
+    pub fn show_page(&self, page: usize) {
+        self.inner
+            .ui
+            .borrow()
+            .set_page(i32::try_from(page).unwrap_or(0));
+    }
 }
+
+#[cfg(feature = "testing-hooks")]
+crate::shell::shell_probes!(SettingsWindow, |w, i| w.inner.ui.borrow().set_theme(i));
 
 #[cfg(test)]
 mod tests {
@@ -902,11 +1056,21 @@ mod tests {
         use slint::LogicalPosition;
         use slint::platform::{Key, PointerEventButton, WindowEvent};
 
+        /// S-094: the controls live on five pages, so the helper shows the
+        /// page that holds the control before it looks for it. The tests
+        /// below are otherwise unchanged.
         fn find(win: &SettingsWindow, label: &str, role: AccessibleRole) -> ElementHandle {
             let ui = win.inner.ui.borrow();
-            let found: Vec<ElementHandle> = ElementHandle::find_by_accessible_label(&*ui, label)
-                .filter(|e| e.accessible_role() == Some(role))
-                .collect();
+            let mut found: Vec<ElementHandle> = Vec::new();
+            for page in 0..crate::shell::SETTINGS_PAGES {
+                found = ElementHandle::find_by_accessible_label(&*ui, label)
+                    .filter(|e| e.accessible_role() == Some(role))
+                    .collect();
+                if !found.is_empty() {
+                    break;
+                }
+                ui.set_page(page as i32);
+            }
             assert_eq!(found.len(), 1, "{label} {role:?}");
             found.into_iter().next().unwrap()
         }

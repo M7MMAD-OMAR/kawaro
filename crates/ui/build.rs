@@ -45,6 +45,21 @@ fn main() {
     let raw = std::fs::read_to_string(&tokens_path).expect("read design/tokens.json");
     let t: Value = serde_json::from_str(&raw).expect("parse design/tokens.json");
 
+    // The shell logos are copies of the brand files (S-094), so the crate
+    // builds without the rest of the repository. A stale copy fails here.
+    for name in ["kawaro-cells.svg", "kawaro-cells-dark.svg"] {
+        let original = manifest.join("../../design/brand").join(name);
+        if let Ok(brand) = std::fs::read(&original) {
+            let copy = std::fs::read(manifest.join("resources/brand").join(name))
+                .unwrap_or_else(|e| panic!("resources/brand/{name} must exist: {e}"));
+            assert_eq!(
+                brand, copy,
+                "resources/brand/{name} differs from design/brand/{name}: copy it again"
+            );
+            println!("cargo:rerun-if-changed={}", original.display());
+        }
+    }
+
     let out = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
     std::fs::write(out.join("tokens.slint"), slint_tokens(&t)).unwrap();
     std::fs::write(out.join("tokens.rs"), rust_tokens(&t)).unwrap();
@@ -327,11 +342,32 @@ fn slint_tokens(t: &Value) -> String {
         )
         .unwrap();
     }
-    for k in ["1", "2", "3", "4", "5", "6"] {
+    for k in ["1", "2", "3", "4", "5", "6", "7", "8"] {
         writeln!(
             s,
             "    out property <length> space-{k}: {}px;",
             num(t, &["space", k])
+        )
+        .unwrap();
+    }
+    // The S-094 window and shell geometry (tokens.json `layout`).
+    for k in [
+        "window-width",
+        "window-height",
+        "window-min-width",
+        "window-min-height",
+        "header-height",
+        "header-logo",
+        "rail-width",
+        "content-max-width",
+        "row-breakpoint",
+        "label-column",
+        "film-max-width",
+    ] {
+        writeln!(
+            s,
+            "    out property <length> layout-{k}: {}px;",
+            num(t, &["layout", k])
         )
         .unwrap();
     }

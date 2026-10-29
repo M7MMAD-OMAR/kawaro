@@ -26,7 +26,7 @@ mod resources {
     include!(concat!(env!("OUT_DIR"), "/welcome_resources.rs"));
 }
 
-use generated::{Palette, WelcomeText, WelcomeUi};
+use generated::{FormValues, Palette, WelcomeText, WelcomeUi};
 
 /// How the demonstration plays (AC2): the frames loop while the caption
 /// steps cycle, and reduced motion shows one static frame with the same
@@ -122,6 +122,9 @@ struct Inner {
     plan: RefCell<DemoPlan>,
     ticks: Cell<u64>,
     choose_language: Cell<bool>,
+    /// Whether the daemon handed over the saved settings (S-094): until it
+    /// has, picking a settings page in the rail asks for them.
+    settings_loaded: Cell<bool>,
 }
 
 impl Inner {
@@ -136,8 +139,17 @@ impl Inner {
             settings_button: strings.settings_button.as_str().into(),
             settings_accessible: strings.settings_accessible.as_str().into(),
         });
-        ui.set_version_text(crate::about_line(self.lang).into());
+        // The shell shows its header and rail from the first frame, so the
+        // settings strings go in now, over the default values; `show_settings`
+        // replaces the values with the saved ones.
+        self.settings_loaded.set(false);
+        let defaults = FormState::from_config(&Config::default(), self.rtl);
+        self.apply_settings(&ui, &defaults, self.lang);
+        ui.set_settings_loaded(settings::form_values!(FormValues, &defaults));
+        ui.set_settings_shortcut_text(Config::default().shortcut.as_str().into());
         self.show_update(&ui, self.lang);
+        let w = Rc::downgrade(self);
+        ui.on_page_changed(move |page| with(&w, |i| i.page_changed(page)));
         let w = Rc::downgrade(self);
         ui.on_update_check(move || with(&w, Inner::update_check));
         let w = Rc::downgrade(self);
@@ -244,31 +256,14 @@ impl Inner {
         }
     }
 
-    fn set_settings_state(&self, state: &FormState, lang: Lang) {
-        let ui = self.ui.borrow();
+    fn apply_settings(&self, ui: &WelcomeUi, state: &FormState, lang: Lang) {
         let rtl = lang.rtl();
         let strings = settings::strings(lang);
-        let text = strings.text;
         ui.set_rtl(rtl);
-        ui.set_settings_text(generated::SettingsText {
-            title: text.title,
-            language: text.language,
-            theme: text.theme,
-            output: text.output,
-            folder: text.folder,
-            quality: text.quality,
-            notify: text.notify,
-            notify_long_only: text.notify_long_only,
-            open_folder: text.open_folder,
-            save: text.save,
-            cancel: text.cancel,
-            updates: text.updates,
-            update_check: text.update_check,
-            update_apply: text.update_apply,
-            update_auto: text.update_auto,
-            update_channel: text.update_channel,
-            update_mode: text.update_mode,
-        });
+        ui.set_settings_text(settings::convert_text!(
+            generated::SettingsText,
+            strings.text
+        ));
         let list = |items: &[&str]| ModelRc::new(VecModel::from(settings::ordered(items, rtl)));
         ui.set_settings_language_items(list(&strings.languages));
         ui.set_settings_theme_items(list(&strings.themes));
@@ -276,7 +271,7 @@ impl Inner {
         ui.set_settings_quality_items(list(&strings.qualities));
         ui.set_settings_update_channel_items(list(&strings.channels));
         ui.set_settings_update_mode_items(list(&strings.modes));
-        self.show_update(&ui, lang);
+        self.show_update(ui, lang);
         ui.set_settings_subfolder_index(settings::to_visual(
             &settings::OUTPUTS,
             &OutputPlace::Subfolder,
@@ -295,6 +290,25 @@ impl Inner {
         ui.set_settings_update_mode(state.update_mode);
     }
 
+    fn set_loaded(&self, state: &FormState) {
+        self.ui
+            .borrow()
+            .set_settings_loaded(settings::form_values!(FormValues, state));
+    }
+
+    /// A page was picked in the rail. A settings page needs the saved
+    /// values, which only the daemon has: ask once, as Open Settings does.
+    fn page_changed(&self, page: i32) {
+        if page > 0 && !self.settings_loaded.get() {
+            self.open_settings();
+        }
+    }
+
+    #[cfg(feature = "testing-hooks")]
+    fn is_rtl(&self) -> bool {
+        self.ui.borrow().get_rtl()
+    }
+
     fn settings_language_changed(&self) {
         let old = self.settings_state();
         let old_rtl = self.ui.borrow().get_rtl();
@@ -302,23 +316,38 @@ impl Inner {
         let lang = config.lang();
         let mut next = FormState::from_config(&config, lang.rtl());
         next.folder = old.folder;
-        self.set_settings_state(&next, lang);
+        self.apply_settings(&self.ui.borrow(), &next, lang);
+        // Same saved settings, indices of the new language.
+        let opened = self.settings_opened.borrow();
+        self.set_loaded(&FormState::from_config(&opened, lang.rtl()));
     }
 
     fn save_settings(&self) {
-        let config = self.settings_state().to_config(self.ui.borrow().get_rtl());
+        let state = self.settings_state();
+        let config = state.to_config(self.ui.borrow().get_rtl());
         let callback = self.on_settings_save.borrow().clone();
-        if callback.is_some_and(|f| f(config)) {
+        if callback.is_some_and(|f| f(config.clone())) {
+            *self.settings_opened.borrow_mut() = config;
             self.cancel_settings();
         } else {
             self.ui.borrow().set_settings_save_failed(true);
         }
     }
 
+    /// Back to the Introduction: the edits are dropped and the window
+    /// returns to its own language.
     fn cancel_settings(&self) {
         let ui = self.ui.borrow();
-        ui.set_show_settings(false);
-        ui.set_rtl(self.rtl);
+        ui.set_page(0);
+        if self.settings_loaded.get() {
+            let opened = self.settings_opened.borrow();
+            let state = FormState::from_config(&opened, self.rtl);
+            self.apply_settings(&ui, &state, self.lang);
+            drop(ui);
+            self.set_loaded(&state);
+        } else {
+            ui.set_rtl(self.rtl);
+        }
     }
 
     fn close(&self) {
@@ -385,6 +414,7 @@ impl WelcomeWindow {
             plan: RefCell::new(demo_plan(1, false)),
             ticks: Cell::new(0),
             choose_language: Cell::new(false),
+            settings_loaded: Cell::new(false),
         });
         let ui = inner.new_ui()?;
         *inner.ui.borrow_mut() = ui;
@@ -507,19 +537,28 @@ impl WelcomeWindow {
         }
     }
 
-    /// Whether the main window is showing its settings panel.
+    /// Whether the main window is showing one of its settings pages.
     pub fn settings_visible(&self) -> bool {
-        self.inner.ui.borrow().get_show_settings()
+        self.inner.ui.borrow().get_page() != 0
     }
 
-    /// Shows settings inside the existing window without replacing it.
+    /// Loads the saved settings into the existing window without replacing
+    /// it, and leaves the Introduction for the first settings page.
     pub fn show_settings(&self, config: &Config) {
-        *self.inner.settings_opened.borrow_mut() = config.clone();
+        let inner = &self.inner;
+        *inner.settings_opened.borrow_mut() = config.clone();
+        inner.settings_loaded.set(true);
         let lang = config.lang();
-        self.inner.ui.borrow().set_settings_save_failed(false);
-        self.inner
-            .set_settings_state(&FormState::from_config(config, lang.rtl()), lang);
-        self.inner.ui.borrow().set_show_settings(true);
+        let state = FormState::from_config(config, lang.rtl());
+        let ui = inner.ui.borrow();
+        ui.set_settings_save_failed(false);
+        inner.apply_settings(&ui, &state, lang);
+        ui.set_settings_shortcut_text(config.shortcut.as_str().into());
+        if ui.get_page() == 0 {
+            ui.set_page(1);
+        }
+        drop(ui);
+        inner.set_loaded(&state);
     }
 
     /// Called when embedded settings are saved.
@@ -547,6 +586,25 @@ impl WelcomeWindow {
         ui.set_caption_index(caption);
     }
 
+    /// Snapshot hook: shows rail item `page` (0 is the Introduction).
+    #[doc(hidden)]
+    pub fn show_page(&self, page: usize) {
+        self.inner
+            .ui
+            .borrow()
+            .set_page(i32::try_from(page).unwrap_or(0));
+    }
+
+    #[doc(hidden)]
+    pub fn press_save(&self) {
+        self.inner.ui.borrow().invoke_settings_save();
+    }
+
+    #[doc(hidden)]
+    pub fn press_cancel(&self) {
+        self.inner.ui.borrow().invoke_settings_cancel();
+    }
+
     /// Snapshot hook: renders the current window content.
     #[doc(hidden)]
     pub fn take_snapshot(
@@ -555,6 +613,13 @@ impl WelcomeWindow {
         self.inner.ui.borrow().window().take_snapshot()
     }
 }
+
+#[cfg(feature = "testing-hooks")]
+crate::shell::shell_probes!(WelcomeWindow, |w, i| w
+    .inner
+    .ui
+    .borrow()
+    .set_settings_theme(i));
 
 /// Colour scheme the window is drawn in: `KAWARO_COLOR_SCHEME` first (as for
 /// the hive); `None` follows the system.
@@ -603,7 +668,7 @@ mod unified_tests {
         let requested = Rc::new(Cell::new(0));
         let count = requested.clone();
         win.on_settings(move || count.set(count.get() + 1));
-        find_button("Settings").invoke_accessible_default_action();
+        find_button("Open the Kawaro settings window").invoke_accessible_default_action();
         assert_eq!(requested.get(), 1);
         let saved = Rc::new(RefCell::new(Vec::new()));
         let result = saved.clone();
@@ -614,9 +679,9 @@ mod unified_tests {
         };
         win.show_settings(&config);
         assert!(win.settings_visible());
-        find_button("Introduction").invoke_accessible_default_action();
+        win.press_cancel();
         assert!(!win.settings_visible());
-        find_button("Settings").invoke_accessible_default_action();
+        find_button("Open the Kawaro settings window").invoke_accessible_default_action();
         assert_eq!(requested.get(), 2);
         win.show_settings(&config);
         {

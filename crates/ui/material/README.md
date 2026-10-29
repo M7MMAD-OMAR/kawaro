@@ -36,6 +36,15 @@ The colours are not edited here: `crates/ui/build.rs` maps
 `design/tokens.json` to `MaterialPalette.schemes`, which the settings window
 assigns once at start.
 
+4. `ui/components/navigation_bar.slint`: the label of `NavigationItemTemplate`
+   wraps (`wrap: word-wrap`) instead of being elided, so a long item name such
+   as "Notifications and integration" shows in a 96 px rail on two lines
+   (S-094, ADR 0002 change 4).
+
+5. `ui/components/segmented_button.slint`: the horizontal padding of a segment
+   is 14 px instead of 24 px, so a three option choice fits in the control
+   slot of a settings row (S-094, ADR 0002 change 5).
+
 ## Updating
 
 Upgrading Slint is its own task. Download the matching tag, replace this

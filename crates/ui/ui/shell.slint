@@ -1,0 +1,838 @@
+// The application shell shared by the standalone settings window and the
+// first-run welcome window (S-094): a header with the logo, the name and the
+// installed version, the vendored Material NavigationRail on the reading
+// side, a centred content column that scrolls, and a footer with the unsaved
+// marker, Cancel and Save. The welcome window adds an Introduction page as the
+// first rail item and passes its content as the children of `AppShell`.
+//
+// Strings and the mapping to the settings file live in Rust (src/settings.rs);
+// this file lays out and forwards input. Every length, colour and radius comes
+// from the generated Tokens (design/tokens.json).
+//
+// Right to left: `rtl` puts the rail on the right and mirrors the header, the
+// rows and the footer. Layout mirroring is not automatic in Slint, so the
+// positions below are written out for both directions.
+import { Tokens } from "tokens.slint";
+import { NavigationRail, NavigationItem, SegmentedButton, Switch, TextField, FilledButton, TextButton, ScrollView } from "@material";
+
+// Every visible string, filled from Rust in the window language.
+export struct SettingsText {
+    title: string,
+    language: string,
+    theme: string,
+    output: string,
+    folder: string,
+    quality: string,
+    notify: string,
+    notify-long-only: string,
+    open-folder: string,
+    save: string,
+    cancel: string,
+    updates: string,
+    update-check: string,
+    update-apply: string,
+    update-auto: string,
+    update-channel: string,
+    update-mode: string,
+    app-name: string,
+    version: string,
+    logo-label: string,
+    nav-intro: string,
+    nav-general: string,
+    nav-conversion: string,
+    nav-notifications: string,
+    nav-about: string,
+    group-language: string,
+    group-results: string,
+    group-finish: string,
+    group-integration: string,
+    group-update-settings: string,
+    folder-hint: string,
+    drop-shortcut: string,
+    unsaved: string,
+    save-failed: string,
+    about-version: string,
+    about-description: string,
+    licence-label: string,
+    licence: string,
+    privacy: string,
+}
+
+// The values the form edits, as visual indices (see src/settings.rs). Rust
+// sets `loaded` when the window opens and after a save; the unsaved marker
+// shows while the form differs from it.
+export struct FormValues {
+    language: int,
+    theme: int,
+    output: int,
+    quality: int,
+    folder: string,
+    notify: bool,
+    notify-long-only: bool,
+    open-folder: bool,
+    update-check: bool,
+    update-channel: int,
+    update-mode: int,
+}
+
+// The segments of a choice: two or three options, already in visual order.
+component ChoiceButtons inherits SegmentedButton {
+    in property <[string]> labels;
+
+    items: root.labels.length == 3 ? [
+        { text: root.labels[0] },
+        { text: root.labels[1] },
+        { text: root.labels[2] },
+    ] : [
+        { text: root.labels[0] },
+        { text: root.labels[1] },
+    ];
+}
+
+// A grouped surface: rows and controls on surface-1 with a full border.
+component Card inherits Rectangle {
+    background: Tokens.surface-1;
+    border-radius: Tokens.radius-lg;
+    border-width: Tokens.border-default;
+    border-color: Tokens.border;
+    min-height: inner.min-height;
+    preferred-height: inner.min-height;
+
+    inner := VerticalLayout {
+        width: parent.width;
+        height: parent.height;
+        padding: Tokens.space-4;
+        spacing: Tokens.space-4;
+        @children
+    }
+}
+
+// A section heading above a card, aligned to the reading side.
+component SectionTitle inherits Text {
+    in property <bool> rtl;
+
+    font-size: Tokens.font-body;
+    font-weight: Tokens.weight-semibold;
+    color: Tokens.text-secondary;
+    horizontal-alignment: root.rtl ? right : left;
+}
+
+// One setting: a label and its control. At a wide column the pair is one row
+// (the label column, then the control); below the breakpoint the label sits
+// above the control. The control goes in the children and fills `slot`, which
+// is `control-h` high. The label is read through the row's description so a
+// control that is absent (the folder name beside the original) leaves no
+// orphan label for a screen reader.
+component FormRow inherits Rectangle {
+    in property <bool> rtl;
+    in property <bool> wide;
+    in property <string> label;
+    in property <length> control-h;
+    // The width of the control slot. The control is declared as a child of
+    // the row, so its `parent` is the row: it reads this to place itself.
+    out property <length> slot-w: root.wide ? root.width - Tokens.layout-label-column - Tokens.space-4 : root.width;
+
+    min-height: root.wide ? max(lab.preferred-height, root.control-h) : lab.preferred-height + Tokens.space-2 + root.control-h;
+    preferred-height: root.min-height;
+    accessible-role: groupbox;
+    accessible-description: root.label;
+
+    box := Rectangle {
+        lab := Text {
+            x: root.rtl ? parent.width - self.width : 0;
+            y: root.wide ? (parent.height - self.height) / 2 : 0;
+            width: root.wide ? Tokens.layout-label-column : parent.width;
+            height: self.preferred-height;
+            text: root.label;
+            wrap: word-wrap;
+            font-size: Tokens.font-body;
+            color: Tokens.text-primary;
+            horizontal-alignment: root.rtl ? right : left;
+            accessible-role: none;
+        }
+
+        slot := Rectangle {
+            x: root.wide ? (root.rtl ? 0 : Tokens.layout-label-column + Tokens.space-4) : 0;
+            y: root.wide ? (parent.height - self.height) / 2 : lab.height + Tokens.space-2;
+            width: root.slot-w;
+            height: root.control-h;
+            @children
+        }
+    }
+}
+
+export component AppShell inherits Rectangle {
+    forward-focus: keys;
+
+    in property <bool> rtl;
+    in property <SettingsText> text;
+    // The welcome window shows Introduction as an extra first item.
+    in property <bool> has-intro: false;
+    in-out property <int> page: 0;
+    in property <bool> show-footer: !(root.has-intro && root.page == 0);
+    in property <string> shortcut-text;
+    in property <FormValues> loaded;
+
+    // Visual indices into the lists below.
+    in property <[string]> language-items;
+    in property <[string]> theme-items;
+    in property <[string]> output-items;
+    in property <[string]> quality-items;
+    in-out property <int> language;
+    in-out property <int> theme;
+    in-out property <int> output;
+    in-out property <int> quality;
+    in-out property <string> folder;
+    in-out property <bool> notify;
+    in-out property <bool> notify-long-only;
+    in-out property <bool> save-failed;
+    in-out property <bool> open-folder;
+    // Visual index of the subfolder option in `output-items` (it depends on
+    // the direction, so Rust sets it). The folder name field exists only
+    // then, and its text lives in `folder` across its removal and return.
+    in property <int> subfolder-index;
+
+    // The Updates page (S-090). Rust renders the version and state line.
+    in property <string> update-version-text;
+    in property <string> update-state-line;
+    in property <bool> update-check-enabled;
+    in property <bool> update-apply-enabled;
+    in property <[string]> update-channel-items;
+    in property <[string]> update-mode-items;
+    in-out property <bool> update-check-auto;
+    in-out property <int> update-channel;
+    in-out property <int> update-mode;
+
+    out property <bool> dirty: root.language != root.loaded.language
+        || root.theme != root.loaded.theme
+        || root.output != root.loaded.output
+        || root.quality != root.loaded.quality
+        || root.folder != root.loaded.folder
+        || root.notify != root.loaded.notify
+        || root.notify-long-only != root.loaded.notify-long-only
+        || root.open-folder != root.loaded.open-folder
+        || root.update-check-auto != root.loaded.update-check
+        || root.update-channel != root.loaded.update-channel
+        || root.update-mode != root.loaded.update-mode;
+    out property <int> rail-focus: root.page;
+    out property <length> scroll-content-height: scroll.content-height;
+    out property <length> scroll-visible-height: scroll.visible-height;
+
+    callback save();
+    callback cancel();
+    // Esc anywhere: the window decides what closing means.
+    callback escape();
+    callback language-selected();
+    callback update-check();
+    callback update-apply();
+    // The user picked a page (rail, Ctrl+Tab, arrows).
+    callback page-changed(int);
+
+    public function focus-rail() {
+        rail-keys.focus();
+    }
+
+    // The settings page index: 0 General to 4 About.
+    property <int> sp: root.page - (root.has-intro ? 1 : 0);
+    property <int> page-count: root.has-intro ? 6 : 5;
+    property <length> footer-h: root.show-footer ? Tokens.space-8 + Tokens.space-2 : 0;
+    property <length> pad: Tokens.space-5;
+    property <bool> wide: column.width >= Tokens.layout-row-breakpoint;
+    property <bool> subfolder: root.output == root.subfolder-index;
+    property <[NavigationItem]> settings-items: [
+        { icon: @image-url("../resources/rail/general.svg"), selected-icon: @image-url("../resources/rail/general.svg"), text: root.text.nav-general },
+        { icon: @image-url("../resources/rail/conversion.svg"), selected-icon: @image-url("../resources/rail/conversion.svg"), text: root.text.nav-conversion },
+        { icon: @image-url("../resources/rail/notifications.svg"), selected-icon: @image-url("../resources/rail/notifications.svg"), text: root.text.nav-notifications },
+        { icon: @image-url("../resources/rail/updates.svg"), selected-icon: @image-url("../resources/rail/updates.svg"), text: root.text.updates },
+        { icon: @image-url("../resources/rail/about.svg"), selected-icon: @image-url("../resources/rail/about.svg"), text: root.text.nav-about },
+    ];
+    property <[NavigationItem]> intro-items: [
+        { icon: @image-url("../resources/rail/introduction.svg"), selected-icon: @image-url("../resources/rail/introduction.svg"), text: root.text.nav-intro },
+        { icon: @image-url("../resources/rail/general.svg"), selected-icon: @image-url("../resources/rail/general.svg"), text: root.text.nav-general },
+        { icon: @image-url("../resources/rail/conversion.svg"), selected-icon: @image-url("../resources/rail/conversion.svg"), text: root.text.nav-conversion },
+        { icon: @image-url("../resources/rail/notifications.svg"), selected-icon: @image-url("../resources/rail/notifications.svg"), text: root.text.nav-notifications },
+        { icon: @image-url("../resources/rail/updates.svg"), selected-icon: @image-url("../resources/rail/updates.svg"), text: root.text.updates },
+        { icon: @image-url("../resources/rail/about.svg"), selected-icon: @image-url("../resources/rail/about.svg"), text: root.text.nav-about },
+    ];
+
+    function go(p: int) {
+        root.page = p;
+        root.page-changed(p);
+    }
+
+    keys := FocusScope {
+        width: parent.width;
+        height: parent.height;
+
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.escape();
+                return accept;
+            }
+            if event.modifiers.control && (event.text == Key.Tab || event.text == Key.Backtab) {
+                if event.text == Key.Backtab || event.modifiers.shift {
+                    root.go(Math.mod(root.page + root.page-count - 1, root.page-count));
+                } else {
+                    root.go(Math.mod(root.page + 1, root.page-count));
+                }
+                return accept;
+            }
+            reject
+        }
+
+        // The page area and the footer. They come first in the tree so that
+        // Tab reaches the page controls before the rail.
+        main := Rectangle {
+            x: root.rtl ? 0 : Tokens.layout-rail-width;
+            y: Tokens.layout-header-height;
+            width: parent.width - Tokens.layout-rail-width;
+            height: parent.height - Tokens.layout-header-height;
+
+            scroll := ScrollView {
+                x: 0;
+                y: 0;
+                width: parent.width;
+                height: parent.height - root.footer-h;
+                content-width: self.visible-width;
+                content-height: max(self.visible-height, column.y + column.min-height + root.pad);
+
+                column := VerticalLayout {
+                    alignment: start;
+                    spacing: Tokens.space-5;
+                    width: min(scroll.width - 2 * root.pad, Tokens.layout-content-max-width);
+                    x: (scroll.width - self.width) / 2;
+                    y: (root.has-intro && root.page == 0) ? max(root.pad, (scroll.visible-height - self.min-height) / 2) : root.pad;
+                    height: max(self.min-height, scroll.content-height - self.y - root.pad);
+
+                    // The Introduction of the welcome window.
+                    @children
+
+                    if root.sp == 0: VerticalLayout {
+                        spacing: Tokens.space-2;
+                        SectionTitle {
+                            rtl: root.rtl;
+                            text: root.text.group-language;
+                        }
+                        Card {
+                            FormRow {
+                                rtl: root.rtl;
+                                wide: root.wide;
+                                label: root.text.language;
+                                control-h: language-buttons.min-height;
+                                language-buttons := ChoiceButtons {
+                                    x: root.rtl ? parent.slot-w - self.width : 0;
+                                    width: self.min-width;
+                                    height: self.min-height;
+                                    accessible-label: root.text.language;
+                                    labels: root.language-items;
+                                    current-index <=> root.language;
+                                    index-changed(index) => { root.language-selected(); }
+                                }
+                            }
+                            FormRow {
+                                rtl: root.rtl;
+                                wide: root.wide;
+                                label: root.text.theme;
+                                control-h: theme-buttons.min-height;
+                                theme-buttons := ChoiceButtons {
+                                    x: root.rtl ? parent.slot-w - self.width : 0;
+                                    width: self.min-width;
+                                    height: self.min-height;
+                                    accessible-label: root.text.theme;
+                                    labels: root.theme-items;
+                                    current-index <=> root.theme;
+                                }
+                            }
+                        }
+                    }
+
+                    if root.sp == 1: VerticalLayout {
+                        spacing: Tokens.space-2;
+                        SectionTitle {
+                            rtl: root.rtl;
+                            text: root.text.group-results;
+                        }
+                        Card {
+                            FormRow {
+                                rtl: root.rtl;
+                                wide: root.wide;
+                                label: root.text.output;
+                                control-h: output-buttons.min-height;
+                                output-buttons := ChoiceButtons {
+                                    x: root.rtl ? parent.slot-w - self.width : 0;
+                                    width: self.min-width;
+                                    height: self.min-height;
+                                    accessible-label: root.text.output;
+                                    labels: root.output-items;
+                                    current-index <=> root.output;
+                                }
+                            }
+                            FormRow {
+                                rtl: root.rtl;
+                                wide: root.wide;
+                                label: root.text.folder;
+                                control-h: Tokens.space-7 + Tokens.space-2;
+                                if root.subfolder: TextField {
+                                    width: parent.slot-w;
+                                    height: parent.control-h;
+                                    label: root.text.folder;
+                                    accessible-label: root.text.folder;
+                                    horizontal-alignment: root.rtl ? right : left;
+                                    text <=> root.folder;
+                                }
+                                if !root.subfolder: Text {
+                                    width: parent.slot-w;
+                                    height: parent.control-h;
+                                    text: root.text.folder-hint;
+                                    wrap: word-wrap;
+                                    font-size: Tokens.font-body;
+                                    color: Tokens.text-secondary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: root.rtl ? right : left;
+                                }
+                            }
+                            FormRow {
+                                rtl: root.rtl;
+                                wide: root.wide;
+                                label: root.text.quality;
+                                control-h: quality-buttons.min-height;
+                                quality-buttons := ChoiceButtons {
+                                    x: root.rtl ? parent.slot-w - self.width : 0;
+                                    width: self.min-width;
+                                    height: self.min-height;
+                                    accessible-label: root.text.quality;
+                                    labels: root.quality-items;
+                                    current-index <=> root.quality;
+                                }
+                            }
+                        }
+                    }
+
+                    if root.sp == 2: VerticalLayout {
+                        spacing: Tokens.space-5;
+                        VerticalLayout {
+                            spacing: Tokens.space-2;
+                            SectionTitle {
+                                rtl: root.rtl;
+                                text: root.text.group-finish;
+                            }
+                            Card {
+                                FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.text.notify;
+                                    control-h: notify-switch.min-height;
+                                    notify-switch := Switch {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        width: self.min-width;
+                                        height: self.min-height;
+                                        accessible-label: root.text.notify;
+                                        checked <=> root.notify;
+                                    }
+                                }
+                                if root.notify: FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.text.notify-long-only;
+                                    control-h: long-switch.min-height;
+                                    long-switch := Switch {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        width: self.min-width;
+                                        height: self.min-height;
+                                        accessible-label: root.text.notify-long-only;
+                                        checked <=> root.notify-long-only;
+                                    }
+                                }
+                                FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.text.open-folder;
+                                    control-h: open-switch.min-height;
+                                    open-switch := Switch {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        width: self.min-width;
+                                        height: self.min-height;
+                                        accessible-label: root.text.open-folder;
+                                        checked <=> root.open-folder;
+                                    }
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            spacing: Tokens.space-2;
+                            SectionTitle {
+                                rtl: root.rtl;
+                                text: root.text.group-integration;
+                            }
+                            Card {
+                                FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.text.drop-shortcut;
+                                    control-h: Tokens.space-7;
+                                    keycap := Rectangle {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        y: (parent.control-h - self.height) / 2;
+                                        width: keys-text.preferred-width + 2 * Tokens.space-4;
+                                        height: keys-text.preferred-height + 2 * Tokens.space-2;
+                                        background: Tokens.surface-3;
+                                        border-radius: Tokens.radius-sm;
+                                        keys-text := Text {
+                                            x: (parent.width - self.width) / 2;
+                                            y: (parent.height - self.height) / 2;
+                                            text: root.shortcut-text;
+                                            font-size: Tokens.font-body;
+                                            font-weight: Tokens.weight-medium;
+                                            color: Tokens.text-primary;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if root.sp == 3: VerticalLayout {
+                        spacing: Tokens.space-5;
+                        VerticalLayout {
+                            spacing: Tokens.space-2;
+                            SectionTitle {
+                                rtl: root.rtl;
+                                text: root.text.updates;
+                            }
+                            Card {
+                                Text {
+                                    text: root.update-version-text;
+                                    font-size: Tokens.font-body;
+                                    font-weight: Tokens.weight-semibold;
+                                    color: Tokens.text-primary;
+                                    horizontal-alignment: root.rtl ? right : left;
+                                }
+                                // Two lines are reserved, so a state change
+                                // never moves the rows below it.
+                                Rectangle {
+                                    min-height: Tokens.font-body * 2.7;
+                                    max-height: Tokens.font-body * 2.7;
+                                    clip: true;
+                                    Text {
+                                        x: 0;
+                                        y: 0;
+                                        width: parent.width;
+                                        text: root.update-state-line;
+                                        wrap: word-wrap;
+                                        font-size: Tokens.font-body;
+                                        color: Tokens.text-secondary;
+                                        horizontal-alignment: root.rtl ? right : left;
+                                    }
+                                }
+                                if !root.rtl: HorizontalLayout {
+                                    alignment: start;
+                                    spacing: Tokens.space-2;
+
+                                    TextButton {
+                                        text: root.text.update-check;
+                                        enabled: root.update-check-enabled;
+                                        accessible-label: root.text.update-check;
+                                        clicked => { root.update-check(); }
+                                    }
+
+                                    FilledButton {
+                                        text: root.text.update-apply;
+                                        enabled: root.update-apply-enabled;
+                                        accessible-label: root.text.update-apply;
+                                        clicked => { root.update-apply(); }
+                                    }
+                                }
+                                if root.rtl: HorizontalLayout {
+                                    alignment: end;
+                                    spacing: Tokens.space-2;
+
+                                    FilledButton {
+                                        text: root.text.update-apply;
+                                        enabled: root.update-apply-enabled;
+                                        accessible-label: root.text.update-apply;
+                                        clicked => { root.update-apply(); }
+                                    }
+
+                                    TextButton {
+                                        text: root.text.update-check;
+                                        enabled: root.update-check-enabled;
+                                        accessible-label: root.text.update-check;
+                                        clicked => { root.update-check(); }
+                                    }
+                                }
+                            }
+                        }
+                        VerticalLayout {
+                            spacing: Tokens.space-2;
+                            SectionTitle {
+                                rtl: root.rtl;
+                                text: root.text.group-update-settings;
+                            }
+                            Card {
+                                FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.text.update-auto;
+                                    control-h: auto-switch.min-height;
+                                    auto-switch := Switch {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        width: self.min-width;
+                                        height: self.min-height;
+                                        accessible-label: root.text.update-auto;
+                                        checked <=> root.update-check-auto;
+                                    }
+                                }
+                                FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.text.update-channel;
+                                    control-h: channel-buttons.min-height;
+                                    channel-buttons := ChoiceButtons {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        width: self.min-width;
+                                        height: self.min-height;
+                                        accessible-label: root.text.update-channel;
+                                        labels: root.update-channel-items;
+                                        current-index <=> root.update-channel;
+                                    }
+                                }
+                                FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.text.update-mode;
+                                    control-h: mode-buttons.min-height;
+                                    mode-buttons := ChoiceButtons {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        width: self.min-width;
+                                        height: self.min-height;
+                                        accessible-label: root.text.update-mode;
+                                        labels: root.update-mode-items;
+                                        current-index <=> root.update-mode;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if root.sp == 4: Card {
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: Tokens.space-3;
+
+                            HorizontalLayout {
+                                alignment: center;
+                                about-logo := Image {
+                                    width: Tokens.layout-header-logo * 2;
+                                    height: self.width;
+                                    source: Tokens.dark ? @image-url("../resources/brand/kawaro-cells-dark.svg") : @image-url("../resources/brand/kawaro-cells.svg");
+                                    image-fit: contain;
+                                    accessible-role: image;
+                                    accessible-label: root.text.logo-label;
+                                }
+                            }
+                            Text {
+                                text: root.text.app-name;
+                                font-size: Tokens.font-title * 1.5;
+                                font-weight: Tokens.weight-semibold;
+                                color: Tokens.text-primary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: root.text.about-version;
+                                font-size: Tokens.font-body;
+                                color: Tokens.text-secondary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: root.text.about-description;
+                                wrap: word-wrap;
+                                font-size: Tokens.font-body;
+                                color: Tokens.text-primary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: root.text.licence-label + ": " + root.text.licence;
+                                font-size: Tokens.font-body;
+                                color: Tokens.text-secondary;
+                                horizontal-alignment: center;
+                            }
+                            Text {
+                                text: root.text.privacy;
+                                wrap: word-wrap;
+                                font-size: Tokens.font-body;
+                                font-weight: Tokens.weight-medium;
+                                color: Tokens.text-primary;
+                                horizontal-alignment: center;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if root.show-footer: footer := Rectangle {
+                x: 0;
+                y: parent.height - self.height;
+                width: parent.width;
+                height: root.footer-h;
+                background: Tokens.surface-1;
+
+                // The marker and the buttons sit in the same centred column
+                // as the page, so they stay near the rows in a wide window.
+                bar := Rectangle {
+                    x: column.x;
+                    width: column.width;
+                    height: parent.height;
+
+                    if root.save-failed: Text {
+                        x: root.rtl ? parent.width - self.width : 0;
+                        y: (parent.height - self.height) / 2;
+                        width: min(self.preferred-width, parent.width / 2);
+                        text: root.text.save-failed;
+                        wrap: word-wrap;
+                        font-size: Tokens.font-body;
+                        color: Tokens.danger;
+                        horizontal-alignment: root.rtl ? right : left;
+                    }
+
+                    if root.dirty && !root.save-failed: unsaved := Rectangle {
+                        x: root.rtl ? parent.width - self.width : 0;
+                        y: (parent.height - self.height) / 2;
+                        width: Tokens.space-2 + Tokens.space-2 + unsaved-text.preferred-width;
+                        height: unsaved-text.preferred-height;
+
+                        Rectangle {
+                            x: root.rtl ? parent.width - self.width : 0;
+                            y: (parent.height - self.height) / 2;
+                            width: Tokens.space-2;
+                            height: self.width;
+                            border-radius: self.width / 2;
+                            background: Tokens.accent;
+                        }
+                        unsaved-text := Text {
+                            x: root.rtl ? 0 : Tokens.space-2 + Tokens.space-2;
+                            y: 0;
+                            text: root.text.unsaved;
+                            font-size: Tokens.font-body;
+                            color: Tokens.text-secondary;
+                        }
+                    }
+
+                    // Primary action on the far side of the reading direction.
+                    if !root.rtl: HorizontalLayout {
+                        padding-top: Tokens.space-4;
+                        padding-bottom: Tokens.space-4;
+                        alignment: end;
+                        spacing: Tokens.space-2;
+
+                        TextButton {
+                            text: root.text.cancel;
+                            accessible-label: root.text.cancel;
+                            clicked => { root.cancel(); }
+                        }
+
+                        FilledButton {
+                            text: root.text.save;
+                            accessible-label: root.text.save;
+                            clicked => { root.save(); }
+                        }
+                    }
+
+                    if root.rtl: HorizontalLayout {
+                        padding-top: Tokens.space-4;
+                        padding-bottom: Tokens.space-4;
+                        alignment: start;
+                        spacing: Tokens.space-2;
+
+                        FilledButton {
+                            text: root.text.save;
+                            accessible-label: root.text.save;
+                            clicked => { root.save(); }
+                        }
+
+                        TextButton {
+                            text: root.text.cancel;
+                            accessible-label: root.text.cancel;
+                            clicked => { root.cancel(); }
+                        }
+                    }
+                }
+            }
+        }
+
+        rail-keys := FocusScope {
+            x: root.rtl ? parent.width - Tokens.layout-rail-width : 0;
+            y: Tokens.layout-header-height;
+            width: Tokens.layout-rail-width;
+            height: parent.height - Tokens.layout-header-height;
+
+            key-pressed(event) => {
+                if event.text == Key.DownArrow {
+                    root.go(Math.min(root.page + 1, root.page-count - 1));
+                    return accept;
+                }
+                if event.text == Key.UpArrow {
+                    root.go(Math.max(root.page - 1, 0));
+                    return accept;
+                }
+                reject
+            }
+
+            rail := NavigationRail {
+                width: parent.width;
+                height: parent.height;
+                alignment: start;
+                items: root.has-intro ? root.intro-items : root.settings-items;
+                current-index <=> root.page;
+                index-changed(index) => { root.page-changed(index); }
+            }
+        }
+
+        header := Rectangle {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: Tokens.layout-header-height;
+            background: Tokens.surface-1;
+
+            logo := Image {
+                x: root.rtl ? parent.width - root.pad - self.width : root.pad;
+                y: (parent.height - self.height) / 2;
+                width: Tokens.layout-header-logo;
+                height: Tokens.layout-header-logo;
+                source: Tokens.dark ? @image-url("../resources/brand/kawaro-cells-dark.svg") : @image-url("../resources/brand/kawaro-cells.svg");
+                image-fit: contain;
+                accessible-role: image;
+                accessible-label: root.text.logo-label;
+            }
+
+            name := Text {
+                x: root.rtl ? logo.x - Tokens.space-3 - self.width : logo.x + logo.width + Tokens.space-3;
+                y: (parent.height - self.height) / 2;
+                width: self.preferred-width;
+                height: self.preferred-height;
+                text: root.text.app-name;
+                font-size: Tokens.font-title * 1.25;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.text-primary;
+            }
+
+            version := Rectangle {
+                x: root.rtl ? name.x - Tokens.space-3 - self.width : name.x + name.width + Tokens.space-3;
+                y: (parent.height - self.height) / 2;
+                width: version-text.preferred-width + 2 * Tokens.space-3;
+                height: version-text.preferred-height + 2 * Tokens.space-1;
+                background: Tokens.surface-3;
+                border-radius: self.height / 2;
+
+                version-text := Text {
+                    x: (parent.width - self.width) / 2;
+                    y: (parent.height - self.height) / 2;
+                    text: root.text.version;
+                    font-size: Tokens.font-label;
+                    font-weight: Tokens.weight-medium;
+                    color: Tokens.text-primary;
+                }
+            }
+        }
+    }
+}

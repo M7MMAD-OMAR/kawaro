@@ -103,6 +103,9 @@ export component NavigationItemTemplate inherits BaseNavigationItemTemplate {
                     style: MaterialTypography.label_medium;
                     color: root.color;
                     horizontal_alignment: center;
+                    // Kawaro (ADR 0002, change 4): a long item name wraps
+                    // to a second line instead of being cut off.
+                    wrap: word-wrap;
                 }
             }
         }

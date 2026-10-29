@@ -1,436 +1,83 @@
 // The settings window: a normal decorated window built from the vendored
 // Material 3 components (crates/ui/material, see its README and
-// docs/adr/0002-settings-components.md). Strings, option order and the
-// mapping to the settings file live in Rust (src/settings.rs); this file only
-// lays out and forwards input.
+// docs/adr/0002-settings-components.md) inside the shared app shell
+// (shell.slint, S-094). Strings, option order and the mapping to the settings
+// file live in Rust (src/settings.rs); this file only forwards.
 //
-// Right to left: Rust reverses the option lists for Arabic, and `rtl` mirrors
-// the label alignment, the switch rows and the button row here.
+// Right to left: Rust reverses the option lists for Arabic, and the shell
+// mirrors the rail, the header, the rows and the footer.
 import { Tokens } from "tokens.slint";
 import { SbarMaterial } from "material-tokens.slint";
-import { MaterialPalette, MaterialWindow, SegmentedButton, Switch, TextField, FilledButton, TextButton, ScrollView } from "@material";
+import { MaterialPalette, MaterialWindow } from "@material";
 import { Palette } from "std-widgets.slint";
+import { AppShell, SettingsText, FormValues } from "shell.slint";
 
 import "../fonts/IBMPlexSansArabic-Regular.otf";
 import "../fonts/IBMPlexSansArabic-Medium.otf";
 import "../fonts/IBMPlexSansArabic-SemiBold.otf";
 
-export { Tokens, Palette }
-
-// Every visible string, filled from Rust in the window language.
-export struct SettingsText {
-    title: string,
-    language: string,
-    theme: string,
-    output: string,
-    folder: string,
-    quality: string,
-    notify: string,
-    notify-long-only: string,
-    open-folder: string,
-    save: string,
-    cancel: string,
-    updates: string,
-    update-check: string,
-    update-apply: string,
-    update-auto: string,
-    update-channel: string,
-    update-mode: string,
-}
-
-// A section heading, aligned to the reading side.
-component Heading inherits Text {
-    in property <bool> rtl;
-    font-size: Tokens.font-title;
-    font-weight: Tokens.weight-semibold;
-    color: Tokens.text-primary;
-    horizontal-alignment: root.rtl ? right : left;
-}
-
-// A labelled group of mutually exclusive options. `items` arrive already in
-// visual order; `current` is a visual index.
-component Choice inherits VerticalLayout {
-    in property <bool> rtl;
-    in property <string> label;
-    in property <[string]> items;
-    in-out property <int> current;
-    callback selected();
-
-    spacing: Tokens.space-2;
-
-    Heading {
-        rtl: root.rtl;
-        text: root.label;
-    }
-
-    HorizontalLayout {
-        alignment: root.rtl ? end : start;
-
-        SegmentedButton {
-            accessible-label: root.label;
-            items: root.items.length == 3 ? [
-                { text: root.items[0] },
-                { text: root.items[1] },
-                { text: root.items[2] },
-            ] : [
-                { text: root.items[0] },
-                { text: root.items[1] },
-            ];
-            current-index <=> root.current;
-            index-changed(index) => { root.selected(); }
-        }
-    }
-}
-
-// A switch with its label; the switch sits on the far side of the reading
-// direction (right in English, left in Arabic).
-component SwitchRow inherits Rectangle {
-    in property <bool> rtl;
-    in property <string> label;
-    in-out property <bool> checked;
-
-    min-height: max(toggle.min-height, text.min-height);
-
-    text := Text {
-        x: root.rtl ? toggle.width + Tokens.space-4 : 0;
-        width: root.width - toggle.width - Tokens.space-4;
-        height: root.height;
-        text: root.label;
-        wrap: word-wrap;
-        font-size: Tokens.font-body;
-        color: Tokens.text-primary;
-        vertical-alignment: center;
-        horizontal-alignment: root.rtl ? right : left;
-        // The switch carries the label for screen readers.
-        accessible-role: none;
-    }
-
-    toggle := Switch {
-        x: root.rtl ? 0 : root.width - self.width;
-        y: (root.height - self.height) / 2;
-        width: self.min-width;
-        height: self.min-height;
-        accessible-label: root.label;
-        checked <=> root.checked;
-    }
-}
-
-export component SettingsPanel inherits Rectangle {
-    forward-focus: keys;
-    in property <bool> rtl;
-    in property <SettingsText> text;
-    in property <[string]> language-items;
-    in property <[string]> theme-items;
-    in property <[string]> output-items;
-    in property <[string]> quality-items;
-
-    // Visual indices into the lists above.
-    in-out property <int> language;
-    in-out property <int> theme;
-    in-out property <int> output;
-    in-out property <int> quality;
-    in-out property <string> folder;
-    in-out property <bool> notify;
-    in-out property <bool> notify-long-only;
-    in-out property <bool> save-failed;
-    in-out property <bool> open-folder;
-    // Visual index of the subfolder option in `output-items` (it depends on
-    // the direction, so Rust sets it). The folder name field exists only
-    // then, and its text lives in `folder` across its removal and return.
-    in property <int> subfolder-index;
-
-    // The Updates section (S-090). Rust renders the version and state line.
-    in property <string> update-version-text;
-    in property <string> update-state-line;
-    in property <bool> update-check-enabled;
-    in property <bool> update-apply-enabled;
-    in property <[string]> update-channel-items;
-    in property <[string]> update-mode-items;
-    in-out property <bool> update-check-auto;
-    in-out property <int> update-channel;
-    in-out property <int> update-mode;
-    callback update-check();
-    callback update-apply();
-
-    callback save();
-    callback cancel();
-    callback language-selected();
-
-
-
-    // Esc anywhere closes without saving; every other key goes on to the
-    // focused control.
-    keys := FocusScope {
-        key-pressed(event) => {
-            if event.text == Key.Escape {
-                root.cancel();
-                return accept;
-            }
-            reject
-        }
-
-        VerticalLayout {
-        scroll := ScrollView {
-            vertical-stretch: 1;
-            content-width: self.visible-width;
-            content-height: max(self.visible-height, content.min-height);
-            content := VerticalLayout {
-            width: parent.width;
-            height: max(scroll.visible-height, self.min-height);
-            padding: Tokens.space-6;
-            spacing: Tokens.space-5;
-
-            Choice {
-                rtl: root.rtl;
-                label: root.text.language;
-                items: root.language-items;
-                current <=> root.language;
-                selected => { root.language-selected(); }
-            }
-
-            Choice {
-                rtl: root.rtl;
-                label: root.text.theme;
-                items: root.theme-items;
-                current <=> root.theme;
-            }
-
-            VerticalLayout {
-                spacing: Tokens.space-3;
-
-                Choice {
-                    rtl: root.rtl;
-                    label: root.text.output;
-                    items: root.output-items;
-                    current <=> root.output;
-                }
-
-                if root.output == root.subfolder-index: TextField {
-                    label: root.text.folder;
-                    accessible-label: root.text.folder;
-                    horizontal-alignment: root.rtl ? right : left;
-                    text <=> root.folder;
-                }
-            }
-
-            Choice {
-                rtl: root.rtl;
-                label: root.text.quality;
-                items: root.quality-items;
-                current <=> root.quality;
-            }
-
-            VerticalLayout {
-                spacing: Tokens.space-3;
-
-                SwitchRow {
-                    rtl: root.rtl;
-                    label: root.text.notify;
-                    checked <=> root.notify;
-                }
-
-                if root.notify: SwitchRow {
-                    rtl: root.rtl;
-                    label: root.text.notify-long-only;
-                    checked <=> root.notify-long-only;
-                }
-
-                SwitchRow {
-                    rtl: root.rtl;
-                    label: root.text.open-folder;
-                    checked <=> root.open-folder;
-                }
-            }
-
-            VerticalLayout {
-                spacing: Tokens.space-3;
-
-                Heading {
-                    rtl: root.rtl;
-                    text: root.text.updates;
-                }
-
-                Text {
-                    text: root.update-version-text;
-                    font-size: Tokens.font-body;
-                    color: Tokens.text-primary;
-                    wrap: word-wrap;
-                    horizontal-alignment: root.rtl ? right : left;
-                }
-
-                if root.update-state-line != "": Text {
-                    text: root.update-state-line;
-                    font-size: Tokens.font-body;
-                    color: Tokens.text-secondary;
-                    wrap: word-wrap;
-                    horizontal-alignment: root.rtl ? right : left;
-                }
-
-                if !root.rtl: HorizontalLayout {
-                    alignment: start;
-                    spacing: Tokens.space-2;
-
-                    TextButton {
-                        text: root.text.update-check;
-                        enabled: root.update-check-enabled;
-                        accessible-label: root.text.update-check;
-                        clicked => { root.update-check(); }
-                    }
-
-                    FilledButton {
-                        text: root.text.update-apply;
-                        enabled: root.update-apply-enabled;
-                        accessible-label: root.text.update-apply;
-                        clicked => { root.update-apply(); }
-                    }
-                }
-
-                if root.rtl: HorizontalLayout {
-                    alignment: end;
-                    spacing: Tokens.space-2;
-
-                    FilledButton {
-                        text: root.text.update-apply;
-                        enabled: root.update-apply-enabled;
-                        accessible-label: root.text.update-apply;
-                        clicked => { root.update-apply(); }
-                    }
-
-                    TextButton {
-                        text: root.text.update-check;
-                        enabled: root.update-check-enabled;
-                        accessible-label: root.text.update-check;
-                        clicked => { root.update-check(); }
-                    }
-                }
-
-                SwitchRow {
-                    rtl: root.rtl;
-                    label: root.text.update-auto;
-                    checked <=> root.update-check-auto;
-                }
-
-                Choice {
-                    rtl: root.rtl;
-                    label: root.text.update-channel;
-                    items: root.update-channel-items;
-                    current <=> root.update-channel;
-                }
-
-                Choice {
-                    rtl: root.rtl;
-                    label: root.text.update-mode;
-                    items: root.update-mode-items;
-                    current <=> root.update-mode;
-                }
-            }
-
-            }
-        }
-        // The save row stays in view below the scrolling sections.
-        VerticalLayout {
-            padding: Tokens.space-6;
-            spacing: Tokens.space-3;
-
-            if root.save-failed: Text {
-                text: root.rtl ? "تعذر حفظ الإعدادات، حاول مرة أخرى." : "Could not save settings. Please try again.";
-                color: Tokens.text-primary;
-                wrap: word-wrap;
-                horizontal-alignment: root.rtl ? right : left;
-            }
-
-            // Primary action on the far side of the reading direction.
-            if !root.rtl: HorizontalLayout {
-                alignment: end;
-                spacing: Tokens.space-2;
-
-                TextButton {
-                    text: root.text.cancel;
-                    accessible-label: root.text.cancel;
-                    clicked => {
-                        root.cancel();
-                    }
-                }
-
-                FilledButton {
-                    text: root.text.save;
-                    accessible-label: root.text.save;
-                    clicked => {
-                        root.save();
-                    }
-                }
-            }
-
-            if root.rtl: HorizontalLayout {
-                alignment: start;
-                spacing: Tokens.space-2;
-
-                FilledButton {
-                    text: root.text.save;
-                    accessible-label: root.text.save;
-                    clicked => {
-                        root.save();
-                    }
-                }
-
-                TextButton {
-                    text: root.text.cancel;
-                    accessible-label: root.text.cancel;
-                    clicked => {
-                        root.cancel();
-                    }
-                }
-            }
-        }
-        }
-    }
-}
+export { Tokens, Palette, SettingsText, FormValues }
 
 export component SettingsUi inherits MaterialWindow {
-    forward-focus: panel;
-    in-out property <bool> rtl <=> panel.rtl;
-    in-out property <SettingsText> text <=> panel.text;
-    in-out property <[string]> language-items <=> panel.language-items;
-    in-out property <[string]> theme-items <=> panel.theme-items;
-    in-out property <[string]> output-items <=> panel.output-items;
-    in-out property <[string]> quality-items <=> panel.quality-items;
-    in-out property <int> language <=> panel.language;
-    in-out property <int> theme <=> panel.theme;
-    in-out property <int> output <=> panel.output;
-    in-out property <int> quality <=> panel.quality;
-    in-out property <string> folder <=> panel.folder;
-    in-out property <bool> notify <=> panel.notify;
-    in-out property <bool> notify-long-only <=> panel.notify-long-only;
-    in-out property <bool> save-failed <=> panel.save-failed;
-    in-out property <bool> open-folder <=> panel.open-folder;
-    in-out property <int> subfolder-index <=> panel.subfolder-index;
-    in-out property <string> update-version-text <=> panel.update-version-text;
-    in-out property <string> update-state-line <=> panel.update-state-line;
-    in-out property <bool> update-check-enabled <=> panel.update-check-enabled;
-    in-out property <bool> update-apply-enabled <=> panel.update-apply-enabled;
-    in-out property <[string]> update-channel-items <=> panel.update-channel-items;
-    in-out property <[string]> update-mode-items <=> panel.update-mode-items;
-    in-out property <bool> update-check-auto <=> panel.update-check-auto;
-    in-out property <int> update-channel <=> panel.update-channel;
-    in-out property <int> update-mode <=> panel.update-mode;
+    forward-focus: shell;
+    in-out property <bool> rtl <=> shell.rtl;
+    in-out property <SettingsText> text <=> shell.text;
+    in-out property <[string]> language-items <=> shell.language-items;
+    in-out property <[string]> theme-items <=> shell.theme-items;
+    in-out property <[string]> output-items <=> shell.output-items;
+    in-out property <[string]> quality-items <=> shell.quality-items;
+    in-out property <int> language <=> shell.language;
+    in-out property <int> theme <=> shell.theme;
+    in-out property <int> output <=> shell.output;
+    in-out property <int> quality <=> shell.quality;
+    in-out property <string> folder <=> shell.folder;
+    in-out property <bool> notify <=> shell.notify;
+    in-out property <bool> notify-long-only <=> shell.notify-long-only;
+    in-out property <bool> save-failed <=> shell.save-failed;
+    in-out property <bool> open-folder <=> shell.open-folder;
+    in-out property <int> subfolder-index <=> shell.subfolder-index;
+    in-out property <string> update-version-text <=> shell.update-version-text;
+    in-out property <string> update-state-line <=> shell.update-state-line;
+    in-out property <bool> update-check-enabled <=> shell.update-check-enabled;
+    in-out property <bool> update-apply-enabled <=> shell.update-apply-enabled;
+    in-out property <[string]> update-channel-items <=> shell.update-channel-items;
+    in-out property <[string]> update-mode-items <=> shell.update-mode-items;
+    in-out property <bool> update-check-auto <=> shell.update-check-auto;
+    in-out property <int> update-channel <=> shell.update-channel;
+    in-out property <int> update-mode <=> shell.update-mode;
+    in-out property <string> shortcut-text <=> shell.shortcut-text;
+    in-out property <FormValues> loaded <=> shell.loaded;
+    in-out property <int> page <=> shell.page;
+    out property <int> rail-focus <=> shell.rail-focus;
+    out property <length> scroll-content-height <=> shell.scroll-content-height;
+    out property <length> scroll-visible-height <=> shell.scroll-visible-height;
+    out property <length> window-min-width: root.min-width;
+    out property <length> window-min-height: root.min-height;
     callback save();
     callback cancel();
     callback language-selected();
     callback update-check();
     callback update-apply();
+    callback page-changed(int);
+    public function focus-rail() {
+        shell.focus-rail();
+    }
     title: root.text.title;
     default-font-family: Tokens.font-family;
-    preferred-width: Tokens.space-6 * 16;
-    preferred-height: Tokens.space-6 * 36;
-    min-height: Tokens.space-6 * 10;
+    preferred-width: Tokens.layout-window-width;
+    preferred-height: Tokens.layout-window-height;
+    min-width: Tokens.layout-window-min-width;
+    min-height: Tokens.layout-window-min-height;
     init => { MaterialPalette.schemes = SbarMaterial.schemes; }
-    panel := SettingsPanel {
+    shell := AppShell {
         width: parent.width;
         height: parent.height;
         save => { root.save(); }
         cancel => { root.cancel(); }
+        escape => { root.cancel(); }
         language-selected => { root.language-selected(); }
         update-check => { root.update-check(); }
         update-apply => { root.update-apply(); }
+        page-changed(p) => { root.page-changed(p); }
     }
 }

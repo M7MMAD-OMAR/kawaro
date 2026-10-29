@@ -21,6 +21,10 @@ struct Opts {
     out: PathBuf,
     lang: Lang,
     compare: Option<PathBuf>,
+    /// S-094: the rail item to show (0 is the first item of the window).
+    page: Option<usize>,
+    /// S-094: the window size to render, `WIDTHxHEIGHT` in logical px.
+    size: Option<(f32, f32)>,
 }
 
 fn parse(args: &[String]) -> Result<Opts, String> {
@@ -28,12 +32,21 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         out: PathBuf::new(),
         lang: Lang::En,
         compare: None,
+        page: None,
+        size: None,
     };
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--lang" => o.lang = it.next().map(|v| Lang::parse(v)).unwrap_or(Lang::En),
             "--compare" => o.compare = it.next().map(PathBuf::from),
+            "--page" => o.page = it.next().and_then(|v| v.parse().ok()),
+            "--size" => {
+                o.size = it.next().and_then(|v| {
+                    let (w, h) = v.split_once('x')?;
+                    Some((w.parse().ok()?, h.parse().ok()?))
+                })
+            }
             other => o.out = PathBuf::from(other),
         }
     }
@@ -85,6 +98,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // The key-free caption step keeps the reference platform neutral (AC3).
     let captions: Captions = kawaro_core::welcome::captions(o.lang, &Registration::Unbound);
     win.open(&captions, true)?;
+    if let Some(page) = o.page {
+        win.show_page(page);
+    }
+    if let Some((w, h)) = o.size {
+        win.set_window_size(w, h);
+    }
     // Frame 8 shows the open hive; caption step 2 names it, with no
     // platform trigger wording.
     win.freeze(8, 2);

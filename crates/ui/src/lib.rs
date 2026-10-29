@@ -46,6 +46,7 @@ mod preview;
 #[cfg(target_os = "linux")]
 mod receiver;
 mod settings;
+mod shell;
 #[cfg(unix)]
 pub mod thumb;
 pub mod welcome;
@@ -59,6 +60,7 @@ pub use drop_track::{Source, drop_hive_allowed};
 pub use icons::icon_names;
 pub use kawaro_core::i18n::Lang;
 pub use settings::SettingsWindow;
+pub use shell::{Rect, privacy_statement, reset_page_memory};
 mod updates;
 pub use updates::{UpdateState, about_line, state_from_status};
 

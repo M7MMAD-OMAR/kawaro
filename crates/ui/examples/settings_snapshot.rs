@@ -22,6 +22,10 @@ struct Opts {
     out: PathBuf,
     lang: Lang,
     compare: Option<PathBuf>,
+    /// S-094: the rail item to show (0 is the first item of the window).
+    page: Option<usize>,
+    /// S-094: the window size to render, `WIDTHxHEIGHT` in logical px.
+    size: Option<(f32, f32)>,
     /// S-090: shows the Updates section in this state (AC8 screenshots).
     update_state: Option<String>,
 }
@@ -31,6 +35,8 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         out: PathBuf::new(),
         lang: Lang::En,
         compare: None,
+        page: None,
+        size: None,
         update_state: None,
     };
     let mut it = args.iter();
@@ -38,6 +44,13 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         match a.as_str() {
             "--lang" => o.lang = it.next().map(|v| Lang::parse(v)).unwrap_or(Lang::En),
             "--compare" => o.compare = it.next().map(PathBuf::from),
+            "--page" => o.page = it.next().and_then(|v| v.parse().ok()),
+            "--size" => {
+                o.size = it.next().and_then(|v| {
+                    let (w, h) = v.split_once('x')?;
+                    Some((w.parse().ok()?, h.parse().ok()?))
+                })
+            }
             "--update-state" => o.update_state = it.next().cloned(),
             other => o.out = PathBuf::from(other),
         }
@@ -92,6 +105,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ..Config::default()
     };
     win.open(&config)?;
+    if let Some(page) = o.page {
+        win.show_page(page);
+    }
+    if let Some((w, h)) = o.size {
+        win.set_window_size(w, h);
+    }
     if let Some(state) = &o.update_state {
         let (state, running) = match state.as_str() {
             "up-to-date" => (UpdateState::UpToDate, true),

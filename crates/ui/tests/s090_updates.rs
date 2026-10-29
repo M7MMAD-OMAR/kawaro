@@ -246,7 +246,9 @@ fn ac7_arabic_and_english_strings_exist_and_differ_for_every_state() {
 
 #[test]
 fn ac7_slint_source_has_an_updates_section_with_labelled_buttons_and_no_long_dashes() {
-    let src = std::fs::read_to_string(root().join("crates/ui/ui/settings.slint")).unwrap();
+    // S-094: the markup moved into the shared shell.
+    let src = std::fs::read_to_string(root().join("crates/ui/ui/settings.slint")).unwrap()
+        + &std::fs::read_to_string(root().join("crates/ui/ui/shell.slint")).unwrap();
     let low = src.to_lowercase();
     assert!(low.contains("update-check") && low.contains("update-apply"));
     assert!(

@@ -18,13 +18,16 @@ Sleek-ui and fluent were not needed.
 
 - Use the Material 3 library from the Slint repo at v1.18.1, vendored in `crates/ui/material/` with its licence and a README giving the source, the hash and every change.
 - Import it as `@material` (a library path in `crates/ui/build.rs`). The settings window compiles in its own Rust file (`settings_ui.rs`), included by `src/settings.rs` in a private module, because `include_modules!()` takes only the last compiled file, which is the hive.
-- Components used: `MaterialWindow`, `SegmentedButton` (language, theme, output location, quality), `TextField` (folder name), `Switch`, `FilledButton` (save), `TextButton` (cancel). No library component was rebuilt; `Choice` and `SwitchRow` in `settings.slint` only group library components with a title or label.
+- Components used: `MaterialWindow`, `SegmentedButton` (language, theme, output location, quality), `TextField` (folder name), `Switch`, `FilledButton` (save), `TextButton` (cancel), and since S-094 `NavigationRail` (the page rail of the shared shell in `ui/shell.slint`). No library component was rebuilt; `Choice` and `SwitchRow` in `settings.slint` only group library components with a title or label.
 
 ### Changes to the library
 
 1. **Shadows:** `elevation.slint` is a rounded rectangle with no shadow, keeping its properties so the rest of the library is unchanged. Our files never set `level`.
 2. **Text field:** it was a bottom line with rounded top corners, a one sided border. It is now a full rounded border that thickens on focus, plus a `horizontal_alignment` property to right align text and label in Arabic.
 3. **Segmented buttons:** removed the side divider between segments (a side accent line); the selected segment shows by its surface and check mark. The selected end segment rounds its own corners, because the software renderer does not clip children to the parent's rounded bounds and the colour leaked past the edge.
+
+4. **Navigation rail label (S-094):** the label of `NavigationItemTemplate` (`navigation_bar.slint`, used by `NavigationRail`) wraps onto a second line instead of being elided with an ellipsis. The settings shell needs the full item name "Notifications and integration" in a 96 px rail. Nothing else of the rail changed.
+5. **Segment padding (S-094):** the horizontal padding of a `SegmentedButton` segment is 14 px instead of 24 px. With the 220 px label column of the settings rows, a three option choice ("Smaller files", "Balanced", "Best quality") otherwise overflows its 640 px column.
 
 ### Colours
 

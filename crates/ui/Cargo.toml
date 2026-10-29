@@ -12,6 +12,9 @@ slint.workspace = true
 # name, PNG text chunks for its validity. Both already in the tree.
 md-5 = "0.11"
 png = "0.17"
+# S-094: the geometry probes the shell tests read (`src/shell.rs`). Off in
+# every shipped build; the self dev dependency below turns it on for tests.
+i-slint-backend-testing = { version = "=1.18.1", optional = true }
 
 # Wayland drop receiver (S-014b, ADR 0003): a second connection on winit's
 # display. Same versions winit already pulls in, so no new packages.
@@ -36,11 +39,15 @@ zbus = { version = "5.19.0", default-features = false, features = ["async-io", "
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Graphics_Dwm", "Win32_Graphics_Gdi", "Win32_UI_HiDpi", "Win32_UI_WindowsAndMessaging"] }
 
+[features]
+testing-hooks = ["dep:i-slint-backend-testing"]
+
 [build-dependencies]
 slint-build.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+kawaro-ui = { path = ".", features = ["testing-hooks"] }
 # Headless Slint platform for the behaviour test; same pinned version as slint.
 i-slint-backend-testing = "=1.18.1"
 # S-062: tests/contrast.rs reads design/tokens.json (already in the tree).

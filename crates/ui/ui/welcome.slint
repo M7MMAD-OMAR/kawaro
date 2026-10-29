@@ -1,5 +1,7 @@
-// The first-run welcome window (S-087): the demonstration frames, the
-// caption steps and the two buttons. Strings and captions arrive from Rust
+// The first-run welcome window (S-087, S-094): the shared app shell
+// (shell.slint) with Introduction as its first page. The Introduction holds the
+// demonstration frames, the caption steps and the two buttons; the other five
+// pages are the settings pages. Strings and captions arrive from Rust
 // (kawaro_core::welcome), so this file only lays out and forwards input.
 //
 // Right to left: `rtl` mirrors the heading alignment and the button row.
@@ -7,13 +9,13 @@ import { Tokens } from "tokens.slint";
 import { SbarMaterial } from "material-tokens.slint";
 import { MaterialPalette, MaterialWindow, FilledButton, TextButton } from "@material";
 import { Palette } from "std-widgets.slint";
-import { SettingsPanel, SettingsText } from "settings.slint";
+import { AppShell, SettingsText, FormValues } from "shell.slint";
 
 import "../fonts/IBMPlexSansArabic-Regular.otf";
 import "../fonts/IBMPlexSansArabic-Medium.otf";
 import "../fonts/IBMPlexSansArabic-SemiBold.otf";
 
-export { Tokens, Palette, SettingsText }
+export { Tokens, Palette, SettingsText, FormValues }
 
 // Every visible string, filled from Rust in the window language.
 export struct WelcomeText {
@@ -22,6 +24,33 @@ export struct WelcomeText {
     try-accessible: string,
     settings-button: string,
     settings-accessible: string,
+}
+
+// The demonstration card: a centred 16:9 box, never wider than the token
+// limit and never taller than the visible page area.
+component FilmCard inherits Rectangle {
+    in property <image> frame;
+    in property <length> limit-h;
+
+    film := Rectangle {
+        width: min(parent.width, min(Tokens.layout-film-max-width, root.limit-h * 16 / 9));
+        height: self.width * 9 / 16;
+        x: (parent.width - self.width) / 2;
+        background: Tokens.surface-1;
+        border-color: Tokens.border;
+        border-width: Tokens.border-default;
+        border-radius: Tokens.radius-md;
+        clip: true;
+
+        Image {
+            width: 100%;
+            height: 100%;
+            source: root.frame;
+            image-fit: contain;
+        }
+    }
+    min-height: film.height;
+    preferred-height: film.height;
 }
 
 export component WelcomeUi inherits MaterialWindow {
@@ -124,155 +153,96 @@ export component WelcomeUi inherits MaterialWindow {
     callback open-settings();
     callback dismissed();
 
-    in-out property <bool> show-settings: false;
-    in-out property <SettingsText> settings-text <=> settings.text;
-    in-out property <[string]> settings-language-items <=> settings.language-items;
-    in-out property <[string]> settings-theme-items <=> settings.theme-items;
-    in-out property <[string]> settings-output-items <=> settings.output-items;
-    in-out property <[string]> settings-quality-items <=> settings.quality-items;
-    in-out property <int> settings-language <=> settings.language;
-    in-out property <int> settings-theme <=> settings.theme;
-    in-out property <int> settings-output <=> settings.output;
-    in-out property <int> settings-quality <=> settings.quality;
-    in-out property <string> settings-folder <=> settings.folder;
-    in-out property <bool> settings-notify <=> settings.notify;
-    in-out property <bool> settings-notify-long-only <=> settings.notify-long-only;
-    in-out property <bool> settings-open-folder <=> settings.open-folder;
-    in-out property <bool> settings-save-failed <=> settings.save-failed;
-    in-out property <int> settings-subfolder-index <=> settings.subfolder-index;
+    in-out property <SettingsText> settings-text <=> shell.text;
+    in-out property <[string]> settings-language-items <=> shell.language-items;
+    in-out property <[string]> settings-theme-items <=> shell.theme-items;
+    in-out property <[string]> settings-output-items <=> shell.output-items;
+    in-out property <[string]> settings-quality-items <=> shell.quality-items;
+    in-out property <int> settings-language <=> shell.language;
+    in-out property <int> settings-theme <=> shell.theme;
+    in-out property <int> settings-output <=> shell.output;
+    in-out property <int> settings-quality <=> shell.quality;
+    in-out property <string> settings-folder <=> shell.folder;
+    in-out property <bool> settings-notify <=> shell.notify;
+    in-out property <bool> settings-notify-long-only <=> shell.notify-long-only;
+    in-out property <bool> settings-open-folder <=> shell.open-folder;
+    in-out property <bool> settings-save-failed <=> shell.save-failed;
+    in-out property <int> settings-subfolder-index <=> shell.subfolder-index;
+    in-out property <string> settings-shortcut-text <=> shell.shortcut-text;
+    in-out property <FormValues> settings-loaded <=> shell.loaded;
     callback settings-save();
     callback settings-cancel();
     callback settings-language-selected();
+    callback page-changed(int);
 
-    // The Updates section of the embedded settings (S-090).
-    in-out property <string> settings-update-version-text <=> settings.update-version-text;
-    in-out property <string> settings-update-state-line <=> settings.update-state-line;
-    in-out property <bool> settings-update-check-enabled <=> settings.update-check-enabled;
-    in-out property <bool> settings-update-apply-enabled <=> settings.update-apply-enabled;
-    in-out property <[string]> settings-update-channel-items <=> settings.update-channel-items;
-    in-out property <[string]> settings-update-mode-items <=> settings.update-mode-items;
-    in-out property <bool> settings-update-check-auto <=> settings.update-check-auto;
-    in-out property <int> settings-update-channel <=> settings.update-channel;
-    in-out property <int> settings-update-mode <=> settings.update-mode;
+    // The Updates page of the embedded settings (S-090).
+    in-out property <string> settings-update-version-text <=> shell.update-version-text;
+    in-out property <string> settings-update-state-line <=> shell.update-state-line;
+    in-out property <bool> settings-update-check-enabled <=> shell.update-check-enabled;
+    in-out property <bool> settings-update-apply-enabled <=> shell.update-apply-enabled;
+    in-out property <[string]> settings-update-channel-items <=> shell.update-channel-items;
+    in-out property <[string]> settings-update-mode-items <=> shell.update-mode-items;
+    in-out property <bool> settings-update-check-auto <=> shell.update-check-auto;
+    in-out property <int> settings-update-channel <=> shell.update-channel;
+    in-out property <int> settings-update-mode <=> shell.update-mode;
     callback update-check();
     callback update-apply();
 
-    // The installed version, shown in the footer of the introduction.
-    in property <string> version-text;
-
+    in-out property <int> page <=> shell.page;
+    out property <int> rail-focus <=> shell.rail-focus;
+    out property <length> scroll-content-height <=> shell.scroll-content-height;
+    out property <length> scroll-visible-height <=> shell.scroll-visible-height;
+    out property <length> window-min-width: root.min-width;
+    out property <length> window-min-height: root.min-height;
+    public function focus-rail() {
+        shell.focus-rail();
+    }
 
     title: root.text.title;
     default-font-family: Tokens.font-family;
-    preferred-width: Tokens.space-6 * 20;
-    forward-focus: keys;
+    preferred-width: Tokens.layout-window-width;
+    preferred-height: Tokens.layout-window-height;
+    min-width: Tokens.layout-window-min-width;
+    min-height: Tokens.layout-window-min-height;
+    forward-focus: shell;
 
     init => {
         MaterialPalette.schemes = SbarMaterial.schemes;
     }
 
-    if !root.choose-language: HorizontalLayout {
-        y: 0;
-        height: (Tokens.space-6 + Tokens.space-5);
-        width: parent.width;
-        padding-left: Tokens.space-6;
-        padding-right: Tokens.space-6;
-        alignment: root.rtl ? end : start;
-        spacing: Tokens.space-2;
-        TextButton {
-            text: root.rtl ? "⌂ المقدمة" : "⌂ Introduction";
-            accessible-label: root.rtl ? "المقدمة" : "Introduction";
-            clicked => { root.settings-cancel(); }
-        }
-        TextButton {
-            text: root.rtl ? "⚙ الإعدادات" : "⚙ Settings";
-            accessible-label: root.rtl ? "الإعدادات" : "Settings";
-            clicked => { root.open-settings(); }
-        }
-    }
-
-    // Esc anywhere closes the window; every other key goes on to the
-    // focused control.
-    keys := FocusScope {
-        y: root.choose-language ? Tokens.space-1 * 0 : (Tokens.space-6 + Tokens.space-5);
-        width: parent.width;
-        height: parent.height - self.y;
-        key-pressed(event) => {
-            if event.text == Key.Escape {
-                if root.show-settings { root.settings-cancel(); } else { root.dismissed(); }
-                return accept;
-            }
-            reject
-        }
-
-    settings := SettingsPanel {
+    shell := AppShell {
         width: parent.width;
         height: parent.height;
-        visible: root.show-settings;
+        visible: !root.choose-language;
+        has-intro: true;
         rtl: root.rtl;
         save => { root.settings-save(); }
         cancel => { root.settings-cancel(); }
+        escape => {
+            if root.page != 0 { root.settings-cancel(); } else { root.dismissed(); }
+        }
         language-selected => { root.settings-language-selected(); }
         update-check => { root.update-check(); }
         update-apply => { root.update-apply(); }
-    }
+        page-changed(p) => { root.page-changed(p); }
 
-
-        if root.choose-language && !root.show-settings: VerticalLayout {
-            padding: Tokens.space-6;
-            spacing: Tokens.space-4;
-            Text {
-                text: "Choose your language / اختر لغتك";
-                font-size: Tokens.font-title;
-                font-weight: Tokens.weight-semibold;
-                color: Tokens.text-primary;
-                wrap: word-wrap;
-            }
-            if root.language-save-failed: Text {
-                text: "Could not save. Please try again. / تعذر الحفظ، حاول مرة أخرى.";
-                color: Tokens.text-primary;
-                wrap: word-wrap;
-            }
-            HorizontalLayout {
-                spacing: Tokens.space-4;
-                FilledButton {
-                    text: "العربية";
-                    accessible-label: "العربية";
-                    clicked => { root.select-language(true); }
-                }
-                FilledButton {
-                    text: "English";
-                    accessible-label: "English";
-                    clicked => { root.select-language(false); }
-                }
-            }
-        }
-        if !root.choose-language && !root.show-settings: VerticalLayout {
-            padding: Tokens.space-6;
+        // The Introduction page.
+        if shell.page == 0 && !root.choose-language: VerticalLayout {
             spacing: Tokens.space-4;
 
             Text {
                 text: root.text.title;
-                font-size: Tokens.font-title;
+                font-size: Tokens.font-title * 1.5;
                 font-weight: Tokens.weight-semibold;
                 color: Tokens.text-primary;
+                wrap: word-wrap;
                 horizontal-alignment: root.rtl ? right : left;
             }
 
             // The demonstration area, one frame of the set at a time.
-            demo := Rectangle {
-                width: 100%;
-                height: self.width * 9 / 16;
-                background: Tokens.surface-1;
-                border-color: Tokens.border;
-                border-width: Tokens.border-default;
-                border-radius: Tokens.radius-md;
-                clip: true;
-
-                Image {
-                    width: 100%;
-                    height: 100%;
-                    source: root.frames[root.frame-index];
-                }
+            FilmCard {
+                frame: root.frames[root.frame-index];
+                limit-h: shell.scroll-visible-height - 2 * Tokens.space-5;
             }
 
             Text {
@@ -325,12 +295,49 @@ export component WelcomeUi inherits MaterialWindow {
                     }
                 }
             }
+        }
+    }
 
+    // Esc anywhere closes the window; every other key goes on to the
+    // focused control.
+    if root.choose-language: FocusScope {
+        width: parent.width;
+        height: parent.height;
+        key-pressed(event) => {
+            if event.text == Key.Escape {
+                root.dismissed();
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            padding: Tokens.space-6;
+            spacing: Tokens.space-4;
             Text {
-                text: root.version-text;
-                font-size: Tokens.font-body;
-                color: Tokens.text-secondary;
-                horizontal-alignment: root.rtl ? right : left;
+                text: "Choose your language / اختر لغتك";
+                font-size: Tokens.font-title;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.text-primary;
+                wrap: word-wrap;
+            }
+            if root.language-save-failed: Text {
+                text: "Could not save. Please try again. / تعذر الحفظ، حاول مرة أخرى.";
+                color: Tokens.text-primary;
+                wrap: word-wrap;
+            }
+            HorizontalLayout {
+                spacing: Tokens.space-4;
+                FilledButton {
+                    text: "العربية";
+                    accessible-label: "العربية";
+                    clicked => { root.select-language(true); }
+                }
+                FilledButton {
+                    text: "English";
+                    accessible-label: "English";
+                    clicked => { root.select-language(false); }
+                }
             }
         }
     }

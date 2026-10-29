@@ -2831,6 +2831,7 @@ dependencies = [
  "i-slint-core",
  "kawaro-core",
  "kawaro-engines",
+ "kawaro-ui",
  "md-5",
  "png 0.17.16",
  "rustix 1.1.5",

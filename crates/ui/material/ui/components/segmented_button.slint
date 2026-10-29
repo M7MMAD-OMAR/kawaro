@@ -42,7 +42,9 @@ component SegmentedItemTemplate {
         min_layout_height: 0;
         color: MaterialPalette.on_surface;
         button_vertical_padding: MaterialStyleMetrics.padding_10;
-        button_horizontal_padding: MaterialStyleMetrics.padding_24;
+        // Kawaro (ADR 0002, change 5): 14 px instead of 24 px, so a three
+        // option choice fits next to its 220 px label column.
+        button_horizontal_padding: MaterialStyleMetrics.padding_14;
         spacing: MaterialStyleMetrics.spacing_8;
         icon: root.icon;
         text: root.text;
