@@ -182,6 +182,10 @@ Reading: 4 threads is the sweet spot (8 is slower on this hybrid CPU, so cap at 
 
 17 of 24 pass. English 11/12, **Arabic 6/12**. Strong: receipts, charts and UI questions in English, stamped and low contrast pages. Weak: Arabic names (misreads letters), Arabic handwriting (nonsense), rotated Arabic text, counting objects, an Arabic table cell, an Arabic chart label. Median 9.6 s per image. Conclusion: English document understanding is good for a 2B model; Arabic is OCR grade only on clean printed text (see 8b) and unreliable for names, handwriting and rotation.
 
+### Speech to text (Omni-2B Q4_0 plus Q8_0 mmproj, 6 synthetic clips)
+
+English (flite voice, 9 to 14 s): word error rate 0.00, 0.00 and 0.07, about 2 s per clip, so several times faster than real time on 4 cores; peak RSS 2.7 GB. Arabic (espeak-ng voice): unusable (character error 0.80, 0.87 and 3.6, with Latin script and a repetition loop), **but espeak Arabic is itself barely intelligible, so this says nothing about real Arabic speech**. Open: a test with real recorded Arabic speech (several dialects) against a Whisper class engine (faster-whisper base is already in the local cache), and a guard against the repetition loop (cap `max_tokens` by clip length). Until then Arabic transcription is **unproven** and Whisper stays the baseline.
+
 ### What this means for Kawaro (best uses, ranked)
 
 1. `image.to-text` for noisy or table pages, optional, background only (8b).

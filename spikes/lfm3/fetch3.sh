@@ -4,7 +4,7 @@ set -euo pipefail
 DEST="${LFM3_SPIKE_DIR:-$HOME/.local/share/kawaro-spike/lfm3}"
 get() { local url=$1 out=$2 sha=$3
   if [ -f "$out" ] && echo "$sha  $out" | sha256sum -c --status; then echo "ok (cached) $out"; return; fi
-  curl -fL --proto '=https' --proto-redir '=https' --max-redirs 5 -C - --retry 5 --retry-delay 3 -o "$out.part" "$url"
+  for i in 1 2 3 4 5 6 7 8; do curl --http1.1 -fL --proto '=https' --proto-redir '=https' --max-redirs 5 -C - --retry 5 --retry-delay 3 -o "$out.part" "$url" && break; sleep 5; done
   echo "$sha  $out.part" | sha256sum -c --status; mv "$out.part" "$out"; echo "ok $out"; }
 H=https://huggingface.co/LiquidAI
 

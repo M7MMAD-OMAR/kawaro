@@ -1,0 +1,54 @@
+{
+ "tag": "omni-q4",
+ "peak_rss_mb": 2715,
+ "rows": [
+  {
+   "file": "ar1.wav",
+   "cer": 0.801,
+   "wer": 1.0,
+   "wall_s": 2.95,
+   "ref": "اجتمع الفريق صباح يوم الأحد لمراجعة خطة المشروع الجديد. تقرر أن يرسل أحمد الفاتورة قبل نهاية الأسبوع، وأن تحضر سارة التقرير المالي يوم الثلاثاء.",
+   "hyp": "الله أكبر في سماء الأم والآدمة، دوفاء المشور بالعدن. Takran nitsa manafatu akandihaya alusun. Takantansa tadi amaliyum suza."
+  },
+  {
+   "file": "ar2.wav",
+   "cer": 0.871,
+   "wer": 1.375,
+   "wall_s": 2.39,
+   "ref": "مرحبا بكم في خدمة تحويل الملفات. اختر الملف الذي تريده ثم اختر الصيغة الجديدة، وسيحفظ البرنامج النسخة الجديدة بجانب الملف الأصلي دون أن يغيره.",
+   "hyp": "I'm a comfy with the five. I'm a fellow who reads from the sea of the ocean and I'm a man who's been in the sea of the sea."
+  },
+  {
+   "file": "ar3.wav",
+   "cer": 3.618,
+   "wer": 7.19,
+   "wall_s": 8.82,
+   "ref": "تبدأ الرحلة من محطة القطار الرئيسية في تمام الساعة التاسعة صباحا. يرجى الوصول قبل ربع ساعة وإحضار التذكرة وبطاقة الهوية معكم.",
+   "hyp": "اللي Lamima hasta al-pi-ri-sia fi-tamam as-sa-ta-sa-ta-sa-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-ta-"
+  },
+  {
+   "file": "en1.wav",
+   "cer": 0.0,
+   "wer": 0.0,
+   "wall_s": 2.12,
+   "ref": "The team met on Monday morning to review the project plan. It was decided that Daniel will send the invoice before the end of the week, and that Maria will prepare the budget report on Wednesday.",
+   "hyp": "The team met on Monday morning to review the project plan. It was decided that Daniel will send the invoice before the end of the week and that Maria will prepare the budget report on Wednesday."
+  },
+  {
+   "file": "en2.wav",
+   "cer": 0.0,
+   "wer": 0.0,
+   "wall_s": 2.11,
+   "ref": "Welcome to the file converter. Choose the file you want, then choose the new format. The program saves the new copy next to the original file and never changes the original.",
+   "hyp": "Welcome to the file converter. Choose the file you want, then choose the new format. The program saves the new copy next to the original file and never changes the original."
+  },
+  {
+   "file": "en3.wav",
+   "cer": 0.068,
+   "wer": 0.067,
+   "wall_s": 1.93,
+   "ref": "The train leaves from the main station at nine o'clock in the morning. Please arrive fifteen minutes early and bring your ticket and a photo identity card with you.",
+   "hyp": "The train leaves from the main station at 9 o'clock in the morning. Please arrive 15 minutes early and bring your ticket and a photo identity card with you."
+  }
+ ]
+}
