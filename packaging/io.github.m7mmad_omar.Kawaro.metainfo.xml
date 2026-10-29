@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.2" date="2026-10-29">
+      <description>
+        <p>Urgent Windows fix: upgrading from an older version with the MSI, or with the in-app update, removed the program files and left a broken Start shortcut. If you installed 0.4.1 on Windows, run the 0.4.2 MSI once (or reinstall). A fresh install of 0.4.1 was fine.</p>
+      </description>
+    </release>
     <release version="0.4.1" date="2026-10-29">
       <description>
         <p>A new Settings window with a header, a page rail and an Updates page (installed version, check for updates, update now, automatic check, channel and install mode), plus a simpler website and README. The Windows files are still test-signed with a self-signed certificate, so SmartScreen warns.</p>
