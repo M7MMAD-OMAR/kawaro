@@ -152,7 +152,11 @@ fn ac_a3_saving_ask_or_auto_reads_back_the_same_in_en_and_ar() {
             let path = dir.path().join("config.toml");
             out.save_to(&path).unwrap();
             let text = std::fs::read_to_string(&path).unwrap();
-            let want = if mode == UpdateMode::Ask { "ask" } else { "auto" };
+            let want = if mode == UpdateMode::Ask {
+                "ask"
+            } else {
+                "auto"
+            };
             assert!(
                 text.contains(&format!("update_mode = \"{want}\"")),
                 "{lang:?} {mode:?}: {text}"
@@ -165,7 +169,8 @@ fn ac_a3_saving_ask_or_auto_reads_back_the_same_in_en_and_ar() {
 
 // ---------------------------------------------------------------- A4
 
-const NOTICE_EN: &str = "Automatic install is on. A found update installs by itself when no job runs.";
+const NOTICE_EN: &str =
+    "Automatic install is on. A found update installs by itself when no job runs.";
 const NOTICE_AR: &str = "التثبيت التلقائي مفعّل. يُثبَّت أي تحديث تلقائياً عند عدم وجود مهام جارية.";
 
 #[test]
@@ -243,7 +248,10 @@ fn ac_b3_failed_keeps_check_enabled_and_banners_clear_on_check_or_close() {
     let w = window(Lang::En);
     w.set_update_view(OLD, UpdateState::UpToDate, true);
     w.show_update_result(Some(UpdateResult::Failed("0.4.3".into())));
-    assert!(w.update_check_enabled(), "check stays enabled after a failure");
+    assert!(
+        w.update_check_enabled(),
+        "check stays enabled after a failure"
+    );
     assert!(w.update_version_text().contains(OLD));
     w.press_update_check();
     assert_eq!(w.update_banner(), None, "cleared by the next check");
@@ -293,7 +301,13 @@ fn ac_b4_the_twenty_screenshots_exist_at_880x640() {
     let mut missing = vec![];
     for lang in ["en", "ar"] {
         for scheme in ["light", "dark"] {
-            for state in ["auto-notice", "downloading", "installing", "updated", "failed"] {
+            for state in [
+                "auto-notice",
+                "downloading",
+                "installing",
+                "updated",
+                "failed",
+            ] {
                 let f = dir.join(format!("updates-{lang}-{scheme}-{state}.png"));
                 match std::fs::read(&f) {
                     Ok(b) if b.len() > 24 && &b[1..4] == b"PNG" => {

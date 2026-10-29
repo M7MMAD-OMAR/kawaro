@@ -522,13 +522,14 @@ fn show_settings(config: Config, page: Option<usize>, result: Option<kawaro_ui::
                 win.show_settings_page(page);
             }
             if let Some(result) = &result {
-                if matches!(result, kawaro_ui::UpdateResult::Updated(_)) {
-                    win.set_update_view(
-                        env!("CARGO_PKG_VERSION"),
-                        kawaro_ui::UpdateState::UpToDate,
-                        true,
-                    );
-                }
+                // Failed: the plain failed line (retry hint), never "up to date".
+                let state = match result {
+                    kawaro_ui::UpdateResult::Updated(_) => kawaro_ui::UpdateState::UpToDate,
+                    kawaro_ui::UpdateResult::Failed(_) => {
+                        kawaro_ui::UpdateState::Failed(String::new())
+                    }
+                };
+                win.set_update_view(env!("CARGO_PKG_VERSION"), state, true);
                 win.show_update_result(Some(result.clone()));
             }
             raise_welcome(win);

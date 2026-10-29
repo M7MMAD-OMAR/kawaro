@@ -166,11 +166,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             win.set_update_view(env!("CARGO_PKG_VERSION"), UpdateState::UpToDate, true);
         }
         Some("result-updated") => {
-            win.set_update_view(env!("CARGO_PKG_VERSION"), UpdateState::UpToDate, true);
+            // A restarted 0.4.3 daemon: the installed version is the target.
+            // The notes card shows the build's bundled notes, the same
+            // fixture text a real 0.4.3 build bundles.
+            win.set_update_view("0.4.3", UpdateState::UpToDate, true);
             win.show_update_result(Some(kawaro_ui::UpdateResult::Updated("0.4.3".into())));
         }
         Some("result-failed") => {
-            win.set_update_view(env!("CARGO_PKG_VERSION"), UpdateState::UpToDate, true);
+            win.set_update_view(
+                env!("CARGO_PKG_VERSION"),
+                UpdateState::Failed(String::new()),
+                true,
+            );
             win.show_update_result(Some(kawaro_ui::UpdateResult::Failed("0.4.3".into())));
         }
         _ => {}
