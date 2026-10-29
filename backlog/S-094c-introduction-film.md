@@ -1,5 +1,5 @@
 # S-094c Introduction film: faithful, sharp, bounded
-Status: draft (2026-10-29)
+Status: approved with tests (2026-10-29)
 
 ## Story
 As a first time user, I want the Introduction film to show the real flow clearly on any window size, so that I understand how to use Kawaro in one viewing.
@@ -26,8 +26,15 @@ After S-094.
 | AC4 | Geometry at the three sizes, no overflow | ui |
 | AC5 | Capture reviewed by the owner | manual |
 
+## Test hooks (pinned by `crates/ui/tests/s094c_film.rs`)
+All `#[doc(hidden)] pub`, on `WelcomeWindow`, geometry in logical px as in S-094.
+- `kawaro_ui::film::frames() -> Vec<FilmFrame>` with `FilmFrame { step: usize (0..4), hive_opacity: f32, elements: Vec<String> }`; element names `file-manager`, `source-file`, `pointer`, `hive`, `thumbnail`, `result-file`. Required per step: 0 file-manager, source-file (no hive, thumbnail, result); 1 plus hive, pointer; 2 file-manager, source-file, hive, thumbnail (no result); 3 file-manager, source-file, result-file (no thumbnail). A thumbnail implies its source-file. Hive opacity is exactly 1.0 in steps 1 and 2 (the second and third steps).
+- `kawaro_ui::film::poster_index()`; window: `film_frame()`, `film_step()`, `film_is_poster()`, `film_playing()`, `film_timer_running()`, `film_tick()` (what the timer does, only while playing), `press_film_play_pause()`, `film_button_label()` (also in `visible_labels()`), `set_reduced_motion(bool)`, `film_card_rect()`, `set_scale_factor(f32)`, `film_render_pixels() -> (u32, u32)`.
+- Raster frames, if any remain in `crates/ui/resources/welcome/frame-*.png`, must be at least 1680x945.
+- Not covered by these tests: the rendered look (snapshots, light and dark, 4K), which stays with the reviewer screenshots and AC5.
+
 ## Out of scope
 - Sound, video files, new languages.
 
 ## Review log
--
+- 2026-10-29 tester: `crates/ui/tests/s094c_film.rs`, 7 tests (AC1 x2, AC2 x2, AC3 x2, AC4). Red run: does not compile, `error[E0432]: unresolved import kawaro_ui::film` and 36 `E0599` for the missing window hooks (`film_frame`, `film_step`, `film_is_poster`, `film_playing`, `film_timer_running`, `film_tick`, `press_film_play_pause`, `film_button_label`, `set_reduced_motion`, `film_card_rect`, `set_scale_factor`, `film_render_pixels`). The raster size test would also fail on the current 576x324 frames once it compiles. Runs used `systemd-run --scope` with 6G, 200% CPU, jobs 2, nice 19. AC5 is manual.
