@@ -1,6 +1,9 @@
 # الإصدارات
 
-## 0.4.1
+## 0.4.2
+
+## 0.4.2 (2026-10-29)
+- MSI upgrade keeps the program files ([S-097](https
 
 ## 0.4.1 (2026-10-29)
 - App shell for settings and welcome ([S-094](https
