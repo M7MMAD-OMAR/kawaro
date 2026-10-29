@@ -64,6 +64,14 @@ pub fn msiexec_args(msi: &Path, log: &Path) -> Vec<String> {
     ]
 }
 
+/// The repair of an install whose files are missing: `/fa <msi> /qn
+/// /norestart /l*v <log>`.
+pub fn msiexec_repair_args(msi: &Path, log: &Path) -> Vec<String> {
+    let mut args = msiexec_args(msi, log);
+    args[0] = "/fa".to_string();
+    args
+}
+
 /// The meaning of an `msiexec` exit code.
 pub fn classify_msi(code: i32) -> MsiResult {
     match code {
@@ -115,13 +123,23 @@ pub trait HelperOps {
     fn wait_for_daemon_exit(&self, timeout: Duration) -> bool;
     /// The exit code of `msiexec` run with `args`.
     fn run_msiexec(&self, args: &[String]) -> Result<i32, UpdateError>;
+    /// True when the installed `kawarod.exe` exists.
+    fn daemon_present(&self) -> bool;
     fn write_result(&self, r: &UpdateResult) -> Result<(), UpdateError>;
     fn start_daemon(&self, which: Daemon);
+}
+
+/// The daemon after an install: present, or present after one repair.
+fn present_after_repair(ops: &dyn HelperOps, msi: &Path, log: &Path) -> bool {
+    ops.daemon_present()
+        || (ops.run_msiexec(&msiexec_repair_args(msi, log)).is_ok() && ops.daemon_present())
 }
 
 /// Wait for the daemon, install, write the result, start a daemon. Without
 /// the daemon's exit nothing is installed and no daemon is started (the old
 /// one still runs). A result that cannot be written never stops the daemon.
+/// When the install worked but `kawarod.exe` is missing, one repair runs and,
+/// if the file is still missing, the failure names the MSI and no daemon starts.
 pub fn run_helper(
     ops: &dyn HelperOps,
     msi: &Path,
@@ -130,11 +148,23 @@ pub fn run_helper(
     now: u64,
 ) -> UpdateResult {
     let exited = ops.wait_for_daemon_exit(DAEMON_EXIT_TIMEOUT);
+    let mut missing = false;
     let outcome = if !exited {
         Outcome::Failed(Failure::Text("the daemon did not exit in time".to_string()))
     } else {
         match ops.run_msiexec(&msiexec_args(msi, log)) {
-            Ok(code) => Outcome::from_msi(classify_msi(code)),
+            Ok(code) => {
+                let outcome = Outcome::from_msi(classify_msi(code));
+                missing = outcome == Outcome::Installed && !present_after_repair(ops, msi, log);
+                if missing {
+                    Outcome::Failed(Failure::Text(format!(
+                        "kawarod.exe is missing after the update. Run {} by hand.",
+                        msi.display()
+                    )))
+                } else {
+                    outcome
+                }
+            }
             Err(_) => Outcome::Failed(Failure::Text("msiexec could not start".to_string())),
         }
     };
@@ -144,7 +174,7 @@ pub fn run_helper(
         at: now,
     };
     let _ = ops.write_result(&result);
-    if exited {
+    if exited && !missing {
         let which = if result.outcome == Outcome::Installed {
             Daemon::New
         } else {

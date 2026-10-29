@@ -24,6 +24,19 @@ fn main() {
         .unwrap();
     }
     out.push(']');
-    let dest = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("builtin_actions.rs");
-    std::fs::write(dest, out).unwrap();
+    let out_dir = PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    std::fs::write(out_dir.join("builtin_actions.rs"), out).unwrap();
+
+    // The notes of the installed version (S-099a A5); empty when the file is
+    // missing, which the release gate test rejects.
+    let version = std::env::var("CARGO_PKG_VERSION").unwrap();
+    let notes = PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap())
+        .join("../../docs/whats-new")
+        .join(format!("{version}.json"));
+    println!("cargo:rerun-if-changed={}", notes.display());
+    let body = match notes.canonicalize() {
+        Ok(p) => format!("include_str!({:?})", p.display().to_string()),
+        Err(_) => String::from("\"\""),
+    };
+    std::fs::write(out_dir.join("whats_new.rs"), body).unwrap();
 }

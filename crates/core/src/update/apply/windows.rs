@@ -99,6 +99,12 @@ impl HelperOps for Ops {
         status.code().ok_or(UpdateError::Io)
     }
 
+    fn daemon_present(&self) -> bool {
+        self.program_dir
+            .as_ref()
+            .is_some_and(|dir| dir.join("kawarod.exe").is_file())
+    }
+
     fn write_result(&self, r: &UpdateResult) -> Result<(), UpdateError> {
         let dir = paths::config_dir().ok_or(UpdateError::Io)?;
         write_result(&dir, r)

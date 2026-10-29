@@ -1,6 +1,6 @@
 //! What a verified manifest means for the installed version.
 
-use super::manifest::{Asset, Manifest};
+use super::manifest::{Asset, Manifest, Notes};
 use super::{Channel, UpdateError, version};
 
 /// Every asset url must start with this.
@@ -10,6 +10,7 @@ const URL_PREFIX: &str = "https://github.com/M7MMAD-OMAR/kawaro/releases/downloa
 pub struct Update {
     pub version: String,
     pub notes_url: String,
+    pub notes: Notes,
 }
 
 #[derive(Debug, PartialEq)]
@@ -32,6 +33,7 @@ pub fn evaluate(m: &Manifest, installed: &str, channel: Channel) -> Result<Decis
     Ok(Decision::Available(Update {
         version: m.version.clone(),
         notes_url: m.notes_url.clone(),
+        notes: m.notes.clone(),
     }))
 }
 

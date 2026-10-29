@@ -11,6 +11,7 @@ pub mod result;
 pub mod schedule;
 pub mod verify;
 pub mod version;
+pub mod whats_new;
 
 use serde::{Deserialize, Serialize};
 

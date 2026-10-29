@@ -86,6 +86,14 @@ pub enum Response {
         status: String,
         current: String,
         latest: Option<String>,
+        /// Download progress, only while `downloading` (S-099).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        percent: Option<u8>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        size: Option<u64>,
+        /// The notes of `latest` from the signed manifest.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        notes: Option<crate::update::manifest::Notes>,
     },
 }
 

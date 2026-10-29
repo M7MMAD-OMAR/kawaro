@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use sha2::{Digest, Sha256};
 
 use super::fetch::{FetchError, Fetcher, MANIFEST_MAX_BYTES, SIGNATURE_MAX_BYTES, url_is_clean};
-use super::manifest::{Asset, Manifest};
+use super::manifest::{Asset, Manifest, Notes};
 use super::policy::{Decision, Platform, evaluate, select_asset};
 use super::schedule::{State, allowed, due};
 use super::verify::{UPDATE_KEYS, verify_manifest};
@@ -29,6 +29,7 @@ const CHUNK: usize = 65_536;
 pub struct Update {
     pub version: String,
     pub notes_url: String,
+    pub notes: Notes,
     pub asset: Asset,
 }
 
@@ -39,6 +40,9 @@ pub struct CheckState {
     pub last_seen: Option<String>,
 }
 
+// `Update` carries the notes now; boxing it would change the pinned shape
+// `Available(Update)` that the callers and tests match on.
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, PartialEq)]
 pub enum CheckOutcome {
     Disabled,
@@ -178,6 +182,7 @@ fn judge(
                 Some(Update {
                     version: found.version,
                     notes_url: found.notes_url,
+                    notes: found.notes,
                     asset,
                 }),
             ))
