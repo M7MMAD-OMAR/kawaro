@@ -249,7 +249,6 @@ fn ac_b3_no_poll_in_the_other_states() {
     w.on_update_check(move || n2.set(n2.get() + 1));
     for state in [
         UpdateState::UpToDate,
-        UpdateState::Checking,
         UpdateState::Failed("x".into()),
         UpdateState::Unavailable,
         UpdateState::Updated("0.4.3".into()),

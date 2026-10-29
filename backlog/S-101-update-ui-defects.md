@@ -46,4 +46,4 @@ Ask stays the default and a check never installs in ask mode. Auto is a valid us
 The MSI upgrade fix (S-100), a progress bar, speed and time left, Linux pkexec dialog handling, GNOME focus of the reopened window (S-082), changing the `ask` default.
 
 ## Review log
--
+- Tester 2026-10-30: `crates/ui/tests/s101_update_page.rs` (A2, A3 config, A4, B1 line, B3 banners, B4 probe and 20 files) and `crates/daemon/tests/s101_reopen.rs` (B2 table). The S-099b test `ac_b3_no_poll_in_the_other_states` drops Checking, since A2 now polls there. Both new files fail to compile, the expected red for new API: `kawaro_ui::UpdateResult`, `show_update_result`, `update_auto_notice`, `update_auto_notice_rect`, `update_state_line_rect`, `update_banner_rect` (E0432/E0599, 12 errors), and `crates/daemon/src/reopen_logic.rs` missing (pure module, std and kawaro_core only; the contract is in the test header). Not covered, needs in-binary tests in `crates/daemon/src/*_tests.rs` (outside the tester scope): A1, A3 apply counts, B1 fake clock and quit order, B3 daemon start, B2 write/read of the marker with a visible window.
