@@ -84,7 +84,10 @@ fn ac4_a_second_press_works_after_either_limit() {
     assert!(g.is_idle());
     g.signal(press(), ms(t0, MAX + 10));
     assert_eq!(g.live_timers(), 1, "the second press starts a timer");
-    assert!(matches!(g.tick(ms(t0, MAX + 10 + HOLD)), Some(Effect::Show { .. })));
+    assert!(matches!(
+        g.tick(ms(t0, MAX + 10 + HOLD)),
+        Some(Effect::Show { .. })
+    ));
     // After the limit of a shown hive.
     let mut h = gate();
     h.signal(press(), t0);
