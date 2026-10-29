@@ -24,7 +24,7 @@ static PAGE: AtomicUsize = AtomicUsize::new(0);
 pub(crate) const SETTINGS_PAGES: usize = 5;
 
 pub(crate) fn remembered_page() -> usize {
-    PAGE.load(Ordering::Relaxed).min(SETTINGS_PAGES - 1)
+    PAGE.load(Ordering::Relaxed)
 }
 
 pub(crate) fn remember_page(page: usize) {
@@ -428,3 +428,19 @@ macro_rules! shell_probes {
 
 #[cfg(feature = "testing-hooks")]
 pub(crate) use shell_probes;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A remembered page never leaves the five settings pages.
+    #[test]
+    fn the_page_memory_is_clamped_to_the_last_settings_page() {
+        remember_page(99);
+        assert_eq!(remembered_page(), SETTINGS_PAGES - 1);
+        remember_page(SETTINGS_PAGES - 1);
+        assert_eq!(remembered_page(), 4);
+        remember_page(0);
+        assert_eq!(remembered_page(), 0);
+    }
+}

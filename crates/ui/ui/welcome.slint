@@ -203,7 +203,8 @@ export component WelcomeUi inherits MaterialWindow {
     preferred-width: Tokens.layout-window-width;
     preferred-height: Tokens.layout-window-height;
     min-width: Tokens.layout-window-min-width;
-    min-height: Tokens.layout-window-min-height;
+    // Six rail items need more height than the five of the settings window.
+    min-height: Tokens.layout-window-height;
     forward-focus: shell;
 
     init => {

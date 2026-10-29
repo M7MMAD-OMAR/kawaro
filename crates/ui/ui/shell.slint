@@ -668,102 +668,13 @@ export component AppShell inherits Rectangle {
                     }
                 }
             }
-
-            if root.show-footer: footer := Rectangle {
-                x: 0;
-                y: parent.height - self.height;
-                width: parent.width;
-                height: root.footer-h;
-                background: Tokens.surface-1;
-
-                // The marker and the buttons sit in the same centred column
-                // as the page, so they stay near the rows in a wide window.
-                bar := Rectangle {
-                    x: column.x;
-                    width: column.width;
-                    height: parent.height;
-
-                    if root.save-failed: Text {
-                        x: root.rtl ? parent.width - self.width : 0;
-                        y: (parent.height - self.height) / 2;
-                        width: min(self.preferred-width, parent.width / 2);
-                        text: root.text.save-failed;
-                        wrap: word-wrap;
-                        font-size: Tokens.font-body;
-                        color: Tokens.danger;
-                        horizontal-alignment: root.rtl ? right : left;
-                    }
-
-                    if root.dirty && !root.save-failed: unsaved := Rectangle {
-                        x: root.rtl ? parent.width - self.width : 0;
-                        y: (parent.height - self.height) / 2;
-                        width: Tokens.space-2 + Tokens.space-2 + unsaved-text.preferred-width;
-                        height: unsaved-text.preferred-height;
-
-                        Rectangle {
-                            x: root.rtl ? parent.width - self.width : 0;
-                            y: (parent.height - self.height) / 2;
-                            width: Tokens.space-2;
-                            height: self.width;
-                            border-radius: self.width / 2;
-                            background: Tokens.accent;
-                        }
-                        unsaved-text := Text {
-                            x: root.rtl ? 0 : Tokens.space-2 + Tokens.space-2;
-                            y: 0;
-                            text: root.text.unsaved;
-                            font-size: Tokens.font-body;
-                            color: Tokens.text-secondary;
-                        }
-                    }
-
-                    // Primary action on the far side of the reading direction.
-                    if !root.rtl: HorizontalLayout {
-                        padding-top: Tokens.space-4;
-                        padding-bottom: Tokens.space-4;
-                        alignment: end;
-                        spacing: Tokens.space-2;
-
-                        TextButton {
-                            text: root.text.cancel;
-                            accessible-label: root.text.cancel;
-                            clicked => { root.cancel(); }
-                        }
-
-                        FilledButton {
-                            text: root.text.save;
-                            accessible-label: root.text.save;
-                            clicked => { root.save(); }
-                        }
-                    }
-
-                    if root.rtl: HorizontalLayout {
-                        padding-top: Tokens.space-4;
-                        padding-bottom: Tokens.space-4;
-                        alignment: start;
-                        spacing: Tokens.space-2;
-
-                        FilledButton {
-                            text: root.text.save;
-                            accessible-label: root.text.save;
-                            clicked => { root.save(); }
-                        }
-
-                        TextButton {
-                            text: root.text.cancel;
-                            accessible-label: root.text.cancel;
-                            clicked => { root.cancel(); }
-                        }
-                    }
-                }
-            }
         }
 
         rail-keys := FocusScope {
             x: root.rtl ? parent.width - Tokens.layout-rail-width : 0;
             y: Tokens.layout-header-height;
             width: Tokens.layout-rail-width;
-            height: parent.height - Tokens.layout-header-height;
+            height: parent.height - Tokens.layout-header-height - root.footer-h;
 
             key-pressed(event) => {
                 if event.text == Key.DownArrow {
@@ -831,6 +742,96 @@ export component AppShell inherits Rectangle {
                     font-size: Tokens.font-label;
                     font-weight: Tokens.weight-medium;
                     color: Tokens.text-primary;
+                }
+            }
+        }
+
+        // The footer spans the whole window, under the rail too.
+        if root.show-footer: footer := Rectangle {
+            x: 0;
+            y: parent.height - self.height;
+            width: parent.width;
+            height: root.footer-h;
+            background: Tokens.surface-1;
+
+            // The marker and the buttons sit in the same centred column
+            // as the page, so they stay near the rows in a wide window.
+            bar := Rectangle {
+                x: main.x + column.x;
+                width: column.width;
+                height: parent.height;
+
+                if root.save-failed: Text {
+                    x: root.rtl ? parent.width - self.width : 0;
+                    y: (parent.height - self.height) / 2;
+                    width: min(self.preferred-width, parent.width / 2);
+                    text: root.text.save-failed;
+                    wrap: word-wrap;
+                    font-size: Tokens.font-body;
+                    color: Tokens.danger;
+                    horizontal-alignment: root.rtl ? right : left;
+                }
+
+                if root.dirty && !root.save-failed: unsaved := Rectangle {
+                    x: root.rtl ? parent.width - self.width : 0;
+                    y: (parent.height - self.height) / 2;
+                    width: Tokens.space-2 + Tokens.space-2 + unsaved-text.preferred-width;
+                    height: unsaved-text.preferred-height;
+
+                    Rectangle {
+                        x: root.rtl ? parent.width - self.width : 0;
+                        y: (parent.height - self.height) / 2;
+                        width: Tokens.space-2;
+                        height: self.width;
+                        border-radius: self.width / 2;
+                        background: Tokens.accent;
+                    }
+                    unsaved-text := Text {
+                        x: root.rtl ? 0 : Tokens.space-2 + Tokens.space-2;
+                        y: 0;
+                        text: root.text.unsaved;
+                        font-size: Tokens.font-body;
+                        color: Tokens.text-secondary;
+                    }
+                }
+
+                // Primary action on the far side of the reading direction.
+                if !root.rtl: HorizontalLayout {
+                    padding-top: Tokens.space-4;
+                    padding-bottom: Tokens.space-4;
+                    alignment: end;
+                    spacing: Tokens.space-2;
+
+                    TextButton {
+                        text: root.text.cancel;
+                        accessible-label: root.text.cancel;
+                        clicked => { root.cancel(); }
+                    }
+
+                    FilledButton {
+                        text: root.text.save;
+                        accessible-label: root.text.save;
+                        clicked => { root.save(); }
+                    }
+                }
+
+                if root.rtl: HorizontalLayout {
+                    padding-top: Tokens.space-4;
+                    padding-bottom: Tokens.space-4;
+                    alignment: start;
+                    spacing: Tokens.space-2;
+
+                    FilledButton {
+                        text: root.text.save;
+                        accessible-label: root.text.save;
+                        clicked => { root.save(); }
+                    }
+
+                    TextButton {
+                        text: root.text.cancel;
+                        accessible-label: root.text.cancel;
+                        clicked => { root.cancel(); }
+                    }
                 }
             }
         }
