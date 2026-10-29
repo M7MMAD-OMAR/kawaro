@@ -32,7 +32,8 @@ pub struct FilmFrame {
 /// pulling the file out to where the hive opens, `drag` the dragged file
 /// travelling from there to the target cell.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) struct Pose {
+#[doc(hidden)]
+pub struct Pose {
     pub step: usize,
     pub selected: bool,
     pub pointer: bool,
@@ -60,8 +61,9 @@ const REST: Pose = Pose {
     result: false,
 };
 
-/// The loop. The last pose of each step is the one that step rests on.
-pub(crate) const POSES: [Pose; 9] = [
+/// The loop, one pose per frame; every step has its own distinct poses.
+#[doc(hidden)]
+pub const POSES: [Pose; 7] = [
     // 0: select the file in the file manager.
     REST,
     Pose {
@@ -70,14 +72,6 @@ pub(crate) const POSES: [Pose; 9] = [
         ..REST
     },
     // 1: the trigger opens the hive at the pointer.
-    Pose {
-        step: 1,
-        selected: true,
-        approach: 1.0,
-        lift: 1.0,
-        hive: true,
-        ..REST
-    },
     Pose {
         step: 1,
         selected: true,
@@ -121,14 +115,6 @@ pub(crate) const POSES: [Pose; 9] = [
         ..REST
     },
     // 3: the result beside the untouched original.
-    Pose {
-        step: 3,
-        pointer: false,
-        selected: true,
-        approach: 1.0,
-        result: true,
-        ..REST
-    },
     Pose {
         step: 3,
         pointer: false,

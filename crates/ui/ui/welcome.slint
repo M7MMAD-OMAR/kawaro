@@ -131,7 +131,14 @@ export component WelcomeUi inherits MaterialWindow {
         page-changed(p) => { root.page-changed(p); }
 
         // The Introduction page.
-        if shell.page == 0 && !root.choose-language: VerticalLayout {
+        // The heading, the card and the buttons share the card's width, so
+        // their edges line up in both reading directions.
+        if shell.page == 0 && !root.choose-language: HorizontalLayout {
+            alignment: center;
+
+            VerticalLayout {
+            min-width: film-card.card-w;
+            max-width: film-card.card-w;
             spacing: Tokens.space-4;
 
             Text {
@@ -144,7 +151,8 @@ export component WelcomeUi inherits MaterialWindow {
             }
 
             // The film, its control and the captions of the flow.
-            FilmCard {
+            film-card := FilmCard {
+                avail-w: shell.column-width;
                 pose: root.pose;
                 centred: root.centred;
                 rtl: root.rtl;
@@ -206,6 +214,7 @@ export component WelcomeUi inherits MaterialWindow {
                         root.try-sample();
                     }
                 }
+            }
             }
         }
     }

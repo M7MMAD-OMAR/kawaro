@@ -488,7 +488,11 @@ export component FilmCard inherits Rectangle {
     // The captions block: five one line rows and the card padding.
     property <length> row-h: Tokens.space-4 + Tokens.space-1;
     property <length> captions-h: 5 * root.row-h + 4 * Tokens.space-1 + 2 * Tokens.space-3;
-    property <length> film-w: min(root.width, min(Tokens.layout-film-max-width, max(Tokens.layout-film-max-width * 0.6, (root.limit-h - root.captions-h) * 16 / 9)));
+    // The card width follows the page column the Introduction sits in, so
+    // the heading and the buttons can line up with its edge.
+    in property <length> avail-w;
+    out property <length> card-w: min(root.avail-w, min(Tokens.layout-film-max-width, max(Tokens.layout-film-max-width * 0.6, (root.limit-h - root.captions-h) * 16 / 9)));
+    property <length> film-w: root.card-w;
 
     min-height: card.height;
     preferred-height: card.height;
