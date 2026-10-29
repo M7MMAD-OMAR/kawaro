@@ -1,5 +1,5 @@
 # S-094 Settings and welcome window as a real app shell
-Status: review
+Status: rework
 
 ## Story
 As a user, I want the settings window to look and behave like an application (header with name and version, page rail, centred content, fixed Save row), so that I can find a setting without scrolling one long form and trust what I installed.
@@ -64,4 +64,11 @@ S-091 and S-092 edit `crates/core/src/ipc.rs`, `crates/daemon/src/ui.rs` and `tr
   - Test defects found, left untouched: `s094_shell.rs` has two unused helpers (`root`, `read`), so `cargo clippy --all-targets -- -D warnings` fails on dead code until they are removed or allowed; `cargo fmt --check` flags the formatting of `s094_shell.rs` and `s094_static.rs` (they were not reformatted).
   - Snapshots: the four welcome and four settings references were re-baselined and a second run matches them with 0 differing pixels. Review set (22 images, English and Arabic, light and dark, 880x640 and 1800x1000, 560x560, update states): `docs/screenshots/s094/`.
   - Not verified: the Windows 11 captures (C), a real GNOME or KDE session (the renders come from the private headless KWin), the screen reader announcement of the page rail, mutation testing (`cargo mutants` was not run), and the film content and sharpness (S-094c).
-
+- 2026-10-29 reviewer: REWORK (1 of 2 allowed).
+  - Gates: `cargo fmt --check` and `cargo clippy --all-targets -- -D warnings` pass after a formatting only commit on `s094_shell.rs` and `s094_static.rs` (rustfmt plus `#[allow(dead_code)]` on `root` and `read`, no test logic touched). `cargo test --all`: 101 result groups, 0 failures. `scripts/design-lint.sh` clean.
+  - Mutation (`cargo mutants --in-place --in-diff` on `shell.rs`, `settings.rs`, `welcome.rs`, `lib.rs`, `build.rs` of the story diff, tests limited to `--lib` and the four ui test files; 103 mutants, about 3 minutes each): stopped after 12 results with 2 survivors, so the run is incomplete.
+    1. `crates/ui/src/settings.rs:700: replace SettingsWindow::show_page with ()` survives (the same hook in `welcome.rs:591` is the same shape and will survive too). It is a snapshot hook used only by the examples; no test calls it.
+    2. `crates/ui/src/shell.rs:27: replace - with + in remembered_page` (`.min(SETTINGS_PAGES - 1)`) survives: no test puts an out of range page into the memory.
+    Required: cover both with tests, or remove what no test needs (the clamp in `remembered_page` is redundant with `remember_page`; the hooks can go behind the same untested glue exclusion only with a line in `.cargo/mutants.toml` the manager accepts). After the fix the full mutant run must be finished and clean.
+  - Rulings: the `find` helper edit in `settings.rs` tests and the `embedded_settings_switch_language_save_and_cancel_in_same_window` edit in `welcome.rs` are ACCEPTED (they only follow controls that moved to pages and buttons that the AC removed; assertions are unchanged). ADR 0002 changes 4 and 5 (rail label wraps, segment padding 14 px) are ACCEPTED: small, documented in the ADR and `material/README.md`, needed for AC2 and AC4.
+  - Screenshots (all 22 viewed): header (logo, `كوارو | Kawaro`, 0.4.0), five item rail, centred column, 220 px label column rows, footer Save and Cancel, Arabic mirroring of rail, header, rows and footer, light and dark, default and maximized, the 560x560 minimum: no overlap, no clipping, Updates keeps the two line state area. Observations, not blocking: the rail label "Notifications and integration" fills the full 96 px (touches both edges); the film frames are cut at the bottom (S-094c); the footer strip starts after the rail so a rail coloured block shows under it. AC1 to AC10 each map to a passing test in `s094_shell.rs` or `s094_static.rs`; AC (C), the Windows 11 captures, stays with the owner.
