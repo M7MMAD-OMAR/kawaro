@@ -1,0 +1,49 @@
+# S-101 Update page shows what really happens: progress, install mode, installing, result
+Status: draft (waiting for manager approval)
+
+## Story
+As a user pressing Check for updates, I want the page to show the real download percent, to install only when I press Update now (unless I chose automatic mode, which the page then states), to say "Installing" before the window closes, and to reopen with the result, so that I never watch a frozen line or a window that vanishes.
+
+## Evidence and real causes
+Windows 11 live check of S-099 (`docs/screenshots/s099-windows/NOTES.md`, images 01 to 05). The install itself fails for another reason (MSI 1603, S-100); this story is only about what the user sees.
+- D1 (line stays `Checking for updates.`): `Request::UpdateCheck` runs `check_now`, which fetches, downloads and verifies under the update lock and replies only at the end (`server.rs:194`). The server handles each connection on its own thread, so a second `UpdateCheck` would already get `downloading_reply` with the percent (`check_or_busy`), but the window never sends one: `polling()` in `updates.rs` is true only in Downloading or Installing, and the page sits in Checking until the first reply. The fix is the window poll, not the daemon.
+- D2 (installed without Update now): the default is `update_mode = ask` (`config.rs:208`, ADR 0006 section 5) and `tick` applies only on `apply_requested` or `auto_action(Auto, Windows)` (`update.rs:188`), so in ask mode no code path installs after a check. The VM mode is not recorded: image 02 hides the "Install updates" row below the fold. Either the profile was `auto` (intended by ADR 0006 section 7, but the page never says it is on) or the saved mode was flipped (suspect: `to_visual` and `from_visual` of `MODES` with RTL in `settings.rs:99,126`, since the toast was Arabic). S-101a records which, first.
+- D3 (no `Installing` line): in auto mode the button path is skipped, so `installing_after_apply` never runs; in the button path the helper copy ends the daemon within seconds and no poll reply is guaranteed to be drawn first.
+- D4 (no reopen, no result): `reopen::reopen_decision` returns `None` unless `installed == to`. After a failed install the old daemon starts again with the old version, so nothing opens; the result file only becomes a toast (`notify.rs` `report_update_result_with`).
+- D5 (window closes unexplained): follows from D3 and D4.
+
+## Decision on D2
+Ask stays the default and a check never installs in ask mode. Auto is a valid user choice, so the page must announce it before anything happens and show the install as it starts. No change to the config default.
+
+## S-101a Progress and install mode (about half a day)
+- A1: a second `UpdateCheck` while the first still downloads answers in under 500 ms with `downloading`, the percent and size, and never fetches or starts a second download (fetcher call count stays 1). The CLI `kawaro update --check` reply is unchanged (still the final verdict).
+- A2: the window polls every 1000 ms in Checking, Downloading and Installing (`poll_tick`), and in no other state; a poll reply of `downloading` while the window is Checking moves it to Downloading. With a fake download of 1000 bytes at 0, 420 and 1000 bytes written, the state line equals `Downloading 0.4.3: 0% (0.0 of 0.0 MB)`, then 42% (`21.0 of 50.0 MB` form with the real size), then 100%, and is never `Checking for updates.` after the first poll that carries a version. The finished line `Download finished. Ready to install 0.4.3.` follows. Arabic equals S-099 B1.
+- A3: ask mode (default), Windows and Linux OS values: manual checks and 48 simulated hourly ticks with an available update give `Effect::Apply` count 0 and phase `Ready`; one Update now gives count 1. Also: saving the settings with Ask selected and reading the config back gives `update_mode = ask` in en and ar (RTL) and the same for Auto.
+- A4: auto mode on Windows shows, on the Updates page before any check, the line `Automatic install is on. A found update installs by itself when no job runs.` / `التثبيت التلقائي مفعّل. يُثبَّت أي تحديث تلقائياً عند عدم وجود مهام جارية.`; in ask mode the line is empty. Starting a check moves every row below by 0 px (reserved row height).
+- A5: gates: fmt, clippy, tests, `design-lint.sh`, one CHANGELOG line. No mutation requirement.
+
+## S-101b Installing, reopen, result (about half a day)
+- B1: before the daemon exits for an install it stays alive at least 1500 ms with phase `Installing`, so at least one poll reply `installing` is sent first (fake clock test: reply count at least 1 before the quit effect). The line `Installing 0.4.3. Kawaro will restart by itself.` shows for the button path and for the auto path when the window is open.
+- B2: the marker is also written for an auto install while the settings window is visible (tray and background without a window still write none). `reopen_decision(marker, result, installed, now)` table: installed == to and age 10 s gives Updated(to); installed == from and a `Failed` result file and age 10 s gives Failed(to); age 3601 s, other version, no marker, corrupt marker give None and the marker is deleted.
+- B3: on start with Updated, the window opens on the Updates page with `Updated to 0.4.3` and the notes card of 0.4.3. With Failed it opens there with `Update to 0.4.3 did not install. Kawaro is still 0.4.2.` / `لم يُثبَّت التحديث 0.4.3. ما زال كوارو 0.4.2.`, the installed version, and Check enabled. Both banners clear on the next check or window close. The toast stays. Opens: exactly 1 per marker. `on_start` reads `update-result.json` without deleting it (`read_result`), and `report_update_result_with` still takes it for the toast afterwards, so the Failed banner can fire.
+- B4: screenshots at the real default 880x640 (not tall renders) in `docs/screenshots/s101/`: auto notice, downloading 42%, installing, updated, failed, each in en and ar, light and dark (20 images); each banner or line starts above the page bottom less 100 px (the probe of `s099b_rework.rs`), with no scrolling.
+- B5 (end to end, Windows VM, owned by the release step, needs S-100): ask mode, 0.4.2 to 0.4.3 candidate. Check shows at least 3 different percent values over the download and no install starts until Update now (kawaro.exe stays 0.4.2 for 30 s after the download finishes); `Installing` is visible; within 30 s of Update now the settings window is open again on the Updates page with `Updated to 0.4.3` and `kawaro.exe` is 0.4.3. Repeat with an injected failure (corrupt installer): window reopens with the failed banner and kawaro.exe stays 0.4.2. Repeat once with `update_mode = auto`: the notice is shown first. Evidence in `docs/screenshots/s101/windows/`.
+
+## Test cases
+| Criterion | Test | Type |
+| --- | --- | --- |
+| A1 | Fake fetcher blocks 5 s in the download; a second `UpdateCheck` replies in under 500 ms with `downloading` and a percent; `fetch_count` stays 1; the CLI reply is the verdict | integration (daemon) |
+| A2 | Fake part file grows 0, 420, 1000 of 1000; three polls give percent 0, 42, 100 and the exact lines above; clock test: fires at 1000 ms steps in Checking, Downloading, Installing, none in Ready, UpToDate, closed | integration (ui, daemon) |
+| A3 | Ask config, 48 simulated hourly ticks plus 3 manual checks, Os::Windows and Os::Linux: apply count 0; then `request_apply`: count 1 | unit (daemon) |
+| A4 | Auto config: `update_auto_notice()` equals the exact en and ar text; ask config: empty; `update_row_ys` equal before and after `press_update_check` | ui |
+| B1 | Fake clock and effect spy: `installing` reply recorded before the quit effect, and quit not before 1500 ms; `update_state_line()` equals the exact installing text | unit, ui |
+| B2 | Table above, including write then read round trip and deletion; auto with window visible writes a marker, tray and hidden window write none | unit (daemon) |
+| B3 | Fake daemon start with each marker opens one window on page 3; `last_settings_banner()` equals the exact string; the notes card holds the 3 to 5 bullets; the failed case has Check enabled | integration (daemon, ui) |
+| B4 | `updates_screenshots.sh` renders the 20 images at 880x640; a test asserts the probe above for each banner rect and that each file exists; the reviewer views them | snapshot |
+| B5 | The Windows VM run above, recorded in the review log | manual, release step |
+
+## Out of scope
+The MSI upgrade fix (S-100), a progress bar, speed and time left, Linux pkexec dialog handling, GNOME focus of the reopened window (S-082), changing the `ask` default.
+
+## Review log
+-
