@@ -19,6 +19,7 @@ use kawaro_core::update::flow::{
     CheckEnv, CheckOutcome, CheckState, INTERVAL_SECS, Update, VerifiedPackage, check_with,
     download_verified, part_path,
 };
+use kawaro_core::update::manifest::Notes;
 use kawaro_core::update::policy::Platform;
 
 use crate::notify::UpdateKind;
@@ -48,6 +49,9 @@ pub enum Phase {
         size: u64,
     },
     Ready(String),
+    /// The install of this version runs; the daemon exits when it works
+    /// (S-099 A3).
+    Installing(String),
     Failed(String),
 }
 
@@ -191,6 +195,9 @@ pub fn apply_waiting(st: &UpdateState, config: &Config) -> bool {
 /// The whole scheduler step: a check when one is due, then the install if
 /// one is waiting and nothing is running.
 pub fn tick(st: &mut UpdateState, config: &Config, fetcher: &dyn Fetcher, now: u64) -> Vec<Effect> {
+    if matches!(st.phase, Phase::Installing(_)) {
+        return Vec::new();
+    }
     let (_, mut effects) = check_step(st, config, fetcher, now, false);
     if apply_waiting(st, config) && can_apply(st.running_jobs, st.hive_open) {
         st.apply_requested = false;
@@ -244,6 +251,14 @@ pub fn check_or_busy(
             let stat = |p: &Path| std::fs::metadata(p).ok().map(|m| m.len());
             let response = match crate::progress::shared().snapshot(&stat) {
                 Some(phase) => downloading_reply(current, &phase),
+                None if installing_version().is_some() => Response::Update {
+                    status: "installing".to_string(),
+                    current: current.to_string(),
+                    latest: installing_version(),
+                    percent: None,
+                    size: None,
+                    notes: None,
+                },
                 None => Response::Update {
                     status: "downloading".to_string(),
                     current: current.to_string(),
@@ -291,6 +306,9 @@ pub fn check_now(
     fetcher: &dyn Fetcher,
     now: u64,
 ) -> (Response, Vec<Effect>) {
+    if matches!(st.phase, Phase::Installing(_)) {
+        return (reply_for(st), Vec::new());
+    }
     let (outcome, effects) = check_step(st, config, fetcher, now, true);
     let status = match outcome {
         CheckOutcome::UpToDate => "up-to-date",
@@ -306,9 +324,70 @@ pub fn check_now(
         latest: st.check.last_seen.clone(),
         percent: None,
         size: None,
-        notes: None,
+        notes: ready_notes(st).filter(|_| status == "ready"),
     };
     (response, effects)
+}
+
+/// The notes of the verified update, when it has any.
+fn ready_notes(st: &UpdateState) -> Option<Notes> {
+    st.ready
+        .as_ref()
+        .map(|u| u.notes.clone())
+        .filter(|n| *n != Notes::default())
+}
+
+/// The answer for the phase the state is in now (S-099 A3): `downloading`
+/// with the percent and size, `ready`, `installing`, `failed`, or
+/// `up-to-date` when nothing is going on.
+pub fn reply_for(st: &UpdateState) -> Response {
+    let (status, latest, notes) = match &st.phase {
+        Phase::Downloading { .. } => return downloading_reply(&st.env.installed, &st.phase),
+        Phase::Ready(v) => ("ready", Some(v.clone()), ready_notes(st)),
+        Phase::Installing(v) => ("installing", Some(v.clone()), None),
+        Phase::Failed(v) => ("failed", Some(v.clone()), None),
+        Phase::Idle => ("up-to-date", st.check.last_seen.clone(), None),
+    };
+    Response::Update {
+        status: status.to_string(),
+        current: st.env.installed.clone(),
+        latest,
+        percent: None,
+        size: None,
+        notes,
+    }
+}
+
+/// Installs the verified update through `install` (S-099 A3). No verified
+/// update is an error and `install` never runs. The phase is `Installing`
+/// while `install` runs, and `Failed` when it errs; when it works the
+/// daemon exits and the phase stays `Installing`.
+pub fn apply_with(
+    st: &mut UpdateState,
+    install: impl FnOnce(&UpdateState) -> Result<(), String>,
+) -> Result<(), String> {
+    let Phase::Ready(version) = st.phase.clone() else {
+        return Err("no verified update to install".to_string());
+    };
+    st.phase = Phase::Installing(version.clone());
+    let result = install(st);
+    if result.is_err() {
+        st.phase = Phase::Failed(version);
+    }
+    result
+}
+
+/// The version being installed, kept apart from the update lock like the
+/// download progress: the install holds the lock, and a poll must still be
+/// answered at once.
+static INSTALLING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+pub fn set_installing(version: Option<String>) {
+    *lock(&INSTALLING) = version;
+}
+
+fn installing_version() -> Option<String> {
+    lock(&INSTALLING).clone()
 }
 
 /// True when the thread should call `tick` now: an hour passed since the

@@ -28,6 +28,7 @@ mod shell_logic;
 mod shell_open;
 mod state;
 // The tray menu text is used by the Windows tray from S-046 on.
+mod reopen;
 #[cfg_attr(windows, allow(dead_code))]
 mod text;
 mod tray;
@@ -176,6 +177,17 @@ fn main() -> ExitCode {
     }
     if open_settings {
         server::settings(&state);
+    }
+    // After an update the user started from the settings window, the new
+    // daemon reopens it on the Updates page (S-099 B5).
+    if let Some(dir) = Config::path().and_then(|p| p.parent().map(std::path::Path::to_path_buf)) {
+        let config = lock(&state).config.clone();
+        reopen::on_start(
+            &dir,
+            env!("CARGO_PKG_VERSION"),
+            update_sys::unix_now(),
+            &config,
+        );
     }
     #[cfg(unix)]
     {

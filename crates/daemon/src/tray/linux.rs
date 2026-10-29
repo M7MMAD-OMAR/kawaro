@@ -104,7 +104,15 @@ impl ksni::Tray for SbarTray {
             }
             .into(),
             StandardItem {
+                // S-099 B7: About opens the settings window on Updates.
                 label: labels[2].clone(),
+                icon_name: "help-about".into(),
+                activate: Box::new(|t: &mut Self| crate::ui::about(&t.state)),
+                ..Default::default()
+            }
+            .into(),
+            StandardItem {
+                label: labels[3].clone(),
                 enabled: !self.active.is_empty(),
                 icon_name: "process-stop".into(),
                 activate: Box::new(|t: &mut Self| t.queue.cancel_all()),
@@ -112,7 +120,7 @@ impl ksni::Tray for SbarTray {
             }
             .into(),
             StandardItem {
-                label: labels[3].clone(),
+                label: labels[4].clone(),
                 icon_name: "preferences-system".into(),
                 activate: Box::new(|t: &mut Self| {
                     let config = lock(&t.state).config.clone();
@@ -123,7 +131,7 @@ impl ksni::Tray for SbarTray {
             .into(),
             MenuItem::Separator,
             StandardItem {
-                label: labels[4].clone(),
+                label: labels[5].clone(),
                 icon_name: "application-exit".into(),
                 activate: Box::new(|_| crate::ui::quit()),
                 ..Default::default()

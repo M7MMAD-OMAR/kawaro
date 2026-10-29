@@ -368,17 +368,55 @@ pub fn welcome_opens() -> u32 {
     WELCOME_OPENS.with(|c| c.get())
 }
 
+/// The settings page of the last `open_settings_updates` call (S-099), for
+/// the same reason.
+#[cfg(test)]
+pub fn last_settings_page() -> Option<usize> {
+    LAST_PAGE.with(|c| c.get())
+}
+
+/// The version the last `open_settings_updates` call announced as updated.
+#[cfg(test)]
+pub fn last_settings_banner() -> Option<String> {
+    LAST_BANNER.with(|c| c.borrow().clone())
+}
+
 #[cfg(test)]
 thread_local! {
     static SETTINGS_OPENS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
     static WELCOME_OPENS: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    static LAST_PAGE: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+    static LAST_BANNER: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
+/// The settings page the Updates section is on.
+const UPDATES_PAGE: usize = 3;
+
 pub fn open_settings(config: Config) {
+    show_settings(config, None, None);
+}
+
+/// Opens the settings window on the Updates page, with `Updated to X` when
+/// `updated` names the version (S-099 B5, B7).
+pub fn open_settings_updates(config: Config, updated: Option<String>) {
+    show_settings(config, Some(UPDATES_PAGE), updated);
+}
+
+/// The tray's About item: the Updates page, no banner (S-099 B7).
+pub fn about(state: &Shared) {
+    let config = lock(state).config.clone();
+    open_settings_updates(config, None);
+}
+
+fn show_settings(config: Config, page: Option<usize>, updated: Option<String>) {
     // S-086 AC1: counted before the post, so the routing test sees it
     // without running the event loop.
     #[cfg(test)]
-    SETTINGS_OPENS.with(|c| c.set(c.get() + 1));
+    {
+        SETTINGS_OPENS.with(|c| c.set(c.get() + 1));
+        LAST_PAGE.with(|c| c.set(page));
+        LAST_BANNER.with(|c| *c.borrow_mut() = updated.clone());
+    }
     let _ = slint::invoke_from_event_loop(move || {
         if let Err(e) = welcome_window() {
             eprintln!("kawarod: cannot create the main window: {e}");
@@ -398,6 +436,16 @@ pub fn open_settings(config: Config) {
             win.apply_theme(config.theme);
             if !win.settings_visible() {
                 win.show_settings(&config);
+            }
+            if let Some(page) = page {
+                win.show_settings_page(page);
+            }
+            if let Some(version) = &updated {
+                win.set_update_view(
+                    env!("CARGO_PKG_VERSION"),
+                    kawaro_ui::UpdateState::Updated(version.clone()),
+                    true,
+                );
             }
             raise_welcome(win);
         });
@@ -454,10 +502,15 @@ fn update_round_trip(request: kawaro_core::ipc::Request, deferred: bool) {
         let answer = exchange(&request);
         let _ = slint::invoke_from_event_loop(move || {
             let version = env!("CARGO_PKG_VERSION");
-            let view = update_view(&request, answer, deferred, version);
+            let available = available_view(&answer);
+            let view =
+                installing_after_apply(&request, update_view(&request, answer, deferred, version));
             WELCOME.with(|slot| {
                 let slot = slot.borrow();
                 let Some(win) = slot.as_ref() else { return };
+                if let Some(a) = &available {
+                    win.set_update_available(Some(&a.version), a.size, a.notes.as_ref());
+                }
                 match view {
                     UpdateView::Show {
                         version,
@@ -500,12 +553,90 @@ pub(crate) fn update_view(
     match answer {
         None => show(version, UpdateState::Unavailable, false),
         Some(Response::Update {
-            status, current, ..
-        }) => show(&current, kawaro_ui::state_from_status(&status, None), true),
+            status,
+            current,
+            percent,
+            ..
+        }) => {
+            let state = match (kawaro_ui::state_from_status(&status, None), percent) {
+                (UpdateState::Downloading(_), Some(p)) => UpdateState::Downloading(p),
+                (state, _) => state,
+            };
+            show(&current, state, true)
+        }
         Some(Response::Ok) if is_apply && deferred => UpdateView::Deferred,
         Some(Response::Ok) if is_apply => show(version, UpdateState::Checking, true),
         Some(Response::Error { message }) => show(version, UpdateState::Failed(message), true),
         Some(_) => show(version, UpdateState::UpToDate, true),
+    }
+}
+
+/// An accepted Update now that does not wait for jobs is the install itself:
+/// the page says so and keeps asking while the daemon works (S-099 A3).
+pub(crate) fn installing_after_apply(
+    request: &kawaro_core::ipc::Request,
+    view: UpdateView,
+) -> UpdateView {
+    match view {
+        UpdateView::Show {
+            version,
+            state: kawaro_ui::UpdateState::Checking,
+            running,
+        } if *request == kawaro_core::ipc::Request::UpdateApply => UpdateView::Show {
+            version,
+            state: kawaro_ui::UpdateState::Installing,
+            running,
+        },
+        other => other,
+    }
+}
+
+/// The update the service reported, for the versions and the notes of the
+/// Updates page (S-099).
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Available {
+    pub(crate) version: String,
+    pub(crate) size: Option<u64>,
+    pub(crate) notes: Option<kawaro_core::update::manifest::Notes>,
+}
+
+/// The known update in an answer: `None` when the answer names none (up to
+/// date, an error or no service), so the page clears its available version.
+pub(crate) fn available_view(answer: &Option<kawaro_core::ipc::Response>) -> Option<Available> {
+    match answer {
+        Some(kawaro_core::ipc::Response::Update {
+            latest: Some(version),
+            size,
+            notes,
+            ..
+        }) => Some(Available {
+            version: version.clone(),
+            size: *size,
+            notes: notes.clone(),
+        }),
+        _ => None,
+    }
+}
+
+/// The click on Update now in the visible settings window: leaves the marker
+/// that makes the next start reopen the window (S-099 B5).
+fn mark_reopen() {
+    let Some(dir) = Config::path().and_then(|p| p.parent().map(Path::to_path_buf)) else {
+        return;
+    };
+    let to = crate::update_sys::shared()
+        .try_lock()
+        .ok()
+        .and_then(|u| u.ready.as_ref().map(|r| r.version.clone()));
+    if let Some(to) = to {
+        crate::reopen::before_install(
+            &dir,
+            crate::reopen::ApplyOrigin::Settings,
+            true,
+            env!("CARGO_PKG_VERSION"),
+            &to,
+            crate::update_sys::unix_now(),
+        );
     }
 }
 
@@ -546,6 +677,9 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
             // for the running jobs"; the same rule it applies decides which.
             let (_, jobs, hive_open) = crate::update_sys::snapshot(&state);
             let deferred = apply_deferred(jobs, hive_open);
+            if !deferred {
+                mark_reopen();
+            }
             update_round_trip(kawaro_core::ipc::Request::UpdateApply, deferred);
         });
     }

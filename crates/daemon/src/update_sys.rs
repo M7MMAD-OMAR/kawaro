@@ -133,25 +133,39 @@ pub fn run_effects(effects: Vec<Effect>, lang: Lang) {
 }
 
 fn apply(lang: Lang) {
-    let (path, sha256, version, kind) = {
-        let update = lock(shared());
-        let (Some(package), Some(ready)) = (&update.package, &update.ready) else {
-            return;
-        };
-        (
-            package.path().to_path_buf(),
-            ready.asset.sha256.clone(),
-            ready.version.clone(),
-            update.env.platform.pkg.clone(),
-        )
+    let mut version = String::new();
+    // The install holds the update lock, so a poll is answered from
+    // `set_installing` instead (S-099 A3).
+    let result = {
+        let mut update = lock(shared());
+        crate::update::apply_with(&mut update, |s| {
+            let (Some(package), Some(ready)) = (&s.package, &s.ready) else {
+                return Err("no verified update to install".to_string());
+            };
+            version = ready.version.clone();
+            crate::update::set_installing(Some(version.clone()));
+            install(
+                lang,
+                package.path(),
+                &ready.asset.sha256,
+                &s.env.platform.pkg,
+            )
+            .map_err(|()| "the install did not start".to_string())
+        })
     };
-    let started = install(lang, &path, &sha256, &kind);
     crate::tray::refresh();
-    if let Err(()) = started {
-        notify::notify_update(lang, UpdateKind::Failed, &version);
-    } else if cfg!(unix) {
-        notify::notify_update(lang, UpdateKind::Updated, &version);
-        restart_daemon();
+    match result {
+        Err(_) => {
+            crate::update::set_installing(None);
+            if !version.is_empty() {
+                notify::notify_update(lang, UpdateKind::Failed, &version);
+            }
+        }
+        Ok(()) if cfg!(unix) => {
+            notify::notify_update(lang, UpdateKind::Updated, &version);
+            restart_daemon();
+        }
+        Ok(()) => {}
     }
 }
 
