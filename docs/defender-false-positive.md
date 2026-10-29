@@ -17,7 +17,7 @@ Hashes (SHA-256):
 
 Product: Kawaro, open source (GPLv3) local file converter. Release: https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.1. Detection: Program:Win32/Contebrew.A!ml on kawarod.exe (SHA-256 above), inside kawaro-0.4.1-windows-x64.msi. I believe this is a false positive: the program converts files on the user's machine, has no telemetry and no remote control. Behaviours that may look unusual and are intended: it runs a background service started at logon (HKCU Run key), adds an Explorer right-click verb (HKCU), stops its own previous daemon during an update, and an update downloads a signed MSI from GitHub and runs msiexec after the user asks for it. Source for each is in the repository. Please remove the detection.
 
-## Owner steps (needs a Microsoft account)
+## Owner steps (sign-in is optional, it only lets you track the case)
 
 1. Open https://www.microsoft.com/wdsi/filesubmission and sign in.
 2. Choose "Software developer", then upload the MSI and `kawarod.exe` from the release, paste the submission text, send.
