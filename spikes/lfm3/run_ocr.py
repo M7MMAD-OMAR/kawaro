@@ -55,13 +55,16 @@ def timed(cmd):
 
 
 rows = []
-for img in sorted((HERE / "fixtures/ocr").glob("*.png")):
+import os
+OCR_DIR = Path(os.environ["OCR_DIR"]) if os.environ.get("OCR_DIR") else HERE / "fixtures/ocr"
+imgs = sorted([*OCR_DIR.rglob("*.png"), *OCR_DIR.rglob("*.jpg")])
+for img in imgs:
     ref = img.with_suffix(".txt").read_text()
-    lang = "ara" if img.name.startswith("ar") else "eng"
+    lang = "eng" if img.name.startswith("en") else "ara"
     t_out, _, t_wall, t_rss = timed(["tesseract", str(img), "-", "-l", lang])
     v_out, v_err, v_wall, v_rss = timed([
         str(CLI), "-m", model, "--mmproj", mmproj, "--image", str(img), "-p", PROMPT,
-        "--temp", "0", "-n", "1500", "-c", "6144", "-t", threads, "--no-warmup",
+        "--temp", "0", "-n", "2500", "-c", "8192", "-t", threads, "--no-warmup",
     ])
     norm = norm_ar if lang == "ara" else norm_raw
     row = {
@@ -72,7 +75,7 @@ for img in sorted((HERE / "fixtures/ocr").glob("*.png")):
         "vl_text_head": norm_raw(v_out)[:160],
     }
     rows.append(row)
-    (HERE / f"out/ocr-{tag}-{img.stem}.vl.txt").write_text(v_out)
+    (HERE / "out" / f"ocr-{tag}-{img.stem}.vl.txt").write_text(v_out)
     print({k: row[k] for k in ("file", "tess_cer_norm", "vl_cer_norm", "vl_s", "vl_rss_mb")}, flush=True)
 
 
@@ -83,8 +86,8 @@ def mean(key, lang):
 
 summary = {
     "tag": tag, "model": Path(model).name, "mmproj": Path(mmproj).name, "threads": threads,
-    "synthetic_renders": True,
-    "mean_cer_norm": {l: {"tesseract": mean("tess_cer_norm", l), "vl": mean("vl_cer_norm", l)} for l in ("ara", "eng")},
+    "synthetic_renders": not os.environ.get("OCR_DIR"),
+    "mean_cer_norm": {l: {"tesseract": mean("tess_cer_norm", l), "vl": mean("vl_cer_norm", l)} for l in ("ara", "eng") if any(r["lang"] == l for r in rows)},
     "max_vl_s": max(r["vl_s"] for r in rows), "max_vl_rss_mb": max(r["vl_rss_mb"] or 0 for r in rows),
     "rows": rows,
 }

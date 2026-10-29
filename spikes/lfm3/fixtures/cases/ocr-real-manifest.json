@@ -1,0 +1,194 @@
+[
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-00.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 0
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-01.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 1
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-02.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 2
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-03.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 3
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-04.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 4
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-05.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 5
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-06.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 6
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-07.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 7
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-08.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 8
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-09.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 9
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-10.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 10
+ },
+ {
+  "set": "arocrbench",
+  "file": "arocrbench-11.jpg",
+  "dataset": "ahmedheakl/arocrbench_arabicocr",
+  "row": 11
+ },
+ {
+  "set": "books",
+  "file": "books-00.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 0
+ },
+ {
+  "set": "books",
+  "file": "books-01.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 1
+ },
+ {
+  "set": "books",
+  "file": "books-02.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 2
+ },
+ {
+  "set": "books",
+  "file": "books-03.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 3
+ },
+ {
+  "set": "books",
+  "file": "books-04.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 4
+ },
+ {
+  "set": "books",
+  "file": "books-05.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 5
+ },
+ {
+  "set": "books",
+  "file": "books-06.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 6
+ },
+ {
+  "set": "books",
+  "file": "books-07.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 7
+ },
+ {
+  "set": "books",
+  "file": "books-08.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 8
+ },
+ {
+  "set": "books",
+  "file": "books-09.jpg",
+  "dataset": "freococo/ocr_arabic_books",
+  "row": 9
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-00.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 0
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-01.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 1
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-02.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 2
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-03.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 3
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-04.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 4
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-05.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 5
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-06.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 6
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-07.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 7
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-08.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 8
+ },
+ {
+  "set": "synth_scan",
+  "file": "synth_scan-09.jpg",
+  "dataset": "loay/arabic-ocr-synthetic-scans-faker-300k",
+  "row": 9
+ }
+]

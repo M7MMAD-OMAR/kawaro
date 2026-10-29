@@ -174,6 +174,18 @@ Same setup as 8b (llama.cpp b11972, CPU, i7-14650HX with 20 threads, the machine
 
 Reading: 4 threads is the sweet spot (8 is slower on this hybrid CPU, so cap at 4 or half the cores). Context is cheap in memory (the short convolution and window attention design), but decode halves by 16K tokens of context. A normal job (about 1K prompt tokens, 100 output tokens) takes 8 s of prompt plus 4 s of decode, so 10 to 15 s on 4 cores. The vision model runs at 2.3 to 2.6 GB peak.
 
+#### OCR on real Arabic pages (2026-10-29): the synthetic pass does not hold
+
+32 real or realistic pages fetched by `spikes/lfm3/fetch_real_ocr.py` (images stay outside the repository; manifest in `fixtures/cases/ocr-real-manifest.json`): 12 line and paragraph images from ahmedheakl/arocrbench_arabicocr, 10 scanned book pages from freococo/ocr_arabic_books (CC-BY-NC-ND, evaluation only), 10 synthetic scans with noise from loay/arabic-ocr-synthetic-scans-faker-300k (CC-BY-4.0). Same prompt, same settings as before. Normalised character error rate, mean per set:
+
+| set | Tesseract `ara` | LFM3-VL-2B | VL seconds per page |
+|---|---|---|---|
+| arocrbench lines (12) | **0.009** | 2.42 | 28 |
+| book pages (10) | **0.178** | 0.49 | 55 |
+| noisy synthetic scans (10) | **0.348** | 0.64 | 28 |
+
+Verdict: **VL loses on every real set.** On five pages it produced text longer than the page (CER above 1: loops, invented sentences, up to 128 s for one page), and on the diacritic heavy book pages it rewrote words. The earlier pass on 10 clean synthetic renders (section 8b) does not predict real pages, which is exactly the caveat that was written there. Caveats that cut both ways: dense pages may be downscaled by the vision encoder (a tiling or crop-and-stitch pipeline might help; not tried), book references omit footnotes, and the prompt was not tuned. Even so, Tesseract wins by a wide margin at 0.1 to 0.5 s per page, so **LFM3-VL is not adopted for OCR**. ADR 0010 part B is updated accordingly.
+
 ### Text tasks (48 cases, 8 categories)
 
 37 of 48 pass: tool call 6/6, rename 6/6, summarize 6/6, refuse or say unknown 6/6, classify 5/6, translate 4/6, extract 3/6, rewrite 1/6. Arabic 19/24, English 18/24, so no language gap. Failures are mostly the checker's strictness (extra JSON keys in 2 of 3 extract failures; a valid label with a different case) and one counting error; rewrite fails on length limits (it ignores "at most N words") and leaks its own reasoning tags once. Useful: structured extraction, tool calls, file names, short summaries, honest "I cannot know". Not useful: tight length control, translation as a product feature.
@@ -202,7 +214,7 @@ Verdict: **Omni is not adopted for Arabic speech to text.** Whisper small is abo
 
 ### What this means for Kawaro (best uses, ranked)
 
-1. `image.to-text` for noisy or table pages, optional, background only (8b).
+1. ~~`image.to-text` with LFM3-VL~~: withdrawn after the real page test; Tesseract (and possibly a stronger open OCR, under test) is the engine.
 2. Structured extraction from text or OCR output into JSON (receipt, invoice, form fields), always with a per action schema and validation.
 3. Smart file naming from content (6/6), a suggestion the user accepts.
 4. Natural language to action as a confirmed proposal only (8b).
