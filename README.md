@@ -86,6 +86,10 @@ cd kawaro
 | X11 | Not supported yet | Planned |
 | macOS | Not supported yet | Planned |
 
+## Windows
+
+Right-click a file in Explorer and choose Kawaro. To convert while you drag, drag the file with the right mouse button: the hive opens at the dragged file. No key is held, so Explorer keeps its own drag behaviour, and a drop outside the hive copies, moves or links as usual. The original file is never touched. Stop the service from the tray icon menu (Quit); uninstall from Settings, Apps. The tray icon, the global shortcut and the end-of-job notification are still being checked on real machines.
+
 ## Command line
 
 ```bash
