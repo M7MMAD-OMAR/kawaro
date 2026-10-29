@@ -16,10 +16,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use kawaro_core::i18n::Lang;
-use kawaro_core::update::policy::{Decision, evaluate};
 use kawaro_core::update::Channel;
 use kawaro_core::update::UpdateError;
 use kawaro_core::update::manifest::{Manifest, Notes};
+use kawaro_core::update::policy::{Decision, evaluate};
 use kawaro_core::update::verify::verify_manifest;
 use kawaro_core::update::whats_new;
 use serde_json::{Value, json};
@@ -89,7 +89,11 @@ fn ac_a4_the_limits_are_inclusive_3_to_5_lines_and_80_characters() {
     let mut ar = lines("ar", 3);
     ar[2] = "ع".repeat(80);
     let m = parsed(Some(json!({"en": en, "ar": ar})));
-    assert_eq!(m.notes, Notes { en, ar }, "80 characters are valid, counted as characters");
+    assert_eq!(
+        m.notes,
+        Notes { en, ar },
+        "80 characters are valid, counted as characters"
+    );
 }
 
 #[test]
@@ -107,12 +111,24 @@ fn ac_a4_two_lines_six_lines_a_long_line_an_empty_line_or_a_missing_key_give_emp
         (json!({"en": lines("en", 2), "ar": ok_ar}), "2 lines"),
         (json!({"en": lines("en", 6), "ar": ok_ar}), "6 lines"),
         (json!({"en": long, "ar": ok_ar}), "81 characters"),
-        (json!({"en": lines("en", 3), "ar": long_ar}), "81 Arabic characters"),
+        (
+            json!({"en": lines("en", 3), "ar": long_ar}),
+            "81 Arabic characters",
+        ),
         (json!({"en": empty, "ar": ok_ar}), "an empty line"),
-        (json!({"en": two_lines_in_one, "ar": ok_ar}), "a line with a line break"),
+        (
+            json!({"en": two_lines_in_one, "ar": ok_ar}),
+            "a line with a line break",
+        ),
         (json!({"en": lines("en", 3)}), "a missing key"),
-        (json!({"en": lines("en", 3), "ar": "text"}), "a language that is not a list"),
-        (json!({"en": [1, 2, 3], "ar": ok_ar}), "lines that are not strings"),
+        (
+            json!({"en": lines("en", 3), "ar": "text"}),
+            "a language that is not a list",
+        ),
+        (
+            json!({"en": [1, 2, 3], "ar": ok_ar}),
+            "lines that are not strings",
+        ),
         (json!("just text"), "notes that are not an object"),
     ];
     for (notes, why) in cases {
@@ -142,9 +158,7 @@ fn ac_a4_notes_are_covered_by_the_signature() {
     let sig = fs::read_to_string(fixtures().join("manifest-stable-0.4.0.json.minisig")).unwrap();
     let original = fs::read(fixtures().join("manifest-stable-0.4.0.json")).unwrap();
     assert_eq!(verify_manifest(&original, &sig, &[&key]), Ok(()));
-    let forged = with_notes(Some(
-        json!({"en": lines("en", 3), "ar": lines("ar", 3)}),
-    ));
+    let forged = with_notes(Some(json!({"en": lines("en", 3), "ar": lines("ar", 3)})));
     assert_eq!(
         verify_manifest(&forged, &sig, &[&key]),
         Err(UpdateError::BadSignature),
@@ -215,13 +229,22 @@ fn ac_a5_the_gate_fails_without_the_versions_file_or_with_a_broken_one() {
     write("not json");
     assert!(whats_new::validate_dir(dir.path(), "9.9.9").is_err());
     write(&json!({"en": lines("en", 2), "ar": lines("ar", 3)}).to_string());
-    assert!(whats_new::validate_dir(dir.path(), "9.9.9").is_err(), "2 lines");
+    assert!(
+        whats_new::validate_dir(dir.path(), "9.9.9").is_err(),
+        "2 lines"
+    );
     let mut long = lines("en", 3);
     long[0] = "x".repeat(81);
     write(&json!({"en": long, "ar": lines("ar", 3)}).to_string());
-    assert!(whats_new::validate_dir(dir.path(), "9.9.9").is_err(), "81 chars");
+    assert!(
+        whats_new::validate_dir(dir.path(), "9.9.9").is_err(),
+        "81 chars"
+    );
     write(&json!({"en": lines("en", 3)}).to_string());
-    assert!(whats_new::validate_dir(dir.path(), "9.9.9").is_err(), "no ar");
+    assert!(
+        whats_new::validate_dir(dir.path(), "9.9.9").is_err(),
+        "no ar"
+    );
     write(&json!({"en": lines("en", 3), "ar": lines("ar", 5)}).to_string());
     let ok = whats_new::validate_dir(dir.path(), "9.9.9").unwrap();
     assert_eq!((ok.en.len(), ok.ar.len()), (3, 5));

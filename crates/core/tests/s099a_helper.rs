@@ -113,10 +113,17 @@ fn installed() -> UpdateResult {
 #[test]
 fn ac_a6_repair_args_are_exactly_the_story_line() {
     let args = msiexec_repair_args(Path::new("C:/a b/k.msi"), Path::new("C:/Temp/u.log"));
-    let want: Vec<String> = ["/fa", "C:/a b/k.msi", "/qn", "/norestart", "/l*v", "C:/Temp/u.log"]
-        .iter()
-        .map(|s| s.to_string())
-        .collect();
+    let want: Vec<String> = [
+        "/fa",
+        "C:/a b/k.msi",
+        "/qn",
+        "/norestart",
+        "/l*v",
+        "C:/Temp/u.log",
+    ]
+    .iter()
+    .map(|s| s.to_string())
+    .collect();
     assert_eq!(args, want);
 }
 
@@ -148,7 +155,10 @@ fn ac_a6_exit_0_daemon_missing_then_present_repairs_once_and_starts_the_new_daem
     let calls = fake.msiexec_args.borrow();
     assert_eq!(calls.len(), 2, "exactly 2 run_msiexec calls");
     assert_eq!(calls[0], msiexec_args(Path::new(MSI), Path::new(LOG)));
-    assert_eq!(calls[1], msiexec_repair_args(Path::new(MSI), Path::new(LOG)));
+    assert_eq!(
+        calls[1],
+        msiexec_repair_args(Path::new(MSI), Path::new(LOG))
+    );
     assert_eq!(fake.written.borrow().clone(), Some(got));
 }
 

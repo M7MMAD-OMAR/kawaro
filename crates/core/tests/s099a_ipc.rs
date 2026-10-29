@@ -21,8 +21,7 @@ struct OldReply {
 }
 
 const DOWNLOADING: &str = r#"{"status":"update","state":"downloading","current":"0.4.2","latest":"0.4.3","percent":42,"size":52428800}"#;
-const OLD_READY: &str =
-    r#"{"status":"update","state":"ready","current":"0.3.3","latest":"0.4.0"}"#;
+const OLD_READY: &str = r#"{"status":"update","state":"ready","current":"0.3.3","latest":"0.4.0"}"#;
 const OLD_OFFLINE: &str =
     r#"{"status":"update","state":"offline","current":"0.3.3","latest":null}"#;
 
@@ -41,7 +40,10 @@ fn ac1_a_downloading_reply_is_exactly_the_story_json() {
         notes: None,
     };
     assert_eq!(serde_json::to_string(&reply).unwrap(), DOWNLOADING);
-    assert_eq!(serde_json::from_str::<Response>(DOWNLOADING).unwrap(), reply);
+    assert_eq!(
+        serde_json::from_str::<Response>(DOWNLOADING).unwrap(),
+        reply
+    );
 }
 
 #[test]
