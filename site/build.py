@@ -853,9 +853,7 @@ def closing_section(lang):
 
 def home(lang):
     t = T_HOME[lang]
-    win_href = page_href(lang, "index", lang, "windows")
-    win_a = f'<a href="{win_href}">{t["win_link"]}</a>'
-    note = t["note"].format(win=win_a)
+    note = t["note"].format(win=t["win_link"])
     btn = hex_button("#download", t["dl"], "primary", "lg")
     hero = f'''<section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
