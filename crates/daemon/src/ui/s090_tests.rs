@@ -92,6 +92,9 @@ fn s090_exchange_maps_an_update_answer() {
             status: "ready".into(),
             current: "0.4.0".into(),
             latest: Some("0.4.1".into()),
+            percent: None,
+            size: None,
+            notes: None,
         })
     );
 }
@@ -182,6 +185,9 @@ fn update(status: &str, current: &str) -> Response {
         status: status.to_string(),
         current: current.to_string(),
         latest: None,
+        percent: None,
+        size: None,
+        notes: None,
     }
 }
 

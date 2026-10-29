@@ -1,5 +1,5 @@
 # S-099 Update experience: progress, what is new, restart and reopen
-Status: approved (2026-10-29, manager)
+Status: approved (2026-10-29, manager); tests written for S-099a (S-099b has none yet)
 
 ## Story
 As a user updating Kawaro from the settings window, I want to see my version, the new version, a download percent, a clear finished and installing message, and a short list of what is new, and I want the app to restart and reopen settings by itself showing "Updated to X", so that I never wonder what is happening or reopen anything by hand.
@@ -44,6 +44,16 @@ Owner requirements of 2026-10-29. Today the state line shows 0% for the whole do
 | B7 | Linux menu has `About` at index 2 (en, ar) and 7 entries; `shell_logic::menu` has `Command::About` after `GetStarted`; handler calls the `open_settings` spy once | unit (daemon) |
 | B8 | Strings non empty and differ per language; RTL snapshot mirrors; 16 screenshots viewed by the reviewer; fmt, clippy, tests, design-lint | snapshot, gate |
 
+## Test hooks (S-099a)
+Names and files the tests pin; the implementer follows them.
+- `kawaro_core::update::manifest::Notes { en, ar: Vec<String> }` (`Clone, Debug, Default, PartialEq, Serialize, Deserialize`); `Manifest.notes`, `policy::Update.notes` and `flow::Update.notes` are `Notes` (empty = `Notes::default()`). DECISION: one invalid language empties both.
+- `Response::Update { status, current, latest, percent: Option<u8>, size: Option<u64>, notes: Option<Notes> }`.
+- `daemon::update::downloading_reply(current: &str, snapshot: &Phase) -> Response`: `downloading`, `latest` = the phase version, `percent` = `progress::percent` as u8, `size`. Use it for the busy answer of `check_or_busy` too (the existing busy test expects `latest: None`; the implementer may update that one assertion only with the maintainer's note in the log).
+- `kawaro_core::update::whats_new::installed(Lang) -> Vec<String>` and `whats_new::validate_dir(dir: &Path, version: &str) -> Result<Notes, String>`; `docs/whats-new/<version>.json` for 0.4.2 must be added (3 to 5 lines per language).
+- `apply::msiexec_repair_args(msi, log)` = `/fa <msi> /qn /norestart /l*v <log>`; `HelperOps::daemon_present(&self) -> bool`.
+- `scripts/make-update-manifest.sh` reads notes from `$KAWARO_WHATS_NEW_DIR` (default `docs/whats-new`): no file means no `notes` key; a rule-breaking file exits 2 with no output file.
+- Tests: `crates/core/tests/s099a_ipc.rs` (A1), `s099a_notes.rs` (A4, A5), `s099a_helper.rs` (A6), `crates/daemon/src/update_tests.rs` module `s099a` (A2), `tests/release/notes_manifest.sh` (A4, A5 script, added to `run_all.sh`). A3 (the `installing` word) has no test yet: it needs the apply closure, add it with the S-099a implementation review. Existing tests touched only to add the new fields: `s054b_core.rs`, `s053b_update_fetch.rs`, `s054b_hardening_unix.rs`, `s054a_apply.rs` (Fake gets `daemon_present() = true`), `update_tests.rs` (`status_of`), `ui/s090_tests.rs`.
+
 ## Mutants plan
 Per changed file, never the whole tree: `cargo mutants --in-place --in-diff <diff of the file>` for `ipc.rs`, `manifest.rs`, `flow.rs`, `apply.rs`, `crates/ui/src/updates.rs`, `daemon/src/update.rs`, `ui.rs`. Put the commands in a script and run it as `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` with `CARGO_BUILD_JOBS=2`. `apply/windows.rs` stays excluded by `.cargo/mutants.toml`, so A6 lives in the pure `run_helper`. No surviving mutant in changed code.
 
@@ -54,4 +64,9 @@ Full release notes viewer, download speed and time left, skip this version, a pu
 - Update experience (S-099): settings show the versions, the real download percent, finished and installing messages and a short "What is new", and the app restarts and reopens settings with "Updated to X". The Windows helper now repairs once or reports a clear message if `kawarod.exe` is missing. «تجربة التحديث: تعرض الإعدادات النسختين ونسبة التنزيل ورسائل الاكتمال والتثبيت وقسم «الجديد»، ويعيد التطبيق التشغيل ويفتح الإعدادات مع «تم التحديث إلى X»؛ ويصلح مساعد ويندوز مرة واحدة أو يعرض رسالة واضحة إذا غاب kawarod.exe».
 
 ## Review log
--
+- 2026-10-29 tester, S-099a: tests written, all fail now (run in `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%`, jobs 2).
+  - `cargo test -p kawaro-core --test s099a_ipc`: E0432 unresolved import `kawaro_core::update::manifest::Notes`; E0559 `Response::Update` has no field named `percent`, `size`, `notes` (17 errors).
+  - `--test s099a_notes`: E0432 `Notes`, E0432 `kawaro_core::update::whats_new`, E0609 no field `notes` on `Manifest` and on `policy::Update` (8 errors).
+  - `--test s099a_helper`: E0432 `msiexec_repair_args`; E0407 `daemon_present` is not a member of trait `HelperOps` (2 errors).
+  - `cargo test -p kawaro-daemon s099a`: E0432 `crate::update::downloading_reply`; E0559/E0026 `Response::Update` lacks `percent`, `size`, `notes` (9 errors).
+  - `tests/release/notes_manifest.sh`: 12 of 15 checks fail (notes key missing, bad notes exit 0 instead of 2). The 3 that pass (no notes file gives no key) describe behaviour that already holds and guard it.

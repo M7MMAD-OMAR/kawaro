@@ -834,6 +834,7 @@ fn rpm_update() -> Update {
     Update {
         version: "0.4.0".into(),
         notes_url: "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.0".into(),
+        notes: kawaro_core::update::manifest::Notes::default(),
         asset: Asset {
             kind: "rpm".into(),
             os: "linux".into(),

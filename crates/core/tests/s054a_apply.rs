@@ -748,6 +748,10 @@ impl HelperOps for Fake {
             Err(UpdateError::Io)
         }
     }
+    fn daemon_present(&self) -> bool {
+        // S-099a A6: the S-054a scenarios all have a daemon on disk.
+        true
+    }
     fn start_daemon(&self, which: Daemon) {
         let name = match which {
             Daemon::New => "start-new",

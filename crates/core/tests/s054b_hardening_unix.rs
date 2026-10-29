@@ -32,6 +32,7 @@ fn update() -> Update {
     Update {
         version: "0.4.0".to_string(),
         notes_url: "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.0".to_string(),
+        notes: kawaro_core::update::manifest::Notes::default(),
         asset: Asset {
             kind: "rpm".to_string(),
             os: "linux".to_string(),

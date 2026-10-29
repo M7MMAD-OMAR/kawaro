@@ -108,6 +108,9 @@ fn ac1_update_response_serialises_with_status_update_and_round_trips() {
         status: "ready".to_string(),
         current: "0.3.3".to_string(),
         latest: Some("0.4.0".to_string()),
+        percent: None,
+        size: None,
+        notes: None,
     };
     let line = serde_json::to_string(&full).unwrap();
     assert_eq!(
@@ -120,6 +123,9 @@ fn ac1_update_response_serialises_with_status_update_and_round_trips() {
         status: "offline".to_string(),
         current: "0.3.3".to_string(),
         latest: None,
+        percent: None,
+        size: None,
+        notes: None,
     };
     let line = serde_json::to_string(&none).unwrap();
     assert_eq!(

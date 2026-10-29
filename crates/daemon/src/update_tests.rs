@@ -774,6 +774,7 @@ fn status_of(resp: &Response) -> (String, String, Option<String>) {
             status,
             current,
             latest,
+            ..
         } => (status.clone(), current.clone(), latest.clone()),
         other => panic!("{other:?}"),
     }
@@ -1374,5 +1375,125 @@ mod rework1 {
             assert!(!sys.contains(word), "update_sys.rs must not contain {word}");
         }
         assert!(sys.contains("restart_command("));
+    }
+}
+
+// S-099a A2: the download percent and size in the IPC reply.
+//
+// Test hooks (pinned in backlog/S-099-update-experience.md):
+// - `update::downloading_reply(current: &str, snapshot: &Phase) -> Response`:
+//   for `Phase::Downloading { version, downloaded, size }` the reply is
+//   `Response::Update { status: "downloading", current, latest:
+//   Some(version), percent: Some(progress::percent(downloaded, size) as u8),
+//   size: Some(size), notes: None }`. Any other phase is not a download and
+//   is a caller error (the function may panic or answer `up-to-date`; the
+//   tests never pass one).
+// - Every other status (`check_now`) carries `percent: None, size: None`.
+mod s099a {
+    use super::*;
+    use crate::progress::Progress;
+    use crate::update::downloading_reply;
+
+    fn fields(resp: &Response) -> (Option<String>, Option<u8>, Option<u64>) {
+        match resp {
+            Response::Update {
+                latest,
+                percent,
+                size,
+                ..
+            } => (latest.clone(), *percent, *size),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    fn dl(downloaded: u64, size: u64) -> Phase {
+        Phase::Downloading {
+            version: "0.4.3".into(),
+            downloaded,
+            size,
+        }
+    }
+
+    #[test]
+    fn ac_a2_the_percent_table_through_the_reply() {
+        for (done, size, want) in [
+            (0, 1000, 0u8),
+            (420, 1000, 42),
+            (1000, 1000, 100),
+            (5000, 1000, 100),
+            (10, 0, 0),
+        ] {
+            let resp = downloading_reply("0.4.2", &dl(done, size));
+            assert_eq!(
+                fields(&resp),
+                (Some("0.4.3".into()), Some(want), Some(size)),
+                "{done}/{size}"
+            );
+            match resp {
+                Response::Update {
+                    status,
+                    current,
+                    notes,
+                    ..
+                } => {
+                    assert_eq!(status, "downloading");
+                    assert_eq!(current, "0.4.2");
+                    assert_eq!(notes, None);
+                }
+                other => panic!("{other:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn ac_a2_a_420_byte_part_file_of_a_1000_byte_download_is_42_percent() {
+        let dir = tempfile::tempdir().unwrap();
+        let part = dir.path().join("x.rpm.part");
+        fs::write(&part, vec![0u8; 420]).unwrap();
+        let p = Progress::new();
+        p.begin("0.4.3", 1000, &part);
+        let stat = |q: &Path| fs::metadata(q).ok().map(|m| m.len());
+        let snap = p.snapshot(&stat).unwrap();
+        assert_eq!(
+            fields(&downloading_reply("0.4.2", &snap)),
+            (Some("0.4.3".into()), Some(42), Some(1000))
+        );
+        // The part file is missing: 0 percent, size still known.
+        fs::remove_file(&part).unwrap();
+        let snap = p.snapshot(&stat).unwrap();
+        assert_eq!(
+            fields(&downloading_reply("0.4.2", &snap)),
+            (Some("0.4.3".into()), Some(0), Some(1000))
+        );
+    }
+
+    #[test]
+    fn ac_a2_the_downloading_reply_is_the_story_json() {
+        let resp = downloading_reply("0.4.2", &dl(22_020_096, 52_428_800));
+        assert_eq!(
+            serde_json::to_string(&resp).unwrap(),
+            r#"{"status":"update","state":"downloading","current":"0.4.2","latest":"0.4.3","percent":42,"size":52428800}"#
+        );
+    }
+
+    #[test]
+    fn ac_a2_only_downloading_carries_percent_and_size() {
+        let off = Config {
+            update_check: false,
+            ..Config::default()
+        };
+        let cases: Vec<(&str, Feed, &str)> = vec![
+            ("up-to-date", Feed::Good, "0.4.0"),
+            ("offline", Feed::Offline, "0.3.3"),
+            ("ready", Feed::Good, "0.3.3"),
+            ("failed", Feed::Tampered, "0.3.3"),
+        ];
+        for (want, feed, installed) in cases {
+            let (mut st, _rig) = state_for(installed, Os::Linux);
+            let (resp, _) = check_now(&mut st, &off, &Fake::new(feed), BASE);
+            assert_eq!(status_of(&resp).0, want);
+            let (_, percent, size) = fields(&resp);
+            assert_eq!((percent, size), (None, None), "{want}");
+        }
     }
 }
