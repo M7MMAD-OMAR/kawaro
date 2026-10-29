@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Fixed
+- Introduction film ([S-094c](https://github.com/M7MMAD-OMAR/kawaro)): the film in the welcome window is now a live vector scene drawn at the displayed size, sharp at any window size and scale (it was 576x324 frames upscaled 3x, blurry and cut off at the bottom). It shows the four steps in order (select a file, the hive opens at the pointer, drop on a cell, the result appears beside the original) with the hive fully visible, a poster first, a Play and Pause button, nothing autoplays, and under reduced motion a still poster with the five captions in Arabic and English. / فيلم التعريف ([S-094c](https://github.com/M7MMAD-OMAR/kawaro)): صار الفيلم في نافذة الترحيب مشهداً متجهياً حياً يُرسم بحجم العرض، فهو حاد في أي حجم نافذة وأي مقياس (كان إطارات 576x324 مكبّرة 3 مرات، ضبابية ومقطوعة من الأسفل). يعرض الخطوات الأربع بالترتيب (اختيار ملف، ظهور الخلية عند المؤشر، الإفلات على خلية، ظهور الناتج بجانب الأصل) والخلية ظاهرة بالكامل، ويبدأ بصورة غلاف مع زر تشغيل وإيقاف مؤقت، ولا يشتغل وحده، ومع تقليل الحركة تبقى صورة ثابتة مع التعليقات الخمسة بالعربية والإنجليزية.
+
 ## [0.4.2] - 2026-10-29 «إصلاح الترقية»
 
 ### Fixed
