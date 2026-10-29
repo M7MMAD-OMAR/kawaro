@@ -1,0 +1,322 @@
+[
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-00.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 0,
+  "seconds": 8.2,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-01.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 1,
+  "seconds": 14.2,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-02.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 2,
+  "seconds": 16.0,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-03.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 3,
+  "seconds": 10.7,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-04.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 4,
+  "seconds": 8.3,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-05.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 5,
+  "seconds": 14.8,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-06.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 6,
+  "seconds": 12.5,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-07.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 7,
+  "seconds": 23.8,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-08.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 8,
+  "seconds": 6.4,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-09.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 9,
+  "seconds": 10.9,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-10.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 10,
+  "seconds": 11.8,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "fleurs_ar",
+  "file": "fleurs_ar-11.wav",
+  "dataset": "google/fleurs",
+  "config": "ar_eg",
+  "split": "test",
+  "row": 11,
+  "seconds": 11.4,
+  "licence": "CC-BY-4.0"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-00.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 0,
+  "seconds": 6.1,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-01.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 1,
+  "seconds": 11.2,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-02.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 2,
+  "seconds": 18.6,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-03.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 3,
+  "seconds": 8.9,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-04.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 4,
+  "seconds": 24.9,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-05.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 5,
+  "seconds": 7.1,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-06.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 6,
+  "seconds": 14.5,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-07.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 7,
+  "seconds": 17.6,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-08.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 8,
+  "seconds": 15.9,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-09.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 9,
+  "seconds": 24.0,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-10.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 10,
+  "seconds": 23.1,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "syrian",
+  "file": "syrian-11.wav",
+  "dataset": "Overtech/syrian-arabic-speech-dataset",
+  "config": "default",
+  "split": "train",
+  "row": 11,
+  "seconds": 12.0,
+  "licence": "other (see dataset LICENSE)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-00.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 0,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-01.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 1,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-02.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 2,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-03.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 3,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-04.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 4,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-05.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 5,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-06.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 6,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ },
+ {
+  "set": "librispeech_en",
+  "file": "librispeech_en-07.wav",
+  "dataset": "hf-internal-testing/librispeech_asr_dummy",
+  "config": "clean",
+  "split": "validation",
+  "row": 7,
+  "seconds": 0.0,
+  "licence": "CC-BY-4.0 (LibriSpeech)"
+ }
+]

@@ -52,7 +52,7 @@ Ranked by fit with the principles in CLAUDE.md (local only, light base install, 
 1. **Natural language to action (text model, 1.1 GB).** The user types or says "make these smaller WEBP". The model picks an `id` from `actions/*.toml` and fills `[action.params]` as JSON constrained by a grammar. It never runs anything; the registry validates the choice and the engines validate params (`EngineError::BadParam`). Fits the model's measured strengths. Never on the hive path.
 2. **Suggest and name (text model).** Better output file names from file content, ordering suggestions for the hive. Optional, off by default.
 3. **OCR to text (VL-2B, about 1.3 GB with mmproj Q8_0; the vendor scores used an F16 mmproj of 379 MB, so re-measure with Q8_0).** New action such as `image.to-text` and `pdf.to-text`. Strong English document score; **Arabic untested**. Must be benchmarked against the existing alternatives (Tesseract, Ghostscript text extraction for born-digital PDFs) before any promise.
-4. **Speech to text (Omni-2B).** `audio.to-text`, `video.to-subtitles`. Arabic ASR unconfirmed; compare against Whisper class engines before choosing. Audio-2B GGUF is not ready.
+4. **Speech to text (Omni-2B).** `audio.to-text`, `video.to-subtitles`. Measured in 8c: Whisper small beats it on Arabic. Original note: compare against Whisper class engines before choosing. Audio-2B GGUF is not ready.
 5. **Classification of files (d1).** Possible for "what kind of document is this", but the runtime route is unproven. Park it.
 
 Out of scope, with the reason: translation (tested weak, not advertised), summarising long documents (weak long-context retrieval), anything that needs facts from memory.
@@ -184,7 +184,21 @@ Reading: 4 threads is the sweet spot (8 is slower on this hybrid CPU, so cap at 
 
 ### Speech to text (Omni-2B Q4_0 plus Q8_0 mmproj, 6 synthetic clips)
 
-English (flite voice, 9 to 14 s): word error rate 0.00, 0.00 and 0.07, about 2 s per clip, so several times faster than real time on 4 cores; peak RSS 2.7 GB. Arabic (espeak-ng voice): unusable (character error 0.80, 0.87 and 3.6, with Latin script and a repetition loop), **but espeak Arabic is itself barely intelligible, so this says nothing about real Arabic speech**. Open: a test with real recorded Arabic speech (several dialects) against a Whisper class engine (faster-whisper base is already in the local cache), and a guard against the repetition loop (cap `max_tokens` by clip length). Until then Arabic transcription is **unproven** and Whisper stays the baseline.
+English (flite voice, 9 to 14 s): word error rate 0.00, 0.00 and 0.07, about 2 s per clip, so several times faster than real time on 4 cores; peak RSS 2.7 GB. Arabic (espeak-ng voice): unusable (character error 0.80, 0.87 and 3.6, with Latin script and a repetition loop), **but espeak Arabic is itself barely intelligible, so this says nothing about real Arabic speech**. Real speech is measured below.
+
+#### Real speech against an independent engine (2026-10-29)
+
+Clips come from open datasets, fetched by `spikes/lfm3/fetch_real_audio.py` (audio stays outside the repository; `fixtures/cases/audio-real-manifest.json` lists every clip): 12 Arabic read speech clips from google/fleurs ar_eg test (CC-BY-4.0, Egyptian speakers), 12 Syrian dialect podcast clips from Overtech/syrian-arabic-speech-dataset (the SYRA research licence; used locally for evaluation only, nothing redistributed), and 8 English clips from LibriSpeech via hf-internal-testing/librispeech_asr_dummy (CC-BY-4.0). The independent judge is Whisper through faster-whisper (int8, CPU, 4 threads, greedy decoding, language forced), not our own metric, scored with the same normalisation. Mean word error rate (character error in brackets):
+
+| set | LFM3-Omni-2B Q4_0 | Whisper base (74M) | Whisper small (244M) |
+|---|---|---|---|
+| Arabic, read speech (12) | 0.60 (0.32) | 0.47 (0.14) | **0.24 (0.07)** |
+| Arabic, Syrian dialect (12) | 0.74 (0.41) | 0.93 (0.56) | **0.39 (0.22)** |
+| English, read speech (8) | **0.065 (0.04)** | 0.11 (0.05) | 0.10 (0.05) |
+| seconds per clip (mean 10 s clips) | 2.8 to 3.9 | 0.7 to 1.0 | 2.0 to 2.2 |
+| model files | 1.6 GB, 3.2 GB RSS | 0.15 GB | 0.48 GB |
+
+Verdict: **Omni is not adopted for Arabic speech to text.** Whisper small is about twice as accurate on Arabic, smaller (a third of the size), and faster. Omni's only edge is English read speech (0.065 against 0.10), too small a gap on 8 clips to justify a 1.6 GB model. Omni also leaks Latin and Cyrillic characters into Arabic output and can loop on bad input, so a length cap and a script check would be needed. Both engines are weak on the dialect (0.39 at best), so dialect transcription needs a larger Whisper or a dialect model and its own measurement. Limits: 32 clips and 333 seconds in total, single speakers per clip, no noisy recordings, no long files; treat the ranking as solid and the exact numbers as indicative.
 
 ### What this means for Kawaro (best uses, ranked)
 
@@ -192,7 +206,8 @@ English (flite voice, 9 to 14 s): word error rate 0.00, 0.00 and 0.07, about 2 s
 2. Structured extraction from text or OCR output into JSON (receipt, invoice, form fields), always with a per action schema and validation.
 3. Smart file naming from content (6/6), a suggestion the user accepts.
 4. Natural language to action as a confirmed proposal only (8b).
-5. Not worth building: translation, rewriting with limits, handwriting, counting.
+5. Speech to text stays on Whisper class engines (measured above); Omni is not worth its 1.6 GB.
+6. Not worth building: translation, rewriting with limits, handwriting, counting.
 
 Caveat for every row: one run, synthetic inputs, no independent replication.
 

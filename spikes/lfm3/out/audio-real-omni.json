@@ -1,0 +1,262 @@
+{
+ "tag": "real-omni",
+ "peak_rss_mb": 3196,
+ "rows": [
+  {
+   "file": "fleurs_ar-00.wav",
+   "cer": 0.51,
+   "wer": 0.8,
+   "wall_s": 2.83,
+   "ref": "تشكلت في المحيط الأطلسي اليوم عاشر عاصفة مُسماة لموسم الأعاصير الأطلسية العاصفة شبه الاستوائية جيري",
+   "hyp": "تشكّل في المحيط Atlantic اليوم معيشة أوصاف mussambili موسم الأghيرة Atlantic لأوصاف الشبه السوئية جري."
+  },
+  {
+   "file": "fleurs_ar-01.wav",
+   "cer": 0.369,
+   "wer": 0.6,
+   "wall_s": 4.31,
+   "ref": "تغادر الحافلات المحطة الداخلية بين المناطق عبر النهر في خلال اليوم على الرغم من أن معظمها وخاصة المتجهة منها إلى الشرق وجاكار/بومثانج تغادر بين 06:30 و 07:30",
+   "hyp": "توجد Halfلة المحطة الخلي بين المنوت قبر النهر في خلِّل اليوم على الرغمة من أن معزماً خواص التمتغ منها إلى الشرق و Jacobsومثانغ توجد بين ستة وثلاثة وسبعة وثلاثة."
+  },
+  {
+   "file": "fleurs_ar-02.wav",
+   "cer": 0.355,
+   "wer": 0.667,
+   "wall_s": 4.73,
+   "ref": "يتمُّ دعم التعلُّم التفاعليّ في البرنامج داخليًا ويهدف إلى طرح الأسئلة والتحفيز وشرح الإجراءاتِ التي قد يكون من الصعب على الطالب التعامل معها بمفرده",
+   "hyp": "يتمنى أن تلتقي معي في Bernam الجليل، ويذهب إلى THRح الاسila والتحفيز، وشرح الإجرائات التي قد تكون من الصواب على الطلب، والتعم الماهرة بمفروده."
+  },
+  {
+   "file": "fleurs_ar-03.wav",
+   "cer": 0.133,
+   "wer": 0.389,
+   "wall_s": 3.15,
+   "ref": "نصنع بيوتنا وملابسنا من النباتات . معظم الطعام الذي نتناوله من النباتات كذلك. بدون النباتات، لا يمكن للحيوانات البقاء",
+   "hyp": "نصنا بيوتنا وماbisنا من النباتات. ما زم التعم الذي تناوله من النباتات كذلك بدون النباتات لا يمكن للحياة البقاء."
+  },
+  {
+   "file": "fleurs_ar-04.wav",
+   "cer": 0.274,
+   "wer": 0.417,
+   "wall_s": 1.89,
+   "ref": "إن عرض الصوت والضوء الهرمي واحد من أمتع الأشياء الموجودة بالمنطقة للأطفال",
+   "hyp": "إن الأرض السعودية تعد الحرام واحد من أمتع الأشياء الموجودة بالمتقىل للأطفال."
+  },
+  {
+   "file": "fleurs_ar-05.wav",
+   "cer": 0.156,
+   "wer": 0.379,
+   "wall_s": 3.7,
+   "ref": "تذكر أنه على الرغم من أن الموسيقى في المنصات الرئيسية قد تكون انتهت إلا أن هناك أقسام من المهرجان قد تستمر في تشغيل الموسيقى حتى وقت متأخر من الليل",
+   "hyp": "تذكر أن هؤلاء الرغמים أن الموسيقى في المنصات الرأسية قد تكون تهد إلى أن هناك أقسام من المحרגن قد استمر في التشغيل للموسيقى حتى وقت متأخر من الليل."
+  },
+  {
+   "file": "fleurs_ar-06.wav",
+   "cer": 0.491,
+   "wer": 0.941,
+   "wall_s": 3.09,
+   "ref": "أدى ضاربا الكرة المتمركزين في الوسط ساشين تيندولكار وراهول درافيد جيدًا وأقاما شراكة أكسبت للفريق مائة نقطة",
+   "hyp": "إضافة لقرار المتمرقين في الوصات سهينة لتلك الوراء دrafيد جيد وأقامة شراكا excellence للفرائق فيאת نقطه."
+  },
+  {
+   "file": "fleurs_ar-07.wav",
+   "cer": 0.33,
+   "wer": 0.583,
+   "wall_s": 6.42,
+   "ref": "ومنذ عام 1988 توجّب أن تكون صناديق الاقتراع شفافة بحيث يمكن للناخبين والمراقبين أن يتأكدوا من عدم وجود مغلفات في بداية التصويت وأنه لا يتم إضافة مغلفات إلا مغلفات الناخبين المسجلين والمصرّح لهم حسب الأصول والمفوضين",
+   "hyp": "وأن سالم الفتسمية Many and many توغب أن تكون سنديق Ikhtiraxafafa. بحيث يكون للناخبين والمراقبين أن يتأكدون عن عدمgood مغلّفات في بداية التوصيف. وأنها لا تميضفات مغلّفات إلا مغلّفات الناخبين-Musogliين والمصرح لهم حسب الأصل والمفوضين."
+  },
+  {
+   "file": "fleurs_ar-08.wav",
+   "cer": 0.268,
+   "wer": 0.538,
+   "wall_s": 1.87,
+   "ref": "قبل وصول القوات لم تواجه هايتي مشاكل متعلقة بالمرض منذ القرن التاسع عشر",
+   "hyp": "قبل وصول كوفد، لم تواجه هайте مشاكل متعلق بالماد منذ الزقان للتسعش."
+  },
+  {
+   "file": "fleurs_ar-09.wav",
+   "cer": 0.304,
+   "wer": 0.727,
+   "wall_s": 3.38,
+   "ref": "بصفته رياضيّاً شاملاً، يمكن للنّمر التّسلق وإن لم يكن ذلك بشكلٍ جيد والسّباحة والقفز لمسافاتٍ طويلةٍ والسّحب بقوّة خمسة أضعاف قوّة الإنسان",
+   "hyp": "بشافت ريادتي أن شميلة أن يمكن لنمرة الصorlog، وإن لم يكن ذلك بشق الغيد، والسباح والقفز للمسافات طويلة، والسahب بقواة Thames أضاف قوت الإنسان."
+  },
+  {
+   "file": "fleurs_ar-10.wav",
+   "cer": 0.277,
+   "wer": 0.444,
+   "wall_s": 2.91,
+   "ref": "في حال كنت تعبر منطقة بحر البلطيق الشمالية في الشتاء فيجب أن تفحص موقع الكابينة إذ أن المرور عبر الجليد يسبب ضوضاء صاخبة للغاية للأشخاص الأكثر تضرراً",
+   "hyp": "في حال كون تabor منتقد بهر البطيق الشمالية في الشتاء، فيجب ان تضحى smoke кабينا إذ أن المرور عبر Galli يسبب Doudoq ساخبا الغياء للأشخاص الأكثر تضرراً."
+  },
+  {
+   "file": "fleurs_ar-11.wav",
+   "cer": 0.323,
+   "wer": 0.667,
+   "wall_s": 3.78,
+   "ref": "أُرسل القمر الصناعي إلى الفضاء بواسطة صاروخ يستخدم العلماء التلسكوبات في الفضاء لأن الغلاف الجوي لكوكب الأرض يشوه بعض الضوء والرؤية",
+   "hyp": "أرسل القمرสนع إلى الفضائب وسط Sarوخ، واستغدوا 얼마 أن يسكبوا في الفضائب لأن الغلاف في الغوي لكوكب الأرض يشوّه بعض الدوئ والرقي."
+  },
+  {
+   "file": "librispeech_en-00.wav",
+   "cer": 0.045,
+   "wer": 0.059,
+   "wall_s": 2.03,
+   "ref": "MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND WE ARE GLAD TO WELCOME HIS GOSPEL",
+   "hyp": "Mr. Quilter is the apostle of the middle classes, and we are glad to welcome his gospel."
+  },
+  {
+   "file": "librispeech_en-01.wav",
+   "cer": 0.111,
+   "wer": 0.182,
+   "wall_s": 1.65,
+   "ref": "NOR IS MISTER QUILTER'S MANNER LESS INTERESTING THAN HIS MATTER",
+   "hyp": "Nor is Mr. Coulter's manner less interesting than his matter."
+  },
+  {
+   "file": "librispeech_en-02.wav",
+   "cer": 0.0,
+   "wer": 0.0,
+   "wall_s": 3.34,
+   "ref": "HE TELLS US THAT AT THIS FESTIVE SEASON OF THE YEAR WITH CHRISTMAS AND ROAST BEEF LOOMING BEFORE US SIMILES DRAWN FROM EATING AND ITS RESULTS OCCUR MOST READILY TO THE MIND",
+   "hyp": "He tells us that at this festive season of the year, with Christmas and roast beef looming before us, similes drawn from eating and its results occur most readily to the mind."
+  },
+  {
+   "file": "librispeech_en-03.wav",
+   "cer": 0.03,
+   "wer": 0.04,
+   "wall_s": 2.76,
+   "ref": "HE HAS GRAVE DOUBTS WHETHER SIR FREDERICK LEIGHTON'S WORK IS REALLY GREEK AFTER ALL AND CAN DISCOVER IN IT BUT LITTLE OF ROCKY ITHACA",
+   "hyp": "He has grave doubts whether Sir Frederick Layton's work is really Greek after all, and can discover in it but little of rocky Ithaca."
+  },
+  {
+   "file": "librispeech_en-04.wav",
+   "cer": 0.05,
+   "wer": 0.099,
+   "wall_s": 6.83,
+   "ref": "LINNELL'S PICTURES ARE A SORT OF UP GUARDS AND AT EM PAINTINGS AND MASON'S EXQUISITE IDYLLS ARE AS NATIONAL AS A JINGO POEM MISTER BIRKET FOSTER'S LANDSCAPES SMILE AT ONE MUCH IN THE SAME WAY THAT MISTER CARKER USED TO FLASH HIS TEETH AND MISTER JOHN COLLIER GIVES HIS SITTER A CHEERFUL SLAP ON THE BACK BEFORE HE SAYS LIKE A SHAMPOOER IN A TURKISH BATH NEXT MAN",
+   "hyp": "Lanell's pictures are a sort of up guards and adam paintings and mason's exquisite idylls are as national as a jingo poem mr burket foster's landscapes smile at one much in the same way that mr carker used to flash his teeth and mr john collier gives his sitter a cheerful slap on the back before he says like a shampooer in a turkish bath next man"
+  },
+  {
+   "file": "librispeech_en-05.wav",
+   "cer": 0.0,
+   "wer": 0.0,
+   "wall_s": 2.33,
+   "ref": "IT IS OBVIOUSLY UNNECESSARY FOR US TO POINT OUT HOW LUMINOUS THESE CRITICISMS ARE HOW DELICATE IN EXPRESSION",
+   "hyp": "It is obviously unnecessary for us to point out how luminous these criticisms are, how delicate in expression."
+  },
+  {
+   "file": "librispeech_en-06.wav",
+   "cer": 0.054,
+   "wer": 0.083,
+   "wall_s": 1.49,
+   "ref": "ON THE GENERAL PRINCIPLES OF ART MISTER QUILTER WRITES WITH EQUAL LUCIDITY",
+   "hyp": "On the general principles of art, Mr. Quilter writes with equal lucidity."
+  },
+  {
+   "file": "librispeech_en-07.wav",
+   "cer": 0.02,
+   "wer": 0.053,
+   "wall_s": 2.08,
+   "ref": "PAINTING HE TELLS US IS OF A DIFFERENT QUALITY TO MATHEMATICS AND FINISH IN ART IS ADDING MORE FACT",
+   "hyp": "Painting, he tells us, is of a different quality to mathematics, and finish in art is adding more factor."
+  },
+  {
+   "file": "syrian-00.wav",
+   "cer": 0.304,
+   "wer": 0.769,
+   "wall_s": 1.78,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-01.wav",
+   "cer": 0.286,
+   "wer": 0.684,
+   "wall_s": 3.01,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-02.wav",
+   "cer": 0.206,
+   "wer": 0.581,
+   "wall_s": 4.63,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-03.wav",
+   "cer": 0.191,
+   "wer": 0.529,
+   "wall_s": 2.52,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-04.wav",
+   "cer": 0.417,
+   "wer": 0.797,
+   "wall_s": 6.22,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-05.wav",
+   "cer": 0.6,
+   "wer": 0.8,
+   "wall_s": 1.66,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-06.wav",
+   "cer": 0.621,
+   "wer": 0.833,
+   "wall_s": 2.95,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-07.wav",
+   "cer": 0.391,
+   "wer": 0.686,
+   "wall_s": 4.12,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-08.wav",
+   "cer": 0.425,
+   "wer": 0.812,
+   "wall_s": 4.35,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-09.wav",
+   "cer": 0.368,
+   "wer": 0.672,
+   "wall_s": 7.14,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-10.wav",
+   "cer": 0.466,
+   "wer": 0.85,
+   "wall_s": 5.2,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  },
+  {
+   "file": "syrian-11.wav",
+   "cer": 0.592,
+   "wer": 0.84,
+   "wall_s": 2.96,
+   "ref": "(withheld: dataset licence)",
+   "hyp": "(withheld: dataset licence)"
+  }
+ ]
+}

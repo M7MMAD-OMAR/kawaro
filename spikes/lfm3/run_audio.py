@@ -50,15 +50,16 @@ try:
                 sys.exit("server exited")
             time.sleep(0.5)
     rows = []
-    for wav in sorted((HERE / "fixtures/cases/audio").glob("*.wav")):
+    AUDIO = Path(os.environ.get("AUDIO_DIR", HERE / "fixtures/cases/audio"))
+    for wav in sorted(AUDIO.rglob("*.wav")):
         ref = wav.with_suffix(".txt").read_text()
-        ar = wav.name.startswith("ar")
+        ar = wav.name.startswith(("ar", "fleurs_ar", "syrian"))
         b64 = base64.b64encode(wav.read_bytes()).decode()
         t = time.time()
         res = post({"messages": [
             {"role": "system", "content": "Perform ASR in " + ("Arabic." if ar else "English.")},
             {"role": "user", "content": [{"type": "input_audio", "input_audio": {"data": b64, "format": "wav"}}]}],
-            "temperature": 0, "max_tokens": 300, "chat_template_kwargs": {"enable_thinking": False}})
+            "temperature": 0, "max_tokens": 400, "chat_template_kwargs": {"enable_thinking": False}})
         wall = time.time() - t
         out = res["choices"][0]["message"]["content"]
         h, r = norm(out, ar), norm(ref, ar)
