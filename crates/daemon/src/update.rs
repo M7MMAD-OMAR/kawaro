@@ -240,13 +240,46 @@ pub fn check_or_busy(
     match st {
         Some(st) => check_now(st, config, fetcher, now),
         None => {
-            let response = Response::Update {
-                status: "downloading".to_string(),
-                current: current.to_string(),
-                latest: None,
+            // A download holds the lock; its progress is kept apart.
+            let stat = |p: &Path| std::fs::metadata(p).ok().map(|m| m.len());
+            let response = match crate::progress::shared().snapshot(&stat) {
+                Some(phase) => downloading_reply(current, &phase),
+                None => Response::Update {
+                    status: "downloading".to_string(),
+                    current: current.to_string(),
+                    latest: None,
+                    percent: None,
+                    size: None,
+                    notes: None,
+                },
             };
             (response, Vec::new())
         }
+    }
+}
+
+/// The `downloading` answer: the version being fetched, the percent and the
+/// size from the signed manifest (S-099a A2).
+pub fn downloading_reply(current: &str, snapshot: &Phase) -> Response {
+    let (latest, percent, size) = match snapshot {
+        Phase::Downloading {
+            version,
+            downloaded,
+            size,
+        } => (
+            Some(version.clone()),
+            Some(crate::progress::percent(*downloaded, *size) as u8),
+            Some(*size),
+        ),
+        _ => (None, None, None),
+    };
+    Response::Update {
+        status: "downloading".to_string(),
+        current: current.to_string(),
+        latest,
+        percent,
+        size,
+        notes: None,
     }
 }
 
@@ -271,6 +304,9 @@ pub fn check_now(
         status: status.to_string(),
         current: st.env.installed.clone(),
         latest: st.check.last_seen.clone(),
+        percent: None,
+        size: None,
+        notes: None,
     };
     (response, effects)
 }

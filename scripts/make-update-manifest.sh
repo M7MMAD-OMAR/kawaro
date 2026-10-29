@@ -13,6 +13,12 @@
 # Every asset url must start with https://github.com/M7MMAD-OMAR/kawaro/releases/download/
 # (the client enforces the same prefix, ADR 0006), otherwise exit 2.
 #
+# Notes (S-099): when $KAWARO_WHATS_NEW_DIR (default docs/whats-new beside the
+# repository root) holds VERSION.json, its {"en":[..],"ar":[..]} becomes the
+# top level "notes" key, so the signature covers it. No file means no key. A
+# file with other than 3 to 5 lines per language, or an empty, multi line or
+# over 80 character line, exits 2.
+#
 # Exit codes: 0 ok; 2 bad usage or bad input; 3 a package has no local file in
 # DIR; 4 no package asset. On a non zero exit OUT_JSON is not created.
 set -euo pipefail
@@ -45,6 +51,18 @@ ROWS="$(jq -r --arg prefix "$PREFIX" '
     else error("bad asset " + .name) end' "$ASSETS" 2>/dev/null)" || die 2 "invalid package asset in $ASSETS"
 [ -n "$ROWS" ] || die 4 "no .msi, .rpm or .deb asset in $ASSETS"
 
+# Optional notes, same rule as the client (kawaro_core::update::manifest::Notes).
+NOTES_DIR="${KAWARO_WHATS_NEW_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/docs/whats-new}"
+NOTES_FILE="$NOTES_DIR/$VERSION.json"
+NOTES='null'
+if [ -f "$NOTES_FILE" ]; then
+  NOTES="$(jq -c '
+    def ok: type == "array" and (length | . >= 3 and . <= 5)
+      and all(.[]; type == "string" and length >= 1 and length <= 80 and (test("[\n\r]") | not));
+    if type == "object" and (.en | ok) and (.ar | ok) then {en, ar} else error("bad notes") end
+  ' "$NOTES_FILE" 2>/dev/null)" || die 2 "invalid notes file $NOTES_FILE"
+fi
+
 TMPF="$(mktemp)"
 trap 'rm -f "$TMPF"' EXIT
 ENTRIES=()
@@ -65,6 +83,9 @@ printf '%s\n' "${ENTRIES[@]}" | jq -s \
   --arg channel "$CHANNEL" --arg version "$VERSION" \
   --arg published "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
   --arg notes "https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v$VERSION" \
+  --argjson whats_new "$NOTES" \
   '{schema: 1, channel: $channel, version: $version, published: $published,
-    notes_url: $notes, assets: .}' >"$TMPF"
+    notes_url: $notes}
+   + (if $whats_new == null then {} else {notes: $whats_new} end)
+   + {assets: .}' >"$TMPF"
 mv "$TMPF" "$OUT"
