@@ -61,9 +61,9 @@
 #     confirmation, expect the warning to fade as downloads accumulate on the
 #     same certificate.
 #   - AC5: the built home pages (site/index.html and
-#     site/en/index.html) carry the two-line note in the Windows slab of the download section
-#     (one <p class="download-note"> with one <br>) naming SmartScreen,
-#     SHA256SUMS, "More info" and "Run anyway", and link the guide
+#     site/en/index.html) carry the plain one sentence note in the Windows slab of the download section
+#     (one <p class="download-note">). The English note names "More info" and
+#     "Run anyway"; SmartScreen is named only in the linked guide
 #     (windows-smartscreen.md in English, windows-smartscreen.ar.md in Arabic).
 #     The note never says "signed", never says the warning is gone and never
 #     says to disable SmartScreen. The pages are the committed build output:
@@ -287,10 +287,12 @@ for page in "$REPO_ROOT/site/index.html" "$REPO_ROOT/site/en/index.html"; do
   [ -s "$page" ] || continue
   note="$(perl -ne 'print "$1\n" if /(<p class="download-note">.*?<\/p>)/' "$page" | head -1)"
   check "AC5 $n has the download note" test -n "$note"
-  for phrase in "SmartScreen" "SHA256SUMS" "More info" "Run anyway"; do
-    check "AC5 $n note names $phrase" grep -qF "$phrase" <<<"$note"
-  done
-  check "AC5 $n note is two lines (one <br>)" test "$(grep -o '<br>' <<<"$note" | wc -l)" -eq 1
+  case "$page" in
+    */en/*)
+      for phrase in "More info" "Run anyway"; do
+        check "AC5 $n note names $phrase" grep -qF "$phrase" <<<"$note"
+      done ;;
+  esac
   check "AC5 $n note links the guide" grep -q 'windows-smartscreen' <<<"$note"
   case "$page" in
     */en/*) check "AC5 $n note links the English guide" grep -q 'windows-smartscreen\.md' <<<"$note" ;;

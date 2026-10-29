@@ -559,16 +559,15 @@ def download_slab(lang, which, note=False):
         title, sub, icon, card = ("لينكس" if ar else "Linux"), ("فيدورا وأوبونتو وديبيان، 64 بت" if ar else "Fedora, Ubuntu, Debian, 64 bit"), LIN_ICO, "linux"
     n = ""
     if which == "win" and note:
-        # The two-line honest note of S-083 (the story owns this text): it
-        # never says the build is safe to run unverified. Once the real
-        # certificate signs a release (S-083 AC6) line one may say so.
+        # One plain sentence (S-083 owns the honesty rule): it never claims the
+        # build is signed, never says the warning is gone, never says disable.
         guide = REPO + "/blob/main/docs/windows-smartscreen" + (".ar.md" if ar else ".md")
-        label = "دليل كوارو وتحذير SmartScreen" if ar else "Windows and SmartScreen guide"
-        text = ("يظهر تحذير SmartScreen عند فتح مثبّت كوارو على ويندوز."
-                "<br>تحقق من الملف مقابل SHA256SUMS أولاً، ثم انقر More info وRun anyway. "
+        label = "لماذا؟" if ar else "Why?"
+        text = ("إذا ظهر لك تحذير أزرق من ويندوز: اضغط «مزيد من المعلومات» ثم «تشغيل على أي حال». "
+                "ويندوز لا يعرف الناشر بعد. "
                 if ar else
-                "Windows shows a SmartScreen warning when you open the Kawaro installer."
-                "<br>Verify the file against SHA256SUMS first, then click More info and Run anyway. ")
+                "If Windows shows a blue warning: click More info, then Run anyway. "
+                "Windows does not know this publisher yet. ")
         n = f'<p class="download-note">{text}<a href="{guide}">{label}</a></p>'
     return (f'<div class="download-slab" data-card="{card}">{icon}<h3>{title}</h3>'
             f'<p class="download-slab-sub">{sub}</p>'

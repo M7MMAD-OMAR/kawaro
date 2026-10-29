@@ -16,6 +16,7 @@ This is a small follow-up to 0.4.0 for Linux and Windows. It brings a new look t
 ## Known gaps
 
 - Windows: the executables and the MSI are still TEST-SIGNED with a self-signed certificate, not a certificate from a trusted authority, so Windows SmartScreen warns ("Windows protected your PC", "Unknown publisher"). Check your download against SHA256SUMS first, then click "More info", then "Run anyway".
+- The Windows warning remains until the app has a trusted signature; the home page now explains the click flow in one plain sentence.
 - Windows screenshots of the new Settings window are owner pending; the new layout has been seen on a live Windows 11 machine only in part.
 - The Updates page does not show the download percentage yet (S-091).
 - The tray menu has no About item yet (S-092).
