@@ -1,5 +1,5 @@
 # S-095 Alt plus drag on Hyprland never hangs, in either press order
-Status: approved (2026-10-29, manager)
+Status: review
 
 ## Story
 As a Hyprland user, I want holding Alt while I drag a file to open the drop hive every time, whether I press Alt before or after the drag starts, so that the hive never hangs, never does nothing without a trace, and never gets in the way of normal Alt use.
@@ -68,3 +68,8 @@ KDE and GNOME changes (only no regression, AC7), X11, Windows, a new default key
   - `cargo test -p kawaro-core --test s095_alt_drag_gate`: 14 compile errors (E0432 no `hold::Outcome`, E0425 no `hold::doctor_line`, E0599 no `Gate::with_max`, no `Gate::is_idle`, E0609 no field `hold_max_ms` on `Config`), so no test runs.
   - Harness: `FAIL S-095 AC2 (alt-first): 20 of 20 drags show the hive within 150 ms of the later of hold_ms and drag entered` (10 of 20 shown). The other harness checks PASS at baseline (AC1, AC3, AC5, AC7); AC3 and AC5 are guards, because the baseline has no hang.
   - Note: the tester read `crates/core/src/hold.rs` signatures to name the gate API, against the "do not read the implementation" rule; the contract in the test header is built on the ACs, not on the code's internals.
+- 2026-10-30, implementer: S-095b code done. `hold.rs`: `Gate::with_max`, `is_idle`, `rearm`, `take_outcome`, `Outcome`, `doctor_line`, bounds (press + `hold_max_ms` for a wait, show + `hold_max_ms` for a shown hive; a tick later than 1 s after the threshold is stale and shows nothing). `Config::hold_max_ms` (default 10000). Daemon `ui.rs`: the gate timer now runs until the gate is idle, logs `hold: <reason>`, and a hive that closes with no drag seen while the key is held is shown again (this is the fix for alt-first with the drag after `hold_ms`).
+  - Gates: fmt, clippy -D warnings, `cargo test -p kawaro-core -p kawaro-daemon` pass (the 6 gate tests included); design-lint run.
+  - Harness (release build, `repro.sh --altdrag layer`, 20 drags per order): alt-first before 10 of 20 shown (gap 600 ms: 0 of 10), after 20 of 20 shown, show 4 to 7 ms after the later event; drag-first 20 of 20 before and after (show 19 to 82 ms); 0 hangs; gone after release 5 to 143 ms; AC5 plain `a` and AC7 tap and Alt+a pass.
+  - OPEN CONFLICT (stopped for the manager): the existing `repro.sh` check "S-021 AC3 AC9 (1) drop --hold --at, 5 px move" (tests/drop/layer.sh `probe_checks`) requires that after `hive probe: hidden (pointer)` no `hive surface` line follows for 600 ms. AC2 of this story needs exactly that re-show to catch a late drag. It fails with the fix (RESULT FAIL (1), only that check). Both cannot hold; I did not edit the test. Needs a ruling: relax S-021 AC9 (1) to allow a re-show while the key is held, or drop the late-drag order from AC2.
+  - Not done: the `kawaro doctor` line is not wired in the CLI (`hold::doctor_line` exists and is tested; the bind presence and the last outcome have no source yet); `Outcome::DaemonDown`, `NoActionFile` are defined but only `tap`, `no-drag`, `timeout`, `release-lost` are logged.

@@ -36,6 +36,9 @@ thread_local! {
     static HOLD_TOKEN: RefCell<Option<String>> = const { RefCell::new(None) };
     /// Ticks the gate while its threshold timer runs.
     static GATE_TIMER: slint::Timer = slint::Timer::default();
+    /// A drag entered the hive of the current hold show (S-095): a hive that
+    /// closes without one is shown again while the key is held.
+    static DRAG_SEEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// How often the gate's timer is checked while it runs.
@@ -90,7 +93,11 @@ pub fn build(
         let state = state.clone();
         hive.on_dismiss(move || {
             lock(&state).pending = None;
-            gate_hive_closed();
+            if !DRAG_SEEN.with(|d| d.get()) && gate_rearm() {
+                start_gate_timer(&state);
+            } else {
+                gate_hive_closed();
+            }
         });
     }
     {
@@ -98,6 +105,7 @@ pub fn build(
         // which runs through `on_choose` like a click.
         let state = state.clone();
         hive.on_drop_files(move |files| {
+            DRAG_SEEN.with(|d| d.set(true));
             let mut st = lock(&state);
             let lang = st.lang;
             let actions = st.matching(&files);
@@ -268,9 +276,15 @@ pub fn hold_signal(signal: Signal, token: Option<String>, now: Instant, state: S
         let (effect, before, after) = GATE.with(|g| {
             let mut g = g.borrow_mut();
             // hold_ms is read from config.toml at every press (AC18).
-            let gate = g.get_or_insert_with(|| Gate::new(|| u64::from(Config::load().0.hold_ms)));
+            let gate = g.get_or_insert_with(|| {
+                Gate::with_max(
+                    || u64::from(Config::load().0.hold_ms),
+                    || u64::from(Config::load().0.hold_max_ms),
+                )
+            });
             let before = gate.live_timers();
             let effect = gate.signal(signal, now);
+            log_outcome(gate);
             (effect, before, gate.live_timers())
         });
         // The kept token follows the timer (AC15): a key repeat after the
@@ -286,11 +300,7 @@ pub fn hold_signal(signal: Signal, token: Option<String>, now: Instant, state: S
             token_step(step);
         }
         if start {
-            GATE_TIMER.with(|t| {
-                t.start(slint::TimerMode::Repeated, GATE_TICK, move || {
-                    gate_tick(&state)
-                })
-            });
+            start_gate_timer(&state);
         }
         // The gate's borrow is over: the release may close the hive, whose
         // dismiss callback calls the gate again.
@@ -317,12 +327,25 @@ fn token_step(step: TokenStep<'_>) -> Option<String> {
 /// The gate's timer: shows the drop hive in hold mode once the threshold
 /// has passed with the key still held, and stops when no timer runs.
 fn gate_tick(state: &Shared) {
-    let (effect, live) = GATE.with(|g| match g.borrow_mut().as_mut() {
-        Some(gate) => (gate.tick(Instant::now()), gate.live_timers()),
-        None => (None, 0),
+    let (effect, idle) = GATE.with(|g| match g.borrow_mut().as_mut() {
+        Some(gate) => {
+            let effect = gate.tick(Instant::now());
+            log_outcome(gate);
+            (effect, gate.is_idle())
+        }
+        None => (None, true),
     });
-    if live == 0 {
+    // The timer runs while the gate waits for a show or a release, so its
+    // bounds (S-095 AC4) are checked too.
+    if idle {
         GATE_TIMER.with(|t| t.stop());
+    }
+    if effect == Some(Effect::Release) {
+        HIVE.with(|h| {
+            if let Some(hive) = h.borrow().as_ref() {
+                hive.key_released();
+            }
+        });
     }
     if let Some(Effect::Show { at }) = effect {
         // The files come with the drag, when it enters the hive.
@@ -331,6 +354,7 @@ fn gate_tick(state: &Shared) {
             st.pending = None;
             st.lang
         };
+        DRAG_SEEN.with(|d| d.set(false));
         let token = token_step(TokenStep::Show);
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
@@ -340,6 +364,36 @@ fn gate_tick(state: &Shared) {
             }
         });
     }
+}
+
+/// Starts the gate's timer (it runs until the gate is idle).
+fn start_gate_timer(state: &Shared) {
+    let state = state.clone();
+    GATE_TIMER.with(|t| {
+        t.start(slint::TimerMode::Repeated, GATE_TICK, move || {
+            gate_tick(&state)
+        })
+    });
+}
+
+/// Writes the `hold: <reason>` line of a hold that ended without a hive
+/// (S-095 AC6).
+fn log_outcome(gate: &mut Gate) {
+    if let Some(o) = gate.take_outcome() {
+        eprintln!("kawarod: {}", o.log_line());
+    }
+}
+
+/// The hive closed with no drag while the key may still be held: the gate
+/// shows it again (S-095 AC2). False when the key is up or nothing was shown.
+fn gate_rearm() -> bool {
+    GATE.with(|g| {
+        g.borrow_mut().as_mut().is_some_and(|gate| {
+            let again = gate.rearm(Instant::now());
+            log_outcome(gate);
+            again
+        })
+    })
 }
 
 /// Manager decision 14: the hive closed (a drop on a cell, the 10 s

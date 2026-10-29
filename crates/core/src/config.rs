@@ -92,6 +92,10 @@ pub struct Config {
     /// underscore, as `hive_surface` is.
     #[serde(rename = "hold_ms", deserialize_with = "hold_ms_in_range")]
     pub hold_ms: u16,
+    /// The longest a held drop key waits for a drag or a release, in
+    /// milliseconds (S-095 AC4). Default 10000.
+    #[serde(rename = "hold_max_ms", default = "hold_max_default")]
+    pub hold_max_ms: u32,
     /// Register the drop shortcut with the GlobalShortcuts portal (S-014e1):
     /// at start, and live when the setting changes (S-014f2). The daemon
     /// writes `false` after the user denies the portal's dialog, so it does
@@ -147,6 +151,7 @@ impl PartialEq for Config {
             self.notify_long_only == o.notify_long_only,
             self.hive_surface == o.hive_surface,
             self.hold_ms == o.hold_ms,
+            self.hold_max_ms == o.hold_max_ms,
             self.portal_shortcut == o.portal_shortcut,
             self.shortcut == o.shortcut,
             self.drop_key == o.drop_key,
@@ -162,6 +167,11 @@ impl PartialEq for Config {
 
 /// The default long press threshold.
 pub const HOLD_MS_DEFAULT: u16 = 400;
+/// The default `hold_max_ms`.
+pub const HOLD_MAX_DEFAULT: u32 = 10_000;
+fn hold_max_default() -> u32 {
+    HOLD_MAX_DEFAULT
+}
 /// The shortest accepted threshold: below it a press is a tap.
 pub const HOLD_MS_MIN: u16 = 100;
 /// The longest accepted threshold.
@@ -200,6 +210,7 @@ impl Default for Config {
             notify_long_only: false,
             hive_surface: HiveSurface::Auto,
             hold_ms: HOLD_MS_DEFAULT,
+            hold_max_ms: HOLD_MAX_DEFAULT,
             portal_shortcut: true,
             shortcut: "Ctrl+Alt+H".into(),
             drop_key: None,
