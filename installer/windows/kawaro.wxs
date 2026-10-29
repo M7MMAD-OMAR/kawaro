@@ -101,6 +101,13 @@
     <InstallExecuteSequence>
       <Custom Action="FindTaskkill" Before="StopDaemon"></Custom>
       <Custom Action="StopDaemon" Before="InstallValidate"></Custom>
+      <!-- S-097: remove the older version AFTER the new files are installed.
+           wixl schedules RemoveExistingProducts after InstallValidate, when the
+           old files are still costed as present, so the new install skipped them
+           and the removal then deleted them: an upgrade left an empty folder
+           (measured on Windows 11, 0.4.0 to 0.4.1). After InstallFinalize the
+           shared components keep their files. -->
+      <Custom Action="RemoveExistingProducts" After="InstallFinalize"></Custom>
       <Custom Action="StartDaemon" After="InstallFinalize">NOT (REMOVE~="ALL")</Custom>
     </InstallExecuteSequence>
   </Product>
