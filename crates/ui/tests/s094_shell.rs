@@ -53,10 +53,12 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 const NAME: &str = "كوارو | Kawaro";
 const PRIVACY_EN: &str = "No telemetry. No file leaves your computer.";
 
+#[allow(dead_code)]
 fn root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
+#[allow(dead_code)]
 fn read(rel: &str) -> String {
     let p = root().join(rel);
     std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{} must exist: {e}", p.display()))
@@ -290,7 +292,11 @@ fn ac1_header_shows_logo_name_and_the_package_version_on_every_page_in_both_lang
             assert_eq!(h.h, 64.0, "header-height token");
             let (ww, _) = w.sh_window_size();
             assert!(h.w >= ww - 1.0, "header spans the window");
-            assert_eq!(w.sh_header_version_text(), VERSION, "character for character");
+            assert_eq!(
+                w.sh_header_version_text(),
+                VERSION,
+                "character for character"
+            );
             assert_eq!(w.sh_header_name_text(), NAME);
             assert!(!w.sh_logo_label().trim().is_empty(), "logo has a label");
             let logo = w.sh_logo_rect();
@@ -314,13 +320,11 @@ fn ac2_the_rail_has_five_items_in_order_and_each_page_shows_only_its_rows() {
     let w = settings(Lang::En);
     let labels = w.sh_rail_labels();
     assert_eq!(labels.len(), 5, "{labels:?}");
-    for (l, want) in labels.iter().zip([
-        "general",
-        "conversion",
-        "notifications",
-        "updates",
-        "about",
-    ]) {
+    for (l, want) in
+        labels
+            .iter()
+            .zip(["general", "conversion", "notifications", "updates", "about"])
+    {
         assert!(l.to_lowercase().contains(want), "{l:?} should name {want}");
     }
     assert!(
@@ -488,7 +492,10 @@ fn ac4_the_breakpoint_is_crossed_by_resizing() {
     let w = settings(Lang::En);
     w.sh_select_page(0);
     w.sh_set_window_size(560.0, 560.0);
-    assert!(w.sh_content_rect().w < 520.0, "560 px window is a narrow content");
+    assert!(
+        w.sh_content_rect().w < 520.0,
+        "560 px window is a narrow content"
+    );
     assert!(w.sh_row_control_rect(0).y > w.sh_row_label_rect(0).y);
     w.sh_set_window_size(880.0, 640.0);
     assert!(w.sh_content_rect().w >= 520.0);
@@ -528,8 +535,7 @@ fn ac5_no_page_scrolls_at_the_default_size_in_both_languages() {
         for st in [
             UpdateState::Checking,
             UpdateState::Downloading(42),
-            UpdateState::Failed("a rather long reason the network gave us, twice over, "
-                .repeat(2)),
+            UpdateState::Failed("a rather long reason the network gave us, twice over, ".repeat(2)),
         ] {
             w.sh_set_update_view(VERSION, st.clone(), true);
             let (content, visible) = w.sh_scroll_extent();
@@ -608,7 +614,10 @@ fn ac6_unsaved_marker_follows_the_difference_from_the_loaded_values() {
         w.sh_set_theme(Theme::Light);
         assert!(w.sh_unsaved_marker_visible());
         w.sh_press_save();
-        assert!(!w.sh_unsaved_marker_visible(), "{lang:?}: hidden after Save");
+        assert!(
+            !w.sh_unsaved_marker_visible(),
+            "{lang:?}: hidden after Save"
+        );
     }
 }
 
@@ -660,7 +669,10 @@ fn ac6_the_page_is_never_written_to_config_toml() {
     let ours = Config::default();
     let ref_path = dir.path().join("default.toml");
     ours.save_to(&ref_path).unwrap();
-    assert_eq!(text, std::fs::read_to_string(&ref_path).unwrap().to_lowercase());
+    assert_eq!(
+        text,
+        std::fs::read_to_string(&ref_path).unwrap().to_lowercase()
+    );
 }
 
 #[test]
@@ -750,7 +762,11 @@ fn ac7_every_control_rail_item_and_the_logo_has_a_label_in_both_languages() {
             assert!(w.sh_visible_labels().iter().all(|l| !l.trim().is_empty()));
         }
         if lang == Lang::Ar {
-            assert!(w.sh_rail_labels().iter().all(|l| has_arabic(l)), "{:?}", w.sh_rail_labels());
+            assert!(
+                w.sh_rail_labels().iter().all(|l| has_arabic(l)),
+                "{:?}",
+                w.sh_rail_labels()
+            );
         }
     }
 }
@@ -844,7 +860,10 @@ fn ac8_the_old_top_tab_buttons_are_gone_and_cancel_returns_to_introduction() {
     let _g = init();
     let wel = welcome(Lang::En);
     assert_eq!(wel.sh_page(), 0);
-    assert!(!wel.sh_save_row_visible(), "the Introduction has no Save row");
+    assert!(
+        !wel.sh_save_row_visible(),
+        "the Introduction has no Save row"
+    );
     wel.sh_select_page(2);
     assert!(wel.sh_save_row_visible(), "settings pages keep Save");
     wel.sh_press_cancel();
@@ -885,8 +904,14 @@ fn ac9_the_film_card_is_bounded_16_9_and_inside_the_window() {
                 "{ctx}: aspect 16:9"
             );
             let area = wel.sh_page_area_rect();
-            assert!(film.h <= area.h + 0.5, "{ctx}: taller than the visible area");
-            assert!(film.y >= area.y - 0.5 && bottom(film) <= bottom(area) + 0.5, "{ctx}");
+            assert!(
+                film.h <= area.h + 0.5,
+                "{ctx}: taller than the visible area"
+            );
+            assert!(
+                film.y >= area.y - 0.5 && bottom(film) <= bottom(area) + 0.5,
+                "{ctx}"
+            );
             // Centred in the content column.
             let col = wel.sh_content_rect();
             let mid = (film.x + right(film)) / 2.0 - (col.x + right(col)) / 2.0;
