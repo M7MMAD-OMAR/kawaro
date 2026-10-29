@@ -622,7 +622,18 @@ for c in json.load(sys.stdin):
     seg93=$(seg_from "$m93")
     reset_hive "the AC9 hold (2)"
     say "INFO S-021 AC9 (1): layer bound $h1seen, probe line $(grep -E '^hive (reveal|probe):' <<<"$seg91" | tr '\n' ' '); release after the hide: exit $r1rc in $r1ms ms, new surfaces in 1000 ms $r1new; (2) AC5 (c): layer bound $h2seen, release exit $r2rc in $r2ms ms, gone within 500 ms $h2gone, probe line $(grep -E '^hive (reveal|probe):' <<<"$seg93" | tr '\n' ' ')"
-    probe_checks "AC9 (1) drop --hold --at, 5 px move" "$seg91" pointer
+    # S-095 (manager ruling 2026-10-30): the hive may be shown once more after
+    # this hide while the key is held, so a drag that starts later finds it.
+    # What the check protects is no flicker loop: one probe line and at most
+    # one re-show (an anchor and a surface line) with the pointer still.
+    PROBE=$(probe_show "$seg91")
+    local pall prev phid pn pr pcells ppre patt pcatt pe1 pa1 pafter pchild
+    IFS='|' read -r pall prev phid pn pr pcells ppre patt pcatt pe1 pa1 pafter pchild <<<"$PROBE"
+    say "INFO S-021 AC9 (1) drop --hold --at, 5 px move: probe lines $pall, hide reason $pr, anchor or surface lines after the hide $pafter (at most 2: one re-show), hive attach $patt, catcher attach $pcatt"
+    check "S-021 AC3 AC9 (1) drop --hold --at, 5 px move: exactly one probe line, \"hive probe: hidden (pointer)\", no \"hive reveal:\" line, and at most one re-show (2 anchor or surface lines) after it (S-095)" \
+      '[ "$pall" -eq 1 ] && [ "$phid" -eq 1 ] && [ "$pr" = pointer ] && [ "$pafter" -le 2 ]'
+    check "S-021 AC4 AC9 (1) drop --hold --at, 5 px move: no attach on the hive subsurface in the whole show, and the catcher took its pixel" \
+      '[ "$patt" -eq 0 ] && [ "$pcatt" -ge 1 ]'
     check "S-021 AC9 (1): \`drop --release\` after that hide exits 0 within 200 ms and binds no new surface for 1000 ms" \
       '[ "$h1seen" = yes ] && [ "$r1rc" = 0 ] && [ "$r1ms" -le 200 ] && [ "$r1new" = 0 ]'
     check "S-021 AC5 (c): \`drop --hold\` with the pointer still, the layer bound, then \`drop --release\` (exit 0 within 200 ms) removes it within 500 ms" \
