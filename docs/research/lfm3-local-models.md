@@ -157,6 +157,41 @@ Per page, VL wins on clean diacritic text (0.11 against 0.55), tables (0.23 agai
 
 Runtime notes: the official b11972 Linux CPU build runs the model directly. It reports `version: 0.8.0-dev (build 11972)`, so a probe must read the build number. The cold start of a 1 GB model is about 1 to 2 s.
 
+## 8c. Capability and resource survey (2026-10-29)
+
+Same setup as 8b (llama.cpp b11972, CPU, i7-14650HX with 20 threads, the machine busy). Fixtures: `spikes/lfm3/fixtures/cases/` (48 text, 24 vision, 6 synthetic audio clips). Results: `spikes/lfm3/out/`. Thinking off, temperature 0, one run each, so differences of one case are noise.
+
+### Resources (text model 1.7B QAD-Q4_0, file 1.0 GB)
+
+| measure | value |
+|---|---|
+| prompt speed, 1 / 2 / 4 / 8 threads | 37 / 78 / 145 / 97 tokens/s |
+| decode speed, 1 / 2 / 4 / 8 threads | 13 / 21 / 26 / 23 tokens/s |
+| prompt speed at 256 / 1024 / 4096 tokens | 136 / 116 / 95 tokens/s |
+| decode speed at depth 0 / 4096 / 16384 | 24 / 27 / 11 tokens/s |
+| RSS at context 2K / 8K / 32K / 128K | 1.9 / 2.0 / 2.3 / 3.4 GB |
+| load time | 1 to 2 s |
+
+Reading: 4 threads is the sweet spot (8 is slower on this hybrid CPU, so cap at 4 or half the cores). Context is cheap in memory (the short convolution and window attention design), but decode halves by 16K tokens of context. A normal job (about 1K prompt tokens, 100 output tokens) takes 8 s of prompt plus 4 s of decode, so 10 to 15 s on 4 cores. The vision model runs at 2.3 to 2.6 GB peak.
+
+### Text tasks (48 cases, 8 categories)
+
+37 of 48 pass: tool call 6/6, rename 6/6, summarize 6/6, refuse or say unknown 6/6, classify 5/6, translate 4/6, extract 3/6, rewrite 1/6. Arabic 19/24, English 18/24, so no language gap. Failures are mostly the checker's strictness (extra JSON keys in 2 of 3 extract failures; a valid label with a different case) and one counting error; rewrite fails on length limits (it ignores "at most N words") and leaks its own reasoning tags once. Useful: structured extraction, tool calls, file names, short summaries, honest "I cannot know". Not useful: tight length control, translation as a product feature.
+
+### Vision tasks (24 cases)
+
+17 of 24 pass. English 11/12, **Arabic 6/12**. Strong: receipts, charts and UI questions in English, stamped and low contrast pages. Weak: Arabic names (misreads letters), Arabic handwriting (nonsense), rotated Arabic text, counting objects, an Arabic table cell, an Arabic chart label. Median 9.6 s per image. Conclusion: English document understanding is good for a 2B model; Arabic is OCR grade only on clean printed text (see 8b) and unreliable for names, handwriting and rotation.
+
+### What this means for Kawaro (best uses, ranked)
+
+1. `image.to-text` for noisy or table pages, optional, background only (8b).
+2. Structured extraction from text or OCR output into JSON (receipt, invoice, form fields), always with a per action schema and validation.
+3. Smart file naming from content (6/6), a suggestion the user accepts.
+4. Natural language to action as a confirmed proposal only (8b).
+5. Not worth building: translation, rewriting with limits, handwriting, counting.
+
+Caveat for every row: one run, synthetic inputs, no independent replication.
+
 ## 9. Corrections found while researching
 
 - `CLAUDE.md` mentions `core::probe`. No such module exists. The real equivalents are `crates/engines/src/locate.rs` and `kawaro_core::update::apply::probe_facts`.

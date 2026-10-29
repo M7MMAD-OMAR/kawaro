@@ -1,0 +1,1 @@
+Welcome to the file converter. Choose the file you want, then choose the new format. The program saves the new copy next to the original file and never changes the original.
