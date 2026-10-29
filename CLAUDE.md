@@ -130,11 +130,14 @@ The maintainer has delegated approvals (stories, screenshots) to the manager, so
 cargo fmt --check
 cargo clippy --all-targets -- -D warnings
 cargo test --all
-cargo mutants --in-place --in-diff <diff>   # no surviving mutants in changed code
 scripts/design-lint.sh                       # no hand written colours, shadows, gradients or long dashes
 ```
 
 Plus: screenshots match, the performance budget holds, UI strings in Arabic and English, a descriptive label on every interactive element, and one line in `CHANGELOG.md`.
+
+### Mutation testing
+
+Not a story gate (decision 2026-10-30: it cost hours per story). Run it outside the chain, nightly or weekly, on changed code only, with `--re` to limit mutants and `--test-tool=nextest` if it measures faster. Survivors become fix tasks and never block a push.
 
 ### Running heavy work
 
