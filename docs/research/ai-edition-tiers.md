@@ -16,13 +16,19 @@ Not offered: LFM3-VL for OCR (lost on real pages), Omni for speech (Whisper is t
 
 ## 2. Speech tiers (measured)
 
-| Tier | Engine | Disk | RAM while running | Speed on this machine | Arabic read / Syrian / English word error |
-|---|---|---|---|---|---|
-| Fast | Whisper base | 0.15 GB | about 0.5 GB (not measured) | 0.07 to 0.1 x clip length | 0.47 / 0.93 / 0.11 |
-| Balanced | Whisper small | 0.48 GB | about 1 GB (not measured) | 0.2 x | 0.24 / 0.39 / 0.10 |
-| Best | Whisper large-v3-turbo | 1.6 GB | 1.8 GB (model load, measured) | 0.5 x | **0.11 / 0.23 / 0.06** |
+All five sizes, same 32 real clips (research 8c), int8 on CPU with 4 threads. RAM is the peak resident size of the whole run, measured with `/usr/bin/time -v`. Word error: Arabic read speech / Syrian dialect / English read speech.
 
-Reading it as a product: the Fast tier is not usable for Arabic (0.93 error on dialect), so it is offered for English only or not at all. Balanced is the default for most machines. Best is the "I need it right" option and costs half the clip length in waiting time here: one hour of audio takes about 30 minutes, which is acceptable only as a background job with progress in the tray.
+| Tier | Engine | Disk | Peak RAM | Seconds per 10 s clip | Word error ar / syrian / en |
+|---|---|---|---|---|---|
+| Tiny | Whisper tiny | 0.08 GB | 0.28 GB | 0.5 | 0.64 / 0.71 / 0.11 |
+| Fast | Whisper base | 0.15 GB | 0.37 GB | 0.7 to 1.0 | 0.47 / 0.93 / 0.11 |
+| Balanced | Whisper small | 0.48 GB | 0.83 GB | 2.1 | 0.24 / 0.39 / 0.10 |
+| Best | Whisper large-v3-turbo | 1.6 GB | 2.07 GB | 5 | **0.11 / 0.23 / 0.06** |
+| (dropped) | Whisper medium | 1.5 GB | 2.12 GB | 4.6 | 0.12 / 0.29 / 0.07 |
+
+Medium is dominated by turbo (same disk and RAM, slightly worse, slightly faster per clip only by noise), so it is not offered. Tiny and base are usable for English only; for Arabic they are poor, so the card must say so instead of offering them as a "light" option.
+
+Reading it as a product: Tiny and Fast are English only. Balanced is the default for most machines. Best is the "I need it right" option and costs half the clip length in waiting time here: one hour of audio takes about 30 minutes, which is acceptable only as a background job with progress in the tray.
 
 ## 3. How the recommendation is made
 
@@ -48,9 +54,9 @@ Each row states in the user's own terms: size on disk, RAM used, "about N minute
 
 ## 5. Open questions that need measurement before any story
 
-- Whisper tiny, medium and the distilled variants on the same clips; real RAM per tier.
+- Distilled variants and a long-file memory test (RAM above is for 10 second clips).
 - Noisy recordings, long files (chunking, memory), music with speech, phone calls.
 - Dialects beyond Syrian and Egyptian (Gulf, Maghreb) and code-switching.
-- Tesseract with preprocessing (deskew, binarise) against EasyOCR on noisy scans; Arabic scans with tashkeel.
+- Preprocessing was tried and did not help Tesseract (below); other noisy-scan ideas are open.
 - Real laptops: a 4 core 8 GB machine and an older one, to validate the thresholds above.
 - Licence check for each engine (Whisper is MIT; EasyOCR is Apache-2.0; both must be confirmed at the pinned versions) and the counsel question for any vendor-hosted weights.

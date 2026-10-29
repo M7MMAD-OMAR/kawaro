@@ -200,6 +200,10 @@ No engine wins everywhere; Tesseract is best on two of three sets and 20 to 40 t
 
 Whisper large-v3-turbo (CT2, int8) on the 32 real clips, word error: Arabic read speech 0.109 (small: 0.244), Syrian dialect 0.234 (0.386), English 0.060 (0.101). It takes 4.5 to 5.6 s per 10 s clip on 4 threads (small: 2.0 to 2.2 s), 1.6 GB on disk, 1.8 GB RSS at load. Tiers by hardware are in `docs/research/ai-edition-tiers.md`.
 
+Tesseract preprocessing (`spikes/lfm3/run_tess.py`, 7 variants on the same 32 pages): none beats the plain baseline overall. Best variant on book pages (2x upscale, deskew, threshold) gains 0.02 (0.160 against 0.178) but is worse on noisy scans (0.42 against 0.35); `--psm 6`, grayscale and CLAHE all lose slightly. Preprocessing is not worth adding.
+
+Whisper tiny and medium on the same clips (word error ar / syrian / en): tiny 0.64 / 0.71 / 0.11, medium 0.12 / 0.29 / 0.07 (turbo 0.11 / 0.23 / 0.06). Peak RAM of the whole run: tiny 0.28, base 0.37, small 0.83, medium 2.12, turbo 2.07 GB. Medium is dominated by turbo.
+
 ### Text tasks (48 cases, 8 categories)
 
 37 of 48 pass: tool call 6/6, rename 6/6, summarize 6/6, refuse or say unknown 6/6, classify 5/6, translate 4/6, extract 3/6, rewrite 1/6. Arabic 19/24, English 18/24, so no language gap. Failures are mostly the checker's strictness (extra JSON keys in 2 of 3 extract failures; a valid label with a different case) and one counting error; rewrite fails on length limits (it ignores "at most N words") and leaks its own reasoning tags once. Useful: structured extraction, tool calls, file names, short summaries, honest "I cannot know". Not useful: tight length control, translation as a product feature.

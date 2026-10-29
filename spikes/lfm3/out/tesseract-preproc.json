@@ -1,0 +1,44 @@
+{
+ "baseline": {
+  "arocrbench": 0.009,
+  "books": 0.178,
+  "synth_scan": 0.348,
+  "mean_s": 0.29
+ },
+ "psm6": {
+  "arocrbench": 0.01,
+  "books": 0.202,
+  "synth_scan": 0.395,
+  "mean_s": 0.29
+ },
+ "gray_norm": {
+  "arocrbench": 0.012,
+  "books": 0.182,
+  "synth_scan": 0.41,
+  "mean_s": 0.33
+ },
+ "deskew_bin": {
+  "arocrbench": 0.041,
+  "books": 0.192,
+  "synth_scan": 0.426,
+  "mean_s": 0.36
+ },
+ "up2_deskew": {
+  "arocrbench": 0.023,
+  "books": 0.187,
+  "synth_scan": 0.419,
+  "mean_s": 1.24
+ },
+ "up2_deskew_bin": {
+  "arocrbench": 0.009,
+  "books": 0.16,
+  "synth_scan": 0.42,
+  "mean_s": 0.93
+ },
+ "clahe_up2": {
+  "arocrbench": 0.025,
+  "books": 0.187,
+  "synth_scan": 0.396,
+  "mean_s": 1.29
+ }
+}
