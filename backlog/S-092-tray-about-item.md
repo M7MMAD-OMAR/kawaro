@@ -1,5 +1,5 @@
 # S-092 Tray "About" item: version, Check for updates, Settings
-Status: draft (2026-10-28)
+Status: absorbed by S-099 (2026-10-29), do not implement separately (B7 keeps the tray item, without a new popup window)
 
 ## Story
 As a user, I want an "About" item in the tray menu that shows my installed version and offers "Check for updates" and "Settings", so that I can learn the version and look for an update without opening the settings window first.

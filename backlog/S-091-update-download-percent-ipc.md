@@ -1,5 +1,5 @@
 # S-091 The daemon reports the real download percent to the UI
-Status: draft (2026-10-28)
+Status: absorbed by S-099 (2026-10-29), do not implement separately
 
 ## Story
 As a user watching an update download in the settings window, I want the state line to show the real percent and size, so that I can see the download move instead of a fixed 0%.
