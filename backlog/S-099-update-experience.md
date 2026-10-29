@@ -1,5 +1,5 @@
 # S-099 Update experience: progress, what is new, restart and reopen
-Status: approved (2026-10-29, manager); tests written for S-099a (S-099b has none yet)
+Status: review (S-099a implemented 2026-10-29; S-099b has no tests yet)
 
 ## Story
 As a user updating Kawaro from the settings window, I want to see my version, the new version, a download percent, a clear finished and installing message, and a short list of what is new, and I want the app to restart and reopen settings by itself showing "Updated to X", so that I never wonder what is happening or reopen anything by hand.
@@ -70,3 +70,10 @@ Full release notes viewer, download speed and time left, skip this version, a pu
   - `--test s099a_helper`: E0432 `msiexec_repair_args`; E0407 `daemon_present` is not a member of trait `HelperOps` (2 errors).
   - `cargo test -p kawaro-daemon s099a`: E0432 `crate::update::downloading_reply`; E0559/E0026 `Response::Update` lacks `percent`, `size`, `notes` (9 errors).
   - `tests/release/notes_manifest.sh`: 12 of 15 checks fail (notes key missing, bad notes exit 0 instead of 2). The 3 that pass (no notes file gives no key) describe behaviour that already holds and guard it.
+- 2026-10-29 implementer, S-099a: A1, A2, A4, A5, A6 done; the S-099a tests pass (core, daemon, `tests/release/notes_manifest.sh`), clippy `-D warnings` and design-lint clean.
+  - A3 (`installing` word) left for S-099b: it has no test and needs the apply closure in the UI flow.
+  - `check_or_busy` now answers from `progress::shared()` through `downloading_reply` when a download runs (percent, size, latest); with no download it keeps the old reply (`latest: None`), so the existing busy test is untouched.
+  - `CheckOutcome` has `#[allow(clippy::large_enum_variant)]`: `Update` grew with `Notes` and boxing it would change the pinned `Available(Update)`.
+  - `cargo fmt --check` flags only the tester's `crates/core/tests/s099a_{helper,ipc,notes}.rs` (formatting only, not edited here); run `cargo fmt` on them in the review.
+  - `crates/core/build.rs` embeds `docs/whats-new/<CARGO_PKG_VERSION>.json`, empty when missing; the gate is `ac_a5_the_gate_accepts_the_real_tree_and_every_file_in_it`. `docs/whats-new/0.4.2.json` added.
+  - No test pointer changed. `cargo mutants` not run (reviewer).
