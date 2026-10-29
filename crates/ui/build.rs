@@ -86,10 +86,9 @@ fn main() {
         println!("cargo:rerun-if-changed={}", dep.display());
     }
 
-    // The welcome window (S-087) and the demo scene the frame generator
-    // renders from the hive components, each compiled into its own Rust
-    // file like the settings window. The frames are embedded by the image
-    // URLs of ui/welcome.slint (EmbedFiles above) and the sample image by
+    // The welcome window (S-087), compiled into its own Rust file like the
+    // settings window. Its film is a live vector scene (ui/film.slint, S-094c),
+    // so no frame images are embedded; the sample image is embedded by
     // welcome_resources.rs below.
     let welcome_config = ui_config(&out).with_library_paths(std::collections::HashMap::from([(
         "material".to_string(),
@@ -101,15 +100,6 @@ fn main() {
         welcome_config,
     )
     .expect("compile ui/welcome.slint");
-    for dep in deps {
-        println!("cargo:rerun-if-changed={}", dep.display());
-    }
-    let deps = slint_build::compile_with_output_path(
-        manifest.join("ui/welcome-frames.slint"),
-        out.join("welcome_frames_ui.rs"),
-        ui_config(&out),
-    )
-    .expect("compile ui/welcome-frames.slint");
     for dep in deps {
         println!("cargo:rerun-if-changed={}", dep.display());
     }

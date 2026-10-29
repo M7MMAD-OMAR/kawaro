@@ -25,6 +25,10 @@ export component HexCell inherits Rectangle {
     in property <bool> glass;
     in property <bool> draw-fill: true;
     in property <bool> draw-label: true;
+    // The label size and side padding; the defaults are the hive's. The
+    // Introduction film draws smaller cells and passes smaller values.
+    in property <length> label-size: Tokens.font-cell;
+    in property <length> label-pad: Tokens.space-2;
 
     width: r * 1.7320508;
     height: r * 2;
@@ -93,8 +97,8 @@ export component HexCell inherits Rectangle {
         // hexagon. The code keeps to one line, so it never runs past the
         // hexagon's points.
         if root.draw-label && root.has-icon: VerticalLayout {
-            x: Tokens.space-2;
-            width: parent.width - 2 * Tokens.space-2;
+            x: root.label-pad;
+            width: parent.width - 2 * root.label-pad;
             height: parent.height;
             alignment: center;
             spacing: Tokens.hex-icon-gap;
@@ -111,7 +115,7 @@ export component HexCell inherits Rectangle {
                 horizontal-alignment: center;
                 overflow: elide;
                 text: root.text;
-                font-size: Tokens.font-cell;
+                font-size: root.label-size;
                 font-weight: Tokens.weight-semibold;
                 color: root.ink;
                 accessible-role: none;
@@ -121,15 +125,15 @@ export component HexCell inherits Rectangle {
         // No icon, and the centre cell: the text alone, wrapped and centred.
         if root.draw-label && !root.has-icon: Text {
             // Keep text inside the flat sides of the hexagon.
-            x: Tokens.space-2;
-            width: parent.width - 2 * Tokens.space-2;
+            x: root.label-pad;
+            width: parent.width - 2 * root.label-pad;
             height: parent.height;
             horizontal-alignment: center;
             vertical-alignment: center;
             wrap: word-wrap;
             overflow: elide;
             text: root.text;
-            font-size: Tokens.font-cell;
+            font-size: root.label-size;
             font-weight: root.centre ? Tokens.weight-medium : Tokens.weight-semibold;
             color: root.ink;
             accessible-role: none;

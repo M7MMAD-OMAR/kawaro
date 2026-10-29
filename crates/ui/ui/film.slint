@@ -1,0 +1,550 @@
+// The Introduction film (S-094c): a live vector scene, never raster frames,
+// so it is sharp at any window size and scale. The scene is drawn from one
+// `FilmPose` that Rust takes from `kawaro_ui::film`; the hive is built from
+// the real hex cell component. Every colour, radius, border and font comes
+// from the tokens; sizes scale with the film width against its token limit.
+//
+// Right to left: the whole desktop mirrors (sidebar, columns, the way the
+// pointer travels), as a file manager does in an Arabic session.
+import { Tokens } from "tokens.slint";
+import { HexCell } from "../components/hex-cell.slint";
+import { OutlineButton } from "@material";
+
+// What the scene shows in one frame (kawaro_ui::film::Pose).
+export struct FilmPose {
+    step: int,
+    selected: bool,
+    pointer: bool,
+    approach: float,
+    lift: float,
+    hive: bool,
+    thumbnail: bool,
+    drag: float,
+    hot: bool,
+    pressed: bool,
+    result: bool,
+}
+
+// A small picture drawn as vectors: a sun and two hills.
+component PhotoGlyph inherits Rectangle {
+    background: Tokens.surface-3;
+    clip: true;
+
+    Rectangle {
+        x: parent.width * 0.64;
+        y: parent.height * 0.14;
+        width: min(parent.width, parent.height) * 0.22;
+        height: self.width;
+        border-radius: self.width / 2;
+        background: Tokens.accent;
+    }
+
+    Path {
+        width: parent.width;
+        height: parent.height;
+        viewbox-width: 100;
+        viewbox-height: 60;
+        commands: "M 0 60 L 0 44 L 26 20 L 52 46 L 70 30 L 100 52 L 100 60 Z";
+        fill: Tokens.success;
+    }
+}
+
+// One file in the file manager: a picture or a plain document, its name
+// below, and a tick when it is the result.
+component FileTile inherits Rectangle {
+    in property <string> name;
+    in property <bool> photo;
+    in property <bool> selected;
+    in property <bool> done;
+    in property <float> u;
+    in property <float> preview-opacity: 1.0;
+
+    background: root.selected ? Tokens.surface-2 : Tokens.surface-0;
+    border-color: root.selected ? Tokens.accent : Tokens.border;
+    border-width: root.selected ? Tokens.border-focus : Tokens.border-default;
+    border-radius: Tokens.radius-md * root.u;
+    animate background, border-color { duration: Tokens.hover; }
+
+    property <length> inset: Tokens.space-2 * root.u;
+    property <length> label-h: Tokens.font-label * max(root.u, 0.8) * 1.5;
+
+    Rectangle {
+        x: root.inset;
+        y: root.inset;
+        width: parent.width - 2 * root.inset;
+        height: parent.height - 2 * root.inset - root.label-h;
+        border-radius: Tokens.radius-sm * root.u;
+        clip: true;
+        opacity: root.preview-opacity;
+        background: Tokens.surface-1;
+
+        if root.photo: PhotoGlyph {
+            width: parent.width;
+            height: parent.height;
+        }
+
+        if !root.photo: VerticalLayout {
+            padding: root.inset;
+            spacing: Tokens.space-1 * root.u;
+            for k in 4: Rectangle {
+                height: Tokens.space-1 * root.u;
+                width: k == 3 ? parent.width * 0.5 : parent.width;
+                background: Tokens.border;
+                border-radius: self.height / 2;
+            }
+        }
+    }
+
+    Text {
+        x: root.inset;
+        y: parent.height - root.label-h - root.inset / 2;
+        width: parent.width - 2 * root.inset;
+        height: root.label-h;
+        text: root.name;
+        overflow: elide;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        font-size: Tokens.font-label * max(root.u, 0.8);
+        color: Tokens.text-secondary;
+    }
+
+    if root.done: Rectangle {
+        x: parent.width - self.width - root.inset;
+        y: root.inset;
+        width: Tokens.hex-badge-size * max(root.u, 0.8);
+        height: self.width;
+        border-radius: self.width / 2;
+        background: Tokens.success;
+
+        Path {
+            x: parent.width * 0.22;
+            y: parent.height * 0.26;
+            width: parent.width * 0.56;
+            height: parent.height * 0.48;
+            viewbox-width: 10;
+            viewbox-height: 8;
+            commands: "M 1 4.2 L 3.8 7 L 9 1";
+            stroke: Tokens.surface-0;
+            stroke-width: Tokens.border-focus * max(root.u, 0.8);
+            fill: transparent;
+        }
+    }
+}
+
+// The whole scene: a file manager on a desktop, the hive, the dragged file
+// and the pointer.
+component FilmScene inherits Rectangle {
+    in property <FilmPose> pose;
+    in property <bool> centred;
+    in property <bool> rtl;
+
+    property <float> u: root.width / Tokens.layout-film-max-width;
+    property <float> s: root.rtl ? -1.0 : 1.0;
+    property <duration> travel: Tokens.highlight-move * 5;
+
+    // The pose, eased between frames (instant under reduced motion, where
+    // the tokens give a zero duration).
+    property <float> approach: root.pose.approach;
+    property <float> lift: root.pose.lift;
+    property <float> drag: root.pose.drag;
+    property <float> result-in: root.pose.result ? 1.0 : 0.0;
+    property <float> hive-in: root.pose.hive ? 1.0 : 0.0;
+    animate approach, lift, drag {
+        duration: root.travel;
+        easing: Tokens.highlight-move-easing;
+    }
+    animate result-in, hive-in {
+        duration: root.travel;
+        easing: Tokens.hive-open-easing;
+    }
+
+    // The file manager window and its grid of three columns and two rows.
+    property <length> mx: root.width * 0.04;
+    property <length> my: root.height * 0.05;
+    property <length> mw: root.width * 0.92;
+    property <length> mh: root.height * 0.73;
+    property <length> tb: root.height * 0.1;
+    property <length> sbw: root.mw * 0.19;
+    property <length> pad: Tokens.space-2 * root.u;
+    property <length> tw: (root.mw - root.sbw - 4 * root.pad) / 3;
+    property <length> th: (root.mh - root.tb - 3 * root.pad) / 2;
+
+    pure function tile-x(c: int) -> length {
+        return root.rtl
+            ? root.mx + root.mw - root.sbw - root.pad - root.tw - c * (root.tw + root.pad)
+            : root.mx + root.sbw + root.pad + c * (root.tw + root.pad);
+    }
+    pure function tile-y(r: int) -> length {
+        return root.my + root.tb + root.pad + r * (root.th + root.pad);
+    }
+
+    // The original is the second tile of the first row; the result lands on
+    // the next one.
+    property <length> src-x: root.tile-x(1) + root.tw / 2;
+    property <length> src-y: root.tile-y(0) + root.th / 2;
+
+    // The hive: at the pointer, or centred where the platform centres it.
+    property <length> hex-r: Tokens.hex-sm * 0.46 * root.u;
+    property <length> hex-step: root.hex-r * 1.7320508 + Tokens.hex-gap * root.u;
+    property <length> hx: root.centred ? root.width / 2 : root.src-x + root.s * root.tw / 2;
+    property <length> hy: root.centred ? root.my + root.mh / 2 : root.src-y;
+    // The pointer rests on the lower part of the target cell, so the cell's
+    // code stays readable.
+    property <length> target-x: root.hx + root.s * (root.hex-step + root.hex-r * 0.3);
+    property <length> target-y: root.hy + root.hex-r * 0.55;
+
+    // The pointer walks up to the file, drags it out to where the hive opens,
+    // then carries it to the target cell.
+    property <length> start-x: root.src-x + root.s * root.width * 0.14;
+    property <length> start-y: root.src-y + root.height * 0.2;
+    property <length> pointer-x: root.start-x + (root.src-x - root.start-x) * root.approach + (root.hx - root.src-x) * root.lift + (root.target-x - root.hx) * root.drag;
+    property <length> pointer-y: root.start-y + (root.src-y - root.start-y) * root.approach + (root.hy - root.src-y) * root.lift + (root.target-y - root.hy) * root.drag;
+
+    background: Tokens.surface-3;
+    clip: true;
+
+    // The window.
+    Rectangle {
+        x: root.mx;
+        y: root.my;
+        width: root.mw;
+        height: root.mh;
+        background: Tokens.surface-1;
+        border-color: Tokens.border;
+        border-width: Tokens.border-default;
+        border-radius: Tokens.radius-md * root.u;
+        clip: true;
+
+        // Title bar: three dots and the folder name.
+        Rectangle {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: root.tb;
+            background: Tokens.surface-2;
+
+            for k in 3: Rectangle {
+                x: root.rtl
+                    ? parent.width - (Tokens.space-3 + k * Tokens.space-2 * 1.5) * root.u - self.width
+                    : (Tokens.space-3 + k * Tokens.space-2 * 1.5) * root.u;
+                y: (parent.height - self.height) / 2;
+                width: Tokens.space-2 * root.u;
+                height: self.width;
+                border-radius: self.width / 2;
+                background: Tokens.border;
+            }
+
+            Text {
+                x: root.rtl ? Tokens.space-3 * root.u : parent.width - self.width - Tokens.space-3 * root.u;
+                y: (parent.height - self.height) / 2;
+                text: "Pictures";
+                font-size: Tokens.font-label * max(root.u, 0.8);
+                color: Tokens.text-secondary;
+            }
+        }
+
+        // Sidebar: three places.
+        VerticalLayout {
+            x: root.rtl ? parent.width - root.sbw : 0;
+            y: root.tb;
+            width: root.sbw;
+            height: parent.height - root.tb;
+            padding: root.pad * 1.5;
+            spacing: root.pad * 1.5;
+            alignment: start;
+            for k in 4: Rectangle {
+                height: Tokens.space-2 * root.u;
+                width: k == 0 ? parent.width * 0.9 : parent.width * 0.65;
+                background: k == 0 ? Tokens.accent : Tokens.border;
+                border-radius: self.height / 2;
+            }
+        }
+    }
+
+    // Filler documents around the two files that matter.
+    for slot[k] in [0, 3, 4, 5]: FileTile {
+        x: root.tile-x(Math.mod(slot, 3));
+        y: root.tile-y(Math.floor(slot / 3));
+        width: root.tw;
+        height: root.th;
+        u: root.u;
+        photo: false;
+        name: slot == 0 ? "notes.txt" : (slot == 3 ? "report.pdf" : (slot == 4 ? "list.csv" : "memo.txt"));
+    }
+
+    // The original: never touched, selected once the pointer picks it.
+    source := FileTile {
+        x: root.tile-x(1);
+        y: root.tile-y(0);
+        width: root.tw;
+        height: root.th;
+        u: root.u;
+        photo: true;
+        name: "photo.png";
+        selected: root.pose.selected;
+        preview-opacity: root.pose.thumbnail ? 0.45 : 1.0;
+    }
+
+    // The result, beside the original.
+    result := FileTile {
+        x: root.tile-x(2);
+        y: root.tile-y(0);
+        width: root.tw;
+        height: root.th;
+        u: root.u;
+        photo: true;
+        done: true;
+        name: "photo.webp";
+        opacity: root.result-in;
+        transform-scale: 0.9 + 0.1 * root.result-in;
+    }
+
+    // The hive, from the real hex cell: a centre cell and six format cells.
+    hive := Rectangle {
+        x: 0;
+        y: 0;
+        width: 0;
+        height: 0;
+        opacity: root.pose.hive ? 1.0 : 0.0;
+        animate opacity { duration: Tokens.hive-close; }
+
+        HexCell {
+            x: root.hx - self.width / 2;
+            y: root.hy - self.height / 2;
+            r: root.hex-r;
+            centre: true;
+            opened: root.pose.hive;
+            ring: 0;
+        }
+
+        HexCell {
+            x: root.hx + root.s * root.hex-step - self.width / 2;
+            y: root.hy - self.height / 2;
+            r: root.hex-r;
+            text: "WEBP";
+            label-size: Tokens.font-label * max(root.u, 0.8);
+            label-pad: Tokens.space-1 * root.u;
+            opened: root.pose.hive;
+            ring: 1;
+            highlighted: root.pose.hot;
+            pressed: root.pose.pressed;
+        }
+
+        HexCell {
+            x: root.hx + root.s * root.hex-step * 0.5 - self.width / 2;
+            y: root.hy - root.hex-step * 0.8660254 - self.height / 2;
+            r: root.hex-r;
+            text: "JPG";
+            label-size: Tokens.font-label * max(root.u, 0.8);
+            label-pad: Tokens.space-1 * root.u;
+            opened: root.pose.hive;
+            ring: 1;
+        }
+
+        HexCell {
+            x: root.hx - root.s * root.hex-step * 0.5 - self.width / 2;
+            y: root.hy - root.hex-step * 0.8660254 - self.height / 2;
+            r: root.hex-r;
+            text: "AVIF";
+            label-size: Tokens.font-label * max(root.u, 0.8);
+            label-pad: Tokens.space-1 * root.u;
+            opened: root.pose.hive;
+            ring: 1;
+        }
+
+        HexCell {
+            x: root.hx - root.s * root.hex-step - self.width / 2;
+            y: root.hy - self.height / 2;
+            r: root.hex-r;
+            text: "PDF";
+            label-size: Tokens.font-label * max(root.u, 0.8);
+            label-pad: Tokens.space-1 * root.u;
+            opened: root.pose.hive;
+            ring: 1;
+        }
+
+        HexCell {
+            x: root.hx - root.s * root.hex-step * 0.5 - self.width / 2;
+            y: root.hy + root.hex-step * 0.8660254 - self.height / 2;
+            r: root.hex-r;
+            text: "ICO";
+            label-size: Tokens.font-label * max(root.u, 0.8);
+            label-pad: Tokens.space-1 * root.u;
+            opened: root.pose.hive;
+            ring: 1;
+        }
+
+        HexCell {
+            x: root.hx + root.s * root.hex-step * 0.5 - self.width / 2;
+            y: root.hy + root.hex-step * 0.8660254 - self.height / 2;
+            r: root.hex-r;
+            text: "GIF";
+            label-size: Tokens.font-label * max(root.u, 0.8);
+            label-pad: Tokens.space-1 * root.u;
+            opened: root.pose.hive;
+            ring: 1;
+        }
+    }
+
+    // The dragged file, carried by the pointer.
+    if root.pose.thumbnail: Rectangle {
+        x: root.pointer-x + root.s * root.tw * 0.1 - (root.rtl ? self.width : 0);
+        y: root.pointer-y + root.th * 0.12;
+        width: root.tw * 0.42;
+        height: root.th * 0.34;
+        background: Tokens.surface-0;
+        border-color: Tokens.accent;
+        border-width: Tokens.border-focus;
+        border-radius: Tokens.radius-sm * root.u;
+        clip: true;
+
+        PhotoGlyph {
+            width: parent.width;
+            height: parent.height;
+        }
+    }
+
+    // The pointer.
+    if root.pose.pointer: Path {
+        x: root.pointer-x;
+        y: root.pointer-y;
+        width: Tokens.space-4 * max(root.u, 0.8) * 0.75;
+        height: Tokens.space-5 * max(root.u, 0.8) * 0.8;
+        viewbox-width: 12;
+        viewbox-height: 19;
+        stroke: Tokens.surface-0;
+        stroke-width: Tokens.border-default;
+        fill: Tokens.text-primary;
+        commands: "M 1 1 L 1 15 L 4.5 12 L 7 18 L 9.5 16.5 L 7 11 L 11 11 Z";
+    }
+}
+
+// One line of the flow under the film: a number and its caption. The rows
+// that belong to the step on screen are lit.
+component CaptionRow inherits Rectangle {
+    in property <string> text;
+    in property <int> number;
+    in property <bool> active;
+    in property <bool> rtl;
+
+    property <length> badge: Tokens.space-4 + Tokens.space-1;
+    height: max(root.badge, label.preferred-height);
+
+    badge-shape := Rectangle {
+        x: root.rtl ? parent.width - self.width : 0;
+        y: (parent.height - self.height) / 2;
+        width: root.badge;
+        height: root.badge;
+        border-radius: self.width / 2;
+        background: root.active ? Tokens.accent : Tokens.surface-3;
+        animate background { duration: Tokens.hover; }
+
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: root.number;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            font-size: Tokens.font-label;
+            font-weight: Tokens.weight-semibold;
+            color: root.active ? Tokens.accent-ink : Tokens.text-secondary;
+            accessible-role: none;
+        }
+    }
+
+    label := Text {
+        x: root.rtl ? 0 : root.badge + Tokens.space-2;
+        y: (parent.height - self.height) / 2;
+        width: parent.width - root.badge - Tokens.space-2;
+        text: root.text;
+        wrap: word-wrap;
+        font-size: Tokens.font-body;
+        font-weight: root.active ? Tokens.weight-medium : Tokens.weight-regular;
+        color: root.active ? Tokens.text-primary : Tokens.text-secondary;
+        horizontal-alignment: root.rtl ? right : left;
+    }
+}
+
+// The card of the Introduction: the film, its Play and Pause button, and the
+// five captions of the flow. Never wider than the token limit and never
+// taller than `limit-h`, so it fits the page without scrolling.
+export component FilmCard inherits Rectangle {
+    in property <FilmPose> pose;
+    in property <bool> centred;
+    in property <bool> rtl;
+    in property <bool> playing;
+    // Reduced motion shows the poster as a still picture with no control.
+    in property <bool> reduced;
+    in property <[string]> captions;
+    in property <int> lit-a;
+    in property <int> lit-b: -1;
+    in property <string> play-text;
+    in property <string> pause-text;
+    in property <string> play-accessible;
+    in property <string> pause-accessible;
+    in property <length> limit-h;
+    callback toggle();
+
+    // The captions block: five one line rows and the card padding.
+    property <length> row-h: Tokens.space-4 + Tokens.space-1;
+    property <length> captions-h: 5 * root.row-h + 4 * Tokens.space-1 + 2 * Tokens.space-3;
+    property <length> film-w: min(root.width, min(Tokens.layout-film-max-width, max(Tokens.layout-film-max-width * 0.6, (root.limit-h - root.captions-h) * 16 / 9)));
+
+    min-height: card.height;
+    preferred-height: card.height;
+
+    card := Rectangle {
+        x: (parent.width - self.width) / 2;
+        width: root.film-w;
+        height: root.film-w * 9 / 16 + root.captions-h;
+        background: Tokens.surface-1;
+        border-color: Tokens.border;
+        border-width: Tokens.border-default;
+        border-radius: Tokens.radius-md;
+        clip: true;
+
+        film := Rectangle {
+            x: 0;
+            y: 0;
+            width: parent.width;
+            height: self.width * 9 / 16;
+            accessible-role: image;
+            accessible-label: root.captions[root.lit-a];
+
+            FilmScene {
+                width: parent.width;
+                height: parent.height;
+                pose: root.pose;
+                centred: root.centred;
+                rtl: root.rtl;
+            }
+
+            // The control sits on the strip under the file manager.
+            if !root.reduced: OutlineButton {
+                x: root.rtl ? parent.width - self.width - Tokens.space-3 : Tokens.space-3;
+                y: parent.height - self.height - Tokens.space-2;
+                text: root.playing ? root.pause-text : root.play-text;
+                accessible-label: root.playing ? root.pause-accessible : root.play-accessible;
+                clicked => {
+                    root.toggle();
+                }
+            }
+        }
+
+        VerticalLayout {
+            y: film.height;
+            width: parent.width;
+            height: parent.height - film.height;
+            padding: Tokens.space-3;
+            spacing: Tokens.space-1;
+            alignment: center;
+
+            for c[i] in root.captions: CaptionRow {
+                rtl: root.rtl;
+                number: i + 1;
+                text: c;
+                active: root.lit-a == i || root.lit-b == i;
+            }
+        }
+    }
+}

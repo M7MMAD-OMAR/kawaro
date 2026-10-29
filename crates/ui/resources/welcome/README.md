@@ -1,20 +1,14 @@
-# Welcome demonstration frames
+# Welcome resources
 
-Every file in this directory is generated, never hand drawn.
+This directory holds no frame images. Since S-094c the Introduction film of
+the welcome window is a live vector scene (`crates/ui/ui/film.slint`) driven
+by `kawaro_ui::film`, drawn at the displayed size and scale, so it is sharp
+on every screen. The old raster frames (576x324, upscaled) and their
+generator were removed.
 
-- `frame-{lp,lc,dp,dc}-NN.png` are the demonstration frames of the
-  first-run welcome window (S-087), rendered by
-  `scripts/gen-welcome-frames.sh` from `crates/ui/ui/welcome-frames.slint`.
-  The scene draws the hive with `crates/ui/components/hex-cell.slint`, the
-  same hex cell component the real hive uses, and takes every colour,
-  spacing and size from `design/tokens.json`. `lp` and `dp` show the hive at
-  the pointer, `lc` and `dc` centred; `l` and `d` are the light and dark
-  schemes. Sixteen frames per sequence.
+Any raster frame that is ever added here must be at least 1680x945, which is
+three times `film-max-width` (`tests/s094c_film.rs`).
 
-No frame asset may be committed without that generator. The frames and the
-sample image of the welcome window are embedded into the shipped binary
-together, under the 2 MB budget of S-087 AC2.
-
-Licence: generated artwork of this project, from this project's own
-components and design tokens, distributed under the repository licence
-(GPLv3, see the top level LICENSE), like every other asset here.
+The bundled sample image of the welcome window lives in
+`tests/fixtures/images/welcome-sample.png`. Licence: GPLv3, like every other
+asset of this project.

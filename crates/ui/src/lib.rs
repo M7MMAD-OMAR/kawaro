@@ -36,6 +36,7 @@ pub use layer::after_catcher_ready;
 mod layout;
 mod motion;
 // Only the Windows window picks a monitor; the tests run everywhere.
+pub mod film;
 #[cfg_attr(not(windows), allow(dead_code))]
 mod monitor;
 pub mod overlay;

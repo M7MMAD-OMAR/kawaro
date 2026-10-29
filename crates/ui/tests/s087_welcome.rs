@@ -15,79 +15,31 @@ fn read(rel: &str) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{} must exist: {e}", path.display()))
 }
 
-/// The `resources/welcome/frame-XX-NN.png` references of welcome.slint, as
-/// (family, path relative to the crate) in file order.
-fn frame_refs() -> Vec<(String, PathBuf)> {
-    let src = read("crates/ui/ui/welcome.slint");
-    let mut out = Vec::new();
-    let mut rest = src.as_str();
-    while let Some(i) = rest.find("resources/welcome/frame-") {
-        let tail = &rest[i + "resources/welcome/frame-".len()..];
-        let end = tail.find('"').expect("the path literal closes");
-        let name = &tail[..end];
-        let family = name.split('-').next().unwrap_or_default().to_string();
-        out.push((
-            family,
-            Path::new("crates/ui")
-                .join("resources/welcome")
-                .join(format!("frame-{name}")),
-        ));
-        rest = &tail[end..];
-    }
-    out
-}
-
-fn png_size(rel: &Path) -> (u32, u32) {
-    let decoder = png::Decoder::new(std::fs::File::open(root().join(rel)).unwrap());
-    let mut reader = decoder.read_info().unwrap();
-    let mut buf = vec![0; reader.output_buffer_size()];
-    reader.next_frame(&mut buf).unwrap();
-    let info = reader.info();
-    (info.width, info.height)
-}
-
 // ------------------------------------------------------------ AC2
 
-#[test]
-fn ac2_the_embedded_frame_set_is_non_empty_in_every_sequence() {
-    let refs = frame_refs();
-    assert!(!refs.is_empty(), "welcome.slint embeds no frames");
-    for family in ["lp", "lc", "dp", "dc"] {
-        let n = refs.iter().filter(|(f, _)| f == family).count();
-        assert!(
-            n >= 10,
-            "the {family} sequence holds {n} frames, expected at least 10"
-        );
-    }
-    for (_, rel) in &refs {
-        assert!(root().join(rel).exists(), "{} is missing", rel.display());
-    }
-}
+// S-094c replaced the raster frame set by a live vector film, so the old
+// frame set, budget and size tests became these.
 
 #[test]
-fn ac2_the_frames_and_the_sample_fit_the_two_megabyte_budget() {
-    let mut total: u64 = 0;
-    for (_, rel) in frame_refs() {
-        total += std::fs::metadata(root().join(&rel)).unwrap().len();
-    }
+fn ac2_the_film_is_a_live_scene_and_embeds_no_frame_images() {
+    let welcome = read("crates/ui/ui/welcome.slint");
+    assert!(
+        !welcome.contains("resources/welcome/frame-"),
+        "welcome.slint must not embed raster frames"
+    );
+    let film = read("crates/ui/ui/film.slint");
+    assert!(
+        !film.contains("@image-url"),
+        "the film scene is vectors, not images"
+    );
     let sample = root().join("tests/fixtures/images/welcome-sample.png");
-    total += std::fs::metadata(&sample)
+    let size = std::fs::metadata(&sample)
         .expect("the sample image exists")
         .len();
     assert!(
-        total <= 2 * 1024 * 1024,
-        "the embedded frame set and sample image are {total} bytes, over the 2 MB of AC2"
+        size <= 2 * 1024 * 1024,
+        "the embedded sample is {size} bytes, over the 2 MB of AC2"
     );
-}
-
-#[test]
-fn ac2_the_frames_decode_at_one_size() {
-    let mut sizes: Vec<(u32, u32)> = frame_refs().iter().map(|(_, rel)| png_size(rel)).collect();
-    sizes.sort();
-    sizes.dedup();
-    assert_eq!(sizes.len(), 1, "every frame has the same size: {sizes:?}");
-    let (w, h) = sizes[0];
-    assert!(w >= 320 && h >= 180, "the demo area is too small: {w}x{h}");
 }
 
 #[test]
@@ -109,25 +61,20 @@ fn ac2_reduced_motion_shows_one_frame_and_still_steps_the_captions() {
 }
 
 #[test]
-fn ac2_no_frame_asset_without_the_generator() {
-    let script = read("scripts/gen-welcome-frames.sh");
-    assert!(script.contains("S-087"), "the generator names its story");
+fn ac2_no_frame_asset_is_committed_without_a_generator() {
+    let dir = root().join("crates/ui/resources/welcome");
+    let frames: Vec<_> = std::fs::read_dir(&dir)
+        .expect("resources/welcome")
+        .flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("frame-"))
+        .collect();
     assert!(
-        script.contains("welcome_frames"),
-        "the generator runs the frame renderer"
+        frames.is_empty(),
+        "raster frames need a generator and a 1680x945 size; there are none now"
     );
     assert!(
-        script.contains("resources/welcome"),
-        "the generator writes into crates/ui/resources/welcome"
-    );
-    let note = read("crates/ui/resources/welcome/README.md");
-    assert!(
-        note.contains("gen-welcome-frames.sh"),
-        "the licence note names the generator"
-    );
-    assert!(
-        note.to_lowercase().contains("licence") || note.to_lowercase().contains("license"),
-        "the licence note states a licence"
+        !root().join("scripts/gen-welcome-frames.sh").exists(),
+        "the frame generator was removed with the frames"
     );
 }
 

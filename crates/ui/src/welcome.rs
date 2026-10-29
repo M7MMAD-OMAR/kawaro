@@ -1,6 +1,7 @@
 //! The first-run welcome window (S-087, backlog/S-087-first-run-welcome.md):
-//! the demonstration frames of `crates/ui/resources/welcome`, the caption
-//! steps of [`kawaro_core::welcome`], and the two buttons. Like the settings
+//! the Introduction film (S-094c, a live vector scene driven by
+//! [`crate::film`]), the caption steps of [`kawaro_core::welcome`], and the
+//! two buttons. Like the settings
 //! window, it never writes files: the daemon saves the marker and runs the
 //! flow behind Try on an image.
 //!
@@ -8,6 +9,7 @@
 //! `ui/welcome.slint`; the strings arrive from Rust in the window language.
 
 use crate::Lang;
+use crate::film;
 use crate::settings::{self, FormState};
 use crate::updates::{UpdateModel, UpdateState};
 use kawaro_core::config::{Config, OutputPlace};
@@ -26,11 +28,11 @@ mod resources {
     include!(concat!(env!("OUT_DIR"), "/welcome_resources.rs"));
 }
 
-use generated::{FormValues, Palette, WelcomeText, WelcomeUi};
+use generated::{FilmPose, FormValues, Palette, Tokens, WelcomeText, WelcomeUi};
 
-/// How the demonstration plays (AC2): the frames loop while the caption
-/// steps cycle, and reduced motion shows one static frame with the same
-/// caption steps instead of looping.
+/// How the first welcome demonstration played (S-087 AC2). Kept as the pure
+/// timing rule of that story; the film of S-094c plays only on request, at
+/// [`crate::film::FRAME_MS`] per frame.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DemoPlan {
     /// Frames to show: the full set, or one static frame.
@@ -119,8 +121,8 @@ struct Inner {
     on_update_check: RefCell<Option<Callback>>,
     on_update_apply: RefCell<Option<Callback>>,
     timer: slint::Timer,
-    plan: RefCell<DemoPlan>,
-    ticks: Cell<u64>,
+    /// Whether the film loop plays; it never starts on its own.
+    playing: Cell<bool>,
     choose_language: Cell<bool>,
     /// Whether the daemon handed over the saved settings (S-094): until it
     /// has, picking a settings page in the rail asks for them.
@@ -132,12 +134,17 @@ impl Inner {
         let ui = WelcomeUi::new()?;
         ui.set_rtl(self.rtl);
         let strings = kawaro_core::welcome::strings(self.lang);
+        let film = film_strings(self.lang);
         ui.set_text(WelcomeText {
             title: strings.title.as_str().into(),
             try_button: strings.try_button.as_str().into(),
             try_accessible: strings.try_accessible.as_str().into(),
             settings_button: strings.settings_button.as_str().into(),
             settings_accessible: strings.settings_accessible.as_str().into(),
+            play_button: film.play.into(),
+            pause_button: film.pause.into(),
+            play_accessible: film.play_accessible.into(),
+            pause_accessible: film.pause_accessible.into(),
         });
         // The shell shows its header and rail from the first frame, so the
         // settings strings go in now, over the default values; `show_settings`
@@ -154,6 +161,12 @@ impl Inner {
         ui.on_update_check(move || with(&w, Inner::update_check));
         let w = Rc::downgrade(self);
         ui.on_update_apply(move || with(&w, Inner::update_apply));
+        let w = Rc::downgrade(self);
+        ui.on_film_toggle(move || {
+            if let Some(inner) = w.upgrade() {
+                inner.toggle_film();
+            }
+        });
         let w = Rc::downgrade(self);
         ui.on_try_sample(move || with(&w, Inner::try_sample));
         let w = Rc::downgrade(self);
@@ -352,31 +365,106 @@ impl Inner {
 
     fn close(&self) {
         self.timer.stop();
+        self.playing.set(false);
+        self.ui.borrow().set_film_playing(false);
         self.ui.borrow().hide().ok();
     }
 
-    /// One playback step: the frame advances under the caption steps, and
-    /// reduced motion only steps the captions (AC2).
-    fn tick(&self) {
+    /// Shows frame `i` of the film: the pose and the caption rows it lights.
+    fn show_frame(&self, i: usize) {
         let ui = self.ui.borrow();
-        let plan = *self.plan.borrow();
-        let ticks = self.ticks.get() + 1;
-        self.ticks.set(ticks);
-        let steps = i32::try_from(plan.caption_steps).unwrap_or(1).max(1);
-        if plan.frame_interval_ms > 0 {
-            let frames = ui.get_frame_count().max(1);
-            ui.set_frame_index((ui.get_frame_index() + 1) % frames);
+        let p = film::pose(i);
+        ui.set_film_frame(i32::try_from(i % film::POSES.len()).unwrap_or(0));
+        ui.set_pose(FilmPose {
+            step: p.step as i32,
+            selected: p.selected,
+            pointer: p.pointer,
+            approach: p.approach,
+            lift: p.lift,
+            hive: p.hive,
+            thumbnail: p.thumbnail,
+            drag: p.drag,
+            hot: p.hot,
+            pressed: p.pressed,
+            result: p.result,
+        });
+        let lit = film::active_captions(p.step);
+        ui.set_lit_a(lit[0] as i32);
+        ui.set_lit_b(lit.get(1).map_or(-1, |b| *b as i32));
+    }
+
+    fn frame(&self) -> usize {
+        usize::try_from(self.ui.borrow().get_film_frame()).unwrap_or(0)
+    }
+
+    /// One step of the loop, exactly what the timer does; nothing moves
+    /// unless the film plays.
+    fn tick(&self) {
+        if self.playing.get() {
+            self.show_frame(self.frame() + 1);
         }
-        // A caption step lasts one loop of the frames, and a static demo
-        // steps the captions on every tick (no frame interval divides).
-        let caption_every = plan
-            .caption_interval_ms
-            .checked_div(plan.frame_interval_ms)
-            .unwrap_or(1)
-            .max(1);
-        if ticks.is_multiple_of(caption_every) {
-            ui.set_caption_index((ui.get_caption_index() + 1) % steps);
+    }
+
+    /// Play or Pause. Playing from the poster starts the flow at its first
+    /// step; pausing keeps the frame on screen.
+    fn toggle_film(self: &Rc<Self>) {
+        if self.playing.get() {
+            self.pause_film();
+            return;
         }
+        if self.frame() == film::poster_index() {
+            self.show_frame(0);
+        }
+        self.playing.set(true);
+        self.ui.borrow().set_film_playing(true);
+        let w = Rc::downgrade(self);
+        self.timer.start(
+            slint::TimerMode::Repeated,
+            Duration::from_millis(film::FRAME_MS),
+            move || with(&w, Inner::tick),
+        );
+    }
+
+    fn pause_film(&self) {
+        self.timer.stop();
+        self.playing.set(false);
+        self.ui.borrow().set_film_playing(false);
+    }
+
+    /// Reduced motion: a still poster, no control, nothing plays.
+    fn set_reduced(&self, reduced: bool) {
+        self.pause_film();
+        let ui = self.ui.borrow();
+        ui.set_reduced_motion(reduced);
+        ui.global::<Tokens>().set_reduced_motion(reduced);
+        drop(ui);
+        self.show_frame(film::poster_index());
+    }
+}
+
+/// The film's own strings: the Play and Pause button and their accessible
+/// labels, in the window language.
+struct FilmStrings {
+    play: &'static str,
+    pause: &'static str,
+    play_accessible: &'static str,
+    pause_accessible: &'static str,
+}
+
+fn film_strings(lang: Lang) -> FilmStrings {
+    match lang {
+        Lang::En => FilmStrings {
+            play: "Play",
+            pause: "Pause",
+            play_accessible: "Play the introduction film",
+            pause_accessible: "Pause the introduction film",
+        },
+        Lang::Ar => FilmStrings {
+            play: "تشغيل",
+            pause: "إيقاف مؤقت",
+            play_accessible: "شغّل فيلم التعريف",
+            pause_accessible: "أوقف فيلم التعريف مؤقتاً",
+        },
     }
 }
 
@@ -411,8 +499,7 @@ impl WelcomeWindow {
             on_update_check: RefCell::new(None),
             on_update_apply: RefCell::new(None),
             timer: slint::Timer::default(),
-            plan: RefCell::new(demo_plan(1, false)),
-            ticks: Cell::new(0),
+            playing: Cell::new(false),
             choose_language: Cell::new(false),
             settings_loaded: Cell::new(false),
         });
@@ -422,7 +509,7 @@ impl WelcomeWindow {
     }
 
     /// Shows the window with the caption steps of `captions` and the hive
-    /// placement of `centred`, and starts the demonstration.
+    /// placement of `centred`. The film waits on its poster.
     pub fn open(&self, captions: &Captions, centred: bool) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         inner.close();
@@ -440,28 +527,11 @@ impl WelcomeWindow {
                 .map(|s| SharedString::from(s.as_str()))
                 .collect::<Vec<_>>(),
         )));
-        ui.set_caption_index(0);
-        ui.set_frame_index(0);
         *inner.ui.borrow_mut() = ui;
-        inner.ticks.set(0);
 
-        // The demonstration: one timer step per frame under reduced motion's
-        // caption steps (AC2).
-        let frames = self.inner.ui.borrow().get_frame_count();
-        let reduced = crate::motion::detect();
-        let plan = demo_plan(usize::try_from(frames).unwrap_or(1).max(1), reduced);
-        *inner.plan.borrow_mut() = plan;
-        let interval = if plan.frame_interval_ms > 0 {
-            plan.frame_interval_ms
-        } else {
-            plan.caption_interval_ms
-        };
-        let w = Rc::downgrade(inner);
-        inner.timer.start(
-            slint::TimerMode::Repeated,
-            Duration::from_millis(interval),
-            move || with(&w, Inner::tick),
-        );
+        // Nothing autoplays: the film opens on its poster and waits for
+        // Play. Reduced motion also hides the control.
+        inner.set_reduced(crate::motion::detect());
         inner.ui.borrow().show()
     }
 
@@ -576,14 +646,18 @@ impl WelcomeWindow {
         self.inner.close();
     }
 
-    /// Snapshot hook: pins the demonstration at `frame` and `caption` and
-    /// stops the clock, so the reference renders are deterministic.
+    /// Snapshot hook: pins the film at `frame` and stops the clock, so the
+    /// reference renders are deterministic.
     #[doc(hidden)]
-    pub fn freeze(&self, frame: i32, caption: i32) {
-        self.inner.timer.stop();
-        let ui = self.inner.ui.borrow();
-        ui.set_frame_index(frame);
-        ui.set_caption_index(caption);
+    pub fn freeze(&self, frame: usize) {
+        self.inner.pause_film();
+        self.inner.show_frame(frame);
+    }
+
+    /// Snapshot hook: forces reduced motion on or off for the film.
+    #[doc(hidden)]
+    pub fn set_film_reduced(&self, reduced: bool) {
+        self.inner.set_reduced(reduced);
     }
 
     /// Snapshot hook: shows rail item `page` (0 is the Introduction).
@@ -611,6 +685,91 @@ impl WelcomeWindow {
         &self,
     ) -> Result<slint::SharedPixelBuffer<slint::Rgba8Pixel>, slint::PlatformError> {
         self.inner.ui.borrow().window().take_snapshot()
+    }
+}
+
+#[cfg(feature = "testing-hooks")]
+impl WelcomeWindow {
+    /// The frame of `film::frames()` now shown.
+    #[doc(hidden)]
+    pub fn film_frame(&self) -> usize {
+        self.inner.frame()
+    }
+
+    #[doc(hidden)]
+    pub fn film_step(&self) -> usize {
+        film::pose(self.inner.frame()).step
+    }
+
+    #[doc(hidden)]
+    pub fn film_is_poster(&self) -> bool {
+        self.inner.frame() == film::poster_index()
+    }
+
+    #[doc(hidden)]
+    pub fn film_playing(&self) -> bool {
+        self.inner.playing.get()
+    }
+
+    #[doc(hidden)]
+    pub fn film_timer_running(&self) -> bool {
+        self.inner.timer.running()
+    }
+
+    /// What the timer does, only while playing.
+    #[doc(hidden)]
+    pub fn film_tick(&self) {
+        self.inner.tick();
+    }
+
+    #[doc(hidden)]
+    pub fn press_film_play_pause(&self) {
+        self.inner.ui.borrow().invoke_film_toggle();
+    }
+
+    /// The accessible label of the Play and Pause button.
+    #[doc(hidden)]
+    pub fn film_button_label(&self) -> String {
+        let f = film_strings(self.inner.lang);
+        if self.inner.playing.get() {
+            f.pause_accessible
+        } else {
+            f.play_accessible
+        }
+        .to_owned()
+    }
+
+    #[doc(hidden)]
+    pub fn set_reduced_motion(&self, reduced: bool) {
+        self.inner.set_reduced(reduced);
+    }
+
+    /// The card with the film, the button and the captions.
+    #[doc(hidden)]
+    pub fn film_card_rect(&self) -> crate::Rect {
+        crate::shell::probe::rect_of(&*self.inner.ui.borrow(), "FilmCard::card")
+    }
+
+    /// Sets the window scale factor, keeping the logical size.
+    #[doc(hidden)]
+    pub fn set_scale_factor(&self, scale: f32) {
+        let ui = self.inner.ui.borrow();
+        let w = ui.window();
+        let logical = w.size().to_logical(w.scale_factor());
+        w.dispatch_event(slint::platform::WindowEvent::ScaleFactorChanged {
+            scale_factor: scale,
+        });
+        w.set_size(logical);
+    }
+
+    /// The pixel size the film is drawn at: the film is vector art drawn at
+    /// the displayed size, so this is that size times the scale factor.
+    #[doc(hidden)]
+    pub fn film_render_pixels(&self) -> (u32, u32) {
+        let scale = self.inner.ui.borrow().window().scale_factor();
+        self.film_rect().map_or((0, 0), |r| {
+            ((r.w * scale).round() as u32, (r.h * scale).round() as u32)
+        })
     }
 }
 
