@@ -1013,6 +1013,10 @@ fn manual_check_without_curl_answers_unavailable() {
 //   &Path) -> (PathBuf, Vec<String>)` = (the cleaned exe, no arguments): no
 //   shell. `restart_daemon` spawns that directly.
 
+/// The installing version is one process-wide value: every test that sets it,
+/// or that reads it through `check_or_busy`, holds this lock.
+static INSTALLING_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 mod rework1 {
     use super::*;
     use crate::notify::notifications_allowed;
@@ -1235,6 +1239,7 @@ mod rework1 {
 
     #[test]
     fn check_answers_downloading_at_once_when_the_update_lock_is_busy() {
+        let _serial = crate::state::lock(&super::INSTALLING_LOCK);
         let (st, _rig) = state_for("0.3.3", Os::Linux);
         let m = Mutex::new(st);
         let _held = m.lock().unwrap();
@@ -1252,6 +1257,7 @@ mod rework1 {
 
     #[test]
     fn check_with_the_lock_is_the_manual_check() {
+        let _serial = crate::state::lock(&super::INSTALLING_LOCK);
         let (mut st, _rig) = state_for("0.4.0", Os::Linux);
         let fake = Fake::new(Feed::Good);
         let (resp, _) = check_or_busy(Some(&mut st), "0.4.0", &Config::default(), &fake, BASE);
@@ -1857,9 +1863,7 @@ mod s099b_rework {
     use kawaro_core::update::manifest::Notes;
     use std::sync::Mutex;
 
-    /// The installing version is one process-wide value: the tests that set
-    /// it hold this lock and put it back to none.
-    static INSTALLING_LOCK: Mutex<()> = Mutex::new(());
+    use super::INSTALLING_LOCK;
 
     fn notes() -> Notes {
         Notes {
