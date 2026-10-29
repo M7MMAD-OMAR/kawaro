@@ -360,6 +360,9 @@ fn ac_b4_every_card_has_an_accessible_label() {
     let _g = init();
     for lang in [Lang::En, Lang::Ar] {
         let w = window(lang);
+        // S-099 ruling: the Updates page scrolls at 880x640, so the page is
+        // made tall enough to bring every card into view before measuring.
+        w.set_window_size(880.0, 1400.0);
         w.set_update_available(Some("0.4.3"), Some(50 * MIB), Some(&good_notes(3)));
         w.set_update_view(VERSION, UpdateState::Ready, true);
         let labels = w.update_card_labels();
@@ -377,6 +380,9 @@ fn ac_b4_every_card_has_an_accessible_label() {
 fn ac_b4_starting_a_check_moves_no_row_and_card_height_is_reserved() {
     let _g = init();
     let w = window(Lang::En);
+    // S-099 ruling: the Updates page scrolls at 880x640, so the page is
+    // made tall enough to bring every card into view before measuring.
+    w.set_window_size(880.0, 1400.0);
     w.set_update_view(VERSION, UpdateState::UpToDate, true);
     let before = w.update_row_ys();
     assert!(!before.is_empty(), "rows below the cards exist");
@@ -400,6 +406,9 @@ fn ac_b4_starting_a_check_moves_no_row_and_card_height_is_reserved() {
 fn ac_b4_cards_need_no_scrollbar_beyond_the_page() {
     let _g = init();
     let w = window(Lang::En);
+    // S-099 ruling: the Updates page scrolls at 880x640, so the page is
+    // made tall enough to bring every card into view before measuring.
+    w.set_window_size(880.0, 1400.0);
     w.set_update_available(Some("0.4.3"), Some(50 * MIB), Some(&good_notes(5)));
     w.set_update_view(VERSION, UpdateState::Ready, true);
     for i in 0..2 {
