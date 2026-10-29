@@ -54,7 +54,7 @@ build_msi() { # build_msi OUT.msi [peruser]
     sed -i -e '/<Property Id="ALLUSERS"/d' -e '/<Property Id="MSIINSTALLPERUSER"/d' \
       "$dir/kawaro.wxs"
   fi
-  wixl -a x64 -D "Version=0.5.0" -D "Release=$dir" -D "Actions=$dir" \
+  wixl -a x64 -D "Version=0.5.0" -D "GuidTail=000000000000" -D "Release=$dir" -D "Actions=$dir" \
         -D "Ico=$dir/kawaro.ico" -o "$out" "$dir/kawaro.wxs" >/dev/null 2>&1
   rm -rf "$dir"
   [ -f "$out" ]

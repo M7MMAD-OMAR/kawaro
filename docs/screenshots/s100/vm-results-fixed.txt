@@ -1,0 +1,132 @@
+s100 upgrade test Thu 10/29/2026 15:17:33.75 
+ 
+===== scenario A: 0.4.2 to 0.4.3 (quiet) 
+[A] base 0.4.2 install rc=0 
+[A-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[A-base] kawaro.exe sha256 5cda0e3ed75ef181abd57a94fdf480d801326e6c350672ffe8f5e1f5442edf5f
+[A-base] kawarod.exe sha256 78e82697d9ef87c7e237f01b3fae3fcb969cf0482654a83380a67f5b885ac2ec
+[A-base] actions ok 
+[A-base] config sentinel kept 
+[A-base] daemon NOT running (live)
+[A-base] menu key: True
+[A-base] run key: True
+[A-base] start shortcut: True
+[A] upgrade to 0.4.3 rc=0 
+[A-up] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[A-up] kawaro.exe sha256 84b36a9076f68379afe1b6313ec783d299a332ab88dad8c07a9c0bbdd99cc33c
+[A-up] kawarod.exe sha256 8654078b73dbe4873f44beeb65b49c18354bc022b2005e1d77691e4874be87b5
+[A-up] actions ok 
+[A-up] config sentinel kept 
+[A-up] daemon NOT running (live)
+[A-up] menu key: True
+[A-up] run key: True
+[A-up] start shortcut: True
+ 
+===== scenario B: 0.4.0 to 0.4.3 (quiet) 
+[B] base 0.4.0 install rc=0 
+[B-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[B-base] kawaro.exe sha256 4c2c0a295059c82e2af6f2bdfe7bbe6ada708224c768728d8ce4125a4b39f1b9
+[B-base] kawarod.exe sha256 ee2a05295858f583f595e3e337eed94c76a004c37a419141e4cc7d86d1d49473
+[B-base] actions ok 
+[B-base] config sentinel kept 
+[B-base] daemon NOT running (live)
+[B-base] menu key: True
+[B-base] run key: True
+[B-base] start shortcut: True
+[B] upgrade to 0.4.3 rc=0 
+[B-up] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[B-up] kawaro.exe sha256 84b36a9076f68379afe1b6313ec783d299a332ab88dad8c07a9c0bbdd99cc33c
+[B-up] kawarod.exe sha256 8654078b73dbe4873f44beeb65b49c18354bc022b2005e1d77691e4874be87b5
+[B-up] actions ok 
+[B-up] config sentinel kept 
+[B-up] daemon NOT running (live)
+[B-up] menu key: True
+[B-up] run key: True
+[B-up] start shortcut: True
+ 
+===== scenario C: 0.4.2 to 0.4.3 (dblclick) 
+[C] base 0.4.2 install rc=0 
+[C-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[C-base] kawaro.exe sha256 5cda0e3ed75ef181abd57a94fdf480d801326e6c350672ffe8f5e1f5442edf5f
+[C-base] kawarod.exe sha256 78e82697d9ef87c7e237f01b3fae3fcb969cf0482654a83380a67f5b885ac2ec
+[C-base] actions ok 
+[C-base] config sentinel kept 
+[C-base] daemon NOT running (live)
+[C-base] menu key: True
+[C-base] run key: True
+[C-base] start shortcut: True
+[C] upgrade to 0.4.3 rc=0 
+[C-up] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[C-up] kawaro.exe sha256 84b36a9076f68379afe1b6313ec783d299a332ab88dad8c07a9c0bbdd99cc33c
+[C-up] kawarod.exe sha256 8654078b73dbe4873f44beeb65b49c18354bc022b2005e1d77691e4874be87b5
+[C-up] actions ok 
+[C-up] config sentinel kept 
+[C-up] daemon NOT running (live)
+[C-up] menu key: True
+[C-up] run key: True
+[C-up] start shortcut: True
+ 
+===== scenario D: 0.4.3 to 0.4.4 (quiet) 
+[D] base 0.4.3 install rc=0 
+[D-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[D-base] kawaro.exe sha256 84b36a9076f68379afe1b6313ec783d299a332ab88dad8c07a9c0bbdd99cc33c
+[D-base] kawarod.exe sha256 8654078b73dbe4873f44beeb65b49c18354bc022b2005e1d77691e4874be87b5
+[D-base] actions ok 
+[D-base] config sentinel kept 
+[D-base] daemon NOT running (live)
+[D-base] menu key: True
+[D-base] run key: True
+[D-base] start shortcut: True
+[D] upgrade to 0.4.4 rc=0 
+[D-up] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[D-up] kawaro.exe sha256 8897127cd61864d6bba69e36d9b156efb68339b754bdb45ce7471117e70dbb3d
+[D-up] kawarod.exe sha256 4b9612d990472e7544945e7d2b759567ba0bcc2b757dfbef231d40c4778e6e9d
+[D-up] actions ok 
+[D-up] config sentinel kept 
+[D-up] daemon NOT running (live)
+[D-up] menu key: True
+[D-up] run key: True
+[D-up] start shortcut: True
+=== final uninstall check 
+[final] folder entries: 
+File Not Found
+[final] kawaro.exe MISSING
+[final] kawarod.exe MISSING
+[final] actions MISSING 
+[final] config sentinel kept 
+[final] daemon NOT running (live)
+[final] menu key: False
+[final] run key: False
+[final] start shortcut: False

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Per-user Kawaro package for wixl (msitools), built by scripts/windows/make-msi.sh.
-  Defines passed with -D: Version, Release (folder with the exes), Actions
+  Defines passed with -D: Version, GuidTail (12 hex digits, from
+  scripts/windows/guid-tail.sh), Release (folder with the exes), Actions
   (folder with the action TOML files), Ico (path of kawaro.ico, required).
   Every string stays ASCII: wixl segfaults on anything else, so the daemon
   applies the bilingual name after install (S-085 D1).
@@ -40,7 +41,7 @@
     </Directory>
 
     <DirectoryRef Id="INSTALLDIR">
-      <Component Id="ProgramFiles" Guid="a1d4b7c2-3e5f-4a60-8b71-c2d3e4f50a61">
+      <Component Id="ProgramFiles" Guid="a1d4b7c2-3e5f-4a60-8b71-$(var.GuidTail)">
         <File Id="CliExe" Name="kawaro.exe" Source="$(var.Release)/kawaro.exe" KeyPath="yes" />
         <File Id="DaemonExe" Name="kawarod.exe" Source="$(var.Release)/kawarod.exe" />
         <File Id="IconFile" Name="kawaro.ico" Source="$(var.Ico)" />
@@ -49,7 +50,7 @@
     </DirectoryRef>
 
     <DirectoryRef Id="ActionsDir">
-      <Component Id="ActionFiles" Guid="b2e5c8d3-4f60-4b71-9c82-d3e4f5061b72">
+      <Component Id="ActionFiles" Guid="b2e5c8d3-4f60-4b71-9c82-$(var.GuidTail)">
         <File Id="ActionAudio" Name="audio.toml" Source="$(var.Actions)/audio.toml" KeyPath="yes" />
         <File Id="ActionDocuments" Name="documents.toml" Source="$(var.Actions)/documents.toml" />
         <File Id="ActionImages" Name="images.toml" Source="$(var.Actions)/images.toml" />
@@ -60,7 +61,7 @@
 
     <!-- The Explorer menu item, the notification identity and the start at logon. -->
     <DirectoryRef Id="INSTALLDIR">
-      <Component Id="ExplorerMenu" Guid="c3f6d9e4-5a71-4c82-8d93-e4f506172c83">
+      <Component Id="ExplorerMenu" Guid="c3f6d9e4-5a71-4c82-8d93-$(var.GuidTail)">
         <RegistryValue Id="MenuVerb" Root="HKCU" Key="Software\Classes\*\shell\Kawaro" Name="MUIVerb" Type="string" Value="Kawaro" KeyPath="yes" />
         <RegistryValue Id="MenuIcon" Root="HKCU" Key="Software\Classes\*\shell\Kawaro" Name="Icon" Type="string" Value="[INSTALLDIR]kawaro.ico" />
         <RegistryValue Id="MenuMulti" Root="HKCU" Key="Software\Classes\*\shell\Kawaro" Name="MultiSelectModel" Type="string" Value="Player" />
@@ -72,7 +73,7 @@
     </DirectoryRef>
 
     <DirectoryRef Id="ProgramMenuFolder">
-      <Component Id="StartMenuShortcut" Guid="d4a7e0f5-6b82-4d93-9ea4-f50617283d94">
+      <Component Id="StartMenuShortcut" Guid="d4a7e0f5-6b82-4d93-9ea4-$(var.GuidTail)">
         <!-- S-086 AC2: `settings`, so a click opens the Settings window
              instead of exiting as the already running silent daemon. -->
         <Shortcut Id="StartShortcut" Name="Kawaro" Description="Kawaro, a local file converter"
@@ -101,13 +102,12 @@
     <InstallExecuteSequence>
       <Custom Action="FindTaskkill" Before="StopDaemon"></Custom>
       <Custom Action="StopDaemon" Before="InstallValidate"></Custom>
-      <!-- S-097: remove the older version AFTER the new files are installed.
-           wixl schedules RemoveExistingProducts after InstallValidate, when the
-           old files are still costed as present, so the new install skipped them
-           and the removal then deleted them: an upgrade left an empty folder
-           (measured on Windows 11, 0.4.0 to 0.4.1). After InstallFinalize the
-           shared components keep their files. -->
-      <Custom Action="RemoveExistingProducts" After="InstallFinalize"></Custom>
+      <!-- S-100: RemoveExistingProducts stays at the wixl default, right after
+           InstallValidate. The ComponentGuid values change with every build
+           (GuidTail), so the new product costs all its components as new, the
+           old product is removed first and the new files are then written.
+           With fixed GUIDs the new files were skipped (2753 in StartDaemon,
+           rollback) or deleted with the old product (S-097). -->
       <Custom Action="StartDaemon" After="InstallFinalize">NOT (REMOVE~="ALL")</Custom>
     </InstallExecuteSequence>
   </Product>

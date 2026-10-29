@@ -1,0 +1,6 @@
+MSI (s) (08:CC) [15:17:52:256]: Component: ProgramFiles; Installed: Absent;   Request: Local;   Action: Local
+MSI (s) (08:D0) [15:17:52:748]: Disallowing uninstallation of component: {C3F6D9E4-5A71-4C82-8D93-E4F506172C83} since another client exists
+MSI (s) (08:D0) [15:17:52:748]: Disallowing uninstallation of component: {D4A7E0F5-6B82-4D93-9EA4-F50617283D94} since another client exists
+MSI (s) (08:D0) [15:17:52:758]: Component: ProgramFiles; Installed: Local;   Request: Absent;   Action: HKCRFileAbsent
+Action ended 15:17:53: StartDaemon. Return value 0.
+MSI (s) (08:CC) [15:17:54:093]: Windows Installer installed the product. Product Name: Kawaro. Product Version: 0.4.3. Product Language: 1033. Manufacturer: Kawaro. Installation success or error status: 0.

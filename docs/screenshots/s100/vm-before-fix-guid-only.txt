@@ -1,0 +1,112 @@
+s100 upgrade test Thu 10/29/2026 14:59:33.56 
+ 
+===== scenario A: 0.4.2 to 0.4.3 (quiet) 
+[A] base 0.4.2 install rc=0 
+[A-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[A-base] actions ok 
+[A-base] config sentinel kept 
+[A-base] daemon running:  since 2:54:46 PM
+[A-base] menu key: True
+[A-base] run key: True
+[A-base] start shortcut: True
+[A] upgrade to 0.4.3 rc=1603 
+[A-up] folder entries: 
+actions
+[A-up] kawaro.exe MISSING 
+[A-up] kawarod.exe MISSING 
+[A-up] actions ok 
+[A-up] config sentinel kept 
+[A-up] daemon running:  since 2:54:46 PM
+[A-up] menu key: True
+[A-up] run key: True
+[A-up] start shortcut: True
+ 
+===== scenario B: 0.4.0 to 0.4.3 (quiet) 
+[B] base 0.4.0 install rc=0 
+[B-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[B-base] actions ok 
+[B-base] config sentinel kept 
+[B-base] daemon running:  since 2:54:46 PM
+[B-base] menu key: True
+[B-base] run key: True
+[B-base] start shortcut: True
+[B] upgrade to 0.4.3 rc=1603 
+[B-up] folder entries: 
+actions
+[B-up] kawaro.exe MISSING 
+[B-up] kawarod.exe MISSING 
+[B-up] actions ok 
+[B-up] config sentinel kept 
+[B-up] daemon running:  since 2:54:46 PM
+[B-up] menu key: True
+[B-up] run key: True
+[B-up] start shortcut: True
+ 
+===== scenario C: 0.4.2 to 0.4.3 (dblclick) 
+[C] base 0.4.2 install rc=0 
+[C-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[C-base] actions ok 
+[C-base] config sentinel kept 
+[C-base] daemon running:  since 2:54:46 PM
+[C-base] menu key: True
+[C-base] run key: True
+[C-base] start shortcut: True
+[C] upgrade to 0.4.3 rc=1603 
+[C-up] folder entries: 
+actions
+[C-up] kawaro.exe MISSING 
+[C-up] kawarod.exe MISSING 
+[C-up] actions ok 
+[C-up] config sentinel kept 
+[C-up] daemon running:  since 2:54:46 PM
+[C-up] menu key: True
+[C-up] run key: True
+[C-up] start shortcut: True
+ 
+===== scenario D: 0.4.3 to 0.4.4 (quiet) 
+[D] base 0.4.3 install rc=0 
+[D-base] folder entries: 
+actions
+kawaro.exe
+kawaro.ico
+kawarod.exe
+[D-base] actions ok 
+[D-base] config sentinel kept 
+[D-base] daemon running:  since 2:54:46 PM
+[D-base] menu key: True
+[D-base] run key: True
+[D-base] start shortcut: True
+[D] upgrade to 0.4.4 rc=1603 
+[D-up] folder entries: 
+actions
+[D-up] kawaro.exe MISSING 
+[D-up] kawarod.exe MISSING 
+[D-up] actions ok 
+[D-up] config sentinel kept 
+[D-up] daemon running:  since 2:54:46 PM
+[D-up] menu key: True
+[D-up] run key: True
+[D-up] start shortcut: True
+=== final uninstall check 
+[final] folder entries: 
+File Not Found
+[final] kawaro.exe MISSING 
+[final] kawarod.exe MISSING 
+[final] actions MISSING 
+[final] config sentinel kept 
+[final] daemon running:  since 2:54:46 PM
+[final] menu key: False
+[final] run key: False
+[final] start shortcut: False

@@ -1,5 +1,5 @@
 # S-097 MSI upgrade keeps the program files
-Status: done (2026-10-29, manager, urgent defect fix)
+Status: done (2026-10-29, manager, urgent defect fix). Superseded by S-100: the `After InstallFinalize` order is gone; the upgrade only appeared to work because a failed install rolled back to the old files.
 
 ## Context
 Owner test on Windows 11 after the in-app update from 0.4.0 to 0.4.1: the Start shortcut said `kawarod.exe` "has been changed or moved". Reproduced with a script on the same virtual machine: install the 0.4.0 MSI, then the 0.4.1 MSI. Result: only the `actions` folder is left; `kawaro.exe`, `kawarod.exe` and `kawaro.ico` are gone. A fresh install and the same upgrade with the fix keep all files.

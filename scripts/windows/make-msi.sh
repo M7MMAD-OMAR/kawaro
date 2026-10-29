@@ -24,6 +24,8 @@ command -v wixl >/dev/null || { echo "make-msi: wixl not found, install msitools
 mkdir -p "$target/dist"
 out="$target/dist/kawaro-$version-windows-x64.msi"
 rm -f "$out"
-defs=(-D "Version=${version%%[-+]*}" -D "Release=$rel" -D "Actions=$root/actions" -D "Ico=$ico")
+tail="$("$root/scripts/windows/guid-tail.sh" "$version" "$rel/kawaro.exe" "$rel/kawarod.exe" "$ico" "$root"/actions/*.toml)"
+defs=(-D "Version=${version%%[-+]*}" -D "GuidTail=$tail" -D "Release=$rel" -D "Actions=$root/actions" -D "Ico=$ico")
 wixl -v -a x64 "${defs[@]}" -o "$out" "$root/installer/windows/kawaro.wxs"
+"$root/scripts/windows/msi-fixup.sh" "$out" "$version"
 echo "$out"

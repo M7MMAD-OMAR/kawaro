@@ -1,0 +1,6 @@
+MSI (s) (08:28) [14:59:54:550]: Disallowing installation of component: {A1D4B7C2-3E5F-4A60-8B71-9792A85932D4} since the same component with higher versioned keyfile exists
+MSI (s) (08:28) [14:59:54:553]: Disallowing installation of component: {A1D4B7C2-3E5F-4A60-8B71-9792A85932D4} since the same component with higher versioned keyfile exists
+MSI (s) (08:28) [14:59:54:560]: Component: ProgramFiles; Installed: Absent;   Request: Local;   Action: Null
+MSI (s) (08:B4) [14:59:55:072]: Component: ProgramFiles; Installed: Local;   Request: Absent;   Action: HKCRFileAbsent
+MSI (s) (08:28) [14:59:56:107]: Note: 1: 2753 2: DaemonExe 
+MSI (s) (08:28) [14:59:56:197]: Windows Installer installed the product. Product Name: Kawaro. Product Version: 0.4.3. Product Language: 1033. Manufacturer: Kawaro. Installation success or error status: 1603.
