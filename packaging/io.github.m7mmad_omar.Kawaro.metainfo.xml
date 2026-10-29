@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.1" date="2026-10-29">
+      <description>
+        <p>A new Settings window with a header, a page rail and an Updates page (installed version, check for updates, update now, automatic check, channel and install mode), plus a simpler website and README. The Windows files are still test-signed with a self-signed certificate, so SmartScreen warns.</p>
+      </description>
+    </release>
     <release version="0.4.0" date="2026-10-27">
       <description>
         <p>The first official release for Linux and Windows. In-app updates, the Windows zip and MSI, the Explorer right click menu, the right-button drag trigger, the first-run welcome, and the Windows beta feedback fixes. The Windows files are test-signed with a self-signed certificate, so SmartScreen warns until a trusted certificate signs them.</p>
