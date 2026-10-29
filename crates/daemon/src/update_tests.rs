@@ -1882,7 +1882,7 @@ mod s099b_rework {
 
     #[test]
     fn the_poll_says_installing_while_the_install_holds_the_lock_and_downloading_otherwise() {
-        let _serial = INSTALLING_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _serial = crate::state::lock(&INSTALLING_LOCK);
         let (st, _rig) = state_for("0.3.3", Os::Linux);
         let m = Mutex::new(st);
         let _held = m.lock().unwrap();
@@ -1946,7 +1946,7 @@ mod s099b_rework {
 
     #[test]
     fn a_failed_install_returns_to_ready_so_a_second_update_now_retries() {
-        let _serial = INSTALLING_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _serial = crate::state::lock(&INSTALLING_LOCK);
         set_installing(Some("0.4.0".into()));
         let (mut st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
         assert!(apply_with(&mut st, |_| Err("pkexec refused".into())).is_err());
