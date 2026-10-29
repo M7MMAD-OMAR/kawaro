@@ -671,6 +671,18 @@ export component AppShell inherits Rectangle {
                                 }
                             }
                         }
+                        // The notes of the version that matters come first
+                        // (Rust orders the cards).
+                        VerticalLayout {
+                            spacing: Tokens.space-4;
+                            for card in root.update-cards: whats-new-card := WhatsNewCard {
+                                rtl: root.rtl;
+                                wide: root.wide;
+                                title: card.title;
+                                label: card.label;
+                                bullets: card.bullets;
+                            }
+                        }
                         VerticalLayout {
                             spacing: Tokens.space-2;
                             SectionTitle {
@@ -719,16 +731,6 @@ export component AppShell inherits Rectangle {
                                         current-index <=> root.update-mode;
                                     }
                                 }
-                            }
-                        }
-                        VerticalLayout {
-                            spacing: Tokens.space-4;
-                            for card in root.update-cards: whats-new-card := WhatsNewCard {
-                                rtl: root.rtl;
-                                wide: root.wide;
-                                title: card.title;
-                                label: card.label;
-                                bullets: card.bullets;
                             }
                         }
                     }

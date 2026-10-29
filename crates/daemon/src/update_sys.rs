@@ -156,7 +156,7 @@ fn apply(lang: Lang) {
     crate::tray::refresh();
     match result {
         Err(_) => {
-            crate::update::set_installing(None);
+            crate::update::install_failed(&mut lock(shared()));
             if !version.is_empty() {
                 notify::notify_update(lang, UpdateKind::Failed, &version);
             }

@@ -1845,3 +1845,120 @@ mod s099b {
         assert_eq!(ui::last_settings_banner(), None, "About shows no banner");
     }
 }
+
+// ------------------------------------------------------------ S-099b rework
+
+/// Rework of S-099b (reviewer survivors and the failed install retry): the
+/// poll answer while the install holds the lock, the notes only for a ready
+/// update, and a second Update now after a failed install.
+mod s099b_rework {
+    use super::*;
+    use crate::update::{apply_with, check_or_busy, install_failed, reply_for, set_installing};
+    use kawaro_core::update::manifest::Notes;
+    use std::sync::Mutex;
+
+    fn notes() -> Notes {
+        Notes {
+            en: vec!["a".into(), "b".into(), "c".into()],
+            ar: vec!["أ".into(), "ب".into(), "ج".into()],
+        }
+    }
+
+    fn fields(r: &Response) -> (String, Option<String>, Option<Notes>) {
+        match r {
+            Response::Update {
+                status,
+                latest,
+                notes,
+                ..
+            } => (status.clone(), latest.clone(), notes.clone()),
+            other => panic!("{other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_poll_says_installing_while_the_install_holds_the_lock_and_downloading_otherwise() {
+        let (st, _rig) = state_for("0.3.3", Os::Linux);
+        let m = Mutex::new(st);
+        let _held = m.lock().unwrap();
+        let fake = Fake::new(Feed::Good);
+        set_installing(Some("0.4.0".into()));
+        let mut busy = m.try_lock().ok();
+        let (resp, _) = check_or_busy(
+            busy.as_deref_mut(),
+            "0.3.3",
+            &Config::default(),
+            &fake,
+            BASE,
+        );
+        assert_eq!(
+            fields(&resp),
+            ("installing".into(), Some("0.4.0".into()), None)
+        );
+        set_installing(None);
+        let (resp, _) = check_or_busy(
+            busy.as_deref_mut(),
+            "0.3.3",
+            &Config::default(),
+            &fake,
+            BASE,
+        );
+        assert_eq!(fields(&resp), ("downloading".into(), None, None));
+        assert_eq!(fake.calls(), 0);
+    }
+
+    #[test]
+    fn reply_for_carries_notes_only_for_a_ready_update_with_notes() {
+        let (mut st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
+        assert_eq!(fields(&reply_for(&st)).2, None, "empty notes are None");
+        st.ready.as_mut().unwrap().notes = notes();
+        assert_eq!(fields(&reply_for(&st)).2, Some(notes()));
+        st.phase = Phase::Installing("0.4.0".into());
+        assert_eq!(fields(&reply_for(&st)).2, None);
+        st.phase = Phase::Failed("0.4.0".into());
+        assert_eq!(fields(&reply_for(&st)).2, None);
+        st.phase = Phase::Idle;
+        assert_eq!(fields(&reply_for(&st)).2, None);
+    }
+
+    #[test]
+    fn check_now_carries_notes_only_when_the_status_is_ready_and_they_are_not_empty() {
+        let (mut st, _rig, cfg) = ready_state(Os::Linux, UpdateMode::Ask);
+        let (resp, _) = check_now(&mut st, &cfg, &Fake::new(Feed::Good), BASE + HOUR);
+        assert_eq!(fields(&resp).0, "ready");
+        assert_eq!(fields(&resp).2, None, "empty notes are None");
+        st.ready.as_mut().unwrap().notes = notes();
+        let (resp, _) = check_now(&mut st, &cfg, &Fake::new(Feed::Good), BASE + HOUR);
+        assert_eq!(
+            fields(&resp),
+            ("ready".into(), Some("0.4.0".into()), Some(notes()))
+        );
+        // Any other status never carries them, even with notes at hand.
+        let (resp, _) = check_now(&mut st, &cfg, &Fake::new(Feed::Offline), BASE + 2 * HOUR);
+        assert_ne!(fields(&resp).0, "ready");
+        assert_eq!(fields(&resp).2, None);
+    }
+
+    #[test]
+    fn a_failed_install_returns_to_ready_so_a_second_update_now_retries() {
+        let (mut st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
+        assert!(apply_with(&mut st, |_| Err("pkexec refused".into())).is_err());
+        assert!(matches!(st.phase, Phase::Failed(_)));
+        install_failed(&mut st);
+        assert_eq!(st.phase, Phase::Ready("0.4.0".into()));
+        let (resp, effects) = request_apply(&mut st);
+        assert_eq!(resp, Response::Ok);
+        assert_eq!(effects, vec![Effect::Apply]);
+    }
+
+    #[test]
+    fn install_failed_changes_nothing_without_a_failed_phase_and_a_package() {
+        let (mut st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
+        install_failed(&mut st);
+        assert_eq!(st.phase, Phase::Ready("0.4.0".into()));
+        st.phase = Phase::Failed("0.4.0".into());
+        st.package = None;
+        install_failed(&mut st);
+        assert_eq!(st.phase, Phase::Failed("0.4.0".into()));
+    }
+}

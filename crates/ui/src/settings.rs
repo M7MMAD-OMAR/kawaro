@@ -716,7 +716,8 @@ impl SettingsWindow {
     pub fn update_cards(&self) -> Vec<(String, Vec<String>)> {
         use slint::Model;
         let ui = self.inner.ui.borrow();
-        ui.get_update_cards()
+        let mut cards: Vec<(String, Vec<String>)> = ui
+            .get_update_cards()
             .iter()
             .map(|c| {
                 (
@@ -724,7 +725,12 @@ impl SettingsWindow {
                     c.bullets.iter().map(|b| b.to_string()).collect(),
                 )
             })
-            .collect()
+            .collect();
+        // Shown with the available version first; read installed first.
+        if self.inner.update.borrow().render(self.inner.lang()).swapped {
+            cards.swap(0, 1);
+        }
+        cards
     }
 
     #[doc(hidden)]

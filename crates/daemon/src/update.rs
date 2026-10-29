@@ -379,15 +379,45 @@ pub fn apply_with(
 
 /// The version being installed, kept apart from the update lock like the
 /// download progress: the install holds the lock, and a poll must still be
-/// answered at once.
+/// answered at once. Tests keep it per thread, so they never see each other's.
+#[cfg(not(test))]
 static INSTALLING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+#[cfg(test)]
+thread_local! {
+    static INSTALLING: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
 
+#[cfg(not(test))]
 pub fn set_installing(version: Option<String>) {
     *lock(&INSTALLING) = version;
 }
 
+#[cfg(test)]
+pub fn set_installing(version: Option<String>) {
+    INSTALLING.with(|c| *c.borrow_mut() = version);
+}
+
+#[cfg(not(test))]
 fn installing_version() -> Option<String> {
     lock(&INSTALLING).clone()
+}
+
+#[cfg(test)]
+fn installing_version() -> Option<String> {
+    INSTALLING.with(|c| c.borrow().clone())
+}
+
+/// After an install that did not start: the verified package is still on
+/// disk, so the phase returns to ready and a second Update now retries
+/// without a new check.
+pub fn install_failed(st: &mut UpdateState) {
+    set_installing(None);
+    if let Phase::Failed(v) = &st.phase
+        && st.package.is_some()
+    {
+        st.phase = Phase::Ready(v.clone());
+        st.applied = false;
+    }
 }
 
 /// True when the thread should call `tick` now: an hour passed since the

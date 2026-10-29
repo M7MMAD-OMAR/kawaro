@@ -336,6 +336,11 @@ fn ac2_the_rail_has_five_items_in_order_and_each_page_shows_only_its_rows() {
     let mut pages: Vec<Vec<String>> = Vec::new();
     for p in 0..5 {
         w.sh_select_page(p);
+        // S-099 ruling: the Updates page scrolls at 880x640, so its rows are
+        // brought into view by a tall window before they are read.
+        if p == 3 {
+            w.sh_set_window_size(880.0, 1600.0);
+        }
         assert_eq!(w.sh_page(), p);
         pages.push(w.sh_page_rows());
     }
@@ -458,6 +463,11 @@ fn ac4_rows_are_label_plus_control_pairs_that_never_drift_apart() {
             w.sh_set_window_size(ww, hh);
             for p in 0..5 {
                 w.sh_select_page(p);
+                // S-099 ruling: the Updates page scrolls, so a tall window
+                // brings its rows into view.
+                if p == 3 {
+                    w.sh_set_window_size(ww, 2000.0);
+                }
                 let content = w.sh_content_rect();
                 let rows = w.sh_page_rows();
                 if p == 4 {
@@ -672,6 +682,8 @@ fn ac6_starting_a_check_moves_no_row_and_the_last_row_is_never_cut_off() {
         let w = settings(lang);
         w.sh_set_window_size(880.0, 640.0);
         w.sh_select_page(3);
+        // S-099 ruling: a tall window brings the scrolled rows into view.
+        w.sh_set_window_size(880.0, 1400.0);
         w.sh_set_update_view(VERSION, UpdateState::UpToDate, true);
         let n = w.sh_page_rows().len();
         let before: Vec<Rect> = (0..n).map(|i| w.sh_row_rect(i)).collect();
@@ -703,6 +715,8 @@ fn ac6_press_update_check_does_not_move_rows_either() {
     let _g = init();
     let w = settings(Lang::En);
     w.sh_select_page(3);
+    // S-099 ruling: a tall window brings the scrolled rows into view.
+    w.sh_set_window_size(880.0, 1400.0);
     w.sh_set_update_view(VERSION, UpdateState::UpToDate, true);
     let n = w.sh_page_rows().len();
     let before: Vec<f32> = (0..n).map(|i| w.sh_row_rect(i).y).collect();

@@ -31,6 +31,16 @@ inner() {
       done
     done
   done
+  # The real default size 880x640, where the page scrolls: ready and updated
+  # in each language show that the notes that matter are on screen.
+  mkdir -p "$OUTDIR/default-size"
+  for lang in en ar; do
+    for state in ready updated; do
+      KAWARO_COLOR_SCHEME=light KAWARO_REDUCED_MOTION=1 \
+        "$BIN" "$OUTDIR/default-size/updates-$lang-light-$state-640.png" --lang "$lang" \
+        --page 3 --size 880x640 --update-state "$state" || fail=1
+    done
+  done
   kill $cpid 2>/dev/null
   timeout 5 tail --pid=$cpid -f /dev/null || kill -9 $cpid 2>/dev/null
   return $fail

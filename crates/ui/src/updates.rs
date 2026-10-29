@@ -47,6 +47,9 @@ pub(crate) struct Rendered {
     pub(crate) check_enabled: bool,
     pub(crate) apply_enabled: bool,
     pub(crate) cards: Vec<Card>,
+    /// The available version's card is first (display order); the installed
+    /// one is first in reading order for the tests.
+    pub(crate) swapped: bool,
 }
 
 /// One "What is new" card, ready to draw.
@@ -257,8 +260,15 @@ impl UpdateModel {
         if !installed.is_empty() {
             cards.push(card(lang, &self.version, installed));
         }
+        // The notes of the version that matters come first: the available
+        // version while it downloads, waits or installs.
+        let mut swapped = false;
         if let (Some(v), Some(lines)) = (shown, valid_lines(&self.notes, lang)) {
             cards.push(card(lang, v, lines));
+            if cards.len() == 2 {
+                cards.swap(0, 1);
+                swapped = true;
+            }
         }
         Rendered {
             version_text,
@@ -268,6 +278,7 @@ impl UpdateModel {
             check_enabled: self.check_enabled(),
             apply_enabled: self.apply_enabled(),
             cards,
+            swapped,
         }
     }
 
@@ -344,6 +355,10 @@ impl UpdateModel {
                     format!("Updated to {v}")
                 }
             }
+            Some(UpdateState::Failed(reason)) if reason.is_empty() => pick(
+                "The update could not be downloaded or installed. Check for updates to try again.",
+                "تعذّر تنزيل التحديث أو تثبيته. ابحث عن تحديث للمحاولة مرة أخرى.",
+            ),
             Some(UpdateState::Failed(reason)) => {
                 if ar {
                     format!("تعذّر التحديث: {reason}")
@@ -382,10 +397,27 @@ pub fn state_from_status(status: &str, latest: Option<&str>) -> UpdateState {
         "downloading" => UpdateState::Downloading(0),
         "ready" => UpdateState::Ready,
         "installing" => UpdateState::Installing,
+        // A plain message in the window's language; no raw status word.
+        "failed" | "rejected" => UpdateState::Failed(String::new()),
         "offline" | "unavailable" => UpdateState::Unavailable,
         other => UpdateState::Failed(match latest {
             Some(v) => format!("{other} ({v})"),
             None => other.to_string(),
         }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The window clock counts real milliseconds, so the one second poll
+    /// is a second and not a constant.
+    #[test]
+    fn the_window_clock_advances_with_real_time() {
+        let a = clock_ms();
+        std::thread::sleep(std::time::Duration::from_millis(30));
+        let b = clock_ms();
+        assert!(b >= a + 25, "{a} then {b}");
     }
 }
