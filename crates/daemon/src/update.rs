@@ -379,32 +379,15 @@ pub fn apply_with(
 
 /// The version being installed, kept apart from the update lock like the
 /// download progress: the install holds the lock, and a poll must still be
-/// answered at once. Tests keep it per thread, so they never see each other's.
-#[cfg(not(test))]
+/// answered at once. One process-wide value for every build.
 static INSTALLING: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
-#[cfg(test)]
-thread_local! {
-    static INSTALLING: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
-}
 
-#[cfg(not(test))]
 pub fn set_installing(version: Option<String>) {
     *lock(&INSTALLING) = version;
 }
 
-#[cfg(test)]
-pub fn set_installing(version: Option<String>) {
-    INSTALLING.with(|c| *c.borrow_mut() = version);
-}
-
-#[cfg(not(test))]
 fn installing_version() -> Option<String> {
     lock(&INSTALLING).clone()
-}
-
-#[cfg(test)]
-fn installing_version() -> Option<String> {
-    INSTALLING.with(|c| c.borrow().clone())
 }
 
 /// After an install that did not start: the verified package is still on

@@ -1857,6 +1857,10 @@ mod s099b_rework {
     use kawaro_core::update::manifest::Notes;
     use std::sync::Mutex;
 
+    /// The installing version is one process-wide value: the tests that set
+    /// it hold this lock and put it back to none.
+    static INSTALLING_LOCK: Mutex<()> = Mutex::new(());
+
     fn notes() -> Notes {
         Notes {
             en: vec!["a".into(), "b".into(), "c".into()],
@@ -1878,6 +1882,7 @@ mod s099b_rework {
 
     #[test]
     fn the_poll_says_installing_while_the_install_holds_the_lock_and_downloading_otherwise() {
+        let _serial = INSTALLING_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let (st, _rig) = state_for("0.3.3", Os::Linux);
         let m = Mutex::new(st);
         let _held = m.lock().unwrap();
@@ -1941,11 +1946,22 @@ mod s099b_rework {
 
     #[test]
     fn a_failed_install_returns_to_ready_so_a_second_update_now_retries() {
+        let _serial = INSTALLING_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        set_installing(Some("0.4.0".into()));
         let (mut st, _rig, _cfg) = ready_state(Os::Linux, UpdateMode::Ask);
         assert!(apply_with(&mut st, |_| Err("pkexec refused".into())).is_err());
         assert!(matches!(st.phase, Phase::Failed(_)));
         install_failed(&mut st);
         assert_eq!(st.phase, Phase::Ready("0.4.0".into()));
+        // The failed install also clears the installing version.
+        let (resp0, _) = check_or_busy(
+            None,
+            "0.3.3",
+            &Config::default(),
+            &Fake::new(Feed::Good),
+            BASE,
+        );
+        assert_ne!(fields(&resp0).0, "installing");
         let (resp, effects) = request_apply(&mut st);
         assert_eq!(resp, Response::Ok);
         assert_eq!(effects, vec![Effect::Apply]);

@@ -420,4 +420,60 @@ mod tests {
         let b = clock_ms();
         assert!(b >= a + 25, "{a} then {b}");
     }
+
+    fn model_with_update() -> UpdateModel {
+        let mut m = UpdateModel::default();
+        m.set_available(Some("0.4.3"), Some(1024), None);
+        m
+    }
+
+    /// A check pressed while an update is known keeps its lines, so the page
+    /// does not jump; a check from any other state shows none.
+    #[test]
+    fn a_recheck_keeps_the_available_lines_only_when_they_were_shown() {
+        let mut m = model_with_update();
+        m.set_view("0.4.2", UpdateState::Ready, true);
+        assert!(m.begin_check());
+        assert_eq!(m.state, Some(UpdateState::Checking));
+        assert!(m.available_shown(), "kept while re-checking");
+        assert_eq!(
+            m.render(Lang::En).available_text,
+            "Available version: 0.4.3"
+        );
+        // Checking reached by set_view (not a press) shows nothing.
+        m.set_view("0.4.2", UpdateState::Checking, true);
+        assert!(!m.available_shown());
+        // A check from a state that showed nothing keeps nothing.
+        m.set_view("0.4.2", UpdateState::UpToDate, true);
+        assert!(m.begin_check());
+        assert!(!m.available_shown());
+        // The kept lines end with the answer.
+        let mut m = model_with_update();
+        m.set_view("0.4.2", UpdateState::Ready, true);
+        m.begin_check();
+        m.set_view("0.4.2", UpdateState::UpToDate, true);
+        assert!(!m.available_shown());
+    }
+
+    /// An empty failure reason is the plain sentence; a given reason is
+    /// shown as it is.
+    #[test]
+    fn a_failure_reason_is_shown_and_an_empty_one_reads_plainly() {
+        let mut m = UpdateModel::default();
+        m.set_view("0.4.2", UpdateState::Failed("disk full".into()), true);
+        let en = m.render(Lang::En).state_line;
+        let ar = m.render(Lang::Ar).state_line;
+        assert!(
+            en.contains("disk full") && ar.contains("disk full"),
+            "{en} {ar}"
+        );
+        m.set_view("0.4.2", UpdateState::Failed(String::new()), true);
+        let plain = m.render(Lang::En).state_line;
+        assert_ne!(plain, en);
+        assert!(
+            !plain.contains("disk full") && !plain.ends_with(": "),
+            "{plain}"
+        );
+        assert_ne!(m.render(Lang::Ar).state_line, ar);
+    }
 }
