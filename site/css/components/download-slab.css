@@ -1,7 +1,7 @@
 /* download_slab: a slab with two cut corners (top end and bottom start). Edge and
    fill are two clipped layers. Buttons inside keep their own look. */
 .download-slab {
-  --cut: var(--space-6);
+  --cut: var(--space-4);
   position: relative;
   isolation: isolate;
   display: grid;
@@ -19,12 +19,12 @@
 .download-slab::before {
   inset: 0;
   background: var(--color-edge);
-  clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% 100%, var(--cut) 100%, 0 calc(100% - var(--cut)));
+  clip-path: polygon(var(--cut) 0, calc(100% - var(--cut)) 0, 100% var(--cut), 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, var(--cut) 100%, 0 calc(100% - var(--cut)), 0 var(--cut));
 }
 .download-slab::after {
   inset: var(--border-edge);
   background: var(--color-paper);
-  clip-path: polygon(0 0, calc(100% - var(--cut) + var(--border-edge) * 0.4) 0, 100% calc(var(--cut) - var(--border-edge) * 0.4), 100% 100%, calc(var(--cut) - var(--border-edge) * 0.4) 100%, 0 calc(100% - var(--cut) + var(--border-edge) * 0.4));
+  clip-path: polygon(calc(var(--cut) - var(--border-edge) * 0.4) 0, calc(100% - var(--cut) + var(--border-edge) * 0.4) 0, 100% calc(var(--cut) - var(--border-edge) * 0.4), 100% calc(100% - var(--cut) + var(--border-edge) * 0.4), calc(100% - var(--cut) + var(--border-edge) * 0.4) 100%, calc(var(--cut) - var(--border-edge) * 0.4) 100%, 0 calc(100% - var(--cut) + var(--border-edge) * 0.4), 0 calc(var(--cut) - var(--border-edge) * 0.4));
 }
 .download-slab h3 { margin: 0; font-size: var(--fs-h2); }
 .download-slab-sub { margin: 0; color: var(--color-text-secondary); }
@@ -32,3 +32,11 @@
 .download-slab .actions { margin-block-start: var(--space-4); }
 .download-slab .os-ico { width: var(--space-9); height: var(--space-9); fill: var(--color-ink); }
 .download-slab .os-ico .line { fill: none; stroke: var(--color-ink); stroke-width: 3; stroke-linejoin: miter; }
+/* Both slabs fill their card width in one column, so every label has the same room. */
+.download-slab { justify-items: stretch; }
+.download-slab .os-ico { justify-self: start; }
+.download-slab .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-3); align-items: stretch; }
+.download-slab .actions > a { width: 100%; }
+@media (min-width: 720px) {
+  .download-slab { grid-row: span 5; grid-template-rows: subgrid; row-gap: var(--space-3); }
+}

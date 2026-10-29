@@ -52,6 +52,15 @@
   --fill: var(--btn-hover-fill, var(--color-accent-soft));
   --ink: var(--btn-hover-ink, var(--color-ink));
 }
+.hex-button:focus-visible { outline: none; }
+/* Focus ring that follows the hexagon: the edge layer grows outward by the ring
+   width and turns to ink, so no rectangular outline box is ever drawn. */
+.hex-button:focus-visible::before {
+  inset: calc(var(--border-ring) * -1);
+  background: var(--color-ink);
+  clip-path: polygon(calc(var(--cut) + var(--border-ring) * 0.58) 0, calc(100% - var(--cut) - var(--border-ring) * 0.58) 0, 100% 50%, calc(100% - var(--cut) - var(--border-ring) * 0.58) 100%, calc(var(--cut) + var(--border-ring) * 0.58) 100%, 0 50%);
+}
+.hex-button { white-space: nowrap; }
 .hex-button-sm { --hb-h: var(--target-min); font-size: var(--type-small); }
 .hex-button-lg { --hb-h: calc(var(--space-8) + var(--space-4)); font-size: var(--fs-lead); }
 .hex-button .ico { flex: none; width: var(--space-5); height: var(--space-5); fill: currentColor; }
