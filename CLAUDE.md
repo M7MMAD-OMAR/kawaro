@@ -103,7 +103,7 @@ A new format is a TOML file in `actions/` plus a small adapter. Never put action
 - The SignPath Foundation **declined** the application on 2026-10-27, because the program needs public visibility the project does not have yet, not because of the project quality. The free path to a trusted publisher name is therefore the Microsoft Store, where Microsoft re-signs the package; the individual developer registration is not complete yet, because the identity verification rejected the name mismatch between the Arabic identity document and the Latin account name. See `docs/signpath-application.md` and `docs/distribution-status.md`.
 - Next after 0.4.0: the portal follow-ups S-014f1 to S-014f4 are done. Remaining: signed repositories (S-016) and the glass hive (S-017), plus the S-072 to S-082 block: S-074 done (no hive plate), S-075 re-baselined (Alt-drag out of the box on a per-desktop measured contract, the maintainer's top priority), S-076b approved and pending, S-077 approved, S-078 in progress (the winget half is submitted, AppStream and AUR are not), and S-080 and S-081 done (the two confirmed Windows defects from S-079). Then 0.5.0 for X11 (S-015) and 0.6.0 for Windows. Details in `docs/PLAN.md`.
 - Measured 2026-10-26: Alt-only is not a usable GlobalShortcuts trigger on GNOME 50 and KWin 6.7.5. The spike disproved it; Super+Z passes on both. S-075 registers Alt only through measured native per-desktop paths, with the portal as a named non-Alt fallback. No story may claim Alt through the portal.
-- The review of everything since 0.3.3 is done (S-028 fixes, S-029 cleanup, S-030 one process tree for every engine child). The next free story number is **S-103**.
+- The review of everything since 0.3.3 is done (S-028 fixes, S-029 cleanup, S-030 one process tree for every engine child). The next free story number is **S-104**.
 - Still open from phase 0: the focus and activation test on real GNOME and KDE, with tokens from Nautilus and Dolphin (needs a virtual machine). It is owned by S-082 and is not closed by private compositor evidence.
 
 ## Working rules
@@ -141,7 +141,7 @@ Not a story gate (decision 2026-10-30: it cost hours per story). Run it outside 
 
 ### Running heavy work
 
-- Builds, tests, `cargo mutants` and compositor scripts run inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200%` with `CARGO_BUILD_JOBS` set to 1 or 2. On 2026-10-21 systemd-oomd killed the whole Claude app over mutant builds.
+- Builds, tests, mutation runs and compositor scripts run inside `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=100%` with `nice -n 15`, `CARGO_BUILD_JOBS=1`, `cargo test -- --test-threads=2`, one cargo job at a time, and temp files under `$HOME` (never fill the `/tmp` tmpfs, it is small). On 2026-10-21 systemd-oomd killed the whole Claude app over mutant builds, and on 2026-10-30 the owner said the machine must never be loaded that hard again. Rust stories run one after another, never in parallel worktrees (each would build its own 70 GB `target/`).
 - Put the commands in a script file and run that, because systemd-run substitutes `$` in its arguments.
 - `cargo mutants` always runs with `--in-place`, on the changed file only. Copy mode copies the 76 GB `target/` into tmpfs.
 - GUI tests run only in private compositors (`tests/hyprland/repro.sh`, the KWin scripts such as `tests/overlay/kwin.sh`), never on the live desktop.
