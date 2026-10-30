@@ -20,7 +20,7 @@ REPO = Path(__file__).resolve().parents[2]
 TMP = Path(os.environ.get("S061_TMP") or tempfile.mkdtemp(prefix="s061-"))
 atexit.register(lambda: None if os.environ.get("S061_KEEP") else shutil.rmtree(TMP, ignore_errors=True))
 
-VERSION = "0.4.2"
+VERSION = "0.4.3"
 TAG = "v" + VERSION
 RELEASES = "https://github.com/M7MMAD-OMAR/kawaro/releases"
 SUPPORT = "https://sbarah.com/support"

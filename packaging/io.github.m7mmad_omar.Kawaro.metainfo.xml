@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.3" date="2026-10-30">
+      <description>
+        <p>Upgrading the Windows MSI from 0.4.0 or 0.4.2 now works (it failed with error 1603). The update page shows the download percent, reopens after the restart with the result, and shows a plain message with a retry when an update fails. On Linux, Alt followed by a late drag now shows the hive. Known limits: the settings window can open behind another window after an update on Windows, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+      </description>
+    </release>
     <release version="0.4.2" date="2026-10-29">
       <description>
         <p>Urgent Windows fix: upgrading from an older version with the MSI, or with the in-app update, removed the program files and left a broken Start shortcut. If you installed 0.4.1 on Windows, run the 0.4.2 MSI once (or reinstall). A fresh install of 0.4.1 was fine.</p>

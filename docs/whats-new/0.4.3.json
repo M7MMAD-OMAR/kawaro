@@ -1,0 +1,16 @@
+{
+  "en": [
+    "Upgrading the Windows MSI from 0.4.0 or 0.4.2 now works",
+    "Updates show the download percent and reopen with Updated to 0.4.3",
+    "If an update fails you get a plain message and can retry",
+    "Linux: Alt then a late drag now shows the hive",
+    "The welcome window has a sharper live introduction film"
+  ],
+  "ar": [
+    "الترقية بحزمة MSI على ويندوز من 0.4.0 أو 0.4.2 تعمل الآن",
+    "التحديث يعرض نسبة التنزيل ويُعيد الفتح مع تم التحديث إلى 0.4.3",
+    "إن فشل التحديث تظهر رسالة واضحة ويمكنك إعادة المحاولة",
+    "لينكس: Alt ثم سحب متأخر يُظهر الخلية الآن",
+    "نافذة الترحيب فيها فيلم تعريف حي أكثر حدة"
+  ]
+}
