@@ -1,0 +1,26 @@
+pkgbase = kawaro-bin
+	pkgdesc = Local file converter with a honeycomb picker in your file manager (release package)
+	pkgver = 1.2.0
+	pkgrel = 1
+	url = https://github.com/OWNER/kawaro
+	arch = x86_64
+	license = GPL-3.0-or-later
+	depends = glibc
+	depends = gcc-libs
+	depends = fontconfig
+	depends = freetype2
+	optdepends = ffmpeg: audio, video and image actions
+	optdepends = ghostscript: PDF actions
+	optdepends = libreoffice-fresh: document actions
+	optdepends = wl-clipboard: copied files on Wayland
+	optdepends = curl: update checks
+	optdepends = python-nautilus: Nautilus right click menu
+	provides = kawaro=1.2.0
+	conflicts = kawaro
+	noextract = kawaro_1.2.0_amd64.deb
+	options = !strip
+	options = !debug
+	source = kawaro_1.2.0_amd64.deb::https://github.com/OWNER/kawaro/releases/download/v1.2.0/kawaro_1.2.0_amd64.deb
+	sha256sums = 17c62b4293ada188e2f98705d2434572eb8962f8f9848f95c8435f00b666d8f4
+
+pkgname = kawaro-bin
