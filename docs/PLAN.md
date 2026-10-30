@@ -2,7 +2,7 @@
 
 The original planning document was never exported, so this plan rebuilds it from `CLAUDE.md` and the hive spike (`docs/adr/0001-ui-toolkit.md`). Any later conflict is settled here with a written decision.
 
-## Where we are (2026-10-27)
+## Where we are (2026-10-30)
 
 | Release | State |
 | --- | --- |
@@ -18,7 +18,7 @@ The original planning document was never exported, so this plan rebuilds it from
 | 0.4.2 | Cut 2026-10-29: urgent Windows fix (S-097). Upgrading from an older version with the MSI or the in-app update removed the program files and left a broken Start shortcut; the installer now removes the old product after InstallFinalize. Windows users of 0.4.1 run the 0.4.2 MSI once (or reinstall); a fresh install of 0.4.1 was fine. The in-app update from 0.4.2 on is checked live before the next release (S-097 AC3, owner pending) |
 | 0.4.3 | Cut 2026-10-30: the MSI upgrade from 0.4.0 and 0.4.2 works (S-100, it failed with 1603), the update experience (S-099, S-101: versions, download percent, install line, automatic reopen with Updated and a short What is new, plain failure message, retry), the Alt then late drag fix on Linux with a bounded hold (S-095), and the redone Welcome film (S-094c). Known gaps: the settings window can open behind another window after an update on Windows; Alt chords such as Alt+Tab can show a stray hive for up to 10 seconds on Hyprland (S-102); the Windows build is still self-signed |
 | 0.4.4 | Cut 2026-10-30: Alt chords no longer leave a stray hive on Hyprland and `kawaro doctor` shows the drop key (S-102), Hyprland 0.57 support (S-104), and the distribution pipeline with a signed apt repository and a Scoop bucket (S-103; AUR and COPR wait for accounts). Known gaps: on Hyprland 0.57 `kawaro drop` without `--at` can swallow the first click (S-105); the settings window can open behind another window after an update on Windows; the Windows build is still self-signed |
-| 0.4.5 | Cut 2026-10-30: four small Windows defects from the 0.4.4 beta feedback (S-106) and the foreground verify and repeat found by the VM run (S-107): the settings window comes to the front, old update files are cleaned up, the notification header and window titles read Kawaro. Checked on the Windows 11 VM |
+| 0.4.5 | Released 2026-10-30: four small Windows defects from the 0.4.4 beta feedback (S-106) and the foreground verify and repeat found by the VM run (S-107): the settings window comes to the front, old update files are cleaned up, the notification header and window titles read Kawaro. Checked on the Windows 11 VM. Known gaps: on Hyprland 0.57 `kawaro drop` without `--at` can swallow the first click (S-105, draft); the Windows build is still self-signed; the focus and activation test on real GNOME and KDE is still pending (S-082) |
 | 0.5.0 "X11" | Planned: S-015 |
 | 0.6.0 "Windows" | Planned: starts with ADR 0005 |
 
@@ -110,13 +110,13 @@ Decision (2026-10-26, after the specification audit of the stable roadmap): this
 | S-081 | Windows output placement: long paths and directory-name output candidates, a confirmed S-079 defect | Done (2026-10-26) |
 | S-082 | Focus and activation with real Nautilus and Dolphin tokens in a virtual machine, closing the phase-0 gap recorded in S-013 | Draft |
 | S-089 | First run and settings recovery from the owner Windows report: the language choice before the introduction, one settings window, and long-job notifications | Implemented on main (2026-10-27, e32ce3a); the live verification and the owner review are still pending |
-| S-090 | Settings updates section: the installed version, a Check for updates button, Update now, and the three update keys (ADR 0006 and S-054b deferred these, and no story covered them). Owner priority: very important | Draft (2026-10-28) |
-| S-091 | The daemon reports the real download percent and size in `Response::Update` (backward compatible JSON) so the S-090 state line stops showing 0%. After S-090 review, before S-092 | Draft (2026-10-28) |
-| S-092 | Tray About item: the installed version (S-090 `about_line`), Check for updates and Settings, on the Linux tray and the Windows tray menu. After S-091 | Draft (2026-10-28) |
+| S-090 | Settings updates section: the installed version, a Check for updates button, Update now, and the three update keys (ADR 0006 and S-054b deferred these, and no story covered them). Owner priority: very important | Done (2026-10-29), shipped in 0.4.1 |
+| S-091 | The daemon reports the real download percent and size in `Response::Update` (backward compatible JSON) so the S-090 state line stops showing 0%. After S-090 review, before S-092 | Absorbed by S-099 (2026-10-29) |
+| S-092 | Tray About item: the installed version (S-090 `about_line`), Check for updates and Settings, on the Linux tray and the Windows tray menu. After S-091 | Absorbed by S-099 (2026-10-29); the tray item is kept without a new popup window |
 | S-093 | Windows settings window: default size, wide layout and layout jumps (live test findings of the S-090 build) | Superseded by S-094 (2026-10-29) |
-| S-094 | Settings and welcome window as a real app shell: header with logo, name and version, page rail (General, Conversion, Notifications and integration, Updates, About), centred content column, fixed Save row, RTL, bounded Introduction film. Absorbs S-093. Owner priority: above S-091 and S-092 | Draft (2026-10-29) |
+| S-094 | Settings and welcome window as a real app shell: header with logo, name and version, page rail (General, Conversion, Notifications and integration, Updates, About), centred content column, fixed Save row, RTL, bounded Introduction film. Absorbs S-093. Owner priority: above S-091 and S-092 | Done, shipped in 0.4.1 |
 | S-094b | About page actions: website and source links through a safe `open_url`, copy version, check for updates shortcut. After S-094 | Draft (2026-10-29) |
-| S-094c | Introduction film rebuilt: sharp at any scale, faithful four step flow, poster, play and pause, reduced motion fallback. After S-094 | Draft (2026-10-29) |
+| S-094c | Introduction film rebuilt: sharp at any scale, faithful four step flow, poster, play and pause, reduced motion fallback. After S-094 | Done, shipped in 0.4.3 |
 
 Measured facts behind S-075 (recorded 2026-10-26): Alt-only GlobalShortcuts is accepted by the BindShortcuts exchange but never activates on GNOME 50.0 or KDE 6.7.5 portals, so it cannot be the KDE or GNOME default; the Super+Z (`LOGO+z`) portal trigger passed the full real-drag path on both. Evidence: `a local scratch path`. Hyprland compositor binds are outside that measurement and count only when the private Hyprland harness records them.
 

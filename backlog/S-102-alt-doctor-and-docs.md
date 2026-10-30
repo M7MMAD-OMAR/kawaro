@@ -1,5 +1,5 @@
 # S-102 Alt drag: doctor line and the Alt tap evaluation
-Status: review
+Status: done (shipped in 0.4.4; the REWORK 1 fixes landed on 2026-10-30 and no second reviewer verdict is logged)
 
 ## Story
 As a Hyprland user, I want `kawaro doctor` to say whether the drop key bind and the daemon are fine and what the last hold did, and I want a written evaluation of opening the hive from a bare Alt tap, so that a failed Alt drag is never silent and the tap question has an answer.

@@ -339,3 +339,18 @@ where the file manager can give one) and runs `kawaro open`. No logic.
 - Nemo: `.nemo_action`. Thunar: custom action merged into `uca.xml`.
 - Hyprland: a bind that sends Ctrl+C to the active window, then
   `kawaro open --from-clipboard`.
+
+## Decision records (docs/adr)
+
+| ADR | Title | Status in the file |
+| --- | --- | --- |
+| 0001 | UI toolkit and renderer for the hive | proposed (waits for the focus test on real GNOME, S-082) |
+| 0002 | Settings window components | accepted |
+| 0003 | Dropping a file on a cell during a drag | accepted |
+| 0004 | The hive as a screen overlay, with the file in the centre cell | accepted |
+| 0005 | Kawaro on Windows | proposed (the Windows build shipped in 0.4.0, the status line is not updated) |
+| 0006 | In-app updates for Linux and Windows | accepted |
+| 0007 | Hosting the website and docs on Cloudflare | accepted |
+| 0008 | The product is named Kawaro | accepted |
+| 0009 | How Kawaro builds and tests on macOS | accepted |
+| 0010 | Opt-in model downloads, and whether LFM3 is the first model | proposed |
