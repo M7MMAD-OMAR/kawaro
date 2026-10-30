@@ -35,7 +35,7 @@ No secret value belongs in this story, the repository, workflow logs, or shell h
 
 - [ ] **GitHub owner `M7MMAD-OMAR`:** enable 2FA, create fork `M7MMAD-OMAR/winget-pkgs` from `microsoft/winget-pkgs`, and protect environments `aur-publishing` and `winget-publishing` for stable `vX.Y.Z` tags only.
 - [ ] **winget token:** create a classic GitHub personal access token with only the `public_repo` scope, without `delete_repo`, and an expiry of at most 90 days. WingetCreate currently requires a classic token and rejects fine-grained tokens.[10] Store it as `WINGET_CREATE_GITHUB_TOKEN` in `winget-publishing`, pass it only through the environment variable of the same name, never through `--token`, and record the expiry for rotation.
-- [ ] **AUR account `M7MMAD-OMAR`:** create or confirm the account, register a dedicated Ed25519 SSH public key, and reserve pkgbase `kawaro`. Store only the private key as `AUR_SSH_KEY` in `aur-publishing`. Commit the separately verified public host-key entry as `packaging/aur/known_hosts`; do not disable host-key checking.
+- [ ] **AUR account (the maintainer's):** create or confirm the account, register a dedicated Ed25519 SSH public key, and reserve pkgbase `kawaro`. Store only the private key as `AUR_SSH_KEY` in `aur-publishing`. Commit the separately verified public host-key entry as `packaging/aur/known_hosts`; do not disable host-key checking.
 - [ ] **Site owner:** place the referenced AppStream screenshot assets on `kawaro.sbarah.com` through the existing Cloudflare site deployment. No additional Cloudflare token is needed in the AUR or winget jobs.
 
 ## Execution split

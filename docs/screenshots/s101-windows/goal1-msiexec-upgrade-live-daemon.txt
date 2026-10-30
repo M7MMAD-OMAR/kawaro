@@ -1,13 +1,13 @@
-whoami: muhmad\micro
+whoami: VM-HOST\USER
 --- before
 config: True sentinel: user data D 
 base rc=0
 --- after base 0.4.2
-kawarod pid=5532 sess=1 start=10/29/2026 6:14:47 PM path=C:\Users\micro\AppData\Local\Programs\Kawaro\kawarod.exe ver=0.4.2
+kawarod pid=5532 sess=1 start=10/29/2026 6:14:47 PM path=C:\Users\USER\AppData\Local\Programs\Kawaro\kawarod.exe ver=0.4.2
 config: True sentinel: user data D 
 upgrade rc=0
 --- after upgrade 0.4.3
-kawarod pid=10988 sess=1 start=10/29/2026 6:14:55 PM path=C:\Users\micro\AppData\Local\Programs\Kawaro\kawarod.exe ver=0.4.3
+kawarod pid=10988 sess=1 start=10/29/2026 6:14:55 PM path=C:\Users\USER\AppData\Local\Programs\Kawaro\kawarod.exe ver=0.4.3
 config: True sentinel: user data D 
 old daemon pid 5532 still alive: False
 kawarod count: 1
