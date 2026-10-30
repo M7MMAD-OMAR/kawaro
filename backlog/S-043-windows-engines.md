@@ -41,9 +41,9 @@ For each substory:
 Read-only tools (`grep`) run outside the scope.
 - `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
 - `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p kawaro-engines`
-- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-engines --lib -- -D warnings`
+- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-engines --lib -- -D warnings`
 - `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (the changed files only; `non_unix.rs` and `locate/windows.rs` are excluded)
-- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-engines -e normal --depth 1`
+- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-engines -e normal --depth 1`
 
 ## Test cases
 | Criterion | Test | Type |
@@ -100,10 +100,10 @@ error: could not compile `kawaro-engines` (lib test) due to 9 previous errors; 1
 $ cargo test -j 2 -p kawaro-engines --test office_engine      # AC4, baseline
 test result: ok. 12 passed; 0 failed
 
-$ env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-engines --lib -- -D warnings   # W, a gate, not a test
+$ env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-engines --lib -- -D warnings   # W, a gate, not a test
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.50s
 
-$ env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-engines -e normal --depth 1   # X
+$ env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-engines -e normal --depth 1   # X
 ├── image v0.25.10  ├── lopdf v0.45.0  ├── miniz_oxide v0.8.9  ├── pdf-writer v0.15.0  ├── kawaro-core v0.3.0
 ├── tempfile v3.27.0  ├── thiserror v2.0.21  ├── toml v0.8.23  ├── webp v0.3.1  └── zip v9.0.5   (no windows-sys yet)
 ```
@@ -201,14 +201,14 @@ test result: ok. 6 passed; 0 failed    (pdf_ghostscript)
   - Docs: `docs/engines.md` new section "Finding the programs (S-043b)" with Linux and Windows columns (names, install folder, registry, download page), the office "Program" bullet and the windows-sys row; `README.md` one paragraph in Arabic and one in English; the S-043 line in `CHANGELOG.md` edited (now "Windows engines (S-043)").
   - Gates (each cargo command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`, `-j 2`):
     - `cargo fmt --check`: clean. `cargo clippy -j 2 --workspace --all-targets -- -D warnings`: clean.
-    - Windows target (`CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target`): `cargo clippy --target x86_64-pc-windows-gnu -p kawaro-engines --lib -- -D warnings` clean; same for `-p kawaro-cli` clean; `cargo check --target x86_64-pc-windows-gnu -p kawaro-engines --lib -p kawaro-cli` clean. `X` lists `windows-sys v0.61.2` as before; `[[package]]` count 671; `Cargo.lock` unchanged.
+    - Windows target (`CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target`): `cargo clippy --target x86_64-pc-windows-gnu -p kawaro-engines --lib -- -D warnings` clean; same for `-p kawaro-cli` clean; `cargo check --target x86_64-pc-windows-gnu -p kawaro-engines --lib -p kawaro-cli` clean. `X` lists `windows-sys v0.61.2` as before; `[[package]]` count 671; `Cargo.lock` unchanged.
     - `cargo test -j 2 --all`: 697 passed, 0 failed, 1 ignored (engines lib 74, `windows_engines` 4).
     - `cargo mutants --jobs 1 --in-diff <git diff 8160592 -- crates/engines/src> -p kawaro-engines` in a copied tree, `CARGO_BUILD_JOBS=2`: 43 mutants, 41 caught, 2 unviable (`command -> Command with Default::default()`, `missing -> EngineError with Default::default()`), 0 missed, 0 timeouts.
     - `scripts/design-lint.sh`: clean. No em or en dash in the diff.
     - The six test-unchanged commands above print nothing. `crates/ui` untouched.
   - Follow-up: `docs/engines.md` "Finding the programs" now says the lookup runs once per process for LibreOffice and Ghostscript and once per engine for ffmpeg (no `OnceLock` added). A grep found no old message text (`LibreOffice (soffice)`, `Ghostscript (gs)`) left in code or docs, and `fn find(` returning `Option<PathBuf>` exists only in `locate.rs`, so the new `exclude_re` entry hides no other mutant.
 - 2026-10-22, reviewer (S-043b): **PASS**.
-  - Gates (each cargo command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`, `-j 2`): `cargo fmt --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test --all` 697 passed, 0 failed, 1 ignored (the ignored one is the fixture `regenerate` test, not S-043b; engines lib 74, `windows_engines` 4); Windows target (`CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target`) clippy `-D warnings` clean for `-p kawaro-engines --lib` and `-p kawaro-cli`, `cargo check` clean for both; `X` lists `windows-sys v0.61.2` as before; `[[package]]` in `Cargo.lock` 671, `Cargo.lock` unchanged since `8160592`; `scripts/design-lint.sh` clean; no em or en dash in `git diff 4be2ce1..HEAD`; `git diff --stat main...HEAD -- crates/ui` empty; the six tests-unchanged commands print nothing.
+  - Gates (each cargo command inside `systemd-run --user --scope -q -p MemoryMax=6G -p CPUQuota=200%`, `-j 2`): `cargo fmt --check` clean; `cargo clippy --workspace --all-targets -- -D warnings` clean; `cargo test --all` 697 passed, 0 failed, 1 ignored (the ignored one is the fixture `regenerate` test, not S-043b; engines lib 74, `windows_engines` 4); Windows target (`CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target`) clippy `-D warnings` clean for `-p kawaro-engines --lib` and `-p kawaro-cli`, `cargo check` clean for both; `X` lists `windows-sys v0.61.2` as before; `[[package]]` in `Cargo.lock` 671, `Cargo.lock` unchanged since `8160592`; `scripts/design-lint.sh` clean; no em or en dash in `git diff 4be2ce1..HEAD`; `git diff --stat main...HEAD -- crates/ui` empty; the six tests-unchanged commands print nothing.
   - `M` in a copied tree (`git archive HEAD`), `git diff 8160592..HEAD -- crates/engines/src`, `CARGO_BUILD_JOBS=2 cargo mutants --in-place -p kawaro-engines --in-diff`: 43 mutants, 41 caught, 2 unviable (`command` and `missing` with `Default::default()`), 0 missed, 0 timeouts.
   - `exclude_re` checked by listing, not grep: `cargo mutants --list --no-config --workspace` shows the three new patterns match only `locate.rs:179` (`find -> None`), the off-Windows `SystemRegistry` stub bodies in `locate.rs:200,203`, and `locate/windows.rs` (already in `exclude_globs`). The `find -> None` exclusion is justified: `find` only passes the live `PATH`, environment, `current_exe` and registry to `search`, which carries the order and is fully mutated; the engine tests skip when the program is absent, so the mutant is not observable without environment-dependent tests.
   - AC mapping: AC7 and AC8 by the 17 `locate::tests`; AC10 by the four `office::tests::ac10_*` (plus the old `file_url` tests unchanged); AC11 by `office::tests::ac11_*`, `pdf::tests::ac11_*` and three tests in `windows_engines.rs`, and the `libx264` encoder tests stay green; AC13 by `ac13_every_ffmpeg_command_goes_through_one_no_window_function` and `W`; AC9 and AC12 by reading and `W`.

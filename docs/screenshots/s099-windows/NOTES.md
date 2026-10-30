@@ -1,6 +1,6 @@
 # S-099 Windows live check (2026-10-30), 0.4.3 candidate
 
-Setup: win11 VM, base = current main built as 0.4.2 (has S-099), candidate = same tree as 0.4.3 with
+Setup: Windows 11 VM, base = current main built as 0.4.2 (has S-099), candidate = same tree as 0.4.3 with
 docs/whats-new/0.4.3.json. Manifest signed with the real update key; the VM reaches a local HTTPS
 server as github.com (hosts entry, test CA in the VM root store, CRL served locally).
 Note: the released 0.4.2 MSI predates S-099, so it cannot show the new update UI.

@@ -36,7 +36,7 @@ if [ "$1" -eq 0 ]; then
 fi
 
 %changelog
-* Tue Oct 20 2026 MUHMAD HAJ HMDO - see CHANGELOG.md
+* Tue Oct 20 2026 Kawaro maintainer - see CHANGELOG.md
 - Packaged from the upstream release
 
 %files

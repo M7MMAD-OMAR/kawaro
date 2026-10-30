@@ -2,7 +2,7 @@
 Status: superseded by S-094 (2026-10-29): D1 to D4 are covered by S-094 AC3 to AC6.
 
 ## Context
-Live test of the S-090 build on Windows 11 (win11 virtual machine, per-user MSI built from main at f5242b6, 2026-10-28). Verified working: the install, the «Kawaro | كوارو» entry in Start with the icon, the Arabic RTL welcome window, the Updates section with the installed version `0.4.0`, "Check for updates" (state «جارٍ البحث عن تحديث.» then «نسختك محدّثة.»), and "Update now" disabled when up to date.
+Live test of the S-090 build on Windows 11 (a Windows 11 virtual machine, per-user MSI built from main at f5242b6, 2026-10-28). Verified working: the install, the «Kawaro | كوارو» entry in Start with the icon, the Arabic RTL welcome window, the Updates section with the installed version `0.4.0`, "Check for updates" (state «جارٍ البحث عن تحديث.» then «نسختك محدّثة.»), and "Update now" disabled when up to date.
 
 ## Defects found
 - D1: the welcome window opens about 590 by 470 pixels, so the Updates section sits several screens below the fold and needs many wheel steps. Language and Theme alone fill the first view.

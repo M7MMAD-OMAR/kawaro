@@ -14,7 +14,7 @@
 #       .minisig for each manifest, and dry-run.pub (the throwaway public key)
 #     stdout: the full path of each file in DRYRUN_OUT, one per line, plus the 6 lines of
 #       check-versions.sh; exit 0 ok, 2 missing tool (message names it) or bad version.
-#     Never calls gh, git push or any network tool; never reads ~/.config/kawaro-signing;
+#     Never calls gh, git push or any network tool; never reads the real signing key directory;
 #     works on a copy of `git ls-files`; the source tree is left untouched.
 #   check-versions.sh VERSION --out DIR [--root DIR]
 #     --root holds Cargo.toml (default: the repo root), --out is a DRYRUN_OUT style dir.
@@ -228,7 +228,7 @@ check "AC7 a missing tool leaves no output files" test -z "$(ls -A "$TMP/h-wixl"
 # ---- static properties of the script
 check "AC7 no gh, push or curl in the script" \
   bash -c '! grep -Eq "(^|[^a-zA-Z_.-])(gh |git push|curl|wget)" "$1"' _ "$DRY"
-check "AC7 the script never names the real signing key location" bash -c '! grep -q "kawaro-signing" "$1"' _ "$DRY"
+check "AC7 the script never names the real signing key location" bash -c '! grep -q "win-test-signing" "$1"' _ "$DRY"
 check "AC7 the script uses a throwaway key (minisign -G -W)" grep -Eq 'minisign -G[^|]* -W|minisign -W[^|]* -G' "$DRY"
 check "AC7 the script calls make-update-manifest.sh with --dist" grep -Eq 'make-update-manifest\.sh"? +--dist' "$DRY"
 check "AC7 the script calls sign-update-manifest.sh" grep -q 'sign-update-manifest\.sh' "$DRY"

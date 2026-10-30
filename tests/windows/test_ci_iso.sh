@@ -262,7 +262,7 @@ ac11_readme_gives_the_virsh_attach_command_in_both_languages () {
   echo "== AC11: README attach command"
   # S-028c AC9: the English and Arabic READMEs are two files, not two sections.
   local en="$WIN/README.md" ar="$WIN/README.ar.md" re
-  re='virsh -c qemu:///session attach-disk win11 [^[:space:]`]+ sdb --type cdrom --mode readonly'
+  re='virsh -c qemu:///session attach-disk <vm> [^[:space:]`]+ sdb --type cdrom --mode readonly'
   check "AC11: README.md has the attach command" grep -qE "$re" "$en"
   check "AC11: README.ar.md has the attach command" grep -qE "$re" "$ar"
 }

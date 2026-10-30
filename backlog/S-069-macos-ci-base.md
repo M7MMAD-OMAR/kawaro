@@ -40,4 +40,4 @@ Run: `python3 -m unittest -v tests/macos/test_workflow.py`.
 
 ### Reviewer (2026-10-26, independent, fresh context)
 
-REWORK on 54bab7c: the summary step counted 0 errors because cargo printed colour codes (fixed with CARGO_TERM_COLOR never), tracked bytecode (removed), two unlabelled guesses and an overstated Apple SDK claim in the gap report and the ADR (reworded). Re-checked after the fix: 9 of 9 tests pass, the artifact log has no colour codes. PASS. Report: ~/.hermes/checkpoint-runs/kawaro-1026b/review-s069.md
+REWORK on 54bab7c: the summary step counted 0 errors because cargo printed colour codes (fixed with CARGO_TERM_COLOR never), tracked bytecode (removed), two unlabelled guesses and an overstated Apple SDK claim in the gap report and the ADR (reworded). Re-checked after the fix: 9 of 9 tests pass, the artifact log has no colour codes. PASS. Report: a local scratch path

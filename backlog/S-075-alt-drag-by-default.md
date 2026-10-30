@@ -5,7 +5,7 @@ Status: re-baselined (2026-10-26, maintainer direction, after audit AUDIT-V2-001
 As a user of the installed package, I want to hold Alt while dragging files and drop them on the hive, with nothing to set up, so that the drag path (my main way to use Kawaro) works the day I install it, as it did in the developer install.
 
 ## Evidence base (measured, 2026-10-26)
-The portal spike at `/home/sbarah/.hermes/checkpoint-runs/kawaro-stable-20261026/alt-portal-spike.md` (base 25f9254) measured real portals and real file drags on the installed versions:
+The portal spike at `a local scratch path` (base 25f9254) measured real portals and real file drags on the installed versions:
 
 - KWin 6.7.5 with xdg-desktop-portal-kde 6.7.5 and GNOME Shell 50.6 with xdg-desktop-portal-gnome 50.0.
 - Alt-only GlobalShortcuts: BindShortcuts replied success but produced zero Activated and Deactivated signals and zero working Alt-drag conversions (0 of 4 drags on each desktop), including a 600 ms hold and a 150 ms tap. GNOME reported trigger value `0x00` and lost the binding after restart; KDE reported no key description at all.

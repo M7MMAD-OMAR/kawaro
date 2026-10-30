@@ -50,7 +50,7 @@ GPL-3.0-or-later, with Arabic and English user interfaces and full RTL.
 | Announce system changes | The MSI shows the standard install UI and installs per user; the portable zip changes nothing until the user runs `kawaro integration install` |
 | Provide uninstallation | The MSI uninstalls through Windows; the portable install has `scripts/uninstall.sh` and `kawaro integration` remove |
 | MFA for all team members | Owner step: MFA on GitHub and on SignPath before the first signing request |
-| Code signing roles assigned | `CODE_SIGNING_POLICY.md`: Author, Reviewer and Approver are all Muhmad Omar Haj Hmdo (solo maintainer) |
+| Code signing roles assigned | `CODE_SIGNING_POLICY.md`: Author, Reviewer and Approver are all the solo maintainer (GitHub: M7MMAD-OMAR) |
 | Code signing policy on the home page | `CODE_SIGNING_POLICY.md` with the "Code signing policy" heading and the required attribution, linked from both READMEs |
 | Privacy policy specified | The exact statement "This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it" is in `CODE_SIGNING_POLICY.md`, plus `PRIVACY.md` and the website privacy page |
 | Artifact metadata restrictions | The version resource of both executables sets ProductName `Kawaro | كوارو` and ProductVersion from `Cargo.toml`, the same value in every artifact of one build (`S-085`). If the artifact configuration's product-name restriction must match "Kawaro" exactly, either widen the restriction or align the version resource; this is decided with SignPath at project setup |

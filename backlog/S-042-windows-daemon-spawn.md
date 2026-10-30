@@ -25,10 +25,10 @@ As a Windows user, I want `kawaro open` to start the daemon if it is not running
 Read-only tools (`grep` and `objdump`) run outside the scope.
 - `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
 - `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p kawaro-cli`
-- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines --lib -p kawaro-cli --bins -- -D warnings`
-- `B`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo build -j 2 --release --target x86_64-pc-windows-gnu -p kawaro-cli`, then `x86_64-w64-mingw32-objdump -p /home/sbarah/.cache/kawaro-win-target/x86_64-pc-windows-gnu/release/kawaro.exe`
+- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines --lib -p kawaro-cli --bins -- -D warnings`
+- `B`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo build -j 2 --release --target x86_64-pc-windows-gnu -p kawaro-cli`, then `x86_64-w64-mingw32-objdump -p $HOME/.cache/kawaro-win-target/x86_64-pc-windows-gnu/release/kawaro.exe`
 - `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (the changed files only, including `main.rs`; `spawn/windows.rs` is excluded)
-- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-cli -e normal --depth 1`
+- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-cli -e normal --depth 1`
 
 ## Test cases
 | Criterion | Test | Type |
@@ -87,7 +87,7 @@ crates/cli/src/spawn/windows.rs must be in exclude_globs (story command M)
 crates/cli/Cargo.toml needs [target.'cfg(windows)'.dependencies] (AC6)
 test result: FAILED. 0 passed; 4 failed
 
-$ env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines --lib -p kawaro-cli --bins -- -D warnings   # W, AC6 and AC7
+$ env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines --lib -p kawaro-cli --bins -- -D warnings   # W, AC6 and AC7
 error[E0433]: cannot find `unix` in `os`        --> crates/cli/src/client.rs:79:18
 error[E0433]: cannot find `unix` in `os`        --> crates/cli/src/client.rs:101:18
 error[E0599]: no method named `process_group` found for mutable reference `&mut std::process::Command`  --> crates/cli/src/client.rs:87:10

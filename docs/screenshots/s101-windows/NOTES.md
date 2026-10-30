@@ -1,6 +1,6 @@
 # S-101 and S-100 Windows 11 live check (2026-10-30)
 
-Setup: win11 VM (libvirt session), driven through the QEMU guest agent (exec and file write), screendump and
+Setup: Windows 11 VM (libvirt session), driven through the QEMU guest agent (exec and file write), screendump and
 input-send-event for clicks. Orbit could not list the VM window (`orbit_handoff_candidates` returned BACKEND_ERROR),
 so the virsh fallback was used. Builds: current main (HEAD 9c2262f) with only the workspace version changed
 (Cargo.toml and Cargo.lock restored afterwards), base = 0.4.2, candidate = 0.4.3 with a temporary

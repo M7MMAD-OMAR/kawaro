@@ -68,15 +68,15 @@ ac7_wait_returns_at_once_for_a_finished_failed_run_with_exit_1 ... FAILED
 ac8_claude_md_gains_one_or_two_lines_in_working_rules_and_loses_none ... FAILED
 result: FAILED. 4 passed; 21 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.02s
 assertion `left == right` failed: conclusion "": /usr/bin/bash: scripts/ci-status.sh: No such file or directory
-assertion `left == right` failed: out:  err: /usr/bin/bash: /home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh: No such file or directory
+assertion `left == right` failed: out:  err: /usr/bin/bash: <repo>/scripts/ci-status.sh: No such file or directory
 assertion `left == right` failed: run 1: ("", "/tmp/.tmpireUj6/scripts/windows/make-ico.sh: line 19: magick: command not found\n")
-assertion `left == right` failed: stderr: /usr/bin/bash: /home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh: No such file or directory
+assertion `left == right` failed: stderr: /usr/bin/bash: <repo>/scripts/ci-status.sh: No such file or directory
 assertion `left == right` failed: /tmp/.tmp5Jk8Jx/scripts/windows/make-ico.sh: line 19: magick: command not found
 assertion `left == right` failed: /tmp/.tmpby1Ssk/scripts/windows/make-ico.sh: line 19: magick: command not found
-assertion `left == right` failed: /usr/bin/bash: /home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh: No such file or directory
-assertion `left == right` failed: ("", "/usr/bin/bash: /home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh: No such file or directory\n")
+assertion `left == right` failed: /usr/bin/bash: <repo>/scripts/ci-status.sh: No such file or directory
+assertion `left == right` failed: ("", "/usr/bin/bash: <repo>/scripts/ci-status.sh: No such file or directory\n")
 ci.yml apt line lacks `zip` (needed for `zip`): {"ffmpeg", "ghostscript", "jq", "libdbus-1-dev", "libfontconfig1-dev", "libwayland-dev", "libxkbcommon-dev", "minisign", "msitools", "rpm", "shellcheck"
-/home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh must exist: No such file or directory (os error 2)
+<repo>/scripts/ci-status.sh must exist: No such file or directory (os error 2)
   left: Some(127)
 windows-native must run `cargo test --no-fail-fast -p kawaro-core -p kawaro-engines -p kawaro-cli`, cargo otherwise stops at the first failing binary
 ```

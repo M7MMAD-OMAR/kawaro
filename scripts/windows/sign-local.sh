@@ -6,7 +6,7 @@
 #   scripts/windows/sign-local.sh CERT_SOURCE --verify FILE...
 # CERT_SOURCE names the certificate:
 #   test          self-signed throwaway leaf in KAWARO_WIN_SIGN_DIR (default
-#                 ~/.config/kawaro-signing/windows), created on demand and
+#                 $XDG_STATE_HOME/kawaro/win-test-signing), created on demand and
 #                 encrypted with the passphrase in signing.env there. It is
 #                 not a public code signing certificate: Windows trusts the
 #                 result only where you import the certificate (see
@@ -113,7 +113,7 @@ trap 'rm -rf -- "$stage" "$pass_file"' EXIT
 # The passphrase goes to the tools through a file, never on a command line.
 case "$kind" in
   test)
-    sign_dir="${KAWARO_WIN_SIGN_DIR:-$HOME/.config/kawaro-signing/windows}"
+    sign_dir="${KAWARO_WIN_SIGN_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/kawaro/win-test-signing}"
     key="$sign_dir/key.pem"
     crt="$sign_dir/cert.pem"
     env_file="$sign_dir/signing.env"
@@ -128,7 +128,7 @@ case "$kind" in
     fi
     if [ ! -f "$crt" ]; then
       openssl req -x509 -new -key "$key" -passin "file:$pass_file" -sha256 -days 1095 -out "$crt" \
-        -subj "/CN=Kawaro test signing (Muhmad Omar Haj Hmdo)" \
+        -subj "/CN=Kawaro test signing" \
         -addext "basicConstraints=critical,CA:FALSE" \
         -addext "keyUsage=critical,digitalSignature" \
         -addext "extendedKeyUsage=codeSigning"

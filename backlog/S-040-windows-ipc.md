@@ -42,9 +42,9 @@ For each substory:
 Read-only tools alone (`grep`, `file`, `objdump` and `isoinfo`) run outside the scope.
 - `C`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% sh -c 'cargo fmt --check && cargo clippy -j 2 --workspace --all-targets -- -D warnings'`
 - `L`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% cargo test -j 2 -p kawaro-core -p kawaro-cli -p kawaro-daemon`
-- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core --lib -- -D warnings` (and `-p kawaro-engines` is added in S-040b)
+- `W`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo clippy -j 2 --target x86_64-pc-windows-gnu -p kawaro-core --lib -- -D warnings` (and `-p kawaro-engines` is added in S-040b)
 - `M`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_BUILD_JOBS=2 cargo mutants --jobs 1 --in-diff <diff>` (the changed files only; Windows files are excluded by `exclude_globs`)
-- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=/home/sbarah/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-core -e normal --depth 1`
+- `X`: `systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=$HOME/.cache/kawaro-win-target cargo tree --target x86_64-pc-windows-gnu -p kawaro-core -e normal --depth 1`
 
 ## Test cases
 | Criterion | Test | Type |

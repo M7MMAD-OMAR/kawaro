@@ -38,9 +38,9 @@ Read only checks: every URL in the sitemap, `llms.txt`, `llms-full.txt`, `robots
 | F9 | info | inline prose links shorter than 56 px on 390 px (privacy, releases, windows, docs) | open by decision D1 |
 
 ## Review log
-- 2026-10-26, builder: audit and fixes as above. `bash scripts/build-site.sh --no-search`, new `tests/site/test_s071_static.py` (AC2, AC3, AC8). Evidence screenshots in `/home/sbarah/.hermes/artifacts/qa/`.
+- 2026-10-26, builder: audit and fixes as above. `bash scripts/build-site.sh --no-search`, new `tests/site/test_s071_static.py` (AC2, AC3, AC8). Evidence screenshots in `a local scratch path`.
 - 2026-10-26, builder: `tests/site/run_all.sh` in the heavy scope: test_static 35 OK (skipped 4), test_links 10 OK, test_contrast 2 (skipped 2), test_s063_static 26 OK, test_s064_static 18 OK, test_s068_static 5 OK, test_s071_static 5 OK, test_browser 20 OK, test_s064_browser 4 OK, test_s068_browser 2 OK. test_s063_browser had one failure in the full run (`forced_dark_renders_same_pixels`, Arabic, the hero film frame differs between two shots) and passed alone: 19 OK (skipped 11). Known flake caused by the playing film (S-068), not changed here.
 
 ### Reviewer (2026-10-26, independent, fresh context)
 
-PASS on 4ba1f28. Each fix reproduced on main and gone on the branch; the new test fails on main's site (3 of 5) and passes on the branch. Open items: F6 (settings snapshots in crates/ui show the old default folder name, needs a snapshot regeneration in a crate story), F7 (Cloudflare beacon blocked by the CSP, disable it in the dashboard), F8 and F9 cosmetic. Report: ~/.hermes/checkpoint-runs/kawaro-1026b/review-s071.md
+PASS on 4ba1f28. Each fix reproduced on main and gone on the branch; the new test fails on main's site (3 of 5) and passes on the branch. Open items: F6 (settings snapshots in crates/ui show the old default folder name, needs a snapshot regeneration in a crate story), F7 (Cloudflare beacon blocked by the CSP, disable it in the dashboard), F8 and F9 cosmetic. Report: a local scratch path

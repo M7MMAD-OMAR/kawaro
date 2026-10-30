@@ -118,7 +118,7 @@ Decision (2026-10-26, after the specification audit of the stable roadmap): this
 | S-094b | About page actions: website and source links through a safe `open_url`, copy version, check for updates shortcut. After S-094 | Draft (2026-10-29) |
 | S-094c | Introduction film rebuilt: sharp at any scale, faithful four step flow, poster, play and pause, reduced motion fallback. After S-094 | Draft (2026-10-29) |
 
-Measured facts behind S-075 (recorded 2026-10-26): Alt-only GlobalShortcuts is accepted by the BindShortcuts exchange but never activates on GNOME 50.0 or KDE 6.7.5 portals, so it cannot be the KDE or GNOME default; the Super+Z (`LOGO+z`) portal trigger passed the full real-drag path on both. Evidence: `/home/sbarah/.hermes/checkpoint-runs/kawaro-stable-20261026/alt-portal-spike.md`. Hyprland compositor binds are outside that measurement and count only when the private Hyprland harness records them.
+Measured facts behind S-075 (recorded 2026-10-26): Alt-only GlobalShortcuts is accepted by the BindShortcuts exchange but never activates on GNOME 50.0 or KDE 6.7.5 portals, so it cannot be the KDE or GNOME default; the Super+Z (`LOGO+z`) portal trigger passed the full real-drag path on both. Evidence: `a local scratch path`. Hyprland compositor binds are outside that measurement and count only when the private Hyprland harness records them.
 
 Checkpoint "phase-0 closure" (S-082): the real Nautilus and Dolphin token focus validation needs a virtual machine and remains open until its report exists. It does not block the stories above, and it is never marked done by private compositor evidence alone.
 

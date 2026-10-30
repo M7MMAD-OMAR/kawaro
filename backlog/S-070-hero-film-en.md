@@ -42,4 +42,4 @@ D6. `test_AC1_forced_dark_renders_same_pixels` compared screenshots that include
 
 ### Reviewer (2026-10-26, independent, fresh context)
 
-PASS on 824bb44. Frames compared with the Arabic film, layout mirrored, files within budget, pinned test changes legitimate. The one flaky test is fixed by D6. Full site suite after the rebase onto main: all pass. Report: ~/.hermes/checkpoint-runs/kawaro-1026b/review-s070.md
+PASS on 824bb44. Frames compared with the Arabic film, layout mirrored, files within budget, pinned test changes legitimate. The one flaky test is fixed by D6. Full site suite after the rebase onto main: all pass. Report: a local scratch path

@@ -28,12 +28,12 @@ scripts/windows/check.sh
 ```
 
 For the Windows test machine, build the test programs, pack them, and attach
-the ISO to the `win11` VM as a read only CD (not run by these scripts):
+the ISO to the Windows 11 VM as a read only CD (not run by these scripts):
 
 ```
 systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target cargo test --no-run -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines -p kawaro-cli
 scripts/windows/make-iso.sh
-virsh -c qemu:///session attach-disk win11 ${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target/kawaro-win-tests.iso sdb --type cdrom --mode readonly
+virsh -c qemu:///session attach-disk <vm> ${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target/kawaro-win-tests.iso sdb --type cdrom --mode readonly
 ```
 
 Then run `D:\run-tests.cmd` (or the CD drive letter) in the VM.
@@ -51,7 +51,7 @@ scripts/windows/sign-local.sh test kawaro-0.4.0-beta.1-windows-x64.zip dist-sign
 ```
 
 The first argument is the certificate source (S-083): `test` is the
-self-signed throwaway certificate in `~/.config/kawaro-signing/windows/`,
+self-signed throwaway certificate in `$XDG_STATE_HOME/kawaro/win-test-signing/`,
 `pkcs12:PATH` is a real code signing certificate in a PKCS#12 file with its
 passphrase in `KAWARO_WIN_SIGN_PASS`, which is the path the release pipeline
 uses. `--sign FILE...` signs files in place, `--verify FILE...` only checks
@@ -61,7 +61,7 @@ empty.
 
 It needs `osslsigncode`, `openssl`, `wixl`, `zip` and `unzip`, and a checkout
 of the same version as the zip. The key stays encrypted in
-`~/.config/kawaro-signing/windows/`; never copy it to the Windows machine.
+`$XDG_STATE_HOME/kawaro/win-test-signing/`; never copy it to the Windows machine.
 
 On the Windows machine, copy `kawaro-test-signing.cer` and the MSI from a USB
 stick or a local share (a browser download adds the "downloaded from the
@@ -73,7 +73,7 @@ certutil -addstore Root kawaro-test-signing.cer
 certutil -addstore TrustedPublisher kawaro-test-signing.cer
 ```
 
-Remove it after testing with `certutil -delstore Root "Kawaro test signing (Muhmad Omar Haj Hmdo)"`
+Remove it after testing with `certutil -delstore Root "Kawaro test signing"`
 and the same for `TrustedPublisher`. The certificate can sign programs only
 (`CA:FALSE`, code signing usage), so it cannot issue certificates for web
 sites.

@@ -15,9 +15,9 @@ member:
 
 | Role | Member |
 | --- | --- |
-| Authors (commits to the repository without additional review) | Muhmad Omar Haj Hmdo |
-| Reviewers (reviews changes proposed by people who are not committers) | Muhmad Omar Haj Hmdo |
-| Approvers (approves each signing request) | Muhmad Omar Haj Hmdo |
+| Authors (commits to the repository without additional review) | the maintainer (GitHub: M7MMAD-OMAR) |
+| Reviewers (reviews changes proposed by people who are not committers) | the maintainer (GitHub: M7MMAD-OMAR) |
+| Approvers (approves each signing request) | the maintainer (GitHub: M7MMAD-OMAR) |
 
 Every SignPath request must be approved by the Approver. Before using SignPath, the maintainer must confirm multi-factor authentication on GitHub and SignPath.
 

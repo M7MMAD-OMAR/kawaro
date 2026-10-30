@@ -28,12 +28,12 @@ scripts/windows/check.sh
 ```
 
 لآلة اختبار ويندوز: ابنِ برامج الاختبار، ثم اجمعها في الصورة، ثم أرفق الصورة
-بالآلة `win11` قرصاً مضغوطاً للقراءة فقط (السكربتات لا تشغّل هذا الأمر):
+بالآلة الافتراضية قرصاً مضغوطاً للقراءة فقط (السكربتات لا تشغّل هذا الأمر):
 
 ```
 systemd-run --user --scope -p MemoryMax=6G -p CPUQuota=200% env CARGO_TARGET_DIR=${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target cargo test --no-run -j 2 --target x86_64-pc-windows-gnu -p kawaro-core -p kawaro-engines -p kawaro-cli
 scripts/windows/make-iso.sh
-virsh -c qemu:///session attach-disk win11 ${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target/kawaro-win-tests.iso sdb --type cdrom --mode readonly
+virsh -c qemu:///session attach-disk <vm> ${XDG_CACHE_HOME:-$HOME/.cache}/kawaro-win-target/kawaro-win-tests.iso sdb --type cdrom --mode readonly
 ```
 
 ثم شغّل `D:\run-tests.cmd` (أو حرف محرك الأقراص المضغوطة) داخل الآلة.
@@ -47,14 +47,14 @@ scripts/windows/sign-local.sh test kawaro-0.4.0-beta.1-windows-x64.zip dist-sign
 ```
 
 المصدر الأول هو مصدر الشهادة (S-083): `test` هي شهادة الاختبار الذاتية
-في `~/.config/kawaro-signing/windows/`، و`pkcs12:PATH` هي شهادة توقيع حقيقية
+في `$XDG_STATE_HOME/kawaro/win-test-signing/`، و`pkcs12:PATH` هي شهادة توقيع حقيقية
 في ملف PKCS#12 مع عبارة المرور في `KAWARO_WIN_SIGN_PASS`، وهذا هو المسار
 الذي تستعمله خطوط الإصدار. يوقّع `--sign FILE...` الملفات في مكانها،
 ويفحص `--verify FILE...` الملفات فقط. كل توقيع يحمل ختماً زمنياً من RFC 3161
 ويُتحقق منه فور التوقيع؛ و`KAWARO_WIN_SIGN_TS` هي خادمة الختم الزمني ولا
 يصح أن تكون فارغة.
 
-يحتاج إلى `osslsigncode` و`openssl` و`wixl` و`zip` و`unzip`، ونسخة من المستودع بنفس إصدار الملف المضغوط. يبقى المفتاح مشفّراً في `~/.config/kawaro-signing/windows/`، ولا تنسخه أبداً إلى جهاز ويندوز.
+يحتاج إلى `osslsigncode` و`openssl` و`wixl` و`zip` و`unzip`، ونسخة من المستودع بنفس إصدار الملف المضغوط. يبقى المفتاح مشفّراً في `$XDG_STATE_HOME/kawaro/win-test-signing/`، ولا تنسخه أبداً إلى جهاز ويندوز.
 
 على جهاز ويندوز انسخ `kawaro-test-signing.cer` وحزمة MSI من ذاكرة USB أو مجلد مشترك محلي (التنزيل من المتصفح يضيف علامة «منزّل من الإنترنت» التي تفحصها SmartScreen)، ثم في PowerShell بصلاحيات المسؤول:
 
@@ -63,4 +63,4 @@ certutil -addstore Root kawaro-test-signing.cer
 certutil -addstore TrustedPublisher kawaro-test-signing.cer
 ```
 
-احذفها بعد الاختبار بالأمر `certutil -delstore Root "Kawaro test signing (Muhmad Omar Haj Hmdo)"` ومثله لـ `TrustedPublisher`. لا تستطيع الشهادة إلا توقيع البرامج (`CA:FALSE` واستخدام توقيع الشيفرة)، فلا يمكنها إصدار شهادات لمواقع الويب.
+احذفها بعد الاختبار بالأمر `certutil -delstore Root "Kawaro test signing"` ومثله لـ `TrustedPublisher`. لا تستطيع الشهادة إلا توقيع البرامج (`CA:FALSE` واستخدام توقيع الشيفرة)، فلا يمكنها إصدار شهادات لمواقع الويب.

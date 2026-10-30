@@ -38,7 +38,7 @@ cat > "$D/DEBIAN/control" <<CONTROL
 Package: kawaro
 Version: $VERSION
 Architecture: amd64
-Maintainer: MUHMAD HAJ HMDO <73592103+M7MMAD-OMAR@users.noreply.github.com>
+Maintainer: Kawaro maintainer <73592103+M7MMAD-OMAR@users.noreply.github.com>
 Installed-Size: $(du -sk "$D/usr" | cut -f1)
 Depends: libc6 (>= $GLIBC), libgcc-s1, libfontconfig1, libfreetype6
 Recommends: ffmpeg, ghostscript, libreoffice-writer | libreoffice-core, wl-clipboard, curl

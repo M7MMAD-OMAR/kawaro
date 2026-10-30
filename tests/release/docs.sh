@@ -62,8 +62,8 @@ check "AC8 no secret key header anywhere in git history" \
   test "$(git log --all -p | grep -c -e "$HEAD1$HEAD2" -e "$PREFIX")" -eq 0
 check "AC8 the only key file in packaging/keys is a .pub" \
   test "$(find packaging/keys -type f ! -name '*.pub' ! -name '*.asc' | wc -l)" -eq 0
-check "AC8 *.key and kawaro-signing are not tracked" \
-  test "$(git ls-files | grep -Ec '\.key$|kawaro-signing')" -eq 0
+check "AC8 *.key and win-test-signing are not tracked" \
+  test "$(git ls-files | grep -Ec '\.key$|win-test-signing')" -eq 0
 
 # AC9
 for s in scripts/make-update-manifest.sh scripts/sign-update-manifest.sh; do
