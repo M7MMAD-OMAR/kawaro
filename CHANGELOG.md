@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-10-31
+
 ### Fixed
 - On Hyprland 0.57 a click made while the hive is armed by `kawaro drop` without `--at` now reaches the file manager ([S-105](backlog/S-105-hyprland-0.57-no-at-focus.md)): the catcher is replaced once, at the map time pointer enter, by the `--at` form with its hole, so the first press is no longer swallowed | على هايبرلاند 0.57 تصل النقرة التي تُجرى والخلية مسلّحة بـ `kawaro drop` بلا `--at` إلى مدير الملفات: تُستبدل الخلية الماسكة مرة واحدة عند دخول المؤشر وقت الإظهار بصيغة `--at` ذات الثقب، فلا تُبتلع النقرة الأولى
 
