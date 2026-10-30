@@ -1246,6 +1246,8 @@ mod rework1 {
         let m = Mutex::new(st);
         let _held = m.lock().unwrap();
         let mut got = m.try_lock().ok();
+        // The shared progress is process wide; a download in another test must not leak in.
+        crate::progress::shared().end();
         let fake = Fake::new(Feed::Good);
         let (resp, effects) =
             check_or_busy(got.as_deref_mut(), "0.3.3", &Config::default(), &fake, BASE);
