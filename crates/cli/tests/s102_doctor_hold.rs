@@ -32,7 +32,10 @@ fn run(args: &[&str]) -> std::process::Output {
 fn ac1_doctor_prints_one_drop_key_line_for_the_no_daemon_state() {
     let o = run(&["doctor"]);
     let text = String::from_utf8_lossy(&o.stdout).into_owned();
-    let lines: Vec<&str> = text.lines().filter(|l| l.starts_with("drop key: ")).collect();
+    let lines: Vec<&str> = text
+        .lines()
+        .filter(|l| l.starts_with("drop key: "))
+        .collect();
     assert_eq!(lines.len(), 1, "one drop key line expected in:\n{text}");
     assert!(
         lines[0].ends_with(" bind missing, daemon down, last hold: none"),
@@ -46,5 +49,8 @@ fn ac2_drop_hold_without_a_daemon_logs_hold_daemon_down() {
     let o = run(&["drop", "--hold"]);
     let err = String::from_utf8_lossy(&o.stderr).into_owned();
     assert!(!o.status.success());
-    assert!(err.lines().any(|l| l.trim() == "hold: daemon-down"), "{err}");
+    assert!(
+        err.lines().any(|l| l.trim() == "hold: daemon-down"),
+        "{err}"
+    );
 }

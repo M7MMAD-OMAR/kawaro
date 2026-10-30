@@ -16,7 +16,7 @@ mod update;
 mod update_sys;
 
 use clap::{Parser, Subcommand};
-use kawaro_core::hold::{Outcome, doctor_line};
+use kawaro_core::hold::{Outcome, doctor_line_for};
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::{Event, Request, Response};
 use kawaro_core::queue::{self, JobEvent};
@@ -583,42 +583,27 @@ fn doctor() {
         kawaro_core::transport::endpoint()
     );
     let last = match client::request(&Request::HoldStatus) {
-        Ok(Response::Hold {
-            last: Some(word),
-            ago_ms: Some(ago),
-        }) => Outcome::from_reason(&word).map(|o| (o, ago)),
+        Ok(Response::Hold { last, ago_ms }) => {
+            kawaro_core::hold::last_from_status(last.as_deref(), ago_ms)
+        }
         _ => None,
     };
-    let (key, bound) = drop_bind();
-    out!("{}", doctor_line(&key, bound, up, last));
+    out!("{}", doctor_line_for(&drop_bind(), up, last));
 }
 
-/// The drop key bind of this Hyprland session, from `hyprctl binds -j`: the
-/// key of the bind that runs `drop --hold` (hyprlang) or carries the
-/// documented description `Kawaro: hold ...` (Lua). Without Hyprland, or
-/// without such a bind, the key is `unknown` and the bind is `missing`:
-/// doctor cannot read the binds of any other compositor, nor a Lua bind
-/// without the description.
-fn drop_bind() -> (String, bool) {
-    let json = std::process::Command::new("hyprctl")
+/// The drop key bind of this Hyprland session, from `hyprctl binds -j`
+/// (`kawaro_core::hold::bind_state` says what each outcome means).
+fn drop_bind() -> kawaro_core::hold::BindState {
+    use kawaro_core::hold::{Hyprctl, bind_state};
+    match std::process::Command::new("hyprctl")
         .args(["binds", "-j"])
         .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok());
-    let found = json.as_ref().and_then(|v| v.as_array()).and_then(|binds| {
-        binds.iter().find(|b| {
-            // A hyprlang bind shows its command in `arg`; a Lua bind shows
-            // only a handle there, so the documented description is read.
-            b["arg"].as_str().is_some_and(|a| a.contains("drop --hold"))
-                || b["description"]
-                    .as_str()
-                    .is_some_and(|d| d.starts_with("Kawaro: hold"))
-        })
-    });
-    match found {
-        Some(b) => (b["key"].as_str().unwrap_or("unknown").to_string(), true),
-        None => ("unknown".to_string(), false),
+    {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => bind_state(Hyprctl::Absent),
+        Ok(o) if o.status.success() => {
+            bind_state(Hyprctl::Json(&String::from_utf8_lossy(&o.stdout)))
+        }
+        _ => bind_state(Hyprctl::Failed),
     }
 }
 

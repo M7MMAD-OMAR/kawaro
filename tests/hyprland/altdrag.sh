@@ -169,6 +169,12 @@ altdrag_run() {
     surf=$(sed -n "$((m + 1)),\$p" "$DLOG" | grep -c '^hive surface:')
     ended=$(sed -n "$((m + 1)),\$p" "$DLOG" | grep -cE '^hold: (chord|tap)')
     say "INFO S-102 AC5 ${chord%%:*} then 1.5 s: hive surface lines $surf, press-ended lines $ended"
+    if [ "${chord%%:*}" = Alt+Tab ]; then
+      # The outer private KWin takes Alt+Tab as its own shortcut, so the nested
+      # Hyprland sees Alt down, no Tab and no Alt up: not testable here.
+      say "SKIP S-102 AC5 (Alt+Tab): the outer KWin takes Alt+Tab, the nested Hyprland never sees the Tab (surface $surf, ended $ended)"
+      continue
+    fi
     check "S-102 AC5 (${chord%%:*}): 1.5 s after the chord there are 0 hive surface lines and the gate is Idle (a hold: chord or hold: tap line; got surface $surf, ended $ended)" \
       '[ "$surf" -eq 0 ] && [ "$ended" -ge 1 ]'
   done

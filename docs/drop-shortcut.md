@@ -53,7 +53,7 @@ bindni = , ALT_L, exec, ~/.local/bin/kawaro drop --hold --at "$(hyprctl cursorpo
 bindrni = , ALT_L, exec, ~/.local/bin/kawaro drop --release
 ```
 
-An Alt chord (Alt+a, Alt+Tab, Alt+F4) never shows the hive. Hyprland does not fire the release bind when another key came between, so the Lua config also needs a small key hook that tells the daemon about the other key (it only watches, every combination still reaches its application); the hook is in [the Hyprland guide](../integrations/linux/hyprland/README.md). The daemon then ends the press and logs `hold: chord`.
+An Alt chord does not show the hive (measured for Alt+a; Alt+Tab and Alt+F4 were not measured in the test setup). Hyprland does not fire the release bind when another key came between, so the Lua config also needs a small key hook that tells the daemon about the other key (it only watches keys and consumes nothing); the hook is in [the Hyprland guide](../integrations/linux/hyprland/README.md). The daemon then ends the press and logs `hold: chord`.
 
 The release bind needs a running daemon, so start it with the session: `exec-once = ~/.local/bin/kawarod`. The Lua form, and holding Super+Z instead of Alt, are in [the Hyprland guide](../integrations/linux/hyprland/README.md).
 

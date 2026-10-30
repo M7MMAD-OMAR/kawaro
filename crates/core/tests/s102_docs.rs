@@ -14,7 +14,9 @@
 use std::path::PathBuf;
 
 fn read(rel: &str) -> String {
-    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..").join(rel);
+    let p = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(rel);
     std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{} must exist: {e}", p.display()))
 }
 
@@ -31,8 +33,17 @@ fn ac3_english_evaluation_names_the_options_the_limit_and_one_recommendation() {
     let t = read("docs/drop-shortcut.md");
     let s = after_alt_tap(&t, "Alt tap");
     let low = s.to_lowercase();
-    for needle in ["clipboard", "kawaro-open-selection", "at-spi", "measured", "recommendation"] {
-        assert!(low.contains(needle), "missing `{needle}` in the Alt tap section");
+    for needle in [
+        "clipboard",
+        "kawaro-open-selection",
+        "at-spi",
+        "measured",
+        "recommendation",
+    ] {
+        assert!(
+            low.contains(needle),
+            "missing `{needle}` in the Alt tap section"
+        );
     }
     assert!(
         low.contains("cannot read") && low.contains("selection"),
@@ -49,7 +60,10 @@ fn ac3_arabic_copy_has_the_same_names_and_the_labels() {
         .expect("an Arabic heading with Alt and النقرة");
     let s = t.lines().skip(at).collect::<Vec<_>>().join("\n");
     for needle in ["kawaro-open-selection", "AT-SPI", "التوصية", "قيس"] {
-        assert!(s.contains(needle), "missing `{needle}` in the Arabic Alt tap section");
+        assert!(
+            s.contains(needle),
+            "missing `{needle}` in the Arabic Alt tap section"
+        );
     }
     assert!(s.to_lowercase().contains("clipboard") || s.contains("الحافظة"));
 }
@@ -62,6 +76,9 @@ fn ac3_both_files_keep_the_language_switch_and_have_no_long_dash() {
             t.lines().next().unwrap(),
             "[English](drop-shortcut.md) | [العربية](drop-shortcut.ar.md)"
         );
-        assert!(!t.contains('\u{2014}') && !t.contains('\u{2013}'), "{f} has a long dash");
+        assert!(
+            !t.contains('\u{2014}') && !t.contains('\u{2013}'),
+            "{f} has a long dash"
+        );
     }
 }

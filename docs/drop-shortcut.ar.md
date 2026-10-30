@@ -55,7 +55,7 @@ bindni = , ALT_L, exec, ~/.local/bin/kawaro drop --hold --at "$(hyprctl cursorpo
 bindrni = , ALT_L, exec, ~/.local/bin/kawaro drop --release
 ```
 
-وتركيبة Alt مع مفتاح آخر (Alt+a وAlt+Tab وAlt+F4) لا تُظهر الخلية أبداً. فـ Hyprland لا يُطلق ربط الترك إذا جاء مفتاح آخر بين الضغط والترك، لذلك يحتاج إعداد Lua كذلك إلى خطّاف مفاتيح صغير يخبر الخدمة بالمفتاح الآخر (يراقب فقط، فتصل كل تركيبة إلى برنامجها). والخطّاف في [دليل Hyprland](../integrations/linux/hyprland/README.ar.md). عندها تُنهي الخدمة الضغطة وتسجّل `hold: chord`.
+تركيبة Alt مع مفتاح آخر لا تُظهر الخلية (قِيس هذا مع Alt+a؛ ولم يُقَس Alt+Tab ولا Alt+F4 في بيئة الاختبار). فـ Hyprland لا يُطلق ربط الترك إذا جاء مفتاح آخر بين الضغط والترك، لذلك يحتاج إعداد Lua كذلك إلى خطّاف مفاتيح صغير يخبر الخدمة بالمفتاح الآخر (يراقب المفاتيح فقط ولا يستهلك شيئاً). والخطّاف في [دليل Hyprland](../integrations/linux/hyprland/README.ar.md). عندها تُنهي الخدمة الضغطة وتسجّل `hold: chord`.
 
 يحتاج ربط الترك خدمةً تعمل مسبقاً، فشغّلها مع الجلسة: `exec-once = ~/.local/bin/kawarod`. صيغة Lua، وإمساك Super+Z بدل Alt، في [دليل Hyprland](../integrations/linux/hyprland/README.ar.md).
 

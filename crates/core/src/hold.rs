@@ -95,6 +95,73 @@ impl Outcome {
     }
 }
 
+/// What `hyprctl binds -j` gave (S-102 review).
+pub enum Hyprctl<'a> {
+    /// No `hyprctl` on PATH: not a Hyprland session.
+    Absent,
+    /// It ran and failed.
+    Failed,
+    /// Its JSON output.
+    Json(&'a str),
+}
+
+/// What doctor knows about the drop key bind.
+#[derive(Debug, PartialEq)]
+pub enum BindState {
+    /// The binds could not be read, so presence is not known.
+    Unknown,
+    /// Read, and no bind matched (or not a Hyprland session).
+    Missing,
+    /// The key of the matching bind.
+    Present(String),
+}
+
+/// Maps `hyprctl binds -j` to the bind state. A hyprlang bind shows its
+/// command in `arg`; a Lua bind shows only a handle there, so the
+/// documented description `Kawaro: hold ...` is read. `missing` only after
+/// the binds were read; `unknown` when they could not be.
+pub fn bind_state(h: Hyprctl) -> BindState {
+    let Hyprctl::Json(text) = h else {
+        return match h {
+            Hyprctl::Absent => BindState::Missing,
+            _ => BindState::Unknown,
+        };
+    };
+    let Some(binds) = serde_json::from_str::<serde_json::Value>(text)
+        .ok()
+        .and_then(|v| v.as_array().cloned())
+    else {
+        return BindState::Unknown;
+    };
+    let found = binds.iter().find(|b| {
+        b["arg"].as_str().is_some_and(|a| a.contains("drop --hold"))
+            || b["description"]
+                .as_str()
+                .is_some_and(|d| d.starts_with("Kawaro: hold"))
+    });
+    match found {
+        Some(b) => BindState::Present(b["key"].as_str().unwrap_or("unknown").to_string()),
+        None => BindState::Missing,
+    }
+}
+
+/// The last hold of a `Response::Hold` status reply.
+pub fn last_from_status(last: Option<&str>, ago_ms: Option<u64>) -> Option<(Outcome, u64)> {
+    Some((Outcome::from_reason(last?)?, ago_ms?))
+}
+
+/// [`doctor_line`] from a [`BindState`]: `unknown` for the key and the bind
+/// when the binds could not be read.
+pub fn doctor_line_for(bind: &BindState, daemon_up: bool, last: Option<(Outcome, u64)>) -> String {
+    match bind {
+        BindState::Present(key) => doctor_line(key, true, daemon_up, last),
+        BindState::Missing => doctor_line("unknown", false, daemon_up, last),
+        BindState::Unknown => {
+            doctor_line("unknown", true, daemon_up, last).replace(" bind present", " bind unknown")
+        }
+    }
+}
+
 /// The `kawaro doctor` line for the drop key (S-095 AC6).
 pub fn doctor_line(
     key: &str,
@@ -126,6 +193,9 @@ pub enum Hide {
 /// held (an Alt window move) makes at most `1 + REARM_MAX` shows.
 pub const REARM_MAX: u32 = 4;
 
+/// An other-key on an Idle gate cancels a press that arrives within this.
+const STRAY: Duration = Duration::from_millis(150);
+
 /// A tick later than this after the threshold is a stalled clock, not a
 /// hold: nothing shows from it.
 const STALE: Duration = Duration::from_millis(1000);
@@ -152,6 +222,8 @@ pub struct Gate {
     phase: Phase,
     outcome: Option<Outcome>,
     rearms: u32,
+    /// When an other-key arrived on an Idle gate (S-102 race).
+    stray: Option<Instant>,
 }
 
 impl Gate {
@@ -170,6 +242,7 @@ impl Gate {
             phase: Phase::Idle,
             outcome: None,
             rearms: 0,
+            stray: None,
         }
     }
 
@@ -187,6 +260,21 @@ impl Gate {
     /// [`Effect::Show`]: the hive shows from [`Gate::tick`] only.
     pub fn signal(&mut self, s: Signal, now: Instant) -> Option<Effect> {
         match (self.phase, s) {
+            (Phase::Idle, Signal::OtherKey) => {
+                self.stray = Some(now);
+                None
+            }
+            (Phase::Idle, Signal::Hold { .. })
+                if self
+                    .stray
+                    .take()
+                    .is_some_and(|t| now.saturating_duration_since(t) <= STRAY) =>
+            {
+                // The other key was reported before this press reached the
+                // gate (the hook's key beat the press bind): a chord.
+                self.outcome = Some(Outcome::Chord);
+                None
+            }
             (Phase::Idle, Signal::Hold { at }) => {
                 let due = now + Duration::from_millis((self.hold_ms)());
                 let limit = now + Duration::from_millis((self.hold_max_ms)());
@@ -361,5 +449,70 @@ mod rearm_tests {
         }
         assert_eq!(Outcome::from_reason("nope"), None);
         assert_eq!(from_request(&Request::DropOtherKey), Some(Signal::OtherKey));
+    }
+
+    #[test]
+    fn an_other_key_just_before_the_press_cancels_it() {
+        let t0 = Instant::now();
+        let mut g = Gate::new(|| 400);
+        g.signal(Signal::OtherKey, t0);
+        g.signal(Signal::Hold { at: None }, t0 + Duration::from_millis(60));
+        assert!(g.is_idle());
+        assert_eq!(g.take_outcome(), Some(Outcome::Chord));
+        assert_eq!(g.tick(t0 + Duration::from_millis(500)), None);
+    }
+
+    #[test]
+    fn an_old_other_key_does_not_cancel_a_press() {
+        let t0 = Instant::now();
+        let mut g = Gate::new(|| 400);
+        g.signal(Signal::OtherKey, t0);
+        g.signal(Signal::Hold { at: None }, t0 + Duration::from_millis(900));
+        assert!(!g.is_idle());
+        assert_eq!(g.take_outcome(), None);
+    }
+
+    #[test]
+    fn bind_states_and_their_doctor_lines() {
+        let lua = r#"[{"key":"ALT_L","arg":"6","description":"Kawaro: hold Alt to drop"}]"#;
+        let hypr = r#"[{"key":"SUPER, Z","arg":"kawaro drop --hold --at x","description":""}]"#;
+        let none = r#"[{"key":"Q","arg":"6","description":""}]"#;
+        assert_eq!(
+            bind_state(Hyprctl::Json(lua)),
+            BindState::Present("ALT_L".into())
+        );
+        assert_eq!(
+            bind_state(Hyprctl::Json(hypr)),
+            BindState::Present("SUPER, Z".into())
+        );
+        assert_eq!(bind_state(Hyprctl::Json(none)), BindState::Missing);
+        assert_eq!(bind_state(Hyprctl::Failed), BindState::Unknown);
+        assert_eq!(bind_state(Hyprctl::Json("not json")), BindState::Unknown);
+        assert_eq!(bind_state(Hyprctl::Absent), BindState::Missing);
+        let l = |b| doctor_line_for(&b, true, Some((Outcome::Tap, 5)));
+        assert_eq!(
+            l(BindState::Present("ALT_L".into())),
+            "drop key: ALT_L bind present, daemon up, last hold: tap 5 ms ago"
+        );
+        assert_eq!(
+            l(BindState::Missing),
+            "drop key: unknown bind missing, daemon up, last hold: tap 5 ms ago"
+        );
+        assert_eq!(
+            l(BindState::Unknown),
+            "drop key: unknown bind unknown, daemon up, last hold: tap 5 ms ago"
+        );
+    }
+
+    #[test]
+    fn a_status_reply_becomes_the_last_hold_of_the_line() {
+        let last = last_from_status(Some("chord"), Some(12));
+        assert_eq!(last, Some((Outcome::Chord, 12)));
+        assert_eq!(
+            doctor_line_for(&BindState::Present("ALT_L".into()), true, last),
+            "drop key: ALT_L bind present, daemon up, last hold: chord 12 ms ago"
+        );
+        assert_eq!(last_from_status(None, None), None);
+        assert_eq!(last_from_status(Some("bogus"), Some(1)), None);
     }
 }
