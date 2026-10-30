@@ -87,3 +87,7 @@ Each substep is at most one work day. Publication steps wait for their owner che
 [3] https://docs.copr.fedorainfracloud.org/user_documentation.html : COPR user documentation
 [4] https://developers.cloudflare.com/r2/data-access/public-buckets : Cloudflare R2 public buckets
 [5] https://documentation.ubuntu.com/launchpad/user/reference/packaging/ppas/ppa : Launchpad PPA documentation
+
+## Review log
+
+- 2026-10-30, S-103f (implementer): only what the APT channel needs from S-016a and S-016b exists: the local builder (`packaging/apt/build-repo.sh`: stable/main/amd64, `apt-ftparchive`, `Release.gpg` and `InRelease`, by-hash, 3 version retention, `gpgv` self check) and the R2 upload in three ordered phases inside `scripts/channels/apt.sh`. Not done: `packaging/install-commands.json` and its renderer (decision 8), the container matrix (AC2 and AC3 in Ubuntu 22.04, 24.04 and Debian 12), live publication (AC5, AC6), S-016c and S-016d (COPR is S-103d's), S-016e (signed `SHA256SUMS.asc`). The user setup uses a keyring file under `/etc/apt/keyrings/` (`kawaro-archive-keyring.gpg`) instead of decision 3's `/usr/share/keyrings/kawaro-archive.asc`; both are `Signed-By`, never `trusted=yes`.

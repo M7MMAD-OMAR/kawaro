@@ -346,3 +346,6 @@ Build and release tooling only, never linked into a binary. Run in CI on Ubuntu.
 | Tool | Version | Licence | Used for |
 | --- | --- | --- | --- |
 | Komac | 2.17.1 | GPL-3.0 | `scripts/channels/winget.sh` opens the WinGet manifest update pull request from the maintainer's fork. Chosen over wingetcreate (MIT, but a .NET tool aimed at Windows) because it is a single Linux binary. It reads the token from the `GITHUB_TOKEN` environment variable, a classic token with `public_repo`. Running a GPL-3.0 tool in CI imposes nothing on Kawaro's own licence. |
+| apt-ftparchive (package `apt`) | 2.8 on Ubuntu 24.04 | GPL-2.0-or-later | `packaging/apt/build-repo.sh` builds `Packages`, `Release` and the by-hash entries of the apt repository. Preinstalled on the Ubuntu runner; reprepro (GPL-2.0, not preinstalled) was not needed. |
+| GnuPG (`gpg`, `gpgv`) | 2.4 | GPL-3.0-or-later | Signs `Release.gpg` and `InRelease` from `APT_SIGNING_KEY` in a temporary keyring, and verifies both with `gpgv` before upload. |
+| AWS CLI v2 | preinstalled on the runner | Apache-2.0 | `scripts/channels/apt.sh` uploads to the S3 compatible R2 endpoint with `aws s3 cp/sync/rm`; credentials only as environment variables. |
