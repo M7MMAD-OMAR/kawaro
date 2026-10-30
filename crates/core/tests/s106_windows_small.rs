@@ -65,7 +65,12 @@ fn total_bytes(dir: &Path) -> u64 {
 
 #[test]
 fn s106_a4_cleanup_leaves_only_the_newer_version_bytes() {
-    let tmp = tempfile::tempdir_in(std::env::var("HOME").unwrap()).unwrap();
+    let tmp = tempfile::tempdir_in(
+        std::env::var("HOME")
+            .or_else(|_| std::env::var("USERPROFILE"))
+            .unwrap(),
+    )
+    .unwrap();
     let updates = tmp.path().join("updates");
     for (v, mb) in [("0.4.2", 1), ("0.4.3", 1), ("0.4.4", 1), ("0.5.0", 5)] {
         let d = updates.join(v);
