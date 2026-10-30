@@ -1,6 +1,10 @@
 # Releases
 
-## 0.4.4
+## 0.4.5
+
+## 0.4.5 (2026-10-30)
+- The settings and welcome windows come to the front on Windows even when the browser is in 
+- Four small Windows defects ([S-106](backlog/S-106-windows-small-defects.md))
 
 ## 0.4.4 (2026-10-30)
 - Hyprland 0.57 Alt drag ([S-104](backlog/S-104-hyprland-0.57-alt.md))
