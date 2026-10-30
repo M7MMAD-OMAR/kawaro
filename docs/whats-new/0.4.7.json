@@ -1,0 +1,12 @@
+{
+  "en": [
+    "Linux, Hyprland 0.57: kawaro drop no longer swallows the first click",
+    "Your first click now reaches the file manager while the hive is armed",
+    "No change on Windows or on other desktops"
+  ],
+  "ar": [
+    "لينكس وهايبرلاند 0.57: لم يعد kawaro drop يبتلع النقرة الأولى",
+    "تصل نقرتك الأولى إلى مدير الملفات والخلية مسلّحة",
+    "لا تغيير على ويندوز ولا على الأسطح الأخرى"
+  ]
+}
