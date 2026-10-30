@@ -67,7 +67,7 @@ ac7_wait_polls_until_the_run_finishes_then_prints_only_the_final_state ... FAILE
 ac7_wait_returns_at_once_for_a_finished_failed_run_with_exit_1 ... FAILED
 ac8_claude_md_gains_one_or_two_lines_in_working_rules_and_loses_none ... FAILED
 result: FAILED. 4 passed; 21 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.02s
-assertion `left == right` failed: conclusion "": /usr/bin/bash: /home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh: No such file or directory
+assertion `left == right` failed: conclusion "": /usr/bin/bash: scripts/ci-status.sh: No such file or directory
 assertion `left == right` failed: out:  err: /usr/bin/bash: /home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh: No such file or directory
 assertion `left == right` failed: run 1: ("", "/tmp/.tmpireUj6/scripts/windows/make-ico.sh: line 19: magick: command not found\n")
 assertion `left == right` failed: stderr: /usr/bin/bash: /home/sbarah/R/Projects/P/kawaro/scripts/ci-status.sh: No such file or directory
