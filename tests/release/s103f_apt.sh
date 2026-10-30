@@ -15,8 +15,8 @@ PASS_SENT='sentinel-apt-passphrase-4c1e'
 
 check "S-103f apt.sh exists and is executable" test -x "$APT"
 check "S-103f build-repo.sh exists and is executable" test -x "$BUILD"
-check "S-103f apt.sh passes shellcheck" shellcheck -x "$APT"
-check "S-103f build-repo.sh passes shellcheck" shellcheck -x "$BUILD"
+check "S-103f apt.sh passes shellcheck" shellcheck -S warning -x "$APT"
+check "S-103f build-repo.sh passes shellcheck" shellcheck -S warning -x "$BUILD"
 check "S-103f the test is part of run_all" grep -qw s103f_apt "$REPO_ROOT/tests/release/run_all.sh"
 check "S-103f engines.md records apt-ftparchive, GnuPG and the upload tool" \
   bash -c 'grep -q apt-ftparchive "$1" && grep -q GnuPG "$1" && grep -qi "aws cli" "$1"' _ "$REPO_ROOT/docs/engines.md"

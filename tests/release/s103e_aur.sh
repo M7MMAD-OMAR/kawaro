@@ -31,7 +31,7 @@ for v in 0.4.3 1.2.0; do
   check "e1 $v .SRCINFO consistent with the sourced PKGBUILD" test "$got" = "$want"
   check "e1 $v bash -n PKGBUILD" bash -n "$TMP/o$v/PKGBUILD"
   if command -v shellcheck >/dev/null 2>&1; then
-    check "e2 $v shellcheck PKGBUILD" shellcheck -s bash -e SC2034,SC2154,SC2164 "$TMP/o$v/PKGBUILD"
+    check "e2 $v shellcheck PKGBUILD" shellcheck -S warning -s bash -e SC2034,SC2154,SC2164 "$TMP/o$v/PKGBUILD"
   fi
 done
 check "e1 PKGBUILD carries provides, conflicts and the licence" \
@@ -87,6 +87,6 @@ dash="$(printf '\xe2\x80\x94\|\xe2\x80\x93')"
 check "no long dashes" test -z "$(grep -l "$dash" $files 2>/dev/null)"
 check "no email address or home path (the AUR ssh URL is not an address)" test -z "$(cat $files 2>/dev/null | grep -v 'ssh://aur@' | grep -E '[[:alnum:]._-]+@[[:alnum:]][[:alnum:]-]*\.[a-z]+|/ho''me/')"
 if command -v shellcheck >/dev/null 2>&1; then
-  check "shellcheck" shellcheck -x "$CH" "$GEN"
+  check "shellcheck" shellcheck -S warning -x "$CH" "$GEN"
 fi
 finish

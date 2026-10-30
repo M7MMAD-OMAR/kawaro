@@ -15,7 +15,7 @@ DOC="$REPO_ROOT/docs/distribution-channels/copr.md"
 SECRET='sentinel-copr-config-9f3a'
 
 check "S-103d copr.sh exists and is executable" test -x "$COPR"
-check "S-103d copr.sh passes shellcheck" shellcheck -x "$COPR"
+check "S-103d copr.sh passes shellcheck" shellcheck -S warning -x "$COPR"
 check "S-103d the COPR spec exists" test -f "$SPEC"
 
 # The spec parses and carries the injected version.

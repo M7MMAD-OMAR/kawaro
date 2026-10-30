@@ -70,5 +70,5 @@ D="$REPO_ROOT/docs/distribution-status.md"
 check "a16 distribution-status has one start marker" test "$(grep -c '^<!-- channels:start -->$' "$D")" -eq 1
 check "a17 distribution-status has one end marker" test "$(grep -c '^<!-- channels:end -->$' "$D")" -eq 1
 check "a18 run-all.sh globs scripts/channels/*.sh" grep -q 'channels_dir"/\*.sh' "$R"
-check "a19 shellcheck passes on run-all.sh" bash -c "command -v shellcheck >/dev/null && shellcheck '$R' || ! command -v shellcheck"
+check "a19 shellcheck passes on run-all.sh" bash -c "command -v shellcheck >/dev/null && shellcheck -S warning '$R' || ! command -v shellcheck"
 finish

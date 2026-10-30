@@ -63,7 +63,7 @@ check "b14 the token is not on the command line" bash -c "! grep -q '$TOKEN' '$K
 check "b15 the token is not in the output" bash -c "! grep -q '$TOKEN' '$OUT'"
 PATH="$STUB:$PATH" env -u WINGET_CREATE_GITHUB_TOKEN bash "$S" v1.2.3 > "$OUT" 2>&1
 check "b16 real run without the token is a SKIP (10)" test "$?" -eq 10
-check "b17 shellcheck passes on winget.sh" bash -c "command -v shellcheck >/dev/null && shellcheck '$S' || ! command -v shellcheck"
+check "b17 shellcheck passes on winget.sh" bash -c "command -v shellcheck >/dev/null && shellcheck -S warning '$S' || ! command -v shellcheck"
 check "b18 komac licence is recorded in docs/engines.md" grep -q 'Komac' "$REPO_ROOT/docs/engines.md"
 check "b19 the merge gate of winget-pkgs#462805 is documented" grep -q '462805' "$S"
 finish

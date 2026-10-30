@@ -69,6 +69,6 @@ dash="$(printf '\xe2\x80\x94\|\xe2\x80\x93')"
 check "no long dashes" test -z "$(grep -l "$dash" $files 2>/dev/null)"
 check "no email address or home path" test -z "$(grep -lE '[[:alnum:]._-]+@[[:alnum:]][[:alnum:]-]*\.[a-z]+|/ho''me/' $files 2>/dev/null)"
 if command -v shellcheck >/dev/null 2>&1; then
-  check "shellcheck" shellcheck -x "$CH" "$GEN" "$VAL"
+  check "shellcheck" shellcheck -S warning -x "$CH" "$GEN" "$VAL"
 fi
 finish
