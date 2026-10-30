@@ -169,6 +169,19 @@ fn report_window(w: &winit::window::Window) {
     );
 }
 
+/// The last pointer position the shown layer catcher saw, in global logical
+/// coordinates (S-104): where a re-show of a held key leaves its hole.
+pub fn last_pointer() -> Option<(f64, f64)> {
+    #[cfg(target_os = "linux")]
+    {
+        layer::last_pointer()
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
 /// Prints `line` and its newline to stderr in one write, so the libwayland
 /// trace (`WAYLAND_DEBUG`) printed on the same stderr from another thread
 /// cannot land inside a line the test scripts read.

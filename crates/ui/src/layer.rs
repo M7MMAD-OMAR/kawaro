@@ -49,7 +49,7 @@ use std::os::fd::AsFd;
 use std::rc::{Rc, Weak};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use wayland_client::globals::{GlobalList, GlobalListContents, registry_queue_init};
 use wayland_client::protocol::{
     wl_buffer::{self, WlBuffer},
@@ -101,6 +101,12 @@ thread_local! {
     static SHOW: RefCell<ShowRequest> = RefCell::new(ShowRequest::default());
     /// The surface choice and reason last printed (S-019 AC2).
     static LAST_CHOICE: RefCell<Option<(Surface, String)>> = const { RefCell::new(None) };
+    /// The last pointer position seen on the catcher, in global logical
+    /// coordinates, and the origin of the catcher's output (S-104). A
+    /// re-show of a held key hole-punches there instead of at the stale
+    /// position of the first press.
+    static LAST_POINTER: Cell<Option<(f64, f64)>> = const { Cell::new(None) };
+    static OUTPUT_ORIGIN: Cell<(i32, i32)> = const { Cell::new((0, 0)) };
     /// The [`after_catcher_ready`] hook, taken once.
     static AFTER_CATCHER: RefCell<Option<Box<dyn FnOnce()>>> = const { RefCell::new(None) };
     /// The shown hive's opening, run after its next drawn frame.
@@ -131,6 +137,57 @@ const ANCHOR_WAIT: Duration = Duration::from_millis(50);
 /// after the placement, waiting for a position; then it takes the hive
 /// rectangle and the hive stays centred (S-019 manager decision 12).
 const MOVE_WINDOW: Duration = Duration::from_millis(300);
+
+/// Half the side of the square an unrevealed `--at` catcher leaves out of its
+/// input region around the pointer (S-104). Hyprland 0.57 sends a
+/// `wl_pointer.enter` to a layer surface that maps under a still pointer and
+/// the surface then also takes the next button press; with the pointer in a
+/// hole there is no such enter, and a press still reaches the file manager.
+/// Smaller than any drag threshold, so a real drag leaves the hole first.
+const PROBE_HOLE_HALF: i32 = 3;
+
+/// A `wl_pointer.enter` this soon after the catcher mapped is the compositor
+/// refocusing under a still pointer, not a pointer that moved (S-104).
+const MAP_ENTER_WINDOW: Duration = Duration::from_millis(250);
+
+/// How far the pointer must leave a map time enter before it counts as a
+/// move, in surface pixels (fractional scale rounds 40 to 39.75).
+const MOVE_TOLERANCE: f64 = 3.0;
+
+/// The hole of an unrevealed `--at` catcher: the square around `anchor`,
+/// cut to `rect` (x, y, w, h). None when it does not touch the rectangle.
+fn probe_hole(rect: (i32, i32, i32, i32), anchor: (f32, f32)) -> Option<(i32, i32, i32, i32)> {
+    let (rx, ry, rw, rh) = rect;
+    let (ax, ay) = (anchor.0.round() as i32, anchor.1.round() as i32);
+    let x0 = (ax - PROBE_HOLE_HALF).max(rx);
+    let y0 = (ay - PROBE_HOLE_HALF).max(ry);
+    let x1 = (ax + PROBE_HOLE_HALF).min(rx + rw);
+    let y1 = (ay + PROBE_HOLE_HALF).min(ry + rh);
+    (x1 > x0 && y1 > y0).then_some((x0, y0, x1 - x0, y1 - y0))
+}
+
+/// Remembers the pointer at catcher coordinates (x, y) in global ones.
+fn note_pointer(x: f64, y: f64) {
+    let (ox, oy) = OUTPUT_ORIGIN.with(Cell::get);
+    LAST_POINTER.with(|p| p.set(Some((x + f64::from(ox), y + f64::from(oy)))));
+}
+
+/// The last pointer position the shown catcher saw, global logical
+/// coordinates, for the re-show of a held key (S-104).
+pub(crate) fn last_pointer() -> Option<(f64, f64)> {
+    LAST_POINTER.with(Cell::get)
+}
+
+/// Whether an enter on the catcher is the compositor's map time refocus: the
+/// first one, within [`MAP_ENTER_WINDOW`] of the map.
+fn is_map_time_enter(since_map: Duration, entered_before: bool) -> bool {
+    !entered_before && since_map <= MAP_ENTER_WINDOW
+}
+
+/// Whether the pointer left the position of a map time enter.
+fn moved_from(baseline: (f64, f64), now: (f64, f64)) -> bool {
+    (now.0 - baseline.0).hypot(now.1 - baseline.1) >= MOVE_TOLERANCE
+}
 
 /// The cells of the next show and its kind, so the hive can be laid out
 /// again at the pointer (S-019c, S-019d).
@@ -204,6 +261,11 @@ pub(crate) fn probed(from: dnd::State, to: dnd::State, event: dnd::Event, cells:
         && let Some(a) = OWNER.with(|o| o.borrow().upgrade())
     {
         a.revealed.set(true);
+        // The hole of the probe goes: the whole hive rectangle takes the drag.
+        a.set_region();
+        if let Some(s) = a.surfaces.borrow().as_ref() {
+            s.catcher.commit();
+        }
         a.request_redraw();
     }
 }
@@ -290,6 +352,11 @@ struct Wl {
     hive: Option<WlSurface>,
     pointer_on_hive: bool,
     pointer_on_catcher: bool,
+    /// When the catcher was created, and whether its pointer enter came
+    /// already; the position of a map time enter (S-104).
+    map_at: Option<Instant>,
+    entered_once: bool,
+    enter_baseline: Option<(f64, f64)>,
     shift: bool,
     events: Vec<Ev>,
     /// Buffers of the shown hive the compositor has not released yet,
@@ -308,6 +375,9 @@ enum Ev {
     Position(f64, f64),
     /// `wl_pointer.enter` on the catcher: no drag holds the pointer.
     PointerEnter,
+    /// The compositor's map time enter (S-104): the pointer is here but did
+    /// not move. It positions a normal show; a drop show ignores it.
+    MapEnter(f64, f64),
     Leave,
     Button {
         pressed: bool,
@@ -428,6 +498,9 @@ fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
         xdg_outputs,
         outputs,
         pointer_on_catcher: false,
+        map_at: None,
+        entered_once: false,
+        enter_baseline: None,
         qh: qh.clone(),
         compositor: globals.bind(qh, 4..=6, ()).ok()?,
         subcompositor: globals.bind(qh, 1..=1, ()).ok()?,
@@ -802,7 +875,14 @@ impl LayerAdapter {
                     catcher_ready();
                 }
             }
+            Ev::MapEnter(x, y) => {
+                note_pointer(x, y);
+                if !SHOW.with(|r| r.borrow().drop) {
+                    self.handle(Ev::Position(x, y));
+                }
+            }
             Ev::Position(x, y) => {
+                note_pointer(x, y);
                 let configured = self
                     .surfaces
                     .borrow()
@@ -949,6 +1029,8 @@ impl LayerAdapter {
         self.sent.set(None);
         // `--at`: the output holding the point, and the point on it.
         let target = at.and_then(output_at);
+        OUTPUT_ORIGIN.with(|o| o.set(target.as_ref().map_or((0, 0), |t| t.1)));
+        LAST_POINTER.with(|p| p.set(None));
         if let (Some((_, origin, _)), Some((x, y))) = (&target, at) {
             SHOW.with(|r| {
                 r.borrow_mut().at = Some((x - f64::from(origin.0), y - f64::from(origin.1)));
@@ -1002,6 +1084,9 @@ impl LayerAdapter {
             wl.hive = Some(hive.clone());
             wl.pointer_on_hive = false;
             wl.pointer_on_catcher = false;
+            wl.map_at = Some(Instant::now());
+            wl.entered_once = false;
+            wl.enter_baseline = None;
             Some((
                 ids,
                 Surfaces {
@@ -1067,6 +1152,8 @@ impl LayerAdapter {
                 sh.wl.hive = None;
                 sh.wl.pointer_on_hive = false;
                 sh.wl.pointer_on_catcher = false;
+                sh.wl.map_at = None;
+                sh.wl.enter_baseline = None;
                 // The surfaces are gone, so no buffer is in use any more:
                 // free them now rather than on a later release.
                 for b in sh.wl.buffers.drain(..) {
@@ -1125,6 +1212,14 @@ impl LayerAdapter {
             let (dw, dh) = p.destination;
             let r: WlRegion = sh.wl.compositor.create_region(&sh.wl.qh, ());
             r.add(p.x, p.y, dw as i32, dh as i32);
+            // Not revealed and anchored at a known point: leave the pointer
+            // out, so the surface never takes pointer focus (S-104).
+            if !self.revealed.get()
+                && let Some(a) = self.anchor.get()
+                && let Some((hx, hy, hw, hh)) = probe_hole((p.x, p.y, dw as i32, dh as i32), a)
+            {
+                r.subtract(hx, hy, hw, hh);
+            }
             s.catcher.set_input_region(Some(&r));
             r.destroy();
             // The drag arrives in catcher coordinates.
@@ -1520,8 +1615,20 @@ impl Dispatch<WlPointer, ()> for Wl {
                 // The enter first: a drop show not revealed is not placed
                 // at this position (S-021 AC3).
                 if s.pointer_on_catcher {
-                    s.events.push(Ev::PointerEnter);
-                    s.events.push(Ev::Position(surface_x, surface_y));
+                    // Hyprland 0.57 enters a layer surface that maps under a
+                    // still pointer: that is no pointer, so no hide (S-104).
+                    let map_time = s
+                        .map_at
+                        .is_some_and(|t| is_map_time_enter(t.elapsed(), s.entered_once));
+                    s.entered_once = true;
+                    if map_time {
+                        s.enter_baseline = Some((surface_x, surface_y));
+                        s.events.push(Ev::MapEnter(surface_x, surface_y));
+                    } else {
+                        s.enter_baseline = None;
+                        s.events.push(Ev::PointerEnter);
+                        s.events.push(Ev::Position(surface_x, surface_y));
+                    }
                 }
             }
             wl_pointer::Event::Leave { surface, .. } => {
@@ -1531,6 +1638,7 @@ impl Dispatch<WlPointer, ()> for Wl {
                 }
                 if s.catcher.as_ref() == Some(&surface) {
                     s.pointer_on_catcher = false;
+                    s.enter_baseline = None;
                 }
             }
             wl_pointer::Event::Motion {
@@ -1542,7 +1650,15 @@ impl Dispatch<WlPointer, ()> for Wl {
                 surface_x,
                 surface_y,
                 ..
-            } if s.pointer_on_catcher => s.events.push(Ev::Position(surface_x, surface_y)),
+            } if s.pointer_on_catcher => {
+                if let Some(b) = s.enter_baseline
+                    && moved_from(b, (surface_x, surface_y))
+                {
+                    s.enter_baseline = None;
+                    s.events.push(Ev::PointerEnter);
+                }
+                s.events.push(Ev::Position(surface_x, surface_y));
+            }
             // BTN_LEFT
             wl_pointer::Event::Button {
                 button: 0x110,
@@ -1595,5 +1711,61 @@ impl Dispatch<WlKeyboard, ()> for Wl {
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod pointer_probe_tests {
+    //! S-104: a map time `wl_pointer.enter` is not a pointer that moved.
+    use super::*;
+
+    const MS: fn(u64) -> Duration = Duration::from_millis;
+
+    #[test]
+    fn first_enter_right_after_the_map_is_a_map_time_enter() {
+        assert!(is_map_time_enter(MS(0), false));
+        assert!(is_map_time_enter(MS(250), false));
+    }
+
+    #[test]
+    fn a_late_or_second_enter_is_a_real_pointer() {
+        assert!(!is_map_time_enter(MS(251), false));
+        assert!(!is_map_time_enter(MS(5), true));
+    }
+
+    #[test]
+    fn two_pixels_from_the_enter_is_still_the_same_place() {
+        assert!(!moved_from((39.75, 39.75), (40.0, 40.0)));
+        assert!(!moved_from((100.0, 100.0), (102.0, 101.0)));
+    }
+
+    #[test]
+    fn five_pixels_from_the_enter_is_a_move() {
+        assert!(moved_from((40.0, 40.0), (45.0, 40.0)));
+        assert!(moved_from((40.0, 40.0), (43.0, 40.0)));
+    }
+
+    #[test]
+    fn the_hole_is_a_small_square_around_the_anchor() {
+        let rect = (0, 0, 400, 300);
+        assert_eq!(probe_hole(rect, (200.0, 150.0)), Some((197, 147, 6, 6)));
+        // Fractional anchors round to the nearest pixel.
+        assert_eq!(probe_hole(rect, (199.6, 150.4)), Some((197, 147, 6, 6)));
+    }
+
+    #[test]
+    fn the_hole_is_cut_to_the_rectangle_and_absent_outside_it() {
+        let rect = (100, 100, 200, 200);
+        assert_eq!(probe_hole(rect, (100.0, 100.0)), Some((100, 100, 3, 3)));
+        assert_eq!(probe_hole(rect, (10.0, 10.0)), None);
+        assert_eq!(probe_hole(rect, (500.0, 150.0)), None);
+    }
+
+    #[test]
+    fn the_hole_is_smaller_than_the_five_pixel_move_of_the_harness() {
+        // A 5 px move from the anchor leaves the hole (half side 3), so it
+        // enters the catcher and hides (S-021 AC9 (1)).
+        const { assert!(PROBE_HOLE_HALF < 5) };
+        const { assert!(MOVE_TOLERANCE <= 5.0) };
     }
 }

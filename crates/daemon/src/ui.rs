@@ -39,6 +39,8 @@ thread_local! {
     /// A drag entered the hive of the current hold show (S-095): a hive that
     /// closes without one is shown again while the key is held.
     static DRAG_SEEN: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// The next show is a re-show of the same press (S-104).
+    static REARMED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// When the hive of the current hold show was shown.
     static SHOWN_AT: std::cell::Cell<Option<Instant>> = const { std::cell::Cell::new(None) };
 }
@@ -351,6 +353,11 @@ fn gate_tick(state: &Shared) {
         });
     }
     if let Some(Effect::Show { at }) = effect {
+        let at = if REARMED.with(|r| r.replace(false)) {
+            kawaro_ui::last_pointer().or(at)
+        } else {
+            at
+        };
         // The files come with the drag, when it enters the hive.
         let lang = {
             let mut st = lock(state);
@@ -421,13 +428,17 @@ fn gate_rearm() -> bool {
     } else {
         Hide::Other
     };
-    GATE.with(|g| {
+    let again = GATE.with(|g| {
         g.borrow_mut().as_mut().is_some_and(|gate| {
             let again = gate.rearm(why, Instant::now());
             log_outcome(gate);
             again
         })
-    })
+    });
+    // The re-show leaves its hole where the pointer is now, not where the
+    // first press found it (S-104).
+    REARMED.with(|r| r.set(again));
+    again
 }
 
 /// Manager decision 14: the hive closed (a drop on a cell, the 10 s
