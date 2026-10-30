@@ -1,0 +1,12 @@
+{
+  "en": [
+    "The hive explains why a file has no actions: unsupported format, missing tool, or mixed selection",
+    "Greyed cells for skipped files, and a request cell for a missing format",
+    "A suggestion line under the hive centre"
+  ],
+  "ar": [
+    "تشرح الخلية سبب غياب الإجراءات لملف ما: صيغة غير مدعومة أو أداة ناقصة أو اختيار مختلط",
+    "خلايا رمادية للملفات المتخطاة، وخلية طلب لصيغة غير مدعومة",
+    "سطر اقتراح تحت مركز الخلية"
+  ]
+}

@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.6" date="2026-10-31">
+      <description>
+        <p>When Kawaro cannot convert a file, the hive now says why: the format is not supported, a tool is missing, or the selection is mixed. Skipped cells are greyed, and a request cell opens a prefilled issue link only when you click it. Known limits: on Hyprland 0.57 kawaro drop without --at can swallow the first click, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+      </description>
+    </release>
     <release version="0.4.5" date="2026-10-30">
       <description>
         <p>Four small Windows fixes: the settings window opens in front, also after an update, old update downloads are cleaned up, and the notification header and window titles read Kawaro. Known limits: on Hyprland 0.57 kawaro drop without --at can swallow the first click, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
