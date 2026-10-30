@@ -7,7 +7,7 @@ use crate::server;
 use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
 use kawaro_core::ActionDef;
-use kawaro_core::config::{Config, LangSetting, Theme};
+use kawaro_core::config::{Config, HOLD_MAX_DEFAULT, LangSetting, Theme};
 use kawaro_core::hold::{Effect, Gate, Hide, Signal};
 use kawaro_core::i18n::Lang;
 use kawaro_core::queue::Queue;
@@ -390,12 +390,12 @@ fn log_outcome(gate: &mut Gate) {
 /// The hive closed with no drag while the key may still be held: the gate
 /// shows it again (S-095 AC2). False when the key is up or nothing was shown.
 fn gate_rearm() -> bool {
-    // A close with no drag seen, well before the 10 s enter cap, is the
+    // A close with no drag seen, well one second before the enter cap, is the
     // pointer hide (Esc never reaches an unentered catcher); the cap and
     // every other close stay closed.
     let early = SHOWN_AT
         .with(|d| d.get())
-        .is_some_and(|t| t.elapsed() < Duration::from_secs(9));
+        .is_some_and(|t| t.elapsed() < Duration::from_millis(u64::from(HOLD_MAX_DEFAULT) - 1000));
     let why = if !DRAG_SEEN.with(|d| d.get()) && early {
         Hide::Pointer
     } else {

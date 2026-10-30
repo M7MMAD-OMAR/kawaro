@@ -133,7 +133,7 @@ pub fn run_effects(effects: Vec<Effect>, lang: Lang) {
 }
 
 fn config_dir() -> Option<PathBuf> {
-    Config::path().and_then(|p| p.parent().map(std::path::Path::to_path_buf))
+    kawaro_core::paths::config_dir()
 }
 
 /// An install the user did not start with the button (an automatic one, or

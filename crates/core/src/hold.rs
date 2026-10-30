@@ -128,7 +128,7 @@ pub struct Gate {
 
 impl Gate {
     pub fn new(hold_ms: impl FnMut() -> u64 + Send + 'static) -> Gate {
-        Gate::with_max(hold_ms, || 10_000)
+        Gate::with_max(hold_ms, || u64::from(crate::config::HOLD_MAX_DEFAULT))
     }
 
     /// A gate whose every wait ends `hold_max_ms` after it began (AC4).
