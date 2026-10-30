@@ -199,7 +199,7 @@ check "S-103f the fourth version evicts the oldest from the pool" \
 check "S-103f Packages indexes exactly the three newest" bash -c '
   [ "$(grep -c "^Version:" "$1")" -eq 3 ] && ! grep -qx "Version: 1.0.0" "$1" && grep -qx "Version: 1.0.3" "$1"' _ "$P"
 check "S-103f the old pool object is removed in the same commit as the new index" bash -c '
-  f="$(git -C "$1" show --name-status --format= HEAD)"
+  f="$(git -C "$1" show --no-renames --name-status --format= HEAD)"
   grep -q "^D.pool/main/k/kawaro/kawaro_1.0.0_amd64.deb$" <<<"$f" && grep -q "^A.pool/main/k/kawaro/kawaro_1.0.3_amd64.deb$" <<<"$f" && grep -q "InRelease$" <<<"$f"' _ "$BUCKET"
 check "S-103f the final signatures still verify" \
   gpgv --quiet --keyring "$BUCKET/kawaro-archive-keyring.gpg" "$BUCKET/dists/stable/InRelease" 2>/dev/null
