@@ -430,3 +430,14 @@ jobs:
           for f in "${files[@]}"; do
             gh release upload updates "$f" --clobber -R "${GITHUB_REPOSITORY}"
           done
+
+  # Mirrors the release to the package channels (S-103a). Each channel is a
+  # separate job in the called workflow; one failing never blocks the others.
+  distribute:
+    needs: [release, update-manifest]
+    if: ${{ !cancelled() && needs.release.result == 'success' && contains(fromJSON('["success","skipped"]'), needs.update-manifest.result) && startsWith(github.ref, 'refs/tags/v') }}
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-distribute.yml
+    with:
+      tag: ${{ github.ref_name }}

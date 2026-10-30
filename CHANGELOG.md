@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Added
+- Release channel orchestration and WinGet automation ([S-103a, S-103b](https://github.com/M7MMAD-OMAR/kawaro)): a reusable workflow mirrors each stable release to the package channels, one isolated job per channel (a failing one blocks none), driven by `scripts/channels/NAME.sh` scripts and a status table in `docs/distribution-status.md`; the WinGet channel uses Komac and stays a clean skip until its token exists. «تنسيق قنوات الإصدار وأتمتة WinGet: سير عمل قابل لإعادة الاستخدام ينشر كل إصدار مستقر على قنوات الحزم، لكل قناة مهمة معزولة (فشل إحداها لا يوقف غيرها)، عبر سكربتات `scripts/channels/NAME.sh` وجدول حالة في `docs/distribution-status.md`؛ وقناة WinGet تستخدم Komac وتبقى تخطياً سليماً إلى أن يوجد رمزها.»
+
 ## [0.4.3] - 2026-10-30
 
 ### Fixed

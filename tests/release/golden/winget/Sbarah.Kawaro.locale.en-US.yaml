@@ -1,0 +1,10 @@
+# Preview from scripts/channels/winget.sh (S-103b); Komac builds the real set.
+PackageIdentifier: Sbarah.Kawaro
+PackageVersion: 1.2.3
+PackageLocale: en-US
+Publisher: Kawaro
+PackageName: Kawaro
+License: GPL-3.0-or-later
+ShortDescription: A local, open source file converter with a honeycomb UI.
+ManifestType: defaultLocale
+ManifestVersion: 1.12.0

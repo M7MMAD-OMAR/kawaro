@@ -6,7 +6,7 @@
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
 RC=0
-for t in manifest sign workflow packages docs beta_versions beta_manifest beta_workflow beta_notes beta_dryrun s073_asset_names s083_windows_signing s078_winget_versions s078_winget_scope s100_msi_upgrade_works notes_manifest; do
+for t in manifest sign workflow packages docs beta_versions beta_manifest beta_workflow beta_notes beta_dryrun s073_asset_names s083_windows_signing s078_winget_versions s078_winget_scope s100_msi_upgrade_works notes_manifest s103a_channels s103a_workflow s103b_winget; do
   echo "== $t"
   "$HERE/$t.sh" || RC=1
 done

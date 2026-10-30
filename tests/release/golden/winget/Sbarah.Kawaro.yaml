@@ -1,0 +1,6 @@
+# Preview from scripts/channels/winget.sh (S-103b); Komac builds the real set.
+PackageIdentifier: Sbarah.Kawaro
+PackageVersion: 1.2.3
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.12.0

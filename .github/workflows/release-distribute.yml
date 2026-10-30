@@ -1,0 +1,105 @@
+# Mirrors a stable release to the package channels (S-103a). Reusable: called
+# by the last job of packages.yml, and runnable by hand for a rerun. A
+# workflow triggered by `release: published` would not fire for a release
+# created with the job token, so that trigger is not used.
+#
+# Each channel is scripts/channels/NAME.sh (see scripts/channels/run-all.sh for
+# the contract). Secrets are ENVIRONMENT secrets of NAME-publishing, passed as
+# whole env values; never define them at repository level, or every channel
+# job could read them. Nothing here pushes to main.
+name: release-distribute
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag, vX.Y.Z
+        required: true
+        type: string
+      dry_run:
+        description: Print what each channel would do, change nothing outside
+        required: false
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, vX.Y.Z
+        required: true
+        type: string
+      dry_run:
+        description: Print what each channel would do, change nothing outside
+        required: false
+        type: boolean
+        default: true
+
+permissions: {}
+
+jobs:
+  channel:
+    if: vars.CANONICAL_REPO == github.repository
+    runs-on: ubuntu-24.04
+    environment: ${{ matrix.channel }}-publishing
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        channel: [winget, scoop, copr, aur, apt]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - name: Run the channel
+        env:
+          TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          CHANNEL: ${{ matrix.channel }}
+          CANONICAL_REPO: ${{ vars.CANONICAL_REPO }}
+          WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
+          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: |
+          set -eu +x
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "not a release tag: $TAG"
+            exit 2
+          fi
+          flags=()
+          [ "$DRY_RUN" != true ] || flags+=(--dry-run)
+          rc=0
+          scripts/channels/run-all.sh "$TAG" --only "$CHANNEL" --results-dir "$RUNNER_TEMP/results" "${flags[@]}" || rc=$?
+          exit "$rc"
+      - name: Keep the result
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: result-${{ matrix.channel }}
+          path: ${{ runner.temp }}/results/*.result
+          if-no-files-found: ignore
+
+  status:
+    needs: channel
+    if: always() && vars.CANONICAL_REPO == github.repository
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: result-*
+          path: results
+          merge-multiple: true
+      - name: Channel status table
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -eu
+          scripts/channels/run-all.sh "$TAG" --render-only --results-dir results | tee -a "$GITHUB_STEP_SUMMARY"

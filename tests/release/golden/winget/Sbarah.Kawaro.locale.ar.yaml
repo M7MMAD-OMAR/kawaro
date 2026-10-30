@@ -1,0 +1,10 @@
+# Preview from scripts/channels/winget.sh (S-103b); Komac builds the real set.
+PackageIdentifier: Sbarah.Kawaro
+PackageVersion: 1.2.3
+PackageLocale: ar
+Publisher: Kawaro
+PackageName: كوارو
+License: GPL-3.0-or-later
+ShortDescription: محوّل ملفات محلي ومفتوح المصدر بواجهة خلية نحل.
+ManifestType: locale
+ManifestVersion: 1.12.0

@@ -14,6 +14,17 @@ Last checked: 2026-10-27.
 - The remaining gate is one approving review from a Microsoft moderator. There is no published service level; moderators quote ninety percent of pull requests reviewed within a day, and new packages take longer because identity and provenance are checked without manifest history.
 - Microsoft Store developer registration is incomplete. The automated identity verification rejected the submission. The most likely cause is documented by Microsoft: the name on the government-issued ID must be in the same language and match the account name exactly, so an Arabic identity document and a Latin account name can fail even when the document is valid. The owner step is to make the Microsoft account display name match the identity document character for character (Arabic if the document is Arabic) and submit again, and to appeal to Microsoft support if it fails again. No Store listing has been submitted.
 
+## Package channels
+
+Written by `scripts/channels/run-all.sh` (S-103a); a row says what the last run of that channel did, and `skipped` means its secret or account is not configured. `ok` means the channel script succeeded, not that the registry has accepted the package: WinGet in particular stays pending until Microsoft merges the pull request.
+
+<!-- channels:start -->
+| Channel | State | Version | Checked |
+| --- | --- | --- | --- |
+<!-- channels:end -->
+
+How a channel plugs in: add `scripts/channels/NAME.sh`; it runs from the repository root with the tag as `$1`, reads secrets from environment variables only, supports `--dry-run`, exits 0 on success, 10 on a clean SKIP (one line `SKIP NAME: VARIABLE not configured`), any other code on failure, and never prints a secret. The WinGet channel (`winget.sh`, Komac) must stay unconfigured until [winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) is merged, because `komac update` needs the package to exist; the owner steps (fork, classic token with `public_repo`, secret `WINGET_CREATE_GITHUB_TOKEN` in the `winget-publishing` environment) are in S-078 and S-103.
+
 ## Next steps
 
 1. Wait for a Microsoft moderator to approve the WinGet pull request, then confirm the package reaches the community source with `winget source update --name winget` and `winget show --id Sbarah.Kawaro --versions`. Publication usually takes about an hour after the merge.

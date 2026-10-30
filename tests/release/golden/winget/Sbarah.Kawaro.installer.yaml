@@ -1,0 +1,11 @@
+# Preview from scripts/channels/winget.sh (S-103b); Komac builds the real set.
+PackageIdentifier: Sbarah.Kawaro
+PackageVersion: 1.2.3
+InstallerType: msi
+Scope: user
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/OWNER/kawaro/releases/download/v1.2.3/kawaro-1.2.3-windows-x64.msi
+    InstallerSha256: ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789
+ManifestType: installer
+ManifestVersion: 1.12.0

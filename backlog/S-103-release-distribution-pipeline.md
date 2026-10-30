@@ -1,6 +1,6 @@
 # S-103 Automated release distribution pipeline (umbrella)
 
-Status: draft (2026-10-30), waiting for manager approval
+Status: review (S-103a, S-103b done 2026-10-30; the other parts are with their own implementers)
 
 ## Story
 
@@ -8,7 +8,7 @@ As the maintainer, I want every stable release to be mirrored to all package cha
 
 ## Relation to S-016 and S-078 (decisions that must not be silently reversed)
 
-- S-078 decision 1 says "do not create `kawaro-bin`". S-103e adds it beside the source package `kawaro` (with `provides` and `conflicts`). This needs the manager's explicit sign-off.
+- S-078 decision 1 says "do not create `kawaro-bin`". S-103e adds it beside the source package `kawaro` (with `provides` and `conflicts`). Manager sign-off given 2026-10-30: the owner wants the `kawaro-bin` channel.
 - S-016 chose a Cloudflare R2 APT repository and a COPR SRPM build. S-103 keeps both and does not move to GitHub Pages. S-103d and S-103f only add orchestration, status rows and docs on top of S-016a to S-016d, and are blocked on them.
 - S-103b is the same work as S-078e and replaces it; it goes live only after the open winget-pkgs submission for 0.4.0 is merged.
 - Environment and secret names are reused from those stories: `winget-publishing`, `aur-publishing`, `apt-publishing`, `copr-publishing`, `release-signing`; `WINGET_CREATE_GITHUB_TOKEN`, `AUR_SSH_PRIVATE_KEY`, `COPR_CONFIG`, `APT_SIGNING_KEY`. New names: `SCOOP_BUCKET_TOKEN` (S-103c).
@@ -95,5 +95,8 @@ One reviewer agent per sub-part, in a fresh context, fast gates only: `cargo fmt
 Chocolatey and Homebrew (Linuxbrew tap): later optional channels, each added by the same recipe as S-103c if wanted (Chocolatey needs a moderated community account; a tap is a plain repository like the Scoop bucket). Snap, Microsoft Store (see `docs/distribution-status.md`), macOS, and re-pinning the older workflows by SHA (follow-up story). Debian and Kali official inclusion beyond the written guide.
 
 ## Review log
+
+- 2026-10-30: manager rulings: S-078 decision 1 is overridden (kawaro-bin is wanted, S-103e); R2 stays the APT host (S-016). Channel contract fixed: `scripts/channels/NAME.sh TAG [--dry-run]`, secrets by environment only, exit 0 success, 10 clean SKIP with one line `SKIP NAME: VARIABLE not configured`, other codes failure; `scripts/channels/run-all.sh` runs every script found by glob in isolation and writes the status table between the markers in `docs/distribution-status.md`.
+- 2026-10-30: S-103a and S-103b implemented, status review. Deviations from the AC text, for the reviewer: (1) the table comes from `run-all.sh`, not `scripts/release/channel-status.sh` and `packaging/channels.json`; (2) channels are scripts with the exit 10 SKIP contract rather than inline workflow steps; the prerelease line is `SKIP NAME: prerelease tag`; (3) the `UNCHANGED` rerun report (AC-a4) is not built, dry runs print what they would do; (4) the winget preview manifests are a local sanity set (version, installer, en-US, ar) and Komac builds the real set from the previous version, so AC-b1 golden and AC-b2 PR rerun semantics rely on Komac; (5) the workflow uses one matrix job per channel with `environment: NAME-publishing` and lists all channel secrets as whole env values, so secrets MUST be environment secrets, never repository secrets; (6) a failing channel shows as a red matrix job but cancels no other (fail-fast off). The actions pinned by SHA in `release-distribute.yml` are checkout v7, upload-artifact v7, download-artifact v8 (SHAs resolved with the GitHub API). `winget.sh` is a SKIP until the secret exists and must not be enabled before winget-pkgs#462805 is merged. Komac 2.17.1 (GPL-3.0) recorded in `docs/engines.md`.
 
 - 2026-10-30: drafted by the planner, not yet reviewed.

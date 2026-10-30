@@ -338,3 +338,11 @@ job run them inside `registry.fedoraproject.org/fedora:44`.
 | --- | --- | --- | --- |
 | osslsigncode | 2.12 | GPL-3.0-or-later | Authenticode signing, RFC 3161 timestamps and verification of kawaro.exe, kawarod.exe and the MSI |
 | OpenSSL | 3.5.9 | Apache-2.0 | key and certificate generation for the throwaway test certificate, and `openssl ts` for the test timestamp authority |
+
+## Release distribution tools (S-103)
+
+Build and release tooling only, never linked into a binary. Run in CI on Ubuntu.
+
+| Tool | Version | Licence | Used for |
+| --- | --- | --- | --- |
+| Komac | 2.17.1 | GPL-3.0 | `scripts/channels/winget.sh` opens the WinGet manifest update pull request from the maintainer's fork. Chosen over wingetcreate (MIT, but a .NET tool aimed at Windows) because it is a single Linux binary. It reads the token from the `GITHUB_TOKEN` environment variable, a classic token with `public_repo`. Running a GPL-3.0 tool in CI imposes nothing on Kawaro's own licence. |
