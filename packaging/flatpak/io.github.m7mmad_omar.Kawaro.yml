@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# DRAFT for the Flathub assessment (S-103g, docs/distribution-channels/flathub.md).
+# Not submitted and not a supported install path: the assessment decision is
+# NO-GO for now. It exists so the blockers are measured, not guessed.
+#
+# Build (needs flatpak-builder and the Freedesktop SDK 25.08):
+#   flatpak-builder --user --install-deps-from=flathub --force-clean build-dir \
+#     packaging/flatpak/io.github.m7mmad_omar.Kawaro.yml
+# Lint (CI, or locally with the flathub flatpak-builder-lint app):
+#   flatpak-builder-lint manifest packaging/flatpak/io.github.m7mmad_omar.Kawaro.yml
+#
+# cargo-sources.json is a committed empty placeholder so the manifest parses
+# offline; the real file is generated in CI, with flatpak-cargo-generator
+# (flatpak-builder-tools) from Cargo.lock:
+#   python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+app-id: io.github.m7mmad_omar.Kawaro
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: kawaro
+
+finish-args:
+  - --share=ipc
+  # Wayland only: the X11 session is the 0.5.0 milestone (docs/PLAN.md).
+  - --socket=wayland
+  # The result is written next to the original, and the original can be
+  # anywhere the user selects it. A narrower grant cannot work, and Flathub
+  # reviews a broad filesystem grant (to confirm: whether it accepts it here).
+  - --filesystem=home
+  # The tray icon (ksni) registers a StatusNotifierItem on the session bus.
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --own-name=org.kde.StatusNotifierItem-*
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/kawaro/cargo
+
+modules:
+  - name: kawaro
+    buildsystem: simple
+    build-commands:
+      - cargo --offline fetch --manifest-path Cargo.toml --locked
+      - cargo --offline build --release --locked -p kawaro-cli -p kawaro-daemon
+      - install -Dm755 target/release/kawaro /app/bin/kawaro
+      - install -Dm755 target/release/kawarod /app/bin/kawarod
+      # Flathub wants the icon named by the app id.
+      - install -d /app/share/applications
+      - sed 's/^Icon=kawaro$/Icon=io.github.m7mmad_omar.Kawaro/' packaging/io.github.m7mmad_omar.Kawaro.desktop > /app/share/applications/io.github.m7mmad_omar.Kawaro.desktop
+      - install -Dm644 packaging/io.github.m7mmad_omar.Kawaro.metainfo.xml /app/share/metainfo/io.github.m7mmad_omar.Kawaro.metainfo.xml
+      - install -Dm644 design/brand/kawaro.svg /app/share/icons/hicolor/scalable/apps/io.github.m7mmad_omar.Kawaro.svg
+    sources:
+      - type: git
+        url: https://github.com/M7MMAD-OMAR/kawaro.git
+        # Update tag and commit together for every release.
+        tag: v0.4.3
+        commit: 2ff15c40fc17896e50d3e1f5cd6d705372d0dcf5
+      - cargo-sources.json
