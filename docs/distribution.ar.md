@@ -20,7 +20,7 @@ git tag vX.Y.Z  ->  بناء CI  ->  ملفات الإصدار + SHA256SUMS  -> 
 
 ## 2. القنوات والأمر الواحد
 
-استبدل `X.Y.Z` برقم الإصدار. و`OWNER` هو الحساب الذي يملك مستودع القناة أو مشروعها. القناة التي لم تُجهَّز بعد لا يمكن استعمالها، والجدول يقول ذلك.
+استبدل `X.Y.Z` برقم الإصدار. القناة التي لم تُجهَّز بعد لا يمكن استعمالها، والجدول يقول ذلك.
 
 | القناة | الأمر | حالتها اليوم |
 | --- | --- | --- |
@@ -28,10 +28,10 @@ git tag vX.Y.Z  ->  بناء CI  ->  ملفات الإصدار + SHA256SUMS  -> 
 | تنزيل مباشر لينكس، Fedora | `sudo dnf install ./kawaro-*.x86_64.rpm` | متاح |
 | تنزيل مباشر لينكس، Ubuntu وDebian | `sudo apt install ./kawaro_*_amd64.deb` | متاح |
 | WinGet | `winget install Sbarah.Kawaro` | غير قابل للاستعمال بعد. ينتظر دمج أول طلب دمج للبيان ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)). ومهمة القناة تبقى مطفأة حتى ذلك الحين |
-| Scoop | `scoop bucket add kawaro https://github.com/OWNER/scoop-kawaro` ثم `scoop install kawaro/kawaro` | يحتاج مستودع الحاوية (bucket) ورمزها. يثبّت ملف ZIP المحمول، فلا يظهر بند كوارو في قائمة المستكشف |
-| Fedora COPR | `sudo dnf copr enable OWNER/kawaro` ثم `sudo dnf install kawaro` | يحتاج مشروع COPR وملف إعداد الواجهة البرمجية |
-| Arch AUR | `yay -S kawaro-bin` | يحتاج تسجيل الحزمة أول مرة يدوياً |
-| apt (Debian وUbuntu وKali) | أضف ملف المفاتيح وملف المصدر، ثم `sudo apt update && sudo apt install kawaro` (الأسطر كاملة في [apt.md](distribution-channels/apt.md)) | يحتاج مفتاح التوقيع والتخزين. وتتخطى القناة حتى يُضاف المفتاح العام إلى المستودع |
+| Scoop | `scoop bucket add kawaro https://github.com/M7MMAD-OMAR/scoop-kawaro` ثم `scoop install kawaro/kawaro` | يعمل منذ 0.4.3. يثبّت ملف ZIP المحمول، فلا يظهر بند كوارو في قائمة المستكشف |
+| Fedora COPR | `sudo dnf copr enable ACCOUNT/kawaro` ثم `sudo dnf install kawaro` (`ACCOUNT` هو حساب COPR، ولم يُنشأ بعد) | غير قابل للاستعمال بعد. ينتظر حساب COPR (قيد من المنصة، القسم 6) |
+| Arch AUR | `yay -S kawaro-bin` | غير قابل للاستعمال بعد. ينتظر حساب AUR (قيد من المنصة، القسم 6) |
+| apt (Debian وUbuntu وKali) | سطر واحد يضيف المفتاح والمصدر ثم يثبّت الحزمة: انظر [apt.md](distribution-channels/apt.md). المستودع هو `https://m7mmad-omar.github.io/kawaro-apt` | يعمل منذ 0.4.3، موقّع، وتخدمه GitHub Pages |
 | Flathub | لا يوجد | ليس مخططاً الآن. القرار "لا نمضي": بند القائمة بزر الفأرة الأيمن لا يعمل داخل الصندوق المعزول، وLibreOffice لا يعمل فيه ([التقييم](distribution-channels/flathub.md)) |
 | Chocolatey | لا يوجد | مخطط، ولم يُبنَ بعد |
 | Homebrew (مستودع Linuxbrew) | لا يوجد | مخطط، ولم يُبنَ بعد |
@@ -56,8 +56,8 @@ git tag vX.Y.Z  ->  بناء CI  ->  ملفات الإصدار + SHA256SUMS  -> 
 1. اكتب `scripts/channels/NAME.sh` وفق القسم 3. وابدأ من أقرب سكربت موجود: `scoop.sh` للدفع إلى مستودع، و`aur.sh` للدفع عبر SSH، و`copr.sh` أو `apt.sh` لخدمة بناء.
 2. ولّد الملفات من `SHA256SUMS` الخاص بالإصدار، ولا تكتب بصمة بيدك. واحفظ القوالب والمولّد في `packaging/NAME/`.
 3. أضف `NAME` إلى المصفوفة في `.github/workflows/release-distribute.yml`، ومرّر في `env:` لتلك الخطوة كل سر ومتغير يقرؤه السكربت. وثبّت كل إجراء جديد برمز الإيداع الكامل، وكل أداة منزَّلة بالإصدار وSHA-256.
-4. أنشئ البيئة `NAME-publishing` (من عمل المالك، القسم 6).
-5. اكتب `docs/distribution-channels/NAME.md`: أمر المستخدم، وما الذي تثبّته القناة، وأسماء الأسرار فقط، وأعمال المالك، وما لم يُتحقق منه بعد.
+4. أنشئ البيئة `NAME-publishing` مع قاعدة وسوم `v*` (القسم 5 يبيّن الاستدعاءين).
+5. اكتب `docs/distribution-channels/NAME.md`: أمر المستخدم، وما الذي تثبّته القناة، وأسماء الأسرار فقط، وما لم يُتحقق منه بعد.
 6. أضف اختباراً `tests/release/s103x_NAME.sh` يعمل دون اتصال بأدوات بديلة، ويفحص الناتج المرجعي، وبصمة خاطئة يجب أن تفشل، والتشغيل التجريبي، والتخطي النظيف، والإعادة، وأن أي سر لا يظهر في الناتج. وأضفه إلى `tests/release/run_all.sh`.
 7. شغّل `tests/release/s103a_env_drift.sh`. يفشل إن اختلف سير العمل والسكربت على اسم متغير، أو غاب سكربت عن المصفوفة.
 8. سجّل رخصة أي أداة جديدة في `docs/engines.md`.
@@ -66,32 +66,28 @@ git tag vX.Y.Z  ->  بناء CI  ->  ملفات الإصدار + SHA256SUMS  -> 
 
 الأسماء فقط. لا قيمة تُكتب في المستودع ولا في بلاغ ولا في سجل ولا في محادثة.
 
-أنشئ بيئة لكل قناة: `winget-publishing` و`scoop-publishing` و`copr-publishing` و`aur-publishing` و`apt-publishing`. وفي كل واحدة اقصر النشر على نمط الوسوم `v*`. ضع الأسرار في البيئة، لا على مستوى المستودع: سير العمل يسرد أسماء أسرار كل القنوات، وحصرها في البيئات وحده يمنع قناة من رؤية أسرار غيرها. أما الإصدار نفسه فيستعمل بيئة منفصلة هي `release-signing`.
+البيئات الخمس `winget-publishing` و`scoop-publishing` و`copr-publishing` و`aur-publishing` و`apt-publishing` موجودة، وكل واحدة تسمح بالنشر من نمط الوسوم `v*` وحده. وتُنشأ بيئة جديدة باستدعاءين: `gh api -X PUT repos/OWNER/REPO/environments/NAME-publishing` مع الجسم `{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}`، ثم `gh api -X POST repos/OWNER/REPO/environments/NAME-publishing/deployment-branch-policies -f name='v*' -f type=tag`. تُضبط الأسرار في البيئة (`gh secret set NAME --env NAME-publishing < file`) لا على مستوى المستودع: سير العمل يسرد أسماء أسرار كل القنوات، وحصرها في البيئات وحده يمنع قناة من رؤية أسرار غيرها. أما الإصدار نفسه فيستعمل بيئة منفصلة هي `release-signing`.
 
 | القناة | الأسرار | المتغيرات |
 | --- | --- | --- |
 | winget | `WINGET_CREATE_GITHUB_TOKEN` | `CANONICAL_REPO` |
-| scoop | `SCOOP_BUCKET_TOKEN` | `BUCKET_REPO` و`CANONICAL_REPO` |
+| scoop | `SCOOP_DEPLOY_KEY` | `BUCKET_REPO` و`CANONICAL_REPO` |
 | copr | `COPR_CONFIG` | `COPR_PROJECT` و`CANONICAL_REPO` |
-| aur | `AUR_SSH_KEY` | `CANONICAL_REPO` |
-| apt | `APT_SIGNING_KEY` و`APT_SIGNING_PASSPHRASE` و`APT_R2_ACCESS_KEY_ID` و`APT_R2_SECRET_ACCESS_KEY` | `APT_R2_ACCOUNT_ID` و`APT_R2_BUCKET` و`CANONICAL_REPO` |
+| aur | `AUR_SSH_KEY` | `AUR_ENABLED` و`CANONICAL_REPO` |
+| apt | `APT_SIGNING_KEY` و`APT_SIGNING_PASSPHRASE` و`APT_DEPLOY_KEY` | `APT_REPO` و`CANONICAL_REPO` |
 | توقيع الإصدار | `UPDATE_SIGNING_KEY` و`UPDATE_SIGNING_PASSWORD` وأسرار شهادة توقيع ويندوز | لا شيء هنا |
 
-`APT_R2_ACCOUNT_ID` و`APT_R2_BUCKET` متغيران عاديان لا سران (معرّف الحساب ليس سرياً)، و`APT_SIGNING_PASSPHRASE` سر اختياري لا يلزم إلا إذا كان للمفتاح عبارة مرور. و`CANONICAL_REPO` هو `OWNER/NAME` لهذا المشروع. ولا تعمل مهام القنوات إلا إذا طابق المستودع الحالي، فلا ينشر أي تفرّع (fork).
+`SCOOP_DEPLOY_KEY` و`APT_DEPLOY_KEY` مفتاحا نشر (deploy keys) عبر SSH، كل منهما مسجّل بصلاحية كتابة على مستودع عام واحد فقط (`scoop-kawaro` و`kawaro-apt`)، فتسريب أحدهما لا يمسّ شيئاً غيره. وتدفع السكربتات عبر SSH مع `StrictHostKeyChecking=yes` ومفاتيح مضيف GitHub المنشورة، وهي محفوظة في `packaging/release/github_known_hosts`. وسر `APT_SIGNING_PASSPHRASE` متروك دون ضبط عن قصد: مفتاح توقيع apt بلا عبارة مرور، ولا يوجد إلا في البيئة المحمية وفي نسخة احتياطية خاصة (التفاصيل في [apt.md](distribution-channels/apt.md)). و`AUR_SSH_KEY` مضبوط من الآن، أما `AUR_ENABLED` فلا، وهذا ما يُبقي قناة AUR تخطّياً نظيفاً. و`CANONICAL_REPO` هو `OWNER/NAME` لهذا المشروع. ولا تعمل مهام القنوات إلا إذا طابق المستودع الحالي، فلا ينشر أي تفرّع (fork).
 
-## 6. أعمال المالك (OWNER ACTIONS)
+## 6. قيود المنصة
 
-هذه خطوات تحتاج إنساناً يملك الحسابات المناسبة. خط الإصدار لا يستطيع القيام بها.
+كل ما يستطيع خط الإصدار فعله دون إنسان قد تم. وبقيت ثلاثة أمور، وكل منها خارج ما يحق للأتمتة فعله.
 
-1. **البيئات.** أنشئ البيئات الخمس `NAME-publishing` واقصر كلاً منها على وسوم `v*`. واضبط `CANONICAL_REPO`.
-2. **WinGet.** انتظر دمج أول طلب دمج للبيان. بعدها أنشئ تفرّعاً (fork) من المستودع المجتمعي ورمزاً كلاسيكياً بصلاحية `public_repo` فقط، وخزّنه باسم `WINGET_CREATE_GITHUB_TOKEN`. قبل الدمج يبقى السر غير مضبوط، لأن `komac update` يحتاج وجود الحزمة.
-3. **Scoop.** أنشئ المستودع العام `OWNER/scoop-kawaro` ورمزاً دقيق الصلاحيات محصوراً فيه بصلاحية كتابة المحتوى. خزّنه باسم `SCOOP_BUCKET_TOKEN` واضبط `BUCKET_REPO`.
-4. **COPR.** أنشئ مشروع COPR وفعّل نسخ فيدورا الثلاث، وأنشئ ملف إعداد الواجهة البرمجية وخزّنه باسم `COPR_CONFIG`. واضبط `COPR_PROJECT`. وسجّل تاريخ انتهاء الملف.
-5. **AUR.** سجّل حساباً في AUR وأضف إليه مفتاح SSH عاماً مخصصاً. طابق مفاتيح مضيف AUR مع البصمات المنشورة في موقع AUR، ثم أضفها إلى المستودع باسم `packaging/aur/known_hosts`. سجّل `kawaro-bin` مرة واحدة يدوياً (أول دفع). وخزّن المفتاح الخاص باسم `AUR_SSH_KEY`.
-6. **apt.** على جهاز موثوق أنشئ مفتاح توقيع باسم مستخدم عام هو `Kawaro release signing`، مع عبارة مرور ونسخة احتياطية غير متصلة بالشبكة وشهادة إلغاء. أضف المفتاح العام وحده إلى المستودع باسم `packaging/keys/kawaro-archive.asc` ودوّن بصمته في README. أنشئ حاوية التخزين ونطاقها العام ورمزاً محصوراً فيها، واضبط أسماء `APT_R2_*`. وخزّن المفتاح الخاص باسم `APT_SIGNING_KEY`.
-7. **بعد أول وسم مستقر.** ثبّت من كل قناة على جهاز أو حاوية نظيفة وسجّل النتيجة.
-8. **التدوير.** بدّل كل رمز وملف إعداد قبل انتهاء صلاحيته. وتدوير مفتاح apt يعني مفتاحاً عاماً جديداً في المستودع وملف مفاتيح جديداً للمستخدمين.
-9. **لاحقاً.** Flathub بعد قرار "نمضي" فقط. وChocolatey وHomebrew يحتاجان حساباً (Chocolatey فيه مراجعة بشرية) ونفس وصفة Scoop.
+- **AUR.** على شخص أن ينشئ حساب AUR بنفسه، لأن نموذج التسجيل يطلب حل CAPTCHA. بعد إنشائه الصق المفتاح العام من الزوج المولَّد لهذا المشروع في الحساب، ثم نفّذ `gh variable set AUR_ENABLED --body true`. المفتاح ومفاتيح المضيف الموثَّقة وملفات الحزمة جاهزة ([aur.md](distribution-channels/aur.md)).
+- **COPR.** حساب COPR يحتاج دخولاً عبر نظام حسابات فيدورا (FAS) يجب أن ينشئه شخص. بعد إنشائه خزّن ملف الإعداد بالأمر `gh secret set COPR_CONFIG --env copr-publishing < copr-config-file` واضبط `COPR_PROJECT` بالأمر `gh variable set COPR_PROJECT --body ACCOUNT/kawaro` ([copr.md](distribution-channels/copr.md)).
+- **WinGet.** أول طلب دمج للبيان ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) ينتظر مراجعة من مشرف في مايكروسوفت. وتبقى القناة مطفأة حتى يُدمج.
+
+Flathub قراره الآن "لا نمضي" ([التقييم](distribution-channels/flathub.md)). وChocolatey وHomebrew مخططان ويتبعان وصفة Scoop نفسها. وتبديل رمز أو ملف إعداد قبل انتهاء صلاحيته عمل روتيني، أما تبديل مفتاح توقيع apt فيعني مفتاحاً عاماً جديداً في المستودع وملف مفاتيح جديداً للمستخدمين.
 
 ## 7. مراجعة تعديل على خط الإصدار
 
@@ -107,6 +103,8 @@ git tag vX.Y.Z  ->  بناء CI  ->  ملفات الإصدار + SHA256SUMS  -> 
 - **وثائق صادقة.** كل ما لم يُتحقق منه فعلياً يُكتب أنه لم يُتحقق منه.
 
 ## 8. حل المشكلات والتراجع
+
+**النشر باليد.** الوسم الأقدم من `release-distribute.yml` لا يمكن تشغيل سير العمل منه، لأن التشغيل اليدوي يستعمل ملف سير العمل الموجود في الوسم المختار، وهو غير موجود هناك. وتعمل سكربتات القنوات محلياً بالطريقة نفسها: ضع أسرار تلك القناة وحدها في بيئة أمر واحد، مثلاً `BUCKET_REPO=OWNER/scoop-kawaro SCOOP_DEPLOY_KEY="$(cat key-file)" CANONICAL_REPO=OWNER/kawaro scripts/channels/scoop.sh vX.Y.Z --dry-run`، ثم أعد الأمر بلا `--dry-run`. وهكذا نُشر الإصدار 0.4.3 إلى Scoop وapt.
 
 **إعادة تشغيل قناة واحدة.** افتح سير العمل `release-distribute` في تبويب Actions، واختر Run workflow، وأدخل الوسم (مثل `v0.5.0`)، واجعل `dry_run` غير مفعّل. التشغيل اليدوي يشمل كل القنوات، والقناة التي نشرت من قبل تطبع `UNCHANGED` (Scoop وAUR وapt)، أما COPR فترسل بناءً جديداً. والأمر المكافئ لقناة واحدة هو `scripts/channels/run-all.sh vX.Y.Z --only NAME` مع ضبط بيئة تلك القناة. جرّب `dry_run` أولاً دائماً، فهو المفعّل افتراضياً في التشغيل اليدوي. ويجب أن يكون الوسم نفسه هو المرجع الذي يشغَّل منه سير العمل (خيار "Use workflow from" عند التشغيل اليدوي)، لأن البيئة تقتصر على الوسوم `v*` فيُرفض التشغيل من فرع.
 

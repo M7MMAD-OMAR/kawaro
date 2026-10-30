@@ -1,6 +1,6 @@
 # Distribution status
 
-Last checked: 2026-10-27.
+Last checked: 2026-10-30.
 
 How the release pipeline and each channel work, and what a maintainer does: [distribution guide](distribution.md) ([العربية](distribution.ar.md)).
 
@@ -23,9 +23,25 @@ Written by `scripts/channels/run-all.sh` (S-103a); a row says what the last run 
 <!-- channels:start -->
 | Channel | State | Version | Checked |
 | --- | --- | --- | --- |
+| apt | ok | 0.4.3 | 2026-10-30 |
+| aur | skipped | 0.4.3 | 2026-10-30 |
+| copr | skipped | 0.4.3 | 2026-10-30 |
+| scoop | ok | 0.4.3 | 2026-10-30 |
+| winget | skipped | 0.4.3 | 2026-10-30 |
 <!-- channels:end -->
 
-How a channel plugs in: add `scripts/channels/NAME.sh`; it runs from the repository root with the tag as `$1`, reads secrets from environment variables only, supports `--dry-run`, exits 0 on success, 10 on a clean SKIP (one line `SKIP NAME: VARIABLE not configured`), any other code on failure, and never prints a secret. The WinGet channel (`winget.sh`, Komac) must stay unconfigured until [winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) is merged, because `komac update` needs the package to exist; the owner steps (fork, classic token with `public_repo`, secret `WINGET_CREATE_GITHUB_TOKEN` in the `winget-publishing` environment) are in S-078 and S-103.
+What is live (2026-10-30, version 0.4.3, published from the channel scripts by hand because the tag predates the workflow):
+
+- **apt:** `https://m7mmad-omar.github.io/kawaro-apt`, signed, served by GitHub Pages. `apt-get update` with the committed public key accepts it and shows 0.4.3 as the candidate; the pooled DEB has the hash of the release `SHA256SUMS`. Install line: [apt.md](distribution-channels/apt.md).
+- **Scoop:** bucket `https://github.com/M7MMAD-OMAR/scoop-kawaro`. The manifest is valid JSON and its hash equals the hash of the ZIP downloaded from the release. Scoop itself was not run (it is not available on this machine).
+
+Open items, all platform limits:
+
+- **AUR:** needs an account that a person has to create (CAPTCHA sign up). The key, verified host keys and package files are ready; activation is the account's public key plus `gh variable set AUR_ENABLED --body true` ([aur.md](distribution-channels/aur.md)).
+- **COPR:** needs an account that a person has to create. Activation is `gh secret set COPR_CONFIG --env copr-publishing < copr-config-file` plus `gh variable set COPR_PROJECT --body ACCOUNT/kawaro` ([copr.md](distribution-channels/copr.md)).
+- **WinGet:** waits for the review of [winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805). The channel job stays off until it is merged, because `komac update` needs the package to exist.
+
+How a channel plugs in: add `scripts/channels/NAME.sh`; it runs from the repository root with the tag as `$1`, reads secrets from environment variables only, supports `--dry-run`, exits 0 on success, 10 on a clean SKIP (one line `SKIP NAME: VARIABLE not configured`), any other code on failure, and never prints a secret.
 
 ## Next steps
 

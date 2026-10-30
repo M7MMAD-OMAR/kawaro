@@ -47,10 +47,9 @@ dependencies and the scriptlets equal `packaging/linux/kawaro.spec`.
 A missing name prints `SKIP copr: <NAME> not configured` and exits 10.
 `COPR_SOURCE_REF` is a test hook (the git ref archived instead of the tag).
 
-## Owner actions
+## Status: waiting for an account (platform limit)
 
-Create the COPR project, enable the three chroots, create the API config and
-store it as `COPR_CONFIG`; record its expiry and rotate it before then.
+The channel is a clean `SKIP copr: COPR_CONFIG not configured`. A COPR account needs a Fedora Account System login, which a person has to create. Once it exists: create the project `kawaro` with the three chroots, download the API config from the COPR API page, run `gh secret set COPR_CONFIG --env copr-publishing < copr-config-file`, and run `gh variable set COPR_PROJECT --body ACCOUNT/kawaro`. The API config expires, so record its expiry and rotate it before then.
 
 ## Not yet verified
 

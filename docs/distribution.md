@@ -20,7 +20,7 @@ The pipeline never pushes to `main`. The generated table is shown in the run sum
 
 ## 2. Channels and the one command
 
-Replace `X.Y.Z` with the version. `OWNER` is the account that owns the channel repository or project. A channel that is not set up yet cannot be used, and the table says so.
+Replace `X.Y.Z` with the version. A channel that is not set up yet cannot be used, and the table says so.
 
 | Channel | Command | State today |
 | --- | --- | --- |
@@ -28,10 +28,10 @@ Replace `X.Y.Z` with the version. `OWNER` is the account that owns the channel r
 | Linux direct download, Fedora | `sudo dnf install ./kawaro-*.x86_64.rpm` | Available |
 | Linux direct download, Ubuntu and Debian | `sudo apt install ./kawaro_*_amd64.deb` | Available |
 | WinGet | `winget install Sbarah.Kawaro` | Not usable yet. It waits for the first manifest pull request ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) to be merged. The channel job stays off until then |
-| Scoop | `scoop bucket add kawaro https://github.com/OWNER/scoop-kawaro` then `scoop install kawaro/kawaro` | Needs the bucket repository and its token. Installs the portable ZIP, so there is no Explorer menu entry |
-| Fedora COPR | `sudo dnf copr enable OWNER/kawaro` then `sudo dnf install kawaro` | Needs the COPR project and its API config |
-| Arch AUR | `yay -S kawaro-bin` | Needs the first registration of the package by hand |
-| apt (Debian, Ubuntu, Kali) | Add the keyring and the source file, then `sudo apt update && sudo apt install kawaro` (full lines in [apt.md](distribution-channels/apt.md)) | Needs the signing key and storage. Skips until the public key is committed |
+| Scoop | `scoop bucket add kawaro https://github.com/M7MMAD-OMAR/scoop-kawaro` then `scoop install kawaro/kawaro` | Live since 0.4.3. Installs the portable ZIP, so there is no Explorer menu entry |
+| Fedora COPR | `sudo dnf copr enable ACCOUNT/kawaro` then `sudo dnf install kawaro` (`ACCOUNT` is the COPR account, not created yet) | Not usable yet. Waits for a COPR account (platform limit, section 6) |
+| Arch AUR | `yay -S kawaro-bin` | Not usable yet. Waits for an AUR account (platform limit, section 6) |
+| apt (Debian, Ubuntu, Kali) | One line that adds the keyring and the source, then installs: see [apt.md](distribution-channels/apt.md). The repository is `https://m7mmad-omar.github.io/kawaro-apt` | Live since 0.4.3, signed, served by GitHub Pages |
 | Flathub | None | Not planned for now. The decision is NO-GO: the right click entry cannot ship inside the sandbox and LibreOffice cannot run in it ([assessment](distribution-channels/flathub.md)) |
 | Chocolatey | None | Planned, not built |
 | Homebrew (Linuxbrew tap) | None | Planned, not built |
@@ -56,8 +56,8 @@ Each channel is one script, `scripts/channels/NAME.sh`, started as `scripts/chan
 1. Write `scripts/channels/NAME.sh` following section 3. Start from the closest existing script: `scoop.sh` for a repository push, `aur.sh` for an SSH push, `copr.sh` or `apt.sh` for a build service.
 2. Generate files from the release `SHA256SUMS`, not from a hand typed hash. Keep templates and a generator in `packaging/NAME/`.
 3. Add `NAME` to the matrix in `.github/workflows/release-distribute.yml`, and pass every secret and variable the script reads in that step's `env:`. Pin any new action by full commit SHA and any downloaded tool by version and SHA-256.
-4. Create the environment `NAME-publishing` (owner action, section 6).
-5. Write `docs/distribution-channels/NAME.md`: the user command, what the channel installs, names only for secrets, owner actions, what is not verified yet.
+4. Create the environment `NAME-publishing` with a `v*` tag rule (section 5 shows the two API calls).
+5. Write `docs/distribution-channels/NAME.md`: the user command, what the channel installs, names only for secrets, what is not verified yet.
 6. Add a test `tests/release/s103x_NAME.sh` that runs offline with stubs and checks the golden output, a wrong hash that must fail, the dry run, the clean skip, the rerun, and that no secret appears in output. Add it to `tests/release/run_all.sh`.
 7. Run `tests/release/s103a_env_drift.sh`. It fails if the workflow and the script disagree on a variable name or if a script is missing from the matrix.
 8. Record the licence of any new tool in `docs/engines.md`.
@@ -66,32 +66,28 @@ Each channel is one script, `scripts/channels/NAME.sh`, started as `scripts/chan
 
 Names only. No value belongs in the repository, an issue, a log or a chat.
 
-Create one environment per channel: `winget-publishing`, `scoop-publishing`, `copr-publishing`, `aur-publishing`, `apt-publishing`. In each, limit deployment to the tag pattern `v*`. Put secrets in the environment, never at repository level: the workflow lists every channel's secret names, and only environment scoping stops one channel from seeing another's secrets. The release itself uses the separate environment `release-signing`.
+The five environments `winget-publishing`, `scoop-publishing`, `copr-publishing`, `aur-publishing` and `apt-publishing` exist, and each allows deployment only from the tag pattern `v*`. A new environment is made with two calls: `gh api -X PUT repos/OWNER/REPO/environments/NAME-publishing` with the body `{"deployment_branch_policy":{"protected_branches":false,"custom_branch_policies":true}}`, then `gh api -X POST repos/OWNER/REPO/environments/NAME-publishing/deployment-branch-policies -f name='v*' -f type=tag`. Secrets are set in the environment (`gh secret set NAME --env NAME-publishing < file`), never at repository level: the workflow lists every channel's secret names, and only environment scoping stops one channel from seeing another's secrets. The release itself uses the separate environment `release-signing`.
 
 | Channel | Secrets | Variables |
 | --- | --- | --- |
 | winget | `WINGET_CREATE_GITHUB_TOKEN` | `CANONICAL_REPO` |
-| scoop | `SCOOP_BUCKET_TOKEN` | `BUCKET_REPO`, `CANONICAL_REPO` |
+| scoop | `SCOOP_DEPLOY_KEY` | `BUCKET_REPO`, `CANONICAL_REPO` |
 | copr | `COPR_CONFIG` | `COPR_PROJECT`, `CANONICAL_REPO` |
-| aur | `AUR_SSH_KEY` | `CANONICAL_REPO` |
-| apt | `APT_SIGNING_KEY`, `APT_SIGNING_PASSPHRASE`, `APT_R2_ACCESS_KEY_ID`, `APT_R2_SECRET_ACCESS_KEY` | `APT_R2_ACCOUNT_ID`, `APT_R2_BUCKET`, `CANONICAL_REPO` |
+| aur | `AUR_SSH_KEY` | `AUR_ENABLED`, `CANONICAL_REPO` |
+| apt | `APT_SIGNING_KEY`, `APT_SIGNING_PASSPHRASE`, `APT_DEPLOY_KEY` | `APT_REPO`, `CANONICAL_REPO` |
 | release signing | `UPDATE_SIGNING_KEY`, `UPDATE_SIGNING_PASSWORD`, and the Windows signing certificate secrets | none listed here |
 
-`APT_R2_ACCOUNT_ID` and `APT_R2_BUCKET` are plain variables, not secrets (the account id is not confidential); `APT_SIGNING_PASSPHRASE` is an optional secret, needed only if the key has a passphrase. `CANONICAL_REPO` is `OWNER/NAME` of this project. The channel jobs run only when it equals the current repository, so a fork never publishes.
+`SCOOP_DEPLOY_KEY` and `APT_DEPLOY_KEY` are ssh deploy keys, each registered with write access on one public repository only (`scoop-kawaro` and `kawaro-apt`), so a leaked key can touch nothing else. The channel scripts push over ssh with `StrictHostKeyChecking=yes` and GitHub's published host keys, committed in `packaging/release/github_known_hosts`. `APT_SIGNING_PASSPHRASE` is deliberately unset: the apt signing key has no passphrase and lives only in the protected environment and a private backup (details in [apt.md](distribution-channels/apt.md)). `AUR_SSH_KEY` is set already; `AUR_ENABLED` is not, which keeps the AUR channel a clean skip. `CANONICAL_REPO` is `OWNER/NAME` of this project. The channel jobs run only when it equals the current repository, so a fork never publishes.
 
-## 6. OWNER ACTIONS
+## 6. Platform limits
 
-These steps need a human with the right accounts. The pipeline cannot do them.
+Everything the pipeline can do without a person is done. Three items remain, and each is outside what automation may do.
 
-1. **Environments.** Create the five `NAME-publishing` environments and restrict each to `v*` tags. Set `CANONICAL_REPO`.
-2. **WinGet.** Wait until the first manifest pull request is merged. Then create a fork of the community repository and a classic token with only `public_repo`, and store it as `WINGET_CREATE_GITHUB_TOKEN`. Before the merge the secret stays unset, because `komac update` needs the package to exist.
-3. **Scoop.** Create the public repository `OWNER/scoop-kawaro` and a fine grained token limited to it with contents write. Store it as `SCOOP_BUCKET_TOKEN` and set `BUCKET_REPO`.
-4. **COPR.** Create the COPR project, enable the three Fedora chroots, create the API config and store it as `COPR_CONFIG`. Set `COPR_PROJECT`. Record the config's expiry.
-5. **AUR.** Register an AUR account and add a dedicated SSH public key. Check the AUR host keys against the fingerprints on the AUR site and commit them as `packaging/aur/known_hosts`. Register `kawaro-bin` once by hand (first push). Store the private key as `AUR_SSH_KEY`.
-6. **apt.** On a trusted machine create a signing key with the generic user id `Kawaro release signing`, a passphrase, an offline backup and a revocation certificate. Commit only the public key as `packaging/keys/kawaro-archive.asc` and note its fingerprint in the README. Create the object storage bucket and its public domain, create a token limited to that bucket, and set the `APT_R2_*` names. Store the private key as `APT_SIGNING_KEY`.
-7. **After the first stable tag.** Install from every channel in a clean machine or container and report the result.
-8. **Rotation.** Rotate every token and config before it expires. Rotating the apt signing key means a new committed public key and a new keyring file for users.
-9. **Later.** Flathub only after a GO decision. Chocolatey and Homebrew need an account (Chocolatey is moderated) and the same recipe as Scoop.
+- **AUR.** An AUR account has to be created by a person, because its sign up uses a CAPTCHA. Once it exists, paste the public key of the pair generated for this project into the account and run `gh variable set AUR_ENABLED --body true`. The key, the verified host keys and the package files are ready ([aur.md](distribution-channels/aur.md)).
+- **COPR.** A COPR account needs a Fedora Account System login that a person has to create. Once it exists, store the API config with `gh secret set COPR_CONFIG --env copr-publishing < copr-config-file` and set `COPR_PROJECT` with `gh variable set COPR_PROJECT --body ACCOUNT/kawaro` ([copr.md](distribution-channels/copr.md)).
+- **WinGet.** The first manifest pull request ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) waits for a Microsoft moderator. The channel stays off until it is merged.
+
+Flathub is a NO-GO for now ([assessment](distribution-channels/flathub.md)). Chocolatey and Homebrew are planned and follow the same recipe as Scoop. Rotating an expiring token or config is routine; rotating the apt signing key means a new committed public key and a new keyring file for users.
 
 ## 7. Reviewing a pipeline change
 
@@ -107,6 +103,8 @@ Check each item before merging a change to the workflows or to `scripts/channels
 - **Honest docs.** Anything not verified live is written as not verified.
 
 ## 8. Troubleshooting and rollback
+
+**Publish by hand.** A tag that predates `release-distribute.yml` cannot be dispatched, because a dispatch runs the workflow file of the chosen tag and that file does not exist there. The channel scripts run the same way locally: put the secrets of that one channel in the environment of one command, for example `BUCKET_REPO=OWNER/scoop-kawaro SCOOP_DEPLOY_KEY="$(cat key-file)" CANONICAL_REPO=OWNER/kawaro scripts/channels/scoop.sh vX.Y.Z --dry-run`, then without `--dry-run`. Version 0.4.3 was published to Scoop and apt this way.
 
 **Re-run one channel.** Open the workflow `release-distribute` in the Actions tab, choose Run workflow, enter the tag (for example `v0.5.0`), and set `dry_run` to false. A dispatch runs every channel; a channel that already published prints `UNCHANGED` (Scoop, AUR, apt) or, for COPR, submits a new build. The command line equivalent for one channel is `scripts/channels/run-all.sh vX.Y.Z --only NAME` with the channel's environment set. Always try `dry_run` first; the dispatch default is on. In the Run workflow form, "Use workflow from" must also be the tag (for example `v0.5.0`), not a branch: each environment is limited to `v*` tags, so a dispatch from a branch is rejected.
 

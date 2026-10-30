@@ -3,7 +3,7 @@
 Install on Windows, per user, no administrator rights:
 
 ```
-scoop bucket add kawaro https://github.com/OWNER/scoop-kawaro
+scoop bucket add kawaro https://github.com/M7MMAD-OMAR/scoop-kawaro
 scoop install kawaro/kawaro
 ```
 
@@ -23,14 +23,10 @@ The portable ZIP of the release (`kawaro-X.Y.Z-windows-x64.zip`), not the MSI. S
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
-| `SCOOP_BUCKET_TOKEN` | secret | token with push access to the bucket repository only |
+| `SCOOP_DEPLOY_KEY` | secret | ssh private key, a deploy key with write access to the bucket repository only |
 | `BUCKET_REPO` | variable | `OWNER/NAME` of the bucket repository |
 | `CANONICAL_REPO` | variable | `OWNER/NAME` of this project |
 
-Without `SCOOP_BUCKET_TOKEN` or `BUCKET_REPO` the script prints `SKIP scoop: NAME not configured` and exits 10. The token is passed to git as an HTTP header through the environment, never in a URL or argument. The push is a plain push of a new commit, never forced; a rerun with the same tag prints `UNCHANGED scoop: X.Y.Z` and creates no commit.
+Without one of these names the script prints `SKIP scoop: NAME not configured` and exits 10. The key is written to a 0600 file that an `EXIT` trap removes; git runs ssh with `StrictHostKeyChecking=yes` and GitHub's published host keys from `packaging/release/github_known_hosts`. The push is a plain push of a new commit, never forced; a rerun with the same tag prints `UNCHANGED scoop: X.Y.Z` and creates no commit.
 
-## OWNER ACTIONS
-
-1. Create the empty public repository `OWNER/scoop-kawaro`.
-2. Create a fine grained token limited to that repository with contents write, store it as `SCOOP_BUCKET_TOKEN` in the protected channel environment, and set `BUCKET_REPO` and `CANONICAL_REPO`.
-3. Rotate the token before it expires.
+The bucket repository is public and holds `bucket/kawaro.json`. Its deploy key can be replaced at any time in the repository settings.

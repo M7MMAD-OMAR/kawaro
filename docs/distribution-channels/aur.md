@@ -17,21 +17,20 @@ The DEB runs `systemctl --global enable kawaro.service` in its post install scri
 - `packaging/aur/PKGBUILD.tpl` and `packaging/aur/SRCINFO.tpl`: templates.
 - `packaging/aur/generate.sh vX.Y.Z SHA256SUMS OWNER/REPO OUTDIR`: writes `PKGBUILD` and `.SRCINFO` from the same values, so they cannot disagree. `makepkg --printsrcinfo` is not needed offline; a test checks `.SRCINFO` against the values bash computes from the `PKGBUILD`. Confirming byte equality with real `makepkg --printsrcinfo` and `namcap` needs an Arch container and is a pending live check.
 - `scripts/channels/aur.sh vX.Y.Z [--dry-run]`: the channel script.
-- `packaging/aur/known_hosts`: the AUR host keys, committed by the owner (see below). It does not exist yet; without it the channel skips.
+- `packaging/aur/known_hosts`: the three AUR host keys (ed25519, rsa, ecdsa). They were read with `ssh-keyscan` and compared with the fingerprints the Arch Linux wiki publishes (`SHA256:RFzBCUItH9LZS0cKB5UE6ceAYhBD5C8GeOBip8Z11+4` for ed25519, `SHA256:5s5cIyReIfNNVGRFdDbe3hdYiI5OelHGpw2rOUud3Q8` for rsa, `SHA256:uTa/0PndEgPZTf76e1DFqXKJEXKsn7m9ivhLQtzGOCI` for ecdsa); all three matched.
 
 ## Secrets and variables (names only)
 
 | Name | Kind | Meaning |
 | --- | --- | --- |
 | `AUR_SSH_KEY` | secret | private key whose public half is on the AUR account |
+| `AUR_ENABLED` | variable | must be `true`; unset until an AUR account exists |
 | `CANONICAL_REPO` | variable | `OWNER/NAME` of this project |
 
-Missing `AUR_SSH_KEY` or `known_hosts` prints one `SKIP aur: ... not configured` line and exits 10. The script writes the key to a private temporary file removed on exit, connects with `StrictHostKeyChecking=yes` and `UserKnownHostsFile` set to the committed file, clones, replaces `PKGBUILD` and `.SRCINFO`, commits and pushes to `master` without force. A rerun prints `UNCHANGED aur: X.Y.Z` and creates no commit.
+Missing `AUR_SSH_KEY`, `known_hosts` or `AUR_ENABLED` prints one `SKIP aur: ... not configured` line and exits 10. The script writes the key to a private temporary file removed on exit, connects with `StrictHostKeyChecking=yes` and `UserKnownHostsFile` set to the committed file, clones, replaces `PKGBUILD` and `.SRCINFO`, commits and pushes to `master` without force. A rerun prints `UNCHANGED aur: X.Y.Z` and creates no commit.
 
-## OWNER ACTIONS (first time registration, human only)
+## Status: waiting for an account (platform limit)
 
-1. Register an AUR account and add a dedicated SSH public key to it.
-2. Take the AUR host keys from the fingerprints published on the AUR site, check them with `ssh-keyscan aur.archlinux.org` against those fingerprints, and commit the verified lines as `packaging/aur/known_hosts`. Never disable host key checking.
-3. Register the package name once by hand: generate the files with `packaging/aur/generate.sh`, clone `ssh://aur@aur.archlinux.org/kawaro-bin.git`, copy `PKGBUILD` and `.SRCINFO`, commit on `master`, and push. The channel script only updates an existing repository.
-4. Store the private key as `AUR_SSH_KEY` in the protected channel environment and set `CANONICAL_REPO`.
-5. Note: the S-078 story names the secret `AUR_SSH_PRIVATE_KEY`; the channel contract of S-103 uses `AUR_SSH_KEY`, which is the name in force.
+The channel is a clean `SKIP aur: AUR_ENABLED not configured`. Everything else is in place: the host keys are committed and verified, an ed25519 key pair was generated (its private half is the secret `AUR_SSH_KEY` of the `aur-publishing` environment and a private backup, never in the repository), and the script and the package generator are tested offline.
+
+An AUR account has to be created by a person, because the sign up form uses a CAPTCHA, which automation must not pass. Once an account exists: paste the public half of the generated key into the account's SSH Public Key setting (the key file is the private backup `aur/aur_ed25519.pub` next to the others), then run `gh variable set AUR_ENABLED --body true`. The next stable tag creates the `kawaro-bin` package repository with its first push; the script clones the not yet existing repository (AUR creates it on the first push) and pushes `PKGBUILD` and `.SRCINFO` to `master` without force.
