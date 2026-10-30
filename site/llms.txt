@@ -1,6 +1,6 @@
 # Kawaro
 
-> A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. Version 0.4.5.
+> A free, open source file converter for Linux and Windows. Select files, right click, pick a cell in a hexagonal hive; the result is saved next to the original. Everything runs on your machine: no uploads, no telemetry. Version 0.4.6.
 
 ## Docs
 

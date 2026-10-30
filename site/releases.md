@@ -1,6 +1,9 @@
 # الإصدارات
 
-## 0.4.5
+## 0.4.6
+
+## 0.4.6 (2026-10-31)
+- A file Kawaro cannot convert now gets a reason instead of a bare error ([S-096](backlog/S-096-unsupported-file-feedback.md))
 
 ## 0.4.5 (2026-10-30)
 - The settings and welcome windows come to the front on Windows even when the browser is in 
