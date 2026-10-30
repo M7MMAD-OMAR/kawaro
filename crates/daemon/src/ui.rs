@@ -119,7 +119,9 @@ pub fn build(
             if actions.is_empty() {
                 st.pending = None;
                 note_hold(Outcome::NoActionFile);
-                return (text::no_actions(lang).to_string(), Vec::new());
+                let outcome = st.classify(&files);
+                let why = kawaro_core::unsupported::notification(&outcome, lang);
+                return (why.unwrap_or_default(), Vec::new());
             }
             let centre = text::selection(lang, files.len(), common_kind(&files));
             let cells = actions.iter().map(|a| cell(a, lang)).collect();

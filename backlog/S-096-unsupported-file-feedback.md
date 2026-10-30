@@ -1,5 +1,5 @@
 # S-096 Tell the user why a file has no actions, and what to do next
-Status: approved (2026-10-29, manager)
+Status: review
 
 ## Story
 As a user who drops or opens a file Kawaro cannot convert, I want the hive to say plainly why and what I can do, so that I do not think the app is broken and I can ask for the format without sending anything by accident.
@@ -57,3 +57,6 @@ Adding any new format or engine, automatic download or install of an engine, sen
   - Existing tests that will conflict and need the implementer to update with the manager's consent (the tester may not edit tests): `crates/daemon/src/server_tests.rs` `ac8_open_fails_when_no_action_matches_the_file` (S-046 AC8, now `Ok`), the "no_actions" assertions in `crates/daemon/src/text.rs` tests and `crates/ui/src/drop_hive_tests.rs` (around lines 422 to 600).
   - Not covered (need seams in `ui` or a compositor, owned by S-096b): AC2 centre text and message rendered in the hive, AC3 zero child processes and zero network calls, AC4 greyed cells, `+K` cell, queue receives only supported files, AC5 `REQ` cell, opener spy 0 calls on show and 1 on click, AC8 accessible labels, reduced motion ticks, 12 screenshots and `design-lint.sh`, AC9 hive 150 ms on 3 trials, AC10 CHANGELOG line.
   - Hooks for the implementer (module `kawaro_core::unsupported`, declared in the header of `crates/core/tests/s096_unsupported.rs`): `Outcome`, `classify`, `tool_name`, `install_hints`/`InstallHint {tool,url,package}`, `missing_engine_message`, `request_url`, `notification`, `centre_text`, `unsupported_message`, `request_label`, `request_hover`, `suggestion`. Daemon: `server::open` returns `Ok` for unsupported selections.
+- 2026-10-30, implementer: `kawaro_core::unsupported` added (classify, tool and install tables, request URL, all strings, suggestion). Daemon: `State::classify`; `server::open` returns `Ok` and presents the hive with the centre text and the message (joined by a newline in the centre text until S-108 adds a separate message seam) for unsupported and missing engine selections, acts on the supported files only for a mixed one, and keeps the notification plus `Err` for no selection. `ui::on_drop_files` returns the new reason text. `text::no_actions` removed.
+  - Updated with the manager's consent, minimally: `server_tests.rs` `ac8_open_fails_when_no_action_matches_the_file` (renamed, now expects `Ok`), the `no_actions` rows in the `text.rs` in-file tests (removed). `crates/ui/src/drop_hive_tests.rs` needed no edit: its `NO_ACTIONS` constant is a local stand-in string ("No actions"), not the old daemon text, and the grep for the old string is 0.
+  - Left for S-108 (`backlog/S-108-s096b-hive-cells.md`): greyed cells, `+K`, `REQ` cell and opener, AC3 spies, AC8, AC9 hive timing.

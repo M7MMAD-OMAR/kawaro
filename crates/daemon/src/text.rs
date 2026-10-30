@@ -46,13 +46,6 @@ pub fn selection(lang: Lang, n: usize, kind: Option<MediaKind>) -> String {
     }
 }
 
-pub fn no_actions(lang: Lang) -> &'static str {
-    match lang {
-        Lang::Ar => "لا توجد إجراءات لهذه الملفات",
-        Lang::En => "No actions for these files",
-    }
-}
-
 /// Centre text of a drop-mode hive while it waits for the drag (S-014c AC10).
 pub fn drop_waiting(lang: Lang) -> &'static str {
     match lang {
@@ -296,12 +289,7 @@ mod tests {
     #[test]
     fn fixed_strings_in_both_languages() {
         type Text = fn(Lang) -> &'static str;
-        let cases: [(Text, &str, &str); 8] = [
-            (
-                no_actions,
-                "لا توجد إجراءات لهذه الملفات",
-                "No actions for these files",
-            ),
+        let cases: [(Text, &str, &str); 7] = [
             (cancelled, "أُلغيت المهمة", "Cancelled"),
             (open_folder, "فتح المجلد", "Open folder"),
             (cancel_all, "إلغاء كل المهام", "Cancel all jobs"),
@@ -380,12 +368,7 @@ mod tests {
         );
         assert_ne!(ar, en);
         // Not a string the hive already shows for something else.
-        for other in [
-            no_actions(Lang::Ar),
-            no_actions(Lang::En),
-            idle(Lang::Ar),
-            idle(Lang::En),
-        ] {
+        for other in [idle(Lang::Ar), idle(Lang::En)] {
             assert_ne!(ar, other);
             assert_ne!(en, other);
         }

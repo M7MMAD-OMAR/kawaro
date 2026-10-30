@@ -103,6 +103,12 @@ impl State {
             .collect()
     }
 
+    /// Why a selection has no actions, or that it has (S-096).
+    pub fn classify(&self, files: &[PathBuf]) -> kawaro_core::unsupported::Outcome {
+        let ok = |e: &str| self.available.iter().any(|a| a == e);
+        kawaro_core::unsupported::classify(files, &self.registry, &ok)
+    }
+
     pub fn summaries(&self, files: &[PathBuf]) -> Vec<ActionSummary> {
         self.matching(files)
             .into_iter()

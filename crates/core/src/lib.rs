@@ -24,6 +24,7 @@ mod queue_impl;
 pub mod registry;
 mod sync;
 pub mod transport;
+pub mod unsupported;
 pub mod update;
 pub mod uri_list;
 pub mod welcome;

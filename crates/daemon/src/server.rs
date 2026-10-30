@@ -5,6 +5,7 @@ use crate::{notify, text, ui};
 use kawaro_core::ipc::{Request, Response};
 use kawaro_core::queue::Queue;
 use kawaro_core::transport::{Listener, Stream, accept_backoff};
+use kawaro_core::unsupported::{self, Outcome};
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -64,13 +65,20 @@ pub fn open(state: &Shared, files: Vec<PathBuf>, token: Option<String>) -> Resul
     #[cfg(windows)]
     let (files, actions) = crate::shell_open::selection(state, files);
     let mut st = lock(state);
-    #[cfg(not(windows))]
-    let actions = st.matching(&files);
     let lang = st.lang;
+    let outcome = st.classify(&files);
+    // Only the files that can run are acted on; the rest stay untouched.
+    #[cfg(not(windows))]
+    let (files, actions) = match &outcome {
+        Outcome::Mixed { supported, .. } => (supported.clone(), st.matching(supported)),
+        _ => {
+            let actions = st.matching(&files);
+            (files, actions)
+        }
+    };
     if actions.is_empty() {
         drop(st);
-        notify::info(lang, text::no_actions(lang));
-        return Err(text::no_actions(lang).to_string());
+        return explain(outcome, files, lang, token);
     }
     let centre = text::selection(lang, files.len(), common_kind(&files));
     let cells = actions
@@ -80,6 +88,29 @@ pub fn open(state: &Shared, files: Vec<PathBuf>, token: Option<String>) -> Resul
     st.pending = Some(files.clone());
     drop(st);
     ui::present(centre, files, cells, token);
+    Ok(())
+}
+
+/// No action runs for the selection: show the reason in the hive, or in a
+/// notification when no hive can open (S-096). The greyed and request cells
+/// come with S-108.
+fn explain(
+    outcome: Outcome,
+    files: Vec<PathBuf>,
+    lang: kawaro_core::i18n::Lang,
+    token: Option<String>,
+) -> Result<(), String> {
+    let message = match &outcome {
+        Outcome::Unsupported { .. } => unsupported::unsupported_message(lang).to_string(),
+        Outcome::MissingEngine { tool } => unsupported::missing_engine_message(tool, lang),
+        other => {
+            let n = unsupported::notification(other, lang).unwrap_or_default();
+            notify::info(lang, &n);
+            return Err(n);
+        }
+    };
+    let centre = format!("{}\n{message}", unsupported::centre_text(&files, lang));
+    ui::present(centre, files, Vec::new(), token);
     Ok(())
 }
 
