@@ -249,17 +249,21 @@ pub fn check_or_busy(
         None => {
             // A download holds the lock; its progress is kept apart.
             let stat = |p: &Path| std::fs::metadata(p).ok().map(|m| m.len());
-            let response = match crate::progress::shared().snapshot(&stat) {
-                Some(phase) => downloading_reply(current, &phase),
-                None if installing_version().is_some() => Response::Update {
+            // An install starts after its download ended, so it wins over any progress.
+            let response = match (
+                installing_version(),
+                crate::progress::shared().snapshot(&stat),
+            ) {
+                (Some(version), _) => Response::Update {
                     status: "installing".to_string(),
                     current: current.to_string(),
-                    latest: installing_version(),
+                    latest: Some(version),
                     percent: None,
                     size: None,
                     notes: None,
                 },
-                None => Response::Update {
+                (None, Some(phase)) => downloading_reply(current, &phase),
+                (None, None) => Response::Update {
                     status: "downloading".to_string(),
                     current: current.to_string(),
                     latest: None,
