@@ -6,6 +6,8 @@ mod args;
 // Only the Windows shell glue pushes through it; its tests run everywhere.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod batch;
+#[cfg_attr(not(windows), allow(dead_code))]
+mod foreground_logic;
 mod jobs;
 #[cfg(windows)]
 mod logfile;
@@ -126,6 +128,8 @@ fn main() -> ExitCode {
     // S-085 D3: the bilingual Start shortcut and app name on Windows, best
     // effort; a no-op elsewhere.
     kawaro_core::identity::sync();
+    // S-106 D2: old downloads and helper copies.
+    update_sys::cleanup_at_start();
 
     let (config, warning) = Config::load();
     if let Some(w) = warning {

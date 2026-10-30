@@ -26,6 +26,13 @@ pub const SHORTCUT_FILE: &str = "Kawaro \u{FF5C} كوارو.lnk";
 /// `registry::install_commands` writes under `HKCU\`; it ends with `APP_ID`.
 pub const AUMID_KEY: &str = r"Software\Classes\AppUserModelId\io.github.m7mmad_omar.Kawaro";
 
+/// The properties set on both Start shortcuts (S-106 D3), as (property
+/// name, value). The AUMID ties the shortcut to the registered app name, so
+/// the notification header shows `DISPLAY_NAME` and not the id.
+pub fn shortcut_properties() -> &'static [(&'static str, &'static str)] {
+    &[("System.AppUserModel.ID", crate::appid::APP_ID)]
+}
+
 /// The rename of the MSI shortcut to the bilingual one inside the Start Menu
 /// `programs` folder, as (from, to). `None` when there is nothing to do: the
 /// MSI shortcut is gone (already renamed, or a portable install) or the

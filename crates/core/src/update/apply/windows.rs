@@ -16,6 +16,7 @@ use crate::ipc::Request;
 use crate::paths;
 use crate::transport::{Stream, endpoint};
 use crate::update::result::write_result;
+use windows_sys::Win32::UI::WindowsAndMessaging::AllowSetForegroundWindow;
 
 const DETACHED_PROCESS: u32 = 0x0000_0008;
 const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
@@ -116,8 +117,23 @@ impl HelperOps for Ops {
         let Some(dir) = &self.program_dir else {
             return;
         };
-        let _ = Command::new(dir.join("kawarod.exe"))
+        if let Ok(child) = Command::new(dir.join("kawarod.exe"))
             .creation_flags(DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP)
-            .spawn();
+            .spawn()
+        {
+            // S-106 D1: the new daemon may take the foreground for the
+            // settings window it reopens.
+            // SAFETY: a plain call with the id of the process just spawned.
+            unsafe { AllowSetForegroundWindow(child.id()) };
+        }
+    }
+
+    fn cleanup_download(&self, msi: &Path, log: &Path) {
+        let _ = std::fs::remove_file(msi);
+        let _ = std::fs::remove_file(log);
+        // Only an empty folder goes; anything else in it stays.
+        if let Some(dir) = msi.parent() {
+            let _ = std::fs::remove_dir(dir);
+        }
     }
 }

@@ -39,6 +39,21 @@ fn env() -> UpdateEnv {
     }
 }
 
+/// Removes the downloads of installed or older versions and the helper
+/// copies the updater left in the temp folder (S-106 D2), in the background.
+pub fn cleanup_at_start() {
+    let env = env();
+    std::thread::spawn(move || {
+        kawaro_core::update::cleanup::clean_updates(&env.updates_dir, &env.installed);
+        let temp = std::env::temp_dir();
+        let dirs = kawaro_core::update::cleanup::dir_names(&temp);
+        let entries: Vec<(&str, u64)> = dirs.iter().map(|(n, t)| (n.as_str(), *t)).collect();
+        for name in kawaro_core::update::cleanup::stale_helper_dirs(&entries, unix_now(), 600) {
+            let _ = std::fs::remove_dir_all(temp.join(name));
+        }
+    });
+}
+
 /// The one update state of the daemon.
 pub fn shared() -> &'static Mutex<UpdateState> {
     SHARED.get_or_init(|| {

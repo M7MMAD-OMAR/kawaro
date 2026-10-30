@@ -127,6 +127,9 @@ pub trait HelperOps {
     fn daemon_present(&self) -> bool;
     fn write_result(&self, r: &UpdateResult) -> Result<(), UpdateError>;
     fn start_daemon(&self, which: Daemon);
+    /// Removes the package and its log after an install (S-106 D2). Not
+    /// called after a failure, so the retry keeps the package.
+    fn cleanup_download(&self, _msi: &Path, _log: &Path) {}
 }
 
 /// The daemon after an install: present, or present after one repair.
@@ -174,6 +177,9 @@ pub fn run_helper(
         at: now,
     };
     let _ = ops.write_result(&result);
+    if result.outcome == Outcome::Installed {
+        ops.cleanup_download(msi, log);
+    }
     if exited && !missing {
         let which = if result.outcome == Outcome::Installed {
             Daemon::New

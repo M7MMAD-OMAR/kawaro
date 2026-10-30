@@ -1,5 +1,5 @@
 # S-106 Fix four small Windows defects from the 0.4.4 VM run
-Status: draft
+Status: review
 
 ## Story
 As a Windows user, I want the settings window to come to the front after an update, the update to leave no installer files behind, the notification header to read Kawaro, and every window title to read Kawaro, so that the app looks finished and does not slowly fill my disk.
@@ -42,3 +42,4 @@ Signing the Windows build, the Microsoft Store identity, the S-105 Hyprland clic
   - `s106_windows_small`: compile errors E0432 `unresolved import kawaro_core::update::cleanup`, E0407 `cleanup_download is not a member of trait HelperOps`, E0425 `cannot find function shortcut_properties in module identity`.
   - `s106_foreground`: `couldn't find file crates/daemon/tests/../src/foreground_logic.rs`.
 - Not covered by a test: the `scripts/windows/check.sh` cross build of A6 (run it at the gate).
+- Implementer, 2026-10-30. Everything in the AC is implemented; `s106_sources` (5), `s106_foreground` (5), the core lib and the daemon and ui suites pass, clippy -D warnings and `scripts/windows/check.sh` are clean, design-lint is clean. TEST BUG, not edited: `crates/core/tests/s106_windows_small.rs:150` computes `now - 99_999` with `now = 10_000` (u64), which rustc rejects at compile time (`#[deny(arithmetic_overflow)]`, "attempt to compute 10000_u64 - 99999_u64"). So that whole file (A3, A4, A5, A6 plan tests) does not compile. Suggested fix for the tester: use `now = 100_000` or `now.saturating_sub(99_999)`. The functions it pins exist with the pinned signatures (`stale_update_dirs`, `stale_helper_dirs`, `clean_updates`, `HelperOps::cleanup_download`, `identity::shortcut_properties`), so only the arithmetic needs changing. Note: `cleanup_download` has a default empty body so the older `HelperOps` fakes (s054a, s099a) still compile without edits.

@@ -3,6 +3,7 @@
 //! No network and no files; callers pass bytes and text in.
 
 pub mod apply;
+pub mod cleanup;
 pub mod fetch;
 pub mod flow;
 pub mod manifest;

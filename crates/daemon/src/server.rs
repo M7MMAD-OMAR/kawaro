@@ -30,7 +30,7 @@ pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
 
 /// The log line for a refused `SetForegroundWindow` (S-046 AC4); nothing
 /// when the call worked.
-#[cfg_attr(not(windows), allow(dead_code))]
+#[allow(dead_code)]
 pub fn focus_log(ok: bool) -> Option<&'static str> {
     (!ok).then_some("kawarod: foreground refused")
 }
