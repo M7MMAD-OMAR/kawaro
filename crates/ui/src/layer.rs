@@ -169,14 +169,14 @@ fn probe_hole(rect: (i32, i32, i32, i32), anchor: (f32, f32)) -> Option<(i32, i3
 /// What the catcher's pointer events of one show have been (S-104): the
 /// pure part of the `wl_pointer` enter and motion decisions.
 #[derive(Debug, Default)]
-struct ProbeState {
+pub(crate) struct ProbeState {
     entered_once: bool,
     baseline: Option<(f64, f64)>,
 }
 
 /// What the adapter is told about a pointer event on the catcher.
 #[derive(Debug, PartialEq)]
-enum Probe {
+pub(crate) enum Probe {
     /// The compositor's map time enter: placement only, no hide.
     MapEnter(f64, f64),
     /// A real pointer arrived: no drag holds it.
@@ -194,9 +194,28 @@ impl From<Probe> for Ev {
     }
 }
 
+/// Where a drop show without `--at` remaps its catcher (S-105): the map time
+/// enter plus the output origin, once per show. Hyprland 0.57 enters the
+/// catcher under a still pointer and keeps the focus there when the region
+/// shrinks, so the catcher is replaced by the `--at` form, which has a hole.
+pub(crate) fn remap_at(
+    drop: bool,
+    had_at: bool,
+    revealed: bool,
+    remapped: bool,
+    map_enter: Option<(f64, f64)>,
+    origin: (i32, i32),
+) -> Option<(f64, f64)> {
+    if !drop || had_at || revealed || remapped {
+        return None;
+    }
+    let (x, y) = map_enter?;
+    Some((x + f64::from(origin.0), y + f64::from(origin.1)))
+}
+
 impl ProbeState {
     /// `wl_pointer.enter` on the catcher `since_map` after it mapped.
-    fn enter(&mut self, since_map: Option<Duration>, pos: (f64, f64)) -> Vec<Probe> {
+    pub(crate) fn enter(&mut self, since_map: Option<Duration>, pos: (f64, f64)) -> Vec<Probe> {
         let map_time = since_map.is_some_and(|t| is_map_time_enter(t, self.entered_once));
         self.entered_once = true;
         if map_time {
@@ -209,7 +228,7 @@ impl ProbeState {
     }
 
     /// Motion on the catcher.
-    fn motion(&mut self, pos: (f64, f64)) -> Vec<Probe> {
+    pub(crate) fn motion(&mut self, pos: (f64, f64)) -> Vec<Probe> {
         let mut out = Vec::new();
         if let Some(b) = self.baseline
             && moved_from(b, pos)
@@ -222,7 +241,7 @@ impl ProbeState {
     }
 
     /// `wl_pointer.leave` from the catcher: the next enter is a real one.
-    fn leave(&mut self) {
+    pub(crate) fn leave(&mut self) {
         self.baseline = None;
     }
 }
@@ -768,6 +787,9 @@ pub(crate) struct LayerAdapter {
     /// The pointer entered the catcher of a drop show not revealed: no
     /// drag, so the show hides and is never placed after it (S-021 AC3).
     no_drag: Cell<bool>,
+    /// The catcher of this show was already remapped at its map time enter
+    /// (S-105).
+    remapped: Cell<bool>,
     /// The anchor the hive was placed at, the output size and the rings
     /// its box is sized for.
     anchor: Cell<Option<(f32, f32)>>,
@@ -802,6 +824,7 @@ impl LayerAdapter {
             switched: Cell::new(false),
             revealed: Cell::new(true),
             no_drag: Cell::new(false),
+            remapped: Cell::new(false),
             anchor: Cell::new(None),
             screen: Cell::new((0, 0)),
             rings: Cell::new(1),
@@ -953,8 +976,26 @@ impl LayerAdapter {
             }
             Ev::MapEnter(x, y) => {
                 note_pointer(x, y);
-                if !SHOW.with(|r| r.borrow().drop) {
+                let (drop, had_at) = SHOW.with(|r| {
+                    let r = r.borrow();
+                    (r.drop, r.at.is_some())
+                });
+                if !drop {
                     self.handle(Ev::Position(x, y));
+                }
+                let origin = OUTPUT_ORIGIN.with(Cell::get);
+                let revealed = self.revealed.get();
+                let enter = Some((x, y));
+                if let Some(pt) =
+                    remap_at(drop, had_at, revealed, self.remapped.get(), enter, origin)
+                {
+                    self.remapped.set(true);
+                    let me = self.me.clone();
+                    slint::Timer::single_shot(Duration::ZERO, move || {
+                        if let Some(a) = me.upgrade() {
+                            a.remap(pt);
+                        }
+                    });
                 }
             }
             Ev::Position(x, y) => {
@@ -1087,8 +1128,23 @@ impl LayerAdapter {
             });
     }
 
+    /// Replaces the catcher by the `--at` form at `pt` (S-105). The token and
+    /// the opening of the show survive; the receiver follows the new catcher.
+    fn remap(&self, pt: (f64, f64)) {
+        if self.surfaces.borrow().is_none() || self.revealed.get() || self.no_drag.get() {
+            return;
+        }
+        let token = self.activation.borrow_mut().take();
+        let opener = OPENER.with(|o| o.borrow_mut().take());
+        self.unmap();
+        *self.token.borrow_mut() = token;
+        OPENER.with(|o| *o.borrow_mut() = opener);
+        SHOW.with(|r| r.borrow_mut().at = Some(pt));
+        self.map(true);
+    }
+
     /// Creates the catcher layer surface and the hive subsurface.
-    fn map(&self) {
+    fn map(&self, remap: bool) {
         let (drop_mode, at) = SHOW.with(|r| {
             let r = r.borrow();
             (r.drop, r.at)
@@ -1100,6 +1156,7 @@ impl LayerAdapter {
         self.switched.set(false);
         self.revealed.set(!drop_mode);
         self.no_drag.set(false);
+        self.remapped.set(remap);
         self.anchor.set(None);
         self.pos.set(None);
         self.sent.set(None);
@@ -1195,7 +1252,11 @@ impl LayerAdapter {
                 // The receiver's data device lives on this connection, the
                 // only one the compositor names the catcher to.
                 flush();
-                crate::attach_layer_receiver(display, catcher);
+                if remap {
+                    crate::receiver::attach(display, catcher, crate::on_note);
+                } else {
+                    crate::attach_layer_receiver(display, catcher);
+                }
             }
         }
         self.waiting_frame.set(false);
@@ -1417,7 +1478,7 @@ impl WindowAdapter for LayerAdapter {
             if let Some(other) = OWNER.with(|o| o.borrow().upgrade()) {
                 other.unmap();
             }
-            self.map();
+            self.map(false);
         } else {
             self.unmap();
         }
