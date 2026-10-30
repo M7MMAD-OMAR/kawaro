@@ -23,17 +23,17 @@ Written by `scripts/channels/run-all.sh` (S-103a); a row says what the last run 
 <!-- channels:start -->
 | Channel | State | Version | Checked |
 | --- | --- | --- | --- |
-| apt | ok | 0.4.3 | 2026-10-30 |
-| aur | skipped | 0.4.3 | 2026-10-30 |
-| copr | skipped | 0.4.3 | 2026-10-30 |
-| scoop | ok | 0.4.3 | 2026-10-30 |
-| winget | skipped | 0.4.3 | 2026-10-30 |
+| apt | ok | 0.4.4 | 2026-10-30 |
+| aur | skipped | 0.4.4 | 2026-10-30 |
+| copr | skipped | 0.4.4 | 2026-10-30 |
+| scoop | ok | 0.4.4 | 2026-10-30 |
+| winget | skipped | 0.4.4 | 2026-10-30 |
 <!-- channels:end -->
 
-What is live (2026-10-30, version 0.4.3, published from the channel scripts by hand because the tag predates the workflow):
+What is live (2026-10-30, version 0.4.4, the first real CI run of the channel pipeline). The tag run skipped apt and scoop because the caller did not pass `secrets: inherit`, so the environment secrets arrived empty; that was fixed in `packages.yml` and the channels were re-run with `release-distribute` dispatched from the tag (apt and scoop `PUBLISHED`; winget, aur and copr clean `SKIP` lines). 0.4.3 was published by hand because its tag predates the workflow:
 
-- **apt:** `https://m7mmad-omar.github.io/kawaro-apt`, signed, served by GitHub Pages. `apt-get update` with the committed public key accepts it and shows 0.4.3 as the candidate; the pooled DEB has the hash of the release `SHA256SUMS`. Install line: [apt.md](distribution-channels/apt.md).
-- **Scoop:** bucket `https://github.com/M7MMAD-OMAR/scoop-kawaro`. The manifest is valid JSON and its hash equals the hash of the ZIP downloaded from the release. Scoop itself was not run (it is not available on this machine).
+- **apt:** `https://m7mmad-omar.github.io/kawaro-apt`, signed, served by GitHub Pages. the 0.4.4 `InRelease` is signed and `Packages` lists 0.4.4 (0.4.3 stays in the pool) with the DEB hash of the release `SHA256SUMS`; `apt-get update` itself was not run on this machine for 0.4.4. Install line: [apt.md](distribution-channels/apt.md).
+- **Scoop:** bucket `https://github.com/M7MMAD-OMAR/scoop-kawaro`. The 0.4.4 manifest was committed by the CI run and its hash equals the `SHA256SUMS` line of the release ZIP. Scoop itself was not run (it is not available on this machine).
 
 Open items, all platform limits:
 
