@@ -41,3 +41,10 @@ Tester, 2026-10-30. New tests (not edited elsewhere): `crates/daemon/tests/s107_
 - A5: `assertion failed: code_of("shell_open.rs").contains("GetForegroundWindow")`.
 - Result: 7 failed, 0 passed in the scans file; the A3 file does not compile. A first draft had a refusal-log test that already passed; it was removed (covered by s106_foreground).
 - Pinning notes for the implementer: the scans read non-comment lines; `foreground`, `show_settings`, `raise_welcome`, `present` must be item-level `fn`s whose body ends at the next `fn`; the timer must be named `Timer`/`timer` with `Duration::from_millis(N)` N in 100..=200 inside each of the three fns, and the settle is `from_millis(N)` N <= 50 inside `foreground`.
+
+Reviewer, 2026-10-30. Verdict: REWORK.
+- A7 (done by the manager, Windows 11 VM, 0.4.5 build, Edge in front): the settings window opens in front. Screenshots: `docs/screenshots/s107/windows/edge-foreground-before.png` and `settings-in-front-after-fix.png`. Which ladder step won was not recorded; the welcome window and the MSI-started daemon case were not shown.
+- Passed: clippy `-D warnings` (daemon), `cargo test -p kawaro-daemon` (205 unit plus all integration files, including s106_foreground 5, s107_should_retry 4, s107_foreground_scans 7), `scripts/windows/check.sh` exit 0, `scripts/design-lint.sh` clean, CHANGELOG line present in English and Arabic, no long dashes found.
+- Failed: `cargo fmt --check` exits 1: rustfmt diffs in `crates/daemon/tests/s107_foreground_scans.rs` (lines 23 and 33, the `.iter().filter_map` marker list). Fix: run `cargo fmt` and commit that file.
+- Note (not blocking): `show_settings` calls `raise_welcome(win)`, which already schedules the 150 ms repeat, and then schedules a second identical timer, so two repeats can run there (criteria say one). Consider removing the extra timer in `show_settings`, or confirm the scan test still passes.
+- Note: `should_retry(verified, 0)` is always called with a literal 0, so the attempts guard is never exercised by the wiring; harmless because the repeat runs once.
