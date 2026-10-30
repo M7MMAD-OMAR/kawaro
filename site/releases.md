@@ -1,6 +1,14 @@
 # الإصدارات
 
-## 0.4.2
+## 0.4.3
+
+## 0.4.3 (2026-10-30)
+- Update page shows what really happens ([S-101](https
+- ترقية MSI تستبدل الملفات فعلاً: كانت الترقية على ويندوز من 0.4.0 أو 0.4.2 إلى حزمة أحدث، بالنقر المزدوج أو `msiexec /i` أو التحديث من داخل التطبيق، تفشل بالخطأ 1603 وتتراجع (الخطأ 2753 في StartDaemon)، وقد تترك مجلداً فارغاً بعد محاولة فاشلة. كان ويندوز يحتفظ بملف تنفيذي مثبت يعدّه معدّلاً من المستخدم (وقت تعديله لاحق لوقت إنشائه)؛ صار للملفين التنفيذيين إصدار ملف (`scripts/windows/msi-fixup.sh`) يستبدل دائماً الملف المثبت غير المؤرَّخ بإصدار، ويتغير معرّف كل مكوّن مع كل بناء (`scripts/windows/guid-tail.sh`) فيُزال المنتج القديم أولاً ثم تُكتب الملفات الجديدة؛ بيانات المستخدم في `%APPDATA%` لا تُمس.
+- Alt plus drag on Hyprland ([S-095b](https
+- Update experience, window and restart ([S-099b](https
+- Update experience, core and IPC ([S-099a](https
+- Introduction film ([S-094c](https
 
 ## 0.4.2 (2026-10-29)
 - MSI upgrade keeps the program files ([S-097](https

@@ -1,6 +1,14 @@
 # Releases
 
-## 0.4.2
+## 0.4.3
+
+## 0.4.3 (2026-10-30)
+- Update page shows what really happens ([S-101](https
+- MSI upgrade really replaces the files ([S-100](https
+- Alt plus drag on Hyprland ([S-095b](https
+- Update experience, window and restart ([S-099b](https
+- Update experience, core and IPC ([S-099a](https
+- Introduction film ([S-094c](https
 
 ## 0.4.2 (2026-10-29)
 - MSI upgrade keeps the program files ([S-097](https
