@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-10-30
+
 ### Fixed
 - The settings and welcome windows come to the front on Windows even when the browser is in front ([S-107](backlog/S-107-windows-foreground-verify.md)): the foreground result is read from `GetForegroundWindow` instead of trusting `SetForegroundWindow`, and the call repeats once 150 ms after the window shows | تظهر نافذتا الإعدادات والترحيب في المقدمة على ويندوز حتى مع المتصفح في الواجهة: تُقرأ نتيجة الأمامية من `GetForegroundWindow` بدل الوثوق بقيمة `SetForegroundWindow`، ويُعاد الاستدعاء مرة واحدة بعد 150 ملّي ثانية من ظهور النافذة
 - Four small Windows defects ([S-106](backlog/S-106-windows-small-defects.md)): the settings window comes to the front after an update (foreground ladder, `AllowSetForegroundWindow` for the new daemon), old downloads and helper copy folders are removed, the Start shortcuts carry the app id so the notification header reads Kawaro, and the window titles read Kawaro | أربعة عيوب صغيرة في ويندوز: تظهر نافذة الإعدادات في المقدمة بعد التحديث (سلّم الأمامية مع السماح للخدمة الجديدة)، وتُحذف التنزيلات القديمة ومجلدات نسخة المساعد، وتحمل اختصارات قائمة ابدأ معرّف التطبيق فيظهر Kawaro في ترويسة الإشعار، وتقرأ عناوين النوافذ Kawaro

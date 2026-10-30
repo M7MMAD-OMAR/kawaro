@@ -23,21 +23,24 @@ fn fn_body(code: &str, name: &str) -> String {
             let sig = format!("{p}{name}");
             code.match_indices(&sig)
                 .find(|(i, _)| {
-                    matches!(
-                        code[i + sig.len()..].chars().next(),
-                        Some('(') | Some('<')
-                    )
+                    matches!(code[i + sig.len()..].chars().next(), Some('(') | Some('<'))
                 })
                 .map(|(i, _)| i)
         })
         .min()
         .unwrap_or_else(|| panic!("fn {name} not found"));
     let rest = &code[start + 3..];
-    let end = ["\nfn ", "\npub fn ", "\npub(crate) fn ", "\n    fn ", "\n    pub fn "]
-        .iter()
-        .filter_map(|m| rest.find(m))
-        .min()
-        .unwrap_or(rest.len());
+    let end = [
+        "\nfn ",
+        "\npub fn ",
+        "\npub(crate) fn ",
+        "\n    fn ",
+        "\n    pub fn ",
+    ]
+    .iter()
+    .filter_map(|m| rest.find(m))
+    .min()
+    .unwrap_or(rest.len());
     rest[..end].to_string()
 }
 

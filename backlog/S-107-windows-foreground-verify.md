@@ -1,5 +1,5 @@
 # S-107 Verify the foreground result and repeat it after the window shows (Windows)
-Status: review
+Status: done
 
 ## Story
 As a Windows user, I want `kawaro settings` and the welcome window to appear in front of the app I am using, so that I do not have to hunt for a window that opened behind my browser.
