@@ -19,14 +19,14 @@ OUT="$TMP/out.txt"
 
 env -u WINGET_CREATE_GITHUB_TOKEN bash "$S" v1.2.3 --dry-run --out "$TMP/m1" > "$OUT" 2>&1
 RC=$?
-check "b2 without the token: exit 10" test "$RC" -eq 10
-check "b3 exact SKIP line names the secret" grep -qx 'SKIP winget: WINGET_CREATE_GITHUB_TOKEN not configured' "$OUT"
+check "b2 dry run without the token: exit 0 (never a SKIP)" test "$RC" -eq 0
+check "b3 NOTE line names the secret" grep -qx 'NOTE winget: WINGET_CREATE_GITHUB_TOKEN not configured, a real run would SKIP' "$OUT"
 check "b4 manifests equal the golden directory byte for byte" diff -r "$G/winget" "$TMP/m1"
 
 WINGET_CREATE_GITHUB_TOKEN="$TOKEN" bash "$S" v1.2.3 --dry-run --out "$TMP/m2" > "$OUT" 2>&1
 RC=$?
 check "b5 dry run with the token: exit 0" test "$RC" -eq 0
-check "b6 dry run says what it would do" grep -q '^DRYRUN winget: would open a manifest update PR for 1.2.3' "$OUT"
+check "b6 dry run says what it would do" grep -q '^DRYRUN winget: would publish 1.2.3' "$OUT"
 check "b7 dry run never prints the token" bash -c "! grep -q '$TOKEN' '$OUT'"
 
 # Validation fails on a missing or malformed MSI hash.

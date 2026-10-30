@@ -6,7 +6,10 @@
 # Each channel is scripts/channels/NAME.sh (see scripts/channels/run-all.sh for
 # the contract). Secrets are ENVIRONMENT secrets of NAME-publishing, passed as
 # whole env values; never define them at repository level, or every channel
-# job could read them. Nothing here pushes to main.
+# job could read them. Each NAME-publishing environment must restrict
+# deployment to v* tags (docs/distribution-channels/README.md). Variable names
+# here must match what scripts/channels/NAME.sh reads;
+# tests/release/s103a_env_drift.sh fails on any drift. Nothing here pushes to main.
 name: release-distribute
 
 on:
@@ -47,11 +50,49 @@ jobs:
       matrix:
         channel: [winget, scoop, copr, aur, apt]
     steps:
+      # The tag is checked before anything uses it as a ref or a path.
+      - name: Validate the tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -eu +x
+          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
+            echo "not a release tag"
+            exit 2
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
+      # Tools are installed only for the channel that needs them, pinned.
+      - name: Install Komac (winget)
+        if: matrix.channel == 'winget'
+        env:
+          KOMAC_VERSION: "2.17.1"
+          KOMAC_SHA256: e694e79cd451afabf47bead66ed34586fef4814f7b94e4b61a098f419978d5d7
+        run: |
+          set -eu
+          f="komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/$f" "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/$f"
+          echo "${KOMAC_SHA256}  $RUNNER_TEMP/$f" | sha256sum -c -
+          mkdir -p "$RUNNER_TEMP/bin"
+          tar -xzf "$RUNNER_TEMP/$f" -C "$RUNNER_TEMP/bin" komac
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+      - name: Install copr tools (copr)
+        if: matrix.channel == 'copr'
+        run: |
+          set -eu
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq rpm rpmlint
+          python3 -m venv "$RUNNER_TEMP/copr-venv"
+          "$RUNNER_TEMP/copr-venv/bin/pip" install --require-hashes --no-deps -r packaging/release/copr-cli-requirements.txt
+          echo "$RUNNER_TEMP/copr-venv/bin" >> "$GITHUB_PATH"
+      # The APT signing key is in the step env of the apt step ONLY. apt.sh
+      # syncs, signs and uploads in one process (AC-f2 amended in S-103), so
+      # that step also holds the object storage credentials; the key lives in
+      # the apt-publishing environment, limited to v* tags.
       - name: Run the channel
+        if: matrix.channel != 'apt'
         env:
           TAG: ${{ inputs.tag }}
           DRY_RUN: ${{ inputs.dry_run }}
@@ -59,19 +100,35 @@ jobs:
           CANONICAL_REPO: ${{ vars.CANONICAL_REPO }}
           WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
           SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          BUCKET_REPO: ${{ vars.BUCKET_REPO }}
           COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
-          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
-          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+          COPR_PROJECT: ${{ vars.COPR_PROJECT }}
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
         run: |
           set -eu +x
-          if ! printf '%s' "$TAG" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$'; then
-            echo "not a release tag: $TAG"
-            exit 2
-          fi
           flags=()
           [ "$DRY_RUN" != true ] || flags+=(--dry-run)
           rc=0
-          scripts/channels/run-all.sh "$TAG" --only "$CHANNEL" --results-dir "$RUNNER_TEMP/results" "${flags[@]}" || rc=$?
+          scripts/channels/run-all.sh "$TAG" --only "$CHANNEL" --results-dir "$RUNNER_TEMP/results" ${flags[@]+"${flags[@]}"} || rc=$?
+          exit "$rc"
+      - name: Run the apt channel (signing key)
+        if: matrix.channel == 'apt'
+        env:
+          TAG: ${{ inputs.tag }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          CHANNEL: ${{ matrix.channel }}
+          CANONICAL_REPO: ${{ vars.CANONICAL_REPO }}
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+          APT_R2_ACCESS_KEY_ID: ${{ secrets.APT_R2_ACCESS_KEY_ID }}
+          APT_R2_SECRET_ACCESS_KEY: ${{ secrets.APT_R2_SECRET_ACCESS_KEY }}
+          APT_R2_ACCOUNT_ID: ${{ secrets.APT_R2_ACCOUNT_ID }}
+          APT_R2_BUCKET: ${{ vars.APT_R2_BUCKET }}
+        run: |
+          set -eu +x
+          flags=()
+          [ "$DRY_RUN" != true ] || flags+=(--dry-run)
+          rc=0
+          scripts/channels/run-all.sh "$TAG" --only "$CHANNEL" --results-dir "$RUNNER_TEMP/results" ${flags[@]+"${flags[@]}"} || rc=$?
           exit "$rc"
       - name: Keep the result
         if: always()

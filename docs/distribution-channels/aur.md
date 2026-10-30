@@ -2,7 +2,7 @@
 
 Install on Arch based systems:
 
-```
+5. The secret name is `AUR_SSH_KEY` everywhere (S-078 and S-103 used `AUR_SSH_PRIVATE_KEY` before the scripts fixed the name).
 yay -S kawaro-bin
 ```
 

@@ -38,7 +38,7 @@ assert sorted(m["matrix"]["channel"]) == ["apt", "aur", "copr", "scoop", "winget
 assert m["fail-fast"] is False
 PY
 check "w5 every uses: is pinned to 40 hex characters" bash -c "! grep -E '^\s*-?\s*uses:' '$W' | grep -vqE '@[0-9a-f]{40}( |\$)'"
-check "w6 no secrets. outside a whole env value" bash -c "! grep -n 'secrets\.' '$W' | grep -vE '^[0-9]+:\s+[A-Z_]+: \\$\{\{ secrets\.[A-Z_]+ \}\}\s*\$'"
+check "w6 no secrets. outside a whole env value" bash -c "! grep -n 'secrets\.' '$W' | grep -vE '^[0-9]+:\s+[A-Z0-9_]+: \\$\{\{ secrets\.[A-Z0-9_]+ \}\}\s*\$'"
 check "w7 top level permissions are empty" py "$W" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))

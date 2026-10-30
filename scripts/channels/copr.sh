@@ -68,14 +68,11 @@ copr_missing=""
 
 if [ "$dry" -eq 1 ]; then
   lint_spec
-  if [ -n "$copr_missing" ]; then
-    echo "SKIP copr: $copr_missing not configured"
-    exit "$SKIP"
-  fi
   rs=()
   for c in "${CHROOTS[@]}"; do rs+=(-r "$c"); done
+  [ -z "$copr_missing" ] || echo "NOTE copr: $copr_missing not configured, a real run would SKIP"
   echo "DRYRUN copr: would publish $version"
-  echo "DRYRUN copr: would run: copr-cli --config <temporary file> build --nowait ${COPR_PROJECT} <srpm> ${rs[*]}"
+  echo "DRYRUN copr: would run: copr-cli --config <temporary file> build --nowait ${COPR_PROJECT:-COPR_PROJECT} <srpm> ${rs[*]}"
   echo "DRYRUN copr: would wait with copr-cli watch-build and require status succeeded for: ${CHROOTS[*]}"
   exit 0
 fi

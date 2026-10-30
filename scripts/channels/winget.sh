@@ -132,10 +132,9 @@ if [ "$dry" -eq 1 ]; then
   validate_manifests "$out" || exit 1
   echo "winget: preview manifests built and validated in $out"
   if [ -z "${!SECRET:-}" ]; then
-    echo "SKIP winget: $SECRET not configured"
-    exit 10
+    echo "NOTE winget: $SECRET not configured, a real run would SKIP"
   fi
-  echo "DRYRUN winget: would open a manifest update PR for $version ($PKG, $msi) from the fork"
+  echo "DRYRUN winget: would publish $version: open a manifest update PR ($PKG, $msi) from the fork"
   exit 0
 fi
 
