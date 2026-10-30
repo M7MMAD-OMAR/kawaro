@@ -570,18 +570,8 @@ for c in json.load(sys.stdin):
       reset_hive "the drop show (b)"
     fi
     say "INFO S-021 AC5 (b): keys.py clicks at (40, 40) ${bclicks}, catcher still bound after the click ${bstay}"
-    # S-105: Hyprland 0.57 enters a layer surface on map and the catcher then
-    # takes the first click; known limit, the check still runs and asserts
-    # exactly as before on older Hyprland (version gate, manager ruling).
-    local hv hmaj hmin
-    hv=$(hyprctl version 2>/dev/null | grep -oE 'Hyprland [0-9]+\.[0-9]+' | head -1)
-    hmaj=$(sed -E 's/Hyprland ([0-9]+)\..*/\1/' <<<"$hv"); hmin=$(sed -E 's/Hyprland [0-9]+\.([0-9]+)/\1/' <<<"$hv")
-    if [ -n "$hv" ] && { [ "$hmaj" -gt 0 ] || [ "$hmin" -ge 57 ]; }; then
-      say "SKIP S-021 AC5 (b) known limit on Hyprland >= 0.57 (S-105)"
-    else
     check "S-021 AC5 (b) drop show, pointer at (40, 40) outside the hive: a click there reaches keys.py once and the catcher stays bound" \
       '[ "$bclicks" = 1 ] && [ "$bstay" = yes ]'
-    fi
     probe_checks "AC5 (b) pointer into the rectangle" "$bseg" pointer
     # S-019 decision 12, the same show (the trace lines, not after()), with
     # the S-021 AC4 reference: the catcher's ready commit (its first commit

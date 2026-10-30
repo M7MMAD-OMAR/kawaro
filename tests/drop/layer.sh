@@ -98,9 +98,15 @@ catcher_ready() {
 # RECT: X Y W H of the show's last "hive surface: layer" line; SW: the
 # segment line of that first region.
 still_region() {
-  local seg=$1 cat child fr="" sw="" dt=none ent=0 first=none last=none rect l
-  cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  local seg=$1 cat child fr="" sw="" dt=none ent=0 first=none last=none rect l gl_n
+  # S-105: a show without --at on a still pointer maps two catchers (the
+  # first is destroyed and remapped at the enter position); the decision 12
+  # region is the surviving, last catcher's. The segment is cut at its
+  # get_layer_surface line, so every line number below counts from there.
   child=$(grep -oE -- '-> wl_subcompositor[#@][0-9]+\.get_subsurface\(new id wl_subsurface[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
+  gl_n=$(grep -nE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(' <<<"$seg" | tail -1 | cut -d: -f1)
+  [ -n "$gl_n" ] && seg=$(tail -n +"$gl_n" <<<"$seg")
+  cat=$(grep -oE -- '-> zwlr_layer_shell_v1[#@][0-9]+\.get_layer_surface\(new id zwlr_layer_surface_v1[#@][0-9]+, wl_surface[#@][0-9]+' <<<"$seg" | head -1 | grep -oE 'wl_surface[#@][0-9]+$')
   rect=$(grep -E '^hive surface: layer -?[0-9]+ -?[0-9]+ [0-9]+ [0-9]+$' <<<"$seg" | tail -1 | cut -d' ' -f4-)
   if [ -n "$cat" ] && [ -n "$child" ]; then
     fr=$(catcher_ready "$seg")

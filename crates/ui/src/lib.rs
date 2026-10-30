@@ -1217,6 +1217,8 @@ mod s074_tests;
 #[cfg(test)]
 mod s084_trigger_tests;
 #[cfg(test)]
+mod s105_tests;
+#[cfg(test)]
 mod s108_tests;
 #[cfg(test)]
 mod s108b_tests;
