@@ -631,10 +631,11 @@ fn show_settings(config: Config, page: Option<usize>, result: Option<kawaro_ui::
                 win.set_update_view(env!("CARGO_PKG_VERSION"), state, true);
                 win.show_update_result(Some(result.clone()));
             }
-            raise_welcome(win);
-            // S-107: one repeat after the window is really shown.
+            // S-107: take the foreground once, then exactly one repeat after
+            // the window is really shown (raise_welcome would add a second).
             #[cfg(windows)]
             if let Some(hwnd) = win.hwnd() {
+                crate::shell_open::foreground(hwnd);
                 slint::Timer::single_shot(Duration::from_millis(150), move || {
                     let verified = crate::shell_open::is_foreground(hwnd);
                     if crate::foreground_logic::should_retry(verified, 0) {
