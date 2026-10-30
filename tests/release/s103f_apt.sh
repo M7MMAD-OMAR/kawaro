@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# S-103f: the apt repository channel. Offline: `aws` and `curl` are stubs, the
-# "bucket" is a local directory, the key is generated here and thrown away.
+# S-103f: the apt repository channel. Offline: `curl` is a stub, the Pages
+# repository is a local bare git repository (the channel pushes one commit),
+# the keys are generated here and thrown away.
 # Needs gpg, gpgv, dpkg-deb, apt-ftparchive; apt-get is used when present.
 # shellcheck disable=SC2016
 set -u
@@ -18,8 +19,13 @@ check "S-103f build-repo.sh exists and is executable" test -x "$BUILD"
 check "S-103f apt.sh passes shellcheck" shellcheck -S warning -x "$APT"
 check "S-103f build-repo.sh passes shellcheck" shellcheck -S warning -x "$BUILD"
 check "S-103f the test is part of run_all" grep -qw s103f_apt "$REPO_ROOT/tests/release/run_all.sh"
-check "S-103f engines.md records apt-ftparchive, GnuPG and the upload tool" \
-  bash -c 'grep -q apt-ftparchive "$1" && grep -q GnuPG "$1" && grep -qi "aws cli" "$1"' _ "$REPO_ROOT/docs/engines.md"
+check "S-103f engines.md records apt-ftparchive, GnuPG and the push tool" \
+  bash -c 'grep -q apt-ftparchive "$1" && grep -q GnuPG "$1" && grep -qi "openssh" "$1" && ! grep -qi "aws cli" "$1"' _ "$REPO_ROOT/docs/engines.md"
+KH="$REPO_ROOT/packaging/release/github_known_hosts"
+check "S-103f the committed GitHub known_hosts has the ed25519 host key" grep -Eq '^github\.com ssh-ed25519 AAAA' "$KH"
+check "S-103f apt.sh uses strict host key checking and the committed file" \
+  bash -c 'grep -q "StrictHostKeyChecking=yes" "$1" && grep -q github_known_hosts "$1" && ! grep -q "StrictHostKeyChecking=no\|accept-new" "$1"' _ "$APT"
+check "S-103f apt.sh no longer uses object storage" bash -c '! grep -qiE "aws |r2|s3://" "$1"' _ "$APT"
 
 # A throwaway passphrase protected key, never a real one.
 GH="$TMP/gh"; mkdir -m 700 "$GH"
@@ -45,32 +51,25 @@ mkdeb() { # mkdeb VERSION
 }
 for v in 1.0.0 1.0.1 1.0.2 1.0.3; do mkdeb "$v"; done
 
-# Stubs: aws maps s3://bucket/ to a directory, curl records and fails.
+# Stub: curl records and fails (nothing may be downloaded in these runs).
 BIN="$TMP/bin"; mkdir -p "$BIN"
-cat > "$BIN/aws" <<'STUB'
-#!/usr/bin/env bash
-echo "aws $*" >> "$STUB_LOG"
-args=(); skip=0
-for a in "$@"; do
-  if [ "$skip" = 1 ]; then skip=0; continue; fi
-  case "$a" in --endpoint-url) skip=1 ;; --*) ;; *) args+=("$a") ;; esac
-done
-[ "${args[0]}" = s3 ] || exit 2
-map() { case "$1" in "s3://$STUB_BUCKET/"*) echo "$STUB_BUCKET_DIR/${1#"s3://$STUB_BUCKET/"}" ;; s3://*) exit 3 ;; *) echo "$1" ;; esac; }
-case "${args[1]}" in
-  sync) src="$(map "${args[2]}")"; dst="$(map "${args[3]}")"; mkdir -p "$dst"; [ ! -d "$src" ] || cp -a "$src/." "$dst/" ;;
-  cp) src="$(map "${args[2]}")"; dst="$(map "${args[3]}")"; [ -f "$src" ] || exit 1; mkdir -p "$(dirname "$dst")"; cp "$src" "$dst" ;;
-  rm) rm -f "$(map "${args[2]}")" ;;
-  *) exit 2 ;;
-esac
-STUB
 printf '#!/bin/sh\necho "curl $*" >> "$STUB_LOG"\nexit 22\n' > "$BIN/curl"
 chmod +x "$BIN"/*
 
-BUCKET="$TMP/bucket"; mkdir -p "$BUCKET" "$TMP/t"
+# The Pages repository: a local bare repository with the README commit a new
+# GitHub repository starts with. BUCKET is a fresh checkout of it.
+PAGES="$TMP/pages.git"
+git init -q --bare -b main "$PAGES"
+git clone -q "$PAGES" "$TMP/seed" 2>/dev/null
+( cd "$TMP/seed" && git config user.name t && git config user.email t@t.invalid \
+  && echo "# kawaro-apt" > README.md && git add README.md && git commit -q -m init && git push -q origin HEAD:main )
+BUCKET="$TMP/bucket"; mkdir -p "$TMP/t"
+snap() { rm -rf "$BUCKET"; git clone -q "$PAGES" "$BUCKET" 2>/dev/null; }
+ncommits() { git -C "$PAGES" rev-list --count main; }
 keyfile="$TMP/seckey.asc"; printf '%s\n' "$SECKEY" > "$keyfile"
-export_env=(APT_SIGNING_PASSPHRASE="$PASS_SENT" APT_R2_ACCESS_KEY_ID=ak-sentinel-77 APT_R2_SECRET_ACCESS_KEY=sk-sentinel-88
-  APT_R2_ACCOUNT_ID=acct123 APT_R2_BUCKET=kawaro-apt CANONICAL_REPO=OWNER/kawaro APT_PUBLIC_KEY_FILE="$TMP/pub.asc")
+DEPLOY_SENT='sentinel-deploy-key-9f2a'
+export_env=(APT_SIGNING_PASSPHRASE="$PASS_SENT" APT_DEPLOY_KEY="$DEPLOY_SENT" APT_REPO=OWNER/kawaro-apt
+  APT_REPO_URL="file://$PAGES" CANONICAL_REPO=OWNER/kawaro APT_PUBLIC_KEY_FILE="$TMP/pub.asc")
 
 run() { # run LOG [VAR=VALUE ...] -- tag args   (APT_SIGNING_KEY always set unless NOKEY=1)
   local name="$1"; shift
@@ -79,30 +78,37 @@ run() { # run LOG [VAR=VALUE ...] -- tag args   (APT_SIGNING_KEY always set unle
   shift
   : > "$TMP/$name.log"
   OUT="$(cd "$REPO_ROOT" && env "${export_env[@]}" APT_SIGNING_KEY="$SECKEY" "${envs[@]}" \
-    PATH="$BIN:$PATH" TMPDIR="$TMP/t" STUB_LOG="$TMP/$name.log" STUB_BUCKET=kawaro-apt STUB_BUCKET_DIR="$BUCKET" \
+    PATH="$BIN:$PATH" TMPDIR="$TMP/t" STUB_LOG="$TMP/$name.log" \
     "$APT" "$@" 2>&1)"
   RC=$?
 }
 publish() { run "p$1" "APT_DEB_FILE=$TMP/debs/kawaro_$1_amd64.deb" -- "v$1"; }
 leaks() { # leaks TEXT: true when no secret value is in it
-  ! grep -qF -e "$PASS_SENT" -e ak-sentinel-77 -e sk-sentinel-88 -e 'PRIVATE KEY' <<<"$1"
+  ! grep -qF -e "$PASS_SENT" -e "$DEPLOY_SENT" -e 'PRIVATE KEY' <<<"$1"
 }
 
 # Dry run: no secrets needed, nothing external, three ordered phases.
 run dry NOKEY=1 APT_SIGNING_KEY= -- v1.0.0 --dry-run
 check "S-103f dry run exits 0 without a key" test "$RC" -eq 0
 check "S-103f dry run prints the plan line" grep -qxF 'DRYRUN apt: would publish 1.0.0' <<<"$OUT"
-check "S-103f dry run lists the three upload phases in order" bash -c '
-  a="$(grep -n "phase 1.*pool" <<<"$1" | cut -d: -f1)"; b="$(grep -n "phase 2.*metadata" <<<"$1" | cut -d: -f1)"
-  c="$(grep -n "phase 3.*Release" <<<"$1" | cut -d: -f1)"
-  [ -n "$a" ] && [ -n "$b" ] && [ -n "$c" ] && [ "$a" -lt "$b" ] && [ "$b" -lt "$c" ]' _ "$OUT"
+check "S-103f dry run says it commits one atomic change to the Pages repository over ssh" \
+  bash -c 'grep -q "DRYRUN apt: .*one commit" <<<"$1" && grep -q "StrictHostKeyChecking=yes" <<<"$1" && grep -q github_known_hosts <<<"$1"' _ "$OUT"
+check "S-103f dry run keeps the 3 newest versions" grep -q 'DRYRUN apt: .*3 newest' <<<"$OUT"
 check "S-103f dry run made no external call" test ! -s "$TMP/dry.log"
+
+# A dry run that has the signing key also checks it against the committed public key.
+run dk -- v1.0.0 --dry-run
+check "S-103f dry run with the key confirms the fingerprint match" \
+  bash -c '[ "$1" -eq 0 ] && grep -qxF "DRYRUN apt: signing key matches the committed public key $2" <<<"$3"' _ "$RC" "$FPR" "$OUT"
+check "S-103f ...and leaks nothing" leaks "$OUT"
+run dkm APT_PUBLIC_KEY_FILE="$TMP/other.asc" -- v1.0.0 --dry-run
+check "S-103f dry run with a mismatching public key fails" bash -c '[ "$1" -ne 0 ] && [ "$1" -ne 10 ]' _ "$RC"
 
 # Clean SKIP, one line naming the variable.
 run s1 APT_SIGNING_KEY= -- v1.0.0
 check "S-103f no key: exit 10 and the exact SKIP line" \
   bash -c '[ "$1" -eq 10 ] && [ "$2" = "SKIP apt: APT_SIGNING_KEY not configured" ]' _ "$RC" "$OUT"
-for v in APT_R2_ACCESS_KEY_ID APT_R2_SECRET_ACCESS_KEY APT_R2_ACCOUNT_ID APT_R2_BUCKET CANONICAL_REPO; do
+for v in APT_DEPLOY_KEY APT_REPO CANONICAL_REPO; do
   run s2 "$v=" -- v1.0.0
   check "S-103f missing $v: exit 10 naming it" \
     bash -c '[ "$1" -eq 10 ] && [ "$2" = "SKIP apt: $3 not configured" ]' _ "$RC" "$OUT" "$v"
@@ -120,11 +126,13 @@ check "S-103f a skip made no external call" test ! -s "$TMP/s2.log"
 # A public key that does not belong to the signing key is refused before any upload.
 run mm APT_PUBLIC_KEY_FILE="$TMP/other.asc" "APT_DEB_FILE=$TMP/debs/kawaro_1.0.0_amd64.deb" -- v1.0.0
 check "S-103f a mismatching committed public key fails" bash -c '[ "$1" -ne 0 ] && [ "$1" -ne 10 ]' _ "$RC"
-check "S-103f ...and nothing was uploaded" bash -c '! grep -q "s3 cp .* s3://" "$1"' _ "$TMP/mm.log"
+check "S-103f ...and nothing was pushed" test "$(ncommits)" -eq 1
 check "S-103f ...and the failure leaks nothing" leaks "$OUT"
 
 # First real publication.
 publish 1.0.0
+snap
+check "S-103f first publication is exactly one new commit" test "$(ncommits)" -eq 2
 check "S-103f first publication exits 0" test "$RC" -eq 0
 check "S-103f first publication prints PUBLISHED" grep -qxF 'PUBLISHED apt: 1.0.0' <<<"$OUT"
 for f in dists/stable/InRelease dists/stable/Release dists/stable/Release.gpg \
@@ -162,38 +170,37 @@ check "S-103f a modified Release fails gpgv" bash -c '! gpgv --keyring "$1" "$2"
 check "S-103f another key does not verify" bash -c '! gpgv --keyring "$1" "$2" "$3" >/dev/null 2>&1' _ \
   "$TMP/other-keyring.gpg" "$BUCKET/dists/stable/Release.gpg" "$R"
 
-# Phase order in the recorded calls: pool first, Release files last.
+# One atomic commit holds the pool object, the metadata and the Release files.
 L="$TMP/p1.0.0.log"
-check "S-103f upload order is pool, then metadata, then Release files" bash -c '
-  n() { grep -n "$2" "$1" | head -1 | cut -d: -f1; }
-  a="$(n "$1" "s3 cp .*kawaro_1.0.0_amd64.deb")"; b="$(n "$1" "s3 cp .*Packages.gz")"
-  c="$(n "$1" "s3 cp .*stable/Release s3")"; d="$(n "$1" "s3 cp .*Release.gpg")"; e="$(n "$1" "s3 cp .*InRelease")"
-  [ -n "$a$b$c$d$e" ] && [ "$a" -lt "$b" ] && [ "$b" -lt "$c" ] && [ "$b" -lt "$d" ] && [ "$b" -lt "$e" ]
-  last="$(grep -n "s3 cp" "$1" | tail -1)"; grep -q "InRelease\|Release.gpg\|/Release " <<<"$last"' _ "$L"
-check "S-103f the R2 endpoint comes from the account variable" grep -q -- '--endpoint-url https://acct123.r2.cloudflarestorage.com' "$L"
-check "S-103f no secret in output or recorded calls" bash -c '! grep -qF -e "$1" -e ak-sentinel-77 -e sk-sentinel-88 -e "PRIVATE KEY" "$2" "$3"' _ "$PASS_SENT" "$L" <(printf '%s' "$OUT")
+check "S-103f the one commit holds pool, metadata and Release files together" bash -c '
+  f="$(git -C "$1" show --name-only --format= HEAD)"
+  grep -q "^pool/main/k/kawaro/kawaro_1.0.0_amd64.deb$" <<<"$f" && grep -q "binary-amd64/Packages.gz$" <<<"$f" && grep -q "^dists/stable/InRelease$" <<<"$f"' _ "$BUCKET"
+check "S-103f the Pages tree has .nojekyll" test -e "$BUCKET/.nojekyll"
+check "S-103f the commit has no personal identity" bash -c '! git -C "$1" log -1 --format="%an %ae %cn %ce" | grep -qE "@[A-Za-z0-9.-]+\.[a-z]{2,}"' _ "$BUCKET"
+check "S-103f the push was never forced" bash -c '! grep -E "git .*push" "$1" | grep -qE -- "--force|-f |[[:space:]]\+"' _ "$APT"
+check "S-103f no secret in output or recorded calls" bash -c '! grep -qF -e "$1" -e "$4" -e "PRIVATE KEY" "$2" "$3"' _ "$PASS_SENT" "$L" <(printf '%s' "$OUT") "$DEPLOY_SENT"
+check "S-103f no secret was committed to the Pages repository" bash -c '! git -C "$1" grep -qF -e "$2" -e "$3" -e "PRIVATE KEY" $(git -C "$1" rev-list --all)' _ "$BUCKET" "$PASS_SENT" "$DEPLOY_SENT"
 check "S-103f the temporary keyring and work dir are wiped" bash -c '[ -z "$(ls -A "$1")" ]' _ "$TMP/t"
 
 # Idempotence.
-before="$(cd "$BUCKET" && find . -type f -print0 | sort -z | xargs -0 sha256sum)"
+before="$(ncommits)"
 publish 1.0.0
 check "S-103f a second run of the same tag exits 0 with UNCHANGED" \
   bash -c '[ "$1" -eq 0 ] && grep -qxF "UNCHANGED apt: 1.0.0" <<<"$2"' _ "$RC" "$OUT"
-check "S-103f ...and uploads nothing" bash -c '! grep -q "s3 cp .* s3://\|s3 rm" "$1"' _ "$TMP/p1.0.0.log"
-check "S-103f ...and the bucket is byte for byte the same" \
-  bash -c '[ "$1" = "$(cd "$2" && find . -type f -print0 | sort -z | xargs -0 sha256sum)" ]' _ "$before" "$BUCKET"
+check "S-103f ...and pushes nothing, no new commit" test "$(ncommits)" = "$before"
 
 # Older versions are kept, three at most.
-publish 1.0.1; publish 1.0.2
+publish 1.0.1; publish 1.0.2; snap
 check "S-103f three versions are kept" bash -c 'ls "$1"/pool/main/k/kawaro/ | sort | tr "\n" " " | grep -qx "kawaro_1.0.0_amd64.deb kawaro_1.0.1_amd64.deb kawaro_1.0.2_amd64.deb "' _ "$BUCKET"
 publish 1.0.3
+snap
 check "S-103f the fourth version evicts the oldest from the pool" \
   bash -c 'ls "$1"/pool/main/k/kawaro/ | sort | tr "\n" " " | grep -qx "kawaro_1.0.1_amd64.deb kawaro_1.0.2_amd64.deb kawaro_1.0.3_amd64.deb "' _ "$BUCKET"
 check "S-103f Packages indexes exactly the three newest" bash -c '
   [ "$(grep -c "^Version:" "$1")" -eq 3 ] && ! grep -qx "Version: 1.0.0" "$1" && grep -qx "Version: 1.0.3" "$1"' _ "$P"
-check "S-103f the old pool object is removed only after the Release files" bash -c '
-  r="$(grep -n "s3 rm" "$1" | head -1 | cut -d: -f1)"; c="$(grep -n "s3 cp .*InRelease" "$1" | head -1 | cut -d: -f1)"
-  [ -n "$r" ] && [ -n "$c" ] && [ "$r" -gt "$c" ]' _ "$TMP/p1.0.3.log"
+check "S-103f the old pool object is removed in the same commit as the new index" bash -c '
+  f="$(git -C "$1" show --name-status --format= HEAD)"
+  grep -q "^D.pool/main/k/kawaro/kawaro_1.0.0_amd64.deb$" <<<"$f" && grep -q "^A.pool/main/k/kawaro/kawaro_1.0.3_amd64.deb$" <<<"$f" && grep -q "InRelease$" <<<"$f"' _ "$BUCKET"
 check "S-103f the final signatures still verify" \
   gpgv --quiet --keyring "$BUCKET/kawaro-archive-keyring.gpg" "$BUCKET/dists/stable/InRelease" 2>/dev/null
 
@@ -229,10 +236,11 @@ fi
 # Docs.
 check "S-103f the doc exists" test -f "$DOC"
 for s in '/etc/apt/keyrings/' 'Signed-By:' 'signed-by=' '.sources' 'kawaro-archive-keyring.gpg' 'OWNER' \
-  'OWNER ACTIONS' 'APT_SIGNING_KEY' 'APT_SIGNING_PASSPHRASE' 'APT_R2_ACCESS_KEY_ID' 'APT_R2_SECRET_ACCESS_KEY' \
-  'APT_R2_ACCOUNT_ID' 'APT_R2_BUCKET' 'Kawaro release signing' 'Ubuntu' 'Debian' 'Kali' 'dists/stable/main/binary-amd64' 'pool/'; do
+  'APT_SIGNING_KEY' 'APT_SIGNING_PASSPHRASE' 'APT_DEPLOY_KEY' 'APT_REPO' 'github.io' 'passphrase' 'Kawaro release signing' 'Ubuntu' 'Debian' 'Kali' 'dists/stable/main/binary-amd64' 'pool/'; do
   check "S-103f the doc mentions $s" grep -qF -- "$s" "$DOC"
 done
+check "S-103f the doc has no owner action list and no object storage" \
+  bash -c '! grep -qE "OWNER ACTIONS|R2|bucket" "$1"' _ "$DOC"
 check "S-103f the doc documents the manual Debian and Kali inclusion path" \
   bash -c 'grep -qi "mentors" "$1" && grep -qi "manual" "$1"' _ "$DOC"
 check "S-103f the doc never allows an unauthenticated install" \

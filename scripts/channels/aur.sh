@@ -4,11 +4,13 @@
 #   scripts/channels/aur.sh vX.Y.Z [--dry-run]
 # Environment (names only, values are never printed):
 #   AUR_SSH_KEY       private SSH key registered on the AUR account
+#   AUR_ENABLED       variable, must be "true"; set it once an AUR account exists
+#                     and its public key is registered (until then: clean SKIP)
 #   CANONICAL_REPO    OWNER/NAME of this project (release URLs)
 #   SHA256SUMS_FILE   optional local SHA256SUMS (default dist/SHA256SUMS,
 #                     else downloaded from the release)
 #   AUR_KNOWN_HOSTS   optional known_hosts path (default packaging/aur/known_hosts,
-#                     committed after the owner verified the AUR host keys)
+#                     committed after the host keys were verified against the published fingerprints)
 #   AUR_REPO_URL      optional remote override (tests use a local path)
 # Exit 0 done, 10 clean SKIP (not configured, or prerelease), other = failure.
 set -euo pipefail
@@ -30,6 +32,7 @@ missing=""
 if [ -z "${AUR_SSH_KEY:-}" ]; then missing="AUR_SSH_KEY"
 elif [ -z "${CANONICAL_REPO:-}" ]; then missing="CANONICAL_REPO"
 elif [ ! -s "$known_hosts" ]; then missing="packaging/aur/known_hosts"
+elif [ "${AUR_ENABLED:-}" != true ]; then missing="AUR_ENABLED"
 fi
 if [ -n "$missing" ]; then
   if [ "$dry" = 0 ]; then echo "SKIP aur: $missing not configured"; exit 10; fi

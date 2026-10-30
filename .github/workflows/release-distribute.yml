@@ -88,9 +88,9 @@ jobs:
           "$RUNNER_TEMP/copr-venv/bin/pip" install --require-hashes --no-deps -r packaging/release/copr-cli-requirements.txt
           echo "$RUNNER_TEMP/copr-venv/bin" >> "$GITHUB_PATH"
       # The APT signing key is in the step env of the apt step ONLY. apt.sh
-      # syncs, signs and uploads in one process (AC-f2 amended in S-103), so
-      # that step also holds the object storage credentials; the key lives in
-      # the apt-publishing environment, limited to v* tags.
+      # builds, signs and pushes in one process (AC-f2 amended in S-103), so
+      # that step also holds the deploy key of the Pages repository; both live
+      # in the apt-publishing environment, limited to v* tags.
       - name: Run the channel
         if: matrix.channel != 'apt'
         env:
@@ -99,11 +99,12 @@ jobs:
           CHANNEL: ${{ matrix.channel }}
           CANONICAL_REPO: ${{ vars.CANONICAL_REPO }}
           WINGET_CREATE_GITHUB_TOKEN: ${{ secrets.WINGET_CREATE_GITHUB_TOKEN }}
-          SCOOP_BUCKET_TOKEN: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          SCOOP_DEPLOY_KEY: ${{ secrets.SCOOP_DEPLOY_KEY }}
           BUCKET_REPO: ${{ vars.BUCKET_REPO }}
           COPR_CONFIG: ${{ secrets.COPR_CONFIG }}
           COPR_PROJECT: ${{ vars.COPR_PROJECT }}
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+          AUR_ENABLED: ${{ vars.AUR_ENABLED }}
         run: |
           set -eu +x
           flags=()
@@ -120,10 +121,8 @@ jobs:
           CANONICAL_REPO: ${{ vars.CANONICAL_REPO }}
           APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
           APT_SIGNING_PASSPHRASE: ${{ secrets.APT_SIGNING_PASSPHRASE }}
-          APT_R2_ACCESS_KEY_ID: ${{ secrets.APT_R2_ACCESS_KEY_ID }}
-          APT_R2_SECRET_ACCESS_KEY: ${{ secrets.APT_R2_SECRET_ACCESS_KEY }}
-          APT_R2_ACCOUNT_ID: ${{ vars.APT_R2_ACCOUNT_ID }}
-          APT_R2_BUCKET: ${{ vars.APT_R2_BUCKET }}
+          APT_DEPLOY_KEY: ${{ secrets.APT_DEPLOY_KEY }}
+          APT_REPO: ${{ vars.APT_REPO }}
         run: |
           set -eu +x
           flags=()

@@ -13,7 +13,7 @@ GOLD="$REPO_ROOT/tests/release/golden"
 export TMPDIR="$TMP" CANONICAL_REPO=OWNER/kawaro
 KEY="fixture-key-material-do-not-print-5678"
 
-unset AUR_SSH_KEY AUR_REPO_URL AUR_KNOWN_HOSTS
+unset AUR_SSH_KEY AUR_REPO_URL AUR_KNOWN_HOSTS AUR_ENABLED
 
 # AC-e1: two fixture versions equal the golden files, sha256 equals the DEB line.
 for v in 0.4.3 1.2.0; do
@@ -55,10 +55,19 @@ export AUR_SSH_KEY="$KEY"
 out="$(AUR_KNOWN_HOSTS="$TMP/absent" "$CH" v0.4.3 2>&1)"; rc=$?
 check "missing known_hosts: exit 10, SKIP names it" test "$rc:$out" = "10:SKIP aur: packaging/aur/known_hosts not configured"
 
+# The account switch: key and host keys alone do not publish (no AUR account
+# exists yet), the variable AUR_ENABLED=true turns the channel on.
+printf 'localhost ssh-ed25519 AAAAfixture\n' >"$TMP/kh0"
+out="$(AUR_KNOWN_HOSTS="$TMP/kh0" "$CH" v0.4.3 2>&1)"; rc=$?
+check "key and host keys but no AUR_ENABLED: clean SKIP naming it" test "$rc:$out" = "10:SKIP aur: AUR_ENABLED not configured"
+out="$(AUR_ENABLED=false AUR_KNOWN_HOSTS="$TMP/kh0" "$CH" v0.4.3 2>&1)"; rc=$?
+check "AUR_ENABLED=false is a clean SKIP" test "$rc:$out" = "10:SKIP aur: AUR_ENABLED not configured"
+check "the committed AUR known_hosts has the three host keys" test "$(grep -c '^aur.archlinux.org \(ssh-ed25519\|ssh-rsa\|ecdsa-sha2-nistp256\) ' "$REPO_ROOT/packaging/aur/known_hosts")" = 3
+
 # AC-e3: push to a local bare repository, fast forward only, rerun is a no-op.
 git init -q --bare -b master "$TMP/aur.git"
 printf 'localhost ssh-ed25519 AAAAfixture\n' >"$TMP/kh"
-export AUR_REPO_URL="file://$TMP/aur.git" AUR_KNOWN_HOSTS="$TMP/kh"
+export AUR_ENABLED=true AUR_REPO_URL="file://$TMP/aur.git" AUR_KNOWN_HOSTS="$TMP/kh"
 out1="$("$CH" v0.4.3 2>&1)"; rc1=$?
 n1="$(git -C "$TMP/aur.git" rev-list --count master 2>/dev/null || echo 0)"
 out2="$("$CH" v0.4.3 2>&1)"; rc2=$?
@@ -76,7 +85,7 @@ SHA256SUMS_FILE="$GOLD/channels/SHA256SUMS-1.2.0" "$CH" v1.2.0 >/dev/null 2>&1
 check "e3 next version is a fast forward (2 commits, first is an ancestor)" \
   test "$(git -C "$TMP/aur.git" rev-list --count master)" = 2
 check "e3 key never printed" test -z "$(printf '%s\n%s\n' "$out1" "$out2" | grep -F "$KEY")"
-check "e3 key file removed after the run" test -z "$(ls "$TMP" | grep -i 'key')"
+check "e3 key file removed after the run" bash -c 'shopt -s nocaseglob nullglob; f=("$1"/*key*); [ "${#f[@]}" -eq 0 ]' _ "$TMP"
 check "e3 script never forces a push" test -z "$(grep -E 'git .*push.*(--force| -f |[[:space:]]\+)' "$CH" | grep -v '^ *#')"
 check "e3 script pins UserKnownHostsFile and never disables host checks" \
   test -n "$(grep -c 'UserKnownHostsFile' "$CH" | grep -v '^0$')" -a -z "$(grep -E 'StrictHostKeyChecking=(no|accept-new)' "$CH")"

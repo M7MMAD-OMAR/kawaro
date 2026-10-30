@@ -75,6 +75,7 @@ ci = next(i for i, s in enumerate(steps) if "checkout" in s.get("uses", ""))
 vi = next(i for i, s in enumerate(steps) if "run" in s and "[0-9]+" in s["run"])
 assert vi < ci
 PY
+check "d10 no object storage names remain in the workflow" bash -c '! grep -q "R2" "$1"' _ "$W"
 check "d8 APT_SIGNING_KEY is only in a step that runs for apt alone" python3 -I - "$W" <<'PY'
 import sys, re, yaml
 d = yaml.safe_load(open(sys.argv[1]))

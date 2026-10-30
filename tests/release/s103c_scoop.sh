@@ -12,9 +12,9 @@ VAL="$REPO_ROOT/packaging/scoop/validate.sh"
 GOLD="$REPO_ROOT/tests/release/golden"
 SUMS="$GOLD/channels/SHA256SUMS-0.4.3"
 export TMPDIR="$TMP" CANONICAL_REPO=OWNER/kawaro
-TOKEN="fixture-token-do-not-print-1234"
+TOKEN="fixture-deploy-key-do-not-print-1234"
 
-unset BUCKET_REPO SCOOP_BUCKET_TOKEN SCOOP_BUCKET_URL
+unset BUCKET_REPO SCOOP_DEPLOY_KEY SCOOP_BUCKET_URL
 export SHA256SUMS_FILE="$SUMS"
 
 # AC-c1: generated manifest equals the golden file, hash equals the ZIP line.
@@ -37,10 +37,15 @@ expect_status "c2 autoupdate without \$version fails" 1 "$VAL" "$TMP/noauto.json
 out="$("$CH" v0.4.3 --dry-run 2>&1)"; rc=$?
 check "dry run exits 0" test "$rc" = 0
 check "dry run prints the DRYRUN line" grep -qx 'DRYRUN scoop: would publish 0.4.3' <<<"$out"
+check "dry run names the ssh push with strict host key checking" \
+  bash -c 'grep -q "StrictHostKeyChecking=yes" <<<"$1" && grep -q github_known_hosts <<<"$1"' _ "$out"
+check "the committed GitHub known_hosts has the ed25519 host key" grep -Eq '^github\.com ssh-ed25519 AAAA' "$REPO_ROOT/packaging/release/github_known_hosts"
+check "scoop.sh does not use HTTPS tokens or relax host keys" \
+  bash -c '! grep -qE "extraheader|x-access-token|StrictHostKeyChecking=no|accept-new" "$1" && grep -q "StrictHostKeyChecking=yes" "$1"' _ "$CH"
 out="$("$CH" v0.4.3 2>&1)"; rc=$?
-check "no token: exit 10" test "$rc" = 10
-check "no token: one SKIP line naming the variable" test "$out" = "SKIP scoop: SCOOP_BUCKET_TOKEN not configured"
-out="$(SCOOP_BUCKET_TOKEN=$TOKEN "$CH" v0.4.3 2>&1)"; rc=$?
+check "no deploy key: exit 10" test "$rc" = 10
+check "no deploy key: one SKIP line naming the variable" test "$out" = "SKIP scoop: SCOOP_DEPLOY_KEY not configured"
+out="$(SCOOP_DEPLOY_KEY=$TOKEN "$CH" v0.4.3 2>&1)"; rc=$?
 check "no bucket repo: exit 10 and SKIP names BUCKET_REPO" test "$rc:$out" = "10:SKIP scoop: BUCKET_REPO not configured"
 out="$("$CH" v0.5.0-beta.1 2>&1)"; rc=$?
 check "prerelease tag: exit 10" test "$rc" = 10
@@ -48,7 +53,7 @@ expect_status "bad tag: failure code 2" 2 "$CH" notatag
 
 # AC-c3: mocked push into a local bare repository, rerun creates no commit.
 git init -q --bare "$TMP/bucket.git"
-export BUCKET_REPO=OWNER/scoop-kawaro SCOOP_BUCKET_TOKEN="$TOKEN" SCOOP_BUCKET_URL="file://$TMP/bucket.git"
+export BUCKET_REPO=OWNER/scoop-kawaro SCOOP_DEPLOY_KEY="$TOKEN" SCOOP_BUCKET_URL="file://$TMP/bucket.git"
 out1="$("$CH" v0.4.3 2>&1)"; rc1=$?
 check "c3 first run exits 0" test "$rc1" = 0
 check "c3 first run reports PUBLISHED" grep -qx 'PUBLISHED scoop: 0.4.3' <<<"$out1"
@@ -60,7 +65,8 @@ check "c3 rerun exits 0 and reports UNCHANGED" test "$rc2:$out2" = "0:UNCHANGED 
 check "c3 rerun made 0 new commits" test "$n2" = "$n1"
 git -C "$TMP/bucket.git" show HEAD:bucket/kawaro.json >"$TMP/pushed.json" 2>/dev/null
 check "c3 pushed file equals golden" diff -q "$GOLD/scoop/kawaro.json" "$TMP/pushed.json"
-check "c3 token never printed" test -z "$(printf '%s\n%s\n' "$out1" "$out2" | grep -F "$TOKEN")"
+check "c3 deploy key never printed" test -z "$(printf '%s\n%s\n' "$out1" "$out2" | grep -F "$TOKEN")"
+check "c3 the commit has no personal identity" bash -c '! git -C "$1" log -1 --format="%an %ae %cn %ce" | grep -qE "@[A-Za-z0-9.-]+\.[a-z]{2,}"' _ "$TMP/bucket.git"
 check "c3 script never forces a push" test -z "$(grep -E 'git .*push.*(--force| -f |[[:space:]]\+)' "$CH" | grep -v '^ *#')"
 
 # Hygiene.
