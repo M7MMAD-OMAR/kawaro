@@ -77,7 +77,7 @@ Create one environment per channel: `winget-publishing`, `scoop-publishing`, `co
 | apt | `APT_SIGNING_KEY`, `APT_SIGNING_PASSPHRASE`, `APT_R2_ACCESS_KEY_ID`, `APT_R2_SECRET_ACCESS_KEY` | `APT_R2_ACCOUNT_ID`, `APT_R2_BUCKET`, `CANONICAL_REPO` |
 | release signing | `UPDATE_SIGNING_KEY`, `UPDATE_SIGNING_PASSWORD`, and the Windows signing certificate secrets | none listed here |
 
-`CANONICAL_REPO` is `OWNER/NAME` of this project. The channel jobs run only when it equals the current repository, so a fork never publishes.
+`APT_R2_ACCOUNT_ID` and `APT_R2_BUCKET` are plain variables, not secrets (the account id is not confidential); `APT_SIGNING_PASSPHRASE` is an optional secret, needed only if the key has a passphrase. `CANONICAL_REPO` is `OWNER/NAME` of this project. The channel jobs run only when it equals the current repository, so a fork never publishes.
 
 ## 6. OWNER ACTIONS
 
@@ -108,7 +108,7 @@ Check each item before merging a change to the workflows or to `scripts/channels
 
 ## 8. Troubleshooting and rollback
 
-**Re-run one channel.** Open the workflow `release-distribute` in the Actions tab, choose Run workflow, enter the tag (for example `v0.5.0`), and set `dry_run` to false. A dispatch runs every channel; a channel that already published prints `UNCHANGED` (Scoop, AUR, apt) or, for COPR, submits a new build. The command line equivalent for one channel is `scripts/channels/run-all.sh vX.Y.Z --only NAME` with the channel's environment set. Always try `dry_run` first; the dispatch default is on.
+**Re-run one channel.** Open the workflow `release-distribute` in the Actions tab, choose Run workflow, enter the tag (for example `v0.5.0`), and set `dry_run` to false. A dispatch runs every channel; a channel that already published prints `UNCHANGED` (Scoop, AUR, apt) or, for COPR, submits a new build. The command line equivalent for one channel is `scripts/channels/run-all.sh vX.Y.Z --only NAME` with the channel's environment set. Always try `dry_run` first; the dispatch default is on. In the Run workflow form, "Use workflow from" must also be the tag (for example `v0.5.0`), not a branch: each environment is limited to `v*` tags, so a dispatch from a branch is rejected.
 
 **Reading a result.** `SKIP` means the channel is not configured, or the tag is a prerelease. A red job is a failure of that channel only. The `status` job prints the table in the run summary.
 

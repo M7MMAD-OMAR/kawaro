@@ -85,6 +85,44 @@ for st in job["steps"]:
 text = open(sys.argv[1]).read()
 assert text.count("secrets.APT_SIGNING_KEY") == 1
 PY
+# Documented names, optional ones included: every name in the secrets and
+# variables columns of docs/distribution.md (both languages) must be in the
+# env of a step for that channel, of the documented kind, and the workflow
+# must not pass a name the table does not document.
+for doc in distribution.md distribution.ar.md; do
+  check "d9 $doc: documented kinds and names equal the workflow env" python3 -I - "$W" "$REPO_ROOT/docs/$doc" <<'PY'
+import sys, re, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+job = [j for j in d["jobs"].values() if "strategy" in j][0]
+def applies(step, ch):
+    c = step.get("if")
+    if not c:
+        return True
+    m = re.fullmatch(r"matrix\.channel (==|!=) '(\w+)'", c.strip())
+    return (m.group(1) == "==") == (m.group(2) == ch) if m else False
+rows = {}
+for l in open(sys.argv[2]):
+    m = re.match(r"\|\s*(winget|scoop|copr|aur|apt)\s*\|([^|]*)\|([^|]*)\|", l)
+    if m:
+        rows[m.group(1)] = (re.findall(r"`([A-Z0-9_]+)`", m.group(2)), re.findall(r"`([A-Z0-9_]+)`", m.group(3)))
+assert len(rows) == 5, rows.keys()
+documented = set()
+for ch, (secrets, variables) in rows.items():
+    env = {}
+    for st in job["steps"]:
+        if applies(st, ch):
+            env.update(st.get("env") or {})
+    for n in secrets:
+        assert env.get(n) == "${{ secrets.%s }}" % n, (ch, n, env.get(n))
+    for n in variables:
+        assert env.get(n) == "${{ vars.%s }}" % n, (ch, n, env.get(n))
+    documented |= set(secrets) | set(variables)
+for st in job["steps"]:
+    for n, v in (st.get("env") or {}).items():
+        if "secrets." in str(v) or "vars." in str(v):
+            assert n in documented, "undocumented " + n
+PY
+done
 # Tools: pinned installs only for the channel that needs them.
 check "d5 komac install is verified by sha256 and only for winget" python3 -I - "$W" <<'PY'
 import sys, yaml
