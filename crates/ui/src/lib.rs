@@ -1160,4 +1160,6 @@ mod s084_trigger_tests;
 #[cfg(test)]
 mod s108_tests;
 #[cfg(test)]
+mod s108b_tests;
+#[cfg(test)]
 mod ui_tests;
