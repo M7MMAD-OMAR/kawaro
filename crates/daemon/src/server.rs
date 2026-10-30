@@ -80,7 +80,7 @@ pub fn open(state: &Shared, files: Vec<PathBuf>, token: Option<String>) -> Resul
     st.pending = p.pending.clone();
     drop(st);
     let shown = p.pending.unwrap_or(files);
-    ui::present(p.centre, p.message, shown, p.cells, token);
+    ui::present(p.centre, p.message, p.suggestion, shown, p.cells, token);
     Ok(())
 }
 

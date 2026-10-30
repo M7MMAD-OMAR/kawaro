@@ -1,5 +1,5 @@
 # S-108 Hive cells for unsupported files (S-096b)
-Status: review (part A)
+Status: implement (part B code done, two test conflicts in the review log)
 
 ## Story
 As a user who selects files Kawaro cannot fully convert, I want the hive to show a reason line, one greyed cell per skipped file and a request cell, so that I see what is skipped and can ask for the format with one click.
@@ -81,3 +81,6 @@ New formats or engines, auto install, sending a request without a click, reading
   - `cargo test -p kawaro-ui --lib s108b`: does not compile: 12 x `E0599` no method `set_notes` on `Hive`, no `get_centre_message`, no `get_centre_suggestion`.
   - `cargo test -p kawaro-daemon --bin kawarod s108b`: does not compile: `E0432` unresolved import `crate::ui::wire_choose`, 5 x `E0599` no method `click_cell` / `return_on_cell` on `Hive`.
   - `cargo fmt --check` passes on the three crates; `cargo clippy -p kawaro-core --tests -- -D warnings` is clean. Clippy for the ui and daemon test targets cannot run until the hooks exist, so the implementer must run it. No file spells the opener program name or holds a long dash.
+- 2026-10-31, implementer (part B): code done for AC1 window half, AC6 to AC9: `Hive::set_notes`, `centre-message` and `centre-suggestion` with the `message` and `suggestion` elements inside the centre's open, `HexCell.enabled` (greyed `Tokens.surface-2` and `Tokens.text-secondary`, the fill and ink moved into `live-fill` and `live-ink`), no highlight over a disabled cell, `click_cell` and `return_on_cell` behind `testing-hooks`, `ui::wire_choose` with the injected opener, `ui::present` taking the suggestion, `server.rs` passing it, the `kawaro-ui` dev-dependency. fmt, clippy --all-targets -D warnings, design-lint and `scripts/windows/check.sh` are clean; core, ui lib and the other daemon tests pass. Two tests fail and are test problems, not edited, so the status stays `implement` and nothing was pushed:
+  1. `crates/ui/tests/contrast.rs` `ac7_hex_cell_uses_only_the_new_tokens` (S-062) forbids the text `surface-` anywhere in `components/hex-cell.slint`, while `crates/ui/src/s108b_tests.rs` (`ac7_*`, `cell_src()` is `hex-cell.slint`) requires `Tokens.surface-2` inside that same file. Both cannot hold. Needs a decision: relax the S-062 scan to allow `Tokens.surface-2`, or let the s108b scan read the greyed fill from another file.
+  2. `crates/daemon/src/s108b_tests.rs` `ac5_return_on_req_opens_again_and_a_skipped_cell_adds_nothing` calls `wired()` twice in one test, and `wired()` calls `i_slint_backend_testing::init_no_event_loop()`, which panics on the second call in a thread (`platform already initialized`). The test must build its second hive without a second init.

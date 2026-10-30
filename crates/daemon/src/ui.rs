@@ -21,6 +21,7 @@ use kawaro_ui::welcome::WelcomeWindow;
 use kawaro_ui::{Hive, HiveCell};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
@@ -67,6 +68,34 @@ fn apply_theme(theme: Theme) {
     }
 }
 
+/// Installs the hive's `on_choose` handler: a real action runs through the
+/// queue, the request cell calls `opener` with its link (S-108). The opener
+/// is injected so tests can count calls.
+pub fn wire_choose(hive: &Hive, state: &Shared, queue: &Arc<Queue>, opener: Rc<dyn Fn(&str)>) {
+    let (state, queue) = (state.clone(), queue.clone());
+    hive.on_choose(move |id| {
+        let id = match on_choice(&id, &|url| opener(url)) {
+            Choice::Run(id) => id,
+            Choice::Request(_) => {
+                lock(&state).pending = None;
+                gate_hive_closed();
+                return;
+            }
+            Choice::Ignore => return,
+        };
+        let mut st = lock(&state);
+        let files = st.pending.take().unwrap_or_default();
+        match st.registry.get(&id).cloned() {
+            Some(action) if !files.is_empty() => {
+                jobs::submit(&mut st, &queue, action, files);
+            }
+            _ => eprintln!("kawarod: nothing to run for `{id}`"),
+        }
+        drop(st);
+        gate_hive_closed();
+    });
+}
+
 /// Creates the hive and the settings window for `lang` and `theme` and wires
 /// them to the queue. Called at start and again when either setting changes.
 pub fn build(
@@ -82,33 +111,15 @@ pub fn build(
         let (thumbnails, globs) = preview_source();
         hive.set_preview_source(thumbnails, globs);
     }
-    {
-        let (state, queue) = (state.clone(), queue.clone());
-        hive.on_choose(move |id| {
-            let id = match on_choice(&id, &|url| {
-                let (program, args) = open_url_command(CURRENT, url);
-                notify::open_folder(program, args);
-            }) {
-                Choice::Run(id) => id,
-                Choice::Request(_) => {
-                    lock(&state).pending = None;
-                    gate_hive_closed();
-                    return;
-                }
-                Choice::Ignore => return,
-            };
-            let mut st = lock(&state);
-            let files = st.pending.take().unwrap_or_default();
-            match st.registry.get(&id).cloned() {
-                Some(action) if !files.is_empty() => {
-                    jobs::submit(&mut st, &queue, action, files);
-                }
-                _ => eprintln!("kawarod: nothing to run for `{id}`"),
-            }
-            drop(st);
-            gate_hive_closed();
-        });
-    }
+    wire_choose(
+        &hive,
+        state,
+        queue,
+        Rc::new(|url: &str| {
+            let (program, args) = open_url_command(CURRENT, url);
+            notify::open_folder(program, args);
+        }),
+    );
     {
         let state = state.clone();
         hive.on_dismiss(move || {
@@ -252,21 +263,17 @@ fn preview_source() -> (PathBuf, thumb::Globs) {
 }
 
 /// Shows the hive for `files`, with them in the centre cell. `message` is
-/// the reason line of an unsupported selection (empty otherwise); until the
-/// window has its own element for it (S-108 part B) it follows the centre
-/// text.
+/// the reason line of an unsupported selection (empty otherwise) and
+/// `suggestion` the stand-in format; both are drawn as their own elements
+/// (S-108).
 pub fn present(
     centre: String,
     message: String,
+    suggestion: Option<String>,
     files: Vec<PathBuf>,
     cells: Vec<HiveCell>,
     token: Option<String>,
 ) {
-    let centre = if message.is_empty() {
-        centre
-    } else {
-        format!("{centre}\n{message}")
-    };
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
             #[cfg(unix)]
@@ -283,6 +290,9 @@ pub fn present(
             };
             if let Some(Err(e)) = shown {
                 eprintln!("kawarod: cannot show the hive: {e}");
+            }
+            if let Some(hive) = h.borrow().as_ref() {
+                hive.set_notes(&message, suggestion.as_deref());
             }
             // The hive takes keyboard focus at once (S-046 AC4).
             #[cfg(windows)]

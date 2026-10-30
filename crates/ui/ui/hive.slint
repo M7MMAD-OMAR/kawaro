@@ -36,6 +36,10 @@ export component HiveWindow inherits Window {
     in property <length> win-h;
     in property <string> centre-text;
     in property <string> centre-label;
+    // The reason line and the suggestion of an unsupported selection
+    // (S-108): their own elements, never part of the centre text.
+    in property <string> centre-message;
+    in property <string> centre-suggestion;
     // The text the centre cell draws: the highlighted cell's reason, else
     // its label, else (no highlight) the centre text (S-108).
     out property <string> centre-shown: root.hovering ? (root.cells[root.highlight].reason != "" ? root.cells[root.highlight].reason : root.cells[root.highlight].label) : (root.preview-count > 0 ? "" : root.centre-text);
@@ -138,6 +142,7 @@ export component HiveWindow inherits Window {
             pressed: i == root.pressed-cell;
             glass: root.glass;
             highlighted: i == root.highlight;
+            enabled: cell.enabled;
             draw-label: false;
             accessible-role: button;
             accessible-label: cell.label;
@@ -150,7 +155,7 @@ export component HiveWindow inherits Window {
         // mouse, the keyboard and the drop drag. Its first appearance is in
         // place and leaving all cells hides it in place; between two cells
         // `animate x, y` moves it over `Tokens.highlight-move`.
-        if root.highlight >= 0: highlight := HexCell {
+        if root.highlight >= 0 && root.cells[root.highlight].enabled: highlight := HexCell {
             x: root.cells[root.highlight].x - self.width / 2;
             y: root.cells[root.highlight].y - self.height / 2;
             r: root.hex-r;
@@ -173,6 +178,7 @@ export component HiveWindow inherits Window {
             icon: cell.icon;
             has-icon: cell.has-icon;
             highlighted: i == root.highlight;
+            enabled: cell.enabled;
             ring: cell.ring;
             opened: root.opened;
             pressed: i == root.pressed-cell;
@@ -240,6 +246,38 @@ export component HiveWindow inherits Window {
                     color: Tokens.hex-ink;
                     accessible-role: none;
                 }
+            }
+
+            // The reason and the suggestion, under the preview, with the
+            // centre's open (ring 0). A hover shows the cell's name instead.
+            if root.centre-message != "": message := Text {
+                x: root.centre-x - root.hex-r * 0.75;
+                y: root.centre-y + root.preview-side / 2 + Tokens.space-1;
+                width: root.hex-r * 1.5;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+                overflow: elide;
+                text: root.centre-message;
+                font-size: Tokens.font-label;
+                color: Tokens.text-secondary;
+                opacity: root.hovering ? 0 : 1;
+                accessible-role: text;
+                accessible-label: root.centre-message;
+            }
+
+            if root.centre-suggestion != "": suggestion := Text {
+                x: root.centre-x - root.hex-r * 0.75;
+                y: root.centre-y + root.preview-side / 2 + Tokens.space-1 + (root.centre-message != "" ? 2 * Tokens.font-label : 0);
+                width: root.hex-r * 1.5;
+                horizontal-alignment: center;
+                overflow: elide;
+                text: root.centre-suggestion;
+                font-size: Tokens.font-label;
+                font-weight: Tokens.weight-semibold;
+                color: Tokens.hex-ink;
+                opacity: root.hovering ? 0 : 1;
+                accessible-role: text;
+                accessible-label: root.centre-suggestion;
             }
 
             // The number of files, on the square's upper corner at the stack

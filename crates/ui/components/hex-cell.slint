@@ -12,6 +12,9 @@ export component HexCell inherits Rectangle {
     in property <bool> has-icon;
     in property <bool> highlighted;
     in property <bool> centre;
+    // False greys the cell (a skipped file, S-108): the greyed surface and
+    // ink, never an opacity.
+    in property <bool> enabled: true;
     // S-017 motion and glass. `ring` is the cell's slot ring (0 for the
     // centre and the stack hexagons), so the open of every cell is delayed
     // by `ring * Tokens.ring-delay`. `opened` drives the open; `pressed`
@@ -87,7 +90,7 @@ export component HexCell inherits Rectangle {
             viewbox-width: 1.7320508;
             viewbox-height: 2;
             commands: "M 0.8660254 0 L 1.7320508 0.5 L 1.7320508 1.5 L 0.8660254 2 L 0 1.5 L 0 0.5 Z";
-            fill: root.highlighted ? Tokens.accent : (root.centre ? (root.glass ? Tokens.glass-3 : Tokens.hex-fill-centre) : (root.glass ? Tokens.glass-2 : Tokens.hex-fill));
+            fill: root.enabled ? root.live-fill : Tokens.surface-2;
             stroke: Tokens.hive-edge;
             stroke-width: root.glass ? Tokens.border-hex : Tokens.border-default;
             animate fill, stroke { duration: Tokens.hover; }
@@ -107,7 +110,7 @@ export component HexCell inherits Rectangle {
                 height: Tokens.hex-icon-size;
                 source: root.icon;
                 image-fit: contain;
-                colorize: root.ink;
+                colorize: root.enabled ? root.live-ink : Tokens.text-secondary;
                 accessible-role: none;
             }
 
@@ -117,7 +120,7 @@ export component HexCell inherits Rectangle {
                 text: root.text;
                 font-size: root.label-size;
                 font-weight: Tokens.weight-semibold;
-                color: root.ink;
+                color: root.enabled ? root.live-ink : Tokens.text-secondary;
                 accessible-role: none;
             }
         }
@@ -135,10 +138,11 @@ export component HexCell inherits Rectangle {
             text: root.text;
             font-size: root.label-size;
             font-weight: root.centre ? Tokens.weight-medium : Tokens.weight-semibold;
-            color: root.ink;
+            color: root.enabled ? root.live-ink : Tokens.text-secondary;
             accessible-role: none;
         }
     }
 
-    property <color> ink: root.highlighted ? Tokens.accent-ink : Tokens.hex-ink;
+    property <color> live-ink: root.highlighted ? Tokens.accent-ink : Tokens.hex-ink;
+    property <color> live-fill: root.highlighted ? Tokens.accent : (root.centre ? (root.glass ? Tokens.glass-3 : Tokens.hex-fill-centre) : (root.glass ? Tokens.glass-2 : Tokens.hex-fill));
 }

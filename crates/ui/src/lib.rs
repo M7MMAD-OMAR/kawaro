@@ -517,6 +517,9 @@ impl Inner {
         let ui = self.ui.borrow();
         ui.set_centre_text(centre.into());
         ui.set_centre_label(centre.into());
+        // A note never outlives its show (S-108).
+        ui.set_centre_message("".into());
+        ui.set_centre_suggestion("".into());
     }
 
     /// The cells, size and centre of `plan`, without touching the texts.
@@ -998,6 +1001,62 @@ impl Hive {
     #[doc(hidden)]
     pub fn set_highlight(&self, index: i32) {
         self.inner.ui.borrow().set_highlight(index);
+    }
+
+    /// Sets the reason line and the suggestion under the centre (S-108),
+    /// each its own element, drawn only while its text is not empty. Every
+    /// `present*` clears both.
+    pub fn set_notes(&self, message: &str, suggestion: Option<&str>) {
+        let ui = self.inner.ui.borrow();
+        ui.set_centre_message(message.into());
+        ui.set_centre_suggestion(suggestion.unwrap_or_default().into());
+    }
+
+    /// The centre of the cell `id` in the window, if it exists.
+    #[cfg(feature = "testing-hooks")]
+    fn cell_centre(&self, id: &str) -> Option<slint::LogicalPosition> {
+        let plan = self.inner.plan.borrow();
+        let c = plan.as_ref()?.cells.iter().find(|c| c.cell.id == id)?;
+        Some(slint::LogicalPosition::new(c.x, c.y))
+    }
+
+    /// Test hook: a real pointer press and release on the cell `id`.
+    #[cfg(feature = "testing-hooks")]
+    #[doc(hidden)]
+    pub fn click_cell(&self, id: &str) -> bool {
+        use slint::platform::{PointerEventButton, WindowEvent};
+        let Some(position) = self.cell_centre(id) else {
+            return false;
+        };
+        let ui = self.inner.ui.borrow().clone_strong();
+        let w = ui.window();
+        w.dispatch_event(WindowEvent::PointerMoved { position });
+        w.dispatch_event(WindowEvent::PointerPressed {
+            position,
+            button: PointerEventButton::Left,
+        });
+        w.dispatch_event(WindowEvent::PointerReleased {
+            position,
+            button: PointerEventButton::Left,
+        });
+        true
+    }
+
+    /// Test hook: the pointer on the cell `id`, then the Return key.
+    #[cfg(feature = "testing-hooks")]
+    #[doc(hidden)]
+    pub fn return_on_cell(&self, id: &str) -> bool {
+        use slint::platform::{Key, WindowEvent};
+        let Some(position) = self.cell_centre(id) else {
+            return false;
+        };
+        let ui = self.inner.ui.borrow().clone_strong();
+        let w = ui.window();
+        w.dispatch_event(WindowEvent::PointerMoved { position });
+        let text: slint::SharedString = Key::Return.into();
+        w.dispatch_event(WindowEvent::KeyPressed { text: text.clone() });
+        w.dispatch_event(WindowEvent::KeyReleased { text });
+        true
     }
 
     /// The glass surfaces of S-017 AC13: cells and stacks `glass-2`, the

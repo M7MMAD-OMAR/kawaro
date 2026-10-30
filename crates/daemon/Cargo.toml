@@ -43,3 +43,5 @@ tempfile.workspace = true
 sha2.workspace = true
 # S-090: the welcome window is built under the testing backend.
 i-slint-backend-testing = "=1.18.1"
+# S-108: the hive's click and Return hooks for the request cell tests.
+kawaro-ui = { path = "../ui", features = ["testing-hooks"] }
