@@ -2,7 +2,7 @@
 //!
 //! Contract (tester, from the acceptance criteria): with no daemon, no
 //! Hyprland bind and no hold ever recorded, `kawaro doctor` prints exactly
-//! one line `drop key: <key> bind missing, daemon down, last hold: none`
+//! one line `drop key: <key> bind unknown, daemon down, last hold: none`
 //! (the format of `kawaro_core::hold::doctor_line`). `kawaro drop --hold`
 //! with no daemon that can be reached or started prints the line
 //! `hold: daemon-down` on stderr and exits non zero. The `no-action-file`
@@ -38,7 +38,7 @@ fn ac1_doctor_prints_one_drop_key_line_for_the_no_daemon_state() {
         .collect();
     assert_eq!(lines.len(), 1, "one drop key line expected in:\n{text}");
     assert!(
-        lines[0].ends_with(" bind missing, daemon down, last hold: none"),
+        lines[0].ends_with(" bind unknown, daemon down, last hold: none"),
         "{}",
         lines[0]
     );

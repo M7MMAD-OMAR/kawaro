@@ -97,7 +97,7 @@ impl Outcome {
 
 /// What `hyprctl binds -j` gave (S-102 review).
 pub enum Hyprctl<'a> {
-    /// No `hyprctl` on PATH: not a Hyprland session.
+    /// No `hyprctl` on PATH: the binds cannot be read.
     Absent,
     /// It ran and failed.
     Failed,
@@ -110,7 +110,7 @@ pub enum Hyprctl<'a> {
 pub enum BindState {
     /// The binds could not be read, so presence is not known.
     Unknown,
-    /// Read, and no bind matched (or not a Hyprland session).
+    /// Read, and no bind matched.
     Missing,
     /// The key of the matching bind.
     Present(String),
@@ -122,10 +122,7 @@ pub enum BindState {
 /// the binds were read; `unknown` when they could not be.
 pub fn bind_state(h: Hyprctl) -> BindState {
     let Hyprctl::Json(text) = h else {
-        return match h {
-            Hyprctl::Absent => BindState::Missing,
-            _ => BindState::Unknown,
-        };
+        return BindState::Unknown;
     };
     let Some(binds) = serde_json::from_str::<serde_json::Value>(text)
         .ok()
@@ -488,7 +485,7 @@ mod rearm_tests {
         assert_eq!(bind_state(Hyprctl::Json(none)), BindState::Missing);
         assert_eq!(bind_state(Hyprctl::Failed), BindState::Unknown);
         assert_eq!(bind_state(Hyprctl::Json("not json")), BindState::Unknown);
-        assert_eq!(bind_state(Hyprctl::Absent), BindState::Missing);
+        assert_eq!(bind_state(Hyprctl::Absent), BindState::Unknown);
         let l = |b| doctor_line_for(&b, true, Some((Outcome::Tap, 5)));
         assert_eq!(
             l(BindState::Present("ALT_L".into())),
