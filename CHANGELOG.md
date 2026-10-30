@@ -4,6 +4,8 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-10-31
+
 ### Changed
 - A file Kawaro cannot convert now gets a reason instead of a bare error ([S-096](backlog/S-096-unsupported-file-feedback.md)): the hive says the format is unsupported or which tool is missing with an install hint, and the notification names the reason and the next step; mixed selections act on the supported files only; the greyed cells, the request cell and their model land in S-108 part A, and part B draws the reason and the suggestion as their own elements under the centre and greys the skipped cells with surface tokens | يحصل الملف الذي لا يستطيع كوارو تحويله على سبب بدل خطأ مجرد: تقول الخلية إن الصيغة غير مدعومة أو أي أداة ناقصة مع تلميح تثبيت، ويذكر الإشعار السبب والخطوة التالية؛ والاختيار المختلط يعمل على الملفات المدعومة فقط؛ وتصل الخلايا الرمادية وخلية الطلب ونموذجها في S-108 الجزء أ، ويرسم الجزء ب السبب والاقتراح كعنصرين مستقلين تحت المركز ويجعل الخلايا المتخطاة رمادية برموز الأسطح
 
