@@ -375,6 +375,8 @@ fn drop_rings(rtl: bool, screen: (u32, u32), anchor: Option<(f32, f32)>) -> i32 
             label: String::new(),
             icon: String::new(),
             ring: if i < 6 { 1 } else { 2 },
+            enabled: true,
+            reason: String::new(),
         })
         .collect();
     let (plan, _) = layout::plan_at(cells, rtl, 2, screen, anchor, 120);

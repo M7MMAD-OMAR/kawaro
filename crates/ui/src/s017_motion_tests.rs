@@ -60,6 +60,8 @@ fn seven() -> Vec<HiveCell> {
             label: format!("label {i}"),
             icon: String::new(),
             ring: 1,
+            enabled: true,
+            reason: String::new(),
         })
         .collect()
 }

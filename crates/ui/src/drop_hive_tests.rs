@@ -21,6 +21,8 @@ fn cells() -> Vec<HiveCell> {
             label: format!("label {id}"),
             icon: String::new(),
             ring: 1,
+            enabled: true,
+            reason: String::new(),
         })
         .collect()
 }

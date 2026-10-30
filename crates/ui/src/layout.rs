@@ -279,6 +279,8 @@ mod tests {
             label: format!("label {id}"),
             icon: String::new(),
             ring,
+            enabled: true,
+            reason: String::new(),
         }
     }
 

@@ -1,5 +1,5 @@
 # S-108 Hive cells for unsupported files (S-096b)
-Status: approved (2026-10-30, manager)
+Status: review (part A)
 
 ## Story
 As a user who selects files Kawaro cannot fully convert, I want the hive to show a reason line, one greyed cell per skipped file and a request cell, so that I see what is skipped and can ask for the format with one click.
@@ -66,3 +66,6 @@ New formats or engines, auto install, sending a request without a click, reading
   - `cargo test -p kawaro-ui --lib s108`: does not compile: `E0560` no field `enabled`/`reason` on `HiveCell`, `E0599`/`E0609` no `get_centre_shown` and no `enabled`/`reason` on the window model.
   - `cargo test -p kawaro-daemon --bin kawarod s108`: does not compile: `E0432`/`E0433` (no `crate::plan`, no `notify_logic::open_url_command`, no `skipped_label`/`more_label`) and `E0609` no field `enabled` or `reason` on `HiveCell`.
   All fail for the missing hooks above, none for a test mistake.
+- 2026-10-31, implementer (part A): done AC1 to AC5 in code. New `crates/daemon/src/plan.rs` (`plan`, `choice`, `on_choice`), `skipped_label` and `more_label` in core, `open_url_command` in `notify_logic`, `HiveCell.enabled/reason`, `CellData` fields, `centre-shown`, the disabled-cell guard in `Hive::choose`, `server::open` through `plan`, `on_choose` through `on_choice` (request opens the link through `notify::open_folder`). Mechanical `enabled: true, reason: String::new()` was added to every `HiveCell {` literal, including test files beyond the three the manager named (s074, anchor, drop_tests, drop_track, s067, monitor, s017_motion), because a struct literal cannot compile otherwise; no assertion changed.
+  Not done, part B: `HiveWindow::message` and `::suggestion` elements (until then `ui::present` joins message to the centre text, so the reason still shows), token scans, accessibility sweep, reduced motion. `plan` already computes `suggestion`; nothing draws it yet.
+  Test problems found, not edited: (1) `crates/daemon/src/s108_tests.rs` contains the text `xdg-open` in a comment or assertion, so the existing `crates/daemon/tests/s049_sources.rs` (`ac3_no_xdg_open...`) fails with `["s108_tests.rs"]`; (2) clippy `unused_imports`: `Outcome` in `s108_tests.rs` line 35 under `-D warnings`. The tester should fix both.

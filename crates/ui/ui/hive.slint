@@ -21,6 +21,10 @@ export struct CellData {
     // The cell's slot ring (axial distance from the centre), for the
     // ring-by-ring open (S-017).
     ring: int,
+    // False for a skipped file (S-108); `reason` shows in the centre on
+    // hover when it is not empty.
+    enabled: bool,
+    reason: string,
 }
 
 export component HiveWindow inherits Window {
@@ -32,6 +36,9 @@ export component HiveWindow inherits Window {
     in property <length> win-h;
     in property <string> centre-text;
     in property <string> centre-label;
+    // The text the centre cell draws: the highlighted cell's reason, else
+    // its label, else (no highlight) the centre text (S-108).
+    out property <string> centre-shown: root.hovering ? (root.cells[root.highlight].reason != "" ? root.cells[root.highlight].reason : root.cells[root.highlight].label) : (root.preview-count > 0 ? "" : root.centre-text);
     // Arabic: the stack and the count go to the other side (S-018 AC25).
     in property <bool> rtl;
     // The selected files in the centre (S-018h). `preview-image` is a cached
@@ -181,7 +188,7 @@ export component HiveWindow inherits Window {
             ring: 0;
             opened: root.opened;
             glass: root.glass;
-            text: root.hovering ? root.cells[root.highlight].label : (root.preview-count > 0 ? "" : root.centre-text);
+            text: root.centre-shown;
             accessible-role: text;
             accessible-label: root.centre-label;
         }

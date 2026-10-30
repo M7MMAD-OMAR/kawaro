@@ -213,6 +213,23 @@ pub fn request_hover(lang: Lang) -> &'static str {
     }
 }
 
+/// The accessible text of a greyed cell: the extension (no dot), that it is
+/// unavailable, and why.
+pub fn skipped_label(ext: &str, reason: &str, lang: Lang) -> String {
+    match lang {
+        Lang::En => format!(".{ext}: unavailable. {reason}"),
+        Lang::Ar => format!("\u{200e}.{ext}: غير متاح. {reason}"),
+    }
+}
+
+/// The accessible text of the `+K` cell: how many more files are skipped.
+pub fn more_label(k: usize, lang: Lang) -> String {
+    match lang {
+        Lang::En => format!("{k} more files are not supported"),
+        Lang::Ar => format!("{k} ملفات أخرى غير مدعومة"),
+    }
+}
+
 /// The label of an available action in the file's family, if the file's
 /// family is known and some action of it is runnable.
 pub fn suggestion(

@@ -112,6 +112,8 @@ pub fn image_actions(lang: Lang) -> Vec<HiveCell> {
             code: if ar { *arabic } else { *latin }.into(),
             label: if ar { *ar_label } else { *en }.into(),
             ring: *ring,
+            enabled: true,
+            reason: String::new(),
         })
         .collect()
 }

@@ -80,7 +80,9 @@ slint::include_modules!();
 /// (WEBP, PDF), `label` the full name shown in the centre on hover and read by
 /// screen readers. `icon` names one of the built-in icons ([`icon_names`]),
 /// drawn above the code; empty or unknown shows the code alone. `ring` is 1
-/// for common actions, 2 for the rest.
+/// for common actions, 2 for the rest. A cell with `enabled` false (a skipped
+/// file, S-108) never chooses; a non empty `reason` replaces the label in the
+/// centre while the cell is highlighted.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HiveCell {
     pub id: String,
@@ -88,6 +90,8 @@ pub struct HiveCell {
     pub label: String,
     pub icon: String,
     pub ring: u8,
+    pub enabled: bool,
+    pub reason: String,
 }
 
 /// Activation token for the next window adapter, consumed by the winit
@@ -531,6 +535,8 @@ impl Inner {
                     has_icon: icon.is_some(),
                     icon: icon.unwrap_or_default(),
                     ring: p.axial.distance(),
+                    enabled: p.cell.enabled,
+                    reason: p.cell.reason.as_str().into(),
                 }
             })
             .collect();
@@ -670,10 +676,12 @@ impl Inner {
     }
 
     fn choose(&self, index: i32) {
+        // A disabled cell chooses nothing and the hive stays open (S-108).
         let id = self.plan.borrow().as_ref().and_then(|p| {
             usize::try_from(index)
                 .ok()
                 .and_then(|i| p.cells.get(i))
+                .filter(|c| c.cell.enabled)
                 .map(|c| c.cell.id.clone())
         });
         let Some(id) = id else { return };

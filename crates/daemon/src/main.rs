@@ -13,6 +13,7 @@ mod jobs;
 mod logfile;
 mod notify;
 mod notify_logic;
+mod plan;
 // Only the D-Bus side (portal_bus) uses it, and that is Unix only.
 #[cfg_attr(not(unix), allow(dead_code))]
 mod portal;

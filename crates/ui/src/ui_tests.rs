@@ -20,6 +20,8 @@ fn cells() -> Vec<HiveCell> {
         label: format!("label {id}"),
         icon: icon.into(),
         ring,
+        enabled: true,
+        reason: String::new(),
     };
     // An icon, another icon, none, and a name outside the set.
     vec![
@@ -213,6 +215,8 @@ fn hive_behaviour() {
             label: format!("action {i}"),
             icon: "image".into(),
             ring: if i < 10 { 1 } else { 2 },
+            enabled: true,
+            reason: String::new(),
         })
         .collect();
     hive.present("25", many, None).unwrap();

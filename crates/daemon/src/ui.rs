@@ -2,6 +2,9 @@
 //! loop: the hive and the settings window. Other threads post work with
 //! `invoke_from_event_loop`.
 
+use crate::notify;
+use crate::notify_logic::open_url_command;
+use crate::plan::{Choice, on_choice};
 use crate::portal::{self, TokenStep};
 use crate::server;
 use crate::state::{Shared, common_kind, lock};
@@ -10,6 +13,7 @@ use kawaro_core::ActionDef;
 use kawaro_core::config::{Config, HOLD_MAX_DEFAULT, LangSetting, Theme};
 use kawaro_core::hold::{Effect, Gate, Hide, Outcome, Signal};
 use kawaro_core::i18n::Lang;
+use kawaro_core::paths::CURRENT;
 use kawaro_core::queue::Queue;
 #[cfg(unix)]
 use kawaro_ui::thumb;
@@ -81,6 +85,18 @@ pub fn build(
     {
         let (state, queue) = (state.clone(), queue.clone());
         hive.on_choose(move |id| {
+            let id = match on_choice(&id, &|url| {
+                let (program, args) = open_url_command(CURRENT, url);
+                notify::open_folder(program, args);
+            }) {
+                Choice::Run(id) => id,
+                Choice::Request(_) => {
+                    lock(&state).pending = None;
+                    gate_hive_closed();
+                    return;
+                }
+                Choice::Ignore => return,
+            };
             let mut st = lock(&state);
             let files = st.pending.take().unwrap_or_default();
             match st.registry.get(&id).cloned() {
@@ -213,6 +229,8 @@ pub fn cell(a: &ActionDef, lang: Lang) -> HiveCell {
         label: a.label.get(lang).to_string(),
         icon: a.icon.clone(),
         ring: a.ring,
+        enabled: true,
+        reason: String::new(),
     }
 }
 
@@ -233,8 +251,22 @@ fn preview_source() -> (PathBuf, thumb::Globs) {
     (thumbnails, thumb::Globs::load(&dirs))
 }
 
-/// Shows the hive for `files`, with them in the centre cell.
-pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token: Option<String>) {
+/// Shows the hive for `files`, with them in the centre cell. `message` is
+/// the reason line of an unsupported selection (empty otherwise); until the
+/// window has its own element for it (S-108 part B) it follows the centre
+/// text.
+pub fn present(
+    centre: String,
+    message: String,
+    files: Vec<PathBuf>,
+    cells: Vec<HiveCell>,
+    token: Option<String>,
+) {
+    let centre = if message.is_empty() {
+        centre
+    } else {
+        format!("{centre}\n{message}")
+    };
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
             #[cfg(unix)]
@@ -1048,6 +1080,8 @@ mod tests {
                 label: "تدوير 90 درجة".into(),
                 icon: "rotate".into(),
                 ring: a.ring,
+                enabled: true,
+                reason: String::new(),
             }
         );
         let en = cell(a, Lang::En);

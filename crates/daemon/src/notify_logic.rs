@@ -27,6 +27,16 @@ pub fn open_folder_command(os: Os, folder: &Path, file: Option<&Path>) -> (Strin
     }
 }
 
+/// The program and its arguments that open `url` in the browser. The URL is
+/// one argument, so a query string with `&` stays intact (S-108).
+pub fn open_url_command(os: Os, url: &str) -> (String, Vec<String>) {
+    let program = match os {
+        Os::Windows => "explorer.exe",
+        Os::Linux => "xdg-open",
+    };
+    (program.to_string(), vec![url.to_string()])
+}
+
 /// One notification log line: `kawarod: notify: <body>`.
 pub fn log_line(body: &str) -> String {
     format!("{LOG_PREFIX}{body}")

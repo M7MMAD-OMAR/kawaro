@@ -1,6 +1,7 @@
 //! Socket server: one request per connection, see `kawaro_core::ipc`.
 
-use crate::state::{Shared, common_kind, lock};
+pub use crate::plan::plan;
+use crate::state::{Shared, lock};
 use crate::{notify, text, ui};
 use kawaro_core::ipc::{Request, Response};
 use kawaro_core::queue::Queue;
@@ -63,54 +64,23 @@ pub fn drop_refused(is_drop: bool, trigger_down: bool) -> bool {
 /// hive (S-046 AC8).
 pub fn open(state: &Shared, files: Vec<PathBuf>, token: Option<String>) -> Result<(), String> {
     #[cfg(windows)]
-    let (files, actions) = crate::shell_open::selection(state, files);
+    let (files, _) = crate::shell_open::selection(state, files);
     let mut st = lock(state);
     let lang = st.lang;
     let outcome = st.classify(&files);
-    // Only the files that can run are acted on; the rest stay untouched.
-    #[cfg(not(windows))]
-    let (files, actions) = match &outcome {
-        Outcome::Mixed { supported, .. } => (supported.clone(), st.matching(supported)),
-        _ => {
-            let actions = st.matching(&files);
-            (files, actions)
-        }
-    };
-    if actions.is_empty() {
+    if let Some(n) = unsupported::notification(&outcome, lang)
+        .filter(|_| matches!(outcome, Outcome::NoSelection))
+    {
         drop(st);
-        return explain(outcome, files, lang, token);
+        notify::info(lang, &n);
+        return Err(n);
     }
-    let centre = text::selection(lang, files.len(), common_kind(&files));
-    let cells = actions
-        .iter()
-        .map(|a| ui::cell(a, lang))
-        .collect::<Vec<_>>();
-    st.pending = Some(files.clone());
+    // Only the files that can run are acted on; the rest are greyed cells.
+    let p = plan(&outcome, &files, &st);
+    st.pending = p.pending.clone();
     drop(st);
-    ui::present(centre, files, cells, token);
-    Ok(())
-}
-
-/// No action runs for the selection: show the reason in the hive, or in a
-/// notification when no hive can open (S-096). The greyed and request cells
-/// come with S-108.
-fn explain(
-    outcome: Outcome,
-    files: Vec<PathBuf>,
-    lang: kawaro_core::i18n::Lang,
-    token: Option<String>,
-) -> Result<(), String> {
-    let message = match &outcome {
-        Outcome::Unsupported { .. } => unsupported::unsupported_message(lang).to_string(),
-        Outcome::MissingEngine { tool } => unsupported::missing_engine_message(tool, lang),
-        other => {
-            let n = unsupported::notification(other, lang).unwrap_or_default();
-            notify::info(lang, &n);
-            return Err(n);
-        }
-    };
-    let centre = format!("{}\n{message}", unsupported::centre_text(&files, lang));
-    ui::present(centre, files, Vec::new(), token);
+    let shown = p.pending.unwrap_or(files);
+    ui::present(p.centre, p.message, shown, p.cells, token);
     Ok(())
 }
 

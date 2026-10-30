@@ -1592,6 +1592,8 @@ mod tests {
                 label: "a".into(),
                 icon: String::new(),
                 ring: 1,
+                enabled: true,
+                reason: String::new(),
             };
             hive.present("1", vec![cell], None).unwrap();
 

@@ -59,6 +59,8 @@ fn full_hive() -> Vec<HiveCell> {
                 .unwrap_or_default()
                 .into(),
             ring: if i < 6 { 1 } else { 2 },
+            enabled: true,
+            reason: String::new(),
         })
         .collect()
 }

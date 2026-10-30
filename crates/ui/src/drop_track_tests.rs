@@ -36,6 +36,8 @@ fn cell(id: &str, ring: u8) -> HiveCell {
         label: format!("label {id}"),
         icon: String::new(),
         ring,
+        enabled: true,
+        reason: String::new(),
     }
 }
 

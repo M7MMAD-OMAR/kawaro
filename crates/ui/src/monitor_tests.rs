@@ -96,6 +96,8 @@ fn cell(i: usize, ring: u8) -> HiveCell {
         label: format!("label {i}"),
         icon: String::new(),
         ring,
+        enabled: true,
+        reason: String::new(),
     }
 }
 
