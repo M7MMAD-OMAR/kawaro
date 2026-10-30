@@ -55,7 +55,7 @@ Get the latest release from the [releases page](https://github.com/M7MMAD-OMAR/k
 | Fedora | `kawaro-<version>-1.x86_64.rpm` | `sudo dnf install ./kawaro-*.x86_64.rpm` |
 | Ubuntu, Debian | `kawaro_<version>_amd64.deb` | `sudo apt install ./kawaro_*_amd64.deb` |
 
-Every release has a `SHA256SUMS` file to verify your download. After installing, reopen your file manager and right-click a file.
+Every release has a `SHA256SUMS` file to verify your download. Package channels (WinGet, Scoop, COPR, AUR, apt) and what is live: [distribution guide](docs/distribution.md). After installing, reopen your file manager and right-click a file.
 
 **Windows warning.** The Windows files are signed with a self-signed test certificate, so SmartScreen warns on first run: click "More info", then "Run anyway" ([details](docs/windows-smartscreen.md)). On Windows 11 the Kawaro item is under "Show more options". Public signing is being arranged through the Microsoft Store and WinGet.
 

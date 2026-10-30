@@ -48,7 +48,7 @@
 | Fedora | `kawaro-<version>-1.x86_64.rpm` | `sudo dnf install ./kawaro-*.x86_64.rpm` |
 | Ubuntu وDebian | `kawaro_<version>_amd64.deb` | `sudo apt install ./kawaro_*_amd64.deb` |
 
-في كل إصدار ملف `SHA256SUMS` للتحقق من التنزيل. بعد التثبيت أعد فتح مدير الملفات وانقر بزر الفأرة الأيمن على أي ملف.
+في كل إصدار ملف `SHA256SUMS` للتحقق من التنزيل. قنوات الحزم (WinGet وScoop وCOPR وAUR وapt) وما يعمل منها الآن: [دليل التوزيع](docs/distribution.ar.md). بعد التثبيت أعد فتح مدير الملفات وانقر بزر الفأرة الأيمن على أي ملف.
 
 **تحذير ويندوز.** ملفات ويندوز موقّعة بشهادة اختبار ذاتية، فتحذّر SmartScreen عند أول تشغيل: اضغط «More info» ثم «Run anyway» ([التفاصيل](docs/windows-smartscreen.ar.md)). وعلى ويندوز 11 يظهر بند كوارو تحت «Show more options». التوقيع العلني قيد الترتيب عبر Microsoft Store وWinGet.
 

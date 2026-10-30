@@ -2,6 +2,8 @@
 
 Last checked: 2026-10-27.
 
+How the release pipeline and each channel work, and what a maintainer does: [distribution guide](distribution.md) ([العربية](distribution.ar.md)).
+
 ## Windows
 
 - Kawaro 0.4.0 is available on [GitHub Releases](https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.0). The MSI and executables use a self-signed test certificate, not a trusted publisher certificate. The ZIP contains the test-signed executables.
