@@ -333,7 +333,7 @@ const TOOLS: [(&str, &str); 17] = [
 ];
 
 /// Tools that are always there on ubuntu-24.04 (coreutils and friends).
-const BASE: [&str; 14] = [
+const BASE: [&str; 15] = [
     "bash",
     "sh",
     "id",
@@ -348,6 +348,8 @@ const BASE: [&str; 14] = [
     "mktemp",
     "diff",
     "cmp",
+    // The hosted Linux runner image ships gpg; the S-103f apt test needs it.
+    "gpg",
 ];
 
 /// Tools a test skips itself for, by design, with a printed SKIP line, when
