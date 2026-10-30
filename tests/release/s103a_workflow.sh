@@ -30,6 +30,12 @@ n = j[0]["needs"]
 assert "release" in n and "update-manifest" in n
 assert j[0]["permissions"] == {"contents": "read"}
 PY
+check "w3b the caller passes secrets: inherit, or the called job's environment secrets arrive empty" py "$P" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+j = [v for v in d["jobs"].values() if str(v.get("uses", "")).endswith("release-distribute.yml")]
+assert j[0].get("secrets") == "inherit"
+PY
 check "w4 a matrix with the five channels, fail-fast off" py "$W" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))

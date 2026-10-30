@@ -439,5 +439,8 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/release-distribute.yml
+    # Each channel job reads its own NAME-publishing environment secrets; a
+    # called workflow only receives them when the caller passes secrets on.
+    secrets: inherit
     with:
       tag: ${{ github.ref_name }}
