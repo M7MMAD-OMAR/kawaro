@@ -143,7 +143,7 @@ fn s106_a4_helper_keeps_the_download_after_failed() {
 
 #[test]
 fn s106_a5_only_helper_folders_older_than_600_seconds_are_returned() {
-    let now = 10_000;
+    let now = 100_000;
     let entries = [
         ("kawaro-update-helper-111", now - 599),
         ("kawaro-update-helper-222", now - 601),
