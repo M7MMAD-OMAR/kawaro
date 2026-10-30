@@ -133,8 +133,8 @@ ok("AC8 UPDATE_SIGNING_PASSWORD only in update-manifest", "UPDATE_SIGNING_PASSWO
 ok("AC8 release-signing only in update-manifest and windows (S-083)",
    "release-signing" not in yaml.dump({n: j for n, j in jobs.items()
                                       if n not in ("update-manifest", "windows")}))
-ok("AC8 job names are build, test, windows, release, update-manifest",
-   sorted(jobs) == sorted(["build", "test", "windows", "release", "update-manifest"]))
+ok("AC8 job names are build, test, windows, release, update-manifest, distribute (S-103a)",
+   sorted(jobs) == sorted(["build", "test", "windows", "release", "update-manifest", "distribute"]))
 ok("AC5 test matrix still has 5 images", len((jobs.get("test", {}).get("strategy", {}).get("matrix", {}).get("include", []))) == 5)
 
 # ---- carried 4: permissions
