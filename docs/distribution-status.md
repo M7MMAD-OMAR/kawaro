@@ -23,17 +23,17 @@ Written by `scripts/channels/run-all.sh` (S-103a); a row says what the last run 
 <!-- channels:start -->
 | Channel | State | Version | Checked |
 | --- | --- | --- | --- |
-| apt | ok | 0.4.6 | 2026-10-31 |
-| aur | skipped | 0.4.6 | 2026-10-31 |
-| copr | skipped | 0.4.6 | 2026-10-31 |
-| scoop | ok | 0.4.6 | 2026-10-31 |
-| winget | skipped | 0.4.6 | 2026-10-31 |
+| apt | ok | 0.4.7 | 2026-10-31 |
+| aur | skipped | 0.4.7 | 2026-10-31 |
+| copr | skipped | 0.4.7 | 2026-10-31 |
+| scoop | ok | 0.4.7 | 2026-10-31 |
+| winget | skipped | 0.4.7 | 2026-10-31 |
 <!-- channels:end -->
 
-What is live (2026-10-31, version 0.4.6, the tag run of the Packages workflow). All five channel jobs reported success, but that only means each channel script exited cleanly: apt and scoop printed `PUBLISHED`, while winget, aur and copr printed a clean `SKIP` line because their secret or switch is not configured (`WINGET_CREATE_GITHUB_TOKEN`, `AUR_ENABLED`, `COPR_CONFIG`). A green job is therefore not a published package for those three. 0.4.3 was published by hand because its tag predates the workflow, and the 0.4.4 tag run skipped apt and scoop until `secrets: inherit` was added:
+What is live (2026-10-31, version 0.4.7, the tag run of the Packages workflow). All five channel jobs reported success, but that only means each channel script exited cleanly: apt and scoop printed `PUBLISHED`, while winget, aur and copr printed a clean `SKIP` line because their secret or switch is not configured (`WINGET_CREATE_GITHUB_TOKEN`, `AUR_ENABLED`, `COPR_CONFIG`). A green job is therefore not a published package for those three. 0.4.3 was published by hand because its tag predates the workflow, and the 0.4.4 tag run skipped apt and scoop until `secrets: inherit` was added:
 
-- **apt:** `https://m7mmad-omar.github.io/kawaro-apt`, signed, served by GitHub Pages. the 0.4.6 run reported `PUBLISHED apt: 0.4.6` (the 0.4.5 run did too); the 0.4.4 `InRelease` was checked signed and `Packages` listed 0.4.4 with the DEB hash of the release `SHA256SUMS`. `apt-get update` itself was not run on this machine for 0.4.4 to 0.4.6. Install line: [apt.md](distribution-channels/apt.md).
-- **Scoop:** bucket `https://github.com/M7MMAD-OMAR/scoop-kawaro`. The 0.4.6 run reported `PUBLISHED scoop: 0.4.6` (as did 0.4.5); the 0.4.4 manifest was committed by the CI run and its hash equalled the `SHA256SUMS` line of the release ZIP. The 0.4.5 and 0.4.6 hashes were not compared here. Scoop itself was not run (it is not available on this machine).
+- **apt:** `https://m7mmad-omar.github.io/kawaro-apt`, signed, served by GitHub Pages. the 0.4.7 run reported `PUBLISHED apt: 0.4.7` (the 0.4.6 and 0.4.5 runs did too); the 0.4.4 `InRelease` was checked signed and `Packages` listed 0.4.4 with the DEB hash of the release `SHA256SUMS`. `apt-get update` itself was not run on this machine for 0.4.4 to 0.4.7. Install line: [apt.md](distribution-channels/apt.md).
+- **Scoop:** bucket `https://github.com/M7MMAD-OMAR/scoop-kawaro`. The 0.4.7 run reported `PUBLISHED scoop: 0.4.7` (as did 0.4.6 and 0.4.5); the 0.4.4 manifest was committed by the CI run and its hash equalled the `SHA256SUMS` line of the release ZIP. The 0.4.5 to 0.4.7 hashes were not compared here. Scoop itself was not run (it is not available on this machine).
 
 Open items, all platform limits:
 
