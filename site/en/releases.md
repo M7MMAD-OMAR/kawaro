@@ -1,6 +1,14 @@
 # Releases
 
-## 0.4.3
+## 0.4.4
+
+## 0.4.4 (2026-10-30)
+- Hyprland 0.57 Alt drag ([S-104](backlog/S-104-hyprland-0.57-alt.md))
+- Alt chord and doctor line ([S-102](backlog/S-102-alt-doctor-and-docs.md))
+- Distribution pipeline live (S-103)
+- Distribution guide ([S-103h](backlog/S-103-release-distribution-pipeline.md))
+- Signed apt repository channel ([S-103f](backlog/S-103-release-distribution-pipeline.md))
+- Fedora COPR channel and Flathub assessment ([S-103d](backlog/S-103-release-distribution-pi
 
 ## 0.4.3 (2026-10-30)
 - Update page shows what really happens ([S-101](https

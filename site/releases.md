@@ -1,10 +1,18 @@
 # الإصدارات
 
-## 0.4.3
+## 0.4.4
+
+## 0.4.4 (2026-10-30)
+- Hyprland 0.57 Alt drag ([S-104](backlog/S-104-hyprland-0.57-alt.md))
+- Alt chord and doctor line ([S-102](backlog/S-102-alt-doctor-and-docs.md))
+- Distribution pipeline live (S-103)
+- Distribution guide ([S-103h](backlog/S-103-release-distribution-pipeline.md))
+- Signed apt repository channel ([S-103f](backlog/S-103-release-distribution-pipeline.md))
+- Fedora COPR channel and Flathub assessment ([S-103d](backlog/S-103-release-distribution-pi
 
 ## 0.4.3 (2026-10-30)
 - Update page shows what really happens ([S-101](https
-- ترقية MSI تستبدل الملفات فعلاً: كانت الترقية على ويندوز من 0.4.0 أو 0.4.2 إلى حزمة أحدث، بالنقر المزدوج أو `msiexec /i` أو التحديث من داخل التطبيق، تفشل بالخطأ 1603 وتتراجع (الخطأ 2753 في StartDaemon)، وقد تترك مجلداً فارغاً بعد محاولة فاشلة. كان ويندوز يحتفظ بملف تنفيذي مثبت يعدّه معدّلاً من المستخدم (وقت تعديله لاحق لوقت إنشائه)؛ صار للملفين التنفيذيين إصدار ملف (`scripts/windows/msi-fixup.sh`) يستبدل دائماً الملف المثبت غير المؤرَّخ بإصدار، ويتغير معرّف كل مكوّن مع كل بناء (`scripts/windows/guid-tail.sh`) فيُزال المنتج القديم أولاً ثم تُكتب الملفات الجديدة؛ بيانات المستخدم في `%APPDATA%` لا تُمس.
+- MSI upgrade really replaces the files ([S-100](https
 - Alt plus drag on Hyprland ([S-095b](https
 - Update experience, window and restart ([S-099b](https
 - Update experience, core and IPC ([S-099a](https
