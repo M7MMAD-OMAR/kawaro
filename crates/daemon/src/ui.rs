@@ -301,6 +301,10 @@ pub fn hold_signal(signal: Signal, token: Option<String>, now: Instant, state: S
             _ => None,
         };
         let start = matches!(step, Some(TokenStep::Start(_)));
+        if start {
+            // A fresh press never inherits the re-show flag of an older one.
+            rearmed_clear();
+        }
         if let Some(step) = step {
             token_step(step);
         }
@@ -353,11 +357,11 @@ fn gate_tick(state: &Shared) {
         });
     }
     if let Some(Effect::Show { at }) = effect {
-        let at = if REARMED.with(|r| r.replace(false)) {
-            kawaro_ui::last_pointer().or(at)
-        } else {
-            at
-        };
+        let at = show_at(
+            REARMED.with(|r| r.replace(false)),
+            kawaro_ui::last_pointer(),
+            at,
+        );
         // The files come with the drag, when it enters the hive.
         let lang = {
             let mut st = lock(state);
@@ -374,6 +378,47 @@ fn gate_tick(state: &Shared) {
                 eprintln!("kawarod: cannot show the drop hive: {e}");
             }
         });
+    }
+}
+
+/// Where a show leaves its hole: a re-show of the same press follows the
+/// last position the catcher saw, anything else keeps the press's own `at`.
+fn show_at(rearmed: bool, last: Option<(f64, f64)>, at: Option<(f64, f64)>) -> Option<(f64, f64)> {
+    if rearmed { last.or(at) } else { at }
+}
+
+/// Forgets a pending re-show: a fresh press starts (S-104).
+fn rearmed_clear() {
+    REARMED.with(|r| r.set(false));
+}
+
+#[cfg(test)]
+mod s104_tests {
+    use super::*;
+
+    #[test]
+    fn a_rearmed_show_follows_the_last_pointer_else_the_press_position() {
+        assert_eq!(
+            show_at(true, Some((1.0, 2.0)), Some((9.0, 9.0))),
+            Some((1.0, 2.0))
+        );
+        assert_eq!(show_at(true, None, Some((9.0, 9.0))), Some((9.0, 9.0)));
+    }
+
+    #[test]
+    fn a_fresh_show_keeps_its_own_position() {
+        assert_eq!(
+            show_at(false, Some((1.0, 2.0)), Some((9.0, 9.0))),
+            Some((9.0, 9.0))
+        );
+        assert_eq!(show_at(false, Some((1.0, 2.0)), None), None);
+    }
+
+    #[test]
+    fn a_new_press_clears_a_leaked_rearm_flag() {
+        REARMED.with(|r| r.set(true));
+        rearmed_clear();
+        assert!(!REARMED.with(|r| r.replace(false)));
     }
 }
 
