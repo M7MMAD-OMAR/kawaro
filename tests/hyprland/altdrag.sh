@@ -151,4 +151,26 @@ altdrag_run() {
   echo "keyup $ALT" >&3; sleep 0.6
   say "INFO S-095 2 s of pointer motion with Alt held: hive surface lines $surf (bound 5)"
   check "S-095 re-show: 2 s of continuous pointer motion with Alt held gives at most 5 hive surface lines (got $surf)" '[ "$surf" -le 5 ] && [ "$surf" -ge 1 ]'
+
+  # S-102 AC5: an Alt chord with another key (Alt+a, Alt+Tab) never shows a
+  # hive. Hyprland does not fire the Alt release bind when another key came
+  # between, so a gate that only waits for the release stays in Timing and
+  # shows the hive hold_ms later with no Alt held. After each chord and 1.5 s:
+  # 0 "hive surface" lines and the gate is Idle (the daemon logged how the
+  # press ended: "hold: chord" or, when a release bind still reports it,
+  # "hold: tap"). A plain Alt tap settles the gate between the cases.
+  local chord kc ended
+  for chord in "Alt+a:$AKEY" "Alt+Tab:$TABKEY"; do
+    kc=${chord#*:}
+    echo "keydown $ALT" >&3; sleep 0.05; echo "keyup $ALT" >&3; sleep 1.2
+    m=$(wc -l <"$DLOG")
+    echo "keydown $ALT" >&3; echo "sleep 40" >&3; key "$kc"; echo "keyup $ALT" >&3
+    sleep 1.5
+    surf=$(sed -n "$((m + 1)),\$p" "$DLOG" | grep -c '^hive surface:')
+    ended=$(sed -n "$((m + 1)),\$p" "$DLOG" | grep -cE '^hold: (chord|tap)')
+    say "INFO S-102 AC5 ${chord%%:*} then 1.5 s: hive surface lines $surf, press-ended lines $ended"
+    check "S-102 AC5 (${chord%%:*}): 1.5 s after the chord there are 0 hive surface lines and the gate is Idle (a hold: chord or hold: tap line; got surface $surf, ended $ended)" \
+      '[ "$surf" -eq 0 ] && [ "$ended" -ge 1 ]'
+  done
+  echo "keydown $ALT" >&3; sleep 0.05; echo "keyup $ALT" >&3; sleep 1.2
 }
