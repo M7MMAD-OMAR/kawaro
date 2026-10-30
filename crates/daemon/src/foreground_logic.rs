@@ -24,3 +24,9 @@ pub fn foreground_ladder(mut try_step: impl FnMut(Step) -> bool) -> Step {
     try_step(Step::Flash);
     Step::Flash
 }
+
+/// Whether to repeat the foreground call once after the window shows: only
+/// when the first result was not verified and no repeat ran yet (S-107).
+pub fn should_retry(verified: bool, attempts: u32) -> bool {
+    !verified && attempts < 1
+}

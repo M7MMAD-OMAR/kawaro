@@ -254,6 +254,13 @@ pub fn present(centre: String, files: Vec<PathBuf>, cells: Vec<HiveCell>, token:
             #[cfg(windows)]
             if let Some(hwnd) = h.borrow().as_ref().and_then(|hive| hive.hwnd()) {
                 crate::shell_open::foreground(hwnd);
+                // S-107: one repeat after the window is really shown.
+                slint::Timer::single_shot(Duration::from_millis(150), move || {
+                    let verified = crate::shell_open::is_foreground(hwnd);
+                    if crate::foreground_logic::should_retry(verified, 0) {
+                        crate::shell_open::foreground(hwnd);
+                    }
+                });
             }
         })
     });
@@ -623,6 +630,16 @@ fn show_settings(config: Config, page: Option<usize>, result: Option<kawaro_ui::
                 win.show_update_result(Some(result.clone()));
             }
             raise_welcome(win);
+            // S-107: one repeat after the window is really shown.
+            #[cfg(windows)]
+            if let Some(hwnd) = win.hwnd() {
+                slint::Timer::single_shot(Duration::from_millis(150), move || {
+                    let verified = crate::shell_open::is_foreground(hwnd);
+                    if crate::foreground_logic::should_retry(verified, 0) {
+                        crate::shell_open::foreground(hwnd);
+                    }
+                });
+            }
         });
     });
 }
@@ -978,6 +995,13 @@ pub(crate) fn save_welcome_seen(state: &Shared, path: &Path) -> std::io::Result<
 fn raise_welcome(w: &WelcomeWindow) {
     if let Some(hwnd) = w.hwnd() {
         crate::shell_open::foreground(hwnd);
+        // S-107: one repeat after the window is really shown.
+        slint::Timer::single_shot(Duration::from_millis(150), move || {
+            let verified = crate::shell_open::is_foreground(hwnd);
+            if crate::foreground_logic::should_retry(verified, 0) {
+                crate::shell_open::foreground(hwnd);
+            }
+        });
     }
 }
 

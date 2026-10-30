@@ -10,11 +10,11 @@ use crate::state::{Shared, lock};
 use kawaro_core::ActionDef;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     ASFW_ANY, AllowSetForegroundWindow, FLASHW_ALL, FLASHW_TIMERNOFG, FLASHWINFO, FlashWindowEx,
-    HWND_NOTOPMOST, HWND_TOPMOST, IsIconic, SW_RESTORE, SWP_NOMOVE, SWP_NOSIZE,
-    SetForegroundWindow, SetWindowPos, ShowWindow,
+    GetForegroundWindow, HWND_NOTOPMOST, HWND_TOPMOST, IsIconic, SW_RESTORE, SWP_NOMOVE,
+    SWP_NOSIZE, SetForegroundWindow, SetWindowPos, ShowWindow,
 };
 
 /// Lets the running service take the foreground: this process was started
@@ -31,7 +31,11 @@ pub fn foreground(hwnd: isize) {
     foreground_ladder(|step| match step {
         Step::Plain => {
             // SAFETY: a plain call with a window handle of this process.
-            let ok = unsafe { SetForegroundWindow(hwnd) } != 0;
+            // The return value can be nonzero without the window in front,
+            // so the result is what the system reports after a short settle.
+            unsafe { SetForegroundWindow(hwnd) };
+            std::thread::sleep(Duration::from_millis(30));
+            let ok = unsafe { GetForegroundWindow() == hwnd };
             if !ok {
                 eprintln!("kawarod: foreground refused");
             }
@@ -46,7 +50,9 @@ pub fn foreground(hwnd: isize) {
                 let flags = SWP_NOMOVE | SWP_NOSIZE;
                 SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, flags);
                 SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, flags);
-                SetForegroundWindow(hwnd) != 0
+                SetForegroundWindow(hwnd);
+                std::thread::sleep(Duration::from_millis(30));
+                GetForegroundWindow() == hwnd
             }
         }
         Step::Flash => {
@@ -61,6 +67,12 @@ pub fn foreground(hwnd: isize) {
             unsafe { FlashWindowEx(&info) != 0 }
         }
     });
+}
+
+/// Whether `hwnd` is the foreground window now.
+pub fn is_foreground(hwnd: isize) -> bool {
+    // SAFETY: a plain query without arguments.
+    unsafe { GetForegroundWindow() == hwnd as _ }
 }
 
 /// Adds `files` to the batch in progress and gives the files of the batch
