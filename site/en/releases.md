@@ -1,6 +1,9 @@
 # Releases
 
-## 0.4.6
+## 0.4.7
+
+## 0.4.7 (2026-10-31)
+- On Hyprland 0.57 a click made while the hive is armed by `kawaro drop` without `--at` now 
 
 ## 0.4.6 (2026-10-31)
 - A file Kawaro cannot convert now gets a reason instead of a bare error ([S-096](backlog/S-096-unsupported-file-feedback.md))
