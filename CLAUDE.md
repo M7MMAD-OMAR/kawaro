@@ -135,6 +135,10 @@ scripts/design-lint.sh                       # no hand written colours, shadows,
 
 Plus: screenshots match, the performance budget holds, UI strings in Arabic and English, a descriptive label on every interactive element, and one line in `CHANGELOG.md`.
 
+### Fast loop (owner decision 2026-10-30)
+
+Do not rerun the whole suite at every step. Locally run only fmt, clippy and the tests of the touched crates or files; CI runs the full suite after the push, and a red CI is fixed first. The reviewer follows the same scope.
+
 ### Mutation testing
 
 Not a story gate (decision 2026-10-30: it cost hours per story). Run it outside the chain, nightly or weekly, on changed code only, with `--re` to limit mutants and `--test-tool=nextest` if it measures faster. Survivors become fix tasks and never block a push.
