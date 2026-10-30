@@ -36,4 +36,9 @@ As a Windows user, I want the settings window to come to the front after an upda
 Signing the Windows build, the Microsoft Store identity, the S-105 Hyprland click, GNOME and KDE focus (S-082), changing the in-page headings, cleaning the system copy in `%WINDIR%\Installer`, the Linux package cache.
 
 ## Review log
--
+- Tester, 2026-10-30. Tests: `crates/core/tests/s106_windows_small.rs` (A3, A4, A5 pure, A6 plan), `crates/core/tests/s106_sources.rs` (A2, A4 daemon start, A5 and A6 and A7 scans), `crates/daemon/tests/s106_foreground.rs` (A1). A8 is VM only, no test. The hooks the implementer must create are pinned in the header comments of each file: `update::cleanup::{stale_update_dirs, stale_helper_dirs, clean_updates}`, `HelperOps::cleanup_download`, `identity::shortcut_properties`, `crates/daemon/src/foreground_logic.rs` (`Step`, `foreground_ladder`).
+- Failing output (all for the right reason, nothing implemented):
+  - `s106_sources`: 5 failed. A2 "AllowSetForegroundWindow must follow .spawn()"; A4 "daemon must call clean_updates"; A5 "crates/core/src/update/cleanup.rs must exist"; A6 "the property store must be used"; A7 `settings.slint: window title left: ["title: root.text.title;"] right: ["title: \"Kawaro\";"]`.
+  - `s106_windows_small`: compile errors E0432 `unresolved import kawaro_core::update::cleanup`, E0407 `cleanup_download is not a member of trait HelperOps`, E0425 `cannot find function shortcut_properties in module identity`.
+  - `s106_foreground`: `couldn't find file crates/daemon/tests/../src/foreground_logic.rs`.
+- Not covered by a test: the `scripts/windows/check.sh` cross build of A6 (run it at the gate).
