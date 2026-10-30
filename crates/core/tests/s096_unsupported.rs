@@ -233,10 +233,10 @@ fn ac5_body_is_a_fixed_template_plus_the_extension_only() {
             assert!(!url.contains(leak), "{leak} in {url}");
         }
         for var in ["USER", "HOSTNAME", "LOGNAME"] {
-            if let Ok(v) = std::env::var(var) {
-                if v.len() > 2 {
-                    assert!(!url.contains(&v), "{var} value leaked");
-                }
+            if let Ok(v) = std::env::var(var)
+                && v.len() > 2
+            {
+                assert!(!url.contains(&v), "{var} value leaked");
             }
         }
     }
