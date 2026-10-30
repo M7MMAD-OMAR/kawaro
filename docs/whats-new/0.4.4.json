@@ -1,0 +1,16 @@
+{
+  "en": [
+    "Linux: the Alt then drag gesture is more reliable",
+    "Alt chords like Alt+a no longer leave a stray hive on Hyprland",
+    "Hyprland 0.57 is supported: the hive stays up under Alt",
+    "kawaro doctor shows which key opens the hive",
+    "New install options: a signed apt repository and a Scoop bucket"
+  ],
+  "ar": [
+    "لينكس: حركة Alt ثم السحب أوثق",
+    "تركيبات Alt مثل Alt+a لا تترك خلية شاردة على Hyprland",
+    "دعم Hyprland 0.57: تبقى الخلية ظاهرة مع Alt",
+    "الأمر kawaro doctor يعرض المفتاح الذي يفتح الخلية",
+    "خياران جديدان للتثبيت: مستودع apt موقّع وحاوية Scoop"
+  ]
+}

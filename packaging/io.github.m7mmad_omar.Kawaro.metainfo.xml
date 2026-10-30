@@ -38,6 +38,11 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.4" date="2026-10-30">
+      <description>
+        <p>Linux Alt gesture fixes: Alt then a late drag shows the hive with a bounded hold, Alt chords such as Alt+a no longer leave a stray hive on Hyprland, and Hyprland 0.57 is supported. kawaro doctor now shows which key opens the hive. Debian and Ubuntu users can install from a signed apt repository, and Windows users from a Scoop bucket. Known limits: on Hyprland 0.57 kawaro drop without --at can swallow the first click, the settings window can open behind another window after an update on Windows, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+      </description>
+    </release>
     <release version="0.4.3" date="2026-10-30">
       <description>
         <p>Upgrading the Windows MSI from 0.4.0 or 0.4.2 now works (it failed with error 1603). The update page shows the download percent, reopens after the restart with the result, and shows a plain message with a retry when an update fails. On Linux, Alt followed by a late drag now shows the hive. Known limits: the settings window can open behind another window after an update on Windows, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
