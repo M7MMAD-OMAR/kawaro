@@ -55,6 +55,8 @@ mod s084_drag_tests;
 #[cfg(test)]
 mod s087_welcome_tests;
 #[cfg(test)]
+mod s096_tests;
+#[cfg(test)]
 mod server_tests;
 #[cfg(test)]
 mod shell_logic_tests;
