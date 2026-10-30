@@ -1,5 +1,5 @@
 # S-096 Tell the user why a file has no actions, and what to do next
-Status: done (core and daemon; hive cells in S-108)
+Status: done (S-108 holds the manual release step M1 to M3)
 
 ## Story
 As a user who drops or opens a file Kawaro cannot convert, I want the hive to say plainly why and what I can do, so that I do not think the app is broken and I can ask for the format without sending anything by accident.
@@ -61,3 +61,4 @@ Adding any new format or engine, automatic download or install of an engine, sen
   - Updated with the manager's consent, minimally: `server_tests.rs` `ac8_open_fails_when_no_action_matches_the_file` (renamed, now expects `Ok`), the `no_actions` rows in the `text.rs` in-file tests (removed). `crates/ui/src/drop_hive_tests.rs` needed no edit: its `NO_ACTIONS` constant is a local stand-in string ("No actions"), not the old daemon text, and the grep for the old string is 0.
   - Left for S-108 (`backlog/S-108-s096b-hive-cells.md`): greyed cells, `+K`, `REQ` cell and opener, AC3 spies, AC8, AC9 hive timing.
 - 2026-10-30, reviewer: PASS (core and daemon scope; AC2 hive rendering, AC3 spies, AC4, AC5 UI, AC8, AC9 hive part move to S-108). fmt clean; clippy `-D warnings` clean for kawaro-core and kawaro-daemon; tests of both crates green (core s096_unsupported 12 of 12, daemon s096_sources and s096_tests, 207 unit); `scripts/design-lint.sh` clean; `scripts/windows/check.sh` builds. Read-checked: `classify` honours skip_ext, Mixed and MissingEngine with tool names mapped from engine ids; `core::unsupported` does no I/O; `request_url` carries only the sanitised extension (no version, path, user or host); old string count 0 in `crates/`; no U+2013 or U+2014 in changed files; no personal info added; CHANGELOG line in English and Arabic; `open()` for Mixed acts on `supported` files only (non-Windows). Reverted an incidental `design/brand/kawaro.ico` change. Note for S-108: on Windows `shell_open::selection` bypasses the Mixed split in `open`, so verify the mixed path there.
+- 2026-10-31, reviewer: PASS for the complete S-096 with S-108 (parts A and B), see the S-108 review log. The hive cells, request cell, suggestion and reduced motion are covered by tests; M1 to M3 are manual and not run.
