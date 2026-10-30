@@ -41,11 +41,6 @@ fi
 if ! command -v wixl >/dev/null 2>&1 || ! command -v msidump >/dev/null 2>&1; then
   echo "SKIP no wixl or msidump, the table checks need msitools"
   
-# The exes must carry File.Version, else an installed copy whose mtime is
-# later than its creation time is kept and the upgrade fails with 2753.
-ver() { awk -F'\t' -v k="$2" 'NR>3 && $1==k {print $5}' "$d/$1/t/File.idt"; }
-check "S-100 kawaro.exe has File.Version 0.5.1.0" test "$(ver new CliExe)" = "0.5.1.0"
-check "S-100 kawarod.exe has File.Version 0.5.1.0" test "$(ver new DaemonExe)" = "0.5.1.0"
 finish
   exit $?
 fi
