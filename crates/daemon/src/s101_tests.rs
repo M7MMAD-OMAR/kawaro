@@ -145,8 +145,8 @@ fn ac_a3_ask_mode_never_applies_by_itself_and_one_update_now_applies_once() {
 
 #[test]
 fn ac_b1_the_daemon_stays_alive_1500_ms_answering_installing_before_it_quits() {
-    set_installing(Some("0.4.3".into()));
     let (st, _rig) = state_for("0.4.2", Os::Windows);
+    set_installing(Some("0.4.3".into()));
     let cfg = config(UpdateMode::Ask);
     let clock = Cell::new(10_000u64);
     let replies = RefCell::new(Vec::new());

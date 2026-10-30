@@ -172,6 +172,8 @@ struct Rig {
 }
 
 fn state_for(installed: &str, os: Os) -> (UpdateState, Rig) {
+    // A test thread may be reused, so a value left by another test must not leak in.
+    crate::update::set_installing(None);
     let dir = tempfile::tempdir().unwrap();
     let updates = dir.path().join("updates");
     let scratch = dir.path().join("scratch");
