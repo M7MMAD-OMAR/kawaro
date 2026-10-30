@@ -580,7 +580,7 @@ for c in json.load(sys.stdin):
     [ -n "$bseg" ] && IFS='|' read -r sdt sent sfirst slast sreg ssw <<<"$(still_region "$bseg")"
     say "INFO drop show, still pointer, no --at (decision 12): catcher's first wl_region ${sdt} ms after the catcher's ready commit, that region (adds, last add) ${sfirst}, last catcher region ${slast:-none}, last hive surface ${sreg}, enters on the catcher before the region ${sent:-?}"
     check "S-019 decision 12, S-021 AC4 drop show, still pointer, no --at: the catcher's input region is the hive rectangle (one add, the last \"hive surface\" line, also its last region) within 400 ms of the catcher's ready commit (first commit after the first configure)" \
-      '[ "$sreg" != none ] && [ "$sfirst" = "1 $sreg" ] && [ "$slast" = "1 $sreg" ] && within_ms "$sdt" 400'
+      '[ "$sreg" != none ] && [ "$sfirst" = "1 $sreg" ] && [ "$slast" = "1 $sreg" ] && within_ms_from -5 "$sdt" 400'
 
     # AC5 (a): `drop --at` the cursor, the pointer still inside the hive
     # rectangle; a 5 px move brings Hyprland's wl_pointer.enter (S-021 P1):

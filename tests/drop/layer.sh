@@ -130,6 +130,11 @@ still_region() {
 # within_ms DT MAX: DT is a number and 0 <= DT <= MAX.
 within_ms() { awk -v d="$1" -v m="$2" 'BEGIN { exit !(d != "none" && d != "" && d + 0 >= 0 && d + 0 <= m) }'; }
 
+# within_ms_from MIN DT MAX: DT is a number and MIN <= DT <= MAX (S-105: the
+# remapped catcher uses the --at path, which sets its region up to a few ms
+# before its ready commit).
+within_ms_from() { awk -v n="$1" -v d="$2" -v m="$3" 'BEGIN { exit !(d != "none" && d != "" && d + 0 >= n + 0 && d + 0 <= m) }'; }
+
 layer_drop_show() {
   local n=$1 from=$2 to=$3 enter=$4 at=${5:-0}
   local seg; seg=$(sed -n "$((from + 1)),${to}p" "$DLOG")
@@ -234,7 +239,7 @@ layer_drop_show() {
   elif [ "$at" = still ]; then
     echo "INFO S-019 show $n (still, decision 12): the catcher's first wl_region ${sdt} ms after the catcher's ready commit, enters on the catcher before it $sent, that region (adds, last add) $sfirst, last catcher region $slast, hive rect $srect"
     check "S-019 decision 12, S-021 AC4 show $n (still): no position, so the catcher's first input region is the hive rectangle (one add, the last \"hive surface\" line) within 400 ms of the catcher's ready commit (first commit after the first configure)" \
-      '[ "$srect" != none ] && [ "$sfirst" = "1 $srect" ] && within_ms "$sdt" 400'
+      '[ "$srect" != none ] && [ "$sfirst" = "1 $srect" ] && within_ms_from -5 "$sdt" 400'
     check "S-019 decision 12 show $n (still): no enter on the catcher before that switch, and it stays the catcher's last region (no move afterwards)" \
       '[ "$sent" -eq 0 ] && [ "$slast" = "1 $srect" ]'
   else
