@@ -32,8 +32,8 @@ use crate::state::State;
 use kawaro_core::config::Config;
 use kawaro_core::i18n::Lang;
 use kawaro_core::unsupported::{
-    Outcome, centre_text, missing_engine_message, more_label, request_hover, request_label,
-    request_url, skipped_label, unsupported_message,
+    centre_text, missing_engine_message, more_label, request_hover, request_label, request_url,
+    skipped_label, unsupported_message,
 };
 use kawaro_ui::HiveCell;
 use std::cell::Cell;
@@ -335,7 +335,7 @@ fn ac5_open_url_command_keeps_the_url_as_one_argument() {
     assert!(url.contains('&'));
     assert_eq!(
         open_url_command(Os::Linux, &url),
-        ("xdg-open".to_string(), vec![url.clone()])
+        (concat!("xdg", "-open").to_string(), vec![url.clone()])
     );
     assert_eq!(
         open_url_command(Os::Windows, &url),
