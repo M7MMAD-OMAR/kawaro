@@ -28,7 +28,10 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex, mpsc};
 
 fn wired(spy: &Rc<RefCell<Vec<String>>>) -> Hive {
-    i_slint_backend_testing::init_no_event_loop();
+    thread_local!(static INIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) });
+    if !INIT.with(|i| i.replace(true)) {
+        i_slint_backend_testing::init_no_event_loop();
+    }
     let hive = Hive::new(Lang::En).unwrap();
     let mut st = State::new(Config::default(), &[]);
     st.available = ["image".to_string()].into();

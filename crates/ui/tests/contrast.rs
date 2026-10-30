@@ -177,13 +177,18 @@ fn ac5_highlight_ink_reads_at_7_to_1_and_its_edge_at_3_to_1() {
 #[test]
 fn ac7_hex_cell_uses_only_the_new_tokens() {
     let cell = source("components/hex-cell.slint");
-    for bad in ["surface-", "Tokens.border;"] {
-        assert_eq!(
-            cell.matches(bad).count(),
-            0,
-            "hex-cell.slint still uses `{bad}`"
-        );
-    }
+    // S-108: the greyed cell of an unsupported file uses Tokens.surface-2 and
+    // nothing else from the surface family.
+    let other_surface = cell.matches("surface-").count() - cell.matches("Tokens.surface-2").count();
+    assert_eq!(
+        other_surface, 0,
+        "hex-cell.slint uses another surface token"
+    );
+    assert_eq!(
+        cell.matches("Tokens.border;").count(),
+        0,
+        "hex-cell.slint still uses `Tokens.border;`"
+    );
     for good in [
         "Tokens.hex-fill",
         "Tokens.hex-fill-centre",
