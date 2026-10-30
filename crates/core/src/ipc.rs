@@ -43,6 +43,11 @@ pub enum Request {
     },
     /// The release of that key (`kawaro drop --release`).
     DropRelease,
+    /// Another key went down while the drop key is held (S-102): ends a
+    /// pending press that has not shown yet.
+    DropOtherKey,
+    /// The last hold outcome, for `kawaro doctor` (S-102).
+    HoldStatus,
     /// Run an action without showing the hive.
     Run {
         action: String,
@@ -81,6 +86,12 @@ pub enum Response {
     },
     /// The answer to `UpdateCheck`. The JSON key is `state` because the
     /// response is tagged with `status` (S-054b ruling).
+    /// The answer to `HoldStatus`: the reason word of the last hold that
+    /// ended without a hive and how long ago, if any.
+    Hold {
+        last: Option<String>,
+        ago_ms: Option<u64>,
+    },
     Update {
         #[serde(rename = "state")]
         status: String,

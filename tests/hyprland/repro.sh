@@ -268,12 +268,21 @@ hl.window_rule({ match = kawaro, border_size = 0 })
 hl.layer_rule({ match = { namespace = "^kawaro$" }, no_anim = true })
 LUA
   if [ "$ALTDRAG" = 1 ]; then
-    # The documented Alt-hold binds (integrations/linux/hyprland/README.md).
+    # The documented Alt-hold binds and the S-102 key hook for Alt chords
+    # (integrations/linux/hyprland/README.md).
     cat >>"$XDG_CONFIG_HOME/hypr/sbh.lua" <<LUA
 hl.bind("ALT_L", hl.dsp.exec_cmd("$BIN/kawaro drop --hold --at \\"\$(hyprctl cursorpos)\\""),
   { non_consuming = true, ignore_mods = true })
 hl.bind("ALT_L", hl.dsp.exec_cmd("$BIN/kawaro drop --release"),
   { release = true, non_consuming = true, ignore_mods = true })
+local alt_down = false
+hl.on("input.keyboard.key", function(code, _, state)
+  if code == 64 then
+    alt_down = state == 1
+  elseif alt_down and state == 1 then
+    hl.exec_cmd("sleep 0.05; $BIN/kawaro drop --other-key")
+  end
+end)
 LUA
   fi
   # --portal: no systemd or activation environment updates by Hyprland

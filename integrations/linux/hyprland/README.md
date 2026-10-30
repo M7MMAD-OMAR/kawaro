@@ -85,6 +85,23 @@ hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/kawaro drop --release"),
     { release = true, non_consuming = true, ignore_mods = true, description = "Kawaro: release Alt to close" })
 ```
 
+### Alt with another key (Alt+a, Alt+Tab)
+
+Hyprland does not fire a release bind when another key came between the press and the release, so after Alt+a the daemon would wait for a release that never comes and show the hive 400 ms later with no Alt held. In the Lua config, add a key hook next to the two Alt binds. It only watches: it consumes nothing, so Alt+Tab, Alt+F4 and every other combination reach their application as before. While Alt is down, any other key press runs `kawaro drop --other-key`, which ends the pending press (the daemon logs `hold: chord`) and shows nothing. The short `sleep` keeps it behind the press bind, which runs `hyprctl` first. `64` is `Alt_L` (evdev 56 plus 8); measured on Hyprland 0.57.0 in the private session of `tests/hyprland/repro.sh --altdrag` (Alt+a: 0 hive surfaces and `hold: chord`; before: 5 surfaces):
+
+```
+local alt_down = false
+hl.on("input.keyboard.key", function(code, _, state)
+  if code == 64 then -- Alt_L, the evdev code 56 plus 8
+    alt_down = state == 1
+  elseif alt_down and state == 1 then
+    hl.exec_cmd("sleep 0.05; $HOME/.local/bin/kawaro drop --other-key")
+  end
+end)
+```
+
+hyprlang has no equivalent: its `catchall` key works in submaps only, and a submap would switch off your other binds while Alt is down. With hyprlang a chord is handled by the time limit (`hold_max_ms`) instead. `kawaro drop --other-key` never starts the daemon and ends a press only before the hive has shown; a shown hive stays until the release.
+
 Every release bind above is non consuming (the flag `n` with `r` and `i` in hyprlang, `non_consuming` in Lua), and it must stay so. Hyprland swallows the press of a key whose release bind is consuming, and since the release bind ignores modifiers it matches the bare key: a consuming `bindri = SUPER, Z` swallows every Z typed in any application, and one on `ALT_L` every Alt. This is verified, in the Hyprland 0.56.2 source (`KeybindManager.cpp` suppresses the press for a `release` bind unless it is non consuming) and on a real session where Z stopped typing. A release with no hive shown does nothing, so the extra call on a plain Z costs nothing.
 
 Notes, none of them verified:

@@ -16,6 +16,7 @@ mod update;
 mod update_sys;
 
 use clap::{Parser, Subcommand};
+use kawaro_core::hold::{Outcome, doctor_line};
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::{Event, Request, Response};
 use kawaro_core::queue::{self, JobEvent};
@@ -67,6 +68,10 @@ enum Cmd {
         /// cancels it before it shows. Never starts the daemon.
         #[arg(long)]
         release: bool,
+        /// Another key went down while the drop key is held (S-102): ends a
+        /// press that has not shown yet. Never starts the daemon.
+        #[arg(long = "other-key", conflicts_with_all = ["release", "hold"])]
+        other_key: bool,
     },
     /// Check for an update, download and verify it, and install it
     /// (`kawaro update --help` lists the options).
@@ -211,6 +216,9 @@ fn main() -> ExitCode {
         } => open(token, from_clipboard, files),
         Cmd::Drop { release: true, .. } => drop_release(),
         Cmd::Drop {
+            other_key: true, ..
+        } => drop_other_key(),
+        Cmd::Drop {
             token, at, hold, ..
         } => drop_hive(token, at, hold),
         Cmd::Convert { to, quality, files } => convert(&to, quality, &files),
@@ -336,8 +344,23 @@ fn open(token: Option<String>, from_clipboard: bool, mut files: Vec<PathBuf>) ->
 
 fn drop_hive(token: Option<String>, at: Option<(f64, f64)>, hold: bool) -> Res<()> {
     let token = resolve_token(token, &|k| std::env::var(k).ok());
-    client::ensure_daemon()?;
+    if let Err(e) = client::ensure_daemon() {
+        if hold {
+            // S-102 AC2: a press that reached no daemon is logged.
+            eprintln!("{}", Outcome::DaemonDown.log_line());
+        }
+        return Err(e);
+    }
     client::request(&Request::Drop { token, at, hold }).map(|_| ())
+}
+
+/// Another key went down with the drop key held. With no daemon there is no
+/// press to end, so that is not an error.
+fn drop_other_key() -> Res<()> {
+    if client::daemon_up() {
+        client::request(&Request::DropOtherKey)?;
+    }
+    Ok(())
 }
 
 /// A key release whose press reached no daemon has nothing to close, so a
@@ -553,11 +576,50 @@ fn doctor() {
         );
     }
     out!("service");
+    let up = client::daemon_up();
     out!(
         "  {} kawarod answering on {}",
-        mark(client::daemon_up()),
+        mark(up),
         kawaro_core::transport::endpoint()
     );
+    let last = match client::request(&Request::HoldStatus) {
+        Ok(Response::Hold {
+            last: Some(word),
+            ago_ms: Some(ago),
+        }) => Outcome::from_reason(&word).map(|o| (o, ago)),
+        _ => None,
+    };
+    let (key, bound) = drop_bind();
+    out!("{}", doctor_line(&key, bound, up, last));
+}
+
+/// The drop key bind of this Hyprland session, from `hyprctl binds -j`: the
+/// key of the bind that runs `drop --hold` (hyprlang) or carries the
+/// documented description `Kawaro: hold ...` (Lua). Without Hyprland, or
+/// without such a bind, the key is `unknown` and the bind is `missing`:
+/// doctor cannot read the binds of any other compositor, nor a Lua bind
+/// without the description.
+fn drop_bind() -> (String, bool) {
+    let json = std::process::Command::new("hyprctl")
+        .args(["binds", "-j"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok());
+    let found = json.as_ref().and_then(|v| v.as_array()).and_then(|binds| {
+        binds.iter().find(|b| {
+            // A hyprlang bind shows its command in `arg`; a Lua bind shows
+            // only a handle there, so the documented description is read.
+            b["arg"].as_str().is_some_and(|a| a.contains("drop --hold"))
+                || b["description"]
+                    .as_str()
+                    .is_some_and(|d| d.starts_with("Kawaro: hold"))
+        })
+    });
+    match found {
+        Some(b) => (b["key"].as_str().unwrap_or("unknown").to_string(), true),
+        None => ("unknown".to_string(), false),
+    }
 }
 
 fn actions(json: bool, files: &[PathBuf]) -> Res<()> {

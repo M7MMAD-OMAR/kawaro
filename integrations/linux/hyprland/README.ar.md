@@ -87,6 +87,23 @@ hl.bind("ALT_L", hl.dsp.exec_cmd("$HOME/.local/bin/kawaro drop --release"),
     { release = true, non_consuming = true, ignore_mods = true, description = "Kawaro: release Alt to close" })
 ```
 
+### Alt مع مفتاح آخر (Alt+a وAlt+Tab)
+
+لا يُطلق Hyprland ربط الترك إذا جاء مفتاح آخر بين الضغط والترك، فبعد Alt+a تنتظر الخدمة تركاً لن يأتي، وتُظهر الخلية بعد 400 ملي ثانية دون أن يكون Alt ممسوكاً. في إعداد Lua أضف خطّاف مفاتيح بجوار ربطَي Alt. الخطّاف يراقب فقط ولا يستهلك شيئاً، فيصل Alt+Tab وAlt+F4 وكل تركيبة إلى برنامجها كما كان. وما دام Alt مضغوطاً يشغّل أي مفتاح آخر الأمر `kawaro drop --other-key`، فتنتهي الضغطة المعلّقة (تسجّل الخدمة `hold: chord`) ولا يظهر شيء. و`sleep` القصير يبقيه خلف ربط الضغط الذي يشغّل `hyprctl` أولاً. الرقم `64` هو `Alt_L` (الرمز 56 في evdev زائد 8). قِيس على Hyprland 0.57.0 في الجلسة الخاصة لـ `tests/hyprland/repro.sh --altdrag`: مع Alt+a لا يظهر سطح خلية ويُسجَّل `hold: chord`، وقبل الإصلاح كانت خمسة أسطح.
+
+```
+local alt_down = false
+hl.on("input.keyboard.key", function(code, _, state)
+  if code == 64 then -- Alt_L, the evdev code 56 plus 8
+    alt_down = state == 1
+  elseif alt_down and state == 1 then
+    hl.exec_cmd("sleep 0.05; $HOME/.local/bin/kawaro drop --other-key")
+  end
+end)
+```
+
+لا مقابل لهذا في hyprlang: مفتاحه `catchall` يعمل داخل submap فقط، والـ submap يعطّل بقية ربطك ما دام Alt مضغوطاً. ومع hyprlang تعالج الحدَّ الزمني (`hold_max_ms`) هذه الحالة. والأمر `kawaro drop --other-key` لا يشغّل الخدمة، ولا ينهي إلا ضغطة لم تظهر خليتها بعد؛ والخلية الظاهرة تبقى حتى الترك.
+
 كل ربط ترك أعلاه غير مستهلِك (العلم `n` مع `r` و`i` في hyprlang، و`non_consuming` في Lua)، ويجب أن يبقى كذلك. يبتلع Hyprland ضغطة المفتاح الذي له ربط ترك مستهلِك، ولأن ربط الترك يتجاهل المُعدِّلات فهو يطابق المفتاح وحده: ربط `bindri = SUPER, Z` المستهلِك يبتلع كل حرف Z يُكتب في أي برنامج، والربط على `ALT_L` يبتلع كل ضغطة Alt. وهذا متحقق منه في مصدر Hyprland 0.56.2 (يبتلع `KeybindManager.cpp` ضغطة ربط الترك ما لم يكن غير مستهلِك) وفي جلسة حقيقية توقف فيها حرف Z عن الكتابة. وترك المفتاح دون خلية ظاهرة لا يفعل شيئاً، فلا كلفة لهذا الاستدعاء مع Z العادي.
 
 ملاحظات، ولم نتحقق من أي منها:

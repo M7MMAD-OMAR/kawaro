@@ -182,6 +182,7 @@ pub fn debug_line(s: Signal) -> &'static str {
     match s {
         Signal::Hold { .. } => "portal: activated drop",
         Signal::Release => "portal: deactivated drop",
+        Signal::OtherKey => "portal: other key",
     }
 }
 

@@ -21,6 +21,10 @@ pub enum Signal {
     Hold { at: Option<(f64, f64)> },
     /// The key went up.
     Release,
+    /// Another key went down (S-102): an Alt chord such as Alt+a or Alt+Tab.
+    /// Hyprland does not fire the release bind when another key came
+    /// between, so this ends a pending press instead.
+    OtherKey,
 }
 
 /// What the gate asks for.
@@ -47,6 +51,9 @@ pub enum Outcome {
     ReleaseLost,
     /// The press never reached a running daemon.
     DaemonDown,
+    /// Another key went down before the hive showed: a chord, not a hold
+    /// (S-102).
+    Chord,
 }
 
 impl Outcome {
@@ -58,7 +65,28 @@ impl Outcome {
             Outcome::Timeout => "timeout",
             Outcome::ReleaseLost => "release-lost",
             Outcome::DaemonDown => "daemon-down",
+            Outcome::Chord => "chord",
         }
+    }
+
+    /// The outcome with this reason word (the daemon status reply).
+    pub fn from_reason(word: &str) -> Option<Outcome> {
+        [
+            Outcome::Tap,
+            Outcome::NoDrag,
+            Outcome::NoActionFile,
+            Outcome::Timeout,
+            Outcome::ReleaseLost,
+            Outcome::DaemonDown,
+            Outcome::Chord,
+        ]
+        .into_iter()
+        .find(|o| o.reason() == word)
+    }
+
+    /// The reason word, `tap`, `chord`, and so on.
+    pub fn word(self) -> &'static str {
+        self.reason()
     }
 
     /// `hold: <reason>`.
@@ -175,6 +203,11 @@ impl Gate {
                 self.phase = Phase::Idle;
                 Some(Effect::Release)
             }
+            (Phase::Timing { .. }, Signal::OtherKey) => {
+                self.phase = Phase::Idle;
+                self.outcome = Some(Outcome::Chord);
+                None
+            }
             _ => None,
         }
     }
@@ -248,6 +281,7 @@ pub fn from_request(r: &Request) -> Option<Signal> {
     match r {
         Request::Drop { hold: true, at, .. } => Some(Signal::Hold { at: *at }),
         Request::DropRelease => Some(Signal::Release),
+        Request::DropOtherKey => Some(Signal::OtherKey),
         _ => None,
     }
 }
@@ -313,5 +347,19 @@ mod rearm_tests {
         g.signal(Signal::Hold { at: None }, t);
         g.tick(t + Duration::from_millis(400));
         assert!(g.rearm(Hide::Pointer, t));
+    }
+
+    #[test]
+    fn outcome_words_round_trip_and_other_key_is_a_request() {
+        for o in [
+            Outcome::Tap,
+            Outcome::Chord,
+            Outcome::NoActionFile,
+            Outcome::DaemonDown,
+        ] {
+            assert_eq!(Outcome::from_reason(o.word()), Some(o));
+        }
+        assert_eq!(Outcome::from_reason("nope"), None);
+        assert_eq!(from_request(&Request::DropOtherKey), Some(Signal::OtherKey));
     }
 }

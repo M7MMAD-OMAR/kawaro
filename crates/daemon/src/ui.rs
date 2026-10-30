@@ -8,7 +8,7 @@ use crate::state::{Shared, common_kind, lock};
 use crate::{jobs, text};
 use kawaro_core::ActionDef;
 use kawaro_core::config::{Config, HOLD_MAX_DEFAULT, LangSetting, Theme};
-use kawaro_core::hold::{Effect, Gate, Hide, Signal};
+use kawaro_core::hold::{Effect, Gate, Hide, Outcome, Signal};
 use kawaro_core::i18n::Lang;
 use kawaro_core::queue::Queue;
 #[cfg(unix)]
@@ -116,6 +116,7 @@ pub fn build(
             }
             if actions.is_empty() {
                 st.pending = None;
+                note_hold(Outcome::NoActionFile);
                 return (text::no_actions(lang).to_string(), Vec::new());
             }
             let centre = text::selection(lang, files.len(), common_kind(&files));
@@ -383,8 +384,27 @@ fn start_gate_timer(state: &Shared) {
 /// (S-095 AC6).
 fn log_outcome(gate: &mut Gate) {
     if let Some(o) = gate.take_outcome() {
-        eprintln!("kawarod: {}", o.log_line());
+        note_hold(o);
     }
+}
+
+/// The last hold that ended without a hive and when, for `kawaro doctor`
+/// (S-102 AC1).
+static LAST_HOLD: std::sync::Mutex<Option<(Outcome, Instant)>> = std::sync::Mutex::new(None);
+
+/// Logs `hold: <reason>` and remembers it as the last hold.
+fn note_hold(o: Outcome) {
+    eprintln!("{}", o.log_line());
+    if let Ok(mut last) = LAST_HOLD.lock() {
+        *last = Some((o, Instant::now()));
+    }
+}
+
+/// The last hold outcome word and its age in ms, for the status reply.
+pub fn last_hold() -> Option<(&'static str, u64)> {
+    let last = LAST_HOLD.lock().ok()?;
+    let (o, at) = (*last)?;
+    Some((o.word(), at.elapsed().as_millis() as u64))
 }
 
 /// The hive closed with no drag while the key may still be held: the gate

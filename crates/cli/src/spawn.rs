@@ -274,6 +274,8 @@ mod tests {
                 true,
             ),
             (Request::DropRelease, false),
+            (Request::DropOtherKey, false),
+            (Request::HoldStatus, false),
             (
                 Request::Run {
                     action: "to-webp".into(),
@@ -297,6 +299,8 @@ mod tests {
                 | Request::Open { .. }
                 | Request::Drop { .. }
                 | Request::DropRelease
+                | Request::DropOtherKey
+                | Request::HoldStatus
                 | Request::Run { .. }
                 | Request::Actions { .. }
                 | Request::CancelAll
@@ -313,7 +317,7 @@ mod tests {
     #[test]
     fn ac5_window_requests_grant_the_server_pid_and_nothing_else_does() {
         let reqs = every_request();
-        assert_eq!(reqs.len(), 13);
+        assert_eq!(reqs.len(), 15);
         for (req, grants) in reqs {
             let want = if grants { Some(42) } else { None };
             assert_eq!(foreground_grant(&req, Some(42)), want, "{req:?}");

@@ -190,7 +190,17 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
             reply(&mut stream, &Response::Ok);
         }
         // Taken by the gate above.
-        Request::DropRelease => reply(&mut stream, &Response::Ok),
+        Request::DropRelease | Request::DropOtherKey => reply(&mut stream, &Response::Ok),
+        Request::HoldStatus => {
+            let (last, ago_ms) = ui::last_hold().unzip();
+            reply(
+                &mut stream,
+                &Response::Hold {
+                    last: last.map(str::to_string),
+                    ago_ms,
+                },
+            );
+        }
         Request::UpdateCheck => {
             let (config, jobs, hive_open) = crate::update_sys::snapshot(state);
             let lang = lock(state).lang;

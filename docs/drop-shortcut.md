@@ -53,7 +53,25 @@ bindni = , ALT_L, exec, ~/.local/bin/kawaro drop --hold --at "$(hyprctl cursorpo
 bindrni = , ALT_L, exec, ~/.local/bin/kawaro drop --release
 ```
 
+An Alt chord (Alt+a, Alt+Tab, Alt+F4) never shows the hive. Hyprland does not fire the release bind when another key came between, so the Lua config also needs a small key hook that tells the daemon about the other key (it only watches, every combination still reaches its application); the hook is in [the Hyprland guide](../integrations/linux/hyprland/README.md). The daemon then ends the press and logs `hold: chord`.
+
 The release bind needs a running daemon, so start it with the session: `exec-once = ~/.local/bin/kawarod`. The Lua form, and holding Super+Z instead of Alt, are in [the Hyprland guide](../integrations/linux/hyprland/README.md).
+
+## Alt tap
+
+This section answers one question: can a bare Alt tap, with no drag, open the hive for the files selected in the file manager. Today it does not, on purpose: a tap shows nothing (`hold: tap`).
+
+A Wayland client cannot read a file manager selection directly. The selection belongs to the file manager, and no protocol lets another program ask for it. Three indirect ways were considered.
+
+| Option | What was measured | Result |
+|---|---|---|
+| Clipboard after copy | Nothing new: it reads what the user already copied (`kawaro open --from-clipboard`, needs `wl-paste`). | Works only after an explicit Ctrl+C, so it is not a tap. |
+| `kawaro-open-selection` | The script sends Ctrl+C to the active window, then reads the clipboard. In a terminal that Ctrl+C interrupts the running program. | Side effects: it changes the clipboard and can kill a job, so it is not safe on a bare Alt. |
+| AT-SPI selection of the file manager | Not measured. It needs the file manager to expose its selection over the accessibility bus, which differs per file manager and per version. | No result; no code ships. |
+
+Measured for the Alt key itself (private Hyprland, `tests/hyprland/repro.sh --altdrag`): a bare Alt tap shows nothing, Alt+a reaches the client with the Alt modifier, and an Alt chord ends the press with `hold: chord`.
+
+**Recommendation:** do not open the hive from a bare Alt tap. Alt tap belongs to menu bars and to window manager binds, and the only ways to read the selection either need a manual copy or have side effects. Keep the existing `kawaro-open-selection` bind on a chord that does not use Alt, and Alt hold for the drag.
 
 ## Windows
 
