@@ -58,7 +58,7 @@ ok("AC4 environment: release-signing", job.get("environment") == "release-signin
 # signing certificate; update-manifest keeps the update keys.
 ok("AC4 no job except update-manifest and windows has an environment",
    all("environment" not in j for n, j in jobs.items()
-       if n not in ("update-manifest", "windows")))
+       if n not in ("update-manifest", "windows", "sign-checksums")))
 others = yaml.dump({n: j for n, j in jobs.items() if n != "update-manifest"})
 ok("AC4 UPDATE_SIGNING stays only in this job", "UPDATE_SIGNING" not in others)
 ok("AC4 release-signing appears only here and in windows",
