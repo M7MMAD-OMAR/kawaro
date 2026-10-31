@@ -1,5 +1,5 @@
 # S-111 Hyprland Alt bind generator, repair command and doctor drop-key states
-Status: review
+Status: done (nested Hyprland harness run and a live session check are manual, not run; KDE and GNOME stay in S-075b)
 
 ## Story
 As a Hyprland user who installed the package, I want Kawaro to write, repair and report the Alt drag bind for me, so that Alt then drag works without hand edited binds and a stale or foreign bind is never silent.
@@ -57,3 +57,5 @@ This is the agent-finishable part of S-075 (the triage calls it S-075a and S-075
   Existing tests to adapt: none; the S-102 `drop key:` line is unchanged.
   Failure output (before implementation): core test: `error[E0432]: unresolved import kawaro_core::hyprland_bind` (module missing, so the whole file fails to compile). CLI test: 10 of 10 fail, for example `ac7_doctor_prints_the_four_states`: `left: []  right: ["drop key state: native Alt active"]`; `ac5_repair_creates_updates_and_settles` fails at the `repair: wrote 1 block` assertion because `--repair` is not a known flag yet; all AC4, AC5, AC8 rows fail the same way.
 - 2026-10-31, implementer: done. `kawaro_core::hyprland_bind` (generator, merge, launcher plan, state, message table, bind JSON readers) and `kawaro doctor --repair` plus the `drop key state:` line. Note: "installed" for the launcher cleanup means a binary on PATH outside `~/.local/bin`; `/usr/bin` counts because it is on PATH, and a PATH without `/usr/bin` does not see it (the CLI test keeps a launcher only on that basis). READMEs and CHANGELOG updated. Status review.
+
+- 2026-10-31, manager closing: implementer gates green (fmt, clippy, core and cli tests incl. 12 and 10 s111 tests, design-lint); the Windows cross check failed on a dead_code lint in the new test helper, fixed with a cfg(unix) attribute, no assertion changed.

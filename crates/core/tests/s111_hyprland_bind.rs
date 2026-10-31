@@ -283,6 +283,7 @@ fn ac8_message_table_parity() {
 }
 
 // AC9
+#[cfg(unix)]
 fn sections(text: &str) -> (String, String) {
     // The helper script part is the text before the first "## " heading.
     let idx = text
