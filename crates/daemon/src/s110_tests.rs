@@ -25,7 +25,9 @@ fn state() -> crate::state::Shared {
     Arc::new(Mutex::new(State::new(Config::default(), &[])))
 }
 
-fn run(at: Option<(f64, f64)>) -> Vec<(Vec<PathBuf>, Option<String>, Option<(f64, f64)>)> {
+type Shown = (Vec<PathBuf>, Option<String>, Option<(f64, f64)>);
+
+fn run(at: Option<(f64, f64)>) -> Vec<Shown> {
     let mut seen = Vec::new();
     let r = open_with(
         &state(),

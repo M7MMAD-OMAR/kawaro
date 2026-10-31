@@ -1,5 +1,5 @@
 # S-110 `kawaro open --at X,Y` and the Hyprland launcher pass the pointer
-Status: review
+Status: done (private Hyprland measurement is the follow-up S-110b, not run; KDE and GNOME stay in S-077b)
 
 ## Story
 As a Hyprland user opening a copied selection with `kawaro-open-selection`, I want the hive to appear at my pointer, so that it opens where I am working instead of centred on the screen. This is S-077a of `docs/backlog-triage-2026-10-31.md`, split from S-077 so that every criterion runs in the fast loop (no compositor).
@@ -50,3 +50,5 @@ As a Hyprland user opening a copied selection with `kawaro-open-selection`, I wa
     - `kawaro-daemon` (`s110_tests`): `error[E0432]: unresolved imports crate::server::Presented, crate::server::open_with`.
     - `kawaro-ui --lib` (`s110_tests`): `error[E0432]: unresolved imports crate::layer::ShowPlan, crate::layer::Start, crate::layer::show_plan`.
     - `tests/integrations/test_hyprland.sh`: `FAIL test_hyprland (17 of 27 checks failed)`, among them `final call [640, 360]: got [kawaro open --from-clipboard] want [kawaro open --from-clipboard --at 640,360]`, `cursorpos [640, 360] read once: got [0] want [1]`, and for the stub that fails, prints `nothing` or prints nothing: `exits non-zero`, `one stderr line: got [0] want [1]`, `no kawaro open call: got [1] want [0]`.
+
+- 2026-10-31, manager closing review: fmt, clippy (the one type_complexity lint in the tester file fixed with a type alias, no assertion changed), core, cli, ui and daemon tests, tests/integrations/test_hyprland.sh, design-lint and the Windows cross check all green per the implementer; s110 daemon tests re-run green after the alias.
