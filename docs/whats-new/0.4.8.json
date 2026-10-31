@@ -1,0 +1,14 @@
+{
+  "en": [
+    "About page: website and source links, copy version, check for updates",
+    "Notifications: Off, every finished job, or only long jobs",
+    "kawaro doctor --repair sets up the Hyprland Alt drag bind",
+    "Store metadata: app icon, screenshots and Arabic release notes"
+  ],
+  "ar": [
+    "صفحة حول: رابطا الموقع والشيفرة ونسخ الإصدار والبحث عن تحديث",
+    "الإشعارات: إيقاف أو كل عملية تنتهي أو العمليات الطويلة فقط",
+    "الأمر kawaro doctor --repair يضبط ربط Alt على هايبرلاند",
+    "بيانات المتاجر: أيقونة ولقطات وملاحظات إصدار بالعربية"
+  ]
+}

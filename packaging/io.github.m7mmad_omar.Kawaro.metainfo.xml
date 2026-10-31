@@ -51,6 +51,12 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.4.8" date="2026-10-31">
+      <description>
+        <p>The About page gains website and source links, a copy version button and an update shortcut. Notifications can be Off, All or Long. kawaro open --at and the Hyprland launcher open the hive at the pointer, and kawaro doctor --repair writes the Hyprland Alt bind. The AppStream file gains an icon, screenshots and Arabic release notes. Known limits: the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+        <p xml:lang="ar">تضيف صفحة حول روابط الموقع والشيفرة وزر نسخ الإصدار واختصار التحديث. يمكن جعل الإشعارات إيقافاً أو الكل أو الطويلة فقط. يفتح kawaro open --at وسكربت Hyprland الخلية عند المؤشر، ويكتب kawaro doctor --repair ربط Alt على Hyprland. يكتسب ملف AppStream أيقونة ولقطات وملاحظات إصدار بالعربية. حدود معروفة: ملفات ويندوز ما زالت موقّعة ذاتياً، فقد يحذّر SmartScreen أو Defender.</p>
+      </description>
+    </release>
     <release version="0.4.7" date="2026-10-31">
       <description>
         <p>On Hyprland 0.57, kawaro drop without --at no longer swallows the first click. Known limits: the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
