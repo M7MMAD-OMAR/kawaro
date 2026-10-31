@@ -1,5 +1,5 @@
 # S-056 Build the public website
-الحالة: مراجعة
+الحالة: منتهية (منشور، أُعيد تصميمه في S-063 وS-064 وينشر عبر S-059؛ الاختبارات في tests/site)
 
 ## Story
 As the maintainer, I want a bilingual public website with a honeycomb theme, so that visitors understand Kawaro at a glance, download the beta safely and are told honestly what is and is not verified.

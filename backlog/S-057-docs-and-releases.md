@@ -1,5 +1,5 @@
 # S-057 Docs and releases on the website
-الحالة: مراجعة
+الحالة: منتهية (منشورة على الموقع، تُبنى بـ scripts/build-site.sh وتنشر عبر S-059؛ الاختبارات في tests/site)
 
 ## Story
 As a visitor or an AI agent, I want short guides, a formats list and a releases page on the website, so that I can find how Kawaro works without reading the repository.

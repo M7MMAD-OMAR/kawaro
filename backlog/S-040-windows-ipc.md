@@ -1,5 +1,5 @@
 # S-040 IPC transport behind one interface, then a named pipe on Windows
-Status: approved for implementation on the windows/0.6.0 branch at the owner's request (2026-10-22); ADR 0005 is still proposed; merged into main locally on 2026-10-23 (not pushed); S-040a: done (PASS from the reviewer 2026-10-22); S-040b: done (PASS from the reviewer 2026-10-22)
+Status: done (released in 0.4.0; both parts reviewed PASS, merged to main, the Windows pipe is `crates/core/src/transport/windows.rs`). History: approved for implementation on the windows/0.6.0 branch at the owner's request (2026-10-22); ADR 0005 is still proposed; merged into main locally on 2026-10-23 (not pushed); S-040a: done (PASS from the reviewer 2026-10-22); S-040b: done (PASS from the reviewer 2026-10-22)
 Renumbered on 2026-10-23: this story was S-022 on windows/0.6.0 before the merge into main (main had already used S-022 and S-027). Commit messages and review-log hashes keep the old number.
 
 Builds on ADR 0005 section 2. For release 0.6.0. Does not touch `crates/ui`.
