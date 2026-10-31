@@ -55,9 +55,9 @@ Get the latest release from the [releases page](https://github.com/M7MMAD-OMAR/k
 | Fedora | `kawaro-<version>-1.x86_64.rpm` | `sudo dnf install ./kawaro-*.x86_64.rpm` |
 | Ubuntu, Debian | `kawaro_<version>_amd64.deb` | `sudo apt install ./kawaro_*_amd64.deb` |
 
-Every release has a `SHA256SUMS` file to verify your download. Package channels (WinGet, Scoop, COPR, AUR, apt) and what is live: [distribution guide](docs/distribution.md). After installing, reopen your file manager and right-click a file.
+Every release has a `SHA256SUMS` file to verify your download. Package channels and what is live (apt and Scoop are live, WinGet waits for review, AUR and COPR wait for accounts): [distribution guide](docs/distribution.md). After installing, reopen your file manager and right-click a file.
 
-**Windows warning.** The Windows files are signed with a self-signed test certificate, so SmartScreen warns on first run: click "More info", then "Run anyway" ([details](docs/windows-smartscreen.md)). On Windows 11 the Kawaro item is under "Show more options". Public signing is being arranged through the Microsoft Store and WinGet.
+**Windows warning.** The Windows files are signed with a self-signed test certificate, so SmartScreen warns on first run: click "More info", then "Run anyway" ([details](docs/windows-smartscreen.md)). On Windows 11 the Kawaro item is under "Show more options". A trusted certificate is not available to the project for now; WinGet and Scoop are the other install routes.
 
 **Updates.** Kawaro checks for new versions and updates itself: Settings, Updates shows the installed version, "Check for updates" and "Update now". The command line does the same with `kawaro update`.
 
@@ -131,7 +131,7 @@ Kawaro is free and built in the open. If it helps you, you can support its devel
 
 ## Distribution and signing
 
-WinGet (`Sbarah.Kawaro`) is submitted and waits for review. The SignPath Foundation declined the application because the project needs more public visibility first, so the route to a trusted publisher name is the Microsoft Store. Details: [distribution status](docs/distribution-status.md) and the [code signing policy](CODE_SIGNING_POLICY.md).
+Current release: 0.4.7. apt and Scoop are live and update on every release. The WinGet package (`Sbarah.Kawaro`) passed all automated checks and waits for a volunteer moderator since 2026-10-27, so it is not installable yet. AUR and COPR wait for accounts that only a person can create. The maintainer has no code signing certificate available, so the Windows build stays self-signed and SmartScreen warns; the Microsoft Store and SignPath are parked, not planned for now. Details: [distribution status](docs/distribution-status.md) and the [code signing policy](CODE_SIGNING_POLICY.md).
 
 ## License
 

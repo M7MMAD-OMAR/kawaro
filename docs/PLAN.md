@@ -4,6 +4,10 @@ The original planning document was never exported, so this plan rebuilds it from
 
 ## Where we are (2026-10-31)
 
+**Now:** 0.4.7 is the current release (tag v0.4.7, 2026-10-31). apt and Scoop publish on every tag. WinGet ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) passed all automated checks and waits for a volunteer moderator since 2026-10-27. AUR and COPR need an account only a person can create, so they stay skipped. The maintainer has no code signing certificate and no identity document usable for the Microsoft Store verification, so the Windows build stays self-signed (SmartScreen warns); the Store, SignPath and a paid certificate are parked, not planned for now.
+
+**Remaining engineering:** S-082 (GNOME and KDE focus test, needs a virtual machine), 0.5.0 X11 (S-015), 0.6.0 Windows native work, S-078 (AppStream and AUR), S-016 and S-017 (glass hive), S-077 (hive position from a normal open, needs a reproduction first).
+
 | Release | State |
 | --- | --- |
 | 0.1.0 "The hive" | Released 2026-10-20 |
@@ -20,7 +24,7 @@ The original planning document was never exported, so this plan rebuilds it from
 | 0.4.4 | Cut 2026-10-30: Alt chords no longer leave a stray hive on Hyprland and `kawaro doctor` shows the drop key (S-102), Hyprland 0.57 support (S-104), and the distribution pipeline with a signed apt repository and a Scoop bucket (S-103; AUR and COPR wait for accounts). Known gaps: on Hyprland 0.57 `kawaro drop` without `--at` can swallow the first click (S-105); the settings window can open behind another window after an update on Windows; the Windows build is still self-signed |
 | 0.4.5 | Released 2026-10-30: four small Windows defects from the 0.4.4 beta feedback (S-106) and the foreground verify and repeat found by the VM run (S-107): the settings window comes to the front, old update files are cleaned up, the notification header and window titles read Kawaro. Checked on the Windows 11 VM. Known gaps: on Hyprland 0.57 `kawaro drop` without `--at` can swallow the first click (S-105, draft); the Windows build is still self-signed; the focus and activation test on real GNOME and KDE is still pending (S-082) |
 | 0.4.6 | Released 2026-10-31: the hive explains why a file has no actions (S-096, S-108): unsupported format, missing engine, mixed selection, greyed cells, a request cell that opens a prefilled issue link only on click, and a suggestion line; plus a settings window foreground repeat cleanup (S-107 follow-up). Known gaps: the manual hive screenshots and timing check (S-108 M1 to M3) were not run; on Hyprland 0.57 `kawaro drop` without `--at` can swallow the first click (S-105); the Windows build is still self-signed; the GNOME and KDE focus test is pending |
-| 0.4.7 | Released 2026-10-31: on Hyprland 0.57 `kawaro drop` without `--at` no longer swallows the first click (S-105), checked in a private Hyprland 0.57 harness. Known gaps: the S-108 manual checks M1 to M3 and the S-105 KWin and drop budget scripts were not run; the Windows build is still self-signed; the GNOME and KDE focus test is pending |
+| 0.4.7 | Released 2026-10-31 (tag v0.4.7): on Hyprland 0.57 `kawaro drop` without `--at` no longer swallows the first click (S-105), checked in a private Hyprland 0.57 harness; the flaky update poll test is fixed in test code. Unchecked: the S-108 manual screenshot, 150 ms timing and Windows Explorer mixed selection checks (M1 to M3) and the S-105 KWin and drop budget scripts were not run; the Windows build is still self-signed; the GNOME and KDE focus test is pending |
 | 0.5.0 "X11" | Planned: S-015 |
 | 0.6.0 "Windows" | Planned: starts with ADR 0005 |
 

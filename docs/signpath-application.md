@@ -1,10 +1,7 @@
 # SignPath Foundation application draft: Kawaro / كوارو
 
-Status: submitted on 2026-10-27 and declined by the Foundation on the same day. The
-Foundation asks for public visibility signals (community adoption, external articles
-or discussions, institutional backing, sustained engagement) before it issues a
-certificate in its name; this project did not have them yet. The application can be
-resubmitted once it does. This file keeps the prepared application data and the
+Status: submitted on 2026-10-27 and declined by the Foundation on the same day, for lack of public visibility (community adoption, external articles or discussions, sustained engagement). Parked, not planned for now: the maintainer also has no identity document or certificate for the other routes. It can be resubmitted if the project gains that visibility.
+This file keeps the prepared application data and the
 evidence map the Foundation review checks against
 (<https://signpath.org/terms.html>) so a resubmission is a copy and paste.
 

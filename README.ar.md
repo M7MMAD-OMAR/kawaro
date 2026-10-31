@@ -48,9 +48,9 @@
 | Fedora | `kawaro-<version>-1.x86_64.rpm` | `sudo dnf install ./kawaro-*.x86_64.rpm` |
 | Ubuntu وDebian | `kawaro_<version>_amd64.deb` | `sudo apt install ./kawaro_*_amd64.deb` |
 
-في كل إصدار ملف `SHA256SUMS` للتحقق من التنزيل. قنوات الحزم (WinGet وScoop وCOPR وAUR وapt) وما يعمل منها الآن: [دليل التوزيع](docs/distribution.ar.md). بعد التثبيت أعد فتح مدير الملفات وانقر بزر الفأرة الأيمن على أي ملف.
+في كل إصدار ملف `SHA256SUMS` للتحقق من التنزيل. قنوات الحزم وما يعمل منها الآن (apt وScoop تعملان، وWinGet بانتظار المراجعة، وAUR وCOPR بانتظار حسابين): [دليل التوزيع](docs/distribution.ar.md). بعد التثبيت أعد فتح مدير الملفات وانقر بزر الفأرة الأيمن على أي ملف.
 
-**تحذير ويندوز.** ملفات ويندوز موقّعة بشهادة اختبار ذاتية، فتحذّر SmartScreen عند أول تشغيل: اضغط «More info» ثم «Run anyway» ([التفاصيل](docs/windows-smartscreen.ar.md)). وعلى ويندوز 11 يظهر بند كوارو تحت «Show more options». التوقيع العلني قيد الترتيب عبر Microsoft Store وWinGet.
+**تحذير ويندوز.** ملفات ويندوز موقّعة بشهادة اختبار ذاتية، فتحذّر SmartScreen عند أول تشغيل: اضغط «More info» ثم «Run anyway» ([التفاصيل](docs/windows-smartscreen.ar.md)). وعلى ويندوز 11 يظهر بند كوارو تحت «Show more options». لا تتوفر للمشروع شهادة موثوقة الآن؛ وWinGet وScoop طريقان آخران للتثبيت.
 
 **التحديثات.** يتحقق كوارو من الإصدارات الجديدة ويحدّث نفسه: في الإعدادات، صفحة التحديثات تعرض الإصدار المثبّت و«التحقق من التحديثات» و«حدّث الآن». ومن سطر الأوامر: `kawaro update`.
 
@@ -113,7 +113,7 @@ kawaro open --from-clipboard             # فتح الخلية للملفات ا
 
 ## النشر والتوقيع
 
-حزمة WinGet (`Sbarah.Kawaro`) مقدَّمة وبانتظار المراجعة. رفضت SignPath Foundation الطلب لأن المشروع يحتاج ظهوراً علنياً أكبر أولاً، فطريق اسم الناشر الموثوق هو Microsoft Store. التفاصيل في [حالة النشر](docs/distribution-status.md) و[سياسة توقيع الشيفرة](CODE_SIGNING_POLICY.ar.md).
+الإصدار الحالي: 0.4.7. مستودعا apt وScoop يعملان ويتحدثان مع كل إصدار. اجتازت حزمة WinGet (`Sbarah.Kawaro`) كل الفحوص الآلية وتنتظر مشرفاً متطوعاً منذ 2026-10-27، فهي غير قابلة للتثبيت بعد. أما AUR وCOPR فينتظران حسابين لا ينشئهما إلا شخص. لا تتوفر لدى المسؤول شهادة توقيع شيفرة، فتبقى نسخة ويندوز موقّعة ذاتياً وتحذّر SmartScreen؛ وMicrosoft Store وSignPath مؤجلان وغير مخططين الآن. التفاصيل في [حالة النشر](docs/distribution-status.md) و[سياسة توقيع الشيفرة](CODE_SIGNING_POLICY.ar.md).
 
 ## الرخصة
 

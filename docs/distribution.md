@@ -27,7 +27,7 @@ Replace `X.Y.Z` with the version. A channel that is not set up yet cannot be use
 | Windows direct download | Download `kawaro-X.Y.Z-windows-x64.msi` from the [releases page](https://github.com/M7MMAD-OMAR/kawaro/releases/latest) and double click it | Available. Test signed, so SmartScreen warns ([details](windows-smartscreen.md)) |
 | Linux direct download, Fedora | `sudo dnf install ./kawaro-*.x86_64.rpm` | Available |
 | Linux direct download, Ubuntu and Debian | `sudo apt install ./kawaro_*_amd64.deb` | Available |
-| WinGet | `winget install Sbarah.Kawaro` | Not usable yet. It waits for the first manifest pull request ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) to be merged. The channel job stays off until then |
+| WinGet | `winget install Sbarah.Kawaro` | Not usable yet. [winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) passed all automated checks and waits for a volunteer moderator since 2026-10-27. The channel job stays off until the package exists |
 | Scoop | `scoop bucket add kawaro https://github.com/M7MMAD-OMAR/scoop-kawaro` then `scoop install kawaro/kawaro` | Live since 0.4.3. Installs the portable ZIP, so there is no Explorer menu entry |
 | Fedora COPR | `sudo dnf copr enable ACCOUNT/kawaro` then `sudo dnf install kawaro` (`ACCOUNT` is the COPR account, not created yet) | Not usable yet. Waits for a COPR account (platform limit, section 6) |
 | Arch AUR | `yay -S kawaro-bin` | Not usable yet. Waits for an AUR account (platform limit, section 6) |

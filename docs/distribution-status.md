@@ -1,20 +1,16 @@
 # Distribution status
 
-Last checked: 2026-10-30.
+Last checked: 2026-10-31.
 
 How the release pipeline and each channel work, and what a maintainer does: [distribution guide](distribution.md) ([العربية](distribution.ar.md)).
 
 ## Windows
 
-- Kawaro 0.4.0 is available on [GitHub Releases](https://github.com/M7MMAD-OMAR/kawaro/releases/tag/v0.4.0). The MSI and executables use a self-signed test certificate, not a trusted publisher certificate. The ZIP contains the test-signed executables.
-- On 2026-10-27, the owner opened the published 0.4.0 MSI in the Windows 11 virtual machine and Kawaro displayed its welcome window. Through Orbit, the sample image action displayed the hive, selecting WebP produced a Windows notification saying `Done: 1 file` and naming `sample.webp`, and the settings window opened. The output file was not independently opened or inspected. The unattended install, full live checklist and physical Windows hardware remain unverified.
-- The [SignPath Foundation application](signpath-application.md) was submitted on 2026-10-27 and the Foundation declined it on the same day. The reason is the public visibility the Foundation program requires (community adoption, external articles or discussions, sustained engagement), not the quality of the project. The application can be resubmitted once the project has that visibility. The paid SignPath subscription is not a good fit for this project.
-- The plan for a trusted Windows publisher is therefore the free path: an MSIX package in the Microsoft Store, where Microsoft re-signs the package with a Microsoft certificate after certification and the install shows no SmartScreen warning. The Store registration for individuals is free, and the remaining step is the owner's identity verification with Microsoft.
-- The [WinGet submission](https://github.com/microsoft/winget-pkgs/pull/462805) is open and ready for review, not an accepted or published package. All twelve automated checks passed on the first push: pull request, manifest, URL, URL domain, manifest policy, catalog content, installer scan, installation validation, installer metadata validation, validation completed, and the contributor license agreement. The manifest also carries an Arabic locale file.
-- Local validation ran on 2026-10-27 in the Windows 11 virtual machine with winget 1.29.380: `winget validate --manifest` exited 0, and `winget install --manifest` completed silently, verified the installer hash, and reported `kawaro 0.4.0`.
-- A separate standard-user check ran on 2026-10-27 in the same virtual machine, with a local standard account and no administrator rights. The install itself could not be driven from that account, because the Windows Installer service refuses a remote procedure call from a non-interactive session, so Microsoft's own pipeline remains the authority for the standard-user install. The check did establish that the 0.4.0 MSI carries no `ALLUSERS` property: `wixl` accepts `InstallScope="perUser"` and drops it, so an elevated install of this MSI registers the program under the machine hive, where winget does not look for a package that declares `Scope: user`. Microsoft's installation validation installs as a standard, non-elevated user, where the install is per-user anyway, which is why the check passed. The next MSI build writes `ALLUSERS=2` and `MSIINSTALLPERUSER=1` explicitly, and `scripts/release/check-winget-scope.sh` keeps the manifest and the installer in agreement.
-- The remaining gate is one approving review from a Microsoft moderator. There is no published service level; moderators quote ninety percent of pull requests reviewed within a day, and new packages take longer because identity and provenance are checked without manifest history.
-- Microsoft Store developer registration is incomplete. The automated identity verification did not complete. The owner step is to resubmit it with matching account details and, if it fails again, to appeal to Microsoft support. No Store listing has been submitted.
+- Current release: 0.4.7 (tag v0.4.7, 2026-10-31) on [GitHub Releases](https://github.com/M7MMAD-OMAR/kawaro/releases/latest). The MSI and executables use a self-signed test certificate, so SmartScreen warns on first run (More info, then Run anyway). The ZIP contains the test-signed executables.
+- Checked in a Windows 11 virtual machine: install, the welcome and settings windows, the sample image action with its notification, and the 0.4.5 fixes (S-106, S-107: foreground, cleanup, names). Not checked: physical Windows hardware, the full live checklist, and the Explorer mixed selection check (S-108 M3).
+- **Signing.** The maintainer has no code signing certificate and no identity document usable for the Microsoft Store developer verification. The SignPath Foundation declined the application on 2026-10-27 for lack of public visibility. The Microsoft Store, SignPath and any paid certificate are parked, not planned for now. The Windows build stays self-signed until that changes.
+- **WinGet.** [winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) passed all automated checks (labels Azure-Pipeline-Passed, Validation-Completed, New-Package) and the contributor license agreement is signed. It has waited since 2026-10-27 for approval by a volunteer moderator; there is nothing the project can do but wait. It is not a published package yet, and the `winget` channel job stays off until the package exists.
+- **No cost paths that work now:** WinGet (waiting), Scoop (live), apt (live), and SmartScreen reputation, which builds as the MSI gets downloaded.
 
 ## Package channels
 
@@ -45,8 +41,7 @@ How a channel plugs in: add `scripts/channels/NAME.sh`; it runs from the reposit
 
 ## Next steps
 
-1. Wait for a Microsoft moderator to approve the WinGet pull request, then confirm the package reaches the community source with `winget source update --name winget` and `winget show --id Sbarah.Kawaro --versions`. Publication usually takes about an hour after the merge.
-2. Publish the MSIX package to the Microsoft Store through Partner Center, which signs it with a Microsoft certificate and removes the SmartScreen warning. The owner registers as an Individual developer (free) and completes the identity verification with Microsoft support; the package and the store listing details are prepared in the repository. Do not claim the app is listed or certified until Microsoft confirms it.
-3. Build the public visibility the SignPath Foundation program asks for (community discussion, external references, sustained releases) and resubmit the application later. That is the free path to a trusted publisher name in a direct download.
-4. Record the owner's Windows test details and complete the remaining live checklist. Capture real Windows screenshots for a future Store listing.
-5. Resolve Microsoft identity verification: resubmit it with matching account details, and if it is rejected again appeal through the Partner Center appeal path or email storesupport@service.microsoft.com. Do not claim the application is listed or certified until Microsoft confirms it.
+1. Wait for a moderator to approve the WinGet pull request, then confirm the package with `winget source update --name winget` and `winget show --id Sbarah.Kawaro --versions`, and turn the channel job on.
+2. AUR and COPR need an account that only a person can create (sign up with a CAPTCHA and the person's identity). Until then they stay skipped; the exact steps are in [aur.md](distribution-channels/aur.md) and [copr.md](distribution-channels/copr.md).
+3. Keep publishing: apt and Scoop update on every tag. SmartScreen reputation grows with downloads of the MSI.
+4. Parked, not planned: Microsoft Store, SignPath resubmission, a paid certificate. Reopen only if the maintainer gets the missing identity or certificate.

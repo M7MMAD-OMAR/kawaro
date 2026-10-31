@@ -2,7 +2,7 @@
 
 # Code signing policy
 
-Kawaro applied to the SignPath Foundation on 2026-10-27. Approval and trusted signing are pending. Version 0.4.0 uses a self-signed test certificate for its executables and MSI. The ZIP contains those executables and is not itself Authenticode signed. This page describes the intended signing policy.
+Kawaro applied to the SignPath Foundation on 2026-10-27 and was declined for lack of public visibility. The maintainer has no code signing certificate available, so the Windows executables and MSI (current release 0.4.7) use a self-signed test certificate and SmartScreen warns. The ZIP contains those executables and is not itself Authenticode signed. SignPath, the Microsoft Store and a paid certificate are parked, not planned for now. This page describes the intended signing policy, which applies if trusted signing becomes available.
 
 ## What is signed
 

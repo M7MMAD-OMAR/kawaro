@@ -27,7 +27,7 @@ git tag vX.Y.Z  ->  بناء CI  ->  ملفات الإصدار + SHA256SUMS  -> 
 | تنزيل مباشر لويندوز | نزّل `kawaro-X.Y.Z-windows-x64.msi` من [صفحة الإصدارات](https://github.com/M7MMAD-OMAR/kawaro/releases/latest) وانقر عليه مرتين | متاح. موقّع بشهادة تجريبية، لذلك يحذّر SmartScreen ([التفاصيل](windows-smartscreen.ar.md)) |
 | تنزيل مباشر لينكس، Fedora | `sudo dnf install ./kawaro-*.x86_64.rpm` | متاح |
 | تنزيل مباشر لينكس، Ubuntu وDebian | `sudo apt install ./kawaro_*_amd64.deb` | متاح |
-| WinGet | `winget install Sbarah.Kawaro` | غير قابل للاستعمال بعد. ينتظر دمج أول طلب دمج للبيان ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)). ومهمة القناة تبقى مطفأة حتى ذلك الحين |
+| WinGet | `winget install Sbarah.Kawaro` | غير قابل للاستعمال بعد. اجتاز طلب الدمج ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) كل الفحوص الآلية وينتظر مشرفاً متطوعاً منذ 2026-10-27. ومهمة القناة تبقى مطفأة حتى توجد الحزمة |
 | Scoop | `scoop bucket add kawaro https://github.com/M7MMAD-OMAR/scoop-kawaro` ثم `scoop install kawaro/kawaro` | يعمل منذ 0.4.3. يثبّت ملف ZIP المحمول، فلا يظهر بند كوارو في قائمة المستكشف |
 | Fedora COPR | `sudo dnf copr enable ACCOUNT/kawaro` ثم `sudo dnf install kawaro` (`ACCOUNT` هو حساب COPR، ولم يُنشأ بعد) | غير قابل للاستعمال بعد. ينتظر حساب COPR (قيد من المنصة، القسم 6) |
 | Arch AUR | `yay -S kawaro-bin` | غير قابل للاستعمال بعد. ينتظر حساب AUR (قيد من المنصة، القسم 6) |
