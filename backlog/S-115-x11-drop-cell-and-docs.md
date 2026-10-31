@@ -1,5 +1,5 @@
 # S-115 The drop cell on X11: show the hive, then drag the file onto it
-Status: draft
+Status: approved
 
 ## Story
 As an X11 user, I want to run `kawaro drop`, drag a file onto a cell and get the result next to the original, so that "hive first, then drag" works as on Windows. Slice 3 of S-015, after S-113 and S-114 (decisions 2 and 3 there).
@@ -34,3 +34,9 @@ That Slint 1.18.1's winit loop gives `HoveredFile` and `DroppedFile` to the cust
 
 ## Review log
 - 2026-10-31, planner: split from S-015 (old AC9 to AC14). Reuses `DropTracker` and the Windows handler shape. Draft awaiting the manager.
+- 2026-10-31, manager: approved S-115 (approvals delegated by the maintainer). Tester next.
+- 2026-10-31, tester: fast loop tests written, all fail for the right reason (nothing is implemented).
+  - Hooks, `crates/ui/src/s115_tests.rs` (Linux, headless testing platform, fake `PointerSource`, `mock_elapsed_time`; registered in `lib.rs`): `x11::drop_placement(at, screen, cell) -> Placement` (= `overlay::place(screen, cell, 120)`, ignores `at`); `x11::window_spec_for(drop: bool) -> WindowSpec` (true: no decorations, on top, opaque; false: `x11_window_spec()`); `present_drop_at` on X11 places the window with it, seen through `Hive::x11_position()`; new `dnd/x11.rs` (`pub mod x11` in `dnd.rs`) with `window_event(&WindowEvent)` and `hive_closed()`, same shape as `dnd/windows.rs`. The surface local cursor is the fake pointer minus `x11_position()` at scale 1. Three `HoveredFile` events must reach `on_drop_files` once with all 3 files (one `drop cells:` line), by 2 x `TICK_MS` after the last event; the AC3 test asserts one request, not one per event (the Windows handler asks once per event, so X11 needs batching). Tests: AC1 x2, AC2, AC3 x4 (count and centre `3`, cancel closes with one dismiss, drop on cells 0 to 2 runs that cell once, drop on centre or corner runs 0 and closes within 500 ms), AC4 x2 (highlight on tick; reduced motion), AC6.
+  - Hooks, `crates/ui/tests/s115_sources.rs` (reads files): AC5 script shape of `tests/x11/drop.sh` (GDK_BACKEND=x11, tests/drop/source.py, sha256sum, file --mime-type, deleted=False, .webp, Shift, 3 runs); AC7 README rows (no "Not supported yet", says tested, same column count in both languages) and `## X11` sections with exactly 3 numbered steps in both drop-shortcut docs plus the language switch line; AC8 one CHANGELOG line naming S-113 and S-115 with ` | ` and Arabic, ADR 0003 X11 item checked `- [x]`.
+  - Not covered by the fast loop: AC2 live stacking, AC4 live pixel, AC5 live drop (3 of 3, `deleted=False`, sha256) are the manual `tests/x11/drop.sh` step. AC5 reply action: the S-114 log already records that winit 0.30.13 replies `XdndActionPrivate`, never Copy, so the implementer must check live whether a Copy or Move only source (GTK 4) accepts it and report to the manager if not.
+  - Failure output. `cargo test -p kawaro-ui --test s115_sources`: 0 passed, 5 failed (`tests/x11/drop.sh` not found; no `## X11` section; README row still `| X11 | Not supported yet | Planned |`; ADR item still `- [ ]`; no CHANGELOG line for S-113 to S-115). `cargo test -p kawaro-ui --lib s115`: does not compile, 6 errors, all missing hooks: unresolved `crate::x11::drop_placement` and `crate::x11::window_spec_for`, and `dnd::x11` not found (5 uses). No other error.
