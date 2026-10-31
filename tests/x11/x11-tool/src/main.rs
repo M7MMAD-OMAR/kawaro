@@ -10,6 +10,8 @@
 //!   name, in root coordinates (`TranslateCoordinates`).
 //! - `pixel X Y`: prints `RRGGBB` of the root screen pixel.
 //! - `stacking`: prints top level window names, top to bottom, one per line.
+//! - `down NAME` and `up NAME`: only the press or only the release of a key or
+//!   of `button1`, to hold it while the pointer moves (S-115 drags).
 
 use std::process::ExitCode;
 
@@ -47,8 +49,10 @@ fn run(args: &[String]) -> Res<()> {
         ["geometry", name] => geometry(&conn, root, name),
         ["pixel", x, y] => pixel(&conn, screen_num, root, x.parse()?, y.parse()?),
         ["stacking"] => stacking(&conn, root),
+        ["down", name] => press(&conn, root, name, true),
+        ["up", name] => press(&conn, root, name, false),
         _ => Err(
-            "usage: x11-tool move X Y | key NAME | geometry WINDOW_NAME | pixel X Y | stacking"
+            "usage: x11-tool move X Y | key NAME | down NAME | up NAME | geometry WINDOW_NAME | pixel X Y | stacking"
                 .into(),
         ),
     }
@@ -75,6 +79,7 @@ fn keysym(name: &str) -> Option<u32> {
         "space" => 0x20,
         "backspace" => 0xff08,
         "alt" | "alt_l" => 0xffe9,
+        "shift" | "shift_l" => 0xffe1,
         _ => 0,
     };
     if named != 0 {
@@ -88,9 +93,15 @@ fn keysym(name: &str) -> Option<u32> {
 }
 
 fn key(conn: &RustConnection, root: Window, name: &str) -> Res<()> {
+    press(conn, root, name, true)?;
+    press(conn, root, name, false)
+}
+
+/// The press (`down`) or the release of a key, or of the left button.
+fn press(conn: &RustConnection, root: Window, name: &str, down: bool) -> Res<()> {
     if name == "button1" {
-        conn.xtest_fake_input(BUTTON_PRESS, 1, 0, root, 0, 0, 0)?;
-        conn.xtest_fake_input(BUTTON_RELEASE, 1, 0, root, 0, 0, 0)?;
+        let kind = if down { BUTTON_PRESS } else { BUTTON_RELEASE };
+        conn.xtest_fake_input(kind, 1, 0, root, 0, 0, 0)?;
         conn.get_input_focus()?.reply()?;
         return Ok(());
     }
@@ -105,8 +116,8 @@ fn key(conn: &RustConnection, root: Window, name: &str) -> Res<()> {
         .position(|syms| syms.contains(&sym))
         .map(|i| min + i as u8)
         .ok_or_else(|| format!("no keycode for {name}"))?;
-    conn.xtest_fake_input(KEY_PRESS, code, 0, root, 0, 0, 0)?;
-    conn.xtest_fake_input(KEY_RELEASE, code, 0, root, 0, 0, 0)?;
+    let kind = if down { KEY_PRESS } else { KEY_RELEASE };
+    conn.xtest_fake_input(kind, code, 0, root, 0, 0, 0)?;
     conn.get_input_focus()?.reply()?;
     Ok(())
 }

@@ -9,6 +9,10 @@ use std::time::{Duration, Instant};
 #[cfg(windows)]
 pub mod windows;
 
+// The X11 drop glue (S-115).
+#[cfg(target_os = "linux")]
+pub mod x11;
+
 /// How long a drop hive waits for the drag to enter it before closing; on
 /// the layer path, the cap of a hidden catcher that gets no event (S-021).
 pub const ENTER_TIMEOUT: Duration = Duration::from_secs(10);

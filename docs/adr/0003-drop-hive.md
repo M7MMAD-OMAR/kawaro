@@ -54,7 +54,7 @@ Still open:
 - [ ] Hyprland by running, not only in source (no safe headless mode here).
 - [ ] Real Dolphin and Nautilus as the drag source instead of a GTK 4 window.
 - [ ] Finding 6: is the portal token enough on GNOME strict? What fixes KDE at Extreme?
-- [ ] X11 by running: the shortcut during a drag, and the drop with `QueryPointer` and `AlwaysOnTop`.
+- [x] X11 by running (S-115, 2026-10-31, private Xvfb with xfwm4, `tests/x11/drop.sh`): the drop with the pointer read from the server and the hive always on top passed 3 of 3 with a GTK 4 source offering copy and move, the original unchanged and `deleted=False`, although winit replies `XdndActionPrivate`. winit sets the on top state before the window is mapped and xfwm4 ignores it, so Kawaro asks again on the first frame. Not run: the shortcut during a drag (assumed to fail, the source holds the grab), a real X11 desktop, a file manager as source.
 - [ ] GNOME custom shortcuts (gsd-media-keys) during a drag.
 - [ ] The Hyprland first `wl_data_device` limit (finding 3).
 - [ ] `enter` in Mutter without pointer motion (assumed from source).

@@ -34,3 +34,7 @@ The pure helpers are in `tests/x11/lib.sh` and are tested by `tests/x11/s114.sh`
 ## x11-tool
 
 `tests/x11/x11-tool` has its own `Cargo.toml` and `[workspace]`, outside the Kawaro workspace. Subcommands: `move X Y` (XTEST, reads the pointer back), `key NAME` (XTEST; `button1` clicks), `geometry WINDOW_NAME` (prints `X Y W H` in root coordinates), `pixel X Y` (prints `RRGGBB`), `stacking` (window names, top to bottom).
+
+## Drop check (S-115)
+
+`tests/x11/drop.sh` starts the same private session and drags a PNG from the GTK 4 source `tests/drop/source.py` onto a hive cell after `kawaro drop`, with Shift held, 3 times. Each run checks that the hive stays above the raised source window, that the hovered cell turns accent within 100 ms, that `sample.webp` appears within 5 s, that the original's sha256 does not change and that the source reports `deleted=False`. It is also a manual release step.

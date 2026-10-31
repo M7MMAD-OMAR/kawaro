@@ -83,7 +83,7 @@ cd kawaro
 | GNOME 50 | Tested | Works as a centred window |
 | Fedora 41 and later (RPM), Ubuntu 22.04 and 24.04, Debian 12 (DEB) | Tested | The packages install and run |
 | Sway and wlroots | Not tested | Expected to work as a layer |
-| X11 | Not supported yet | Planned |
+| X11 | Tested in a virtual X server with xfwm4, not on a real desktop yet | Hive at the pointer, drop with `kawaro drop` |
 | macOS | Not supported yet | Planned |
 
 ## Windows

@@ -128,6 +128,11 @@ thread_local! {
     /// The X11 hive's planned position, until its line is printed (S-116).
     #[cfg(target_os = "linux")]
     static X11_PLACE: RefCell<Option<x11::PlaceCheck>> = const { RefCell::new(None) };
+    /// This X11 show still owes its always on top request (S-115): winit
+    /// sends it at creation, before the window is mapped, and a window
+    /// manager ignores `_NET_WM_STATE` messages for an unmapped window.
+    #[cfg(target_os = "linux")]
+    static X11_TOP: Cell<bool> = const { Cell::new(false) };
     /// The hive of the last show, which the layer path lays out again at
     /// the pointer (S-019c, S-019d).
     static SHOWN: RefCell<Weak<Inner>> = const { RefCell::new(Weak::new()) };
@@ -298,6 +303,11 @@ impl CustomApplicationHandler for FocusWatcher {
         if is_hive_window(slint_window) {
             dnd::windows::window_event(event);
         }
+        // The same on X11 (S-115): winit's XDND events.
+        #[cfg(target_os = "linux")]
+        if is_hive_window(slint_window) {
+            dnd::x11::window_event(event);
+        }
         match event {
             winit::event::WindowEvent::Focused(f) if is_hive_window(slint_window) => {
                 // Observation hook for tests/focus: logs the hive's focus changes.
@@ -324,6 +334,12 @@ impl CustomApplicationHandler for FocusWatcher {
                     && ATTACH_PENDING.with(|c| c.replace(false))
                 {
                     attach_receiver(_winit_window);
+                }
+                #[cfg(target_os = "linux")]
+                if let (true, Some(w)) = (is_hive_window(slint_window), _winit_window)
+                    && X11_TOP.with(|c| c.replace(false))
+                {
+                    w.set_window_level(winit::window::WindowLevel::AlwaysOnTop);
                 }
                 if let (true, Some(w)) = (is_hive_window(slint_window), _winit_window) {
                     report_window(w);
@@ -356,7 +372,7 @@ fn token_hook(attrs: winit::window::WindowAttributes) -> winit::window::WindowAt
     if platform::hive_window_on_x11() {
         // S-113: the X11 hive is plain, on top and opaque.
         use winit::window::WindowLevel;
-        let spec = x11::x11_window_spec();
+        let spec = x11::window_spec_for(false);
         return attrs
             .with_decorations(spec.decorations)
             .with_transparent(spec.transparent)
@@ -540,6 +556,8 @@ impl Inner {
         // A closed hive ends an Explorer drag (S-067).
         #[cfg(windows)]
         dnd::windows::hive_closed();
+        #[cfg(target_os = "linux")]
+        dnd::x11::hive_closed();
         let ui = self.ui.borrow();
         ui.set_highlight(-1);
         // Never keep a picture while hidden (S-018 AC24, AC27).
@@ -1014,7 +1032,19 @@ impl Hive {
         #[cfg(all(not(windows), target_os = "linux"))]
         let on_x11 = inner.x11.session.get() == session::Session::X11;
         #[cfg(all(not(windows), target_os = "linux"))]
-        let (plan, x11_at) = if on_x11 {
+        let (plan, x11_at) = if on_x11 && drop.is_some() {
+            // S-115: a drop hive opens at the root centre, not at the pointer.
+            let root = inner
+                .x11
+                .source
+                .borrow()
+                .pointer()
+                .map_or(X11_FALLBACK_ROOT, |p| (p.root_w, p.root_h));
+            let plan = layout::plan_rings(cells.clone(), inner.rtl, min_rings);
+            let size = (plan.width.round() as u32, plan.height.round() as u32);
+            let at = x11::drop_placement(drop.flatten().or(place), root, size);
+            (plan, Some((at.x, at.y)))
+        } else if on_x11 {
             let (plan, at) = x11::plan_with(
                 &**inner.x11.source.borrow(),
                 X11_FALLBACK_ROOT,
@@ -1114,6 +1144,7 @@ impl Hive {
         {
             inner.x11.position.set(x11_at);
             X11_PLACE.with(|p| *p.borrow_mut() = x11_at.map(x11::PlaceCheck::new));
+            X11_TOP.with(|c| c.set(on_x11 && x11::window_spec_for(drop).always_on_top));
             ui.set_x11_plate(x11_at.is_some());
             if let Some((x, y)) = x11_at {
                 ui.window().set_position(slint::PhysicalPosition::new(x, y));
@@ -1429,6 +1460,7 @@ mod s110_tests;
 mod s113_tests;
 #[cfg(all(test, target_os = "linux"))]
 mod s115_tests;
+#[cfg(test)]
 #[cfg(all(test, target_os = "linux"))]
 mod s116_tests;
 #[cfg(test)]

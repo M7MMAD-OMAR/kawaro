@@ -89,6 +89,19 @@ pub fn x11_window_spec() -> WindowSpec {
     }
 }
 
+/// The window of a show: a drop show and a normal show are made the same
+/// way, plain, on top and opaque (S-115 AC2). The drop hive must stay above
+/// the file manager window that was raised by the click starting the drag.
+pub fn window_spec_for(_drop: bool) -> WindowSpec {
+    x11_window_spec()
+}
+
+/// Where the drop hive opens (S-115 AC1): the root centre, whatever `at` is.
+/// A drag gives no pointer position before it enters, so it is not used.
+pub fn drop_placement(_at: Option<(f64, f64)>, screen: (u32, u32), cell: (u32, u32)) -> Placement {
+    crate::overlay::place(screen, cell, 120)
+}
+
 /// The surface choice line of a session that is not Wayland.
 pub fn session_choice_line(session: Session) -> Option<String> {
     (session != Session::Wayland).then(|| choice_line(Surface::Window, "not a Wayland session"))

@@ -73,6 +73,16 @@ Measured for the Alt key itself (private Hyprland, `tests/hyprland/repro.sh --al
 
 **Recommendation:** do not open the hive from a bare Alt tap. Alt tap belongs to menu bars and to window manager binds, and the only ways to read the selection either need a manual copy or have side effects. Keep the existing `kawaro-open-selection` bind on a chord that does not use Alt, and Alt hold for the drag.
 
+## X11
+
+On X11 there is no key to hold and no shortcut to press: the hive comes first, then you drag.
+
+1. Run `kawaro drop` from a terminal or from a launcher you bound to it. The hive opens in the middle of the screen and stays above the file manager.
+2. Drag the file from the file manager onto the hive. The cells for that file type appear, and the cell under the pointer lights up.
+3. Drop the file on the cell of the action you want. The result is saved next to the original, which is never changed or moved. A drop on the centre or between cells does nothing and closes the hive.
+
+The hive does not follow the pointer on X11 when it is opened for a drop, because a drag gives no position before it enters the hive. Checked with a virtual X server and the xfwm4 window manager (`tests/x11/drop.sh`), not yet on a real X11 desktop. The shortcut during a drag is not supported on X11, because the file manager holds the pointer grab.
+
 ## Windows
 
 On Windows no key is held while you drag. Drag the file with the right mouse button, the one whose own menu offers "Copy here / Move here / Create shortcuts here", and the hive opens during the drag, at the dragged file. Drop it on the cell of the action you want. A short right click shows nothing: the hive opens only for a real drag.
