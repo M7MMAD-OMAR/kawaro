@@ -1,6 +1,11 @@
 # Releases
 
-## 0.4.8
+## 0.5.0
+
+## 0.5.0 (2026-10-31)
+- X11 support ([S-113](backlog/S-113-x11-hive-window.md) to [S-116](backlog/S-116-x11-placement-applied.md))
+- A private X11 session check script, `tests/x11/run.sh`, run by hand before the release ([S
+- Under xfwm4 the X11 hive opened at the screen centre for every pointer and the `hive surface
 
 ## 0.4.8 (2026-10-31)
 - App store metadata and one source for install commands ([S-112](backlog/S-112-appstream-and-install-commands.md))
