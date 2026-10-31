@@ -1,70 +1,35 @@
-# S-015 الخلية على X11: نافذة عند المؤشر، وخلية الإفلات «الخلية أولاً ثم السحب»
-الحالة: مسودة
+# S-015 The hive on X11: an ordinary window at the pointer, and "hive first, then drag" drop
+Status: split: S-113 (window at the pointer), S-114 (private X session harness and live checks), S-115 (drop cell, docs). Draft, awaiting the manager's approval (decisions below were given by the manager in the planning request). Release 0.5.0 "X11" (`docs/PLAN.md`).
 
-يبني على ADR 0003 (النتيجة 7) وADR 0004 وS-019 (`layout::plan_at`). المرجع في `docs/PLAN.md`: «مسار X11 (الخلية أولاً ثم السحب)، قصة مستقلة S-015».
+This story is the parent plan. It carries no acceptance criteria of its own; each slice does. It builds on ADR 0003 (finding 7), ADR 0004 (X11 stays a winit window, the layer path is Wayland only), S-019 (`layout::plan_at`), S-046 and S-047 (the Windows window and drop, the pattern to copy).
 
-ما في الشيفرة اليوم (مقروء، لم يُشغَّل على X11):
-- `layer::start()` يرجع `false` حين يفشل `Connection::connect_to_env` قبل `report_choice`، و`choice()` يمرّر `wayland = true` دائماً، فلا يُطبع سطر `hive surface choice:` على X11 أبداً، مع أن السبب `not a Wayland session` موجود في `overlay::surface_choice`.
-- `report_window` يفترض أن المؤلِّف يضع النافذة في المنتصف، و`present_drop_at` يتجاهل `at` على مسار النافذة، و`attach_receiver` يرجع دون شيء لمقبض غير Wayland. أي لا شيء يستقبل الإفلات على X11.
-- النافذة `no-frame` و`background: transparent` (`hive.slint`)، وsoftbuffer يقول إن الشفافية على X11 «لا تعمل تقنياً» (`vendor/softbuffer/CHANGELOG.md`، 0.4.5).
-- x11rb 0.13.2 في `Cargo.lock` عبر winit، وليس اعتماداً مباشراً في `crates/ui`.
+## Story
+As a user on an X11 session, I want the hive to appear at my pointer, adapt to the screen edges and take focus, and I want to show the drop cell and then drag a file onto it, so that Kawaro works as on Wayland and Windows.
 
-## القصة
-بصفتي مستخدماً على جلسة X11، أريد أن تظهر الخلية عند المؤشر بشكل يتكيّف مع الحواف وتأخذ التركيز، وأن أُظهر خلية الإفلات ثم أسحب الملف إليها، حتى أستعمل Kawaro كما على Wayland.
+## What the code does today (read, never run on X11)
+- `layer::start()` returns false when `Connection::connect_to_env` fails, before `report_choice`, so no `hive surface choice:` line is printed on X11 although `overlay::surface_choice` already yields `not a Wayland session`.
+- `report_window` assumes the compositor centres the window, `present_drop_at` ignores `at` on the window path, `attach_receiver` returns for a non Wayland handle. Nothing receives a drop on X11.
+- Windows is the pattern: `win_window.rs` (cursor, `plan_at`, `set_position`), `dnd/windows.rs` (winit `HoveredFile` and `DroppedFile`, a `TICK_MS` pointer poll feeding the pure `DropTracker`). winit 0.30 has XDND on X11, so the X11 drop is the Windows drop with a different pointer source.
+- `x11rb` 0.13.2 is in `Cargo.lock` through winit; `crates/ui` does not depend on it directly. softbuffer cannot draw transparency on X11.
+- On this machine `/usr/bin` has Xvfb, xfwm4, xprop, xsetroot and dbus-run-session; there is no xdotool, Xephyr or xwininfo, so input and geometry come from a small x11rb tool (S-114), as `tests/drop/kwin-input` does for KWin.
 
-## التقسيم (كل قصة فرعية يوم عمل أو أقل، بالترتيب)
-| القصة | المحتوى | المعايير |
+## Decisions (settled by the manager, 2026-10-31)
+1. **Corners: an opaque rectangle in `surface-0`, not the X Shape extension.** Reason: smallest change that fits ADR 0004 and the CLAUDE.md rule "where there is no blur surfaces stay opaque"; the window path on X11 has no compositor to blend. Shape (clip to the union of hexagons) needs rectangle decomposition and more live checks; it becomes a separate story only if the plate looks wrong in the S-114 screenshot.
+2. **Drop cell position: centred on the screen**, as the layer path and GNOME do for a drop show. Reason: at the pointer it covers the file being dragged (S-019d decision), and centring reuses `overlay::place` with no new code. A normal hive (`open`, menu) is at the pointer.
+3. **Highlight and cell choice during XDND: poll the pointer at `TICK_MS` through the existing `DropTracker`**, the same as S-047. Reason: winit gives no position during a drag, the poll is needed anyway to know the drop cell, so the highlight is free. No new mechanism.
+4. **Session detection order: Wayland, then X11, then Windows**, from the environment (`WAYLAND_DISPLAY`, then `DISPLAY`) as a pure function. `DISPLAY` alone means X11; both set (XWayland inside Wayland) means Wayland, so Wayland behaviour never changes.
+5. **Pointer on X11: `XQueryPointer` on the root window through x11rb (pure Rust, MIT or Apache 2.0, already in the lock) behind a small trait**, with a fake in unit tests. The real path is verified only in the private Xvfb session (S-114), run by hand at release, never on the live desktop.
+
+## Slices (each fits one working session, in order, each ends with the fast loop)
+| Story | Content | Needs a display |
 | --- | --- | --- |
-| S-015a | إطار X خاص، سطر القرار، الموضع عند المؤشر والشكل المتكيّف، سطر الهندسة الحقيقي | AC1 إلى AC4 |
-| S-015b | التركيز عند الظهور، Esc وفقدان التركيز، الزوايا، الميزانية والذاكرة | AC5 إلى AC8 |
-| S-015c | خلية الإفلات: فوق كل النوافذ، أحداث XDND من winit، الاختيار بـ `QueryPointer`، النسخ فقط، التوثيق | AC9 إلى AC14 |
+| S-113 | Session detection, pointer trait, pure placement at the pointer, opaque plate, the surface choice line on X11, x11rb as a direct dependency | no |
+| S-114 | `tests/x11/run.sh` (Xvfb, xfwm4, skips when Xvfb is missing), the x11rb tool, live geometry, focus, Esc, budget, the manual release step | yes (private) |
+| S-115 | Drop cell on X11 (winit XDND, copy only, always on top), README and drop-shortcut parity, CHANGELOG, ADR 0003 item | partly |
 
-## معايير القبول
-- AC1 (العزل): `tests/x11/run.sh` يشغّل `Xvfb -displayfd` (1280 × 800 × 24) وxfwm4 داخله، بـ HOME و`XDG_RUNTIME_DIR` وناقل جلسة مؤقتة (`dbus-run-session`)، ودون `WAYLAND_DISPLAY` و`HYPRLAND_INSTANCE_SIGNATURE`. لا يوجد `wayland-*` في `XDG_RUNTIME_DIR` الخاص طوال التشغيل، ويُنهى عند الخروج ما شغّله السكربت فقط بمعرّفاته (صفر منها حي بعده).
-- AC2: على X11 تطبع الخدمة سطراً واحداً بالضبط `hive surface choice: window, not a Wayland session` دون متغير بيئة، ولا يُطبع ثانية في 20 ظهوراً.
-- AC3: الخلية العادية مرساتها موضع المؤشر من `QueryPointer` على الجذر عند الطلب، وتخطيطها `plan_at` بحجم الشاشة ومقياس 120. على 1280 × 800: المؤشر عند (400، 500) يعطي النافذة عند (204، 319) بفرق 1 px أو أقل؛ وعند (0، 0) و(100، 700) و(1200، 80) يقع صندوق النافذة كله داخل الشاشة، وعدد الخلايا الظاهرة يساوي `plan_at` للمرساة نفسها. لا تتحرك النافذة بعد أول إطار.
-- AC4: سطر `hive surface: window X Y W H` على X11 هو الموضع الفعلي من خادم X (`TranslateCoordinates` إلى الجذر)، لا المنتصف المفترض، ويطابق ما تقرؤه أداة الاختبار بفرق 1 px. مسار Wayland للسطر لا يتغير.
-- AC5: بعد `kawaro open` يصل `hive focus: true` خلال 300 ms من أول إطار، دون رمز ومع `DESKTOP_STARTUP_ID`، في 3 من 3 لكلٍّ منهما.
-- AC6: Esc يغلق الخلية، ونقل التركيز إلى نافذة أخرى يغلقها، كلٌّ خلال 500 ms، ولا يُكتب ملف، و`on_dismiss` مرة واحدة.
-- AC7: دون مؤلِّف شفافية (xfwm4 بـ `--compositor=off`): بكسل في زاوية صندوق النافذة خارج كل السداسيات يساوي لون الجذر من `xsetroot -solid`، ونقرة هناك تصل النافذة تحتها (نقرة واحدة في سجلها) ولا تختار خلية (القرار 1).
-- AC8: `crates/ui/tests/measure.sh` بوضع `X11=1`: وسيط 20 ظهوراً من الطلب إلى أول إطار أقل من 150 ms لـ `open` و`drop` دون `--hold`؛ وRSS الخدمة بعد 20 ظهوراً 40 MB أو أقل.
-- AC9: `kawaro drop` يُظهر خلية الإفلات (القرار 2 للموضع) بمستوى `AlwaysOnTop`. بعد رفع نافذة مصدر مكبّرة بالضغط عليها تبقى الخلية فوقها في `_NET_CLIENT_LIST_STACKING`.
-- AC10: سحب ملف PNG من مصدر GTK 4 (`GDK_BACKEND=x11`) بعد ظهور الخلية، والإفلات على خلية WEBP، يكتب `<الاسم>.webp` خلال 5 ثوانٍ، في 3 من 3. الإفلات على زاوية شفافة أو على المركز لا يكتب ملفاً ويغلق الخلية خلال 500 ms.
-- AC11: أحداث `HoveredFile` لكل ملف من سحب واحد تُجمع في دخول واحد: سحب 3 ملفات يعطي سطر `drop cells:` واحداً (عقد S-014c) يساوي `kawaro actions` لها، والعدد 3 في المركز. `HoveredFileCancelled` يغلق الخلية كما `leave`.
-- AC12: مع مصدر يعرض النسخ والنقل وShift ممسوك عند الإفلات، يبلغ المصدر `deleted=False`، وsha256 الأصل لا يتغير.
-- AC13: الخلية تحت المؤشر أثناء السحب مبرزة بلون `accent` من الرموز خلال 100 ms من وصول المؤشر إليها (القرار 3)، بلا حركة مع تقليل الحركة.
-- AC14: README بالعربية والإنكليزية يغيّر صف X11 إلى الحالة المتحقَّقة، و`docs/drop-shortcut.md` يصف ترتيب X11، وx11rb مسجّل في `docs/engines.md` بإصداره ورخصته إن صار اعتماداً مباشراً، وسطر في CHANGELOG.md باللغتين. ويُغلق بند X11 في «ما بقي مفتوحاً» في ADR 0003 بالنتيجة.
+## Out of scope
+Windows and macOS; XWayland inside a Wayland session; `drop --hold` on X11 (hold needs the key before the drag, the shortcut during a drag uses a passive grab later); several monitors and scale other than 1 on X11; window managers other than xfwm4 in tests (Mutter and KWin on X11); a real file manager as drag source; Shape clipping.
 
-## حالات الاختبار
-| معيار | الاختبار | النوع |
-| --- | --- | --- |
-| AC1 | `tests/x11/run.sh`: فحص غياب `wayland-*` كل ثانية، وعدّ المعرّفات الحية بعد الخروج | تكامل |
-| AC2 | سجل الخدمة: عدّ السطر بعد 20 ظهوراً يساوي 1؛ ووحدة على `surface_choice` بـ `wayland = false` | وحدة، تكامل |
-| AC3 | وحدة على دالة صافية (مرساة وشاشة إلى موضع النافذة) بالنقاط الأربع، تحت `cargo mutants`؛ والسكربت يحرّك المؤشر بـ XTEST ثم يقارن الهندسة | وحدة، تكامل |
-| AC4 | السكربت: السطر مقابل `GetGeometry` و`TranslateCoordinates` من أداة `tests/x11/x11-tool` (x11rb، خارج الـ workspace) | تكامل |
-| AC5، AC6 | السكربت: سطر `hive focus:` بزمنه، وEsc بـ XTEST، ونقل التركيز إلى نافذة اختبار، ثلاث مرات | تكامل |
-| AC7 | `GetImage` من الأداة عند زاوية الصندوق مقابل لون الجذر، ونقرة XTEST على نافذة تسجّل النقرات | تكامل، لقطة |
-| AC8 | `measure.sh X11=1`، وRSS من `/proc` | أداء |
-| AC9 | الأداة تقرأ `_NET_CLIENT_LIST_STACKING` بعد الضغط على المصدر | تكامل |
-| AC10 | `tests/x11/drop.sh` بـ `tests/drop/source.py`: الناتج و`file --mime-type`، ثم زاوية ومركز وعدّ الملفات | تكامل |
-| AC11 | السكربت بثلاثة ملفات، وعدّ أسطر `drop cells:`؛ ووحدة على تجميع الأحداث | وحدة، تكامل |
-| AC12 | السكربت مع Shift: `deleted=False` من `source.py` ومقارنة sha256 | تكامل |
-| AC13 | لقطتان بـ `GetImage` و`tests/drop/pixels.py`: `accent` تحت المؤشر، لا في المقابلة | لقطة |
-| AC14 | المراجع يقرأ README و`docs/drop-shortcut.md` و`docs/engines.md` وCHANGELOG.md وADR 0003 | مراجعة |
-
-تبقى خضراء دون تعديل: `cargo test --workspace`، و`tests/overlay/*.sh` و`tests/drop/*.sh` و`tests/focus/*.sh` و`tests/e2e/run.sh` و`measure.sh` دون `X11`. خطافات X الحية تُستثنى من الطفرات في `.cargo/mutants.toml` مع السبب، والدوال الصافية تبقى تحتها.
-
-## خارج النطاق
-- ويندوز وmacOS، وXWayland داخل جلسة Wayland (ومنها `DISPLAY` دون `WAYLAND_DISPLAY` في جلسة Wayland).
-- `drop --hold` و`--release` على X11: الترتيب «الخلية أولاً» يطلب ترك المفتاح قبل السحب. والاختصار أثناء السحب يُشغَّل 3 مرات بإمساك سلبي `XGrabKey` ويُسجَّل سطر INFO يغلق بند ADR 0003، ولا يحجب القبول.
-- الشاشات المتعددة، ومقياس غير 1 على X11، ومديرو نوافذ غير xfwm4 (Mutter وKWin على X11)، ومنع سرقة التركيز بمستوياته في مديري X11.
-- مدير ملفات حقيقي مصدراً للسحب.
-
-## سجل المراجعة
-- 2026-10-22، المخطِّط: الجهد نحو 3 أيام، فقُسّمت إلى ثلاث قصص فرعية. في `/usr/bin` موجود: Xvfb وxfwm4 وxprop وxsetroot وffmpeg؛ وغير موجود: Xephyr وxdotool وxwininfo وopenbox وkwin_x11. لذلك الإدخال والهندسة واللقطات من أداة x11rb صغيرة على نمط `tests/drop/kwin-input`، بلا حزم نظام جديدة. لم يُتحقق أن GTK 4 هنا يعمل بـ `GDK_BACKEND=x11` داخل Xvfb، ولا أن xfwm4 يحترم الموضع المطلوب لنافذة بلا إطار (مُفترَض)؛ يتحقق المختبِر منهما أولاً، وإن فشل أحدهما يُرفع للمشرف. قرارات قبل الاعتماد:
-  1. الزوايا: المقترح قص النافذة بامتداد X Shape (الحدود والإدخال) إلى اتحاد السداسيات، لأن الشفافية بلا مؤلِّف لا تعمل. البديل: مستطيل معتم بلون `surface-0`.
-  2. موضع خلية الإفلات: عند المؤشر تغطي الملف الذي يريد المستخدم سحبه. المقترح المنتصف كمسار النافذة في GNOME، والبديل بجانب المؤشر دون أن يقع تحت الصندوق.
-  3. الإبراز: winit لا يعطي حركة أثناء XDND، فالمقترح استطلاع `QueryPointer` كل 50 ms ما دام السحب داخل النافذة. البديل: لا إبراز على X11.
-  4. الإصدار: `docs/PLAN.md` لا يذكر S-015 في 0.4.0؛ يقرر المشرف الإصدار ويُحدَّث PLAN بعدها.
-  ينتظر موافقة المشرف.
-- 2026-10-22، المدير: قرار الإصدار حُسم في `docs/PLAN.md`: القصة للإصدار 0.5.0 «X11». بقية القرارات الثلاثة تنتظر المشرف.
+## Review log
+- 2026-10-22, planner: first draft, three slices, effort about 3 days, four open decisions.
+- 2026-10-31, planner: reworked after reading the Windows window and drop code. The Windows pattern removes the highlight and position work from the open decisions. Three decisions settled by the manager, plus detection order and pointer source. Slices re-cut so that S-113 needs no display. Draft awaiting approval of the manager.

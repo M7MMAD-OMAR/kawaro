@@ -1252,5 +1252,7 @@ mod s108_tests;
 mod s108b_tests;
 #[cfg(test)]
 mod s110_tests;
+#[cfg(all(test, target_os = "linux"))]
+mod s113_tests;
 #[cfg(test)]
 mod ui_tests;
