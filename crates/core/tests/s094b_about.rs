@@ -176,14 +176,11 @@ fn ac2_ac6_the_core_module_is_pure_and_holds_no_hand_written_values() {
 #[test]
 fn ac7_the_changelog_has_one_bilingual_line_for_s094b() {
     let text = read("CHANGELOG.md");
-    let unreleased: String = text
-        .split("\n## ")
-        .find(|s| s.starts_with("[Unreleased]"))
-        .expect("an [Unreleased] section")
-        .to_string();
-    let lines: Vec<&str> = unreleased
+    // The line sat under [Unreleased] until the 0.4.8 cut; the check keeps
+    // guarding the entry form and no longer pins the section a cut moves it out of.
+    let lines: Vec<&str> = text
         .lines()
-        .filter(|l| l.contains("S-094b"))
+        .filter(|l| l.starts_with("- ") && l.contains("S-094b"))
         .collect();
     assert_eq!(lines.len(), 1, "exactly one S-094b line: {lines:?}");
     let l = lines[0];
