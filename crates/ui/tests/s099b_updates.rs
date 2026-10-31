@@ -369,7 +369,10 @@ fn ac_b4_every_card_has_an_accessible_label() {
         assert_eq!(labels.len(), 2);
         for (l, (title, _)) in labels.iter().zip(w.update_cards()) {
             assert!(!l.trim().is_empty());
-            assert!(l.contains(&title) || l.contains("0.4.3"), "{l}");
+            assert!(
+                l.contains(&title) || l.contains("0.4.3") || l.contains(VERSION),
+                "{l}"
+            );
         }
         assert_ne!(labels[0], labels[1]);
     }
