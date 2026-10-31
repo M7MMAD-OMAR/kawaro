@@ -66,8 +66,8 @@ export component WelcomeUi inherits MaterialWindow {
     in-out property <int> settings-output <=> shell.output;
     in-out property <int> settings-quality <=> shell.quality;
     in-out property <string> settings-folder <=> shell.folder;
-    in-out property <bool> settings-notify <=> shell.notify;
-    in-out property <bool> settings-notify-long-only <=> shell.notify-long-only;
+    in-out property <[string]> settings-notify-items <=> shell.notify-items;
+    in-out property <int> settings-notify-mode <=> shell.notify-mode;
     in-out property <bool> settings-open-folder <=> shell.open-folder;
     in-out property <bool> settings-save-failed <=> shell.save-failed;
     in-out property <int> settings-subfolder-index <=> shell.subfolder-index;

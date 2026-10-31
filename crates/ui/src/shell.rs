@@ -378,6 +378,97 @@ pub(crate) mod probe {
         button_named(root, &label).is_some_and(|e| e.accessible_enabled().unwrap_or(true))
     }
 
+    struct ListItem {
+        text: String,
+        label: String,
+        selected: bool,
+        centre: (f32, f32),
+        x: f32,
+    }
+
+    /// The options of the one list on the page (S-109), left to right on
+    /// screen: visible text, accessible label, selected, and the centre.
+    fn list_items(root: &impl ElementRoot) -> Vec<ListItem> {
+        let texts: Vec<(String, Rect)> = all(root)
+            .iter()
+            .filter(|e| e.accessible_role() == Some(AccessibleRole::Text))
+            .map(|e| {
+                (
+                    e.accessible_label().unwrap_or_default().to_string(),
+                    rect(e),
+                )
+            })
+            .collect();
+        let mut items: Vec<ListItem> = all(root)
+            .iter()
+            .filter(|e| e.accessible_role() == Some(AccessibleRole::ListItem))
+            .map(|e| {
+                let r = rect(e);
+                let visible = texts
+                    .iter()
+                    .find(|(t, tr)| {
+                        !t.is_empty()
+                            && tr.x >= r.x - 0.5
+                            && tr.x + tr.w <= r.x + r.w + 0.5
+                            && tr.y >= r.y - 0.5
+                            && tr.y + tr.h <= r.y + r.h + 0.5
+                    })
+                    .map(|(t, _)| t.clone())
+                    .unwrap_or_default();
+                ListItem {
+                    text: visible,
+                    label: e.accessible_label().unwrap_or_default().to_string(),
+                    selected: e.accessible_item_selected().unwrap_or(false),
+                    centre: (r.x + r.w / 2.0, r.y + r.h / 2.0),
+                    x: r.x,
+                }
+            })
+            .collect();
+        items.sort_by(|a, b| a.x.total_cmp(&b.x));
+        items
+    }
+
+    /// The options in logical order (Off, All, Long), whatever the direction.
+    pub(crate) fn notify_options(
+        root: &impl ElementRoot,
+        rtl: bool,
+    ) -> Vec<(String, String, bool)> {
+        let mut items = list_items(root);
+        if rtl {
+            items.reverse();
+        }
+        items
+            .into_iter()
+            .map(|i| (i.text, i.label, i.selected))
+            .collect()
+    }
+
+    /// A real click on logical option `i`.
+    pub(crate) fn pick_notify_option(
+        root: &(impl ElementRoot + ComponentHandle),
+        rtl: bool,
+        i: usize,
+    ) {
+        use slint::platform::{PointerEventButton, WindowEvent};
+        let mut items = list_items(root);
+        if rtl {
+            items.reverse();
+        }
+        let Some(item) = items.get(i) else { return };
+        let position = slint::LogicalPosition::new(item.centre.0, item.centre.1);
+        let w = root.window();
+        w.dispatch_event(WindowEvent::PointerMoved { position });
+        w.dispatch_event(WindowEvent::PointerPressed {
+            position,
+            button: PointerEventButton::Left,
+        });
+        w.dispatch_event(WindowEvent::PointerReleased {
+            position,
+            button: PointerEventButton::Left,
+        });
+        w.dispatch_event(WindowEvent::PointerExited);
+    }
+
     /// Interactive elements, rail items and the logo with an empty label.
     pub(crate) fn unlabelled_controls(root: &impl ElementRoot) -> usize {
         use AccessibleRole::*;
@@ -477,6 +568,25 @@ macro_rules! shell_probes {
             #[doc(hidden)]
             pub fn visible_texts(&self) -> Vec<String> {
                 crate::shell::probe::visible_texts(&*self.inner.ui.borrow())
+            }
+
+            #[doc(hidden)]
+            pub fn notify_options(&self) -> Vec<(String, String, bool)> {
+                crate::shell::probe::notify_options(&*self.inner.ui.borrow(), self.inner.is_rtl())
+            }
+
+            #[doc(hidden)]
+            pub fn pick_notify_option(&self, i: usize) {
+                crate::shell::probe::pick_notify_option(
+                    &*self.inner.ui.borrow(),
+                    self.inner.is_rtl(),
+                    i,
+                );
+            }
+
+            #[doc(hidden)]
+            pub fn notify_list_label(&self) -> String {
+                crate::shell::probe::label_of(&*self.inner.ui.borrow(), "AppShell::notify-buttons")
             }
 
             #[doc(hidden)]

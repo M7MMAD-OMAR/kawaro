@@ -14,7 +14,9 @@
 use crate::Lang;
 use crate::shell::{privacy_statement, remember_page, remembered_page};
 use crate::updates::{POLL_TICK, UpdateModel, UpdateState, about_line, clock_ms};
-use kawaro_core::config::{Config, LangSetting, OutputPlace, Quality, Theme, UpdateMode};
+use kawaro_core::config::{
+    Config, LangSetting, NotifyMode, OutputPlace, Quality, Theme, UpdateMode,
+};
 use kawaro_core::update::Channel;
 use kawaro_core::update::manifest::Notes;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
@@ -33,6 +35,8 @@ pub(crate) const LANGUAGES: [LangSetting; 3] =
 pub(crate) const THEMES: [Theme; 3] = [Theme::Auto, Theme::Light, Theme::Dark];
 pub(crate) const OUTPUTS: [OutputPlace; 2] = [OutputPlace::Beside, OutputPlace::Subfolder];
 pub(crate) const QUALITIES: [Quality; 3] = [Quality::Light, Quality::Balanced, Quality::Max];
+pub(crate) const NOTIFY_MODES: [NotifyMode; 3] =
+    [NotifyMode::Off, NotifyMode::All, NotifyMode::Long];
 pub(crate) const CHANNELS: [Channel; 2] = [Channel::Stable, Channel::Beta];
 pub(crate) const MODES: [UpdateMode; 2] = [UpdateMode::Ask, UpdateMode::Auto];
 
@@ -74,8 +78,7 @@ pub(crate) struct FormState {
     pub(crate) output: i32,
     pub(crate) quality: i32,
     pub(crate) folder: String,
-    pub(crate) notify: bool,
-    pub(crate) notify_long_only: bool,
+    pub(crate) notify_mode: i32,
     pub(crate) open_folder: bool,
     pub(crate) update_check: bool,
     pub(crate) update_channel: i32,
@@ -91,8 +94,7 @@ impl FormState {
             output: to_visual(&OUTPUTS, &c.output, rtl),
             quality: to_visual(&QUALITIES, &c.quality, rtl),
             folder: c.output_folder.clone(),
-            notify: c.notify,
-            notify_long_only: c.notify_long_only,
+            notify_mode: to_visual(&NOTIFY_MODES, &c.notify_mode, rtl),
             open_folder: c.open_folder_when_done,
             update_check: c.update_check,
             update_channel: to_visual(&CHANNELS, &c.update_channel, rtl),
@@ -105,6 +107,7 @@ impl FormState {
     pub(crate) fn to_config(&self, rtl: bool) -> Config {
         let folder = self.folder.trim();
         let channel = from_visual(&CHANNELS, self.update_channel, rtl);
+        let notify_mode = from_visual(&NOTIFY_MODES, self.notify_mode, rtl);
         Config {
             language: from_visual(&LANGUAGES, self.language, rtl),
             theme: from_visual(&THEMES, self.theme, rtl),
@@ -116,8 +119,9 @@ impl FormState {
                 folder.to_string()
             },
             open_folder_when_done: self.open_folder,
-            notify: self.notify,
-            notify_long_only: self.notify_long_only,
+            notify_mode,
+            notify: notify_mode.legacy().0,
+            notify_long_only: notify_mode.legacy().1,
             update_check: self.update_check,
             update_channel: channel,
             // Only a changed channel becomes an explicit key (S-053a).
@@ -143,7 +147,6 @@ macro_rules! convert_text {
             folder: t.folder,
             quality: t.quality,
             notify: t.notify,
-            notify_long_only: t.notify_long_only,
             open_folder: t.open_folder,
             save: t.save,
             cancel: t.cancel,
@@ -197,8 +200,7 @@ macro_rules! form_values {
             output: s.output,
             quality: s.quality,
             folder: s.folder.as_str().into(),
-            notify: s.notify,
-            notify_long_only: s.notify_long_only,
+            notify_mode: s.notify_mode,
             open_folder: s.open_folder,
             update_check: s.update_check,
             update_channel: s.update_channel,
@@ -235,6 +237,7 @@ pub(crate) struct Strings {
     pub(crate) themes: [&'static str; 3],
     pub(crate) outputs: [&'static str; 2],
     pub(crate) qualities: [&'static str; 3],
+    pub(crate) notify_modes: [&'static str; 3],
     pub(crate) channels: [&'static str; 2],
     pub(crate) modes: [&'static str; 2],
 }
@@ -267,8 +270,7 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 output: "مكان النتائج".into(),
                 folder: "اسم المجلد".into(),
                 quality: "الجودة".into(),
-                notify: "إشعار عند انتهاء ملف أو عملية".into(),
-                notify_long_only: "فقط إن استغرق 10 ثوانٍ أو أكثر".into(),
+                notify: "الإشعارات".into(),
                 open_folder: "فتح المجلد عند الانتهاء".into(),
                 save: "حفظ".into(),
                 cancel: "إلغاء".into(),
@@ -312,6 +314,7 @@ pub(crate) fn strings(lang: Lang) -> Strings {
             themes: ["تلقائي", "فاتح", "داكن"],
             outputs: ["بجانب الملف الأصلي", "في مجلد فرعي"],
             qualities: ["ملفات أصغر", "متوازنة", "أفضل جودة"],
+            notify_modes: ["إيقاف", "كل عملية تنتهي", "فقط ما استغرق 10 ثوانٍ أو أكثر"],
             channels: ["مستقرة", "تجريبية"],
             modes: ["اسألني", AUTO_AR],
         },
@@ -323,8 +326,7 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 output: "Where results go".into(),
                 folder: "Folder name".into(),
                 quality: "Quality".into(),
-                notify: "Notify when a file or operation finishes".into(),
-                notify_long_only: "Only if it took 10 seconds or more".into(),
+                notify: "Notifications".into(),
                 open_folder: "Open the folder when done".into(),
                 save: "Save".into(),
                 cancel: "Cancel".into(),
@@ -368,6 +370,11 @@ pub(crate) fn strings(lang: Lang) -> Strings {
             themes: ["Automatic", "Light", "Dark"],
             outputs: ["Next to the original", "In a subfolder"],
             qualities: ["Smaller files", "Balanced", "Best quality"],
+            notify_modes: [
+                "Off",
+                "Every finished job",
+                "Only jobs that took 10 seconds or more",
+            ],
             channels: ["Stable", "Beta"],
             modes: ["Ask me", AUTO_EN],
         },
@@ -422,7 +429,7 @@ impl Inner {
         let w = Rc::downgrade(self);
         ui.on_language_selected(move || with(&w, Inner::change_language));
         let w = Rc::downgrade(self);
-        ui.on_cancel(move || with(&w, Inner::close));
+        ui.on_cancel(move || with(&w, Inner::cancel));
         let w = Rc::downgrade(self);
         ui.on_update_check(move || with(&w, Inner::update_check));
         let w = Rc::downgrade(self);
@@ -451,6 +458,7 @@ impl Inner {
         ui.set_theme_items(list(&s.themes));
         ui.set_output_items(list(&s.outputs));
         ui.set_quality_items(list(&s.qualities));
+        ui.set_notify_items(list(&s.notify_modes));
         ui.set_subfolder_index(to_visual(&OUTPUTS, &OutputPlace::Subfolder, rtl));
         ui.set_update_channel_items(list(&s.channels));
         ui.set_update_mode_items(list(&s.modes));
@@ -538,8 +546,7 @@ impl Inner {
             output: ui.get_output(),
             quality: ui.get_quality(),
             folder: ui.get_folder().into(),
-            notify: ui.get_notify(),
-            notify_long_only: ui.get_notify_long_only(),
+            notify_mode: ui.get_notify_mode(),
             open_folder: ui.get_open_folder(),
             update_check: ui.get_update_check_auto(),
             update_channel: ui.get_update_channel(),
@@ -555,8 +562,7 @@ impl Inner {
         ui.set_output(s.output);
         ui.set_quality(s.quality);
         ui.set_folder(s.folder.as_str().into());
-        ui.set_notify(s.notify);
-        ui.set_notify_long_only(s.notify_long_only);
+        ui.set_notify_mode(s.notify_mode);
         ui.set_open_folder(s.open_folder);
         ui.set_update_check_auto(s.update_check);
         ui.set_update_channel(s.update_channel);
@@ -583,6 +589,20 @@ impl Inner {
         if let Some(f) = f {
             f(config);
         }
+        self.close();
+    }
+
+    /// Drops the edits (the stored values come back, so a later look at the
+    /// form shows them) and closes.
+    fn cancel(&self) {
+        let opened = self.opened.borrow().clone();
+        let lang = match opened.language {
+            LangSetting::Auto => self.initial_lang,
+            _ => opened.lang(),
+        };
+        self.rtl.set(lang.rtl());
+        self.apply_language(&self.ui.borrow(), lang);
+        self.set_state(&FormState::from_config(&opened, lang.rtl()));
         self.close();
     }
 
@@ -931,6 +951,11 @@ mod tests {
                                 quality,
                                 open_folder_when_done: open,
                                 notify,
+                                notify_mode: if notify {
+                                    NotifyMode::All
+                                } else {
+                                    NotifyMode::Off
+                                },
                                 hive_surface: HiveSurface::Auto,
                                 hold_ms: 400,
                                 portal_shortcut: true,
@@ -960,6 +985,7 @@ mod tests {
         c.quality = Quality::Max;
         c.open_folder_when_done = true;
         c.notify = false;
+        c.notify_mode = NotifyMode::Off;
         c.hive_surface = HiveSurface::Window;
         c.hold_ms = 1500;
         c.portal_shortcut = false;
@@ -1031,7 +1057,7 @@ mod tests {
             output: 0,
             quality: 1,
             folder: "Kawaro".into(),
-            notify: true,
+            notify_mode: 1,
             open_folder: false,
             ..actual.clone()
         };
@@ -1045,7 +1071,7 @@ mod tests {
             output: 1,
             quality: 1,
             folder: "Kawaro".into(),
-            notify: true,
+            notify_mode: 1,
             open_folder: false,
             ..actual.clone()
         };
@@ -1080,6 +1106,7 @@ mod tests {
             quality: Quality::Max,
             open_folder_when_done: true,
             notify: false,
+            notify_mode: NotifyMode::Off,
             hive_surface: HiveSurface::Auto,
             hold_ms: 400,
             portal_shortcut: true,
@@ -1093,7 +1120,7 @@ mod tests {
             "visual indices, left to right"
         );
         assert_eq!(s.folder, "out");
-        assert!(s.open_folder && !s.notify);
+        assert!(s.open_folder && s.notify_mode == 0);
         let s = FormState::from_config(&c, true);
         assert_eq!((s.language, s.theme, s.output, s.quality), (0, 0, 0, 0));
 
@@ -1133,9 +1160,10 @@ mod tests {
             },
         );
         check(
-            &|s| s.notify = false,
+            &|s| s.notify_mode = 0,
             Config {
                 notify: false,
+                notify_mode: NotifyMode::Off,
                 ..base.clone()
             },
         );
@@ -1226,7 +1254,6 @@ mod tests {
                 &t.folder,
                 &t.quality,
                 &t.notify,
-                &t.notify_long_only,
                 &t.open_folder,
                 &t.save,
                 &t.cancel,
@@ -1414,7 +1441,7 @@ mod tests {
                         "Register the drop shortcut with the desktop",
                         "In a subfolder",
                         "Smaller files",
-                        "Notify when a file or operation finishes",
+                        "Every finished job",
                         "Open the folder when done",
                         "Save",
                         "Cancel",
@@ -1424,7 +1451,7 @@ mod tests {
                         "تسجيل اختصار الإفلات لدى سطح المكتب",
                         "في مجلد فرعي",
                         "ملفات أصغر",
-                        "إشعار عند انتهاء ملف أو عملية",
+                        "كل عملية تنتهي",
                         "فتح المجلد عند الانتهاء",
                         "حفظ",
                         "إلغاء",
@@ -1480,7 +1507,7 @@ mod tests {
 
                 find(&win, output, AccessibleRole::ListItem);
                 find(&win, quality, AccessibleRole::ListItem);
-                find(&win, notify, AccessibleRole::Switch);
+                find(&win, notify, AccessibleRole::ListItem);
                 find(&win, open, AccessibleRole::Switch);
                 let save_x = find(&win, save, AccessibleRole::Button)
                     .absolute_position()
@@ -1586,17 +1613,9 @@ mod tests {
             i_slint_backend_testing::init_no_event_loop();
             for lang in [Lang::En, Lang::Ar] {
                 let (registration, notify, save) = if lang == Lang::En {
-                    (
-                        "Register the drop shortcut with the desktop",
-                        "Notify when a file or operation finishes",
-                        "Save",
-                    )
+                    ("Register the drop shortcut with the desktop", "Off", "Save")
                 } else {
-                    (
-                        "تسجيل اختصار الإفلات لدى سطح المكتب",
-                        "إشعار عند انتهاء ملف أو عملية",
-                        "حفظ",
-                    )
+                    ("تسجيل اختصار الإفلات لدى سطح المكتب", "إيقاف", "حفظ")
                 };
                 let start = Config {
                     portal_shortcut: false,
@@ -1605,10 +1624,11 @@ mod tests {
                 let (win, saved) = wired(lang);
                 win.open(&start).unwrap();
                 assert_eq!(label_count(&win, registration), 0, "{lang:?}");
-                find(&win, notify, AccessibleRole::Switch).invoke_accessible_default_action();
+                click(&win, &find(&win, notify, AccessibleRole::ListItem));
                 click(&win, &find(&win, save, AccessibleRole::Button));
                 let expected = Config {
                     notify: !start.notify,
+                    notify_mode: NotifyMode::Off,
                     ..start.clone()
                 };
                 assert_eq!(*saved.borrow(), [expected], "{lang:?}");
@@ -1726,19 +1746,13 @@ mod tests {
                 "enabled for a subfolder"
             );
             folder.set_accessible_value("Converted");
-            find(
-                &win,
-                "Only if it took 10 seconds or more",
-                AccessibleRole::Switch,
-            )
-            .invoke_accessible_default_action();
             let notify = find(
                 &win,
-                "Notify when a file or operation finishes",
-                AccessibleRole::Switch,
+                "Only jobs that took 10 seconds or more",
+                AccessibleRole::ListItem,
             );
-            notify.invoke_accessible_default_action();
-            assert_eq!(notify.accessible_checked(), Some(false));
+            click(&win, &notify);
+            assert_eq!(notify.accessible_item_selected(), Some(true));
             find(&win, "Open the folder when done", AccessibleRole::Switch)
                 .invoke_accessible_default_action();
             click(&win, &find(&win, "العربية", AccessibleRole::ListItem));
@@ -1754,8 +1768,9 @@ mod tests {
                     output_folder: "Converted".into(),
                     quality: Quality::Light,
                     open_folder_when_done: true,
-                    notify: false,
+                    notify: true,
                     notify_long_only: true,
+                    notify_mode: NotifyMode::Long,
                     hive_surface: HiveSurface::Auto,
                     hold_ms: 400,
                     portal_shortcut: true,

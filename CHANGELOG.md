@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- One notification choice with three options and a recorded S-089 test map ([S-109](backlog/S-109-first-run-remainder.md)): Off, every finished job, or only jobs that took 10 seconds or more, with old settings keeping their behaviour | خيار إشعارات واحد بثلاثة اختيارات وخريطة اختبارات S-089 موثقة: إيقاف أو كل عملية تنتهي أو فقط ما استغرق 10 ثوانٍ أو أكثر، وتحتفظ الإعدادات القديمة بسلوكها
 - The About page opens the website and the source code, copies the version and jumps to update checking ([S-094b](backlog/S-094b-about-page-actions.md)): two link buttons, a Copy version button that reads Copied for two seconds, and a Check for updates button that opens the Updates page and starts the check | صفحة حول تفتح الموقع والشيفرة المصدرية وتنسخ رقم الإصدار وتنتقل إلى البحث عن التحديث: زرّا رابطين وزر انسخ الإصدار يظهر تم النسخ لثانيتين وزر ابحث عن تحديث يفتح صفحة التحديثات ويبدأ البحث
 
 ## [0.4.7] - 2026-10-31

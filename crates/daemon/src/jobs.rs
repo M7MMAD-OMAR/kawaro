@@ -5,6 +5,7 @@ use crate::notify_logic::open_folder_command;
 use crate::state::{JobInfo, Shared, State, lock};
 use crate::{notify, tray};
 use kawaro_core::ActionDef;
+use kawaro_core::config::{NotifyMode, notify_decision};
 use kawaro_core::ipc::Event;
 use kawaro_core::paths::CURRENT;
 use kawaro_core::queue::{JobEvent, JobId, Queue};
@@ -63,14 +64,10 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
         }
         // A combined action is one task and receives one notification. Failed
         // tasks are reported too; cancellations and tasks never started are not.
-        let task_notice = st.jobs.get(&job).and_then(|info| {
-            task_notice(
-                &ev,
-                &info.label,
-                st.config.notify,
-                st.config.notify_long_only,
-            )
-        });
+        let task_notice = st
+            .jobs
+            .get(&job)
+            .and_then(|info| task_notice(&ev, &info.label, st.config.notify_mode));
         if let Some(notice) = task_notice {
             notify::finished(st.lang, &notice, false);
         }
@@ -103,7 +100,7 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
 
 /// A missing or cancelled task has no completion notice. Combined actions
 /// represent one task, so they produce at most one notice for the batch.
-fn task_notice(event: &JobEvent, label: &str, enabled: bool, long_only: bool) -> Option<JobInfo> {
+fn task_notice(event: &JobEvent, label: &str, mode: NotifyMode) -> Option<JobInfo> {
     let (elapsed, output, error) = match event {
         JobEvent::TaskDone {
             output, elapsed, ..
@@ -123,7 +120,7 @@ fn task_notice(event: &JobEvent, label: &str, enabled: bool, long_only: bool) ->
         }
         _ => return None,
     };
-    if !should_notify(enabled, long_only, Some(elapsed)) {
+    if !notify_decision(mode, Some(elapsed)) {
         return None;
     }
     Some(JobInfo {
@@ -137,22 +134,20 @@ fn task_notice(event: &JobEvent, label: &str, enabled: bool, long_only: bool) ->
     })
 }
 
-fn should_notify(enabled: bool, long_only: bool, elapsed: Option<std::time::Duration>) -> bool {
-    enabled && (!long_only || elapsed.is_some_and(|d| d >= std::time::Duration::from_secs(10)))
-}
-
 #[cfg(test)]
 mod tests {
-    use super::should_notify;
+    use kawaro_core::config::{NotifyMode, notify_decision};
     use std::time::Duration;
 
     #[test]
     fn notification_policy_respects_duration_and_switch() {
-        assert!(!should_notify(false, false, Some(Duration::from_secs(30))));
-        assert!(should_notify(true, false, Some(Duration::from_secs(1))));
-        assert!(!should_notify(true, true, Some(Duration::from_secs(9))));
-        assert!(should_notify(true, true, Some(Duration::from_secs(10))));
-        assert!(!should_notify(true, true, None));
+        let off = NotifyMode::Off;
+        let (all, long) = (NotifyMode::All, NotifyMode::Long);
+        assert!(!notify_decision(off, Some(Duration::from_secs(30))));
+        assert!(notify_decision(all, Some(Duration::from_secs(1))));
+        assert!(!notify_decision(long, Some(Duration::from_secs(9))));
+        assert!(notify_decision(long, Some(Duration::from_secs(10))));
+        assert!(!notify_decision(long, None));
     }
     #[test]
     fn batch_notices_follow_each_task_duration_and_policy() {
@@ -164,12 +159,14 @@ mod tests {
             sync::{Arc, Mutex, mpsc::channel},
         };
 
-        for (enabled, long_only, expected) in [(false, false, 0), (true, false, 3), (true, true, 2)]
-        {
+        for (mode, expected) in [
+            (NotifyMode::Off, 0),
+            (NotifyMode::All, 3),
+            (NotifyMode::Long, 2),
+        ] {
             let state = Arc::new(Mutex::new(State::new(
                 Config {
-                    notify: enabled,
-                    notify_long_only: long_only,
+                    notify_mode: mode,
                     ..Config::default()
                 },
                 &[],
@@ -231,7 +228,7 @@ mod tests {
             assert_eq!(
                 captured_log().lines().count() - before,
                 expected,
-                "enabled={enabled} long={long_only}"
+                "mode={mode:?}"
             );
             assert!(state.lock().unwrap().jobs.is_empty());
         }

@@ -1,6 +1,7 @@
 # S-089 First run and settings recovery
 Status: done except AC7 (S-109) and the live Windows run (manual, not run)
 Remainder, the per-criterion test map and the AC3 supersession by S-094c: `backlog/S-109-first-run-remainder.md`.
+AC3 (a real bundled video) is superseded by S-094c: a live vector film replaced it (`backlog/S-094c-introduction-film.md`). The live Windows matrix run is manual and not run. No criterion is claimed as checked on Windows.
 
 ## Story
 As a new Kawaro user, I want to choose Arabic or English before the introduction, understand the real workflow from a useful video, and control settings in one reliable window, so I can use and trust the application.

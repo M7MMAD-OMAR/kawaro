@@ -31,8 +31,8 @@ export component SettingsUi inherits MaterialWindow {
     in-out property <int> output <=> shell.output;
     in-out property <int> quality <=> shell.quality;
     in-out property <string> folder <=> shell.folder;
-    in-out property <bool> notify <=> shell.notify;
-    in-out property <bool> notify-long-only <=> shell.notify-long-only;
+    in-out property <[string]> notify-items <=> shell.notify-items;
+    in-out property <int> notify-mode <=> shell.notify-mode;
     in-out property <bool> save-failed <=> shell.save-failed;
     in-out property <bool> open-folder <=> shell.open-folder;
     in-out property <int> subfolder-index <=> shell.subfolder-index;

@@ -24,7 +24,6 @@ export struct SettingsText {
     folder: string,
     quality: string,
     notify: string,
-    notify-long-only: string,
     open-folder: string,
     save: string,
     cancel: string,
@@ -74,8 +73,7 @@ export struct FormValues {
     output: int,
     quality: int,
     folder: string,
-    notify: bool,
-    notify-long-only: bool,
+    notify-mode: int,
     open-folder: bool,
     update-check: bool,
     update-channel: int,
@@ -270,8 +268,8 @@ export component AppShell inherits Rectangle {
     in-out property <int> output;
     in-out property <int> quality;
     in-out property <string> folder;
-    in-out property <bool> notify;
-    in-out property <bool> notify-long-only;
+    in property <[string]> notify-items;
+    in-out property <int> notify-mode;
     in-out property <bool> save-failed;
     in-out property <bool> open-folder;
     // Visual index of the subfolder option in `output-items` (it depends on
@@ -307,8 +305,7 @@ export component AppShell inherits Rectangle {
         || root.output != root.loaded.output
         || root.quality != root.loaded.quality
         || root.folder != root.loaded.folder
-        || root.notify != root.loaded.notify
-        || root.notify-long-only != root.loaded.notify-long-only
+        || root.notify-mode != root.loaded.notify-mode
         || root.open-folder != root.loaded.open-folder
         || root.update-check-auto != root.loaded.update-check
         || root.update-channel != root.loaded.update-channel
@@ -549,26 +546,14 @@ export component AppShell inherits Rectangle {
                                     rtl: root.rtl;
                                     wide: root.wide;
                                     label: root.text.notify;
-                                    control-h: notify-switch.min-height;
-                                    notify-switch := Switch {
+                                    control-h: notify-buttons.min-height;
+                                    notify-buttons := ChoiceButtons {
                                         x: root.rtl ? parent.slot-w - self.width : 0;
                                         width: self.min-width;
                                         height: self.min-height;
                                         accessible-label: root.text.notify;
-                                        checked <=> root.notify;
-                                    }
-                                }
-                                if root.notify: FormRow {
-                                    rtl: root.rtl;
-                                    wide: root.wide;
-                                    label: root.text.notify-long-only;
-                                    control-h: long-switch.min-height;
-                                    long-switch := Switch {
-                                        x: root.rtl ? parent.slot-w - self.width : 0;
-                                        width: self.min-width;
-                                        height: self.min-height;
-                                        accessible-label: root.text.notify-long-only;
-                                        checked <=> root.notify-long-only;
+                                        labels: root.notify-items;
+                                        current-index <=> root.notify-mode;
                                     }
                                 }
                                 FormRow {

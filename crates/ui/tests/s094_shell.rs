@@ -350,9 +350,9 @@ fn ac2_the_rail_has_five_items_in_order_and_each_page_shows_only_its_rows() {
     // Conversion: where results go, folder name, quality.
     assert_eq!(pages[1].len(), 3, "{:?}", pages[1]);
     assert!(contains_ci(&pages[1], "folder") && contains_ci(&pages[1], "quality"));
-    // Notifications and integration: notify, notify long only, open folder,
-    // drop shortcut row.
-    assert_eq!(pages[2].len(), 4, "{:?}", pages[2]);
+    // Notifications and integration: the notification list (S-109), open
+    // folder, drop shortcut row.
+    assert_eq!(pages[2].len(), 3, "{:?}", pages[2]);
     assert!(contains_ci(&pages[2], "notif"));
     assert!(contains_ci(&pages[2], "open"));
     assert!(contains_ci(&pages[2], "shortcut"));

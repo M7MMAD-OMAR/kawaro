@@ -289,8 +289,7 @@ impl Inner {
             output: ui.get_settings_output(),
             quality: ui.get_settings_quality(),
             folder: ui.get_settings_folder().into(),
-            notify: ui.get_settings_notify(),
-            notify_long_only: ui.get_settings_notify_long_only(),
+            notify_mode: ui.get_settings_notify_mode(),
             open_folder: ui.get_settings_open_folder(),
             update_check: ui.get_settings_update_check_auto(),
             update_channel: ui.get_settings_update_channel(),
@@ -312,6 +311,7 @@ impl Inner {
         ui.set_settings_theme_items(list(&strings.themes));
         ui.set_settings_output_items(list(&strings.outputs));
         ui.set_settings_quality_items(list(&strings.qualities));
+        ui.set_settings_notify_items(list(&strings.notify_modes));
         ui.set_settings_update_channel_items(list(&strings.channels));
         ui.set_settings_update_mode_items(list(&strings.modes));
         self.show_update(ui, lang);
@@ -325,8 +325,7 @@ impl Inner {
         ui.set_settings_output(state.output);
         ui.set_settings_quality(state.quality);
         ui.set_settings_folder(state.folder.as_str().into());
-        ui.set_settings_notify(state.notify);
-        ui.set_settings_notify_long_only(state.notify_long_only);
+        ui.set_settings_notify_mode(state.notify_mode);
         ui.set_settings_open_folder(state.open_folder);
         ui.set_settings_update_check_auto(state.update_check);
         ui.set_settings_update_channel(state.update_channel);
@@ -681,7 +680,12 @@ impl WelcomeWindow {
         let inner = &self.inner;
         *inner.settings_opened.borrow_mut() = config.clone();
         inner.settings_loaded.set(true);
-        let lang = config.lang();
+        // An automatic language keeps the window's own, as the settings
+        // window does.
+        let lang = match config.language {
+            kawaro_core::config::LangSetting::Auto => inner.lang,
+            _ => config.lang(),
+        };
         let state = FormState::from_config(config, lang.rtl());
         let ui = inner.ui.borrow();
         ui.set_settings_save_failed(false);
@@ -928,7 +932,7 @@ mod unified_tests {
         {
             let ui = win.inner.ui.borrow();
             ui.set_settings_folder("  unchanged  ".into());
-            ui.set_settings_notify_long_only(true);
+            ui.set_settings_notify_mode(2);
             ui.set_settings_language(1);
         }
         win.inner.settings_language_changed();
@@ -936,7 +940,7 @@ mod unified_tests {
             let ui = win.inner.ui.borrow();
             assert!(ui.get_rtl());
             assert_eq!(ui.get_settings_folder(), "  unchanged  ");
-            assert!(ui.get_settings_notify_long_only());
+            assert_eq!(ui.get_settings_notify_mode(), 0, "mirrored in Arabic");
             assert_eq!(ui.get_settings_output(), 0);
             assert_eq!(ui.window() as *const slint::Window, original);
         }
@@ -953,7 +957,10 @@ mod unified_tests {
         assert_eq!(saved.borrow()[0].language, LangSetting::Ar);
         assert_eq!(saved.borrow()[0].output, OutputPlace::Subfolder);
         assert_eq!(saved.borrow()[0].output_folder, "unchanged");
-        assert!(saved.borrow()[0].notify_long_only);
+        assert_eq!(
+            saved.borrow()[0].notify_mode,
+            kawaro_core::config::NotifyMode::Long
+        );
         win.show_settings(&config);
         win.inner.ui.borrow().set_settings_language(1);
         win.inner.settings_language_changed();

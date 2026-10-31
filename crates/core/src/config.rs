@@ -49,6 +49,48 @@ pub enum Quality {
     Max,
 }
 
+/// Which finished jobs raise a desktop notification (S-109).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum NotifyMode {
+    Off,
+    #[default]
+    All,
+    /// Only jobs that took [`LONG_JOB`] or more.
+    Long,
+}
+
+/// The duration from which a job counts as long.
+pub const LONG_JOB: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Whether a finished task notifies. Unknown timing is silent under `Long`.
+pub fn notify_decision(mode: NotifyMode, elapsed: Option<std::time::Duration>) -> bool {
+    match mode {
+        NotifyMode::Off => false,
+        NotifyMode::All => true,
+        NotifyMode::Long => elapsed.is_some_and(|d| d >= LONG_JOB),
+    }
+}
+
+impl NotifyMode {
+    /// The (`notify`, `notify-long-only`) pair a downgrade reads.
+    pub fn legacy(self) -> (bool, bool) {
+        match self {
+            NotifyMode::Off => (false, false),
+            NotifyMode::All => (true, false),
+            NotifyMode::Long => (true, true),
+        }
+    }
+
+    fn from_legacy(on: bool, long: bool) -> Self {
+        match (on, long) {
+            (false, _) => NotifyMode::Off,
+            (true, false) => NotifyMode::All,
+            (true, true) => NotifyMode::Long,
+        }
+    }
+}
+
 /// What the daemon does with an update it found (ADR 0006).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -84,6 +126,11 @@ pub struct Config {
     /// Limit job completion notifications to jobs lasting at least 10 seconds.
     #[serde(default)]
     pub notify_long_only: bool,
+    /// Which finished jobs notify (S-109). Wins over the two legacy keys
+    /// above, which are still written on save so a downgrade keeps the
+    /// behaviour. Spelled with an underscore, as `hold_ms` is.
+    #[serde(rename = "notify_mode")]
+    pub notify_mode: NotifyMode,
     /// Spelled with an underscore in the file, as S-019 AC1 writes it.
     #[serde(rename = "hive_surface")]
     pub hive_surface: HiveSurface,
@@ -149,6 +196,7 @@ impl PartialEq for Config {
             self.open_folder_when_done == o.open_folder_when_done,
             self.notify == o.notify,
             self.notify_long_only == o.notify_long_only,
+            self.notify_mode == o.notify_mode,
             self.hive_surface == o.hive_surface,
             self.hold_ms == o.hold_ms,
             self.hold_max_ms == o.hold_max_ms,
@@ -208,6 +256,7 @@ impl Default for Config {
             open_folder_when_done: false,
             notify: true,
             notify_long_only: false,
+            notify_mode: NotifyMode::All,
             hive_surface: HiveSurface::Auto,
             hold_ms: HOLD_MS_DEFAULT,
             hold_max_ms: HOLD_MAX_DEFAULT,
@@ -238,17 +287,43 @@ impl Config {
         match std::fs::read_to_string(path) {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => (Self::default(), None),
             Err(e) => (Self::default(), Some(format!("{}: {e}", path.display()))),
-            Ok(text) => match toml::from_str::<Config>(&text) {
-                Ok(c) => (
+            Ok(text) => match Self::parse(&text) {
+                Ok((c, warn)) => (
                     Config {
                         update_channel_present: Self::explicit_update_channel(&text).is_some(),
                         ..c
                     },
-                    None,
+                    warn.map(|w| format!("{}: {w}", path.display())),
                 ),
                 Err(e) => (Self::default(), Some(format!("{}: {e}", path.display()))),
             },
         }
+    }
+
+    /// Parses a file text. `notify_mode` is resolved apart from serde: a
+    /// present key wins, an unknown word is All plus a warning, and a file
+    /// without it takes the mode its two legacy keys describe (S-109).
+    fn parse(text: &str) -> Result<(Self, Option<String>), toml::de::Error> {
+        let mut table: toml::Table = toml::from_str(text)?;
+        let raw = table.remove("notify_mode");
+        let legacy_on = table.get("notify").and_then(|v| v.as_bool());
+        let legacy_long = table.get("notify-long-only").and_then(|v| v.as_bool());
+        let mut c: Config = table.try_into()?;
+        let mut warn = None;
+        c.notify_mode = match raw {
+            None => {
+                NotifyMode::from_legacy(legacy_on.unwrap_or(true), legacy_long.unwrap_or(false))
+            }
+            Some(v) => match v.try_into::<NotifyMode>() {
+                Ok(m) => m,
+                Err(_) => {
+                    warn = Some("notify_mode: unknown value, using all".to_string());
+                    NotifyMode::All
+                }
+            },
+        };
+        (c.notify, c.notify_long_only) = c.notify_mode.legacy();
+        Ok((c, warn))
     }
 
     /// The `update_channel` written in a config file text; `None` when the
@@ -278,6 +353,9 @@ impl Config {
             std::fs::create_dir_all(dir)?;
         }
         let mut table = toml::Table::try_from(self).map_err(std::io::Error::other)?;
+        let (on, long) = self.notify_mode.legacy();
+        table.insert("notify".into(), on.into());
+        table.insert("notify-long-only".into(), long.into());
         // An unset channel stays unset, so the beta default of a prerelease
         // build survives a save (S-054b).
         if !self.update_channel_present && self.update_channel == Channel::Stable {
@@ -374,6 +452,7 @@ mod tests {
             output: OutputPlace::Subfolder,
             output_folder: "محوّل".into(),
             notify_long_only: true,
+            notify_mode: NotifyMode::Long,
             ..Config::default()
         };
         c.save_to(&p).unwrap();
