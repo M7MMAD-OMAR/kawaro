@@ -1,5 +1,5 @@
 # S-112 AppStream metadata, one install command source, signed checksums
-Status: done (live COPR and AUR, container install tests, a captured desktop screenshot and Flathub stay remaining; sign-checksums job never run, needs a tag)
+Status: done (live COPR and AUR, container install tests, a captured desktop screenshot and Flathub stay remaining; sign-checksums job ran on the 0.4.8 and 0.5.0 tags)
 
 ## Story
 As a Linux app store user I want Kawaro to show its icon, a real screenshot and bilingual release notes, and as a user of any channel I want every install command in the docs to be the same text, so that nothing I copy is stale. This is the account free part of S-078a, S-016 decision 8 and S-016e. Needs no account and no network; fast loop only.

@@ -1,6 +1,6 @@
 # S-016 Signed APT and COPR repositories
 
-Status: the command source (decision 8) and the signed checksums (S-016e, AC10) are planned in [S-112](S-112-appstream-and-install-commands.md) (approved, 2026-10-31).
+Status: the command source (decision 8) and the signed checksums (S-016e, AC10) shipped in [S-112](S-112-appstream-and-install-commands.md) (0.4.8; the signed checksums job ran on the 0.4.8 and 0.5.0 tags). The COPR half still needs a Fedora account and `COPR_CONFIG`, not checked.
 Previous status: approved (2026-10-26, manager)
 
 ## Context

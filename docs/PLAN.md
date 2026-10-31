@@ -4,9 +4,27 @@ The original planning document was never exported, so this plan rebuilds it from
 
 ## Where we are (2026-10-31)
 
-**Now:** 0.4.8 is the current release (tag v0.4.8, 2026-10-31). apt and Scoop publish on every tag. WinGet ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) passed all automated checks and waits for a volunteer moderator since 2026-10-27. AUR and COPR need an account only a person can create, so they stay skipped. The maintainer has no code signing certificate and no identity document usable for the Microsoft Store verification, so the Windows build stays self-signed (SmartScreen warns); the Store, SignPath and a paid certificate are parked, not planned for now.
+**Now:** 0.5.0 is the current release (tag v0.5.0, 2026-10-31). apt and Scoop publish on every tag. WinGet ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) passed all automated checks and waits for a volunteer moderator since 2026-10-27. AUR and COPR need an account only a person can create, so they stay skipped. The maintainer has no code signing certificate and no identity document usable for the Microsoft Store verification, so the Windows build stays self-signed (SmartScreen warns); the Store, SignPath and a paid certificate are parked, not planned for now.
 
-**Remaining engineering:** S-082 (GNOME and KDE focus test, needs a virtual machine), a real desktop X11 check (0.5.0 was checked only in a private virtual X session with xfwm4), 0.6.0 Windows native work, S-078 (AppStream and AUR), S-016 and S-017 (glass hive), S-077 (hive position from a normal open, needs a reproduction first).
+**Remaining engineering:** S-082 (GNOME and KDE focus test, needs a virtual machine), a real desktop X11 check (0.5.0 was checked only in a private virtual X session with xfwm4), 0.6.0 Windows native work, S-078 (AUR half; AppStream shipped in S-112), S-016 and S-017 (glass hive), S-077b (KDE and GNOME pointer source), S-075b (native KDE and GNOME Alt paths).
+
+### Blocked on the owner or outside resources
+
+Everything here is **not checked**. None of it can be closed by an agent alone.
+
+| Item | What exactly is needed | State |
+| --- | --- | --- |
+| Windows manual check of 0.4.8 and later (S-094b clipboard, S-108 M3 Explorer mixed selection, About page, notification choice) | A user signed in on the Windows 11 virtual machine, or auto logon enabled there, so a session exists to run the checks in | not checked |
+| Physical Windows hardware check (tray icon, global shortcut, end-of-job notification) | A real Windows 10 or 11 machine | not checked |
+| S-082 focus and activation on real Nautilus and Dolphin | Real GNOME and KDE Plasma virtual machines with a file manager session; private compositor evidence does not close it | not checked |
+| S-075b and S-077b native KDE and GNOME paths | Private KWin and GNOME sessions to measure the Alt and pointer sources | not checked |
+| Real desktop X11 check, Shift as a move request, Nautilus and Dolphin as X11 drag sources | A real GNOME or KDE X11 session; 0.5.0 used only Xvfb with xfwm4 | not checked |
+| S-108 M1 and M2, S-094b desktop clipboard, S-110 and S-111 nested Hyprland and live session, S-105 KWin scripts | A live desktop session of each kind run by the maintainer | not checked |
+| AUR channel (S-078b, S-078c) | An AUR account and SSH key, then `AUR_ENABLED` set (`docs/distribution-channels/aur.md`) | not checked |
+| COPR channel (S-016) | A Fedora Account System user, the COPR project and `COPR_CONFIG` secret (`docs/distribution-channels/copr.md`) | not checked |
+| WinGet package | A volunteer moderator to approve [winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) (waiting since 2026-10-27), then the winget job switched on | not checked |
+| Windows code signing | A certificate or an accepted signing programme; parked, the build stays self-signed | not checked |
+| S-072 launch assets | Owner supplied launch material | not checked |
 
 | Release | State |
 | --- | --- |
@@ -108,10 +126,10 @@ Decision (2026-10-26, after the specification audit of the stable roadmap): this
 | Story | Scope | State |
 | --- | --- | --- |
 | S-074 | The hive shows only its hexagonal cells, no background plate | Done |
-| S-075 | Alt then drag out of the box, as a per-desktop evidence contract with substories S-075a to S-075f: a measured Hyprland compositor bind for Alt (S-075a), native KDE (S-075b spike as prerequisite, then S-075c) and native GNOME (S-075d spike as prerequisite, then S-075e) paths only on measured APIs, and a named non-Alt portal fallback (Super+Z) with the owner priority and conflict semantics recorded (S-075f). The Alt-only GlobalShortcuts mechanism is disproven and removed from every contract | Re-baselined 2026-10-26, top priority |
+| S-075 | Alt then drag out of the box, as a per-desktop evidence contract with substories S-075a to S-075f: a measured Hyprland compositor bind for Alt (S-075a), native KDE (S-075b spike as prerequisite, then S-075c) and native GNOME (S-075d spike as prerequisite, then S-075e) paths only on measured APIs, and a named non-Alt portal fallback (Super+Z) with the owner priority and conflict semantics recorded (S-075f). The Alt-only GlobalShortcuts mechanism is disproven and removed from every contract | Re-baselined 2026-10-26, top priority. Split 2026-10-31: S-111 (Hyprland bind generator) done in 0.4.8, S-075b (native KDE and GNOME paths) blocked, not checked |
 | S-076 | Settings without technical words, accessible drag-key picker | Approved |
-| S-077 | A normal open can use the pointer position on the layer path; reproduction and a KDE pointer-source spike first | Approved, spike first |
-| S-078 | AppStream metadata, AUR and winget (substories S-078a to S-078f); publication waits for owner accounts and credentials (exclusion R4-accounts) | In progress (2026-10-27): the winget half (S-078d) is submitted and passes all twelve Microsoft checks, waiting on one approving review from a moderator; the AppStream half (S-078a) and the AUR half (S-078b to S-078c) are not started, and the PR automation (S-078e) is not built |
+| S-077 | A normal open can use the pointer position on the layer path; reproduction and a KDE pointer-source spike first | Split 2026-10-31: S-110 (`open --at`, Hyprland launcher) done in 0.4.8; S-077b (KDE and GNOME pointer source) blocked on private KWin and GNOME sessions, not checked |
+| S-078 | AppStream metadata, AUR and winget (substories S-078a to S-078f); publication waits for owner accounts and credentials (exclusion R4-accounts) | In progress (2026-10-27): the winget half (S-078d) is submitted and passes all twelve Microsoft checks, waiting on one approving review from a moderator; the AppStream half (S-078a) shipped in S-112 (0.4.8); the AUR half (S-078b to S-078c) waits for an AUR account, and the PR automation (S-078e) is not built |
 | S-079 | Windows beta live readiness checklist (documentation and static tests only); the owner runs the live steps (exclusion R5-live) | Done (2026-10-26); the live steps stay owner run |
 | S-080 | Windows `kawaro doctor` engine discovery matches engine lookup, a confirmed S-079 defect | Done (2026-10-26) |
 | S-081 | Windows output placement: long paths and directory-name output candidates, a confirmed S-079 defect | Done (2026-10-26) |
@@ -122,7 +140,7 @@ Decision (2026-10-26, after the specification audit of the stable roadmap): this
 | S-092 | Tray About item: the installed version (S-090 `about_line`), Check for updates and Settings, on the Linux tray and the Windows tray menu. After S-091 | Absorbed by S-099 (2026-10-29); the tray item is kept without a new popup window |
 | S-093 | Windows settings window: default size, wide layout and layout jumps (live test findings of the S-090 build) | Superseded by S-094 (2026-10-29) |
 | S-094 | Settings and welcome window as a real app shell: header with logo, name and version, page rail (General, Conversion, Notifications and integration, Updates, About), centred content column, fixed Save row, RTL, bounded Introduction film. Absorbs S-093. Owner priority: above S-091 and S-092 | Done, shipped in 0.4.1 |
-| S-094b | About page actions: website and source links through a safe `open_url`, copy version, check for updates shortcut. After S-094 | Draft (2026-10-29) |
+| S-094b | About page actions: website and source links through a safe `open_url`, copy version, check for updates shortcut. After S-094 | Done in 0.4.8; the real clipboard check on desktops is not checked |
 | S-094c | Introduction film rebuilt: sharp at any scale, faithful four step flow, poster, play and pause, reduced motion fallback. After S-094 | Done, shipped in 0.4.3 |
 
 Measured facts behind S-075 (recorded 2026-10-26): Alt-only GlobalShortcuts is accepted by the BindShortcuts exchange but never activates on GNOME 50.0 or KDE 6.7.5 portals, so it cannot be the KDE or GNOME default; the Super+Z (`LOGO+z`) portal trigger passed the full real-drag path on both. Evidence: `a local scratch path`. Hyprland compositor binds are outside that measurement and count only when the private Hyprland harness records them.
