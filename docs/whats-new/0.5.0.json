@@ -1,0 +1,12 @@
+{
+  "en": [
+    "Linux X11: the hive opens at the pointer and drop works with kawaro drop",
+    "Checked in a private virtual X session with xfwm4, not yet on a real GNOME or KDE X11 desktop",
+    "No change on Wayland or Windows"
+  ],
+  "ar": [
+    "لينكس X11: تفتح الخلية عند المؤشر ويعمل الإفلات مع kawaro drop",
+    "فُحص في جلسة X افتراضية خاصة مع xfwm4، ولم يُفحص بعد على سطح مكتب GNOME أو KDE حقيقي على X11",
+    "لا تغيير على ويلاند ولا على ويندوز"
+  ]
+}
