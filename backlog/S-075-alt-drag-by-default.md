@@ -1,5 +1,6 @@
 # S-075 Alt then drag works out of the box from the installed package
-Status: re-baselined (2026-10-26, maintainer direction, after audit AUDIT-V2-001). The goal is unchanged and stays the maintainer's top priority; the Alt-only GlobalShortcuts mechanism of the first draft is disproven and removed.
+Status: split: S-111 (Hyprland bind generator and doctor states, agents), S-075b (KDE and GNOME native paths, needs private KWin and GNOME sessions). See `backlog/S-111-hyprland-alt-bind-generator.md`.
+Previous status: re-baselined (2026-10-26, maintainer direction, after audit AUDIT-V2-001). The goal is unchanged and stays the maintainer's top priority; the Alt-only GlobalShortcuts mechanism of the first draft is disproven and removed.
 
 ## Story
 As a user of the installed package, I want to hold Alt while dragging files and drop them on the hive, with nothing to set up, so that the drag path (my main way to use Kawaro) works the day I install it, as it did in the developer install.

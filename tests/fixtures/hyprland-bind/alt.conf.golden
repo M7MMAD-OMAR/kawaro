@@ -1,0 +1,4 @@
+# kawaro:begin
+bindni = , ALT_L, exec, /usr/bin/kawaro drop --hold --at "$(hyprctl cursorpos)"
+bindrni = , ALT_L, exec, /usr/bin/kawaro drop --release
+# kawaro:end

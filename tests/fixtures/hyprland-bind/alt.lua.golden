@@ -1,0 +1,12 @@
+-- kawaro:begin
+hl.bind("ALT_L", hl.dsp.exec_cmd("/usr/bin/kawaro drop --hold --at \"$(hyprctl cursorpos)\""), { non_consuming = true, ignore_mods = true, description = "Kawaro: hold Alt to drop" })
+hl.bind("ALT_L", hl.dsp.exec_cmd("/usr/bin/kawaro drop --release"), { release = true, non_consuming = true, ignore_mods = true, description = "Kawaro: release Alt to close" })
+local alt_down = false
+hl.on("input.keyboard.key", function(code, _, state)
+  if code == 64 then -- Alt_L, the evdev code 56 plus 8
+    alt_down = state == 1
+  elseif alt_down and state == 1 then
+    hl.exec_cmd("sleep 0.05; /usr/bin/kawaro drop --other-key")
+  end
+end)
+-- kawaro:end
