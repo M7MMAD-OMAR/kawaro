@@ -254,6 +254,7 @@ mod tests {
                 Request::Open {
                     files: vec![PathBuf::from("/tmp/a.png")],
                     token: None,
+                    at: None,
                 },
                 true,
             ),
@@ -336,6 +337,7 @@ mod tests {
         let open = Request::Open {
             files: vec![],
             token: None,
+            at: None,
         };
         assert_eq!(foreground_grant(&open, Some(7)), Some(7));
         assert_eq!(foreground_grant(&open, Some(u32::MAX)), Some(u32::MAX));

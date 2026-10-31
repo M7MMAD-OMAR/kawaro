@@ -7,6 +7,7 @@ use kawaro_core::ipc::{Request, Response};
 use kawaro_core::queue::Queue;
 use kawaro_core::transport::{Listener, Stream, accept_backoff};
 use kawaro_core::unsupported::{self, Outcome};
+use kawaro_ui::HiveCell;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -62,7 +63,44 @@ pub fn drop_refused(is_drop: bool, trigger_down: bool) -> bool {
 /// Shows the hive for `files`. On Windows Explorer sends one file per
 /// process, so the files of requests closer than the merge window share one
 /// hive (S-046 AC8).
-pub fn open(state: &Shared, files: Vec<PathBuf>, token: Option<String>) -> Result<(), String> {
+pub fn open(
+    state: &Shared,
+    files: Vec<PathBuf>,
+    token: Option<String>,
+    at: Option<(f64, f64)>,
+) -> Result<(), String> {
+    open_with(state, files, token, at, &mut |p| {
+        ui::present(
+            p.centre,
+            p.message,
+            p.suggestion,
+            p.files,
+            p.cells,
+            p.token,
+            p.at,
+        );
+    })
+}
+
+/// What the presenter is given for one shown hive (S-110 AC4 seam).
+pub(crate) struct Presented {
+    pub centre: String,
+    pub message: String,
+    pub suggestion: Option<String>,
+    pub files: Vec<PathBuf>,
+    pub cells: Vec<HiveCell>,
+    pub token: Option<String>,
+    pub at: Option<(f64, f64)>,
+}
+
+/// [`open`] with the presenter as a parameter, called once when a hive shows.
+pub(crate) fn open_with(
+    state: &Shared,
+    files: Vec<PathBuf>,
+    token: Option<String>,
+    at: Option<(f64, f64)>,
+    present: &mut dyn FnMut(Presented),
+) -> Result<(), String> {
     #[cfg(windows)]
     let (files, _) = crate::shell_open::selection(state, files);
     let mut st = lock(state);
@@ -80,7 +118,15 @@ pub fn open(state: &Shared, files: Vec<PathBuf>, token: Option<String>) -> Resul
     st.pending = p.pending.clone();
     drop(st);
     let shown = p.pending.unwrap_or(files);
-    ui::present(p.centre, p.message, p.suggestion, shown, p.cells, token);
+    present(Presented {
+        centre: p.centre,
+        message: p.message,
+        suggestion: p.suggestion,
+        files: shown,
+        cells: p.cells,
+        token,
+        at,
+    });
     Ok(())
 }
 
@@ -140,7 +186,7 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     }
     match req {
         Request::Ping => reply(&mut stream, &Response::Ok),
-        Request::Open { files, token } => match open(state, files, token) {
+        Request::Open { files, token, at } => match open(state, files, token, at) {
             Ok(()) => reply(&mut stream, &Response::Ok),
             Err(message) => error(&mut stream, message),
         },

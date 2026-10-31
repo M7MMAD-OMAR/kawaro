@@ -1,5 +1,5 @@
 # S-110 `kawaro open --at X,Y` and the Hyprland launcher pass the pointer
-Status: approved (2026-10-31, manager)
+Status: review
 
 ## Story
 As a Hyprland user opening a copied selection with `kawaro-open-selection`, I want the hive to appear at my pointer, so that it opens where I am working instead of centred on the screen. This is S-077a of `docs/backlog-triage-2026-10-31.md`, split from S-077 so that every criterion runs in the fast loop (no compositor).

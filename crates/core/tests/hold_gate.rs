@@ -428,7 +428,8 @@ fn ac21_ipc_requests_map_to_hold_and_release() {
     assert_eq!(
         hold::from_request(&Request::Open {
             files: Vec::new(),
-            token: None
+            token: None,
+            at: None
         }),
         None
     );

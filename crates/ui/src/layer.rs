@@ -194,6 +194,42 @@ impl From<Probe> for Ev {
     }
 }
 
+/// Where a show starts on the layer path (S-110).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) enum Start {
+    /// The anchor is known: `plan_at` places the hive at once.
+    Place((f32, f32)),
+    /// No position: wait for a pointer event until `ANCHOR_WAIT`, then centre.
+    WaitForPointer,
+    /// The ordinary window path: the compositor places it, `at` is ignored.
+    Window,
+}
+
+/// What a show does at its first placement.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct ShowPlan {
+    pub start: Start,
+    pub drop_probe: bool,
+    pub hold: bool,
+    pub may_move: bool,
+}
+
+/// The pure decision that places a show: `at` places a layer show at once,
+/// drop or not; without it the show waits for the pointer.
+pub(crate) fn show_plan(drop: bool, hold: bool, at: Option<(f64, f64)>, layer: bool) -> ShowPlan {
+    let start = match (layer, at) {
+        (false, _) => Start::Window,
+        (true, Some((x, y))) => Start::Place((x as f32, y as f32)),
+        (true, None) => Start::WaitForPointer,
+    };
+    ShowPlan {
+        start,
+        drop_probe: drop && layer,
+        hold: hold && drop,
+        may_move: drop && layer && at.is_none(),
+    }
+}
+
 /// Where a drop show without `--at` remaps its catcher (S-105): the map time
 /// enter plus the output origin, once per show. Hyprland 0.57 enters the
 /// catcher under a still pointer and keeps the focus there when the region
@@ -853,7 +889,9 @@ impl LayerAdapter {
         let drop_mode = SHOW.with(|r| r.borrow().drop);
         self.timer.stop();
         self.decided.set(true);
-        self.may_move.set(drop_mode && anchor.is_none());
+        let at = anchor.map(|(x, y)| (f64::from(x), f64::from(y)));
+        self.may_move
+            .set(show_plan(drop_mode, false, at, true).may_move);
         self.plan_for(anchor, screen);
         if drop_mode && anchor.is_some() {
             self.switched.set(true);
@@ -1100,10 +1138,13 @@ impl LayerAdapter {
     /// and waits at most [`ANCHOR_WAIT`] for the anchor; `--at` places the
     /// hive at once.
     fn wait_for_anchor(&self, screen: (u32, u32)) {
-        let at = SHOW.with(|r| r.borrow().at);
-        if let Some((x, y)) = at {
+        let (drop, at) = SHOW.with(|r| {
+            let r = r.borrow();
+            (r.drop, r.at)
+        });
+        if let Start::Place(anchor) = show_plan(drop, false, at, true).start {
             // No output geometry at map: the point as output coordinates.
-            self.decide(Some((x as f32, y as f32)));
+            self.decide(Some(anchor));
             return;
         }
         {

@@ -26,6 +26,12 @@ pub enum Request {
         files: Vec<PathBuf>,
         #[serde(default)]
         token: Option<String>,
+        /// The pointer position in global logical coordinates (S-110,
+        /// `kawaro open --at X,Y`): `"at": [X, Y]`. Old clients omit it, and so
+        /// does a request without one, keeping the old wire line.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        #[serde(default)]
+        at: Option<(f64, f64)>,
     },
     /// Show the hive waiting for files dragged onto it (S-014). The files
     /// come with the drop, so the request carries only the activation token.
@@ -189,6 +195,7 @@ mod tests {
         let r = Request::Open {
             files: vec!["/a b/c.png".into()],
             token: Some("t".into()),
+            at: None,
         };
         let line = serde_json::to_string(&r).unwrap();
         assert!(!line.contains('\n'));

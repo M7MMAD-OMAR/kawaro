@@ -290,6 +290,7 @@ pub fn present(
     files: Vec<PathBuf>,
     cells: Vec<HiveCell>,
     token: Option<String>,
+    at: Option<(f64, f64)>,
 ) {
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
@@ -297,13 +298,13 @@ pub fn present(
             let shown = h
                 .borrow()
                 .as_ref()
-                .map(|hive| hive.present_files(&centre, &files, cells, token));
+                .map(|hive| hive.present_files_at(&centre, &files, cells, token, at));
             #[cfg(not(unix))]
             let shown = {
                 let _ = &files;
                 h.borrow()
                     .as_ref()
-                    .map(|hive| hive.present(&centre, cells, token))
+                    .map(|hive| hive.present_at(&centre, cells, token, at))
             };
             if let Some(Err(e)) = shown {
                 eprintln!("kawarod: cannot show the hive: {e}");
@@ -1014,7 +1015,7 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
 pub(crate) fn try_sample(state: &Shared, dir: &Path) -> Result<PathBuf, String> {
     let sample = kawaro_ui::welcome::install_sample(dir)
         .map_err(|e| format!("cannot write the sample: {e}"))?;
-    server::open(state, vec![sample.clone()], None)?;
+    server::open(state, vec![sample.clone()], None, None)?;
     Ok(sample)
 }
 

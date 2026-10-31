@@ -784,7 +784,20 @@ impl Hive {
         cells: Vec<HiveCell>,
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
-        self.show(centre, cells, 1, token, None, false, &[])
+        self.present_at(centre, cells, token, None)
+    }
+
+    /// [`Hive::present`] with the pointer position `at` in global logical
+    /// coordinates (`kawaro open --at`, S-110). The layer path places the
+    /// hive there at once; the window path ignores it.
+    pub fn present_at(
+        &self,
+        centre: &str,
+        cells: Vec<HiveCell>,
+        token: Option<String>,
+        at: Option<(f64, f64)>,
+    ) -> Result<(), slint::PlatformError> {
+        self.show(centre, cells, 1, token, None, false, &[], at)
     }
 
     /// [`Hive::present`] with the selected `files` in the centre cell
@@ -800,7 +813,20 @@ impl Hive {
         cells: Vec<HiveCell>,
         token: Option<String>,
     ) -> Result<(), slint::PlatformError> {
-        self.show(centre, cells, 1, token, None, false, files)
+        self.present_files_at(centre, files, cells, token, None)
+    }
+
+    /// [`Hive::present_files`] with the pointer position `at` (S-110).
+    #[cfg(unix)]
+    pub fn present_files_at(
+        &self,
+        centre: &str,
+        files: &[PathBuf],
+        cells: Vec<HiveCell>,
+        token: Option<String>,
+        at: Option<(f64, f64)>,
+    ) -> Result<(), slint::PlatformError> {
+        self.show(centre, cells, 1, token, None, false, files, at)
     }
 
     /// Where [`Hive::present_files`] looks for thumbnails (the freedesktop
@@ -838,7 +864,7 @@ impl Hive {
         token: Option<String>,
         at: Option<(f64, f64)>,
     ) -> Result<(), slint::PlatformError> {
-        self.show(centre, Vec::new(), 2, token, Some(at), false, &[])
+        self.show(centre, Vec::new(), 2, token, Some(at), false, &[], None)
     }
 
     /// [`Hive::present_drop_at`] for a held key (`kawaro drop --hold`,
@@ -851,7 +877,7 @@ impl Hive {
         token: Option<String>,
         at: Option<(f64, f64)>,
     ) -> Result<(), slint::PlatformError> {
-        self.show(centre, Vec::new(), 2, token, Some(at), true, &[])
+        self.show(centre, Vec::new(), 2, token, Some(at), true, &[], None)
     }
 
     /// The held key of [`Hive::present_drop_hold`] was released: a hold
@@ -864,7 +890,8 @@ impl Hive {
     /// Shows `cells` in a hive of at least `min_rings` rings; `drop` is
     /// `Some(at)` for a drop show, and `hold` a drop show of a held key. On
     /// the layer path the hive is laid out again at the pointer once its
-    /// position is known (S-019c, S-019d).
+    /// position is known (S-019c, S-019d). `place` is the position of a
+    /// normal show (S-110).
     #[allow(clippy::too_many_arguments)]
     fn show(
         &self,
@@ -875,6 +902,7 @@ impl Hive {
         drop: Option<Option<(f64, f64)>>,
         hold: bool,
         files: &[PathBuf],
+        place: Option<(f64, f64)>,
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         #[cfg(windows)]
@@ -912,7 +940,7 @@ impl Hive {
         inner.set_preview(centre, files);
         #[cfg(not(unix))]
         let _ = files;
-        let (at, drop) = (drop.flatten(), drop.is_some());
+        let (at, drop) = (drop.flatten().or(place), drop.is_some());
         // On the layer path a drop show probes for a file drag (S-021).
         let layer = inner.on_layer.get();
         inner

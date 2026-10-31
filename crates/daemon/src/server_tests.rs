@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 #[test]
 fn ac8_open_presents_the_reason_when_no_action_matches_the_file() {
     let state = Arc::new(Mutex::new(State::new(Config::default(), &[])));
-    let result = open(&state, vec![PathBuf::from("unknown.zzz")], None);
+    let result = open(&state, vec![PathBuf::from("unknown.zzz")], None, None);
     // S-096: the hive explains instead of failing; no job is pending.
     assert!(result.is_ok(), "{result:?}");
     assert!(state.lock().unwrap().pending.is_none());

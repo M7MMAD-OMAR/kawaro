@@ -335,7 +335,8 @@ fn open_from_the_clipboard_sends_the_copied_files_and_the_token() {
         seen.lock().unwrap().as_slice(),
         [Request::Open {
             files: vec![png],
-            token: Some("tok".into())
+            token: Some("tok".into()),
+            at: None
         }]
     );
 }

@@ -6,6 +6,8 @@
 
 The helper sends Ctrl+C to the active window, so the file manager copies the selected files, then runs `kawaro open --from-clipboard`, which reads them from the clipboard with `wl-paste`.
 
+The helper reads the pointer once with `hyprctl cursorpos` and runs `kawaro open --from-clipboard --at X,Y`, so the hive opens where the pointer is, not centred. If `hyprctl cursorpos` fails or prints something that is not two numbers, the helper stops with one line on stderr and opens nothing.
+
 Suggested keyboard bind (safe, no clash with the defaults):
 
 ```

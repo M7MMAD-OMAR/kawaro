@@ -189,7 +189,7 @@ fn main() -> ExitCode {
     // for the files it was started with, or the settings window when it was
     // started as `kawarod settings` (S-086 AC1).
     if let Some(files) = open_files
-        && let Err(e) = server::open(&state, files, None)
+        && let Err(e) = server::open(&state, files, None, None)
     {
         eprintln!("kawarod: {e}");
     }
@@ -232,6 +232,7 @@ fn send_open(endpoint: &transport::Endpoint, files: &[String]) -> Option<ExitCod
     let request = Request::Open {
         files: files.iter().map(PathBuf::from).collect(),
         token: None,
+        at: None,
     };
     send_request(endpoint, &request)
 }

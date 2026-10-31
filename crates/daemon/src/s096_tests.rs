@@ -13,7 +13,7 @@ use std::sync::{Arc, Mutex};
 #[test]
 fn ac2_open_returns_ok_for_an_unsupported_selection() {
     let state = Arc::new(Mutex::new(State::new(Config::default(), &[])));
-    let result = open(&state, vec![PathBuf::from("a.xyz")], None);
+    let result = open(&state, vec![PathBuf::from("a.xyz")], None, None);
     assert!(result.is_ok(), "{result:?}");
 }
 
@@ -21,5 +21,5 @@ fn ac2_open_returns_ok_for_an_unsupported_selection() {
 fn ac2_open_returns_ok_for_several_unsupported_files() {
     let state = Arc::new(Mutex::new(State::new(Config::default(), &[])));
     let files = ["a.xyz", "b.abc", "README"].map(PathBuf::from).to_vec();
-    assert!(open(&state, files, None).is_ok());
+    assert!(open(&state, files, None, None).is_ok());
 }

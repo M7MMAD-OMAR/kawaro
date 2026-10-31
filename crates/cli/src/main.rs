@@ -48,6 +48,10 @@ enum Cmd {
         /// Read the files from the clipboard (text/uri-list).
         #[arg(long)]
         from_clipboard: bool,
+        /// The pointer position "X,Y" in global logical coordinates, for
+        /// example from `hyprctl cursorpos`.
+        #[arg(long, value_parser = parse_at, allow_hyphen_values = true)]
+        at: Option<(f64, f64)>,
         files: Vec<PathBuf>,
     },
     /// Show the hive waiting for files dragged onto it, for a keyboard
@@ -212,8 +216,9 @@ fn main() -> ExitCode {
         Cmd::Open {
             token,
             from_clipboard,
+            at,
             files,
-        } => open(token, from_clipboard, files),
+        } => open(token, from_clipboard, at, files),
         Cmd::Drop { release: true, .. } => drop_release(),
         Cmd::Drop {
             other_key: true, ..
@@ -329,7 +334,12 @@ fn existing(files: &[PathBuf]) -> Res<()> {
     }
 }
 
-fn open(token: Option<String>, from_clipboard: bool, mut files: Vec<PathBuf>) -> Res<()> {
+fn open(
+    token: Option<String>,
+    from_clipboard: bool,
+    at: Option<(f64, f64)>,
+    mut files: Vec<PathBuf>,
+) -> Res<()> {
     if from_clipboard {
         files.extend(clipboard::read_files()?);
     }
@@ -339,7 +349,7 @@ fn open(token: Option<String>, from_clipboard: bool, mut files: Vec<PathBuf>) ->
     }
     let token = resolve_token(token, &|k| std::env::var(k).ok());
     client::ensure_daemon()?;
-    client::request(&Request::Open { files, token }).map(|_| ())
+    client::request(&Request::Open { files, token, at }).map(|_| ())
 }
 
 fn drop_hive(token: Option<String>, at: Option<(f64, f64)>, hold: bool) -> Res<()> {
