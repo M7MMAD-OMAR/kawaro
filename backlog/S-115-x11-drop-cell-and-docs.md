@@ -1,5 +1,5 @@
 # S-115 The drop cell on X11: show the hive, then drag the file onto it
-Status: review
+Status: done
 
 ## Story
 As an X11 user, I want to run `kawaro drop`, drag a file onto a cell and get the result next to the original, so that "hive first, then drag" works as on Windows. Slice 3 of S-015, after S-113 and S-114 (decisions 2 and 3 there).
@@ -46,3 +46,4 @@ That Slint 1.18.1's winit loop gives `HoveredFile` and `DroppedFile` to the cust
   - AC2 live found a real bug: winit 0.30.13 sets `_NET_WM_STATE_ABOVE` before the window is mapped, and xfwm4 ignores it (the state list of the hive had only FOCUSED, and a click on the source raised it above the hive). Fix: one more `set_window_level(AlwaysOnTop)` on the first redraw of each X11 show (`X11_TOP` in `lib.rs`). After it the hive state has ABOVE and stays above the raised source, 3 of 3.
   - AC5 winit source (`platform_impl/linux/x11/dnd.rs`): `send_status` and `send_finished` reply `XdndActionPrivate` for an accepted drop, never Copy or Move. Live: a GTK 4 source offering copy and move (`tests/drop/source.py`, Shift held) accepted it; `.webp` appeared in 100 ms, the original's sha256 was equal before and after and the source printed `drag-end deleted=False`, 3 of 3. Not proven: that Shift reached GTK as a move request (the harness cannot tell), and Nautilus or Dolphin were not tried as sources.
   - AC4 live: the pixel inside the hovered cell (offset from the icon, which is dark) was `accent` D9921A 30 ms after the pointer reached it, 3 of 3.
+- 2026-10-31, reviewer: PASS. fmt, clippy kawaro-ui, 282 lib tests, s115_sources 5 of 5, design-lint clean; AC1 to AC8 each tied to a test or the manual `tests/x11/drop.sh` (AC2 stacking, AC4 pixel, AC5 drop, live in a private Xvfb with xfwm4). EN/AR docs and README rows in parity, no long dashes, CHANGELOG line present. The test commit 3f4dcf9 only guards the backend init (the tester defect the implementer reported); no assertion changed. NOT proven and not checked: Shift reaching GTK as a move request, Nautilus or Dolphin as sources, a real X11 desktop, GNOME or KDE on X11, the drop show budget on X11 (S-114 AC9). X11 is not called verified on a real desktop anywhere.
