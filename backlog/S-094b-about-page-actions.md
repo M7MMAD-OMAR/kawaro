@@ -1,32 +1,54 @@
 # S-094b About page actions: links, copy version, update shortcut
-Status: draft (2026-10-29)
+Status: approved (2026-10-31, manager)
 
 ## Story
 As a user, I want the About page to open the website and source code, copy my version, and jump to update checking, so that I can report a bug or update without leaving the app.
 
-## Dependency
-After S-094 (the About page and shell exist).
+## Dependency and scope
+S-094 (shell, About page), S-099 and S-101 (Updates page, `update-check` callback) and S-108 (injected opener) are done. Only the three actions of the draft, no new behaviour: no release notes, credits or licence viewer, no new settings, no other URL. Both settings windows (standalone and the welcome window's settings tab) share `shell.slint`, so the About page changes once.
+
+## Design seams (nothing needs a compositor)
+- New pure module `kawaro_core::about`: `LINKS: [(id, url)]` with ids `website` and `source`; `link_url(id) -> Option<&'static str>` (None for any other id); `copy_text(version: &str) -> String`; `strings(Lang) -> AboutStrings` with `website`, `source`, `copy_version`, `copied` and the two link accessible labels. No `std::process`, `std::fs`, `std::net`.
+- `shell.slint` About card gets: two link buttons (callback `open-link(string)` carrying the id), a "Copy version" button (callback `copy-version()`, label swaps to "Copied" for 2000 ms), and a "Check for updates" button. The Slint file holds no URL literal.
+- `SettingsWindow` (and `WelcomeWindow`) gain `on_open_link(Fn(&str))` (called with the resolved URL, never for an unknown id) and `on_copy_version(Fn(&str))` (called with `copy_text(version)`). The clipboard write itself is injected; the implementer records the chosen real mechanism in the review log. No new dependency without a licence line in `docs/engines.md`.
+- Daemon: `ui::wire_about(win, opener: Rc<dyn Fn(&str)>)`, same opener type as `wire_choose`; startup passes a closure that goes through `notify_logic::open_url_command(CURRENT, url)` and `notify::open_folder`. `xdg-open` stays spelled only in `notify_logic.rs` (`s049_sources.rs` and `s108_sources.rs` stay green). No `open_url` function in `kawaro_ui`.
+- "Check for updates" on About selects the Updates page (index 3 in the settings window, 4 in the welcome window) and fires the existing `update-check` callback; it reuses `update-check-enabled`, so it is disabled while a check runs.
 
 ## Acceptance criteria
-- AC1: the About page shows two links, website `https://kawaro.sbarah.com/` and source `https://github.com/M7MMAD-OMAR/kawaro`, each with an accessible label naming its target.
-- AC2: one function `open_url(&str)` in `kawaro_ui` opens a link in the default browser on Linux and Windows. It accepts only those two exact URLs (anything else returns an error and spawns nothing). It starts the browser without raising or focusing any Kawaro window and opens no Kawaro window. On Linux it reuses the command builder pattern of `notify_logic.rs` (the S-049 source test forbids spelling `xdg-open` elsewhere in the daemon); on Windows it uses `ShellExecuteW` with the `open` verb.
-- AC3: a "Copy version" button puts exactly the version string (0.4.0 today) on the system clipboard and shows "Copied" for 2000 ms, then returns to the normal label.
-- AC4: a "Check for updates" button on About selects the Updates page and sends exactly one `Request::UpdateCheck`, the same callback as the Updates page button; it is disabled while a check runs.
-- AC5: Arabic and English strings, RTL mirrored, labelled controls, tokens only.
+- AC1 (links): `link_url("website") == Some("https://kawaro.sbarah.com/")`, `link_url("source") == Some("https://github.com/M7MMAD-OMAR/kawaro")`, and `link_url` of `""`, `"file"`, `"https://x"` and `"website "` is `None`. The About page shows exactly 2 link buttons, found by accessible label `Website: <url>` and `Source code: <url>` (en) and the Arabic equivalents from `strings(Lang::Ar)`; visible text is the short name, the label names the full target.
+- AC2 (opener): opening the settings window and visiting About makes 0 opener calls; pressing each link button makes exactly 1 call with exactly its URL (2 calls after both); pressing Enter on the focused button behaves the same; an unknown id through the Rust seam makes 0 calls. `open_url_command` stays as is: `("xdg-open", [url])` on Linux, `("explorer.exe", [url])` on Windows, one argument. Source scan: `crates/ui` and `kawaro_core::about` spell neither `xdg-open`, `explorer.exe`, `Command` nor `std::process`; `wire_about` contains no `show(` and no window constructor (it opens no Kawaro window).
+- AC3 (copy version): `copy_text("0.4.7") == "0.4.7"`; for `env!("CARGO_PKG_VERSION")` the result equals it character for character, is non empty, and contains no `/`, `\`, space or `~`. Pressing "Copy version" calls the injected copier exactly once with that string. With mocked time: the label is `Copied` (en) / the Arabic string at 0 ms and at 1999 ms, and is `Copy version` again at 2000 ms; a second press at 1000 ms restarts the 2000 ms window (label still `Copied` at 2999 ms, normal at 3000 ms) and calls the copier a second time.
+- AC4 (update shortcut): on About in the settings window, pressing "Check for updates" sets the page index to 3 and fires `on_update_check` exactly once; in the welcome window it sets index 4 and fires once. With the check state set to running (`update-check-enabled` false) the button reports disabled and a press fires 0 times. Switching back to About keeps the button state equal to the Updates page button.
+- AC5 (strings and labels): for en and ar, every `AboutStrings` field is non empty, the two languages differ in every field, there are 0 Arabic-Indic digits, 0 U+2013 or U+2014, and both languages have the same field set. Every new control (2 links, copy, check) has a non empty accessible label in both languages (`unlabelled_controls() == 0` on About). In Arabic the About action row mirrors: x of the first button in reading order is greater than x of the last one, and the page stays 0 px past the content column.
+- AC6 (design rules and motion): source scan of the About block in `shell.slint` and of the new core module: 0 `#` colour literals, 0 `drop-shadow`, 0 gradient, 0 hand written px or ms numbers (spacing, size and time from `Tokens.*`; the 2000 ms comes from a new `motion` token `copied-feedback` in `design/tokens.json`), 0 `animate` statements, so the Copied swap needs 0 animation frames: with reduced motion on or off (`reduced-motion` property), the label changes within 0 ms of the press. `scripts/design-lint.sh` is clean; no changed file holds an em or en dash.
+- AC7 (nothing else moves): at 880x640 About has 0 px of scrolling in en and ar (the S-094 AC5 bound still holds with the new row), and the existing `s094_shell`, `s094_static`, `s099b` and `s101` tests pass unchanged. `CHANGELOG.md` gains one line in English and Arabic.
 
 ## Test cases
 | Criterion | Test | Type |
 | --- | --- | --- |
-| AC1 | Find both links by label; their text equals the two URLs | ui |
-| AC2 | Command builder returns `("xdg-open", [url])` for each allowed URL and an error for `file:///etc/passwd`, `http://x` and an empty string; the spy launcher is called 0 times on error; window count unchanged | unit, ui |
-| AC3 | Press the button with a fake clipboard: content equals the version string; label is "Copied" before 2000 ms and normal after | ui |
-| AC4 | Press with a fake IPC: current page index 3, one `update-check` request, button disabled until the reply | integration |
-| AC5 | Strings non empty and differ between languages; Arabic snapshot mirrors button order | snapshot |
+| AC1 | `link_url` table of 5 inputs; headless About: 2 elements with the exact labels in en and ar | unit, ui |
+| AC2 | spy opener: 0 calls on show, 1 per click, 1 per Enter, 0 for unknown id; `open_url_command` table; source scans | unit, ui |
+| AC3 | `copy_text` table; fake copier and mocked time at 0, 1999, 2000, restart at 1000 | unit, ui |
+| AC4 | fake `on_update_check` counter in both windows; disabled state fires 0 | ui |
+| AC5 | string table over both languages; `unlabelled_controls`; Arabic x order | unit, ui |
+| AC6 | source scans; reduced motion on and off with mocked time; `scripts/design-lint.sh`; token exists | unit, gate |
+| AC7 | `scroll_extent` on About, en and ar; existing suites; CHANGELOG line scan | ui, gate |
 
-Windows live check (Start menu build, a click opens the default browser): left to the owner.
+New files by the tester: `crates/core/tests/s094b_about.rs`, `crates/ui/tests/s094b_about.rs`, `crates/daemon/src/s094b_tests.rs`. Existing test helpers (`init`, `window`, `polls` in `s101_update_page.rs`; `turn` in `s017_motion_tests.rs`) are copied, not edited.
+
+## Manual (not a gate)
+- A click on each link opens the default browser on Linux and in the Windows 11 build, the Copy button fills the system clipboard, a screenshot of About in {en, ar} x {light, dark}: owner or manager, findings become fix stories.
 
 ## Out of scope
-- Release notes, credits, licence text viewer, macOS.
+Release notes, credits, licence text viewer, macOS, any other link, a changelog page, sending any data, `ShellExecuteW` (Windows keeps the S-108 `explorer.exe` opener).
 
 ## Review log
--
+- 2026-10-31, planner: made concrete from the draft, the S-094 shell, S-101 and the S-108 opener pattern. Changes from the 2026-10-29 draft: no `kawaro_ui::open_url` (the opener is injected in the daemon, as in S-108) and no `ShellExecuteW` (the S-108 command table already covers Windows). Risk: Slint 1.18.1 has no public app level clipboard setter, so the real copier is the one open implementation choice; if it needs a new dependency, split the copy button into its own story. Waiting for the manager's approval.
+- 2026-10-31, manager: approved with the five decisions (injected opener via `ui::wire_about`, no `ShellExecuteW`, pure `kawaro_core::about`, no URL literal in Slint, injected `Fn(&str)` copier whose real mechanism the implementer picks and records here; the copy button may be split out if it needs a new dependency).
+- 2026-10-31, tester: wrote `crates/core/tests/s094b_about.rs` (AC1, AC3, AC5, AC6 core scan, AC7 CHANGELOG), `crates/ui/tests/s094b_about.rs` (AC1 to AC7, both windows, en and ar, mocked time) and `crates/daemon/src/s094b_tests.rs` (AC2, registered in `crates/daemon/src/main.rs` with one `mod` line). They all fail to compile for the right reason, the missing surface. rustfmt on the three files is clean; clippy cannot run before the surface exists (re-run it on the new files after implementing). `cargo test -p kawaro-daemon --test s049_sources` passes (1 test, untouched).
+  - core: `unresolved import kawaro_core::about`.
+  - ui: `unresolved import kawaro_core::about` and E0599 for `on_open_link`, `on_copy_version`, `open_link`, `about_buttons`, `press_label`, `enter_on_label`, `press_copy_version`, `copy_button_text`, `press_about_check` on `SettingsWindow` (23 errors in all).
+  - daemon: `unresolved imports kawaro_core::about` and `crate::ui::{wire_about, wire_about_welcome}`, plus E0599 for the same window hooks (10 errors).
+  - Hooks pinned (details in the header of each file): `kawaro_core::about::{LINKS, link_url, copy_text, strings}` with `AboutStrings { website, source, copy_version, copied, check_updates, website_label, source_label }` (`check_updates` is new, the check button needs its own string; the two labels hold the full URL); on `SettingsWindow` and `WelcomeWindow`, `#[doc(hidden)]`: `on_open_link`, `on_copy_version`, `open_link(id)`, `about_buttons() -> Vec<(String, Rect)>` in reading order, `press_label`, `enter_on_label`, `press_copy_version`, `copy_button_text`, `press_about_check`, `about_check_enabled`; `update_check_enabled` also on `WelcomeWindow`; `set_reduced_motion` also on `SettingsWindow`; `ui::wire_about(&SettingsWindow, opener)` and `ui::wire_about_welcome(&WelcomeWindow, opener)`; `shell.slint` About block uses `open-link`, `copy-version`, `update-check`; token `motion.copied-feedback.duration-ms` = 2000. About is page 4 in the settings window and 5 in the welcome window, Updates is 3 and 4.
+  - Deviation to note: AC2 says `crates/ui` spells no `Command` or `std::process`, but `crates/ui/src/motion.rs` already does (the gsettings reduced motion probe, older than this story). The scan skips `motion.rs` and all `*_tests.rs` and code below `#[cfg(test)]`.
+  - Existing tests the implementer may need to adapt (not edited by the tester): any token or snapshot test that lists every key of `motion` in `design/tokens.json` or `crates/ui/build.rs` output when `copied-feedback` is added (none was found by reading, check `contrast.rs`, `glass_tokens.rs` and the settings snapshots); the About page PNG snapshots in `crates/ui/tests/snapshots` if the new row changes them (manager approves candidates). `s094_shell`, `s094_static`, `s099b` and `s101` must stay unchanged and green.
