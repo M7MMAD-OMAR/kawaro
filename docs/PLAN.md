@@ -154,6 +154,7 @@ Goal: the hive and drop work in an X11 session, with the hive at the pointer as 
 | --- | --- |
 | ui | The hive as an ordinary window at the pointer, adapting to screen edges, and the "hive first, then drag" drop order with an XDND receiver |
 | Testing | A headless X server and a temporary HOME, never a live desktop |
+| Release check | `tests/x11/run.sh` (S-114) is run by hand before the 0.5.0 tag, and its output is kept in the release notes |
 
 Story: S-015 (draft). Out of scope: Windows, macOS.
 

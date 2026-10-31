@@ -5,6 +5,7 @@ All notable changes. Format: one line per finished story, newest first under eac
 ## [Unreleased]
 
 ### Added
+- A private X11 session check script, `tests/x11/run.sh`, run by hand before 0.5.0 ([S-114](backlog/S-114-x11-private-session-checks.md)); live finding: the hive is not yet placed at the pointer under xfwm4 | سكربت فحص جلسة X11 خاصة `tests/x11/run.sh` يُشغَّل يدويا قبل 0.5.0؛ نتيجة حية: الخلية لا توضع بعد عند المؤشر تحت xfwm4
 - X11 support in progress, not released ([S-113](backlog/S-113-x11-hive-window.md)): on an X11 session the hive window is placed at the pointer and kept inside the screen, with an opaque `surface-0` plate; the live pointer check is S-114 | دعم X11 قيد التنفيذ ولم يصدر بعد: على جلسة X11 تُوضع نافذة الخلية عند المؤشر وتبقى داخل الشاشة مع لوح معتم بلون `surface-0`، والتحقق الحي من المؤشر في S-114
 
 ## [0.4.8] - 2026-10-31

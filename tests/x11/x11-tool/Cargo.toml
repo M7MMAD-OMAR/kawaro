@@ -1,0 +1,13 @@
+[package]
+name = "x11-tool"
+version = "0.1.0"
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+description = "Test helper for tests/x11/run.sh (S-114): pointer, keys, geometry, pixels, stacking on a private X server"
+
+# Standalone: not a member of the Kawaro workspace.
+[workspace]
+
+[dependencies]
+x11rb = { version = "0.13", features = ["xtest"] }

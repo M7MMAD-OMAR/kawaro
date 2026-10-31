@@ -11,6 +11,7 @@ tests/drop/out/
 tests/overlay/out/
 tests/hyprland/out/
 tests/drop/kwin-input/target/
+tests/x11/x11-tool/target/
 *.msi
 
 # files a cargo-mutants run of the packaging tests can leave behind (S-054a review)

@@ -31,6 +31,9 @@
 #             1024 px "xx-large" one (S-018 AC27): the file and the thumbnail
 #             are made in this script's sandbox (tests/overlay/thumbs.py), and
 #             hive_bench gets "--file PATH" for its daemon and cold runs.
+#   X11=1     S-114: no KWin. The shows go to the X server named by DISPLAY
+#             (tests/x11/run.sh starts a private Xvfb with xfwm4 and calls this
+#             with X11=1), through the window path (the X11 hive window).
 # Prints one line per request, then the first show on its own and the median
 # of the rest, then the RSS after the idle wait.
 set -u
@@ -45,11 +48,15 @@ PIN=()
 [ -n "${CPUS:-}" ] && PIN=(taskset -c "$CPUS")
 
 inner() {
-  unset DISPLAY XDG_ACTIVATION_TOKEN
-  "${PIN[@]}" kwin_wayland --virtual --socket "$WAYLAND_DISPLAY" --width 1920 --height 1080 >"$OUT/kwin.log" 2>&1 &
-  local cpid=$!
-  for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
-  [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "compositor did not start"; tail "$OUT/kwin.log"; return 1; }
+  unset XDG_ACTIVATION_TOKEN
+  local cpid=""
+  if [ -z "${X11:-}" ]; then
+    unset DISPLAY
+    "${PIN[@]}" kwin_wayland --virtual --socket "$WAYLAND_DISPLAY" --width 1920 --height 1080 >"$OUT/kwin.log" 2>&1 &
+    cpid=$!
+    for _ in $(seq 100); do [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && break; sleep 0.1; done
+    [ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || { echo "compositor did not start"; tail "$OUT/kwin.log"; return 1; }
+  fi
   sleep 2
   local files=()
   if [ -n "${PREVIEW:-}" ]; then
@@ -86,21 +93,28 @@ inner() {
   sleep "$IDLE"
   echo "rss_kb_after_idle=$(awk '/VmRSS/{print $2}' /proc/$dpid/status) idle_s=$IDLE"
   "$BIN" ctl quit
-  kill $cpid 2>/dev/null
-  timeout 5 tail --pid=$cpid -f /dev/null || kill -9 $cpid 2>/dev/null
+  if [ -n "$cpid" ]; then
+    kill "$cpid" 2>/dev/null
+    timeout 5 tail --pid="$cpid" -f /dev/null || kill -9 "$cpid" 2>/dev/null
+  fi
 }
 
 export -f inner
-export BIN OUT RUNS IDLE CPUS SHOW_TOKEN PREVIEW DROP HOLD ROOT
+export BIN OUT RUNS IDLE CPUS SHOW_TOKEN PREVIEW DROP HOLD ROOT X11
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"
-env -u WAYLAND_DISPLAY -u DISPLAY -u HYPRLAND_INSTANCE_SIGNATURE \
+# X11=1 keeps DISPLAY (the private X server of tests/x11/run.sh) and sets no
+# Wayland socket, so the hive takes the X11 window path.
+KEEP_DISPLAY=(-u DISPLAY)
+WAYLAND_SOCKET_NAME=wayland-sbh-measure
+if [ -n "${X11:-}" ]; then KEEP_DISPLAY=(); WAYLAND_SOCKET_NAME=""; fi
+env -u WAYLAND_DISPLAY "${KEEP_DISPLAY[@]}" -u HYPRLAND_INSTANCE_SIGNATURE \
   -u XDG_CURRENT_DESKTOP -u XDG_SESSION_DESKTOP -u DESKTOP_SESSION \
   -u SWAYSOCK -u I3SOCK -u DBUS_SESSION_BUS_ADDRESS \
   HOME="$SANDBOX" XDG_CONFIG_HOME="$SANDBOX/.config" XDG_DATA_HOME="$SANDBOX/.local/share" \
   XDG_CACHE_HOME="$SANDBOX/.cache" XDG_STATE_HOME="$SANDBOX/.local/state" \
-  XDG_RUNTIME_DIR="$RUNTIME" WAYLAND_DISPLAY=wayland-sbh-measure \
+  XDG_RUNTIME_DIR="$RUNTIME" ${WAYLAND_SOCKET_NAME:+WAYLAND_DISPLAY=$WAYLAND_SOCKET_NAME} \
   dbus-run-session -- bash -c 'PIN=(); [ -n "${CPUS:-}" ] && PIN=(taskset -c "$CPUS"); inner' \
   | tee "$OUT/result.txt"
 rm -rf "$SANDBOX" "$RUNTIME"
