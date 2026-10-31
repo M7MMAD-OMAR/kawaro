@@ -82,7 +82,10 @@ struct Rig {
 }
 
 fn rig(vars: &[(&str, &str)]) -> Rig {
-    i_slint_backend_testing::init_no_event_loop();
+    thread_local! {
+        static BACKEND: std::sync::Once = const { std::sync::Once::new() };
+    }
+    BACKEND.with(|b| b.call_once(i_slint_backend_testing::init_no_event_loop));
     let hive = test_env::build(vars, Lang::En);
     let pointer = Rc::new(Cell::new(FAR));
     hive.set_session(Session::X11, Box::new(Fake(pointer.clone())));
