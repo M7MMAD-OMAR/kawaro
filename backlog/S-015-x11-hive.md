@@ -1,5 +1,5 @@
 # S-015 The hive on X11: an ordinary window at the pointer, and "hive first, then drag" drop
-Status: split: S-113 (window at the pointer), S-114 (private X session harness and live checks), S-115 (drop cell, docs). Draft, awaiting the manager's approval (decisions below were given by the manager in the planning request). Release 0.5.0 "X11" (`docs/PLAN.md`).
+Status: split: S-113 (window at the pointer), S-114 (private X session harness and live checks), S-115 (drop cell, docs). Approved (2026-10-31, manager; decisions below were given by the manager in the planning request). Release 0.5.0 "X11" (`docs/PLAN.md`).
 
 This story is the parent plan. It carries no acceptance criteria of its own; each slice does. It builds on ADR 0003 (finding 7), ADR 0004 (X11 stays a winit window, the layer path is Wayland only), S-019 (`layout::plan_at`), S-046 and S-047 (the Windows window and drop, the pattern to copy).
 
