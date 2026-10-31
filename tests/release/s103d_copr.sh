@@ -122,7 +122,7 @@ check "S-103d no work dir is left behind after a failure" bash -c '! ls -d "$1"/
 check "S-103d failure output carries no secret" bash -c '! grep -q "$1" <<<"$2"' _ "$SECRET" "$OUT"
 
 # Docs.
-check "S-103d the doc shows the user command" grep -qF 'sudo dnf copr enable OWNER/kawaro' "$DOC"
+check "S-103d the doc shows the user command" grep -qF 'sudo dnf copr enable ACCOUNT/kawaro' "$DOC"
 check "S-103d the doc names the secrets, never values" \
   bash -c 'grep -q COPR_CONFIG "$1" && grep -q COPR_PROJECT "$1"' _ "$DOC"
 

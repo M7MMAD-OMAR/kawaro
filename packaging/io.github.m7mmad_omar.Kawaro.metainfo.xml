@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
-  <id>io.github.m7mmad_omar.Kawaro</id>
+  <id>io.github.m7mmad_omar.kawaro</id>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0-or-later</project_license>
   <name>Kawaro</name>
   <name xml:lang="ar">كوارو</name>
   <summary>Convert files locally from your file manager</summary>
   <summary xml:lang="ar">حوّل الملفات محلياً من مدير الملفات</summary>
+  <icon type="stock">kawaro</icon>
   <developer id="io.github.m7mmad_omar">
     <name>M7MMAD-OMAR</name>
   </developer>
@@ -25,6 +26,18 @@
     <p>No file ever leaves your computer.</p>
     <p xml:lang="ar">لا يغادر أي ملف جهازك.</p>
   </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>The hive shows the actions that fit the selected files</caption>
+      <caption xml:lang="ar">خلية النحل تعرض الإجراءات المناسبة للملفات المحددة</caption>
+      <image type="source" width="393" height="362">https://kawaro.sbarah.com/screenshots/hive-en-light.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The Arabic interface in the dark theme</caption>
+      <caption xml:lang="ar">الواجهة العربية بالمظهر الداكن</caption>
+      <image type="source" width="393" height="362">https://kawaro.sbarah.com/screenshots/hive-ar-dark.png</image>
+    </screenshot>
+  </screenshots>
   <launchable type="desktop-id">io.github.m7mmad_omar.Kawaro.desktop</launchable>
   <url type="homepage">https://github.com/M7MMAD-OMAR/kawaro</url>
   <url type="bugtracker">https://github.com/M7MMAD-OMAR/kawaro/issues</url>
@@ -41,86 +54,103 @@
     <release version="0.4.7" date="2026-10-31">
       <description>
         <p>On Hyprland 0.57, kawaro drop without --at no longer swallows the first click. Known limits: the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+        <p xml:lang="ar">على Hyprland 0.57 لم يعد الأمر kawaro drop بدون --at يبتلع النقرة الأولى. حدود معروفة: ملفات ويندوز ما زالت موقّعة ذاتياً، فقد يحذّر SmartScreen أو Defender.</p>
       </description>
     </release>
     <release version="0.4.6" date="2026-10-31">
       <description>
         <p>When Kawaro cannot convert a file, the hive now says why: the format is not supported, a tool is missing, or the selection is mixed. Skipped cells are greyed, and a request cell opens a prefilled issue link only when you click it. Known limits: on Hyprland 0.57 kawaro drop without --at can swallow the first click, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+        <p xml:lang="ar">حين يعجز كوارو عن تحويل ملف، تذكر الخلية السبب الآن: الصيغة غير مدعومة، أو أداة ناقصة، أو التحديد مختلط. وتظهر الخلايا المتخطاة رمادية، وتفتح خلية الطلب رابط بلاغ معبّأً مسبقاً عند النقر عليها فقط. حدود معروفة: على Hyprland 0.57 قد يبتلع kawaro drop بدون --at النقرة الأولى، وملفات ويندوز ما زالت موقّعة ذاتياً، فقد يحذّر SmartScreen أو Defender.</p>
       </description>
     </release>
     <release version="0.4.5" date="2026-10-30">
       <description>
         <p>Four small Windows fixes: the settings window opens in front, also after an update, old update downloads are cleaned up, and the notification header and window titles read Kawaro. Known limits: on Hyprland 0.57 kawaro drop without --at can swallow the first click, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+        <p xml:lang="ar">أربعة إصلاحات صغيرة لويندوز: تفتح نافذة الإعدادات في الواجهة حتى بعد التحديث، وتُنظَّف تنزيلات التحديث القديمة، ويظهر اسم كوارو في ترويسة الإشعارات وعناوين النوافذ. حدود معروفة: على Hyprland 0.57 قد يبتلع kawaro drop بدون --at النقرة الأولى، وملفات ويندوز ما زالت موقّعة ذاتياً، فقد يحذّر SmartScreen أو Defender.</p>
       </description>
     </release>
     <release version="0.4.4" date="2026-10-30">
       <description>
         <p>Linux Alt gesture fixes: Alt then a late drag shows the hive with a bounded hold, Alt chords such as Alt+a no longer leave a stray hive on Hyprland, and Hyprland 0.57 is supported. kawaro doctor now shows which key opens the hive. Debian and Ubuntu users can install from a signed apt repository, and Windows users from a Scoop bucket. Known limits: on Hyprland 0.57 kawaro drop without --at can swallow the first click, the settings window can open behind another window after an update on Windows, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+        <p xml:lang="ar">إصلاحات لإيماءة Alt على لينكس: Alt ثم سحب متأخر يُظهر الخلية بمهلة محدودة، واختصارات Alt مثل Alt+a لا تترك خلية عالقة على Hyprland، ودعم Hyprland 0.57. ويعرض kawaro doctor الآن المفتاح الذي يفتح الخلية. ويمكن لمستخدمي Debian وUbuntu التثبيت من مستودع apt موقّع، ولمستخدمي ويندوز من حاوية Scoop. حدود معروفة: على Hyprland 0.57 قد يبتلع kawaro drop بدون --at النقرة الأولى، وقد تفتح نافذة الإعدادات خلف نافذة أخرى بعد التحديث على ويندوز، وملفات ويندوز ما زالت موقّعة ذاتياً، فقد يحذّر SmartScreen أو Defender.</p>
       </description>
     </release>
     <release version="0.4.3" date="2026-10-30">
       <description>
         <p>Upgrading the Windows MSI from 0.4.0 or 0.4.2 now works (it failed with error 1603). The update page shows the download percent, reopens after the restart with the result, and shows a plain message with a retry when an update fails. On Linux, Alt followed by a late drag now shows the hive. Known limits: the settings window can open behind another window after an update on Windows, and the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>
+        <p xml:lang="ar">ترقية حزمة MSI على ويندوز من 0.4.0 أو 0.4.2 تعمل الآن (كانت تفشل بالخطأ 1603). وتعرض صفحة التحديث نسبة التنزيل، وتُفتح من جديد بعد إعادة التشغيل مع النتيجة، وتعرض رسالة واضحة مع إعادة المحاولة عند فشل التحديث. وعلى لينكس تُظهر الخلية Alt ثم سحباً متأخراً. حدود معروفة: قد تفتح نافذة الإعدادات خلف نافذة أخرى بعد التحديث على ويندوز، وملفات ويندوز ما زالت موقّعة ذاتياً، فقد يحذّر SmartScreen أو Defender.</p>
       </description>
     </release>
     <release version="0.4.2" date="2026-10-29">
       <description>
         <p>Urgent Windows fix: upgrading from an older version with the MSI, or with the in-app update, removed the program files and left a broken Start shortcut. If you installed 0.4.1 on Windows, run the 0.4.2 MSI once (or reinstall). A fresh install of 0.4.1 was fine.</p>
+        <p xml:lang="ar">إصلاح عاجل لويندوز: الترقية من إصدار أقدم بحزمة MSI أو بالتحديث من داخل التطبيق كانت تحذف ملفات البرنامج وتترك اختصاراً معطلاً في قائمة ابدأ. إن ثبّتّ 0.4.1 على ويندوز فشغّل حزمة MSI للإصدار 0.4.2 مرة واحدة أو أعد التثبيت. أما التثبيت الجديد للإصدار 0.4.1 فكان سليماً.</p>
       </description>
     </release>
     <release version="0.4.1" date="2026-10-29">
       <description>
         <p>A new Settings window with a header, a page rail and an Updates page (installed version, check for updates, update now, automatic check, channel and install mode), plus a simpler website and README. The Windows files are still test-signed with a self-signed certificate, so SmartScreen warns.</p>
+        <p xml:lang="ar">نافذة إعدادات جديدة بترويسة وشريط صفحات وصفحة تحديثات (الإصدار المثبت، والتحقق من التحديثات، والتحديث الآن، والفحص التلقائي، والقناة، ونمط التثبيت)، مع موقع وملف README أبسط. ملفات ويندوز ما زالت موقّعة تجريبياً بشهادة موقّعة ذاتياً، فيحذّر SmartScreen.</p>
       </description>
     </release>
     <release version="0.4.0" date="2026-10-27">
       <description>
         <p>The first official release for Linux and Windows. In-app updates, the Windows zip and MSI, the Explorer right click menu, the right-button drag trigger, the first-run welcome, and the Windows beta feedback fixes. The Windows files are test-signed with a self-signed certificate, so SmartScreen warns until a trusted certificate signs them.</p>
+        <p xml:lang="ar">أول إصدار رسمي للينكس وويندوز. تحديثات من داخل التطبيق، وحزمتا zip وMSI لويندوز، وقائمة النقر اليمين في المستكشف، وزناد السحب بالزر الأيمن، ونافذة الترحيب عند أول تشغيل، وإصلاحات ملاحظات النسخة التجريبية على ويندوز. ملفات ويندوز موقّعة تجريبياً بشهادة موقّعة ذاتياً، فيحذّر SmartScreen إلى أن توقّعها شهادة موثوقة.</p>
       </description>
     </release>
-    <release version="0.4.0-beta.1" date="2026-10-24">
+    <release version="0.4.0~beta.1" date="2026-10-24">
       <description>
         <p>First public beta for Linux and Windows. In-app updates through a signed manifest, a Windows zip and MSI, and the global shortcut portal follow-ups. Beta software: see the release notes for the known gaps.</p>
+        <p xml:lang="ar">أول نسخة تجريبية عامة للينكس وويندوز. تحديثات من داخل التطبيق عبر بيان موقّع، وحزمتا zip وMSI لويندوز، ومتابعات بوابة الاختصار العام. برنامج تجريبي: راجع ملاحظات الإصدار لمعرفة الثغرات المعروفة.</p>
       </description>
     </release>
     <release version="0.3.3" date="2026-10-23">
       <description>
         <p>On GNOME and KDE the drop shortcut Super+Z registers itself through the system portal, after a one time consent. On KDE with the strictest focus stealing prevention, the hive no longer takes the keyboard without a valid activation token.</p>
+        <p xml:lang="ar">على GNOME وKDE يسجّل اختصار الإفلات Super+Z نفسه عبر بوابة النظام بعد موافقة تُطلب مرة واحدة. وعلى KDE مع أشد حماية من سرقة التركيز لم تعد الخلية تأخذ لوحة المفاتيح دون رمز تنشيط صالح.</p>
       </description>
     </release>
     <release version="0.3.2" date="2026-10-22">
       <description>
         <p>The hive plays its opening animation on Hyprland and KDE again, including the drop hive when a drag reveals it.</p>
+        <p xml:lang="ar">تعرض الخلية حركة الفتح من جديد على Hyprland وKDE، ومنها خلية الإفلات حين يكشفها السحب.</p>
       </description>
     </release>
     <release version="0.3.1" date="2026-10-22">
       <description>
         <p>The drop hive appears only while you drag files that have an action. Holding the key with no drag, or dragging a file no action takes, shows nothing.</p>
+        <p xml:lang="ar">تظهر خلية الإفلات فقط أثناء سحب ملفات لها إجراء. والضغط على المفتاح بلا سحب، أو سحب ملف لا يقبله أي إجراء، لا يُظهر شيئاً.</p>
       </description>
     </release>
     <release version="0.3.0" date="2026-10-22">
       <description>
         <p>Drag a file, hold a key, and drop it on the hive. The hive opens over every window at the pointer on Hyprland and KDE, and as a centred window on GNOME.</p>
+        <p xml:lang="ar">اسحب ملفاً، واضغط مفتاحاً، وأفلته على الخلية. تفتح الخلية فوق كل النوافذ عند المؤشر على Hyprland وKDE، وكنافذة في الوسط على GNOME.</p>
       </description>
     </release>
     <release version="0.2.2" date="2026-10-20">
       <description>
         <p>Kawaro appears in app launchers and opens its settings.</p>
+        <p xml:lang="ar">يظهر كوارو في قوائم التطبيقات ويفتح إعداداته.</p>
       </description>
     </release>
     <release version="0.2.1" date="2026-10-20">
       <description>
         <p>RPM and DEB packages.</p>
+        <p xml:lang="ar">حزمتا RPM وDEB.</p>
       </description>
     </release>
     <release version="0.2.0" date="2026-10-20">
       <description>
         <p>Video, audio, documents and PDF through FFmpeg, LibreOffice and Ghostscript, a settings window, and focus that works under strict focus policies in GNOME and KDE.</p>
+        <p xml:lang="ar">الفيديو والصوت والمستندات وPDF عبر FFmpeg وLibreOffice وGhostscript، ونافذة إعدادات، وتركيز يعمل تحت سياسات التركيز الصارمة في GNOME وKDE.</p>
       </description>
     </release>
     <release version="0.1.0" date="2026-10-20">
       <description>
         <p>First release: the hive, image conversion, the background service and command line, and file manager integrations.</p>
+        <p xml:lang="ar">الإصدار الأول: الخلية، وتحويل الصور، والخدمة الخلفية وسطر الأوامر، وتكاملات مدير الملفات.</p>
       </description>
     </release>
   </releases>

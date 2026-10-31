@@ -1,10 +1,12 @@
 # AUR channel: kawaro-bin (S-103e)
 
-Install on Arch based systems:
+Install on Arch based systems (not usable yet, see Status below):
 
-5. The secret name is `AUR_SSH_KEY` everywhere (S-078 and S-103 used `AUR_SSH_PRIVATE_KEY` before the scripts fixed the name).
+```
 yay -S kawaro-bin
 ```
+
+The secret name is `AUR_SSH_KEY` everywhere (S-078 and S-103 used `AUR_SSH_PRIVATE_KEY` before the scripts fixed the name).
 
 ## What the package does
 

@@ -36,7 +36,7 @@ Replace `X.Y.Z` with the version. A channel that is not set up yet cannot be use
 | Chocolatey | None | Planned, not built |
 | Homebrew (Linuxbrew tap) | None | Planned, not built |
 
-Commands are written by hand in the per channel pages under [distribution-channels](distribution-channels/README.md). The planned file `packaging/install-commands.json` that would render them does not exist yet, so the commands above must be checked against those pages when either changes.
+The commands come from one file, `packaging/install-commands.json`, which also records each channel's status. `python3 scripts/release/install-commands.py check` fails when a page under [distribution-channels](distribution-channels/README.md) or this table differs from it, and `render NAME` prints a channel's commands.
 
 After any install, verify a direct download with `sha256sum -c SHA256SUMS --ignore-missing` (Linux) against the `SHA256SUMS` of the same release.
 

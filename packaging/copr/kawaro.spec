@@ -83,6 +83,7 @@ fi
 /usr/share/applications/io.github.m7mmad_omar.Kawaro.desktop
 /usr/share/metainfo/io.github.m7mmad_omar.Kawaro.metainfo.xml
 /usr/share/icons/hicolor/*/apps/kawaro*
+/usr/share/kawaro/screenshots
 /usr/share/kio/servicemenus/kawaro.desktop
 /usr/share/nautilus-python/extensions/kawaro.py
 /usr/share/nemo/actions/kawaro.nemo_action

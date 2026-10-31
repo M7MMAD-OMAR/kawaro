@@ -6,13 +6,13 @@ get signed packages from COPR's own repository and updates through `dnf`.
 ## Install
 
 ```
-sudo dnf copr enable OWNER/kawaro
+sudo dnf copr enable ACCOUNT/kawaro
 sudo dnf install kawaro
 ```
 
-`OWNER` is the COPR account that owns the project. The command is rendered
-from the `copr` entry of `packaging/install-commands.json` once S-016 adds
-that file; until then this page is the only place that states it.
+`ACCOUNT` is the COPR account that owns the project. The command comes from
+the `copr` entry of `packaging/install-commands.json`, and
+`scripts/release/install-commands.py check` keeps this page equal to it.
 
 ## How a release reaches COPR
 

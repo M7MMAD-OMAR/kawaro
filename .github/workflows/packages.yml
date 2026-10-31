@@ -350,8 +350,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh release upload "${GITHUB_REF_NAME}" dist/*.rpm dist/*.deb dist/*.zip dist/*.msi dist/SHA256SUMS \
+          files=(dist/*.rpm dist/*.deb dist/*.zip dist/*.msi dist/SHA256SUMS)
+          gh release upload "${GITHUB_REF_NAME}" "${files[@]}" \
             --clobber -R "${GITHUB_REPOSITORY}"
+
+  # Detached signature over SHA256SUMS with the apt archive key (S-112). Only
+  # a v* tag in the canonical repository; skips cleanly without the secret.
+  sign-checksums:
+    needs: release
+    if: startsWith(github.ref, 'refs/tags/v') && github.repository == 'M7MMAD-OMAR/kawaro'
+    runs-on: ubuntu-latest
+    environment: apt-publishing
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Sign SHA256SUMS
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: scripts/release/sign-checksums.sh
 
   # Signed update feed (S-053c, ADR 0006). The only job that sees the signing
   # secrets; they are whole env values here and nowhere else.

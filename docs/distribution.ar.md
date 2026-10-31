@@ -36,7 +36,7 @@ git tag vX.Y.Z  ->  بناء CI  ->  ملفات الإصدار + SHA256SUMS  -> 
 | Chocolatey | لا يوجد | مخطط، ولم يُبنَ بعد |
 | Homebrew (مستودع Linuxbrew) | لا يوجد | مخطط، ولم يُبنَ بعد |
 
-الأوامر مكتوبة يدوياً في صفحات القنوات داخل [distribution-channels](distribution-channels/README.md). والملف المخطط `packaging/install-commands.json` الذي يولّدها غير موجود بعد، لذلك تُطابَق الأوامر أعلاه مع تلك الصفحات كلما تغيّر أحدهما.
+الأوامر كلها من ملف واحد هو `packaging/install-commands.json`، وفيه حالة كل قناة. ويفشل الأمر `python3 scripts/release/install-commands.py check` إذا اختلفت صفحة في [distribution-channels](distribution-channels/README.md) أو هذا الجدول عنه، ويطبع `render NAME` أوامر قناة.
 
 بعد أي تنزيل مباشر تحقق منه بالأمر `sha256sum -c SHA256SUMS --ignore-missing` (لينكس) مع ملف `SHA256SUMS` الخاص بالإصدار نفسه.
 

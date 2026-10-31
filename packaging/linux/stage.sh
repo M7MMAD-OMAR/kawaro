@@ -27,6 +27,10 @@ for s in 16 32 48 64 128 256 512; do
   install -Dm644 "$ROOT/design/brand/png/kawaro-$s.png" "$U/share/icons/hicolor/${s}x$s/apps/kawaro.png"
 done
 
+for f in hive-en-light.png hive-ar-dark.png; do
+  install -Dm644 "$ROOT/packaging/screenshots/$f" "$U/share/kawaro/screenshots/$f"
+done
+
 # The service starts with every graphical session; the package scripts
 # enable it globally. `kawaro open` also starts it on demand.
 sed 's|^ExecStart=.*|ExecStart=/usr/bin/kawarod|' "$ROOT/packaging/kawaro.service" \

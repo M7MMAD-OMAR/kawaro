@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "channels": {
+    "apt": {
+      "status": "live",
+      "commands": [
+        "sudo install -d -m 0755 /etc/apt/keyrings && curl -fsSL https://m7mmad-omar.github.io/kawaro-apt/kawaro-archive-keyring.gpg | sudo tee /etc/apt/keyrings/kawaro-archive-keyring.gpg >/dev/null && echo 'deb [arch=amd64 signed-by=/etc/apt/keyrings/kawaro-archive-keyring.gpg] https://m7mmad-omar.github.io/kawaro-apt stable main' | sudo tee /etc/apt/sources.list.d/kawaro.list >/dev/null && sudo apt update && sudo apt install kawaro"
+      ]
+    },
+    "winget": {
+      "status": "submitted",
+      "commands": [
+        "winget install Sbarah.Kawaro"
+      ]
+    },
+    "copr": {
+      "status": "not_live",
+      "commands": [
+        "sudo dnf copr enable ACCOUNT/kawaro",
+        "sudo dnf install kawaro"
+      ]
+    },
+    "aur": {
+      "status": "not_live",
+      "commands": [
+        "yay -S kawaro-bin"
+      ]
+    }
+  }
+}
