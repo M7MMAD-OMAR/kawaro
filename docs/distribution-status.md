@@ -6,7 +6,7 @@ How the release pipeline and each channel work, and what a maintainer does: [dis
 
 ## Windows
 
-- Current release: 0.4.8 (tag v0.4.8, 2026-10-31) on [GitHub Releases](https://github.com/M7MMAD-OMAR/kawaro/releases/latest). The MSI and executables use a self-signed test certificate, so SmartScreen warns on first run (More info, then Run anyway). The ZIP contains the test-signed executables.
+- Current release: 0.5.0 (tag v0.5.0, 2026-10-31) on [GitHub Releases](https://github.com/M7MMAD-OMAR/kawaro/releases/latest). The MSI and executables use a self-signed test certificate, so SmartScreen warns on first run (More info, then Run anyway). The ZIP contains the test-signed executables.
 - Checked in a Windows 11 virtual machine: install, the welcome and settings windows, the sample image action with its notification, and the 0.4.5 fixes (S-106, S-107: foreground, cleanup, names). Not checked: physical Windows hardware, the full live checklist, and the Explorer mixed selection check (S-108 M3).
 - **Signing.** The maintainer has no code signing certificate and no identity document usable for the Microsoft Store developer verification. The SignPath Foundation declined the application on 2026-10-27 for lack of public visibility. The Microsoft Store, SignPath and any paid certificate are parked, not planned for now. The Windows build stays self-signed until that changes.
 - **WinGet.** [winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805) passed all automated checks (labels Azure-Pipeline-Passed, Validation-Completed, New-Package) and the contributor license agreement is signed. It has waited since 2026-10-27 for approval by a volunteer moderator; there is nothing the project can do but wait. It is not a published package yet, and the `winget` channel job stays off until the package exists.
@@ -19,18 +19,18 @@ Written by `scripts/channels/run-all.sh` (S-103a); a row says what the last run 
 <!-- channels:start -->
 | Channel | State | Version | Checked |
 | --- | --- | --- | --- |
-| apt | ok | 0.4.8 | 2026-10-31 |
-| aur | skipped | 0.4.8 | 2026-10-31 |
-| copr | skipped | 0.4.8 | 2026-10-31 |
-| scoop | ok | 0.4.8 | 2026-10-31 |
-| winget | skipped | 0.4.8 | 2026-10-31 |
+| apt | ok | 0.5.0 | 2026-10-31 |
+| aur | skipped | 0.5.0 | 2026-10-31 |
+| copr | skipped | 0.5.0 | 2026-10-31 |
+| scoop | ok | 0.5.0 | 2026-10-31 |
+| winget | skipped | 0.5.0 | 2026-10-31 |
 <!-- channels:end -->
 
-What is live (2026-10-31, version 0.4.8, the tag run of the Packages workflow). All five channel jobs reported success, but that only means each channel script exited cleanly: apt and scoop printed `PUBLISHED`, while winget, aur and copr printed a clean `SKIP` line because their secret or switch is not configured (`WINGET_CREATE_GITHUB_TOKEN`, `AUR_ENABLED`, `COPR_CONFIG`). A green job is therefore not a published package for those three. 0.4.3 was published by hand because its tag predates the workflow, and the 0.4.4 tag run skipped apt and scoop until `secrets: inherit` was added:
+What is live (2026-10-31, version 0.5.0, the tag run of the Packages workflow). All five channel jobs reported success, but that only means each channel script exited cleanly: apt and scoop printed `PUBLISHED`, while winget, aur and copr printed a clean `SKIP` line because their secret or switch is not configured (`WINGET_CREATE_GITHUB_TOKEN`, `AUR_ENABLED`, `COPR_CONFIG`). A green job is therefore not a published package for those three. 0.4.3 was published by hand because its tag predates the workflow, and the 0.4.4 tag run skipped apt and scoop until `secrets: inherit` was added:
 
-- **apt:** `https://m7mmad-omar.github.io/kawaro-apt`, signed, served by GitHub Pages. the 0.4.8 run reported `PUBLISHED apt: 0.4.8` (the 0.4.7, 0.4.6 and 0.4.5 runs did too); the 0.4.4 `InRelease` was checked signed and `Packages` listed 0.4.4 with the DEB hash of the release `SHA256SUMS`. `apt-get update` itself was not run on this machine for 0.4.4 to 0.4.8. Install line: [apt.md](distribution-channels/apt.md).
-- **Scoop:** bucket `https://github.com/M7MMAD-OMAR/scoop-kawaro`. The 0.4.8 run reported `PUBLISHED scoop: 0.4.8` (as did 0.4.7, 0.4.6 and 0.4.5); the 0.4.4 manifest was committed by the CI run and its hash equalled the `SHA256SUMS` line of the release ZIP. The 0.4.5 to 0.4.8 hashes were not compared here. Scoop itself was not run (it is not available on this machine).
-- **Signed checksums:** the new `sign-checksums` job ran for the first time on the 0.4.8 tag (the signing key secret is configured). It printed `sign-checksums: uploaded SHA256SUMS.asc and kawaro-archive.asc for v0.4.8`, and a local `gpg --verify` of the downloaded `SHA256SUMS.asc` against the downloaded `kawaro-archive.asc` reported a good signature from the Kawaro release signing key (not marked trusted, as expected for a fresh keyring).
+- **apt:** `https://m7mmad-omar.github.io/kawaro-apt`, signed, served by GitHub Pages. the 0.5.0 run reported `PUBLISHED apt: 0.5.0` (the 0.4.5 to 0.4.8 runs did too); the 0.4.4 `InRelease` was checked signed and `Packages` listed 0.4.4 with the DEB hash of the release `SHA256SUMS`. `apt-get update` itself was not run on this machine for 0.4.4 to 0.5.0. Install line: [apt.md](distribution-channels/apt.md).
+- **Scoop:** bucket `https://github.com/M7MMAD-OMAR/scoop-kawaro`. The 0.5.0 run reported `PUBLISHED scoop: 0.5.0` (as did 0.4.5 to 0.4.8); the 0.4.4 manifest was committed by the CI run and its hash equalled the `SHA256SUMS` line of the release ZIP. The 0.4.5 to 0.5.0 hashes were not compared here. Scoop itself was not run (it is not available on this machine).
+- **Signed checksums:** the `sign-checksums` job ran for the first time on the 0.4.8 tag and printed `sign-checksums: uploaded SHA256SUMS.asc and kawaro-archive.asc for v0.4.8`, and a local `gpg --verify` of the downloaded `SHA256SUMS.asc` against the downloaded `kawaro-archive.asc` reported a good signature from the Kawaro release signing key (not marked trusted, as expected for a fresh keyring). The 0.5.0 tag run printed the same upload line for v0.5.0; that signature was not verified locally.
 
 Open items, all platform limits:
 
