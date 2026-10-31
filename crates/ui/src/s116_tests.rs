@@ -15,7 +15,54 @@ use super::*;
 use crate::layout::plan_at;
 use crate::session::Session;
 use crate::x11::{PlaceCheck, PlaceStep, Pointer, PointerSource, surface_line};
+use slint::platform::software_renderer::{RepaintBufferType, SoftwareRenderer};
+use slint::platform::{Platform, WindowAdapter};
+use slint::{PhysicalPosition, PhysicalSize, PlatformError, WindowPosition, WindowSize};
 use std::cell::Cell;
+
+/// A window that remembers the position it was given, as a real one does.
+struct Placed {
+    window: slint::Window,
+    renderer: SoftwareRenderer,
+    at: Cell<PhysicalPosition>,
+}
+
+impl WindowAdapter for Placed {
+    fn window(&self) -> &slint::Window {
+        &self.window
+    }
+    fn size(&self) -> PhysicalSize {
+        PhysicalSize::new(800, 600)
+    }
+    fn renderer(&self) -> &dyn slint::platform::Renderer {
+        &self.renderer
+    }
+    fn set_size(&self, _: WindowSize) {}
+    fn position(&self) -> Option<PhysicalPosition> {
+        Some(self.at.get())
+    }
+    fn set_position(&self, p: WindowPosition) {
+        if let WindowPosition::Physical(p) = p {
+            self.at.set(p);
+        }
+    }
+}
+
+struct Soft;
+
+impl Platform for Soft {
+    fn create_window_adapter(&self) -> Result<Rc<dyn WindowAdapter>, PlatformError> {
+        Ok(Rc::<Placed>::new_cyclic(|weak| Placed {
+            window: slint::Window::new(weak.clone()),
+            renderer: SoftwareRenderer::new_with_repaint_buffer_type(RepaintBufferType::NewBuffer),
+            at: Cell::new(PhysicalPosition::new(0, 0)),
+        }))
+    }
+}
+
+thread_local! {
+    static READY: Cell<bool> = const { Cell::new(false) };
+}
 
 const ROOT: (u32, u32) = (1280, 800);
 
@@ -43,7 +90,9 @@ impl PointerSource for Fake {
 }
 
 fn shown(x: i32, y: i32, session: Session) -> Hive {
-    i_slint_backend_testing::init_no_event_loop();
+    if !READY.with(|r| r.replace(true)) {
+        slint::platform::set_platform(Box::new(Soft)).unwrap();
+    }
     let hive = test_env::build(&[], Lang::En);
     let p = Pointer {
         x,
@@ -64,15 +113,7 @@ fn the_window_position_equals_the_plan_at_three_pointers() {
         let want = hive.x11_position().expect("a position on X11");
         let got = hive.inner.ui.borrow().window().position();
         assert_eq!((got.x, got.y), want, "pointer ({x}, {y})");
-        let plan = plan_at(
-            cells(6),
-            false,
-            1,
-            ROOT,
-            Some((x as f32, y as f32)),
-            120,
-        )
-        .1;
+        let plan = plan_at(cells(6), false, 1, ROOT, Some((x as f32, y as f32)), 120).1;
         assert_eq!(want, (plan.x, plan.y), "pointer ({x}, {y}) is the plan");
         seen.push(want);
     }

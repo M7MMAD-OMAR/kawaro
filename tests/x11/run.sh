@@ -199,6 +199,7 @@ sleep 1
 open_hive() { env "$@" "$BIN/kawaro" open "$FILE" >/dev/null 2>&1; }
 
 # ---- AC4: placement ----
+PLACED=()
 for p in "400 500" "0 0" "1279 799"; do
   # shellcheck disable=SC2086
   "$TOOL" move $p >/dev/null
@@ -210,6 +211,7 @@ for p in "400 500" "0 0" "1279 799"; do
     continue
   fi
   logged="$(x11_parse_surface "$(line_text 'hive surface: window')")"
+  PLACED+=("$logged")
   sleep 0.3
   read1="$("$TOOL" geometry Kawaro 2>&1)"
   sleep 0.5
@@ -223,6 +225,12 @@ for p in "400 500" "0 0" "1279 799"; do
     || fail "AC4 pointer ($p): window moved from '$read1' to '$read2'"
   close_hive
 done
+# S-116: three pointers give three different boxes (not the centre every time).
+if [ "$(printf '%s\n' "${PLACED[@]}" | sort -u | wc -l)" -eq 3 ]; then
+  pass "AC4 three pointers gave three different boxes"
+else
+  fail "AC4 the boxes are not three different ones: ${PLACED[*]}"
+fi
 
 # ---- AC6: focus, 3 runs without a token and 3 with DESKTOP_STARTUP_ID ----
 for variant in none startup-id; do

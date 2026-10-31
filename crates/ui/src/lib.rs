@@ -125,6 +125,9 @@ thread_local! {
     /// The window path still owes this show's `hive surface` line, for a
     /// window of this logical size (S-018 AC11).
     static WINDOW_REPORT: Cell<Option<(f32, f32)>> = const { Cell::new(None) };
+    /// The X11 hive's planned position, until its line is printed (S-116).
+    #[cfg(target_os = "linux")]
+    static X11_PLACE: RefCell<Option<x11::PlaceCheck>> = const { RefCell::new(None) };
     /// The hive of the last show, which the layer path lays out again at
     /// the pointer (S-019c, S-019d).
     static SHOWN: RefCell<Weak<Inner>> = const { RefCell::new(Weak::new()) };
@@ -158,6 +161,15 @@ fn report_window(w: &winit::window::Window) {
     if (size.width - f64::from(ew)).abs() > 1.0 || (size.height - f64::from(eh)).abs() > 1.0 {
         return;
     }
+    #[cfg(target_os = "linux")]
+    if let Some(step) = x11_place_step(w, false) {
+        if let x11::PlaceStep::Report((x, y)) = step {
+            WINDOW_REPORT.with(|c| c.set(None));
+            X11_PLACE.with(|p| p.borrow_mut().take());
+            stderr_report_x11(x, y, size);
+        }
+        return;
+    }
     WINDOW_REPORT.with(|c| c.set(None));
     let (mx, my, mw, mh) = w
         .current_monitor()
@@ -177,6 +189,41 @@ fn report_window(w: &winit::window::Window) {
         size.width.round() as u32,
         size.height.round() as u32,
     );
+}
+
+/// The next step of the X11 hive's placement for the real window `w`, or
+/// `None` when this show is not on X11. Asks for the planned position
+/// (`set_outer_position`, after the window is mapped) when the window
+/// manager placed it elsewhere (S-116).
+#[cfg(target_os = "linux")]
+fn x11_place_step(w: &winit::window::Window, moved: bool) -> Option<x11::PlaceStep> {
+    X11_PLACE.with(|p| {
+        let mut p = p.borrow_mut();
+        let check = p.as_mut()?;
+        let at = w.outer_position().ok().map(|a| (a.x, a.y))?;
+        let step = if moved {
+            check.moved(at)
+        } else {
+            check.seen(at)
+        };
+        if let x11::PlaceStep::Move((x, y)) = step {
+            w.set_outer_position(winit::dpi::PhysicalPosition::new(x, y));
+        }
+        Some(step)
+    })
+}
+
+/// Prints the X11 surface line for a window of logical `size`.
+#[cfg(target_os = "linux")]
+fn stderr_report_x11(x: i32, y: i32, size: winit::dpi::LogicalSize<f64>) {
+    if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
+        stderr_line(&x11::surface_line(
+            x,
+            y,
+            size.width.round() as u32,
+            size.height.round() as u32,
+        ));
+    }
 }
 
 /// The last pointer position the shown layer catcher saw, in global logical
@@ -258,6 +305,16 @@ impl CustomApplicationHandler for FocusWatcher {
                     stderr_line(&format!("hive focus: {f}"));
                 }
                 focus_changed(*f)
+            }
+            #[cfg(target_os = "linux")]
+            winit::event::WindowEvent::Moved(_) if is_hive_window(slint_window) => {
+                if let Some(w) = _winit_window
+                    && let Some(x11::PlaceStep::Report((x, y))) = x11_place_step(w, true)
+                {
+                    X11_PLACE.with(|p| p.borrow_mut().take());
+                    WINDOW_REPORT.with(|c| c.set(None));
+                    stderr_report_x11(x, y, w.inner_size().to_logical(w.scale_factor()));
+                }
             }
             winit::event::WindowEvent::RedrawRequested => {
                 // The new surface exists by its first redraw, after its
@@ -1056,6 +1113,7 @@ impl Hive {
         #[cfg(target_os = "linux")]
         {
             inner.x11.position.set(x11_at);
+            X11_PLACE.with(|p| *p.borrow_mut() = x11_at.map(x11::PlaceCheck::new));
             ui.set_x11_plate(x11_at.is_some());
             if let Some((x, y)) = x11_at {
                 ui.window().set_position(slint::PhysicalPosition::new(x, y));
@@ -1093,6 +1151,21 @@ impl Hive {
     #[doc(hidden)]
     pub fn x11_position(&self) -> Option<(i32, i32)> {
         self.inner.x11.position.get()
+    }
+
+    /// The surface line of the last show on X11 from its planned position,
+    /// `None` after a show on any other session (S-116).
+    #[cfg(target_os = "linux")]
+    #[doc(hidden)]
+    pub fn x11_surface_line(&self) -> Option<String> {
+        let (x, y) = self.inner.x11.position.get()?;
+        let ui = self.inner.ui.borrow();
+        Some(x11::surface_line(
+            x,
+            y,
+            ui.get_win_w().round() as u32,
+            ui.get_win_h().round() as u32,
+        ))
     }
 
     /// The native handle of the shown hive window, for the foreground call.

@@ -93,3 +93,56 @@ pub fn x11_window_spec() -> WindowSpec {
 pub fn session_choice_line(session: Session) -> Option<String> {
     (session != Session::Wayland).then(|| choice_line(Surface::Window, "not a Wayland session"))
 }
+
+/// The window path's surface line, in screen pixels.
+pub fn surface_line(x: i32, y: i32, w: u32, h: u32) -> String {
+    format!("hive surface: window {x} {y} {w} {h}")
+}
+
+/// What the first frames of an X11 hive do about its position (S-116).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PlaceStep {
+    /// Ask the window manager to move the window here.
+    Move((i32, i32)),
+    /// The move was asked for and has not happened yet.
+    Wait,
+    /// Print the surface line with this position.
+    Report((i32, i32)),
+}
+
+/// A window manager may place a new window itself, so the planned position
+/// is asked for once more after the window is mapped.
+pub struct PlaceCheck {
+    target: (i32, i32),
+    requested: bool,
+}
+
+impl PlaceCheck {
+    pub fn new(target: (i32, i32)) -> Self {
+        Self {
+            target,
+            requested: false,
+        }
+    }
+
+    /// The position read on a frame.
+    pub fn seen(&mut self, actual: (i32, i32)) -> PlaceStep {
+        if actual == self.target {
+            PlaceStep::Report(actual)
+        } else if self.requested {
+            PlaceStep::Wait
+        } else {
+            self.requested = true;
+            PlaceStep::Move(self.target)
+        }
+    }
+
+    /// The position the window manager gave in a move event.
+    pub fn moved(&mut self, actual: (i32, i32)) -> PlaceStep {
+        if self.requested || actual == self.target {
+            PlaceStep::Report(actual)
+        } else {
+            PlaceStep::Wait
+        }
+    }
+}

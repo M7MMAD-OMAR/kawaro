@@ -1,5 +1,5 @@
 # S-114 A private X11 session for Kawaro: harness, live geometry, focus, budget
-Status: review (AC4 open: the hive is not placed at the pointer under xfwm4; AC9 drop open: no X11 drop path before S-115)
+Status: review (AC4 fixed by S-116; AC9 drop open: no X11 drop path before S-115)
 
 ## Story
 As the maintainer, I want one script that starts a private X session and measures the hive in it, so that the X11 path is verified for real without touching my desktop. Slice 2 of S-015, after S-113. The script is optional: it is a manual release step, and skips when Xvfb is missing.
@@ -52,3 +52,4 @@ Whether xfwm4 honours the requested position of an undecorated window, and wheth
   - AC9 open passes: median first frame 7.8 ms over 20 shows (cold exec to frame median 106 ms); `kawarod` RSS after 20 shows 37572 KB (limit 40960); the bench service RSS 34056 KB.
   - AC9 drop FAILS to measure: `hive_bench show --drop` on X11 answers `Error: Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }` for all 20 shows (cold exec to frame median 118 ms works). The drop show has no X11 path before S-115, so there is no drop median to compare with 150 ms.
   - AC2 passes: 8 started process ids, 0 alive after exit, no `wayland-*` file at any 1 s check, temporary directory removed.
+- 2026-10-31, implementer (S-116): AC4 now passes live under xfwm4. Cause: the position set before `show()` never became a size hint of the created window (`xprop WM_NORMAL_HINTS` had only a size), so xfwm4 centred it, and the old line printed an assumed centre. Fix: the planned position is asked for again with `set_outer_position` after the window is mapped, and the line is printed once the window is there. Live run: pointer (400, 500) logged `204 319 392 361`, server `204 319 392 361`, 500 ms later the same; (0, 0) `0 0 392 361` both; (1279, 799) `888 439 392 361` both (clamped to the root). Three different boxes, all inside 1280 x 800, none moved. AC5, AC6, AC7, AC8, AC2 still pass; AC9 open median 6.4 ms, RSS 38704 KB; AC9 drop still fails (S-115).

@@ -1,5 +1,5 @@
 # S-116 The X11 hive is placed where the plan says
-Status: approved (2026-10-31, manager)
+Status: review
 
 ## Story
 As a user on X11, I want the hive to open at my pointer, not at the screen centre. S-114 found that under xfwm4 the hive opens at the centre for every pointer while S-113 plans a different position per pointer, and that the `hive surface: window` line printed an assumed centre.
@@ -25,3 +25,4 @@ Window managers other than xfwm4; the X11 drop path (S-115).
 ## Review log
 - 2026-10-31, manager: found by S-114. Implementer: test first (`s116_tests.rs`), then the fix.
 - 2026-10-31, implementer diagnosis (live, private Xvfb and xfwm4): `xprop WM_NORMAL_HINTS` of the hive window shows only `user specified size` and no position hint, so xfwm4 centres the window; the position set before `show()` never reaches the window creation hints. The old line used `report_window`, which assumes a centred window.
+- 2026-10-31, implementer: done. `x11::PlaceCheck` asks for the planned position once after the window is mapped (redraw and move events, Linux X11 only); live `tests/x11/run.sh` AC4: (400, 500) -> `204 319`, (0, 0) -> `0 0`, (1279, 799) -> `888 439`, each equal to the server geometry; run.sh also asserts three different boxes. Status set to review.
