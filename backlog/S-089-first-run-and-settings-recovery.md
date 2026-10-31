@@ -1,5 +1,6 @@
 # S-089 First run and settings recovery
-Status: draft, implementation and live verification pending.
+Status: done except AC7 (S-109) and the live Windows run (manual, not run)
+Remainder, the per-criterion test map and the AC3 supersession by S-094c: `backlog/S-109-first-run-remainder.md`.
 
 ## Story
 As a new Kawaro user, I want to choose Arabic or English before the introduction, understand the real workflow from a useful video, and control settings in one reliable window, so I can use and trust the application.

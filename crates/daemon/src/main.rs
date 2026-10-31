@@ -64,6 +64,8 @@ mod s108_tests;
 #[cfg(test)]
 mod s108b_tests;
 #[cfg(test)]
+mod s109_tests;
+#[cfg(test)]
 mod server_tests;
 #[cfg(test)]
 mod shell_logic_tests;
