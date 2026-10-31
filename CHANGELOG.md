@@ -4,10 +4,14 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-31
+
 ### Added
-- X11 support, still not released ([S-113](backlog/S-113-x11-hive-window.md) to [S-115](backlog/S-115-x11-drop-cell-and-docs.md)): `kawaro drop` on X11 opens the hive at the screen centre, always on top, and a file dragged onto a cell runs that action and leaves the original untouched (checked 3 of 3 in a private X session, `tests/x11/drop.sh`), with X11 sections in the drop shortcut docs | دعم X11 ولم يصدر بعد (S-113 إلى S-115): الأمر `kawaro drop` على X11 يفتح الخلية في منتصف الشاشة فوق النوافذ، والملف المسحوب إلى خلية ينفّذ إجراءها ويترك الأصل دون مساس (فُحص 3 من 3 في جلسة X خاصة، `tests/x11/drop.sh`)، مع قسم X11 في وثائق اختصار الإفلات
-- A private X11 session check script, `tests/x11/run.sh`, run by hand before 0.5.0 ([S-114](backlog/S-114-x11-private-session-checks.md)); its live finding, the hive not placed at the pointer under xfwm4, is fixed by S-116 | سكربت فحص جلسة X11 خاصة `tests/x11/run.sh` يُشغَّل يدويا قبل 0.5.0؛ نتيجة حية أُصلحت في S-116: الخلية لم تكن توضع عند المؤشر تحت xfwm4
-- X11 support in progress, not released ([S-113](backlog/S-113-x11-hive-window.md)): on an X11 session the hive window is placed at the pointer and kept inside the screen, with an opaque `surface-0` plate; the live pointer check is S-114 | دعم X11 قيد التنفيذ ولم يصدر بعد: على جلسة X11 تُوضع نافذة الخلية عند المؤشر وتبقى داخل الشاشة مع لوح معتم بلون `surface-0`، والتحقق الحي من المؤشر في S-114
+- X11 support ([S-113](backlog/S-113-x11-hive-window.md) to [S-116](backlog/S-116-x11-placement-applied.md)): on an X11 session the hive is an ordinary window at the pointer, kept inside the screen, with an opaque `surface-0` plate; `kawaro drop` opens the hive always on top, and a file dragged onto a cell runs that action and leaves the original untouched. Checked only in a private virtual X session with xfwm4, not on a real GNOME or KDE X11 desktop | دعم X11: على جلسة X11 تكون الخلية نافذة عادية عند المؤشر وتبقى داخل الشاشة مع لوح معتم بلون `surface-0`؛ ويفتح `kawaro drop` الخلية فوق النوافذ، والملف المسحوب إلى خلية ينفّذ إجراءها ويترك الأصل دون مساس. فُحص في جلسة X افتراضية خاصة مع xfwm4 فقط، لا على سطح مكتب GNOME أو KDE حقيقي على X11
+- A private X11 session check script, `tests/x11/run.sh`, run by hand before the release ([S-114](backlog/S-114-x11-private-session-checks.md)): placement, focus, dismissal, plate and the 150 ms budget, plus `tests/x11/drop.sh` for the drop | سكربت فحص جلسة X11 خاصة `tests/x11/run.sh` يُشغَّل يدويا قبل الإصدار: الموضع والتركيز والإغلاق واللوح وميزانية 150 مللي ثانية، مع `tests/x11/drop.sh` للإفلات
+
+### Fixed
+- Under xfwm4 the X11 hive opened at the screen centre for every pointer and the `hive surface: window` line printed an assumed centre ([S-116](backlog/S-116-x11-placement-applied.md)): the window is now asked once to move to the planned position after it is mapped, and the line reports the real position | تحت xfwm4 كانت خلية X11 تفتح في منتصف الشاشة مهما كان المؤشر، وكان سطر `hive surface: window` يطبع منتصفا مفترضا: تُطلب الآن من النافذة حركة واحدة إلى الموضع المخطط بعد إظهارها، ويذكر السطر موضعها الحقيقي
 
 ## [0.4.8] - 2026-10-31
 

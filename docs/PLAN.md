@@ -6,7 +6,7 @@ The original planning document was never exported, so this plan rebuilds it from
 
 **Now:** 0.4.8 is the current release (tag v0.4.8, 2026-10-31). apt and Scoop publish on every tag. WinGet ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) passed all automated checks and waits for a volunteer moderator since 2026-10-27. AUR and COPR need an account only a person can create, so they stay skipped. The maintainer has no code signing certificate and no identity document usable for the Microsoft Store verification, so the Windows build stays self-signed (SmartScreen warns); the Store, SignPath and a paid certificate are parked, not planned for now.
 
-**Remaining engineering:** S-082 (GNOME and KDE focus test, needs a virtual machine), 0.5.0 X11 (S-015), 0.6.0 Windows native work, S-078 (AppStream and AUR), S-016 and S-017 (glass hive), S-077 (hive position from a normal open, needs a reproduction first).
+**Remaining engineering:** S-082 (GNOME and KDE focus test, needs a virtual machine), a real desktop X11 check (0.5.0 was checked only in a private virtual X session with xfwm4), 0.6.0 Windows native work, S-078 (AppStream and AUR), S-016 and S-017 (glass hive), S-077 (hive position from a normal open, needs a reproduction first).
 
 | Release | State |
 | --- | --- |
@@ -26,7 +26,7 @@ The original planning document was never exported, so this plan rebuilds it from
 | 0.4.6 | Released 2026-10-31: the hive explains why a file has no actions (S-096, S-108): unsupported format, missing engine, mixed selection, greyed cells, a request cell that opens a prefilled issue link only on click, and a suggestion line; plus a settings window foreground repeat cleanup (S-107 follow-up). Known gaps: the manual hive screenshots and timing check (S-108 M1 to M3) were not run; on Hyprland 0.57 `kawaro drop` without `--at` can swallow the first click (S-105); the Windows build is still self-signed; the GNOME and KDE focus test is pending |
 | 0.4.7 | Released 2026-10-31 (tag v0.4.7): on Hyprland 0.57 `kawaro drop` without `--at` no longer swallows the first click (S-105), checked in a private Hyprland 0.57 harness; the flaky update poll test is fixed in test code. Unchecked: the S-108 manual screenshot, 150 ms timing and Windows Explorer mixed selection checks (M1 to M3) and the S-105 KWin and drop budget scripts were not run; the Windows build is still self-signed; the GNOME and KDE focus test is pending |
 | 0.4.8 | Released 2026-10-31 (tag v0.4.8): About page actions (S-094b), one notification choice Off, All or Long (S-109), `kawaro open --at` and the Hyprland launcher pointer position (S-110), `kawaro doctor --repair` with the generated Hyprland bind and the `drop key state:` line (S-111), AppStream icon, screenshots and Arabic notes with one install command source and a signed checksums job that stays idle until configured (S-112). Known gaps: the S-094b real clipboard checks on desktops, S-108 M1 to M3, the S-110 and S-111 nested Hyprland and live session checks and the S-105 KWin scripts were not run; the Windows build is still self-signed; the GNOME and KDE focus test is pending; the first tag run of the signed checksums job uploaded `SHA256SUMS.asc`, and a local verify passed |
-| 0.5.0 "X11" | Planned: S-015 |
+| 0.5.0 "X11" | Released 2026-10-31 (tag v0.5.0): X11 support, the hive as a window at the pointer (S-113), private session checks `tests/x11/run.sh` (S-114), the drop cell and X11 docs (S-115), placement applied after map (S-116). Checked only in a private virtual X session with Xvfb and xfwm4. Known gaps: no real GNOME or KDE X11 desktop, no other window manager, Shift as a move request and Nautilus or Dolphin as drag sources not checked; the Windows build is still self-signed; the GNOME and KDE Wayland focus test is pending |
 | 0.6.0 "Windows" | Planned: starts with ADR 0005 |
 
 Each release has a `vX.Y.Z` tag and a GitHub release page with its packages. Changes are in `CHANGELOG.md`, known limits in the repo's issues.
@@ -156,7 +156,7 @@ Goal: the hive and drop work in an X11 session, with the hive at the pointer as 
 | Testing | A headless X server and a temporary HOME, never a live desktop |
 | Release check | `tests/x11/run.sh` (S-114) is run by hand before the 0.5.0 tag, and its output is kept in the release notes |
 
-Story: S-015 (draft). Out of scope: Windows, macOS.
+Stories: S-113 to S-116 (done), parent S-015. Released as 0.5.0. Out of scope: Windows, macOS.
 
 ## 0.6.0 "Windows"
 
