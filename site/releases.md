@@ -1,6 +1,13 @@
 # الإصدارات
 
-## 0.4.7
+## 0.4.8
+
+## 0.4.8 (2026-10-31)
+- App store metadata and one source for install commands ([S-112](backlog/S-112-appstream-and-install-commands.md))
+- `kawaro doctor --repair` writes, updates and reports the Hyprland Alt drag bind in a Kawar
+- `kawaro open --at X,Y` and the Hyprland launcher open the hive at the pointer ([S-110](backlog/S-110-open-at-position.md))
+- One notification choice with three options and a recorded S-089 test map ([S-109](backlog/S-109-first-run-remainder.md))
+- The About page opens the website and the source code, copies the version and jumps to upda
 
 ## 0.4.7 (2026-10-31)
 - On Hyprland 0.57 a click made while the hive is armed by `kawaro drop` without `--at` now 
