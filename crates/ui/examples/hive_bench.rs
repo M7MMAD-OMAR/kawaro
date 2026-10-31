@@ -89,7 +89,13 @@ fn present(
 /// the layer path has a catcher; elsewhere the first frame stands in.
 #[cfg(target_os = "linux")]
 fn after_catcher_ready(f: impl FnOnce() + 'static) {
-    kawaro_ui::after_catcher_ready(f);
+    // No Wayland socket: the X11 window path (S-114 AC9) has no catcher, so
+    // the first frame of the drop hive stands in, as on Windows.
+    if std::env::var_os("WAYLAND_DISPLAY").is_none_or(|v| v.is_empty()) {
+        kawaro_ui::after_next_frame(f);
+    } else {
+        kawaro_ui::after_catcher_ready(f);
+    }
 }
 
 #[cfg(not(target_os = "linux"))]

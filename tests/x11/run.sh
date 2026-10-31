@@ -365,7 +365,7 @@ for mode in open drop; do
   out="$(env -u CARGO_TARGET_DIR X11=1 "${extra[@]}" "$ROOT/crates/ui/tests/measure.sh" 20 2 2>&1)"
   echo "$out" | sed 's/^/    measure /' | tail -12
   med="$(grep 'warm first_frame_ms median' <<<"$out" | awk '{print $4}')"
-  if [ -z "$med" ]; then
+  if [ -z "$med" ] || [ "$med" = none ]; then
     med="$(grep 'warm catcher_ms median' <<<"$out" | awk '{print $4}')"
   fi
   med_int="${med%.*}"
