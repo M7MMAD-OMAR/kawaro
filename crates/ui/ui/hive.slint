@@ -62,6 +62,10 @@ export component HiveWindow inherits Window {
     // Glass surfaces (`Tokens.glass-2` and `Tokens.glass-3`), on only over
     // a compositor blur (S-017 AC13); opaque everywhere else.
     in-out property <bool> glass: false;
+    // X11 only (S-113): an opaque `surface-0` plate under the hive, because
+    // an X11 session has no compositor to count on. No shadow, no gradient,
+    // no transparency.
+    in property <bool> x11-plate: false;
 
     // Index into `cells` under the point, -1 for nothing.
     callback pick(length, length) -> int;
@@ -88,6 +92,15 @@ export component HiveWindow inherits Window {
     // press (S-017: it takes the press scale). Set from the touch handlers
     // below: `pick` is a callback and cannot run in a binding.
     property <int> pressed-cell: -1;
+
+    if root.x11-plate: plate := Rectangle {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        background: Tokens.surface-0;
+        accessible-role: none;
+    }
 
     layer := Rectangle {
         // The close (S-017c): the whole hive fades to

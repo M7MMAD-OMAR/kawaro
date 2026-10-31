@@ -1,5 +1,5 @@
 # S-113 The hive window at the pointer on X11, decided by pure functions
-Status: approved (2026-10-31, manager)
+Status: review
 
 ## Story
 As a user on an X11 session, I want the hive to open at my pointer, kept inside the screen, so that it appears where I work. Slice 1 of S-015 (decisions 1, 4 and 5 there). Everything here runs in the fast loop with no display; the real `XQueryPointer` call is checked by S-114.
@@ -45,3 +45,6 @@ Focus, Esc, live geometry and timing (S-114); the drop cell (S-115); several mon
   - `cargo test -p kawaro-ui --test s113_sources`: 4 failed, 0 passed: `ac7_x11rb_is_a_plain_linux_only_direct_dependency_of_ui` (no x11rb in the Linux table), `ac7_cargo_lock_keeps_its_package_count_and_x11rb_0_13_2` (kawaro-ui does not depend on x11rb), `ac7_engines_md_has_the_x11rb_row` (no row), `ac8_only_the_live_pointer_adapter_is_excluded_from_mutants` (no `live check S-114` reason).
   - `cargo fmt --check` clean. Clippy `-D warnings` on the new files runs after the hooks exist.
   - Existing tests the implementer must adapt: none by content. Mechanical: none expected (S-074 tests must pass unedited).
+- 2026-10-31, implementer: STOPPED, not committed. Everything is built (session.rs, x11.rs, x11_pointer.rs, `next_line`, `x11-plate`, `set_session`, `x11_position`, the X11 window attributes in `token_hook`, the Linux only `x11rb` dependency with an unchanged Cargo.lock count, the engines.md row, the mutants exclusion), and 265 of 266 lib tests pass. Two test problems:
+  - `s113_tests::ac2_every_pointer_keeps_the_box_on_the_root_and_matches_plan_at` cannot pass with `anchor_tests` (S-019c AC4). At pointer (1279, 799) on 1280 x 800 `plan_at` itself returns `Placement { x: 888, y: 439, destination: (393, 362) }`, so the box ends at x = 1281. The test asserts both `x + w <= 1280` and equality with the unchanged `plan_at` shape, while `anchor_tests` pins the centre cell within 0.5 px of the clamped anchor. The overflow comes from rounding the position to the nearest pixel and the width up (the true right edge is exactly the screen edge, `ceil(width)` adds up to 1 px). Pulling the box back by 1 px in `plan_at` (tried) breaks `anchor_tests::ac4_every_case_at_scale_1` and `_1_5`. Decision needed: relax the bound by 1 px in the s113 test, or let `anchor_tests` accept 1 px, or define the plan for the box fit (a `plan_at` change owned by S-019c).
+  - `crates/ui/src/s113_tests.rs:87`: `clippy::type_complexity` on the return type of `shape` fails `cargo clippy --all-targets -D warnings`. Fix in the test file (a `type` alias).

@@ -121,6 +121,12 @@ pub fn choice_line(surface: Surface, reason: &str) -> String {
     format!("hive surface choice: {kind}, {reason}")
 }
 
+/// `line` when it differs from the `previous` one printed, else `None`, so a
+/// choice that did not change prints once (S-113 AC4).
+pub fn next_line(previous: Option<&str>, line: &str) -> Option<String> {
+    (previous != Some(line)).then(|| line.to_string())
+}
+
 /// The hive on the overlay, in logical pixels except `buffer`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Placement {

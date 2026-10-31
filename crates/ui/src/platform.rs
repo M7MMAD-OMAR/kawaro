@@ -29,6 +29,11 @@ pub(crate) fn building_hive(on: bool) {
     HIVE_BUILD.with(|c| c.set(on));
 }
 
+/// The window being made is the hive and the session is X11 (S-113).
+pub(crate) fn hive_window_on_x11() -> bool {
+    HIVE_BUILD.with(Cell::get) && crate::session::current() == crate::session::Session::X11
+}
+
 pub(crate) struct Wrap {
     pub winit: i_slint_backend_winit::Backend,
 }

@@ -46,6 +46,8 @@ mod platform;
 mod preview;
 #[cfg(target_os = "linux")]
 mod receiver;
+#[cfg(target_os = "linux")]
+mod session;
 mod settings;
 mod shell;
 #[cfg(unix)]
@@ -53,6 +55,10 @@ pub mod thumb;
 pub mod welcome;
 #[cfg(windows)]
 mod win_window;
+#[cfg(target_os = "linux")]
+mod x11;
+#[cfg(target_os = "linux")]
+mod x11_pointer;
 mod tokens {
     include!(concat!(env!("OUT_DIR"), "/tokens.rs"));
 }
@@ -289,6 +295,20 @@ fn token_hook(attrs: winit::window::WindowAttributes) -> winit::window::WindowAt
     use winit::window::ActivationToken;
     // The hive has no plate (S-074): ask for an alpha surface so the
     // transparent window background shows the desktop.
+    #[cfg(target_os = "linux")]
+    if platform::hive_window_on_x11() {
+        // S-113: the X11 hive is plain, on top and opaque.
+        use winit::window::WindowLevel;
+        let spec = x11::x11_window_spec();
+        return attrs
+            .with_decorations(spec.decorations)
+            .with_transparent(spec.transparent)
+            .with_window_level(if spec.always_on_top {
+                WindowLevel::AlwaysOnTop
+            } else {
+                WindowLevel::Normal
+            });
+    }
     let attrs = attrs.with_transparent(true);
     let token = PENDING_TOKEN.lock().ok().and_then(|mut t| t.take());
     match token {
@@ -415,7 +435,26 @@ struct Inner {
     /// Where `present_files` looks for thumbnails and file kinds.
     #[cfg(unix)]
     preview_source: RefCell<Option<(PathBuf, thumb::Globs)>>,
+    /// The display system and where X11 reads the pointer (S-113).
+    #[cfg(target_os = "linux")]
+    x11: X11State,
 }
+
+/// What the X11 window path keeps between shows (S-113).
+#[cfg(target_os = "linux")]
+struct X11State {
+    session: Cell<session::Session>,
+    source: RefCell<Box<dyn x11::PointerSource>>,
+    log: RefCell<x11::PointerLog>,
+    /// The position set by the last show on X11.
+    position: Cell<Option<(i32, i32)>>,
+    /// The last surface choice line printed.
+    line: RefCell<Option<String>>,
+}
+
+/// The root size used to centre the hive when the pointer is unreadable.
+#[cfg(target_os = "linux")]
+const X11_FALLBACK_ROOT: (u32, u32) = (1280, 800);
 
 impl Inner {
     fn visible(&self) -> bool {
@@ -759,6 +798,14 @@ impl Hive {
             found: Cell::new(0),
             #[cfg(unix)]
             preview_source: RefCell::new(None),
+            #[cfg(target_os = "linux")]
+            x11: X11State {
+                session: Cell::new(session::current()),
+                source: RefCell::new(Box::new(x11_pointer::Live)),
+                log: RefCell::new(x11::PointerLog::default()),
+                position: Cell::new(None),
+                line: RefCell::new(None),
+            },
         });
         wire(&inner);
         let w = Rc::downgrade(&inner);
@@ -907,7 +954,27 @@ impl Hive {
         let inner = &self.inner;
         #[cfg(windows)]
         let (plan, win_at) = win_window::plan(cells.clone(), inner.rtl, min_rings);
-        #[cfg(not(windows))]
+        #[cfg(all(not(windows), target_os = "linux"))]
+        let on_x11 = inner.x11.session.get() == session::Session::X11;
+        #[cfg(all(not(windows), target_os = "linux"))]
+        let (plan, x11_at) = if on_x11 {
+            let (plan, at) = x11::plan_with(
+                &**inner.x11.source.borrow(),
+                X11_FALLBACK_ROOT,
+                cells.clone(),
+                inner.rtl,
+                min_rings,
+                &mut inner.x11.log.borrow_mut(),
+                &mut |l| stderr_line(l),
+            );
+            (plan, Some((at.x, at.y)))
+        } else {
+            (
+                layout::plan_rings(cells.clone(), inner.rtl, min_rings),
+                None,
+            )
+        };
+        #[cfg(all(not(windows), not(target_os = "linux")))]
         let plan = layout::plan_rings(cells.clone(), inner.rtl, min_rings);
         if inner.visible() {
             // Hide first so the old surface goes away before the new one.
@@ -986,6 +1053,22 @@ impl Hive {
         ui.set_closing(false);
         #[cfg(windows)]
         ui.window().set_position(win_at);
+        #[cfg(target_os = "linux")]
+        {
+            inner.x11.position.set(x11_at);
+            ui.set_x11_plate(x11_at.is_some());
+            if let Some((x, y)) = x11_at {
+                ui.window().set_position(slint::PhysicalPosition::new(x, y));
+            }
+            if on_x11 {
+                let mut previous = inner.x11.line.borrow_mut();
+                let line = x11::session_choice_line(session::Session::X11);
+                if let Some(next) = line.and_then(|l| overlay::next_line(previous.as_deref(), &l)) {
+                    stderr_line(&next);
+                    *previous = Some(next);
+                }
+            }
+        }
         ui.show()?;
         #[cfg(windows)]
         win_window::square_corners(ui.window());
@@ -993,6 +1076,23 @@ impl Hive {
             inner.open();
         }
         Ok(())
+    }
+
+    /// Replaces the session read from the environment and where X11 reads
+    /// the pointer (S-113).
+    #[cfg(target_os = "linux")]
+    #[doc(hidden)]
+    pub fn set_session(&self, session: session::Session, source: Box<dyn x11::PointerSource>) {
+        self.inner.x11.session.set(session);
+        *self.inner.x11.source.borrow_mut() = source;
+    }
+
+    /// The window position of the last show on X11, `None` after a show on
+    /// any other session (S-113).
+    #[cfg(target_os = "linux")]
+    #[doc(hidden)]
+    pub fn x11_position(&self) -> Option<(i32, i32)> {
+        self.inner.x11.position.get()
     }
 
     /// The native handle of the shown hive window, for the foreground call.

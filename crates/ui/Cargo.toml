@@ -33,6 +33,9 @@ wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }
 # Screen reader state from org.a11y.Status (S-018 AC12). Same version
 # accesskit and the daemon's tray already pull in, so no new packages.
 zbus = { version = "5.19.0", default-features = false, features = ["async-io", "blocking-api"] }
+# The pointer on X11 (S-113): XQueryPointer on the root window. Same version
+# winit already pulls in, so no new package.
+x11rb = "0.13.2"
 
 # The Windows hive window (S-046): cursor, monitors, DPI and the corner
 # attribute. Already in Cargo.lock through other crates, so no new package.

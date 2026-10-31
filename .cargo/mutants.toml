@@ -69,7 +69,10 @@
 # The rename plan and the REG_SZ bytes stay mutated in identity.rs. The two
 # build scripts (S-085 AC1) only act for a Windows target; the resource they
 # embed is read back from the built exes by tests/windows/test_s085.sh.
+# The live X11 pointer query (S-113): XQueryPointer on a running X server;
+# live check S-114. Its pure decisions stay mutated in x11.rs and session.rs.
 exclude_globs = [
+  "crates/ui/src/x11_pointer.rs",
   "crates/core/src/identity/windows.rs",
   "crates/cli/build.rs",
   "crates/daemon/build.rs",
