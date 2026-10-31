@@ -451,6 +451,14 @@ fn slint_tokens(t: &Value) -> String {
     )
     .unwrap();
     writeln!(s, "    out property <float> press-scale-to: {press_scale};").unwrap();
+    // A feedback time, not an animation: it does not collapse with reduced
+    // motion (the label swap itself needs no frame).
+    writeln!(
+        s,
+        "    out property <duration> copied-feedback: {}ms;",
+        num(t, &["motion", "copied-feedback", "duration-ms"])
+    )
+    .unwrap();
     writeln!(
         s,
         "    out property <duration> hive-close: reduced-motion ? 0ms : {hive_close_duration}ms;"

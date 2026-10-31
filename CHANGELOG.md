@@ -4,6 +4,9 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+### Added
+- The About page opens the website and the source code, copies the version and jumps to update checking ([S-094b](backlog/S-094b-about-page-actions.md)): two link buttons, a Copy version button that reads Copied for two seconds, and a Check for updates button that opens the Updates page and starts the check | صفحة حول تفتح الموقع والشيفرة المصدرية وتنسخ رقم الإصدار وتنتقل إلى البحث عن التحديث: زرّا رابطين وزر انسخ الإصدار يظهر تم النسخ لثانيتين وزر ابحث عن تحديث يفتح صفحة التحديثات ويبدأ البحث
+
 ## [0.4.7] - 2026-10-31
 
 ### Fixed

@@ -4,7 +4,56 @@
 //! the behaviour tests read (`tests/s094_shell.rs`).
 
 use crate::Lang;
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// A handler of the About actions: gets the resolved address or the text to
+/// copy. Both are injected by the daemon; this crate never opens or copies.
+pub(crate) type AboutFn = Rc<dyn Fn(&str)>;
+
+/// The two injected handlers of the About page (S-094b).
+#[derive(Default)]
+pub(crate) struct AboutHandlers {
+    pub(crate) link: RefCell<Option<AboutFn>>,
+    pub(crate) copy: RefCell<Option<AboutFn>>,
+}
+
+impl AboutHandlers {
+    /// An About link was pressed. An id the core does not know opens nothing.
+    pub(crate) fn open_link(&self, id: &str) {
+        let (Some(url), Some(f)) = (kawaro_core::about::link_url(id), self.link.borrow().clone())
+        else {
+            return;
+        };
+        f(url);
+    }
+
+    pub(crate) fn copy_version(&self) {
+        let f = self.copy.borrow().clone();
+        if let Some(f) = f {
+            f(&kawaro_core::about::copy_text(env!("CARGO_PKG_VERSION")));
+        }
+    }
+}
+
+/// The handler setters both windows expose.
+macro_rules! about_api {
+    ($t:ty) => {
+        impl $t {
+            /// Called with the address of an About link the user pressed.
+            pub fn on_open_link(&self, f: impl Fn(&str) + 'static) {
+                *self.inner.about.link.borrow_mut() = Some(std::rc::Rc::new(f));
+            }
+
+            /// Called with the text Copy version puts on the clipboard.
+            pub fn on_copy_version(&self, f: impl Fn(&str) + 'static) {
+                *self.inner.about.copy.borrow_mut() = Some(std::rc::Rc::new(f));
+            }
+        }
+    };
+}
+pub(crate) use about_api;
 
 /// A rectangle in logical px, in window coordinates.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -49,6 +98,7 @@ pub fn privacy_statement(lang: Lang) -> String {
 pub(crate) mod probe {
     use super::Rect;
     use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementRoot};
+    use slint::ComponentHandle;
 
     fn rect(e: &ElementHandle) -> Rect {
         let p = e.absolute_position();
@@ -223,6 +273,111 @@ pub(crate) mod probe {
             .collect()
     }
 
+    /// The buttons of the About page, in reading order: the two links, Copy
+    /// version, Check for updates (the row reverses in Arabic).
+    pub(crate) fn about_buttons(
+        root: &(impl ElementRoot + ComponentHandle),
+        rtl: bool,
+    ) -> Vec<(String, Rect)> {
+        let footer = rect_of(root, "AppShell::footer");
+        let column = rect_of(root, "AppShell::column");
+        let mut out: Vec<(String, Rect)> = all(root)
+            .iter()
+            .filter(|e| e.accessible_role() == Some(AccessibleRole::Button))
+            .map(|e| {
+                (
+                    e.accessible_label().unwrap_or_default().to_string(),
+                    rect(e),
+                )
+            })
+            .filter(|(_, r)| r.x >= column.x - 0.5 && r.x + r.w <= column.x + column.w + 0.5)
+            .filter(|(_, r)| footer.w == 0.0 || r.y + r.h <= footer.y + 0.5)
+            .collect();
+        out.sort_by(|a, b| a.1.x.total_cmp(&b.1.x));
+        if rtl {
+            out.reverse();
+        }
+        out
+    }
+
+    fn button_named(root: &impl ElementRoot, label: &str) -> Option<ElementHandle> {
+        ElementHandle::find_by_accessible_label(root, label).next()
+    }
+
+    fn centre(e: &ElementHandle) -> slint::LogicalPosition {
+        let r = rect(e);
+        slint::LogicalPosition::new(r.x + r.w / 2.0, r.y + r.h / 2.0)
+    }
+
+    /// A real click at the centre of the element with this label.
+    pub(crate) fn press_label(root: &(impl ElementRoot + ComponentHandle), label: &str) -> bool {
+        use slint::platform::{PointerEventButton, WindowEvent};
+        let Some(e) = button_named(root, label) else {
+            return false;
+        };
+        let position = centre(&e);
+        let w = root.window();
+        w.dispatch_event(WindowEvent::PointerMoved { position });
+        w.dispatch_event(WindowEvent::PointerPressed {
+            position,
+            button: PointerEventButton::Left,
+        });
+        w.dispatch_event(WindowEvent::PointerReleased {
+            position,
+            button: PointerEventButton::Left,
+        });
+        w.dispatch_event(WindowEvent::PointerExited);
+        true
+    }
+
+    /// Moves the focus with Tab to the About button with this label (the
+    /// buttons are the first focusable things of the page, in tree order,
+    /// which is left to right on screen), then sends Return.
+    pub(crate) fn enter_on_label(root: &(impl ElementRoot + ComponentHandle), label: &str) -> bool {
+        use slint::platform::{Key, WindowEvent};
+        let Some(i) = about_buttons(root, false)
+            .iter()
+            .position(|(l, _)| l == label)
+        else {
+            return false;
+        };
+        let w = root.window();
+        let press = |key: Key| {
+            let text: slint::SharedString = key.into();
+            w.dispatch_event(WindowEvent::KeyPressed { text: text.clone() });
+            w.dispatch_event(WindowEvent::KeyReleased { text });
+        };
+        // From the page scope, the first Tab reaches the first About button.
+        for _ in 0..=i {
+            press(Key::Tab);
+        }
+        press(Key::Return);
+        true
+    }
+
+    /// The third About button is Copy version, the fourth Check for updates.
+    pub(crate) fn about_label(
+        root: &(impl ElementRoot + ComponentHandle),
+        rtl: bool,
+        i: usize,
+    ) -> String {
+        about_buttons(root, rtl)
+            .get(i)
+            .map(|b| b.0.clone())
+            .unwrap_or_default()
+    }
+
+    pub(crate) fn about_enabled(
+        root: &(impl ElementRoot + ComponentHandle),
+        rtl: bool,
+        i: usize,
+    ) -> bool {
+        let Some((label, _)) = about_buttons(root, rtl).into_iter().nth(i) else {
+            return false;
+        };
+        button_named(root, &label).is_some_and(|e| e.accessible_enabled().unwrap_or(true))
+    }
+
     /// Interactive elements, rail items and the logo with an empty label.
     pub(crate) fn unlabelled_controls(root: &impl ElementRoot) -> usize {
         use AccessibleRole::*;
@@ -281,6 +436,17 @@ macro_rules! shell_probes {
             #[doc(hidden)]
             pub fn select_page(&self, i: usize) {
                 crate::shell::probe::select_tab(&*self.inner.ui.borrow(), i);
+                // Settle the layout (the page's repeaters instantiate on the first
+                // reads), so the extents read right after the switch are current.
+                slint::platform::update_timers_and_animations();
+                let ui = self.inner.ui.borrow();
+                for _ in 0..3 {
+                    let _ = (
+                        ui.get_scroll_content_height(),
+                        ui.get_scroll_visible_height(),
+                    );
+                    let _ = crate::shell::probe::rect_of(&*ui, "AppShell::column");
+                }
             }
 
             #[doc(hidden)]
@@ -417,6 +583,54 @@ macro_rules! shell_probes {
             #[doc(hidden)]
             pub fn save_row_visible(&self) -> bool {
                 crate::shell::probe::exists(&*self.inner.ui.borrow(), "AppShell::footer")
+            }
+
+            #[doc(hidden)]
+            pub fn open_link(&self, id: &str) {
+                self.inner.ui.borrow().invoke_open_link(id.into());
+            }
+
+            #[doc(hidden)]
+            pub fn about_buttons(&self) -> Vec<(String, crate::Rect)> {
+                crate::shell::probe::about_buttons(&*self.inner.ui.borrow(), self.inner.is_rtl())
+            }
+
+            #[doc(hidden)]
+            pub fn press_label(&self, label: &str) -> bool {
+                crate::shell::probe::press_label(&*self.inner.ui.borrow(), label)
+            }
+
+            #[doc(hidden)]
+            pub fn enter_on_label(&self, label: &str) -> bool {
+                // The page scope is a known starting point for the Tab walk.
+                self.inner.ui.borrow().invoke_focus_page();
+                crate::shell::probe::enter_on_label(&*self.inner.ui.borrow(), label)
+            }
+
+            #[doc(hidden)]
+            pub fn press_copy_version(&self) {
+                let label = self.copy_button_text();
+                self.press_label(&label);
+            }
+
+            #[doc(hidden)]
+            pub fn copy_button_text(&self) -> String {
+                crate::shell::probe::about_label(&*self.inner.ui.borrow(), self.inner.is_rtl(), 2)
+            }
+
+            #[doc(hidden)]
+            pub fn press_about_check(&self) {
+                let label = crate::shell::probe::about_label(
+                    &*self.inner.ui.borrow(),
+                    self.inner.is_rtl(),
+                    3,
+                );
+                self.press_label(&label);
+            }
+
+            #[doc(hidden)]
+            pub fn about_check_enabled(&self) -> bool {
+                crate::shell::probe::about_enabled(&*self.inner.ui.borrow(), self.inner.is_rtl(), 3)
             }
 
             #[doc(hidden)]

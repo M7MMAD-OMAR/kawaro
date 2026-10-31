@@ -120,6 +120,7 @@ struct Inner {
     on_language: RefCell<Option<LanguageSave>>,
     update: RefCell<UpdateModel>,
     on_update_check: RefCell<Option<Callback>>,
+    pub(crate) about: crate::shell::AboutHandlers,
     on_update_apply: RefCell<Option<Callback>>,
     timer: slint::Timer,
     /// Fires `poll_tick` while the window is open (S-099 B3).
@@ -164,6 +165,10 @@ impl Inner {
         ui.on_update_check(move || with(&w, Inner::update_check));
         let w = Rc::downgrade(self);
         ui.on_update_apply(move || with(&w, Inner::update_apply));
+        let w = Rc::downgrade(self);
+        ui.on_open_link(move |id| with(&w, |i| i.about.open_link(&id)));
+        let w = Rc::downgrade(self);
+        ui.on_copy_version(move || with(&w, |i| i.about.copy_version()));
         let w = Rc::downgrade(self);
         ui.on_film_toggle(move || {
             if let Some(inner) = w.upgrade() {
@@ -523,6 +528,7 @@ impl WelcomeWindow {
             on_language: RefCell::new(None),
             update: RefCell::new(UpdateModel::default()),
             on_update_check: RefCell::new(None),
+            about: Default::default(),
             on_update_apply: RefCell::new(None),
             timer: slint::Timer::default(),
             poll_timer: slint::Timer::default(),
@@ -836,6 +842,16 @@ impl WelcomeWindow {
         self.film_rect().map_or((0, 0), |r| {
             ((r.w * scale).round() as u32, (r.h * scale).round() as u32)
         })
+    }
+}
+
+crate::shell::about_api!(WelcomeWindow);
+
+#[cfg(feature = "testing-hooks")]
+impl WelcomeWindow {
+    #[doc(hidden)]
+    pub fn update_check_enabled(&self) -> bool {
+        self.inner.ui.borrow().get_settings_update_check_enabled()
     }
 }
 

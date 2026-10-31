@@ -65,9 +65,14 @@ export component SettingsUi inherits MaterialWindow {
     callback language-selected();
     callback update-check();
     callback update-apply();
+    callback open-link(string);
+    callback copy-version();
     callback page-changed(int);
     public function focus-rail() {
         shell.focus-rail();
+    }
+    public function focus-page() {
+        shell.focus-page();
     }
     title: "Kawaro";
     default-font-family: Tokens.font-family;
@@ -85,6 +90,8 @@ export component SettingsUi inherits MaterialWindow {
         language-selected => { root.language-selected(); }
         update-check => { root.update-check(); }
         update-apply => { root.update-apply(); }
+        open-link(id) => { root.open-link(id); }
+        copy-version => { root.copy-version(); }
         page-changed(p) => { root.page-changed(p); }
     }
 }

@@ -3,6 +3,7 @@
 //! The contracts in [`engine`], [`action`] and [`ipc`] are the boundary
 //! between crates. Change them only with an ADR.
 
+pub mod about;
 pub mod action;
 mod action_impl;
 pub mod appid;

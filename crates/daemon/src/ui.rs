@@ -18,7 +18,7 @@ use kawaro_core::queue::Queue;
 #[cfg(unix)]
 use kawaro_ui::thumb;
 use kawaro_ui::welcome::WelcomeWindow;
-use kawaro_ui::{Hive, HiveCell};
+use kawaro_ui::{Hive, HiveCell, SettingsWindow};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
@@ -96,6 +96,31 @@ pub fn wire_choose(hive: &Hive, state: &Shared, queue: &Arc<Queue>, opener: Rc<d
     });
 }
 
+/// The real opener: the platform command of `open_url_command`, started the
+/// way the output folder is (S-108).
+fn system_opener() -> Rc<dyn Fn(&str)> {
+    Rc::new(|url: &str| {
+        let (program, args) = open_url_command(CURRENT, url);
+        notify::open_folder(program, args);
+    })
+}
+
+/// Installs the About links of a standalone settings window (S-094b): a link
+/// goes through `opener` with its resolved address, and no Kawaro window
+/// opens. The copy button writes the clipboard inside the window.
+// The daemon's own window is the welcome window, wired by `wire_about_welcome(`
+// at start up; this seam serves a standalone settings window, `wire_about(`,
+// and is exercised by the tests.
+#[allow(dead_code)]
+pub fn wire_about(win: &SettingsWindow, opener: Rc<dyn Fn(&str)>) {
+    win.on_open_link(move |url| opener(url));
+}
+
+/// The same for the welcome window, which carries the settings pages.
+pub fn wire_about_welcome(win: &WelcomeWindow, opener: Rc<dyn Fn(&str)>) {
+    win.on_open_link(move |url| opener(url));
+}
+
 /// Creates the hive and the settings window for `lang` and `theme` and wires
 /// them to the queue. Called at start and again when either setting changes.
 pub fn build(
@@ -111,15 +136,7 @@ pub fn build(
         let (thumbnails, globs) = preview_source();
         hive.set_preview_source(thumbnails, globs);
     }
-    wire_choose(
-        &hive,
-        state,
-        queue,
-        Rc::new(|url: &str| {
-            let (program, args) = open_url_command(CURRENT, url);
-            notify::open_folder(program, args);
-        }),
-    );
+    wire_choose(&hive, state, queue, system_opener());
     {
         let state = state.clone();
         hive.on_dismiss(move || {
@@ -919,6 +936,7 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
         return Ok(());
     };
     let win = WelcomeWindow::new(lang)?;
+    wire_about_welcome(&win, system_opener());
     if let Some((_, settings_state, queue)) = SETTINGS_ARGS.with(|a| a.borrow().clone()) {
         win.on_settings_save(move |config| save_settings(config, &settings_state, &queue));
     }

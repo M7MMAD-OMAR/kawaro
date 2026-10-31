@@ -175,6 +175,13 @@ macro_rules! convert_text {
             licence_label: t.licence_label,
             licence: t.licence,
             privacy: t.privacy,
+            about_website: t.about_website,
+            about_source: t.about_source,
+            about_copy: t.about_copy,
+            about_copied: t.about_copied,
+            about_check: t.about_check,
+            about_website_label: t.about_website_label,
+            about_source_label: t.about_source_label,
         }
     }};
 }
@@ -246,6 +253,10 @@ const AUTO_AR: &str = "تلقائي";
 #[cfg(not(windows))]
 const AUTO_AR: &str = "تلقائي (ويندوز فقط)";
 
+fn about_text(lang: Lang) -> kawaro_core::about::AboutStrings {
+    kawaro_core::about::strings(lang)
+}
+
 pub(crate) fn strings(lang: Lang) -> Strings {
     match lang {
         Lang::Ar => Strings {
@@ -289,6 +300,13 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 licence_label: "الرخصة".into(),
                 licence: env!("CARGO_PKG_LICENSE").into(),
                 privacy: privacy_statement(Lang::Ar).into(),
+                about_website: about_text(Lang::Ar).website.into(),
+                about_source: about_text(Lang::Ar).source.into(),
+                about_copy: about_text(Lang::Ar).copy_version.into(),
+                about_copied: about_text(Lang::Ar).copied.into(),
+                about_check: about_text(Lang::Ar).check_updates.into(),
+                about_website_label: about_text(Lang::Ar).website_label.into(),
+                about_source_label: about_text(Lang::Ar).source_label.into(),
             },
             languages: ["تلقائي", "العربية", "English"],
             themes: ["تلقائي", "فاتح", "داكن"],
@@ -338,6 +356,13 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 licence_label: "Licence".into(),
                 licence: env!("CARGO_PKG_LICENSE").into(),
                 privacy: privacy_statement(Lang::En).into(),
+                about_website: about_text(Lang::En).website.into(),
+                about_source: about_text(Lang::En).source.into(),
+                about_copy: about_text(Lang::En).copy_version.into(),
+                about_copied: about_text(Lang::En).copied.into(),
+                about_check: about_text(Lang::En).check_updates.into(),
+                about_website_label: about_text(Lang::En).website_label.into(),
+                about_source_label: about_text(Lang::En).source_label.into(),
             },
             languages: ["Automatic", "العربية", "English"],
             themes: ["Automatic", "Light", "Dark"],
@@ -376,6 +401,7 @@ struct Inner {
     update: RefCell<UpdateModel>,
     on_update_check: RefCell<Option<Callback>>,
     on_update_apply: RefCell<Option<Callback>>,
+    pub(crate) about: crate::shell::AboutHandlers,
     /// Fires `poll_tick` while the window is open.
     timer: slint::Timer,
     /// The complete [`Config`] the window was opened with. `hive_surface`
@@ -401,6 +427,10 @@ impl Inner {
         ui.on_update_check(move || with(&w, Inner::update_check));
         let w = Rc::downgrade(self);
         ui.on_update_apply(move || with(&w, Inner::update_apply));
+        let w = Rc::downgrade(self);
+        ui.on_open_link(move |id| with(&w, |i| i.about.open_link(&id)));
+        let w = Rc::downgrade(self);
+        ui.on_copy_version(move || with(&w, |i| i.about.copy_version()));
         // The page the user picked is remembered while the process runs.
         ui.on_page_changed(|page| remember_page(usize::try_from(page).unwrap_or(0)));
         let w = Rc::downgrade(self);
@@ -586,6 +616,7 @@ impl SettingsWindow {
             update: RefCell::new(UpdateModel::default()),
             on_update_check: RefCell::new(None),
             on_update_apply: RefCell::new(None),
+            about: Default::default(),
             timer: slint::Timer::default(),
             opened: RefCell::new(Config::default()),
         });
@@ -861,6 +892,17 @@ impl SettingsWindow {
     #[doc(hidden)]
     pub fn update_row_ys(&self) -> Vec<f32> {
         crate::shell::probe::row_ys(&*self.inner.ui.borrow())
+    }
+}
+
+crate::shell::about_api!(SettingsWindow);
+
+#[cfg(feature = "testing-hooks")]
+impl SettingsWindow {
+    #[doc(hidden)]
+    pub fn set_reduced_motion(&self, reduced: bool) {
+        let ui = self.inner.ui.borrow();
+        ui.global::<generated::Tokens>().set_reduced_motion(reduced);
     }
 }
 

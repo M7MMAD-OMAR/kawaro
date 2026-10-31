@@ -56,6 +56,13 @@ export struct SettingsText {
     licence-label: string,
     licence: string,
     privacy: string,
+    about-website: string,
+    about-source: string,
+    about-copy: string,
+    about-copied: string,
+    about-check: string,
+    about-website-label: string,
+    about-source-label: string,
 }
 
 // The values the form edits, as visual indices (see src/settings.rs). Rust
@@ -318,11 +325,20 @@ export component AppShell inherits Rectangle {
     callback language-selected();
     callback update-check();
     callback update-apply();
+    // An About link was pressed: carries its id, Rust resolves the address.
+    callback open-link(string);
+    // Copy version was pressed.
+    callback copy-version();
     // The user picked a page (rail, Ctrl+Tab, arrows).
     callback page-changed(int);
 
     public function focus-rail() {
         rail-keys.focus();
+    }
+
+    // Puts the focus on the page scope, where a window starts.
+    public function focus-page() {
+        keys.focus();
     }
 
     // The settings page index: 0 General to 4 About.
@@ -332,6 +348,25 @@ export component AppShell inherits Rectangle {
     property <length> pad: Tokens.space-5;
     property <bool> wide: column.width >= Tokens.layout-row-breakpoint;
     property <bool> subfolder: root.output == root.subfolder-index;
+    // Copy version was pressed less than the feedback time ago.
+    property <bool> copied: false;
+    // The system clipboard goes through Slint's own text input copy, so the
+    // platform backend (Wayland, X11, Windows) writes it; nothing is shown.
+    clip := TextInput {
+        visible: false;
+        width: 0;
+        height: 0;
+        read-only: true;
+        text: root.text.version;
+        accessible-role: none;
+    }
+    copied-timer := Timer {
+        interval: Tokens.copied-feedback;
+        running: root.copied;
+        triggered => {
+            root.copied = false;
+        }
+    }
     property <[NavigationItem]> settings-items: [
         { icon: @image-url("../resources/rail/general.svg"), selected-icon: @image-url("../resources/rail/general.svg"), text: root.text.nav-general },
         { icon: @image-url("../resources/rail/conversion.svg"), selected-icon: @image-url("../resources/rail/conversion.svg"), text: root.text.nav-conversion },
@@ -823,6 +858,33 @@ export component AppShell inherits Rectangle {
                                 font-weight: Tokens.weight-medium;
                                 color: Tokens.text-primary;
                                 horizontal-alignment: center;
+                            }
+                            // The actions, in reading order: the two links, Copy
+                            // version, Check for updates. Arabic reverses them.
+                            HorizontalLayout {
+                                alignment: center;
+                                spacing: Tokens.space-2;
+                                for k in root.rtl ? [3, 2, 1, 0] : [0, 1, 2, 3]: TextButton {
+                                    text: k == 0 ? root.text.about-website : k == 1 ? root.text.about-source : k == 2 ? (root.copied ? root.text.about-copied : root.text.about-copy) : root.text.about-check;
+                                    accessible-label: k == 0 ? root.text.about-website-label : k == 1 ? root.text.about-source-label : self.text;
+                                    enabled: k == 3 ? root.update-check-enabled : true;
+                                    clicked => {
+                                        if k == 0 {
+                                            root.open-link("website");
+                                        } else if k == 1 {
+                                            root.open-link("source");
+                                        } else if k == 2 {
+                                            root.copied = true;
+                                            copied-timer.restart();
+                                            clip.select-all();
+                                            clip.copy();
+                                            root.copy-version();
+                                        } else {
+                                            root.go(3 + (root.has-intro ? 1 : 0));
+                                            root.update-check();
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

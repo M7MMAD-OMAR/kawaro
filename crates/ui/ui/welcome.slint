@@ -96,6 +96,8 @@ export component WelcomeUi inherits MaterialWindow {
     in-out property <int> settings-update-mode <=> shell.update-mode;
     callback update-check();
     callback update-apply();
+    callback open-link(string);
+    callback copy-version();
 
     in-out property <int> page <=> shell.page;
     out property <int> rail-focus <=> shell.rail-focus;
@@ -105,6 +107,9 @@ export component WelcomeUi inherits MaterialWindow {
     out property <length> window-min-height: root.min-height;
     public function focus-rail() {
         shell.focus-rail();
+    }
+    public function focus-page() {
+        shell.focus-page();
     }
 
     title: "Kawaro";
@@ -134,6 +139,8 @@ export component WelcomeUi inherits MaterialWindow {
         language-selected => { root.settings-language-selected(); }
         update-check => { root.update-check(); }
         update-apply => { root.update-apply(); }
+        open-link(id) => { root.open-link(id); }
+        copy-version => { root.copy-version(); }
         page-changed(p) => { root.page-changed(p); }
 
         // The Introduction page.
