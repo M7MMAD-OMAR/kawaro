@@ -1,6 +1,7 @@
 # S-016 Signed APT and COPR repositories
 
-Status: approved (2026-10-26, manager)
+Status: the command source (decision 8) and the signed checksums (S-016e, AC10) are planned in [S-112](S-112-appstream-and-install-commands.md) (approved, 2026-10-31).
+Previous status: approved (2026-10-26, manager)
 
 ## Context
 

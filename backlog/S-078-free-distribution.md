@@ -1,6 +1,7 @@
 # S-078 AppStream, AUR, and winget distribution
 
-Status: in progress (2026-10-27). The winget half (S-078d) is submitted and validated; the AppStream half (S-078a) and the AUR half (S-078b to S-078c) are not started, and the PR automation (S-078e) is not built.
+Status: the account free parts of S-078a (AppStream) and the command source are planned in [S-112](S-112-appstream-and-install-commands.md) (approved, 2026-10-31).
+Previous status: in progress (2026-10-27). The winget half (S-078d) is submitted and validated; the AppStream half (S-078a) and the AUR half (S-078b to S-078c) are not started, and the PR automation (S-078e) is not built.
 
 ## Progress log
 
