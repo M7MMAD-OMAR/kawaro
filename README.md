@@ -31,7 +31,7 @@ tools installed on your system.
 
 ## The name
 
-Kawaro comes from «كوّارة» (kawwara), an old Arabic word for a beehive. The app is a hive of actions, so we took the word and shortened it to a name that reads the same in Arabic and Latin script: ka-wa-ro. The mark is a traditional domed beehive inside one honeycomb cell.
+Kawaro comes from «كوّارة» (kawwara), an old Arabic word for a beehive. The app is a hive of actions, so we took the word and shortened it to a name that reads the same in Arabic and Latin script: ka-wa-ro. The mark is a saguaro cactus built from many hive cells on the honeycomb lattice; the single hexagon with the cactus cut out is the app icon.
 
 ## How it works
 
@@ -131,7 +131,7 @@ Kawaro is free and built in the open. If it helps you, you can support its devel
 
 ## Distribution and signing
 
-Current release: 0.4.7. apt and Scoop are live and update on every release. The WinGet package (`Sbarah.Kawaro`) passed all automated checks and waits for a volunteer moderator since 2026-10-27, so it is not installable yet. AUR and COPR wait for accounts that only a person can create. The maintainer has no code signing certificate available, so the Windows build stays self-signed and SmartScreen warns; the Microsoft Store and SignPath are parked, not planned for now. Details: [distribution status](docs/distribution-status.md) and the [code signing policy](CODE_SIGNING_POLICY.md).
+Current release: 0.5.0. apt and Scoop are live and update on every release. The WinGet package (`Sbarah.Kawaro`) passed all automated checks and waits for a volunteer moderator since 2026-10-27, so it is not installable yet. AUR and COPR wait for accounts that only a person can create. The maintainer has no code signing certificate available, so the Windows build stays self-signed and SmartScreen warns; the Microsoft Store and SignPath are parked, not planned for now. Details: [distribution status](docs/distribution-status.md) and the [code signing policy](CODE_SIGNING_POLICY.md).
 
 ## License
 

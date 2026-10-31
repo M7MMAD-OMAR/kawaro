@@ -87,7 +87,7 @@ ALLOWED = (
     "docs/screenshots/",
     "docs/diagrams/",
     "site/og.png",
-    "site/media/hero-",
+    "site/media/hero",
 )
 check("AC1 every listed file exists", all(os.path.isfile(r["file"]) for r in asset_rows) and bool(asset_rows),
       str([r["file"] for r in asset_rows if not os.path.isfile(r["file"])]))
@@ -175,11 +175,11 @@ plat_ar = [t for t in tables(readme_ar) if t[0][:1] == ["النظام"] and len(
 def state(cell, lang):
     c = strip_marks(cell).lower()
     if lang == "en":
-        for key, v in (("not supported", "unsupported"), ("not tested", "untested"), ("virtual", "virtual"), ("tested", "tested")):
+        for key, v in (("not supported", "unsupported"), ("virtual", "virtual"), ("not tested", "untested"), ("tested", "tested")):
             if key in c:
                 return v
     else:
-        for key, v in (("غير مدعوم", "unsupported"), ("لم يجرب", "untested"), ("افتراض", "virtual"), ("جرب", "tested")):
+        for key, v in (("غير مدعوم", "unsupported"), ("افتراض", "virtual"), ("لم يجرب", "untested"), ("جرب", "tested")):
             if key in c:
                 return v
     return "?"

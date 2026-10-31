@@ -31,6 +31,7 @@ jobs:
       - run: cargo test --workspace
       - run: scripts/design-lint.sh crates/ui
       - run: tests/release/run_all.sh
+      - run: tests/docs/test_launch_assets.sh
 
   # Windows cross build on Linux (S-044): the same scripts as on the Fedora
   # host, run directly (CI=true) with the target dir inside the workspace.
