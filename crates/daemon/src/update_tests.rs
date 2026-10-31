@@ -1891,6 +1891,9 @@ mod s099b_rework {
     #[test]
     fn the_poll_says_installing_while_the_install_holds_the_lock_and_downloading_otherwise() {
         let _serial = crate::state::lock(&INSTALLING_LOCK);
+        // The global download progress must stay empty: no other test may
+        // download (and publish progress) while this one reads it.
+        let _quiet = crate::state::lock(&crate::progress::TEST_GATE);
         let (st, _rig) = state_for("0.3.3", Os::Linux);
         let m = Mutex::new(st);
         let _held = m.lock().unwrap();

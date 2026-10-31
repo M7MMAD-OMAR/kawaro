@@ -164,6 +164,10 @@ fn download_step(
     // The tray reads the progress without the update lock, from the size of
     // the part file; the guard ends it on every path out of this function.
     let part = part_path(&dir.join(&update.asset.name));
+    // Tests share the one global progress, so downloads take turns, and a
+    // test that reads the progress holds `TEST_GATE` to keep them out.
+    #[cfg(test)]
+    let _gate = crate::state::lock(&progress::TEST_GATE);
     progress::shared().begin(&version, update.asset.size, &part);
     let _download = Download(progress::shared());
     match download_verified(update, &dir, fetcher) {

@@ -69,3 +69,9 @@ static SHARED: Progress = Progress::new();
 pub fn shared() -> &'static Progress {
     &SHARED
 }
+
+/// Downloads take turns in tests (see `download_step`), and a test that
+/// reads the global progress holds it so no other download publishes into
+/// it meanwhile.
+#[cfg(test)]
+pub static TEST_GATE: Mutex<()> = Mutex::new(());
