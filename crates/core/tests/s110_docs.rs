@@ -83,7 +83,13 @@ fn ac7_hyprctl_is_only_run_by_the_launcher_script_and_the_existing_doctor() {
         .iter()
         .filter(|p| !p.ends_with("s110_docs.rs"))
         .filter(|p| std::fs::read_to_string(p).is_ok_and(|t| t.contains(&needle)))
-        .map(|p| p.strip_prefix(root()).unwrap().display().to_string())
+        .map(|p| {
+            p.strip_prefix(root())
+                .unwrap()
+                .display()
+                .to_string()
+                .replace('\\', "/")
+        })
         .collect();
     // crates/cli/src/main.rs runs it once for `kawaro doctor` (S-080); the
     // story adds none.
