@@ -1223,4 +1223,6 @@ mod s108_tests;
 #[cfg(test)]
 mod s108b_tests;
 #[cfg(test)]
+mod s110_tests;
+#[cfg(test)]
 mod ui_tests;

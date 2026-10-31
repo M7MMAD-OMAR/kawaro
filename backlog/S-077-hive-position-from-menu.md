@@ -1,5 +1,6 @@
 # S-077 A normal open can use the pointer position on the layer path
-Status: approved (2026-10-26, manager), re-baselined against main 25f9254. Needs reproduction and a KDE pointer-source spike first.
+Status: split: S-110 (open --at, agents), S-077b (KDE and GNOME pointer source, needs private KWin and GNOME sessions)
+Pointer: S-077a is now `backlog/S-110-open-at-position.md` (plumbing, Hyprland launcher, fast loop). The remaining work here is S-077b (AC7 to AC10) plus the private-compositor measurement of AC1 to AC4 and AC6. Earlier status: approved (2026-10-26, manager), re-baselined against main 25f9254.
 
 ## Story
 As a user opening selected files from a file-manager menu or launcher, I want the layer hive to appear at the pointer when that position is available, with a centred fallback on the focused screen otherwise, so that it is near my work instead of unexpectedly placed elsewhere.
