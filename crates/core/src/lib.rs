@@ -12,6 +12,7 @@ pub mod drop_key;
 pub mod engine;
 pub mod hold;
 pub mod hotkey;
+pub mod hyprland_bind;
 pub mod i18n;
 pub mod identity;
 pub mod ipc;

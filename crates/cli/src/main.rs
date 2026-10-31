@@ -116,7 +116,12 @@ enum Cmd {
     /// what the app launcher entry runs.
     Settings,
     /// Report which engines and helper tools this system has.
-    Doctor,
+    Doctor {
+        /// Hyprland: write or update the Kawaro bind file and remove stale
+        /// launchers in `~/.local/bin`.
+        #[arg(long)]
+        repair: bool,
+    },
     /// Add or remove the Explorer right click menu (Windows).
     Integration {
         #[command(subcommand)]
@@ -236,7 +241,8 @@ fn main() -> ExitCode {
         Cmd::Settings => client::ensure_daemon()
             .and_then(|()| client::request(&Request::Settings))
             .map(|_| ()),
-        Cmd::Doctor => {
+        Cmd::Doctor { repair: true } => repair(),
+        Cmd::Doctor { repair: false } => {
             doctor();
             Ok(())
         }
@@ -249,7 +255,10 @@ fn main() -> ExitCode {
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
-            eprintln!("kawaro: {e}");
+            // An empty message means the line was already printed.
+            if !e.is_empty() {
+                eprintln!("kawaro: {e}");
+            }
             ExitCode::FAILURE
         }
     }
@@ -598,23 +607,162 @@ fn doctor() {
         }
         _ => None,
     };
-    out!("{}", doctor_line_for(&drop_bind(), up, last));
+    let binds = read_binds();
+    let bind = drop_bind(binds.as_deref());
+    out!("{}", doctor_line_for(&bind, up, last));
+    if let Some(line) = drop_key_state_line(binds.as_deref(), bind) {
+        out!("{line}");
+    }
 }
 
-/// The drop key bind of this Hyprland session, from `hyprctl binds -j`
-/// (`kawaro_core::hold::bind_state` says what each outcome means).
-fn drop_bind() -> kawaro_core::hold::BindState {
-    use kawaro_core::hold::{Hyprctl, bind_state};
-    match std::process::Command::new("hyprctl")
+/// The `drop key state:` line (S-111), or none when nothing is known.
+fn drop_key_state_line(binds: Option<&str>, bind: kawaro_core::hold::BindState) -> Option<String> {
+    use kawaro_core::hyprland_bind::{
+        StateInput, drop_key_state, fallback_key, foreign_on, message, state_in,
+    };
+    let denied = kawaro_core::config::Config::path()
+        .map(|p| !kawaro_core::config::Config::load_from(&p).0.portal_shortcut)
+        .unwrap_or(false);
+    let input = StateInput {
+        key: "Alt".into(),
+        bind,
+        foreign: binds.is_some_and(|b| foreign_on(b, "Alt")),
+        denied,
+        fallback: binds.and_then(fallback_key),
+    };
+    let lang = Lang::detect();
+    drop_key_state(&input)
+        .map(|s| format!("{} {}", message(lang, "state.prefix"), state_in(lang, &s)))
+}
+
+/// `kawaro doctor --repair` (S-111): Hyprland only. Writes the Kawaro owned
+/// bind file, removes stale launchers, reloads once when something changed.
+fn repair() -> Res<()> {
+    use kawaro_core::hyprland_bind::{
+        MergeError, Syntax, foreign_on, hyprland_bind_text, merge_block, message, stale_launchers,
+    };
+    let lang = Lang::detect();
+    if std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_none() {
+        out!("{}", message(lang, "repair.not_hyprland"));
+        return Ok(());
+    }
+    if read_binds().is_some_and(|b| foreign_on(&b, "Alt")) {
+        out!(
+            "{}",
+            message(lang, "repair.conflict").replace("{key}", "Alt")
+        );
+        return Err(String::new());
+    }
+    let dir = std::env::var_os("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+        .ok_or("no config folder")?
+        .join("hypr");
+    let (syntax, name) = if dir.join("hyprland.lua").is_file() {
+        (Syntax::Lua, "kawaro.lua")
+    } else {
+        (Syntax::Hyprlang, "kawaro.conf")
+    };
+    let file = dir.join(name);
+    let bin = if on_path("kawaro") {
+        "kawaro"
+    } else {
+        "/usr/bin/kawaro"
+    };
+    let block = hyprland_bind_text("Alt", syntax, bin);
+    let existing = std::fs::read_to_string(&file).ok();
+    let old = existing.clone().unwrap_or_default();
+    let merged = merge_block(&old, &block).map_err(|e| match e {
+        MergeError::Unbalanced => format!("{}: kawaro markers do not match", file.display()),
+        MergeError::Duplicate => format!("{}: more than one kawaro block", file.display()),
+    })?;
+    if existing.is_some() && merged == old {
+        out!("{}", message(lang, "repair.nothing"));
+    } else {
+        let had_block = old.contains("kawaro:begin");
+        std::fs::create_dir_all(&dir).map_err(|e| format!("{}: {e}", dir.display()))?;
+        let tmp = dir.join(format!(".{name}.tmp"));
+        std::fs::write(&tmp, &merged)
+            .and_then(|()| std::fs::rename(&tmp, &file))
+            .map_err(|e| format!("{}: {e}", file.display()))?;
+        let key = if had_block {
+            "repair.updated"
+        } else {
+            "repair.wrote"
+        };
+        out!("{}", message(lang, key));
+        let reloaded = hyprctl().arg("reload").status().is_ok_and(|s| s.success());
+        if !reloaded {
+            eprintln!("kawaro: hyprctl reload failed");
+        }
+    }
+    // Stale launchers in ~/.local/bin that a packaged install replaces.
+    let local = std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".local/bin"));
+    if let Some(local) = local.filter(|d| d.is_dir()) {
+        let names: Vec<String> = std::fs::read_dir(&local)
+            .map(|r| {
+                r.flatten()
+                    .map(|e| e.file_name().to_string_lossy().into_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let listing: Vec<&str> = names.iter().map(String::as_str).collect();
+        let installed: Vec<&str> = ["kawaro", "kawarod"]
+            .into_iter()
+            .filter(|n| installed_outside(n, &local))
+            .collect();
+        let plan = stale_launchers(&listing, &installed);
+        for n in &plan.remove {
+            let path = local.join(n);
+            std::fs::remove_file(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            out!(
+                "{}",
+                message(lang, "launcher.removed").replace("{path}", &path.display().to_string())
+            );
+        }
+        if !plan.keep.is_empty() {
+            out!("{}", message(lang, "launcher.keep"));
+        }
+    }
+    Ok(())
+}
+
+/// A binary named `name` on PATH in a folder other than `skip`. `/usr/bin`
+/// counts because it is on PATH.
+fn installed_outside(name: &str, skip: &std::path::Path) -> bool {
+    std::env::var_os("PATH")
+        .is_some_and(|p| std::env::split_paths(&p).any(|d| d != skip && d.join(name).is_file()))
+}
+
+/// A `hyprctl` command whose PATH also holds the system folders, so a
+/// `hyprctl` that is a shell script finds its tools in a trimmed session.
+fn hyprctl() -> std::process::Command {
+    let mut paths: Vec<PathBuf> = std::env::var_os("PATH")
+        .map(|p| std::env::split_paths(&p).collect())
+        .unwrap_or_default();
+    paths.extend(["/usr/bin", "/bin"].map(PathBuf::from));
+    let mut c = std::process::Command::new("hyprctl");
+    if let Ok(joined) = std::env::join_paths(paths) {
+        c.env("PATH", joined);
+    }
+    c
+}
+
+/// `hyprctl binds -j` output, or `None` when it is absent or failed.
+fn read_binds() -> Option<String> {
+    hyprctl()
         .args(["binds", "-j"])
         .output()
-    {
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => bind_state(Hyprctl::Absent),
-        Ok(o) if o.status.success() => {
-            bind_state(Hyprctl::Json(&String::from_utf8_lossy(&o.stdout)))
-        }
-        _ => bind_state(Hyprctl::Failed),
-    }
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+}
+
+/// The drop key bind of this Hyprland session
+/// (`kawaro_core::hold::bind_state` says what each outcome means).
+fn drop_bind(binds: Option<&str>) -> kawaro_core::hold::BindState {
+    use kawaro_core::hold::{Hyprctl, bind_state};
+    bind_state(binds.map_or(Hyprctl::Failed, Hyprctl::Json))
 }
 
 fn actions(json: bool, files: &[PathBuf]) -> Res<()> {
