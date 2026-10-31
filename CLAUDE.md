@@ -110,6 +110,7 @@ A new format is a TOML file in `actions/` plus a small adapter. Never put action
 - Tests for every engine adapter, with small test files in `tests/fixtures`.
 - Check the licence of any new library before adding it and record it in `docs/engines.md`.
 - After every push to main, read `scripts/ci-status.sh --wait`. Red CI blocks the next story.
+- At every version bump run `crates/ui/tests/settings_snapshots.sh --update` (the header label follows the workspace version), then recapture `docs/screenshots/s094/A-general-*-default.png` and refresh the hashes in `docs/launch/assets.md`; `scripts/release-gates.sh` fails on a stale label.
 
 ## Agent chain (mandatory for every task)
 
