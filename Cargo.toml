@@ -24,6 +24,15 @@ tempfile = "3"
 slint = { version = "=1.18.1", default-features = false, features = ["std", "backend-winit", "renderer-software", "accessibility", "compat-1-2", "unstable-winit-030"] }
 slint-build = "=1.18.1"
 
+# Dev builds keep line tables (backtraces, panics) but drop variable debug
+# info, and none for dependencies: target/ is several times smaller and links
+# faster. Set CARGO_PROFILE_DEV_DEBUG=2 to get full debug info for a debugger.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = 0
+
 [profile.release]
 lto = "thin"
 codegen-units = 4
