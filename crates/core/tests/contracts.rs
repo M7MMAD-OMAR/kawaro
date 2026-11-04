@@ -2,7 +2,9 @@
 
 use kawaro_core::MediaKind;
 use kawaro_core::action::Localized;
-use kawaro_core::engine::{CancelToken, Engine, EngineError, Estimate, Progress, Task};
+use kawaro_core::engine::{
+    CancelToken, Engine, EngineError, Estimate, Progress, Task, TaskOutcome,
+};
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::Event;
 use kawaro_core::queue::JobEvent;
@@ -52,8 +54,8 @@ impl Engine for Plain {
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
         vec![]
     }
-    fn run(&self, _: &Task, _: Progress, _: &CancelToken) -> Result<(), EngineError> {
-        Ok(())
+    fn run(&self, _: &Task, _: Progress, _: &CancelToken) -> Result<TaskOutcome, EngineError> {
+        Ok(TaskOutcome::Written)
     }
 }
 
@@ -213,6 +215,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
                 job: 1,
                 ok: 1,
                 failed: 2,
+                skipped: 0,
                 cancelled: true,
                 elapsed: std::time::Duration::from_secs(12),
             },
@@ -220,6 +223,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
                 job: 1,
                 ok: 1,
                 failed: 2,
+                skipped: 0,
                 cancelled: true,
             },
         ),

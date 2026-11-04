@@ -507,6 +507,7 @@ fn run_local(action: &ActionDef, files: &[PathBuf]) -> Res<()> {
             } => {
                 details.insert(output, detail);
             }
+            JobEvent::TaskSkipped { input, .. } => out!("{}", skip_line(&input)),
             _ => {}
         }
     }
@@ -597,6 +598,7 @@ fn run(id: &str, wait: bool, set: &[String], files: &[PathBuf]) -> Res<()> {
                         out!("{}", detail_line(&detail, Lang::En));
                     }
                 }
+                Event::TaskSkipped { input, .. } => out!("{}", skip_line(&input)),
                 Event::TaskFailed { input, error, .. } => {
                     eprintln!("failed: {}: {error}", input.display());
                     failed += 1;
@@ -612,6 +614,15 @@ fn run(id: &str, wait: bool, set: &[String], files: &[PathBuf]) -> Res<()> {
     } else {
         Ok(())
     }
+}
+
+/// The line a skipped task prints (S-133): English like the rest of the
+/// CLI, and a skip is not a failure, so the exit code stays 0.
+fn skip_line(input: &Path) -> String {
+    format!(
+        "skipped: {}: already optimized: the compressed result is not smaller, the original is kept",
+        input.display()
+    )
 }
 
 /// The structured result of one finished output (S-132), read from the

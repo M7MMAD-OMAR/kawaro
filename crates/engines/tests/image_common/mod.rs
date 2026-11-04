@@ -7,6 +7,7 @@
 #![allow(dead_code)]
 
 use image::{ImageFormat, Rgba, RgbaImage};
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, Task};
 use kawaro_engines::image::ImageEngine;
 use std::path::{Path, PathBuf};
@@ -97,7 +98,7 @@ pub fn task(op: &str, inputs: Vec<PathBuf>, output: PathBuf, params: &str) -> Ta
 }
 
 /// Runs a task and returns the result and every progress value reported.
-pub fn run_task(t: &Task) -> (Result<(), EngineError>, Vec<f32>) {
+pub fn run_task(t: &Task) -> (Result<TaskOutcome, EngineError>, Vec<f32>) {
     let seen = Mutex::new(Vec::new());
     let progress = |f: f32| seen.lock().unwrap().push(f);
     let res = ImageEngine::default().run(t, &progress, &CancelToken::new());

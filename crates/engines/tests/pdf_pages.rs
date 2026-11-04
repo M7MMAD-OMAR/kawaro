@@ -3,6 +3,7 @@
 //! lopdf: page `n` has a MediaBox of width `100 * n` and 200 high, so a page
 //! can be followed by its width alone.
 
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, Task};
 use kawaro_engines::pdf::PdfEngine;
 use lopdf::{Document, Object, ObjectId, Stream, dictionary};
@@ -51,7 +52,7 @@ fn task(op: &str, input: &Path, output: &Path, params: &str) -> Task {
     }
 }
 
-fn run(task: &Task) -> Result<(), EngineError> {
+fn run(task: &Task) -> Result<TaskOutcome, EngineError> {
     PdfEngine.run(task, &|_| {}, &CancelToken::new())
 }
 
@@ -117,7 +118,7 @@ fn zip_pdfs(path: &Path) -> Vec<(String, Document)> {
     out
 }
 
-fn expect_bad_param(result: Result<(), EngineError>, name: &str) {
+fn expect_bad_param(result: Result<TaskOutcome, EngineError>, name: &str) {
     match result {
         Err(EngineError::BadParam { name: found, .. }) => assert_eq!(found, name),
         other => panic!("expected BadParam `{name}`, got {other:?}"),

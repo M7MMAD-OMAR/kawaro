@@ -159,6 +159,12 @@ pub enum Event {
         job: u64,
         output: PathBuf,
     },
+    /// A task deliberately wrote nothing (S-133).
+    TaskSkipped {
+        job: u64,
+        input: PathBuf,
+        reason: crate::engine::SkipReason,
+    },
     TaskFailed {
         job: u64,
         input: PathBuf,
@@ -168,6 +174,9 @@ pub enum Event {
         job: u64,
         ok: usize,
         failed: usize,
+        /// Tasks that deliberately wrote nothing (S-133); old lines parse.
+        #[serde(default)]
+        skipped: usize,
         cancelled: bool,
     },
 }
@@ -187,6 +196,9 @@ impl From<crate::queue::JobEvent> for Event {
             },
             J::Progress { job, fraction } => Event::Progress { job, fraction },
             J::TaskDone { job, output, .. } => Event::TaskDone { job, output },
+            J::TaskSkipped {
+                job, input, reason, ..
+            } => Event::TaskSkipped { job, input, reason },
             J::TaskFailed {
                 job, input, error, ..
             } => Event::TaskFailed { job, input, error },
@@ -194,12 +206,14 @@ impl From<crate::queue::JobEvent> for Event {
                 job,
                 ok,
                 failed,
+                skipped,
                 cancelled,
                 ..
             } => Event::Finished {
                 job,
                 ok,
                 failed,
+                skipped,
                 cancelled,
             },
         }

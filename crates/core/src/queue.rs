@@ -26,6 +26,14 @@ pub enum JobEvent {
         /// The engine's structured result (S-132), when it has one.
         detail: Option<crate::engine::TaskDetail>,
     },
+    /// The task deliberately wrote nothing (S-133): it is neither ok nor
+    /// failed, and any temp file is gone.
+    TaskSkipped {
+        job: JobId,
+        input: PathBuf,
+        reason: crate::engine::SkipReason,
+        elapsed: std::time::Duration,
+    },
     TaskFailed {
         job: JobId,
         input: PathBuf,
@@ -37,6 +45,8 @@ pub enum JobEvent {
         job: JobId,
         ok: usize,
         failed: usize,
+        /// Tasks that deliberately wrote nothing (S-133).
+        skipped: usize,
         cancelled: bool,
         /// Time spent executing this job, excluding queue wait and event delivery.
         elapsed: std::time::Duration,

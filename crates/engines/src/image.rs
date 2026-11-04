@@ -13,6 +13,7 @@ mod pdf;
 
 use encode::Target;
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, imageops::FilterType};
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::image_geom::{self, Anchor, Mode};
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Cursor;
@@ -71,16 +72,17 @@ impl Engine for ImageEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
         match task.op.as_str() {
-            "to-pdf" => pdf::run(task, progress, cancel),
+            "to-pdf" => pdf::run(task, progress, cancel)?,
             op => {
                 let op = Op::parse(op, task)?;
-                run_single(task, op, progress, cancel)
+                run_single(task, op, progress, cancel)?;
             }
         }
+        Ok(TaskOutcome::Written)
     }
 
     /// The final and source sizes of a finished `compress-to` (S-132), read

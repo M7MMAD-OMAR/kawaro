@@ -68,6 +68,30 @@ pub fn failed(lang: Lang, failed: usize, total: usize) -> String {
     }
 }
 
+/// The summary of a job whose tasks were all already optimized (S-133).
+pub fn already_optimized(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "محسَّن مسبقاً",
+        Lang::En => "Already optimized",
+    }
+}
+
+/// Why no new file was written (S-133).
+pub fn already_optimized_body(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "النتيجة المضغوطة ليست أصغر، لم يُكتب ملف جديد",
+        Lang::En => "the compressed result is not smaller, no new file was written",
+    }
+}
+
+/// How many tasks of a mixed job were already optimized (S-133).
+pub fn skipped_count(lang: Lang, skipped: usize) -> String {
+    match lang {
+        Lang::Ar => format!("محسَّن مسبقاً: {skipped}"),
+        Lang::En => format!("Already optimized: {skipped}"),
+    }
+}
+
 pub fn cancelled(lang: Lang) -> &'static str {
     match lang {
         Lang::Ar => "أُلغيت المهمة",

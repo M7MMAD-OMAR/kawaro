@@ -8,7 +8,7 @@ use crate::config::Config;
 use crate::preview;
 use crate::protocol::DISCOVER_VERSIONS;
 use kawaro_core::action::{ActionDef, Registry};
-use kawaro_core::engine::{TaskDetail, detail_line};
+use kawaro_core::engine::{SkipReason, TaskDetail, detail_line};
 use kawaro_core::i18n::Lang;
 use kawaro_core::queue::{self, JobEvent};
 use kawaro_core::{CancelToken, Engine};
@@ -458,14 +458,38 @@ fn run(
     drop(tx);
     let mut outputs: Vec<(PathBuf, Option<TaskDetail>)> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
+    let mut skipped: Vec<(PathBuf, SkipReason)> = Vec::new();
     for event in rx {
         match event {
             JobEvent::TaskDone { output, detail, .. } => outputs.push((output, detail)),
             JobEvent::TaskFailed { error, .. } => errors.push(error),
+            JobEvent::TaskSkipped { input, reason, .. } => skipped.push((input, reason)),
             _ => {}
         }
     }
     let elapsed_ms = started.elapsed().as_millis() as u64;
+    if outputs.is_empty() && errors.is_empty() && !skipped.is_empty() {
+        // S-133: a skip is a success with no output, never an error.
+        let names: Vec<String> = skipped.iter().map(|(input, _)| file_name(input)).collect();
+        let text = format!(
+            "No file was written: {} is already optimized (the compressed result is not smaller, the original is kept).",
+            names.join(", ")
+        );
+        return json!({
+            "resultType": "complete",
+            "content": [{"type": "text", "text": text}],
+            "structuredContent": {
+                "action": action.id,
+                "engine": action.engine,
+                "params": serde_json::to_value(&action.params).unwrap_or(json!({})),
+                "outputs": [],
+                "skipped": skipped_entries(&skipped),
+                "elapsed_ms": elapsed_ms,
+                "overwritten": false,
+            },
+            "isError": false,
+        });
+    }
     if outputs.is_empty() && errors.is_empty() {
         return failure("FAILED", "No file was written.");
     }
@@ -501,17 +525,21 @@ fn run(
             "mimeType": preview::mime_type(path),
         }));
     }
+    let mut structured = json!({
+        "action": action.id,
+        "engine": action.engine,
+        "params": params,
+        "outputs": outputs.iter().map(|(path, detail)| output_entry(path.as_path(), detail.as_ref())).collect::<Vec<Value>>(),
+        "elapsed_ms": elapsed_ms,
+        "overwritten": false,
+    });
+    if !skipped.is_empty() {
+        structured["skipped"] = json!(skipped_entries(&skipped));
+    }
     json!({
         "resultType": "complete",
         "content": content,
-        "structuredContent": {
-            "action": action.id,
-            "engine": action.engine,
-            "params": params,
-            "outputs": outputs.iter().map(|(path, detail)| output_entry(path.as_path(), detail.as_ref())).collect::<Vec<Value>>(),
-            "elapsed_ms": elapsed_ms,
-            "overwritten": false,
-        },
+        "structuredContent": structured,
         "isError": false,
     })
 }
@@ -557,6 +585,19 @@ fn output_entry(path: &Path, detail: Option<&TaskDetail>) -> Value {
 
 fn bytes(path: &Path) -> u64 {
     std::fs::metadata(path).map(|meta| meta.len()).unwrap_or(0)
+}
+
+/// The skipped list of a result (S-133), the reason serialized kebab-case.
+fn skipped_entries(skipped: &[(PathBuf, SkipReason)]) -> Vec<Value> {
+    skipped
+        .iter()
+        .map(|(input, reason)| {
+            json!({
+                "path": input.to_string_lossy().into_owned(),
+                "reason": serde_json::to_value(reason).unwrap_or(Value::Null),
+            })
+        })
+        .collect()
 }
 
 fn file_name(path: &Path) -> String {

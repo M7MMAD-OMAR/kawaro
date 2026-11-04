@@ -19,6 +19,7 @@ use crate::office::{
     failure_message, input_error, is_nonempty_file, missing, missing_on_not_found, move_file,
     run_child, single_input, timeout_param, work_dir,
 };
+use kawaro_core::engine::{SkipReason, TaskOutcome};
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use lopdf::{Document, Object, ObjectId, dictionary};
 use std::io::Write;
@@ -76,7 +77,7 @@ impl Engine for PdfEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
         match task.op.as_str() {
@@ -90,7 +91,7 @@ impl Engine for PdfEngine {
             op => Err(EngineError::UnsupportedOp(op.to_string())),
         }?;
         progress(1.0);
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
 }
 
@@ -713,7 +714,7 @@ impl GhostscriptEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         let preset = preset_param(task)?;
         let dpi = compress_dpi_param(task)?;
         let input = absolute_input(task)?;
@@ -733,12 +734,14 @@ impl GhostscriptEngine {
         let in_len = std::fs::metadata(&input)?.len();
         let out_len = std::fs::metadata(&out)?.len();
         if keep_original(in_len, out_len) {
-            std::fs::copy(&input, &task.output)?;
-        } else {
-            move_file(&out, &task.output)?;
+            // Equal or larger: the original is kept and nothing is written
+            // (S-133). The temp output goes with the work directory.
+            work.close()?;
+            return Ok(TaskOutcome::Skipped(SkipReason::AlreadyOptimized));
         }
+        move_file(&out, &task.output)?;
         work.close()?;
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
 
     fn to_images(
@@ -800,16 +803,19 @@ impl Engine for GhostscriptEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
-        match task.op.as_str() {
-            "compress" => self.compress(task, progress, cancel),
-            "to-images" => self.to_images(task, progress, cancel),
-            op => Err(EngineError::UnsupportedOp(op.to_string())),
-        }?;
+        let outcome = match task.op.as_str() {
+            "compress" => self.compress(task, progress, cancel)?,
+            "to-images" => {
+                self.to_images(task, progress, cancel)?;
+                TaskOutcome::Written
+            }
+            op => return Err(EngineError::UnsupportedOp(op.to_string())),
+        };
         progress(1.0);
-        Ok(())
+        Ok(outcome)
     }
 }
 

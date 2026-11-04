@@ -9,6 +9,7 @@
 
 use crate::locate::{self, Program};
 use crate::process::ProcessTree;
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::collections::{HashSet, VecDeque};
 use std::ffi::OsString;
@@ -148,7 +149,7 @@ impl Engine for FfmpegEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         if !OPS.iter().any(|(op, _)| *op == task.op) {
             return Err(EngineError::UnsupportedOp(task.op.clone()));
         }
@@ -184,7 +185,7 @@ impl Engine for FfmpegEngine {
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped()),
         )?;
-        supervise(tree, info.duration, progress, cancel)
+        supervise(tree, info.duration, progress, cancel).map(|()| TaskOutcome::Written)
     }
 }
 

@@ -3,7 +3,7 @@
 
 use kawaro_core::MediaKind;
 use kawaro_core::action::{ActionDef, Localized, OutputMode, OutputSpec};
-use kawaro_core::engine::{CancelToken, Engine, EngineError, Progress, Task};
+use kawaro_core::engine::{CancelToken, Engine, EngineError, Progress, Task, TaskOutcome};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc::Sender;
@@ -60,7 +60,7 @@ impl Engine for FakeEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         self.calls.fetch_add(1, Ordering::SeqCst);
         let now = self.running.fetch_add(1, Ordering::SeqCst) + 1;
         self.max_running.fetch_max(now, Ordering::SeqCst);
@@ -76,7 +76,7 @@ impl FakeEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         if let Some(tx) = self.started.lock().unwrap().as_ref() {
             let _ = tx.send(task.inputs[0].clone());
         }
@@ -105,7 +105,7 @@ impl FakeEngine {
         }
         cancel.check()?;
         progress(1.0);
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
 }
 

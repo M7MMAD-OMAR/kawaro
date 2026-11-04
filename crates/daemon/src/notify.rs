@@ -186,6 +186,18 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
             text::failed(lang, job.failed, total.max(job.tasks)),
             job.first_error.clone().unwrap_or_default(),
         )
+    } else if job.ok == 0 && job.skipped > 0 {
+        // S-133: nothing smaller was written, the original is kept.
+        let name = job
+            .first_skipped
+            .as_ref()
+            .and_then(|(input, _)| input.file_name())
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default();
+        (
+            text::already_optimized(lang).to_string(),
+            format!("{name}\n{}", text::already_optimized_body(lang)),
+        )
     } else {
         let name = job
             .first_output
@@ -195,10 +207,15 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
             .unwrap_or_default();
         // S-132: the final and source sizes ride the notification body when
         // the engine reported them, localized for the window language.
-        let body = match &job.detail {
+        let mut body = match &job.detail {
             Some(detail) => format!("{name}\n{}", kawaro_core::engine::detail_line(detail, lang)),
             None => name,
         };
+        // A mixed job counts its skipped tasks separately (S-133).
+        if job.skipped > 0 {
+            body.push('\n');
+            body.push_str(&text::skipped_count(lang, job.skipped));
+        }
         (text::done(lang, job.ok), body)
     };
     write_log(&log_line(&summary));

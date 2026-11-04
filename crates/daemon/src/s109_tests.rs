@@ -35,6 +35,8 @@ fn run(mode: NotifyMode, events: Vec<JobEvent>, tasks: usize) -> usize {
             first_output: None,
             first_error: None,
             detail: None,
+            skipped: 0,
+            first_skipped: None,
         },
     );
     let (tx, rx) = channel();
@@ -51,6 +53,7 @@ fn run(mode: NotifyMode, events: Vec<JobEvent>, tasks: usize) -> usize {
         job: 1,
         ok: 0,
         failed: 0,
+        skipped: 0,
         cancelled: false,
         elapsed: Duration::from_secs(40),
     })

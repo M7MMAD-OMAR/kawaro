@@ -5,7 +5,7 @@
 //! interrupted task reports `TaskFailed` with "cancelled"; tasks that never
 //! started are skipped without an event and are not counted.
 use crate::action::{ActionDef, OutputMode};
-use crate::engine::{CancelToken, Engine, EngineError, Task};
+use crate::engine::{CancelToken, Engine, EngineError, Task, TaskOutcome};
 use crate::output::{finalize, temp_path};
 use crate::output_impl::final_path_with;
 use crate::queue::{JobEvent, JobId, Queue};
@@ -86,21 +86,29 @@ fn panic_message(p: &(dyn std::any::Any + Send)) -> String {
     format!("engine panicked: {msg}")
 }
 
-/// Runs one task and finalises its output. On error the temp file is gone.
+/// Runs one task and finalises its output (S-133): `Written` finalises,
+/// `Skipped` removes the temp file, an error leaves nothing behind.
 fn run_task(
     engine: &dyn Engine,
     task: &Task,
     fin: &Path,
     cancel: &CancelToken,
     progress: &(dyn Fn(f32) + Send + Sync),
-) -> Result<PathBuf, (String, bool)> {
+) -> Result<TaskOutcome, (String, bool)> {
     if let Some(dir) = task.output.parent()
         && let Err(e) = std::fs::create_dir_all(dir)
     {
         return Err((format!("{}: {e}", dir.display()), false));
     }
     let r = match catch_unwind(AssertUnwindSafe(|| engine.run(task, progress, cancel))) {
-        Ok(Ok(())) => finalize(&task.output, fin).map_err(|e| (e.to_string(), false)),
+        Ok(Ok(TaskOutcome::Written)) => finalize(&task.output, fin)
+            .map(|_path| TaskOutcome::Written)
+            .map_err(|e| (e.to_string(), false)),
+        Ok(Ok(TaskOutcome::Skipped(reason))) => {
+            // A skip never leaves a temp file and never finalises.
+            let _ = std::fs::remove_file(&task.output);
+            Ok(TaskOutcome::Skipped(reason))
+        }
         Ok(Err(e)) => Err((e.to_string(), matches!(e, EngineError::Cancelled))),
         Err(p) => Err((panic_message(p.as_ref()), false)),
     };
@@ -138,7 +146,7 @@ fn run_inner(
             let _ = events.send(JobEvent::Progress { job, fraction });
         }
     };
-    let (mut outputs, mut failed, mut cancelled) = (Vec::new(), 0, false);
+    let (mut outputs, mut failed, mut skipped, mut cancelled) = (Vec::new(), 0, 0, false);
     for (i, (task, fin)) in tasks.iter().enumerate() {
         if cancel.is_cancelled() {
             cancelled = true;
@@ -147,23 +155,37 @@ fn run_inner(
         let progress = |f: f32| report((i as f32 + f.clamp(0.0, 1.0)) / n as f32);
         let task_started = std::time::Instant::now();
         let result = match &engine {
-            Ok(e) => run_task(*e, task, fin, cancel, &progress).map(|path| {
-                // The detail is read from the final path, after the rename.
-                let mut done = task.clone();
-                done.output = path.clone();
-                (path, e.result_detail(&done))
-            }),
+            Ok(e) => run_task(*e, task, fin, cancel, &progress),
             Err(msg) => Err((msg.clone(), false)),
         };
         let task_elapsed = task_started.elapsed();
         match result {
-            Ok((path, detail)) => {
+            Ok(TaskOutcome::Written) => {
+                let path = fin.to_path_buf();
+                // The detail is read from the final path, after the rename.
+                let detail = match &engine {
+                    Ok(e) => {
+                        let mut done = task.clone();
+                        done.output = path.clone();
+                        e.result_detail(&done)
+                    }
+                    Err(_) => None,
+                };
                 outputs.push(path.clone());
                 let _ = events.send(JobEvent::TaskDone {
                     job,
                     output: path,
                     elapsed: task_elapsed,
                     detail,
+                });
+            }
+            Ok(TaskOutcome::Skipped(reason)) => {
+                skipped += 1;
+                let _ = events.send(JobEvent::TaskSkipped {
+                    job,
+                    input: task.inputs[0].clone(),
+                    reason,
+                    elapsed: task_elapsed,
                 });
             }
             Err((error, was_cancel)) => {
@@ -186,6 +208,7 @@ fn run_inner(
         job,
         ok: outputs.len(),
         failed,
+        skipped,
         cancelled,
         elapsed,
     });

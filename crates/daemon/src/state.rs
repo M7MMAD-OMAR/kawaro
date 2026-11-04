@@ -21,6 +21,10 @@ pub struct JobInfo {
     pub first_error: Option<String>,
     /// The engine's structured result of the last finished task (S-132).
     pub detail: Option<kawaro_core::engine::TaskDetail>,
+    /// Tasks that deliberately wrote nothing (S-133).
+    pub skipped: usize,
+    /// The first skipped input and its reason, for the notification (S-133).
+    pub first_skipped: Option<(PathBuf, kawaro_core::engine::SkipReason)>,
 }
 
 pub struct State {

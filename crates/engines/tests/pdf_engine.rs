@@ -1,6 +1,7 @@
 //! Pure Rust PDF engine tests (S-010): merge, rotate, split. Fixtures are
 //! generated with lopdf inside each test.
 
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Task};
 use kawaro_engines::pdf::PdfEngine;
 use lopdf::{Document, Object, ObjectId, Stream, dictionary};
@@ -66,7 +67,7 @@ fn task(op: &str, inputs: &[PathBuf], output: &Path, params: &str) -> Task {
     }
 }
 
-fn run(task: &Task, cancel: &CancelToken) -> (Result<(), EngineError>, Vec<f32>) {
+fn run(task: &Task, cancel: &CancelToken) -> (Result<TaskOutcome, EngineError>, Vec<f32>) {
     let seen = Mutex::new(Vec::new());
     let progress = |f: f32| seen.lock().unwrap().push(f);
     let result = PdfEngine.run(task, &progress, cancel);

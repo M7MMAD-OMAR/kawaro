@@ -6,7 +6,7 @@
 //! filled by the queue from that method.
 
 use kawaro_core::action::{ActionDef, Localized, OutputSpec};
-use kawaro_core::engine::{Engine, EngineError, Task, TaskDetail, detail_line};
+use kawaro_core::engine::{Engine, EngineError, Task, TaskDetail, TaskOutcome, detail_line};
 use kawaro_core::i18n::Lang;
 use kawaro_core::queue::{JobEvent, run_job};
 use kawaro_core::{CancelToken, MediaKind, OutputMode, Progress};
@@ -28,12 +28,12 @@ impl Engine for Fake {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
         std::fs::write(&task.output, b"out").map_err(EngineError::Io)?;
         progress(1.0);
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
     fn result_detail(&self, _task: &Task) -> Option<TaskDetail> {
         self.detail.clone()
@@ -54,12 +54,12 @@ impl Engine for DefaultDetail {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
         std::fs::write(&task.output, b"out").map_err(EngineError::Io)?;
         progress(1.0);
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
     // result_detail is not overridden: the trait default is None.
 }

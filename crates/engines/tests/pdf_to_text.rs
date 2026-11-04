@@ -6,6 +6,7 @@
 //! program path.
 
 use kawaro_core::action::{ActionDef, OutputMode};
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::options::{Kind, OptionsKind};
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Task};
 use kawaro_engines::poppler::PopplerEngine;
@@ -54,7 +55,7 @@ fn task(input: &Path, output: &Path, params: &str) -> Task {
     }
 }
 
-fn run(engine: &PopplerEngine, task: &Task) -> Result<(), EngineError> {
+fn run(engine: &PopplerEngine, task: &Task) -> Result<TaskOutcome, EngineError> {
     engine.run(task, &|_| {}, &CancelToken::new())
 }
 
@@ -70,7 +71,7 @@ fn fixture() -> PathBuf {
         .expect("the one-page PDF fixture exists")
 }
 
-fn expect_bad_param(result: Result<(), EngineError>, name: &str) {
+fn expect_bad_param(result: Result<TaskOutcome, EngineError>, name: &str) {
     match result {
         Err(EngineError::BadParam { name: found, .. }) => assert_eq!(found, name),
         other => panic!("expected BadParam {name}, got {other:?}"),

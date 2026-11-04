@@ -25,6 +25,8 @@ pub fn submit(st: &mut State, queue: &Queue, action: ActionDef, files: Vec<PathB
         first_output: None,
         first_error: None,
         detail: None,
+        skipped: 0,
+        first_skipped: None,
     });
     job
 }
@@ -36,6 +38,7 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
             JobEvent::Started { job, .. }
             | JobEvent::Progress { job, .. }
             | JobEvent::TaskDone { job, .. }
+            | JobEvent::TaskSkipped { job, .. }
             | JobEvent::TaskFailed { job, .. }
             | JobEvent::Finished { job, .. } => *job,
         };
@@ -48,6 +51,15 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
                     info.ok += 1;
                     info.first_output.get_or_insert_with(|| output.clone());
                     info.detail = detail.clone();
+                }
+                JobEvent::TaskSkipped { input, reason, .. } => {
+                    // S-133: the reason is the closed enum SkipReason; today
+                    // its only value is SkipReason::AlreadyOptimized, and the
+                    // surfaces format it in their own language.
+                    info.skipped += 1;
+                    if info.first_skipped.is_none() {
+                        info.first_skipped = Some((input.clone(), *reason));
+                    }
                 }
                 JobEvent::TaskFailed { input, error, .. } => {
                     info.failed += 1;
@@ -103,13 +115,13 @@ pub fn pump(events: Receiver<JobEvent>, state: Shared, tray: tray::TrayHandle) {
 /// A missing or cancelled task has no completion notice. Combined actions
 /// represent one task, so they produce at most one notice for the batch.
 fn task_notice(event: &JobEvent, label: &str, mode: NotifyMode) -> Option<JobInfo> {
-    let (elapsed, output, error, detail) = match event {
+    let (elapsed, output, error, detail, skipped) = match event {
         JobEvent::TaskDone {
             output,
             elapsed,
             detail,
             ..
-        } => (*elapsed, Some(output.clone()), None, detail.clone()),
+        } => (*elapsed, Some(output.clone()), None, detail.clone(), None),
         JobEvent::TaskFailed {
             input,
             error,
@@ -121,8 +133,14 @@ fn task_notice(event: &JobEvent, label: &str, mode: NotifyMode) -> Option<JobInf
                 .file_name()
                 .map(|s| s.to_string_lossy())
                 .unwrap_or_default();
-            (*elapsed, None, Some(format!("{name}: {error}")), None)
+            (*elapsed, None, Some(format!("{name}: {error}")), None, None)
         }
+        JobEvent::TaskSkipped {
+            input,
+            reason,
+            elapsed,
+            ..
+        } => (*elapsed, None, None, None, Some((input.clone(), *reason))),
         _ => return None,
     };
     if !notify_decision(mode, Some(elapsed)) {
@@ -137,6 +155,8 @@ fn task_notice(event: &JobEvent, label: &str, mode: NotifyMode) -> Option<JobInf
         first_output: output,
         first_error: error,
         detail,
+        skipped: usize::from(skipped.is_some()),
+        first_skipped: skipped,
     })
 }
 
@@ -188,6 +208,8 @@ mod tests {
                     first_output: None,
                     first_error: None,
                     detail: None,
+                    skipped: 0,
+                    first_skipped: None,
                 },
             );
             let (tx, rx) = channel();
@@ -226,6 +248,7 @@ mod tests {
                 job: 1,
                 ok: 2,
                 failed: 2,
+                skipped: 0,
                 cancelled: true,
                 elapsed: Duration::from_secs(35),
             })

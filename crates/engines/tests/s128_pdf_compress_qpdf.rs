@@ -5,8 +5,10 @@
 //! structural ops; a missing program is a clear Unavailable, and the three
 //! new actions parse. Live qpdf runs skip with a notice when it is absent.
 
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{ActionDef, CancelToken, Engine, EngineError, MediaKind, OutputMode, Task};
 use kawaro_engines::locate::{self, Os, Program};
+use lopdf::{Document, Object, Stream, dictionary};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tempfile::tempdir;
@@ -37,7 +39,7 @@ fn task(op: &str, input: &Path, output: PathBuf, params: &str) -> Task {
     }
 }
 
-fn run(engine: &dyn Engine, task: &Task) -> Result<(), EngineError> {
+fn run(engine: &dyn Engine, task: &Task) -> Result<TaskOutcome, EngineError> {
     let progress = |_fraction: f32| {};
     engine.run(task, &progress, &CancelToken::new())
 }
@@ -63,6 +65,47 @@ fn pdf_actions() -> Vec<ActionDef> {
     toml::from_str::<File>(&text).unwrap().action
 }
 
+/// One 200 x 200 pt page with an uncompressed 600 x 600 RGB image, so a
+/// Ghostscript rewrite always has something to shrink (S-133 skips when the
+/// rewrite is not smaller, which the tiny one-page fixture would do).
+fn compressible_pdf(path: &Path) {
+    let mut doc = Document::with_version("1.5");
+    let pages_id = doc.new_object_id();
+    let side = 600usize;
+    let mut pixels = Vec::with_capacity(side * side * 3);
+    for y in 0..side {
+        for x in 0..side {
+            pixels.extend_from_slice(&[(x * 255 / side) as u8, (y * 255 / side) as u8, 128]);
+        }
+    }
+    let image_id = doc.add_object(Stream::new(
+        dictionary! {
+            "Type" => "XObject", "Subtype" => "Image",
+            "Width" => side as i64, "Height" => side as i64,
+            "ColorSpace" => "DeviceRGB", "BitsPerComponent" => 8,
+        },
+        pixels,
+    ));
+    let content_id = doc.add_object(Stream::new(
+        dictionary! {},
+        b"q 200 0 0 200 0 0 cm /Im1 Do Q".to_vec(),
+    ));
+    let page_id = doc.add_object(dictionary! {
+        "Type" => "Page", "Parent" => pages_id, "Contents" => content_id,
+        "MediaBox" => vec![0.into(), 0.into(), 200.into(), 200.into()],
+        "Resources" => dictionary! { "XObject" => dictionary! { "Im1" => image_id } },
+    });
+    doc.objects.insert(
+        pages_id,
+        Object::Dictionary(
+            dictionary! { "Type" => "Pages", "Count" => 1, "Kids" => vec![page_id.into()] },
+        ),
+    );
+    let catalog_id = doc.add_object(dictionary! { "Type" => "Catalog", "Pages" => pages_id });
+    doc.trailer.set("Root", catalog_id);
+    doc.save(path).unwrap();
+}
+
 #[test]
 fn ghostscript_compress_takes_a_dpi_target_and_keeps_the_preset_at_zero() {
     let _guard = lock();
@@ -74,7 +117,8 @@ fn ghostscript_compress_takes_a_dpi_target_and_keeps_the_preset_at_zero() {
         return;
     }
     let dir = tempdir().unwrap();
-    let input = fixture("docs/one-page.pdf");
+    let input = dir.path().join("photo.pdf");
+    compressible_pdf(&input);
     for (index, params) in [
         "preset = \"ebook\"\ndpi = 300",
         "preset = \"ebook\"\ndpi = 0",

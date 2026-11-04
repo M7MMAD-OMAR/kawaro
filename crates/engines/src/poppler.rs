@@ -16,6 +16,7 @@ use crate::office::{
     failure_message, input_error, missing, missing_on_not_found, single_input, timeout_param,
 };
 use crate::process::ProcessTree;
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -107,7 +108,7 @@ impl Engine for PopplerEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
         match task.op.as_str() {
@@ -115,7 +116,7 @@ impl Engine for PopplerEngine {
             op => return Err(EngineError::UnsupportedOp(op.to_string())),
         }
         progress(1.0);
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
 }
 

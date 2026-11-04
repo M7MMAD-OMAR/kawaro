@@ -3,6 +3,7 @@
 //! command (AC13). These use only the public engine API and the source text,
 //! so they run on Linux.
 
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, Task};
 use kawaro_engines::ffmpeg::FfmpegEngine;
 use kawaro_engines::office::OfficeEngine;
@@ -19,7 +20,7 @@ fn task(op: &str, input: &Path, output: PathBuf) -> Task {
     }
 }
 
-fn unavailable(r: Result<(), EngineError>) -> String {
+fn unavailable(r: Result<TaskOutcome, EngineError>) -> String {
     match r {
         Err(EngineError::Unavailable(m)) => m,
         other => panic!("expected Unavailable, got {other:?}"),

@@ -1,6 +1,7 @@
 //! Office engine tests (S-009). Real conversions run LibreOffice; when it is
 //! not installed those tests print a notice and return early.
 
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, Task};
 use kawaro_engines::office::OfficeEngine;
 #[cfg(unix)]
@@ -26,7 +27,7 @@ fn run(
     engine: &OfficeEngine,
     task: &Task,
     cancel: &CancelToken,
-) -> (Result<(), EngineError>, Vec<f32>) {
+) -> (Result<TaskOutcome, EngineError>, Vec<f32>) {
     let seen = Mutex::new(Vec::new());
     let progress = |f: f32| seen.lock().unwrap().push(f);
     let result = engine.run(task, &progress, cancel);

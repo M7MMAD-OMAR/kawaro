@@ -3,6 +3,7 @@
 //! committed. Every assertion reads the real output back with ffprobe.
 
 mod ffmpeg {
+    use kawaro_core::engine::TaskOutcome;
     use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Task};
     use kawaro_engines::ffmpeg::FfmpegEngine;
     use serde_json::Value;
@@ -91,7 +92,7 @@ mod ffmpeg {
     }
 
     /// Runs a task, returning the result and every progress value reported.
-    fn run(engine: &FfmpegEngine, t: &Task) -> (Result<(), EngineError>, Vec<f32>) {
+    fn run(engine: &FfmpegEngine, t: &Task) -> (Result<TaskOutcome, EngineError>, Vec<f32>) {
         let seen = Mutex::new(Vec::new());
         let cb = |f: f32| seen.lock().unwrap().push(f);
         let r = engine.run(t, &cb, &CancelToken::new());

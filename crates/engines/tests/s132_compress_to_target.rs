@@ -10,6 +10,7 @@ use image_common::*;
 
 use image::{Rgb, RgbImage};
 use kawaro_core::engine::TaskDetail;
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, Task};
 use kawaro_engines::image::ImageEngine;
 use std::path::{Path, PathBuf};
@@ -42,7 +43,7 @@ fn task(input: &Path, output: PathBuf, params: &str) -> Task {
     }
 }
 
-fn run(engine: &ImageEngine, task: &Task) -> Result<(), EngineError> {
+fn run(engine: &ImageEngine, task: &Task) -> Result<TaskOutcome, EngineError> {
     engine.run(task, &|_fraction| {}, &CancelToken::new())
 }
 

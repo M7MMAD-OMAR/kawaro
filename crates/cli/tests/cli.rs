@@ -239,6 +239,7 @@ fn run_wait_prints_outputs_and_failures_until_the_job_finishes() {
                 job: 1,
                 ok: 1,
                 failed: 1,
+                skipped: 0,
                 cancelled: false,
             }),
             event(Event::TaskDone {
@@ -282,6 +283,7 @@ fn run_wait_succeeds_when_nothing_failed() {
                 job: 1,
                 ok: 1,
                 failed: 0,
+                skipped: 0,
                 cancelled: false,
             }),
         ]

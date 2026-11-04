@@ -3,6 +3,7 @@
 //! the action contract. Fixtures are generated with lopdf.
 
 use kawaro_core::action::{ActionDef, OutputMode};
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::options::{Kind, OptionsKind};
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Registry, Task};
 use kawaro_engines::pdf::PdfEngine;
@@ -86,7 +87,7 @@ fn task(op: &str, input: &Path, output: &Path, params: &str) -> Task {
     }
 }
 
-fn run(task: &Task) -> Result<(), EngineError> {
+fn run(task: &Task) -> Result<TaskOutcome, EngineError> {
     PdfEngine.run(task, &|_| {}, &CancelToken::new())
 }
 
@@ -157,7 +158,7 @@ fn page_texts(doc: &Document) -> Vec<String> {
         .collect()
 }
 
-fn expect_bad_param(result: Result<(), EngineError>, name: &str) {
+fn expect_bad_param(result: Result<TaskOutcome, EngineError>, name: &str) {
     match result {
         Err(EngineError::BadParam {
             name: found,

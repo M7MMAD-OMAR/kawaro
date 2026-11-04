@@ -835,14 +835,33 @@ fn named_tools_map_to_their_action_ids() {
     );
     let r = tool_result(&out, 1);
     assert_eq!(r["isError"].as_bool(), Some(false), "{r}");
+    // S-133: the just-made PDF has no smaller rewrite, so pdf.compress skips
+    // it instead of writing a byte-identical -compressed duplicate.
+    let sc = &r["structuredContent"];
+    assert_eq!(sc["action"].as_str(), Some("pdf.compress"));
     assert_eq!(
-        r["structuredContent"]["action"].as_str(),
-        Some("pdf.compress")
+        sc["outputs"].as_array().map(Vec::len),
+        Some(0),
+        "a skip writes no output: {sc}"
     );
-    let compressed = PathBuf::from(output_path(r));
+    let skipped = sc["skipped"].as_array().expect("a skipped list");
+    assert_eq!(skipped.len(), 1, "{sc}");
+    assert_eq!(skipped[0]["reason"].as_str(), Some("already-optimized"));
     assert!(
-        compressed.is_file(),
-        "the compressed PDF is written: {compressed:?}"
+        skipped[0]["path"]
+            .as_str()
+            .unwrap_or("")
+            .ends_with("photo.pdf"),
+        "{skipped:?}"
+    );
+    assert!(
+        !pdf.with_file_name("photo-compressed.pdf").exists(),
+        "no duplicate -compressed file"
+    );
+    let text = r["content"][0]["text"].as_str().unwrap_or("");
+    assert!(
+        text.to_lowercase().contains("already optimized"),
+        "the text says why: {text}"
     );
 
     // kawaro_image op resize maps to image.resize-50.

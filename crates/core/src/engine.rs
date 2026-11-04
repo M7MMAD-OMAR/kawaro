@@ -128,6 +128,24 @@ pub fn detail_line(detail: &TaskDetail, lang: crate::i18n::Lang) -> String {
     }
 }
 
+/// What one task did (S-133): wrote its output, or deliberately wrote none.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TaskOutcome {
+    /// The task wrote `task.output`.
+    Written,
+    /// The task deliberately wrote nothing, for the closed reason.
+    Skipped(SkipReason),
+}
+
+/// Why a task deliberately wrote nothing (S-133), serialized kebab-case so
+/// every surface formats it in its own language.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum SkipReason {
+    /// The result would not be smaller, so the original is kept.
+    AlreadyOptimized,
+}
+
 pub trait Engine: Send + Sync {
     /// Matches the `engine` field of action TOML files.
     fn id(&self) -> &'static str;
@@ -157,8 +175,17 @@ pub trait Engine: Send + Sync {
     /// Writes `task.output`. Must call `progress` at least once with 1.0 on
     /// success and must return [`EngineError::Cancelled`] soon after `cancel`
     /// fires. A partial `task.output` left behind is removed by the queue.
-    fn run(&self, task: &Task, progress: Progress, cancel: &CancelToken)
-    -> Result<(), EngineError>;
+    /// Runs the task (S-133): `Written` after writing `task.output`, or
+    /// `Skipped` when the task deliberately writes nothing. Every existing
+    /// engine returns `Written`; `EngineError` stays for real failures,
+    /// cancellations and bad parameters. The queue removes a temp file left
+    /// by a skip.
+    fn run(
+        &self,
+        task: &Task,
+        progress: Progress,
+        cancel: &CancelToken,
+    ) -> Result<TaskOutcome, EngineError>;
 
     /// The structured result of the task that just ran (S-132), when the
     /// engine has one; surfaces fall back to the path and bytes line.

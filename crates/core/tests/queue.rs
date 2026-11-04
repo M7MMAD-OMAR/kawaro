@@ -334,9 +334,9 @@ fn ac2_engine_without_output_file_fails_the_task() {
             _: &kawaro_core::Task,
             p: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), kawaro_core::EngineError> {
+        ) -> Result<kawaro_core::engine::TaskOutcome, kawaro_core::EngineError> {
             p(1.0);
-            Ok(())
+            Ok(kawaro_core::engine::TaskOutcome::Written)
         }
     }
     let d = tempfile::tempdir().unwrap();
@@ -399,14 +399,14 @@ fn ac3_progress_ignores_regressions_and_out_of_range_reports() {
             t: &kawaro_core::Task,
             p: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), kawaro_core::EngineError> {
+        ) -> Result<kawaro_core::engine::TaskOutcome, kawaro_core::EngineError> {
             p(0.8);
             p(0.4);
             p(-3.0);
             p(f32::NAN);
             p(7.0);
             std::fs::write(&t.output, b"x")?;
-            Ok(())
+            Ok(kawaro_core::engine::TaskOutcome::Written)
         }
     }
     let d = tempfile::tempdir().unwrap();
@@ -439,9 +439,9 @@ fn ac3_progress_advances_per_task_without_engine_reports() {
             t: &kawaro_core::Task,
             _: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), kawaro_core::EngineError> {
+        ) -> Result<kawaro_core::engine::TaskOutcome, kawaro_core::EngineError> {
             std::fs::write(&t.output, b"x")?;
-            Ok(())
+            Ok(kawaro_core::engine::TaskOutcome::Written)
         }
     }
     let d = tempfile::tempdir().unwrap();
@@ -552,11 +552,11 @@ fn ac5_cancel_between_tasks_skips_the_rest() {
             t: &kawaro_core::Task,
             p: kawaro_core::Progress,
             _: &CancelToken,
-        ) -> Result<(), kawaro_core::EngineError> {
+        ) -> Result<kawaro_core::engine::TaskOutcome, kawaro_core::EngineError> {
             std::fs::write(&t.output, b"x")?;
             p(1.0);
             self.0.cancel();
-            Ok(())
+            Ok(kawaro_core::engine::TaskOutcome::Written)
         }
     }
     let cancel = CancelToken::new();

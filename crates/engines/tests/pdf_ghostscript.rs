@@ -2,6 +2,8 @@
 //! `gs`; without it those tests print a notice and return early.
 
 #[cfg_attr(not(unix), allow(unused_imports))]
+use kawaro_core::engine::SkipReason;
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Task};
 use kawaro_engines::pdf::GhostscriptEngine;
 use lopdf::{Document, Object, Stream, dictionary};
@@ -101,7 +103,7 @@ fn run(
     engine: &GhostscriptEngine,
     task: &Task,
     cancel: &CancelToken,
-) -> (Result<(), EngineError>, Vec<f32>) {
+) -> (Result<TaskOutcome, EngineError>, Vec<f32>) {
     let seen = Mutex::new(Vec::new());
     let progress = |f: f32| seen.lock().unwrap().push(f);
     let result = engine.run(task, &progress, cancel);
@@ -164,20 +166,28 @@ fn pdf_compress_never_returns_a_larger_file() {
     // A tiny text PDF: Ghostscript's rewrite adds metadata and comes out larger.
     let input = dir.path().join("tiny.pdf");
     text_pdf(&input, 1, 100, 100);
+    let before = std::fs::read(&input).unwrap();
     let out = dir.path().join("tiny-compressed.pdf");
-    run(
+    let outcome = run(
         &engine,
         &task("compress", &input, &out, ""),
         &CancelToken::new(),
     )
     .0
-    .unwrap();
-    assert!(len(&out) <= len(&input));
-    assert_eq!(pages(&out), 1);
+    .expect("a larger rewrite is a neutral skip, not a failure");
     assert_eq!(
-        std::fs::read(&out).unwrap(),
+        outcome,
+        TaskOutcome::Skipped(SkipReason::AlreadyOptimized),
+        "the S-133 skip outcome"
+    );
+    assert!(
+        !out.exists(),
+        "S-133 writes no duplicate when the rewrite is not smaller"
+    );
+    assert_eq!(
         std::fs::read(&input).unwrap(),
-        "original kept"
+        before,
+        "the original is untouched"
     );
     assert!(is_empty_dir(&root));
 }

@@ -12,6 +12,7 @@
 
 use crate::locate::{self, Program};
 use crate::process::ProcessTree;
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
@@ -89,7 +90,7 @@ impl Engine for OfficeEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
         let input = single_input(task)?;
@@ -143,7 +144,7 @@ impl Engine for OfficeEngine {
         move_file(&produced, &task.output)?;
         work.close()?;
         progress(1.0);
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
 }
 

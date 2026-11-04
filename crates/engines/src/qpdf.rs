@@ -12,6 +12,7 @@ use crate::office::{
     single_input, timeout_param, work_dir,
 };
 use crate::process::ProcessTree;
+use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -126,7 +127,7 @@ impl Engine for QpdfEngine {
         task: &Task,
         progress: Progress,
         cancel: &CancelToken,
-    ) -> Result<(), EngineError> {
+    ) -> Result<TaskOutcome, EngineError> {
         progress(0.0);
         cancel.check()?;
         let op = task.op.as_str();
@@ -136,7 +137,7 @@ impl Engine for QpdfEngine {
             other => return Err(EngineError::UnsupportedOp(other.to_string())),
         }
         progress(1.0);
-        Ok(())
+        Ok(TaskOutcome::Written)
     }
 }
 
