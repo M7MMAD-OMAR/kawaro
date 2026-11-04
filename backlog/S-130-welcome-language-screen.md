@@ -1,5 +1,5 @@
 # S-130 The first-run language screen: the choice disappears on save and the screen fits the window
-Status: in progress (this block, 2026-11-04; fed by the owner run on Fedora 44 / Hyprland 0.57.1)
+Status: implemented locally in 08976a1; language-choice snapshots covered, not yet a public release
 
 ## Story
 As a first-run user, I want to pick Arabic or English on a calm, centred screen, and I want that screen to disappear as soon as the choice is saved so the introduction opens in my language, so that the first minute of Kawaro is not a stuck, stretched button page. The owner saw the language choice stay on screen after choosing, with two giant orange pills stretched to the bottom of the window, a hardcoded title, no RTL mirroring, and a language switch that did not reach the visible window.

@@ -1,5 +1,5 @@
 # S-131 The settings window: activation, Escape and one window per daemon
-Status: in progress (this block, 2026-11-04; fed by the owner run on Fedora 44 / Hyprland 0.57.1)
+Status: implemented locally in 08976a1; real GNOME/KDE activation remains unverified under S-082
 
 ## Story
 As a user, I want `kawaro settings` and the tray or menu entry to bring up the settings window with focus where the compositor allows it, to close it with Escape, and never to end up with two settings windows, so that changing a setting is one predictable window and not a hunt behind other windows.

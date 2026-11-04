@@ -2,13 +2,13 @@
 
 The original planning document was never exported, so this plan rebuilds it from `CLAUDE.md` and the hive spike (`docs/adr/0001-ui-toolkit.md`). Any later conflict is settled here with a written decision.
 
-## Where we are (2026-10-31)
+## Where we are (2026-11-04)
 
 **Now:** 0.5.0 is the current release (tag v0.5.0, 2026-10-31). apt and Scoop publish on every tag. WinGet ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) passed all automated checks and waits for a volunteer moderator since 2026-10-27. AUR and COPR need an account only a person can create, so they stay skipped. The maintainer has no code signing certificate and no identity document usable for the Microsoft Store verification, so the Windows build stays self-signed (SmartScreen warns); the Store, SignPath and a paid certificate are parked, not planned for now.
 
 **Remaining engineering:** S-082 (GNOME and KDE focus test, needs a virtual machine), a real desktop X11 check (0.5.0 was checked only in a private virtual X session with xfwm4), 0.6.0 Windows native work, S-078 (AUR half; AppStream shipped in S-112), S-016 and S-017 (glass hive), S-077b (KDE and GNOME pointer source), S-075b (native KDE and GNOME Alt paths).
 
-**Unreleased block (2026-11-04):** typed action options (S-117, ADR 0012), the local MCP server (S-121, S-122, ADR 0011), per-run values over IPC and the CLI `--set`/`--schema` (S-120), PDF page operations and split modes (S-123), images-to-PDF page options (S-124), the preview worker with shared image geometry (S-118), PDF metadata (S-125), PDF to text through poppler (S-126), the stage 2 customization panel (S-119), image modes (S-127), PDF compress DPI with the qpdf engine (S-128) and JPEG metadata keep (S-129), all uncommitted as of this note. The next free story number is S-130.
+**Unreleased block (2026-11-04):** typed action options (S-117, ADR 0012), the local MCP server (S-121, S-122, ADR 0011), per-run values over IPC and the CLI `--set`/`--schema` (S-120), PDF page operations and split modes (S-123), images-to-PDF page options (S-124), the preview worker with shared image geometry (S-118), PDF metadata (S-125), PDF to text through poppler (S-126), the stage 2 customization panel (S-119), image modes (S-127), PDF compress DPI with the qpdf engine (S-128) and JPEG metadata keep (S-129). These changes are committed locally, together with the language screen and settings fixes (S-130, S-131), target-size image compression (S-132), PDF no-duplicate skips (S-133), MCP audit paths (S-134), drag modes (S-135) and exactly-once drag-session ownership (S-136). They are not a new official release: local test packages still report application version 0.5.0 and are identified by their package release suffix. S-137 also corrects the onboarding to teach drop-first; its scoped tests and bilingual/theme snapshot comparisons passed. The next free story number is S-138.
 
 ### Blocked on the owner or outside resources
 

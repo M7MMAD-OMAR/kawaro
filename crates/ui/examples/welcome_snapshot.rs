@@ -49,7 +49,29 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         match a.as_str() {
             "--lang" => o.lang = it.next().map(|v| Lang::parse(v)).unwrap_or(Lang::En),
             "--compare" => o.compare = it.next().map(PathBuf::from),
-            "--frame" => o.frame = it.next().and_then(|v| v.parse().ok()),
+            // S-137 semantic selectors keep snapshots independent of pose count.
+            "--frame" => {
+                let value = it.next().ok_or("--frame needs an index or phase")?;
+                o.frame = Some(match value.as_str() {
+                    "hint" => kawaro_ui::film::POSES
+                        .iter()
+                        .position(|p| p.thumbnail)
+                        .ok_or("film has no drag-hint frame")?,
+                    "awaitchoice" => kawaro_ui::film::POSES
+                        .iter()
+                        .position(|p| {
+                            p.step == 3
+                                && p.hive
+                                && !p.thumbnail
+                                && !p.hot
+                                && !p.pressed
+                                && !p.result
+                        })
+                        .ok_or("film has no dropped-awaiting-choice frame")?,
+                    "poster" => kawaro_ui::film::poster_index(),
+                    _ => value.parse().map_err(|_| "invalid frame index or phase")?,
+                });
+            }
             "--at-pointer" => o.at_pointer = true,
             "--choose-language" => o.choose_language = true,
             "--page" => o.page = it.next().and_then(|v| v.parse().ok()),

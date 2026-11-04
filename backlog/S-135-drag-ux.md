@@ -1,5 +1,5 @@
 # S-135 Drag UX: drop first, then choose, with the drag icon out of the way
-Status: in progress (this block, 2026-11-04; raised by the owner run on Fedora 44 / Hyprland 0.57.1)
+Status: implemented locally in 6524488, lifecycle corrected and verified by S-136; the 150 ms budgets remain unmeasured
 
 ## Story
 As a user, I want to drop files somewhere sensible and then see the choices, instead of trying to hit a cell while the file manager's drag icon covers the hive, so that the first and most natural gesture works on every file manager and on every compositor. The drag icon belongs to the source application and the target cannot resize it, shrink it to a cursor or move it, so the fix is the flow, not the icon: drop first and choose after, offer a shortcut plus clipboard path with no drag at all, and keep choose-during-drag as a mode for people who want it.

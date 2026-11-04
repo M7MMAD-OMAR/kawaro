@@ -25,6 +25,19 @@ export struct FilmPose {
     result: bool,
 }
 
+// Read-only observation of the same scene items and rendering predicates.
+export struct FilmVisibility {
+    hint: bool,
+    hint-interactive: bool,
+    thumbnail: bool,
+    hot: bool,
+    pressed: bool,
+    result: bool,
+    source: bool,
+    action-count: int,
+    pressed-action: string,
+}
+
 // A small picture drawn as vectors: a sun and two hills.
 component PhotoGlyph inherits Rectangle {
     background: Tokens.surface-3;
@@ -135,6 +148,20 @@ component FileTile inherits Rectangle {
 // and the pointer.
 component FilmScene inherits Rectangle {
     in property <FilmPose> pose;
+    property <bool> hint-visible: root.pose.hive && root.pose.step < 3;
+    property <bool> actions-visible: root.pose.hive && root.pose.step == 3;
+    property <bool> thumbnail-visible: root.pose.thumbnail;
+    out property <FilmVisibility> film-visibility: {
+        hint: drop-hint.visible,
+        hint-interactive: false, // The hint has no input item or callback.
+        thumbnail: root.thumbnail-visible,
+        hot: hive.visible && webp.highlighted,
+        pressed: hive.visible && webp.pressed,
+        result: result.visible && result.opacity > 0,
+        source: source.visible && source.opacity > 0,
+        action-count: hive.visible ? 6 : 0,
+        pressed-action: hive.visible && webp.pressed ? webp.text : "",
+    };
     in property <bool> centred;
     in property <bool> rtl;
 
@@ -299,14 +326,35 @@ component FilmScene inherits Rectangle {
         transform-scale: 0.9 + 0.1 * root.result-in;
     }
 
+    // A hint only, with no action cells or input area during the drag.
+    drop-hint := Rectangle {
+        visible: root.hint-visible;
+        x: root.hx - self.width / 2;
+        y: root.hy - self.height / 2;
+        width: root.hex-step * 3;
+        height: root.hex-r * 2;
+        background: Tokens.surface-2;
+        border-color: Tokens.accent;
+        border-width: Tokens.border-focus;
+        border-radius: Tokens.radius-md * root.u;
+        Text {
+            width: parent.width;
+            height: parent.height;
+            text: root.rtl ? "أفلت هنا" : "Drop here";
+            font-size: Tokens.font-body * max(root.u, 0.8);
+            color: Tokens.text-primary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
     // The hive, from the real hex cell: a centre cell and six format cells.
     hive := Rectangle {
         x: 0;
         y: 0;
         width: 0;
         height: 0;
-        opacity: root.pose.hive ? 1.0 : 0.0;
-        animate opacity { duration: Tokens.hive-close; }
+        visible: root.actions-visible;
 
         HexCell {
             x: root.hx - self.width / 2;
@@ -317,7 +365,7 @@ component FilmScene inherits Rectangle {
             ring: 0;
         }
 
-        HexCell {
+        webp := HexCell {
             x: root.hx + root.s * root.hex-step - self.width / 2;
             y: root.hy - self.height / 2;
             r: root.hex-r;
@@ -387,7 +435,7 @@ component FilmScene inherits Rectangle {
     }
 
     // The dragged file, carried by the pointer.
-    if root.pose.thumbnail: Rectangle {
+    if root.thumbnail-visible: Rectangle {
         x: root.pointer-x + root.s * root.tw * 0.1 - (root.rtl ? self.width : 0);
         y: root.pointer-y + root.th * 0.12;
         width: root.tw * 0.42;
@@ -469,6 +517,10 @@ component CaptionRow inherits Rectangle {
 // five captions of the flow. Never wider than the token limit and never
 // taller than `limit-h`, so it fits the page without scrolling.
 export component FilmCard inherits Rectangle {
+    out property <FilmVisibility> film-visibility: scene.film-visibility;
+    callback visibility-changed(FilmVisibility);
+    init => { root.visibility-changed(root.film-visibility); }
+    changed film-visibility => { root.visibility-changed(root.film-visibility); }
     in property <FilmPose> pose;
     in property <bool> centred;
     in property <bool> rtl;
@@ -515,7 +567,7 @@ export component FilmCard inherits Rectangle {
             accessible-role: image;
             accessible-label: root.captions[root.lit-a];
 
-            FilmScene {
+            scene := FilmScene {
                 width: parent.width;
                 height: parent.height;
                 pose: root.pose;

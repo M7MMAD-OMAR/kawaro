@@ -3,14 +3,14 @@
 //! [`Pose`]; this module owns the poses, so the film the user sees and the
 //! frame table the tests read are the same data.
 //!
-//! The film shows four steps in order: a file is selected in a file manager
-//! (0), the hive appears at the pointer (1), the file is dropped on a cell
-//! (2), and the result lands beside the untouched original (3). The scene is
+//! The film teaches the default drop-first flow: select/drag (0), trigger
+//! (1), drop hint (2), post-drop choice and click (3), then result beside
+//! the untouched original (4). The scene is
 //! vector art drawn at the displayed size, so it is sharp at any window size
 //! and scale; there are no raster frames.
 
 /// The number of steps the film shows.
-pub const STEPS: usize = 4;
+pub const STEPS: usize = 5;
 
 /// How long one pose stays on screen while the film plays.
 pub const FRAME_MS: u64 = 900;
@@ -18,7 +18,7 @@ pub const FRAME_MS: u64 = 900;
 /// One frame of the loop as the tests and the captions read it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FilmFrame {
-    /// Step 0 to 3: select, hive appears, drop, result.
+    /// Step 0 to 4: select, trigger, drop hint, choice, result.
     pub step: usize,
     /// Opacity of the hive group; 1.0 whenever the hive is part of the step.
     pub hive_opacity: f32,
@@ -63,7 +63,7 @@ const REST: Pose = Pose {
 
 /// The loop, one pose per frame; every step has its own distinct poses.
 #[doc(hidden)]
-pub const POSES: [Pose; 7] = [
+pub const POSES: [Pose; 8] = [
     // 0: select the file in the file manager.
     REST,
     Pose {
@@ -71,7 +71,7 @@ pub const POSES: [Pose; 7] = [
         approach: 1.0,
         ..REST
     },
-    // 1: the trigger opens the hive at the pointer.
+    // 1: the trigger opens only the drop hint at the pointer.
     Pose {
         step: 1,
         selected: true,
@@ -80,7 +80,7 @@ pub const POSES: [Pose; 7] = [
         hive: true,
         ..REST
     },
-    // 2: drag the file onto a cell and drop it.
+    // 2: drag onto the drop area, with no action cells.
     Pose {
         step: 2,
         selected: true,
@@ -92,31 +92,38 @@ pub const POSES: [Pose; 7] = [
         ..REST
     },
     Pose {
-        step: 2,
+        step: 3,
         selected: true,
         approach: 1.0,
         lift: 1.0,
         hive: true,
-        thumbnail: true,
+        drag: 0.0,
+        ..REST
+    },
+    Pose {
+        step: 3,
+        selected: true,
+        approach: 1.0,
+        lift: 1.0,
+        hive: true,
         drag: 1.0,
         hot: true,
         ..REST
     },
     Pose {
-        step: 2,
+        step: 3,
         selected: true,
         approach: 1.0,
         lift: 1.0,
         hive: true,
-        thumbnail: true,
         drag: 1.0,
         hot: true,
         pressed: true,
         ..REST
     },
-    // 3: the result beside the untouched original.
+    // 4: the result beside the untouched original.
     Pose {
-        step: 3,
+        step: 4,
         pointer: false,
         selected: true,
         approach: 1.0,
@@ -161,13 +168,13 @@ pub fn frames() -> Vec<FilmFrame> {
 }
 
 /// The caption rows that belong to a step. The five captions of
-/// `kawaro_core::welcome` are the flow: select, trigger, hive, drop, result;
-/// the film's four steps light the matching rows.
+/// `kawaro_core::welcome` are the flow: select, trigger, drop, choice, result.
 pub fn active_captions(step: usize) -> &'static [usize] {
     match step {
         0 => &[0],
         1 => &[1],
-        2 => &[2, 3],
+        2 => &[2],
+        3 => &[3],
         _ => &[4],
     }
 }

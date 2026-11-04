@@ -10,7 +10,7 @@ import { SbarMaterial } from "material-tokens.slint";
 import { MaterialPalette, MaterialWindow, FilledButton, TextButton } from "@material";
 import { Palette } from "std-widgets.slint";
 import { AppShell, SettingsText, FormValues, UpdateCard } from "shell.slint";
-import { FilmCard, FilmPose } from "film.slint";
+import { FilmCard, FilmPose, FilmVisibility } from "film.slint";
 
 import "../fonts/IBMPlexSansArabic-Regular.otf";
 import "../fonts/IBMPlexSansArabic-Medium.otf";
@@ -86,6 +86,12 @@ export component WelcomeUi inherits MaterialWindow {
 
     // The film (S-094c): the pose Rust takes from kawaro_ui::film, the frame
     // it comes from, whether the loop plays, and the rows it lights.
+    // Reading the layout settles the conditional page before observing its scene.
+    property <FilmVisibility> observed-film;
+    property <FilmVisibility> hidden-film;
+    out property <FilmVisibility> film-visibility:
+        shell.page == 0 && !root.choose-language && shell.scroll-content-height > 0
+        ? root.observed-film : root.hidden-film;
     in property <FilmPose> pose;
     in-out property <int> film-frame;
     in property <int> lit-a;
@@ -226,6 +232,7 @@ export component WelcomeUi inherits MaterialWindow {
 
             // The film, its control and the captions of the flow.
             film-card := FilmCard {
+                visibility-changed(v) => { root.observed-film = v; }
                 avail-w: shell.column-width;
                 pose: root.pose;
                 centred: root.centred;

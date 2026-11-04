@@ -1,52 +1,25 @@
-//! S-094c: pins every field of every pose of the film loop, so a pose can
-//! neither lose a field nor become a duplicate of its neighbour.
-
-use kawaro_ui::film::{self, POSES, Pose};
-
-#[allow(clippy::too_many_arguments)]
-fn pose(
-    step: usize,
-    selected: bool,
-    pointer: bool,
-    approach: f32,
-    lift: f32,
-    hive: bool,
-    thumbnail: bool,
-    drag: f32,
-    hot: bool,
-    pressed: bool,
-    result: bool,
-) -> Pose {
-    Pose {
-        step,
-        selected,
-        pointer,
-        approach,
-        lift,
-        hive,
-        thumbnail,
-        drag,
-        hot,
-        pressed,
-        result,
-    }
-}
+//! S-094c pose regressions, updated by S-137 tester before implementation.
+//! The old seven exact poses taught dropping on a highlighted action while
+//! dragging. S-137 AC2 supersedes that sequence, but preserves pose diversity.
+use kawaro_ui::film::{self, POSES};
 
 #[test]
-fn every_pose_of_the_loop_is_pinned() {
-    let (t, f) = (true, false);
-    let want = [
-        pose(0, f, t, 0.0, 0.0, f, f, 0.0, f, f, f),
-        pose(0, t, t, 1.0, 0.0, f, f, 0.0, f, f, f),
-        pose(1, t, t, 1.0, 1.0, t, f, 0.0, f, f, f),
-        pose(2, t, t, 1.0, 1.0, t, t, 0.5, f, f, f),
-        pose(2, t, t, 1.0, 1.0, t, t, 1.0, t, f, f),
-        pose(2, t, t, 1.0, 1.0, t, t, 1.0, t, t, f),
-        pose(3, t, f, 1.0, 0.0, f, f, 0.0, f, f, t),
-    ];
-    assert_eq!(POSES.len(), want.len());
-    for (i, w) in want.iter().enumerate() {
-        assert_eq!(&POSES[i], w, "pose {i}");
+fn ac2_poses_require_a_distinct_post_drop_choice_before_result() {
+    let drag = POSES.iter().position(|p| p.thumbnail).expect("drag");
+    let awaiting = POSES
+        .iter()
+        .position(|p| p.step == 3 && p.hive && !p.thumbnail && !p.hot && !p.pressed && !p.result)
+        .expect("unchosen actions after dropping");
+    let click = POSES
+        .iter()
+        .position(|p| p.pressed && !p.thumbnail)
+        .expect("post-drop click");
+    let result = POSES.iter().position(|p| p.result).expect("result");
+    assert!(drag < awaiting && awaiting < click && click < result);
+    for p in &POSES {
+        if p.thumbnail {
+            assert!(!p.hot && !p.pressed && !p.result);
+        }
     }
 }
 
@@ -55,14 +28,15 @@ fn no_two_neighbouring_poses_are_equal_and_the_poster_is_the_result() {
     for i in 1..POSES.len() {
         assert_ne!(POSES[i - 1], POSES[i], "pose {i} repeats pose {}", i - 1);
     }
-    assert_eq!(film::poster_index(), 6);
+    let poster = POSES[film::poster_index()];
+    assert!(poster.result && !poster.thumbnail && !poster.pressed);
     assert_eq!(film::frames().len(), POSES.len());
 }
 
 #[test]
 fn the_caption_rows_lit_per_step() {
-    assert_eq!(film::active_captions(0), &[0]);
-    assert_eq!(film::active_captions(1), &[1]);
-    assert_eq!(film::active_captions(2), &[2, 3]);
-    assert_eq!(film::active_captions(3), &[4]);
+    // S-137: drop hint and choosing an action are separate instructions.
+    for step in 0..5 {
+        assert_eq!(film::active_captions(step), &[step]);
+    }
 }

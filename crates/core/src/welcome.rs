@@ -108,7 +108,7 @@ pub struct Captions {
 /// The demonstration captions (AC3): the trigger step names exactly the
 /// registration result. `RightDrag` uses the wording "drag with the right
 /// button", a named key is named, and no registration gives the key-free
-/// wording (drag, drop on the cell).
+/// wording without an invented binding.
 pub fn captions(lang: Lang, registration: &Registration) -> Captions {
     let trigger = match (lang, registration) {
         (Lang::En, Registration::RightDrag) => "Drag with the right button".to_string(),
@@ -119,25 +119,25 @@ pub fn captions(lang: Lang, registration: &Registration) -> Captions {
         (Lang::Ar, Registration::Native(key) | Registration::Fallback(key)) => {
             format!("استمر بالضغط على {key} أثناء السحب")
         }
-        (Lang::En, Registration::Unbound) => "Drag the file and drop it on a cell".to_string(),
-        (Lang::Ar, Registration::Unbound) => "اسحب الملف وأفلته على الخلية".to_string(),
+        (Lang::En, Registration::Unbound) => "No drag trigger registered".to_string(),
+        (Lang::Ar, Registration::Unbound) => "لم يُسجّل اختصار للسحب".to_string(),
     };
     match lang {
         Lang::En => Captions {
             steps: [
-                "Drag a file out of your file manager".to_string(),
+                "The default flow: drag a file from your file manager".to_string(),
                 trigger,
-                "The hive shows what fits your file".to_string(),
-                "Drop on a cell to choose what happens".to_string(),
+                "Drop onto the drop area".to_string(),
+                "After dropping, choose an action".to_string(),
                 "The result appears beside the untouched original".to_string(),
             ],
         },
         Lang::Ar => Captions {
             steps: [
-                "اسحب ملفاً من مدير الملفات".to_string(),
+                "المسار الافتراضي: اسحب ملفاً من مدير الملفات".to_string(),
                 trigger,
-                "تظهر الخلية ما يناسب ملفك".to_string(),
-                "أفلت على الخلية لتختار ما يحدث".to_string(),
+                "أفلت الملف في منطقة الإفلات".to_string(),
+                "بعد الإفلات، اختر إجراءً".to_string(),
                 "يظهر الناتج بجانب الأصل دون تغيير".to_string(),
             ],
         },

@@ -206,8 +206,32 @@ fn ac3_no_registration_falls_back_to_key_free_wording() {
     let ar = welcome::captions(Lang::Ar, &Registration::Unbound);
     let lower = en.steps[1].to_lowercase();
     assert!(lower.contains("drag"), "key-free still says drag: {en:?}");
-    assert!(lower.contains("drop"), "key-free still says drop: {en:?}");
-    for step in [&en.steps[1], &ar.steps[1]] {
+    // S-137 AC1 separates the registration diagnostic from actionable guidance:
+    // drag first, then drop onto the area, then choose an action after dropping.
+    for (c, drag, drop, area, after, choose) in [
+        (&en, "drag", "drop", "area", "after", "choos"),
+        (&ar, "اسحب", "أفلت", "منطقة", "بعد", "اختر"),
+    ] {
+        assert!(
+            c.steps[0].to_lowercase().contains(drag),
+            "drag first: {c:?}"
+        );
+        let target = c.steps[2].to_lowercase();
+        assert!(
+            target.contains(drop) && target.contains(area),
+            "drop onto the drop area: {c:?}"
+        );
+        assert!(
+            !target.contains("cell") && !target.contains("خلية"),
+            "do not drop onto an action cell: {c:?}"
+        );
+        let choice = c.steps[3].to_lowercase();
+        assert!(
+            choice.contains(after) && choice.contains(choose),
+            "choose only after dropping: {c:?}"
+        );
+    }
+    for step in en.steps.iter().chain(ar.steps.iter()) {
         for name in ["alt", "super", "ctrl", "shift", "win"] {
             assert!(
                 !step.to_lowercase().contains(name),

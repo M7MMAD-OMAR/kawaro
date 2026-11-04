@@ -5,8 +5,8 @@
 //! pub`, on `WelcomeWindow` unless a path is given). Geometry is logical px in
 //! window coordinates, as in `s094_shell.rs`.
 //! - `kawaro_ui::film::frames() -> Vec<FilmFrame>`: the pure scene model, one
-//!   entry per frame of the loop. `FilmFrame { step: usize (0..4, step 0 is
-//!   "select a file", 1 "hive appears", 2 "drop on a cell", 3 "result"),
+//!   entry per frame of the loop. S-137 replaces the cell-drop sequence:
+//!   `FilmFrame { step: usize (0..5: drag, trigger, drop, choose, result),
 //!   hive_opacity: f32, elements: Vec<String> }`. Element names:
 //!   `file-manager`, `source-file`, `pointer`, `hive`, `thumbnail`,
 //!   `result-file`.
@@ -113,18 +113,18 @@ fn ac1_any_shipped_raster_frame_is_at_least_scale_3_of_the_max_width() {
 }
 
 #[test]
-fn ac2_scene_model_shows_the_four_steps_in_order_and_never_a_half_scene() {
+fn ac2_scene_model_shows_the_five_steps_in_order_and_never_a_half_scene() {
     let frames = film::frames();
-    assert!(frames.len() >= 4, "at least one frame per step");
+    assert!(frames.len() >= 5, "at least one frame per step");
     let steps: Vec<usize> = frames.iter().map(|f| f.step).collect();
     assert!(
         steps.windows(2).all(|p| p[0] <= p[1]),
         "steps in order: {steps:?}"
     );
-    for s in 0..4 {
+    for s in 0..5 {
         assert!(steps.contains(&s), "step {s} is missing");
     }
-    assert!(steps.iter().all(|s| *s < 4));
+    assert!(steps.iter().all(|s| *s < 5));
     for (i, f) in frames.iter().enumerate() {
         let ctx = format!("frame {i} (step {})", f.step);
         let (need, forbid): (&[&str], &[&str]) = match f.step {
@@ -137,8 +137,12 @@ fn ac2_scene_model_shows_the_four_steps_in_order_and_never_a_half_scene() {
                 &["thumbnail", "result-file"],
             ),
             2 => (
-                &["file-manager", "source-file", "hive", "thumbnail"],
+                &["file-manager", "source-file", "thumbnail"],
                 &["result-file"],
+            ),
+            3 => (
+                &["file-manager", "source-file", "hive"],
+                &["thumbnail", "result-file"],
             ),
             _ => (
                 &["file-manager", "source-file", "result-file"],
@@ -192,7 +196,7 @@ fn ac3_starts_on_the_poster_and_play_pause_toggles_the_loop() {
         assert_eq!(w.film_frame(), film::poster_index());
         assert_eq!(
             film::frames()[film::poster_index()].step,
-            3,
+            4,
             "poster shows the result"
         );
         assert!(has(&film::frames()[film::poster_index()], "result-file"));
@@ -247,7 +251,7 @@ fn ac3_never_auto_plays_and_reduced_motion_is_a_static_poster_with_a_caption_lis
             assert!(!w.film_timer_running(), "{ctx}: no timer without a press");
             if reduced {
                 let texts = w.visible_texts();
-                for i in 0..4 {
+                for i in 0..5 {
                     let cap = format!("caption number {i}");
                     assert!(texts.iter().any(|t| t.contains(&cap)), "{ctx}: caption {i}");
                 }

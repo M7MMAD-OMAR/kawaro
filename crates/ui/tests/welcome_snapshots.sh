@@ -60,6 +60,25 @@ inner() {
       fi
     done
   done
+  # S-137: minimum-size deterministic tutorial captures, no baseline writes
+  # unless the Lead has reviewed these candidate images and authorizes update.
+  for lang in en ar; do
+    for scheme in dark light; do
+      for phase in hint awaitchoice poster; do
+        local name="welcome-$phase-$lang-$scheme.png"
+        local out="$OUT/$name"
+        local cmp=(--compare "$REF/$name")
+        [ "$UPDATE" = 1 ] && { cmp=(); out="$REF/$name"; }
+        if ! KAWARO_COLOR_SCHEME=$scheme KAWARO_REDUCED_MOTION=1 \
+            "$BIN" "$out" --lang "$lang" --size 880x640 --frame "$phase" "${cmp[@]}"; then
+          if [ "$UPDATE" = 0 ] && [ -f "$out" ]; then
+            cp "$out" "$CAND/$name" && echo "candidate $name kept in $CAND"
+          fi
+          echo "FAIL $name (actual: $out)"; fail=1
+        fi
+      done
+    done
+  done
   for name in "${CHOOSE_REFS[@]}"; do
     local lang="${name#welcome-choose-}"
     lang="${lang%%-*}"
