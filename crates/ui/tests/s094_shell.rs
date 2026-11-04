@@ -351,10 +351,11 @@ fn ac2_the_rail_has_five_items_in_order_and_each_page_shows_only_its_rows() {
     assert_eq!(pages[1].len(), 3, "{:?}", pages[1]);
     assert!(contains_ci(&pages[1], "folder") && contains_ci(&pages[1], "quality"));
     // Notifications and integration: the notification list (S-109), open
-    // folder, drop shortcut row.
-    assert_eq!(pages[2].len(), 3, "{:?}", pages[2]);
+    // folder, drop mode (S-135) and drop shortcut rows.
+    assert_eq!(pages[2].len(), 4, "{:?}", pages[2]);
     assert!(contains_ci(&pages[2], "notif"));
     assert!(contains_ci(&pages[2], "open"));
+    assert!(contains_ci(&pages[2], "drop mode"));
     assert!(contains_ci(&pages[2], "shortcut"));
     // Updates: the S-090 section, at least its three settings.
     assert!(pages[3].len() >= 3, "{:?}", pages[3]);

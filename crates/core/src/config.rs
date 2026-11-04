@@ -111,6 +111,38 @@ pub enum HiveSurface {
     Window,
 }
 
+/// How a drag of files reaches the hive (S-135): drop first and choose the
+/// action afterwards, or show the action cells during the drag.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DropMode {
+    /// Drop anywhere on the surface, then choose (the default).
+    #[default]
+    DropFirst,
+    /// Show the action cells during the drag and drop on one.
+    ChooseDuringDrag,
+}
+
+impl Serialize for DropMode {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(match self {
+            DropMode::DropFirst => "drop-first",
+            DropMode::ChooseDuringDrag => "choose-during-drag",
+        })
+    }
+}
+
+/// An unknown word falls back to the default, so a bad value never stops the
+/// daemon and warns about nothing.
+impl<'de> Deserialize<'de> for DropMode {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let word = String::deserialize(d)?;
+        Ok(match word.as_str() {
+            "choose-during-drag" => DropMode::ChooseDuringDrag,
+            _ => DropMode::DropFirst,
+        })
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct Config {
@@ -134,6 +166,10 @@ pub struct Config {
     /// Spelled with an underscore in the file, as S-019 AC1 writes it.
     #[serde(rename = "hive_surface")]
     pub hive_surface: HiveSurface,
+    /// The drag flow (S-135): drop first or choose during the drag. Spelled
+    /// with an underscore in the file, as the other renamed keys are.
+    #[serde(rename = "drop_mode", default)]
+    pub drop_mode: DropMode,
     /// The long press threshold of `kawaro drop --hold` in milliseconds
     /// (S-019e AC18), [`HOLD_MS_MIN`] to [`HOLD_MS_MAX`]. Spelled with an
     /// underscore, as `hive_surface` is.
@@ -198,6 +234,7 @@ impl PartialEq for Config {
             self.notify_long_only == o.notify_long_only,
             self.notify_mode == o.notify_mode,
             self.hive_surface == o.hive_surface,
+            self.drop_mode == o.drop_mode,
             self.hold_ms == o.hold_ms,
             self.hold_max_ms == o.hold_max_ms,
             self.portal_shortcut == o.portal_shortcut,
@@ -258,6 +295,7 @@ impl Default for Config {
             notify_long_only: false,
             notify_mode: NotifyMode::All,
             hive_surface: HiveSurface::Auto,
+            drop_mode: DropMode::DropFirst,
             hold_ms: HOLD_MS_DEFAULT,
             hold_max_ms: HOLD_MAX_DEFAULT,
             portal_shortcut: true,

@@ -25,6 +25,7 @@ mod server;
 mod settings_focus;
 #[cfg(windows)]
 mod shell;
+mod shortcut_mode;
 // Its tests run everywhere; only the Windows shell uses it.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod shell_logic;

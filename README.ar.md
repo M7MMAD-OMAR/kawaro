@@ -128,3 +128,6 @@ kawaro open --from-clipboard             # فتح الخلية للملفات ا
 GPLv3 أو أحدث (GPL-3.0-or-later). راجع `LICENSE`.
 
 </div>
+
+- الإفلات أولاً افتراضياً (drop-first): أسقط الملفات ثم اختر؛ راجع
+  [docs/drop-shortcut.ar.md](docs/drop-shortcut.ar.md).

@@ -157,6 +157,36 @@ impl Machine {
     }
 }
 
+/// What the drop-first flow does at one step (S-135 AC1): a non-interactive
+/// hint while the drag is over the surface, no action cells, and a drop that
+/// closes the hint surface before the normal hive opens.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DropFirstPlan {
+    pub hint_visible: bool,
+    pub cells_visible: bool,
+    pub hint_interactive: bool,
+    pub accept_anywhere: bool,
+    pub close_before_open: bool,
+    pub open_hive: bool,
+    pub explain: bool,
+}
+
+/// The plan for a drag a file manager reports: has_actions when the files
+/// have at least one action, over_surface while the drag is over the drop
+/// surface, dropped when the drop arrived.
+pub fn drop_first_plan(has_actions: bool, over_surface: bool, dropped: bool) -> DropFirstPlan {
+    let dragging = over_surface && !dropped;
+    DropFirstPlan {
+        hint_visible: has_actions && dragging,
+        cells_visible: false,
+        hint_interactive: false,
+        accept_anywhere: dragging,
+        close_before_open: has_actions && dropped,
+        open_hive: has_actions && dropped,
+        explain: !has_actions && dropped,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -110,3 +110,21 @@ On Hyprland the `exec` bind above with `--at` stays the first way. As an alterna
 ```
 bind = SUPER, Z, global, io.github.m7mmad_omar.Kawaro:drop
 ```
+
+## Drop first, the shortcut and clipboard, and choose-during-drag
+
+The default flow is drop-first: drag the files anywhere over the drop surface,
+see a small non-interactive hint, drop, and then choose the action from the
+normal hive. The hint never takes a click or a keyboard key, and the drop
+surface closes before the action hive opens, so the file manager drag icon is
+gone when the choices appear.
+
+There is also a path with no drag at all: press the shortcut and Kawaro reads
+the files from the clipboard. If the clipboard holds files the normal hive
+opens for them; if it holds none, the long press gate runs as before and one
+clipboard line names the reason.
+
+People who prefer choosing during the drag can set drop-mode to
+choose-during-drag in config.toml, or pick Choose while dragging in Settings,
+Integration. The hive is then offset from the pointer so the drag icon cannot
+cover an action cell, and the centre cell, which has no action, is a dead zone.

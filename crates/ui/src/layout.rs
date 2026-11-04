@@ -268,6 +268,56 @@ pub fn step(current: i32, nav: Nav, count: usize, rtl: bool) -> i32 {
     (current + delta).rem_euclid(n)
 }
 
+/// Where the hive sits in choose-during-drag mode (S-135 AC3): offset from
+/// the pointer by the clearance toward a screen side with room, or centred on
+/// the pointer as a dead zone when no side can hold the clearance.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ClearancePlacement {
+    pub x: f32,
+    pub y: f32,
+    pub dead_zone: bool,
+}
+
+/// The hive centre for a pointer on a screen of the given logical size.
+pub fn plan_clear_at(
+    pointer: (f32, f32),
+    screen: (f32, f32),
+    clearance: f32,
+) -> ClearancePlacement {
+    let (px, py) = pointer;
+    let (sw, sh) = screen;
+    let dead = ClearancePlacement {
+        x: px,
+        y: py,
+        dead_zone: true,
+    };
+    let near = px < clearance || px > sw - clearance || py < clearance || py > sh - clearance;
+    if !near {
+        return dead;
+    }
+    let mut best: Option<(f32, f32, f32)> = None;
+    let mut consider = |x: f32, y: f32, room: f32| {
+        if (0.0..=sw).contains(&x) && (0.0..=sh).contains(&y) && room >= clearance {
+            match best {
+                Some((_, _, most)) if most >= room => {}
+                _ => best = Some((x, y, room)),
+            }
+        }
+    };
+    consider(px - clearance, py, px);
+    consider(px + clearance, py, sw - px);
+    consider(px, py - clearance, py);
+    consider(px, py + clearance, sh - py);
+    match best {
+        Some((x, y, _)) => ClearancePlacement {
+            x,
+            y,
+            dead_zone: false,
+        },
+        None => dead,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

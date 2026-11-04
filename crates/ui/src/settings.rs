@@ -39,6 +39,11 @@ pub(crate) const NOTIFY_MODES: [NotifyMode; 3] =
     [NotifyMode::Off, NotifyMode::All, NotifyMode::Long];
 pub(crate) const CHANNELS: [Channel; 2] = [Channel::Stable, Channel::Beta];
 pub(crate) const MODES: [UpdateMode; 2] = [UpdateMode::Ask, UpdateMode::Auto];
+/// The drag flow choices (S-135).
+pub(crate) const DROP_MODES: [kawaro_core::config::DropMode; 2] = [
+    kawaro_core::config::DropMode::DropFirst,
+    kawaro_core::config::DropMode::ChooseDuringDrag,
+];
 
 /// Visual position of the option at reading position `i` among `n`.
 fn visual(i: usize, n: usize, rtl: bool) -> usize {
@@ -79,6 +84,7 @@ pub(crate) struct FormState {
     pub(crate) quality: i32,
     pub(crate) folder: String,
     pub(crate) notify_mode: i32,
+    pub(crate) drop_mode: i32,
     pub(crate) open_folder: bool,
     pub(crate) update_check: bool,
     pub(crate) update_channel: i32,
@@ -95,6 +101,7 @@ impl FormState {
             quality: to_visual(&QUALITIES, &c.quality, rtl),
             folder: c.output_folder.clone(),
             notify_mode: to_visual(&NOTIFY_MODES, &c.notify_mode, rtl),
+            drop_mode: to_visual(&DROP_MODES, &c.drop_mode, rtl),
             open_folder: c.open_folder_when_done,
             update_check: c.update_check,
             update_channel: to_visual(&CHANNELS, &c.update_channel, rtl),
@@ -120,6 +127,7 @@ impl FormState {
             },
             open_folder_when_done: self.open_folder,
             notify_mode,
+            drop_mode: from_visual(&DROP_MODES, self.drop_mode, rtl),
             notify: notify_mode.legacy().0,
             notify_long_only: notify_mode.legacy().1,
             update_check: self.update_check,
@@ -201,6 +209,7 @@ macro_rules! form_values {
             quality: s.quality,
             folder: s.folder.as_str().into(),
             notify_mode: s.notify_mode,
+            drop_mode: s.drop_mode,
             open_folder: s.open_folder,
             update_check: s.update_check,
             update_channel: s.update_channel,
@@ -547,6 +556,7 @@ impl Inner {
             quality: ui.get_quality(),
             folder: ui.get_folder().into(),
             notify_mode: ui.get_notify_mode(),
+            drop_mode: to_visual(&DROP_MODES, &self.opened.borrow().drop_mode, self.rtl.get()),
             open_folder: ui.get_open_folder(),
             update_check: ui.get_update_check_auto(),
             update_channel: ui.get_update_channel(),

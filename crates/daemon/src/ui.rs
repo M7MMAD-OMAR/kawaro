@@ -177,6 +177,22 @@ pub fn build(
     }
 
     {
+        // S-135: drop-first accepts the drop anywhere, closes this surface,
+        // then opens the normal hive for the same files at the drop point.
+        let state = state.clone();
+        hive.on_drop_first(move |files, at| {
+            HIVE.with(|h| {
+                if let Some(hive) = h.borrow().as_ref() {
+                    hive.dismiss_now();
+                }
+            });
+            if let Err(e) = crate::server::open(&state, files, None, at) {
+                eprintln!("kawarod: cannot open the dropped files: {e}");
+            }
+        });
+    }
+
+    {
         // S-119: the Customize pill opens the stage 2 panel for the
         // highlighted action, in the same window and with the current files.
         let state = state.clone();
@@ -404,6 +420,10 @@ pub fn present_drop(centre: &'static str, token: Option<String>, at: Option<(f64
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
             if let Some(hive) = h.borrow().as_ref()
+                && {
+                    hive.set_drop_mode(Config::load().0.drop_mode);
+                    true
+                }
                 && let Err(e) = hive.present_drop_at(centre, token, at)
             {
                 eprintln!("kawarod: cannot show the drop hive: {e}");

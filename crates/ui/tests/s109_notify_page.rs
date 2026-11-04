@@ -34,12 +34,26 @@ fn init() -> std::sync::MutexGuard<'static, ()> {
 
 const MODES: [NotifyMode; 3] = [NotifyMode::Off, NotifyMode::All, NotifyMode::Long];
 
-const EN: [&str; 3] = [
+// The probe reads every list item on the page in x order, so the S-135
+// Drop mode choice buttons are interleaved with the notification options.
+const EN: [&str; 5] = [
     "Off",
+    "Drop first",
     "Every finished job",
+    "Choose while dragging",
     "Only jobs that took 10 seconds or more",
 ];
-const AR: [&str; 3] = ["إيقاف", "كل عملية تنتهي", "فقط ما استغرق 10 ثوانٍ أو أكثر"];
+const AR: [&str; 5] = [
+    "إيقاف",
+    "الإفلات أولاً",
+    "كل عملية تنتهي",
+    "اختر أثناء السحب",
+    "فقط ما استغرق 10 ثوانٍ أو أكثر",
+];
+/// Logical notification option i in the interleaved options list.
+const NOTIFY: [usize; 3] = [0, 2, 4];
+/// The Drop mode choice selected by default next to the notification options.
+const DROP_SELECTED: usize = 1;
 
 fn cfg(mode: NotifyMode) -> Config {
     Config {
@@ -72,7 +86,7 @@ macro_rules! page {
                 <$t>::notify_options(self)
             }
             fn pick(&self, i: usize) {
-                <$t>::pick_notify_option(self, i)
+                <$t>::pick_notify_option(self, NOTIFY[i])
             }
             fn list_label(&self) -> String {
                 <$t>::notify_list_label(self)
@@ -211,8 +225,10 @@ fn ac3_exactly_one_option_is_selected_and_it_matches_the_stored_mode() {
             let (w, _) = open(Lang::En, &cfg(mode));
             w.go();
             let options = w.options();
-            assert_eq!(options.len(), 3, "{name}");
-            assert_eq!(selected(&options), vec![i], "{name} {mode:?}");
+            assert_eq!(options.len(), 5, "{name}");
+            let mut expected = vec![NOTIFY[i], DROP_SELECTED];
+            expected.sort_unstable();
+            assert_eq!(selected(&options), expected, "{name} {mode:?}");
             assert!(!w.unsaved(), "{name}: a loaded mode is not unsaved");
         }
     });
@@ -290,7 +306,11 @@ fn ac3_no_string_has_a_long_dash_and_the_two_switches_are_gone() {
                     "{name}: the old switch text {old:?} is still shown"
                 );
             }
-            assert_eq!(w.rows().len(), 3, "{name}: list, open folder, shortcut");
+            assert_eq!(
+                w.rows().len(),
+                4,
+                "{name}: list, open folder, drop mode, shortcut"
+            );
         }
     });
 }
@@ -303,13 +323,17 @@ fn ac3_picking_another_option_is_unsaved_and_cancel_restores_the_stored_mode() {
         let (w, saved) = open(Lang::En, &cfg(NotifyMode::All));
         w.go();
         w.pick(2);
-        assert_eq!(selected(&w.options()), vec![2], "{name}");
+        let mut expected = vec![NOTIFY[2], DROP_SELECTED];
+        expected.sort_unstable();
+        assert_eq!(selected(&w.options()), expected, "{name}");
         assert!(w.unsaved(), "{name}: a pick marks the form unsaved");
         w.cancel();
         w.go();
+        let mut restored = vec![NOTIFY[1], DROP_SELECTED];
+        restored.sort_unstable();
         assert_eq!(
             selected(&w.options()),
-            vec![1],
+            restored,
             "{name}: Cancel restores All"
         );
         assert!(saved.borrow().is_empty(), "{name}: Cancel never saves");

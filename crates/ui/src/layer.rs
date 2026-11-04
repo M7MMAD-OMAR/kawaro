@@ -331,6 +331,8 @@ pub(crate) struct ShowRequest {
     pub drop: bool,
     /// `kawaro drop --at X,Y`, global logical coordinates.
     pub at: Option<(f64, f64)>,
+    /// S-135: choose-during-drag, so the hive keeps the pointer clearance.
+    pub clear: bool,
 }
 
 pub(crate) fn set_show(r: ShowRequest) {
@@ -951,6 +953,17 @@ impl LayerAdapter {
         }
         let (plan, p) = SHOW.with(|r| {
             let r = r.borrow();
+            // S-135: in choose-during-drag the hive centre moves by the
+            // pointer clearance, or stays centred as the dead zone.
+            let anchor = if r.clear {
+                anchor.map(|(x, y)| {
+                    let at =
+                        layout::plan_clear_at((x, y), (screen.0 as f32, screen.1 as f32), 64.0);
+                    (at.x, at.y)
+                })
+            } else {
+                anchor
+            };
             let rings = if r.drop && anchor.is_some() {
                 drop_rings(r.rtl, screen, anchor)
             } else {

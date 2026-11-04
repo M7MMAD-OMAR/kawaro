@@ -310,6 +310,7 @@ impl Inner {
             quality: ui.get_settings_quality(),
             folder: ui.get_settings_folder().into(),
             notify_mode: ui.get_settings_notify_mode(),
+            drop_mode: ui.get_settings_drop_mode(),
             open_folder: ui.get_settings_open_folder(),
             update_check: ui.get_settings_update_check_auto(),
             update_channel: ui.get_settings_update_channel(),
@@ -346,6 +347,7 @@ impl Inner {
         ui.set_settings_quality(state.quality);
         ui.set_settings_folder(state.folder.as_str().into());
         ui.set_settings_notify_mode(state.notify_mode);
+        ui.set_settings_drop_mode(state.drop_mode);
         ui.set_settings_open_folder(state.open_folder);
         ui.set_settings_update_check_auto(state.update_check);
         ui.set_settings_update_channel(state.update_channel);

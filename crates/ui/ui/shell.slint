@@ -69,6 +69,7 @@ export struct SettingsText {
 // shows while the form differs from it.
 export struct FormValues {
     language: int,
+    drop-mode: int,
     theme: int,
     output: int,
     quality: int,
@@ -312,6 +313,13 @@ export component AppShell inherits Rectangle {
         || root.update-mode != root.loaded.update-mode;
     out property <int> rail-focus: root.page;
     out property <length> scroll-content-height: scroll.content-height;
+    // S-135: the drag flow. The two labels are the only fixed words of the
+    // settings row that are not part of the translated text block.
+    in-out property <int> drop-mode: 0;
+    in property <[string]> drop-mode-items: root.rtl
+        ? ["اختر أثناء السحب", "الإفلات أولاً"]
+        : ["Drop first", "Choose while dragging"];
+
     out property <length> scroll-visible-height: scroll.visible-height;
     out property <length> column-width: column.width;
 
@@ -578,6 +586,20 @@ export component AppShell inherits Rectangle {
                                 text: root.text.group-integration;
                             }
                             Card {
+                                FormRow {
+                                    rtl: root.rtl;
+                                    wide: root.wide;
+                                    label: root.rtl ? "طريقة الإفلات" : "Drop mode";
+                                    control-h: drop-mode-buttons.min-height;
+                                    drop-mode-buttons := ChoiceButtons {
+                                        x: root.rtl ? parent.slot-w - self.width : 0;
+                                        width: self.min-width;
+                                        height: self.min-height;
+                                        accessible-label: root.rtl ? "طريقة الإفلات: الإفلات أولاً أو الاختيار أثناء السحب" : "Drop mode: drop first or choose while dragging";
+                                        labels: root.drop-mode-items;
+                                        current-index <=> root.drop-mode;
+                                    }
+                                }
                                 FormRow {
                                     rtl: root.rtl;
                                     wide: root.wide;

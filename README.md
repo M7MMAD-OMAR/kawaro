@@ -140,3 +140,6 @@ Current release: 0.5.0. apt and Scoop are live and update on every release. The 
 ## License
 
 GPL-3.0-or-later. See `LICENSE`.
+
+- drop-first by default: drop the files, then choose; see
+  [docs/drop-shortcut.md](docs/drop-shortcut.md).

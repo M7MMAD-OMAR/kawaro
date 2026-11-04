@@ -7,6 +7,7 @@ pub mod about;
 pub mod action;
 mod action_impl;
 pub mod appid;
+pub mod clipboard;
 pub mod config;
 pub mod drop_key;
 pub mod engine;

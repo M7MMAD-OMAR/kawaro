@@ -8,6 +8,7 @@
 //! this file runs on a live bus only and is covered by tests/drop/portal.sh.
 
 use crate::portal::{self, Reason, Reload};
+use crate::shortcut_mode::{Shortcut, ShortcutEvent};
 use crate::state::{Shared, lock};
 use crate::ui;
 use ashpd::desktop::global_shortcuts::{GlobalShortcuts, NewShortcut};
@@ -17,6 +18,7 @@ use ashpd::zbus::zvariant::{self, OwnedObjectPath, OwnedValue};
 use futures_util::StreamExt;
 use futures_util::future::{AbortHandle, AbortRegistration, Abortable};
 use kawaro_core::config::Config;
+use kawaro_core::config::DropMode;
 use kawaro_core::i18n::Lang;
 use std::collections::HashMap;
 use std::sync::{Mutex, MutexGuard};
@@ -225,7 +227,36 @@ async fn serve(
                 })
                 .collect();
             let token = portal::activation_token(&strings);
-            ui::hold_signal(s, token, Instant::now(), state.clone());
+            // S-135: in drop-first mode the shortcut first tries the
+            // clipboard; its files open the normal hive with no drag and no
+            // hold gate, and an empty or unreadable clipboard falls back to
+            // the gate with one diagnostic line. Choose-during-drag keeps the
+            // gate exactly as before, and Deactivated only closes a hold hive.
+            let mode = lock(state).config.drop_mode;
+            let event = if !matches!(s, kawaro_core::hold::Signal::Release) {
+                ShortcutEvent::Activated
+            } else {
+                ShortcutEvent::Deactivated
+            };
+            let clipboard: Result<Vec<std::path::PathBuf>, String> =
+                if mode == DropMode::DropFirst && event == ShortcutEvent::Activated {
+                    kawaro_core::clipboard::read_files()
+                } else {
+                    Ok(Vec::new())
+                };
+            if let Some(line) = crate::shortcut_mode::shortcut_log(mode, &clipboard) {
+                eprintln!("kawarod: {line}");
+            }
+            match crate::shortcut_mode::shortcut_action(mode, event, clipboard.clone()) {
+                Shortcut::ClipboardHive => {
+                    let files = clipboard.unwrap_or_default();
+                    if let Err(e) = crate::server::open(state, files, token, None) {
+                        eprintln!("kawarod: cannot open the clipboard files: {e}");
+                    }
+                    continue;
+                }
+                _ => ui::hold_signal(s, token, Instant::now(), state.clone()),
+            }
         }
     }
     None

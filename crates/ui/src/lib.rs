@@ -22,7 +22,7 @@
 #[cfg(target_os = "linux")]
 mod a11y;
 #[cfg_attr(not(test), allow(dead_code))]
-mod dnd;
+pub mod dnd;
 // The pure drop tracker (S-047); only the Windows glue drives it.
 #[cfg_attr(not(windows), allow(dead_code))]
 mod drop_track;
@@ -33,7 +33,7 @@ mod layer;
 #[cfg(target_os = "linux")]
 #[doc(hidden)]
 pub use layer::after_catcher_ready;
-mod layout;
+pub mod layout;
 mod motion;
 // Only the Windows window picks a monitor; the tests run everywhere.
 pub mod film;
@@ -79,6 +79,7 @@ pub use shell::{Rect, privacy_statement, reset_page_memory};
 mod updates;
 pub use updates::{UpdateResult, UpdateState, about_line, state_from_status};
 
+use kawaro_core::config::DropMode;
 use layout::{Nav, Plan};
 use slint::winit_030::{CustomApplicationHandler, EventResult, winit};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
@@ -491,7 +492,10 @@ fn on_note(note: receiver::Note) {
         receiver::Note::Drop => dnd::Event::Drop,
         receiver::Note::PointerEnter => dnd::Event::PointerEnter,
         // The anchor phase on the layer path (S-019 AC9): never the machine.
-        receiver::Note::Position(x, y) => return layer::position(x, y),
+        receiver::Note::Position(x, y) => {
+            inner.last_point.set(Some((x, y)));
+            return layer::position(x, y);
+        }
     };
     inner.drag(event);
 }
@@ -506,6 +510,8 @@ pub fn after_next_frame(f: impl FnOnce() + 'static) {
 type ChooseFn = Rc<dyn Fn(String)>;
 type DismissFn = Rc<dyn Fn()>;
 type FilesFn = Rc<dyn Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>)>;
+/// S-135: the files and point of a drop-first drop.
+type DropFirstFn = Rc<dyn Fn(Vec<PathBuf>, Option<(f64, f64)>)>;
 /// S-119: the Run of the stage 2 panel, with its resolved params.
 type OptionsRunFn = Rc<dyn Fn(String, toml::Table)>;
 
@@ -522,6 +528,11 @@ struct Inner {
     on_choose: RefCell<Option<ChooseFn>>,
     on_dismiss: RefCell<Option<DismissFn>>,
     on_drop_files: RefCell<Option<FilesFn>>,
+    /// S-135: the drag flow from config and the last drag state.
+    drop_mode: Cell<DropMode>,
+    dragged: RefCell<Vec<PathBuf>>,
+    last_point: Cell<Option<(f64, f64)>>,
+    on_drop_first: RefCell<Option<DropFirstFn>>,
     /// S-119: the Customize pill, the panel's Run and its Back.
     on_customize: RefCell<Option<ChooseFn>>,
     on_options_run: RefCell<Option<OptionsRunFn>>,
@@ -883,12 +894,21 @@ impl Inner {
             return dnd::Event::Enter;
         }
         let f = self.on_drop_files.borrow().clone();
+        self.dragged.replace(files.clone());
         #[cfg(unix)]
         let dragged = files.clone();
         let (centre, cells) = f.map(|f| f(files)).unwrap_or_default();
         self.found.set(cells.len());
         if state == dnd::State::Probing && cells.is_empty() {
             return dnd::Event::Reject;
+        }
+        // S-135: drop-first shows the hint only, with no action cells; the
+        // drop is accepted anywhere on the surface.
+        if self.drop_mode.get() == DropMode::DropFirst && !cells.is_empty() {
+            self.apply(&centre, layout::plan_rings(Vec::new(), self.rtl, 2));
+            #[cfg(unix)]
+            self.set_preview(&centre, &dragged);
+            return dnd::Event::Enter;
         }
         // On the layer path the hive keeps the place and box it took at the
         // pointer (S-019d).
@@ -927,6 +947,16 @@ impl Inner {
             // A probing show has drawn nothing and hides at once (S-017 AC9).
             dnd::State::Hidden => self.dismiss_inner(before == dnd::State::Probing),
             _ => {}
+        }
+        // S-135: a drop-first drop closes this surface, then the normal hive
+        // opens for the same files at the drop point.
+        if matches!(event, dnd::Event::Drop) {
+            let files = self.dragged.take();
+            if !files.is_empty()
+                && let Some(f) = self.on_drop_first.borrow().clone()
+            {
+                f(files, self.last_point.get());
+            }
         }
     }
 
@@ -1018,6 +1048,10 @@ impl Hive {
             on_choose: RefCell::new(None),
             on_dismiss: RefCell::new(None),
             on_drop_files: RefCell::new(None),
+            drop_mode: Cell::new(DropMode::ChooseDuringDrag),
+            dragged: RefCell::new(Vec::new()),
+            last_point: Cell::new(None),
+            on_drop_first: RefCell::new(None),
             on_customize: RefCell::new(None),
             on_options_run: RefCell::new(None),
             on_options_cancel: RefCell::new(None),
@@ -1269,6 +1303,7 @@ impl Hive {
             min_rings,
             drop,
             at,
+            clear: drop && inner.drop_mode.get() == DropMode::ChooseDuringDrag,
         });
         #[cfg(not(target_os = "linux"))]
         let _ = (cells, at);
@@ -1417,6 +1452,21 @@ impl Hive {
     /// Called on the event loop thread when a drag enters the drop hive,
     /// with its local files (maybe none). Returns the centre text and the
     /// cells for them; no cells refuses the drop.
+    /// S-135: the drag flow from config, set before a drop show.
+    pub fn set_drop_mode(&self, mode: DropMode) {
+        self.inner.drop_mode.set(mode);
+    }
+
+    /// S-135: the drop-first drop, with the files and the last drag point.
+    pub fn on_drop_first(&self, f: impl Fn(Vec<PathBuf>, Option<(f64, f64)>) + 'static) {
+        *self.inner.on_drop_first.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Closes the shown hive at once, for the drop-first transition.
+    pub fn dismiss_now(&self) {
+        self.inner.dismiss();
+    }
+
     pub fn on_drop_files(&self, f: impl Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>) + 'static) {
         *self.inner.on_drop_files.borrow_mut() = Some(Rc::new(f));
     }
