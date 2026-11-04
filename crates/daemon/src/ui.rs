@@ -70,10 +70,30 @@ fn apply_theme(theme: Theme) {
     }
 }
 
-/// Installs the hive's `on_choose` handler: a real action runs through the
-/// queue, the request cell calls `opener` with its link (S-108). The opener
+/// S-136: the drop-first handoff wiring, with the presenter as a seam so a
+/// test counts handoffs without a compositor. The gate retires and the rearm
+/// flags clear before the present, so an old hold cannot dismiss the normal
+/// hive the handoff opens, and no old dismissal runs.
+/// S-136: the drop-first presenter seam, so a test counts handoffs.
+type DropFirstPresenter = Rc<dyn Fn(&[PathBuf], Option<(f64, f64)>)>;
+
+pub(crate) fn wire_drop_first(hive: &Hive, _state: &Shared, present: DropFirstPresenter) {
+    hive.on_drop_first(move |files, at| {
+        gate_hive_closed();
+        rearmed_clear();
+        present(&files, at);
+    });
+}
+
+/// Installs the hive's on_choose handler: a real action runs through the
+/// queue, the request cell calls opener with its link (S-108). The opener
 /// is injected so tests can count calls.
-pub fn wire_choose(hive: &Hive, state: &Shared, queue: &Arc<Queue>, opener: Rc<dyn Fn(&str)>) {
+pub(crate) fn wire_choose(
+    hive: &Hive,
+    state: &Shared,
+    queue: &Arc<Queue>,
+    opener: Rc<dyn Fn(&str)>,
+) {
     let (state, queue) = (state.clone(), queue.clone());
     hive.on_choose(move |id| {
         let id = match on_choice(&id, &|url| opener(url)) {
@@ -176,21 +196,21 @@ pub fn build(
         });
     }
 
-    {
-        // S-135: drop-first accepts the drop anywhere, closes this surface,
-        // then opens the normal hive for the same files at the drop point.
-        let state = state.clone();
-        hive.on_drop_first(move |files, at| {
-            HIVE.with(|h| {
-                if let Some(hive) = h.borrow().as_ref() {
-                    hive.dismiss_now();
+    // S-135 and S-136: drop-first accepts the drop anywhere, the hive closes
+    // its surface and hands the files over, and the gate retires before the
+    // normal hive opens. The presenter is a seam so a test counts handoffs.
+    wire_drop_first(
+        &hive,
+        state,
+        Rc::new({
+            let state = state.clone();
+            move |files, at| {
+                if let Err(e) = crate::server::open(&state, files.to_vec(), None, at) {
+                    eprintln!("kawarod: cannot open the dropped files: {e}");
                 }
-            });
-            if let Err(e) = crate::server::open(&state, files, None, at) {
-                eprintln!("kawarod: cannot open the dropped files: {e}");
             }
-        });
-    }
+        }),
+    );
 
     {
         // S-119: the Customize pill opens the stage 2 panel for the
@@ -417,16 +437,15 @@ pub fn present(
 /// Shows the hive that waits for a dragged file (`kawaro drop`), at the
 /// pointer position `at` when the caller knows it.
 pub fn present_drop(centre: &'static str, token: Option<String>, at: Option<(f64, f64)>) {
+    // S-136: the mode is captured at the decision, never re-read at the show.
+    let mode = Config::load().0.drop_mode;
     let _ = slint::invoke_from_event_loop(move || {
         HIVE.with(|h| {
-            if let Some(hive) = h.borrow().as_ref()
-                && {
-                    hive.set_drop_mode(Config::load().0.drop_mode);
-                    true
+            if let Some(hive) = h.borrow().as_ref() {
+                hive.set_drop_mode(mode);
+                if let Err(e) = hive.present_drop_at(centre, token, at) {
+                    eprintln!("kawarod: cannot show the drop hive: {e}");
                 }
-                && let Err(e) = hive.present_drop_at(centre, token, at)
-            {
-                eprintln!("kawarod: cannot show the drop hive: {e}");
             }
         })
     });
@@ -522,19 +541,21 @@ fn gate_tick(state: &Shared) {
             at,
         );
         // The files come with the drag, when it enters the hive.
-        let lang = {
+        let (lang, mode) = {
             let mut st = lock(state);
             st.pending = None;
-            st.lang
+            // S-136: the held show captures the mode after the 2 s reload.
+            (st.lang, st.config.drop_mode)
         };
         DRAG_SEEN.with(|d| d.set(false));
         SHOWN_AT.with(|d| d.set(Some(Instant::now())));
         let token = token_step(TokenStep::Show);
         HIVE.with(|h| {
-            if let Some(hive) = h.borrow().as_ref()
-                && let Err(e) = hive.present_drop_hold(text::drop_waiting(lang), token, at)
-            {
-                eprintln!("kawarod: cannot show the drop hive: {e}");
+            if let Some(hive) = h.borrow().as_ref() {
+                hive.set_drop_mode(mode);
+                if let Err(e) = hive.present_drop_hold(text::drop_waiting(lang), token, at) {
+                    eprintln!("kawarod: cannot show the drop hive: {e}");
+                }
             }
         });
     }
@@ -1402,3 +1423,8 @@ mod tests {
 
 #[cfg(all(test, unix))]
 mod s090_tests;
+
+#[cfg(test)]
+mod s136_tests {
+    include!("s136_tests.rs");
+}

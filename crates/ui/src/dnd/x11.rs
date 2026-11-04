@@ -133,13 +133,12 @@ fn dropped() {
         _ => DropOutcome::Ignored,
     };
     match outcome {
-        // The files are the ones `on_drop_files` stored for the run.
-        DropOutcome::Run { cell, .. } => inner.choose(cell),
-        // A drop off every cell closes the hive, as on Wayland.
-        DropOutcome::Ignored => {
-            inner.drag(Event::Motion(None));
-            inner.drag(Event::Drop);
-        }
+        // S-136: every adapter drop goes through the same session table, so a
+        // commit and a handoff can never both happen for one drop.
+        DropOutcome::Run { cell, .. } => inner.drop_on(Some(cell)),
+        // No cell: a choose session closes, a drop-first session hands off,
+        // exactly like a Wayland drop anywhere on the surface.
+        DropOutcome::Ignored => inner.drop_on(None),
     }
 }
 

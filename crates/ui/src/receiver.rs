@@ -26,12 +26,13 @@
 
 use crate::dnd;
 use crate::layout::Plan;
+use kawaro_core::config::DropMode;
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use rustix::pipe::{PipeFlags, pipe_with};
 use std::io::Read;
 use std::os::fd::AsFd;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use wayland_client::globals::{GlobalListContents, registry_queue_init};
@@ -59,6 +60,9 @@ pub enum Note {
     Leave,
     /// Dropped; the last `Motion` says on which cell, `None` when refused.
     Drop,
+    /// The drop was refused by the protocol or had no offer (S-136): cancel
+    /// the session, never hand the files over.
+    Cancel,
     /// The pointer entered the layer catcher with no drag; sent by
     /// `layer.rs` (S-021).
     PointerEnter,
@@ -70,6 +74,12 @@ pub enum Note {
 /// Called on the main thread for each note.
 pub type Sink = fn(Note);
 
+/// S-136: the generation of the session that created one data device, kept as
+/// that device's user data so an in-flight event of a retired device is
+/// stamped with its own session, never the current one.
+#[derive(Clone, Copy)]
+struct Gen(u64);
+
 struct Shared {
     conn: Connection,
     qh: QueueHandle<Receiver>,
@@ -78,6 +88,12 @@ struct Shared {
     device: Mutex<Option<WlDataDevice>>,
     /// `wl_surface` pointer of the drop surface, 0 when detached.
     target: AtomicUsize,
+    /// S-136: the session this device belongs to, so a note queued by an old
+    /// session is dropped instead of mutating the new one.
+    generation: AtomicU64,
+    /// S-136: drop-first accepts the drag anywhere on the surface, so the
+    /// source delivers its drop instead of a cancel.
+    accept_anywhere: AtomicBool,
 }
 
 /// One receiver per `wl_display` pointer; `None` when it failed to start.
@@ -98,7 +114,7 @@ static URI_LIST_OFFERED: AtomicBool = AtomicBool::new(false);
 /// connection). Every earlier device is released first. Starts the receiver
 /// of `display` on first use. Call after every drop-mode show, once the
 /// surface exists.
-pub fn attach(display: usize, surface: usize, sink: Sink) {
+pub fn attach(display: usize, surface: usize, generation: u64, accept_anywhere: bool, sink: Sink) {
     let shared = {
         let mut all = lock(&RECEIVERS);
         for s in all.iter().filter_map(|(_, s)| s.as_ref()) {
@@ -117,8 +133,10 @@ pub fn attach(display: usize, surface: usize, sink: Sink) {
     };
     *lock(&OFFSET) = (0.0, 0.0);
     let Some(s) = shared else { return };
+    s.generation.store(generation, Ordering::SeqCst);
+    s.accept_anywhere.store(accept_anywhere, Ordering::SeqCst);
     s.target.store(surface, Ordering::SeqCst);
-    let device = s.manager.get_data_device(&s.seat, &s.qh, ());
+    let device = s.manager.get_data_device(&s.seat, &s.qh, Gen(generation));
     *lock(&s.device) = Some(device);
     let _ = s.conn.flush();
 }
@@ -126,6 +144,18 @@ pub fn attach(display: usize, surface: usize, sink: Sink) {
 /// Starts or ends the anchor phase (layer path, S-019 AC8).
 pub fn set_anchoring(on: bool) {
     ANCHORING.store(on, Ordering::SeqCst);
+}
+
+/// S-136: whether a drop may finish as an action or as a handoff. An invalid
+/// negotiation (the source refused the copy, or no cell in choose mode) never
+/// hands the files over; drop-first accepts an off-cell drop once accepted.
+pub(crate) fn handoff_allowed(
+    accepted: bool,
+    copy_action: bool,
+    over_cell: Option<usize>,
+    mode: DropMode,
+) -> bool {
+    accepted && copy_action && (mode == DropMode::DropFirst || over_cell.is_some())
 }
 
 /// Handles the enter held in the anchor phase, after the requests sent so
@@ -206,6 +236,8 @@ fn start(display: usize, sink: Sink) -> Option<Arc<Shared>> {
         seat,
         device: Mutex::new(None),
         target: AtomicUsize::new(0),
+        generation: AtomicU64::new(0),
+        accept_anywhere: AtomicBool::new(false),
     });
     let mut state = Receiver {
         shared: shared.clone(),
@@ -252,13 +284,20 @@ struct Receiver {
     action: bool,
     /// An enter in the anchor phase, at the latest position: handled by
     /// [`replay`].
-    held: Option<(f64, f64)>,
+    /// The held enter, its position and the generation of the device that
+    /// sent it (S-136): the replay carries that generation, not the current
+    /// one.
+    held: Option<(f64, f64, u64)>,
 }
 
 impl Receiver {
-    fn note(&self, note: Note) {
+    /// S-136: stamp a note with the generation of the device that produced it;
+    /// the crossing to the sink goes through the one stamped-note dispatcher.
+    fn note_at(&self, generation: u64, note: Note) {
         let sink = self.sink;
-        let _ = slint::invoke_from_event_loop(move || sink(note));
+        let _ = slint::invoke_from_event_loop(move || {
+            crate::dispatch_stamped_note(generation, note, sink);
+        });
     }
 
     fn has_uri_list(&self) -> bool {
@@ -273,14 +312,17 @@ impl Receiver {
     }
 
     /// Accepts over a cell only, so the cursor shows "no drop" elsewhere.
-    fn hover_at(&mut self, x: f64, y: f64) {
+    fn hover_at(&mut self, generation: u64, x: f64, y: f64) {
         let hit = self.pick(x, y);
         if hit != self.hover {
             self.hover = hit;
-            self.note(Note::Motion(hit));
+            self.note_at(generation, Note::Motion(hit));
         }
         if let Some(o) = &self.offer {
-            let ok = hit.is_some() && self.has_uri_list();
+            // S-136: drop-first accepts anywhere on the surface; choosing
+            // during the drag still accepts over a cell only.
+            let anywhere = self.shared.accept_anywhere.load(Ordering::SeqCst);
+            let ok = self.has_uri_list() && (anywhere || hit.is_some());
             o.accept(self.serial, ok.then(|| URI_LIST.to_string()));
             self.accepted = ok;
         }
@@ -300,7 +342,7 @@ impl Receiver {
         self.held = None;
     }
 
-    fn enter(&mut self, x: f64, y: f64) {
+    fn enter(&mut self, generation: u64, x: f64, y: f64) {
         let files = match &self.offer {
             Some(o) => {
                 // Copy only: a move would let the source delete the original.
@@ -316,28 +358,43 @@ impl Receiver {
             None => Vec::new(),
         };
         URI_LIST_OFFERED.store(self.has_uri_list(), Ordering::SeqCst);
-        self.note(Note::Enter(files));
-        self.hover_at(x, y);
+        self.note_at(generation, Note::Enter(files));
+        self.hover_at(generation, x, y);
     }
 
-    fn drop_here(&mut self) {
+    fn drop_here(&mut self, generation: u64) {
         let Some(o) = self.offer.take() else {
-            self.note(Note::Motion(None));
-            self.note(Note::Drop);
+            // S-136: no offer is a refused drop, not a handoff of old files.
+            self.note_at(generation, Note::Cancel);
             self.clear();
             return;
         };
         let v3 = o.version() >= 3;
-        let ok = self.hover.is_some() && self.accepted && (!v3 || self.action);
+        // S-136: a drop anywhere counts when the session accepts anywhere.
+        let anywhere = self.shared.accept_anywhere.load(Ordering::SeqCst);
+        let mode = if anywhere {
+            DropMode::DropFirst
+        } else {
+            DropMode::ChooseDuringDrag
+        };
+        let ok = handoff_allowed(self.accepted, !v3 || self.action, self.hover, mode);
         if ok && v3 {
             o.finish();
         }
         o.destroy();
         let _ = self.shared.conn.flush();
         if !ok {
-            self.note(Note::Motion(None));
+            // S-136: a refused drop (no accepted action, or no cell in choose
+            // mode) cancels the session at once; Leave would keep a hold
+            // session Waiting with its payload alive.
+            self.note_at(generation, Note::Cancel);
+            self.clear();
+            return;
         }
-        self.note(Note::Drop);
+        if self.hover.is_none() {
+            self.note_at(generation, Note::Motion(None));
+        }
+        self.note_at(generation, Note::Drop);
         self.clear();
     }
 }
@@ -428,9 +485,9 @@ impl Dispatch<WlCallback, ()> for Receiver {
         if let wl_callback::Event::Done { .. } = e
             && s.on_us
             && !ANCHORING.load(Ordering::SeqCst)
-            && let Some((x, y)) = s.held.take()
+            && let Some((x, y, held_generation)) = s.held.take()
         {
-            s.enter(x, y);
+            s.enter(held_generation, x, y);
         }
     }
 }
@@ -457,15 +514,21 @@ impl Dispatch<WlDataOffer, ()> for Receiver {
     }
 }
 
-impl Dispatch<WlDataDevice, ()> for Receiver {
+impl Dispatch<WlDataDevice, Gen> for Receiver {
     fn event(
         s: &mut Self,
         dev: &WlDataDevice,
         e: wl_data_device::Event,
-        _: &(),
+        data: &Gen,
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+        let generation = data.0;
+        // S-136: an event of a retired device is no event at all. It must not
+        // clear the offer, hover or drop of the session that replaced it.
+        if !crate::generation_is_current(generation) {
+            return;
+        }
         match e {
             wl_data_device::Event::DataOffer { id } => {
                 // A drag offer (its types follow before `enter`) or the
@@ -503,32 +566,34 @@ impl Dispatch<WlDataDevice, ()> for Receiver {
                 s.device = Some(dev.clone());
                 s.serial = serial;
                 if ANCHORING.load(Ordering::SeqCst) {
-                    s.held = Some((x, y));
-                    s.note(Note::Position(x, y));
+                    s.held = Some((x, y, generation));
+                    s.note_at(generation, Note::Position(x, y));
                 } else {
-                    s.enter(x, y);
+                    s.enter(generation, x, y);
                 }
             }
             wl_data_device::Event::Motion { x, y, .. } if s.on_us => {
                 if s.held.is_some() {
-                    s.held = Some((x, y));
+                    s.held = s
+                        .held
+                        .map(|(_, _, held_generation)| (x, y, held_generation));
                     if ANCHORING.load(Ordering::SeqCst) {
-                        s.note(Note::Position(x, y));
+                        s.note_at(generation, Note::Position(x, y));
                     }
                 } else {
-                    s.hover_at(x, y);
+                    s.hover_at(generation, x, y);
                 }
             }
             wl_data_device::Event::Leave => {
                 if s.on_us && s.held.is_none() {
-                    s.note(Note::Leave);
+                    s.note_at(generation, Note::Leave);
                 }
                 s.clear();
             }
             // A drop in the anchor phase is refused; the machine never saw
             // the drag.
             wl_data_device::Event::Drop if s.on_us && s.held.is_some() => s.clear(),
-            wl_data_device::Event::Drop if s.on_us => s.drop_here(),
+            wl_data_device::Event::Drop if s.on_us => s.drop_here(generation),
             _ => {}
         }
     }

@@ -154,7 +154,12 @@
 # private config, real ALT_L key events and a real drag of a PNG, in both
 # orders. Writes $OUT/altdrag-results.tsv, one row per drag, and
 # $OUT/altdrag-N.log per drag (daemon log and `hyprctl layers`).
-# Usage: tests/hyprland/repro.sh [--selftest|--portal|--altdrag|--json [--quasimode]] [layer|window] [BIN_DIR]
+# --s136 (S-136): only the Alt-hold drop lifecycle, both drop modes, then
+# return: a real ALT_L held through the drop of a GTK drag on the WEBP cell
+# and released after it. tests/hyprland/s136.sh holds the checks; this mode
+# starts the drag source and skips every other check. It needs the same Alt
+# binds as --altdrag and writes $OUT/hypr-layer-* logs only.
+# Usage: tests/hyprland/repro.sh [--selftest|--portal|--altdrag|--s136|--json [--quasimode]] [layer|window] [BIN_DIR]
 # BIN_DIR defaults to target/release; ~/.local/bin tests the installed build.
 # shellcheck disable=SC2016,SC2034,SC2329
 set -u
@@ -162,7 +167,7 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 # shellcheck source=../no_portal.sh
 source "$ROOT/tests/no_portal.sh"
-SELFTEST=0 JSON=0 QUASI=0 PORTAL=0 ALTDRAG=0 SURFACE=layer
+SELFTEST=0 JSON=0 QUASI=0 PORTAL=0 ALTDRAG=0 S136=0 SURFACE=layer
 BIN="$ROOT/target/release"
 for a in "$@"; do
   case "$a" in
@@ -171,6 +176,7 @@ for a in "$@"; do
     --quasimode) QUASI=1 ;;
     --portal) PORTAL=1 ;;
     --altdrag) ALTDRAG=1 ;;
+    --s136) S136=1 ;;
     layer|window) SURFACE=$a ;;
     *) BIN="$a" ;;
   esac
@@ -182,7 +188,7 @@ if ! command -v Hyprland >/dev/null || ! command -v kwin_wayland >/dev/null; the
 [ -x "$INPUT" ] || need "build first: cargo build --release --manifest-path tests/drop/kwin-input/Cargo.toml"
 OUT="${HYPR_OUT:-$HERE/out}"
 mkdir -p "$OUT"
-export BIN HERE ROOT OUT INPUT SELFTEST JSON QUASI PORTAL ALTDRAG SURFACE ALTN
+export BIN HERE ROOT OUT INPUT SELFTEST JSON QUASI PORTAL ALTDRAG S136 SURFACE ALTN
 ALTN="${ALTN:-20}"
 export HYPR_SCALE="${HYPR_SCALE:-1.333333}"
 
@@ -267,7 +273,7 @@ hl.window_rule({ match = kawaro, no_anim = true })
 hl.window_rule({ match = kawaro, border_size = 0 })
 hl.layer_rule({ match = { namespace = "^kawaro$" }, no_anim = true })
 LUA
-  if [ "$ALTDRAG" = 1 ]; then
+  if [ "$ALTDRAG" = 1 ] || [ "$S136" = 1 ]; then
     # The documented Alt-hold binds and the S-102 key hook for Alt chords
     # (integrations/linux/hyprland/README.md).
     cat >>"$XDG_CONFIG_HOME/hypr/sbh.lua" <<LUA
@@ -491,6 +497,25 @@ for c in json.load(sys.stdin):
       LAT=$(( ($(now_us) - t0) / 1000 ))
     fi
   }
+
+  # S-136: the Alt-hold drop lifecycle alone. Everything above and below is
+  # skipped: this mode starts the drag source itself, runs its checks and
+  # returns, so the run stays short.
+  if [ "$S136" = 1 ]; then
+    local NEXT="$XDG_RUNTIME_DIR/next" SLOG="$log-source.log"
+    GDK_BACKEND=wayland GTK_A11Y=none python3 -I "$ROOT/tests/drop/source.py" "$NEXT" >"$SLOG" 2>&1 &
+    SRCPID=$!
+    pids+=("$SRCPID")
+    sleep 2
+    # shellcheck source=s136.sh
+    source "$HERE/s136.sh"
+    s136_run
+    finish
+    say "RESULT $([ "$FAILS" -eq 0 ] && echo PASS || echo "FAIL ($FAILS)")"
+    echo "{\"total\": $TOTAL, \"failed\": $FAILS, \"skipped\": 0}" >"$XDG_RUNTIME_DIR/json"
+    [ "$FAILS" -eq 0 ]
+    return
+  fi
 
   # Show 1: open, then Esc.
   centre_ptr

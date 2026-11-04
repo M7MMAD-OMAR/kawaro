@@ -464,7 +464,13 @@ fn attach_receiver(window: Option<&winit::window::Window>) {
         Ok(RawWindowHandle::Wayland(s)) => s.surface.as_ptr() as usize,
         _ => return,
     };
-    receiver::attach(display, surface, on_note);
+    receiver::attach(
+        display,
+        surface,
+        session_generation(),
+        drop_accept_anywhere(),
+        on_note,
+    );
 }
 
 #[cfg(not(target_os = "linux"))]
@@ -475,7 +481,13 @@ fn attach_receiver(_window: Option<&winit::window::Window>) {}
 #[cfg(target_os = "linux")]
 fn attach_layer_receiver(display: usize, surface: usize) {
     if ATTACH_PENDING.with(|c| c.replace(false)) {
-        receiver::attach(display, surface, on_note);
+        receiver::attach(
+            display,
+            surface,
+            session_generation(),
+            drop_accept_anywhere(),
+            on_note,
+        );
     }
 }
 
@@ -485,19 +497,89 @@ fn on_note(note: receiver::Note) {
     let Some(inner) = DROP_HIVE.with(|h| h.borrow().upgrade()) else {
         return;
     };
+    // S-136: a terminal session takes no note, not even a position.
+    if inner.terminal.get() {
+        return;
+    }
     let event = match note {
         receiver::Note::Enter(files) => inner.drop_files(files),
         receiver::Note::Motion(cell) => dnd::Event::Motion(cell),
         receiver::Note::Leave => dnd::Event::Leave,
         receiver::Note::Drop => dnd::Event::Drop,
+        receiver::Note::Cancel => dnd::Event::Cancel,
         receiver::Note::PointerEnter => dnd::Event::PointerEnter,
         // The anchor phase on the layer path (S-019 AC9): never the machine.
         receiver::Note::Position(x, y) => {
+            // S-136: a note from a session that is not a live drop show only
+            // moves nothing, so an old position cannot place the new hive.
+            if !inner.session_is_drop.get() {
+                return;
+            }
             inner.last_point.set(Some((x, y)));
             return layer::position(x, y);
         }
     };
     inner.drag(event);
+}
+
+/// S-136: the generation of the shown session, read by the drop receiver so a
+/// note queued by an old session is dropped instead of mutating a new one.
+static SESSION_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static SESSION_ALLOCATOR: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// A process-wide unique session id, so the first session of a rebuilt Hive
+/// can never take the id of a queued event from an earlier instance.
+fn next_session_generation() -> u64 {
+    SESSION_ALLOCATOR.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1
+}
+
+pub(crate) fn set_session_generation(generation: u64) {
+    SESSION_GENERATION.store(generation, std::sync::atomic::Ordering::SeqCst);
+}
+
+pub(crate) fn session_generation() -> u64 {
+    SESSION_GENERATION.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// S-136: true when a queued generation still owns the shown session.
+pub(crate) fn generation_is_current(queued: u64) -> bool {
+    queued == session_generation()
+}
+
+/// S-136: the single crossing of a queued receiver or layer note to the main
+/// thread. A note stamped with an old session is dropped before the sink, so
+/// an old Enter/Drop/Position cannot touch the session that replaced it.
+pub(crate) fn dispatch_stamped_note(generation: u64, note: receiver::Note, sink: receiver::Sink) {
+    if !generation_is_current(generation) {
+        return;
+    }
+    sink(note);
+}
+
+/// S-136: a test-only bump, so a guard can be proved to reject a queued
+/// generation after a new session began.
+#[cfg(feature = "testing-hooks")]
+#[doc(hidden)]
+#[allow(dead_code)]
+pub(crate) fn bump_generation_for_test() -> u64 {
+    let generation = next_session_generation();
+    set_session_generation(generation);
+    generation
+}
+
+/// S-136: a queued stage reset may only rebuild its own live session.
+pub(crate) fn stage_reopen_allowed(terminal: bool, session: u64, queued: u64) -> bool {
+    !terminal && session == queued
+}
+
+/// S-136: true when the shown session is drop-first, so the receiver accepts
+/// the drag anywhere on the surface instead of over a cell only.
+pub(crate) fn drop_accept_anywhere() -> bool {
+    SHOWN.with(|h| {
+        h.borrow().upgrade().is_some_and(|inner| {
+            inner.session_is_drop.get() && inner.session_mode.get() == DropMode::DropFirst
+        })
+    })
 }
 
 /// Measurement hook: runs `f` once, right after the next frame is presented.
@@ -528,11 +610,17 @@ struct Inner {
     on_choose: RefCell<Option<ChooseFn>>,
     on_dismiss: RefCell<Option<DismissFn>>,
     on_drop_files: RefCell<Option<FilesFn>>,
-    /// S-135: the drag flow from config and the last drag state.
+    /// S-135: the drag flow for the next show and the last drag state.
     drop_mode: Cell<DropMode>,
     dragged: RefCell<Vec<PathBuf>>,
     last_point: Cell<Option<(f64, f64)>>,
     on_drop_first: RefCell<Option<DropFirstFn>>,
+    /// S-136: the owning session, its terminal latch, whether it is a drop
+    /// show and the mode it captured when it began.
+    session: Rc<Cell<u64>>,
+    terminal: Rc<Cell<bool>>,
+    session_is_drop: Cell<bool>,
+    session_mode: Cell<DropMode>,
     /// S-119: the Customize pill, the panel's Run and its Back.
     on_customize: RefCell<Option<ChooseFn>>,
     on_options_run: RefCell<Option<OptionsRunFn>>,
@@ -585,6 +673,47 @@ impl Inner {
         self.ui.borrow().window().is_visible()
     }
 
+    /// S-136: a new show owns a new session and captures its mode, so a later
+    /// set_drop_mode cannot change the running show.
+    fn begin_session(&self, drop: bool, mode: DropMode) {
+        let generation = next_session_generation();
+        self.session.set(generation);
+        crate::set_session_generation(generation);
+        self.terminal.set(false);
+        self.session_is_drop.set(drop);
+        self.session_mode.set(mode);
+        self.dragged.borrow_mut().clear();
+        self.last_point.set(None);
+        self.found.set(0);
+        self.closer.stop();
+        self.ui.borrow().set_closing(false);
+        *self.machine.borrow_mut() = dnd::Machine::new();
+    }
+
+    /// S-136: the drop-first handoff. The session is terminal before anything
+    /// external runs, the drop surface closes at once with no dismissal
+    /// callback, and the files and point are handed over exactly once.
+    fn finish_drop_first(&self, files: Vec<PathBuf>, at: Option<(f64, f64)>) {
+        self.terminal.set(true);
+        self.teardown();
+        {
+            let ui = self.ui.borrow();
+            ui.set_closing(false);
+            ui.hide().ok();
+        }
+        if let Some(f) = self.on_drop_first.borrow().clone() {
+            f(files, at);
+        }
+    }
+
+    /// S-136: one drop from an X11 or Windows adapter, through the same
+    /// session table as the Wayland receiver notes.
+    pub(crate) fn drop_on(&self, cell: Option<i32>) {
+        let motion = cell.and_then(|c| usize::try_from(c).ok());
+        self.drag(dnd::Event::Motion(motion));
+        self.drag(dnd::Event::Drop);
+    }
+
     fn close(&self) {
         self.closer.stop();
         self.ui.borrow().set_closing(false);
@@ -601,6 +730,13 @@ impl Inner {
         self.opener.stop();
         self.ticker.stop();
         *self.machine.borrow_mut() = dnd::Machine::new();
+        // S-136: a closed session keeps no drag payload, place or preview; the
+        // immutable render plan stays until the next show, so the drawn cells
+        // still answer where they are while the terminal guard blocks any
+        // reuse of the session and its files.
+        self.dragged.borrow_mut().clear();
+        self.last_point.set(None);
+        self.found.set(0);
         ATTACH_PENDING.with(|c| c.set(false));
         #[cfg(target_os = "linux")]
         receiver::detach();
@@ -658,6 +794,8 @@ impl Inner {
         state.request_preview();
         let ui = self.ui.borrow().as_weak();
         let stage = Rc::downgrade(&state);
+        let session = self.session.clone();
+        let generation = session.get();
         let mut shown = String::new();
         self.stage_timer.start(
             slint::TimerMode::Repeated,
@@ -666,6 +804,10 @@ impl Inner {
                 let (Some(ui), Some(stage)) = (ui.upgrade(), stage.upgrade()) else {
                     return;
                 };
+                // S-136: a panel poll from an old session writes nothing.
+                if session.get() != generation {
+                    return;
+                }
                 if let Some(image) = stage.poll_preview() {
                     ui.set_stage_preview_image(image);
                     ui.set_stage_preview(true);
@@ -683,6 +825,10 @@ impl Inner {
     /// Material controls keep their own state after an edit, so the panel is
     /// destroyed and rebuilt once to show the new values.
     fn reopen_stage(&self) {
+        // S-136: a terminal session never rebuilds the panel.
+        if self.terminal.get() {
+            return;
+        }
         let Some(state) = self.stage.borrow().clone() else {
             return;
         };
@@ -698,7 +844,15 @@ impl Inner {
         if let Some(ui) = ui.upgrade() {
             ui.set_stage_error("".into());
         }
+        let session = self.session.clone();
+        let generation = session.get();
+        let terminal = self.terminal.clone();
         slint::Timer::single_shot(Duration::ZERO, move || {
+            // S-136: the rebuild belongs to the session that asked for it and
+            // a terminal session never rebuilds the panel.
+            if !stage_reopen_allowed(terminal.get(), session.get(), generation) {
+                return;
+            }
             if let Some(ui) = ui.upgrade() {
                 ui.set_stage_options(rows);
                 ui.set_stage_presets(presets);
@@ -711,6 +865,10 @@ impl Inner {
     /// One option change from the panel (S-119): write the value, then show
     /// the resolved error in the panel or clear it and refresh the readout.
     fn set_option(&self, index: i32, numeric: f32, text: &str) {
+        // S-136: a terminal session takes no option changes.
+        if self.terminal.get() {
+            return;
+        }
         let Some(stage) = self.stage.borrow().clone() else {
             return;
         };
@@ -741,10 +899,16 @@ impl Inner {
         let ui = self.ui.borrow();
         ui.set_closing(true);
         let w = ui.as_weak();
+        let session = self.session.clone();
+        let generation = session.get();
         self.closer.start(
             slint::TimerMode::SingleShot,
             Duration::from_millis(tokens::HIVE_CLOSE_MS),
             move || {
+                // S-136: a close queued by an old session never hides a new one.
+                if session.get() != generation {
+                    return;
+                }
                 if let Some(ui) = w.upgrade() {
                     ui.set_closing(false);
                     ui.hide().ok();
@@ -774,7 +938,13 @@ impl Inner {
             return;
         }
         let w = ui.as_weak();
+        let session = self.session.clone();
+        let generation = session.get();
         let start = move || {
+            // S-136: an opening queued by an old session animates nothing.
+            if session.get() != generation {
+                return;
+            }
             if let Some(ui) = w.upgrade() {
                 ui.set_opened(true);
             }
@@ -904,8 +1074,14 @@ impl Inner {
         }
         // S-135: drop-first shows the hint only, with no action cells; the
         // drop is accepted anywhere on the surface.
-        if self.drop_mode.get() == DropMode::DropFirst && !cells.is_empty() {
+        if self.session_mode.get() == DropMode::DropFirst && !cells.is_empty() {
             self.apply(&centre, layout::plan_rings(Vec::new(), self.rtl, 2));
+            // S-136 private harness evidence: the hint really applied zero
+            // action cells, read from the model, not from the canvas.
+            if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
+                let cells = self.ui.borrow().get_cells().row_count();
+                stderr_line(&format!("hive drop hint: cells={cells}"));
+            }
             #[cfg(unix)]
             self.set_preview(&centre, &dragged);
             return dnd::Event::Enter;
@@ -925,10 +1101,36 @@ impl Inner {
         dnd::Event::Enter
     }
 
-    /// Feeds a drag or clock event to the mode machine and acts on the result.
-    /// A repeated `Running` or `Hidden` is harmless: `choose` and `dismiss`
-    /// do nothing once the hive is closed, and only a new show reopens it.
+    /// Feeds a drag or clock event to the mode machine and acts on the result
+    /// (S-136): one session owns the selection, commit and dismissal are
+    /// mutually exclusive, and a terminal session ignores every late event.
     fn drag(&self, event: dnd::Event) {
+        if self.terminal.get() {
+            return;
+        }
+        // Why: S-135 called the drop-first handoff on every Drop, next to the
+        // choose of the same event, so one drop could submit and reopen. The
+        // handoff now has its own branch, before the machine maps a Drop in
+        // Waiting to a dismissal, and only in a drop-first drop show.
+        if matches!(event, dnd::Event::Drop)
+            && self.session_is_drop.get()
+            && self.session_mode.get() == DropMode::DropFirst
+            && self.found.get() > 0
+            && matches!(
+                self.machine.borrow().state(),
+                dnd::State::Probing | dnd::State::Waiting | dnd::State::Over(_)
+            )
+        {
+            let files = self.dragged.take();
+            if !files.is_empty() {
+                self.finish_drop_first(files, self.last_point.get());
+                return;
+            }
+        }
+        // A normal show (not a drop show) has no drag machine effects.
+        if !self.session_is_drop.get() {
+            return;
+        }
         let before = self.machine.borrow().state();
         let state = self.machine.borrow_mut().handle(event, Instant::now());
         // Its line before the hide unmaps the catcher.
@@ -943,20 +1145,17 @@ impl Inner {
         match state {
             dnd::State::Over(i) => self.ui.borrow().set_highlight(i as i32),
             dnd::State::Waiting => self.ui.borrow().set_highlight(-1),
-            dnd::State::Running(i) => self.choose(i as i32),
+            dnd::State::Running(i) => {
+                self.choose(i as i32);
+                // S-136: a drop on a disabled cell submits nothing and ends
+                // the session like any other drop off a cell.
+                if !self.terminal.get() {
+                    self.dismiss_inner(false);
+                }
+            }
             // A probing show has drawn nothing and hides at once (S-017 AC9).
             dnd::State::Hidden => self.dismiss_inner(before == dnd::State::Probing),
             _ => {}
-        }
-        // S-135: a drop-first drop closes this surface, then the normal hive
-        // opens for the same files at the drop point.
-        if matches!(event, dnd::Event::Drop) {
-            let files = self.dragged.take();
-            if !files.is_empty()
-                && let Some(f) = self.on_drop_first.borrow().clone()
-            {
-                f(files, self.last_point.get());
-            }
         }
     }
 
@@ -976,6 +1175,10 @@ impl Inner {
     }
 
     fn choose(&self, index: i32) {
+        // S-136: a terminal session submits nothing, not twice and not later.
+        if self.terminal.get() {
+            return;
+        }
         // A disabled cell chooses nothing and the hive stays open (S-108).
         let id = self.plan.borrow().as_ref().and_then(|p| {
             usize::try_from(index)
@@ -990,6 +1193,8 @@ impl Inner {
         if !self.visible() || self.ui.borrow().get_closing() {
             return;
         }
+        // S-136: the session is terminal before the external callback runs.
+        self.terminal.set(true);
         self.animate_close();
         let f = self.on_choose.borrow().clone();
         if let Some(f) = f {
@@ -1006,6 +1211,11 @@ impl Inner {
     /// drawn nothing, S-017 AC9), and with the animated close otherwise.
     /// `on_dismiss` runs in the same turn as before, once per show.
     fn dismiss_inner(&self, instant: bool) {
+        // S-136: one terminal end per session; late dismissals add nothing.
+        if self.terminal.get() {
+            return;
+        }
+        self.terminal.set(true);
         if !self.visible() || self.ui.borrow().get_closing() {
             return;
         }
@@ -1052,6 +1262,10 @@ impl Hive {
             dragged: RefCell::new(Vec::new()),
             last_point: Cell::new(None),
             on_drop_first: RefCell::new(None),
+            session: Rc::new(Cell::new(0)),
+            terminal: Rc::new(Cell::new(false)),
+            session_is_drop: Cell::new(false),
+            session_mode: Cell::new(DropMode::ChooseDuringDrag),
             on_customize: RefCell::new(None),
             on_options_run: RefCell::new(None),
             on_options_cancel: RefCell::new(None),
@@ -1199,6 +1413,11 @@ impl Hive {
     /// show probing, waiting or over a cell closes with [`Hive::on_dismiss`]
     /// and runs nothing. Any other show ignores it.
     pub fn key_released(&self) {
+        // S-136: a release belongs to its own drop session; it never dismisses
+        // the normal hive the handoff opened, nor a terminal session.
+        if self.inner.terminal.get() || !self.inner.session_is_drop.get() {
+            return;
+        }
         self.inner.drag(dnd::Event::Release);
     }
 
@@ -1222,6 +1441,9 @@ impl Hive {
         let inner = &self.inner;
         // A show that is not the panel clears a panel left from before (S-119).
         inner.end_stage();
+        // S-136: the show captures the mode and owns a new session, so a later
+        // set_drop_mode or a stale callback cannot change it.
+        inner.begin_session(drop.is_some(), inner.drop_mode.get());
         #[cfg(windows)]
         let (plan, win_at) = win_window::plan(cells.clone(), inner.rtl, min_rings);
         #[cfg(all(not(windows), target_os = "linux"))]
@@ -1303,7 +1525,7 @@ impl Hive {
             min_rings,
             drop,
             at,
-            clear: drop && inner.drop_mode.get() == DropMode::ChooseDuringDrag,
+            clear: drop && inner.session_mode.get() == DropMode::ChooseDuringDrag,
         });
         #[cfg(not(target_os = "linux"))]
         let _ = (cells, at);
@@ -1402,7 +1624,13 @@ impl Hive {
     }
 
     /// Hides the hive without firing any callback.
+    /// Closes the hive (S-136): a public close retires the session first, so
+    /// a queued stage reset, receiver note or layer closure from it cannot act
+    /// on a hidden window. The show path keeps Inner::close raw, because a
+    /// replace is followed by begin_session.
     pub fn close(&self) {
+        self.inner.terminal.set(true);
+        crate::set_session_generation(next_session_generation());
         self.inner.close();
     }
 
@@ -1457,14 +1685,49 @@ impl Hive {
         self.inner.drop_mode.set(mode);
     }
 
+    /// S-136: the mode the shown session captured at show time, for the
+    /// daemon test; the mutable candidate is set_drop_mode's value.
+    #[cfg(feature = "testing-hooks")]
+    #[doc(hidden)]
+    pub fn drop_mode(&self) -> DropMode {
+        self.inner.session_mode.get()
+    }
+
+    /// S-136 test feeder: the production enter path, as the receiver note
+    /// would run it (drop_files then drag), not a direct callback.
+    #[cfg(feature = "testing-hooks")]
+    #[doc(hidden)]
+    pub fn feed_enter(&self, files: Vec<PathBuf>) {
+        let event = self.inner.drop_files(files);
+        self.inner.drag(event);
+    }
+
+    /// S-136 test feeder: the production drop path through the shared table.
+    #[cfg(feature = "testing-hooks")]
+    #[doc(hidden)]
+    pub fn feed_drop(&self, cell: Option<usize>) {
+        self.inner.drag(dnd::Event::Motion(cell));
+        self.inner.drag(dnd::Event::Drop);
+    }
+
+    /// S-136 test feeder: the production leave path, for stale sessions.
+    #[cfg(feature = "testing-hooks")]
+    #[doc(hidden)]
+    pub fn feed_leave(&self) {
+        self.inner.drag(dnd::Event::Leave);
+    }
+
     /// S-135: the drop-first drop, with the files and the last drag point.
     pub fn on_drop_first(&self, f: impl Fn(Vec<PathBuf>, Option<(f64, f64)>) + 'static) {
         *self.inner.on_drop_first.borrow_mut() = Some(Rc::new(f));
     }
 
     /// Closes the shown hive at once, for the drop-first transition.
+    /// Hides the hive at once (S-136), no animation and no dismissal callback,
+    /// as the drop-first handoff needs; a queued stage reset cannot revive it.
     pub fn dismiss_now(&self) {
-        self.inner.dismiss();
+        self.inner.terminal.set(true);
+        self.inner.close();
     }
 
     pub fn on_drop_files(&self, f: impl Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>) + 'static) {
@@ -1642,6 +1905,9 @@ fn wire(inner: &Rc<Inner>) {
     let w = Rc::downgrade(inner);
     ui.on_customize(move |index| {
         let Some(i) = w.upgrade() else { return };
+        if i.terminal.get() {
+            return;
+        }
         let id = i
             .plan
             .borrow()
@@ -1678,6 +1944,9 @@ fn wire(inner: &Rc<Inner>) {
     let w = Rc::downgrade(inner);
     ui.on_stage_run(move || {
         let Some(i) = w.upgrade() else { return };
+        if i.terminal.get() {
+            return;
+        }
         let Some(stage) = i.stage.borrow().clone() else {
             return;
         };
@@ -1690,6 +1959,8 @@ fn wire(inner: &Rc<Inner>) {
             }
         };
         let id = stage.action_id().to_string();
+        // S-136: terminal before the submit callback runs.
+        i.terminal.set(true);
         i.close();
         if let Some(f) = i.on_options_run.borrow().clone() {
             f(id, params);
@@ -1698,6 +1969,10 @@ fn wire(inner: &Rc<Inner>) {
     let w = Rc::downgrade(inner);
     ui.on_stage_cancel(move || {
         let Some(i) = w.upgrade() else { return };
+        if i.terminal.get() {
+            return;
+        }
+        i.terminal.set(true);
         i.close();
         if let Some(f) = i.on_options_cancel.borrow().clone() {
             f();
@@ -1783,5 +2058,7 @@ mod s115_tests;
 #[cfg(test)]
 #[cfg(all(test, target_os = "linux"))]
 mod s116_tests;
+#[cfg(test)]
+mod s136_tests;
 #[cfg(test)]
 mod ui_tests;

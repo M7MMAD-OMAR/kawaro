@@ -1043,7 +1043,12 @@ impl LayerAdapter {
                 {
                     self.remapped.set(true);
                     let me = self.me.clone();
+                    let generation = crate::session_generation();
                     slint::Timer::single_shot(Duration::ZERO, move || {
+                        // S-136: a remap queued by an old session is dropped.
+                        if !crate::generation_is_current(generation) {
+                            return;
+                        }
                         if let Some(a) = me.upgrade() {
                             a.remap(pt);
                         }
@@ -1070,7 +1075,16 @@ impl LayerAdapter {
                         self.no_drag.set(true);
                         self.timer.stop();
                     }
-                    let note = || crate::on_note(crate::receiver::Note::PointerEnter);
+                    // S-136: a pointer enter queued by an old session must
+                    // not dismiss the probing show that replaced it.
+                    let generation = crate::session_generation();
+                    let note = move || {
+                        crate::dispatch_stamped_note(
+                            generation,
+                            crate::receiver::Note::PointerEnter,
+                            crate::on_note,
+                        );
+                    };
                     let _ = slint::invoke_from_event_loop(note);
                 }
             }
@@ -1308,7 +1322,13 @@ impl LayerAdapter {
                 // only one the compositor names the catcher to.
                 flush();
                 if remap {
-                    crate::receiver::attach(display, catcher, crate::on_note);
+                    crate::receiver::attach(
+                        display,
+                        catcher,
+                        crate::session_generation(),
+                        crate::drop_accept_anywhere(),
+                        crate::on_note,
+                    );
                 } else {
                     crate::attach_layer_receiver(display, catcher);
                 }
@@ -1545,7 +1565,12 @@ impl WindowAdapter for LayerAdapter {
         }
         // Rendering here could run inside a Slint callback; defer.
         let me = self.me.clone();
+        let generation = crate::session_generation();
         slint::Timer::single_shot(Duration::ZERO, move || {
+            // S-136: a render queued by an old session draws nothing.
+            if !crate::generation_is_current(generation) {
+                return;
+            }
             if let Some(a) = me.upgrade() {
                 a.render();
             }
