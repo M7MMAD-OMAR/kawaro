@@ -25,7 +25,7 @@ pub(crate) fn append(
     if !config.audit {
         return;
     }
-    let Some(file) = audit_file(config) else {
+    let Some(file) = config.resolved_audit_path() else {
         return;
     };
     if let Some(dir) = file.parent()
@@ -54,15 +54,6 @@ pub(crate) fn append(
     {
         let _ = writeln!(handle, "{line}");
     }
-}
-
-/// The audit file: the test seam when set, otherwise `mcp-audit.jsonl` in
-/// the Kawaro config folder.
-fn audit_file(config: &Config) -> Option<PathBuf> {
-    if let Some(path) = &config.audit_path {
-        return Some(path.clone());
-    }
-    kawaro_core::paths::config_dir().map(|dir| dir.join("mcp-audit.jsonl"))
 }
 
 /// Renames an oversized file to `<file>.1`, dropping an older one.

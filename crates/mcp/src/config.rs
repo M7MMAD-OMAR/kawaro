@@ -23,8 +23,10 @@ pub struct Config {
     pub audit: bool,
     /// Longest side of the PNG preview of a result, in pixels.
     pub preview_px: u32,
-    /// Where the audit lines go. Not read from the TOML: it is a seam for the
-    /// tests, which must not write into the user's config folder.
+    /// Where the audit lines go (S-134): read from `[mcp] audit_path` as a
+    /// string and kept as written (an absolute, `~` or relative path), then
+    /// resolved by [`Config::resolved_audit_path`]. `None` means the default
+    /// in the Kawaro config folder. Setting it directly is the test seam.
     pub audit_path: Option<PathBuf>,
 }
 
@@ -79,6 +81,11 @@ impl Config {
         {
             config.preview_px = u32::try_from(v).unwrap_or(u32::MAX);
         }
+        if let Some(v) = mcp.get("audit_path").and_then(toml::Value::as_str)
+            && !v.is_empty()
+        {
+            config.audit_path = Some(PathBuf::from(v));
+        }
         config
     }
 
@@ -100,6 +107,17 @@ impl Config {
         kawaro_core::config::Config::path()
     }
 
+    /// The file the audit writer uses (S-134): the configured `audit_path`
+    /// with its `~` and relative rules, or `mcp-audit.jsonl` in the Kawaro
+    /// config folder when the key is absent.
+    pub fn resolved_audit_path(&self) -> Option<PathBuf> {
+        let config_dir = kawaro_core::paths::config_dir();
+        match &self.audit_path {
+            Some(path) => Some(resolve_audit_path(path, config_dir.as_deref())),
+            None => config_dir.map(|dir| dir.join(DEFAULT_AUDIT_FILE)),
+        }
+    }
+
     /// The allowed roots that exist on this machine: `~` expanded with HOME,
     /// made absolute, canonicalised, folders only. Order is kept.
     pub fn resolved_roots(&self) -> Vec<PathBuf> {
@@ -109,6 +127,27 @@ impl Config {
             .filter_map(|root| resolve_root(root, home.as_deref()))
             .collect()
     }
+}
+
+/// The default audit file name inside the Kawaro config folder.
+const DEFAULT_AUDIT_FILE: &str = "mcp-audit.jsonl";
+
+/// A configured audit path: `~` and `~/...` expand with HOME and stay
+/// literal when HOME is unset, an absolute path is used as written, and a
+/// relative path is joined to the Kawaro config folder.
+fn resolve_audit_path(path: &Path, config_dir: Option<&Path>) -> PathBuf {
+    let text = path.to_string_lossy();
+    let home = std::env::var_os("HOME").map(PathBuf::from);
+    if text == "~" {
+        return home.unwrap_or_else(|| path.to_path_buf());
+    }
+    if let Some(rest) = text.strip_prefix("~/") {
+        return home.map_or_else(|| path.to_path_buf(), |home| home.join(rest));
+    }
+    if path.is_absolute() {
+        return path.to_path_buf();
+    }
+    config_dir.map_or_else(|| path.to_path_buf(), |dir| dir.join(path))
 }
 
 /// One root: `~` and `~/` expand with HOME, then absolute, canonical and a

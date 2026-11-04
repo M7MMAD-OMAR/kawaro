@@ -22,6 +22,7 @@ read_only = false
 allowed_roots = ["~/Documents", "~/Pictures", "~/Downloads"]
 max_files = 50
 audit = true
+# audit_path = "~/logs/kawaro-audit.jsonl"
 preview_px = 512
 ```
 
@@ -31,9 +32,14 @@ preview_px = 512
 - `allowed_roots`: only files inside these folders are read or written. An
   empty list refuses every path. `~` expands to your home folder.
 - `max_files`: the most files one call may take.
-- `audit`: one JSON line per tool call in `mcp-audit.jsonl` in the Kawaro
-  config folder (`~/.config/kawaro` on Linux), rotated at 1 MiB. The file
-  stays there even when `--config` points somewhere else.
+- `audit`: one JSON line per tool call, rotated at 1 MiB to `.1`.
+- `audit_path`: where those lines go. The default is `mcp-audit.jsonl` in
+  the Kawaro config folder (`~/.config/kawaro` on Linux). An absolute path
+  is used as written; `~` and `~/...` expand to your home folder; a
+  relative path is relative to the Kawaro config folder. Missing parents
+  are created. `--config` changes where the settings are read from, not
+  where the default audit file lands, so set `audit_path` when the log
+  should follow the config file.
 - `preview_px`: the longest side of the PNG preview in a tool result.
 
 ## 2. Add the host
