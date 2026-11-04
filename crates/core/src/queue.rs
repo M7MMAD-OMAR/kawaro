@@ -23,6 +23,8 @@ pub enum JobEvent {
         job: JobId,
         output: PathBuf,
         elapsed: std::time::Duration,
+        /// The engine's structured result (S-132), when it has one.
+        detail: Option<crate::engine::TaskDetail>,
     },
     TaskFailed {
         job: JobId,

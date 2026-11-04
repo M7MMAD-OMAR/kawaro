@@ -13,7 +13,12 @@ path = "src/main.rs"
 clap = { version = "4", features = ["derive"] }
 kawaro-core.workspace = true
 kawaro-engines.workspace = true
+kawaro-mcp.workspace = true
 serde_json.workspace = true
+# Building the explicit params table of `kawaro run --set` and printing the
+# options schema (S-120). Already in Cargo.lock through kawaro-core, so no new
+# package and no MSRV change.
+toml.workspace = true
 
 # Starting the service detached and the foreground grant (S-042). Already in
 # Cargo.lock through other crates, so no new package; features add none.

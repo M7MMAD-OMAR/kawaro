@@ -16,6 +16,37 @@ label = { ar = "ضغط ملف PDF", en = "Compress PDF" }
 icon = "compress"
 [action.params]
 preset = "ebook"
+dpi = 0
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "preset"
+type = "enum"
+label = { ar = "إعداد الضغط", en = "Preset" }
+default = "ebook"
+maps_to = "preset"
+[[action.options.field.values]]
+id = "screen"
+label = { ar = "الشاشة", en = "Screen" }
+[[action.options.field.values]]
+id = "ebook"
+label = { ar = "كتاب إلكتروني", en = "Ebook" }
+[[action.options.field.values]]
+id = "printer"
+label = { ar = "طابعة", en = "Printer" }
+[[action.options.field.values]]
+id = "prepress"
+label = { ar = "طباعة احترافية", en = "Prepress" }
+
+[[action.options.field]]
+id = "dpi"
+type = "int"
+label = { ar = "دقة الصور (0 يستخدم الإعداد)", en = "Image resolution (0 uses preset)" }
+default = 0
+min = 0
+max = 600
+unit = "dpi"
+maps_to = "dpi"
 
 [[action]]
 id = "pdf.merge"
@@ -43,6 +74,16 @@ label = { ar = "تحويل الصفحات إلى صور PNG", en = "Convert page
 icon = "pages"
 [action.params]
 dpi = 150
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "dpi"
+type = "int"
+label = { ar = "الدقة", en = "Resolution" }
+default = 150
+min = 72
+max = 600
+maps_to = "dpi"
 
 [[action]]
 id = "pdf.rotate"
@@ -67,5 +108,217 @@ order = 10
 accepts = ["pdf"]
 output = { mode = "per-file", ext = "zip", suffix = "-split" }
 code = { ar = "تقسيم", en = "SPLIT" }
-label = { ar = "تقسيم إلى ملف PDF لكل صفحة", en = "Split into one PDF per page" }
+label = { ar = "تقسيم إلى عدة ملفات PDF", en = "Split into several PDFs" }
 icon = "split"
+[action.params]
+every = 1
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "every"
+type = "int"
+label = { ar = "كل عدد من الصفحات", en = "Every N pages" }
+default = 1
+min = 1
+max = 1000
+maps_to = "every"
+clears = ["ranges"]
+
+[[action.options.field]]
+id = "ranges"
+type = "string"
+label = { ar = "نطاقات الصفحات", en = "Page ranges" }
+default = ""
+maps_to = "ranges"
+clears = ["every"]
+
+[[action]]
+id = "pdf.extract-pages"
+engine = "pdf"
+op = "extract-pages"
+ring = 2
+order = 20
+accepts = ["pdf"]
+output = { mode = "per-file", suffix = "-pages" }
+code = { ar = "استخراج", en = "EXTRACT" }
+label = { ar = "استخراج صفحات محددة", en = "Extract pages" }
+icon = "pages"
+[action.params]
+pages = "1"
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "pages"
+type = "string"
+label = { ar = "الصفحات", en = "Pages" }
+default = "1"
+maps_to = "pages"
+
+[[action]]
+id = "pdf.delete-pages"
+engine = "pdf"
+op = "delete-pages"
+ring = 2
+order = 30
+accepts = ["pdf"]
+output = { mode = "per-file", suffix = "-deleted" }
+code = { ar = "حذف", en = "REMOVE" }
+label = { ar = "حذف صفحات محددة", en = "Delete pages" }
+icon = "pages"
+[action.params]
+pages = "1"
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "pages"
+type = "string"
+label = { ar = "الصفحات", en = "Pages" }
+default = "1"
+maps_to = "pages"
+
+[[action]]
+id = "pdf.reorder-pages"
+engine = "pdf"
+op = "reorder-pages"
+ring = 2
+order = 40
+accepts = ["pdf"]
+output = { mode = "per-file", suffix = "-ordered" }
+code = { ar = "ترتيب", en = "ORDER" }
+label = { ar = "إعادة ترتيب الصفحات", en = "Reorder pages" }
+icon = "pages"
+[action.params]
+order = "1"
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "order"
+type = "string"
+label = { ar = "الترتيب", en = "Page order" }
+default = "1"
+maps_to = "order"
+[[action]]
+id = "pdf.metadata"
+engine = "pdf"
+op = "metadata"
+ring = 2
+order = 50
+accepts = ["pdf"]
+min_files = 1
+output = { mode = "per-file", suffix = "-metadata" }
+code = { ar = "بيانات", en = "META" }
+label = { ar = "تعديل البيانات الوصفية", en = "Edit metadata" }
+icon = "file"
+[action.params]
+clear = false
+title = ""
+author = ""
+subject = ""
+keywords = ""
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "clear"
+type = "bool"
+label = { ar = "حذف البيانات الوصفية", en = "Clear metadata" }
+default = false
+clears = ["title", "author", "subject", "keywords"]
+
+[[action.options.field]]
+id = "title"
+type = "string"
+label = { ar = "العنوان", en = "Title" }
+default = ""
+maps_to = "title"
+clears = ["clear"]
+
+[[action.options.field]]
+id = "author"
+type = "string"
+label = { ar = "المؤلف", en = "Author" }
+default = ""
+maps_to = "author"
+clears = ["clear"]
+
+[[action.options.field]]
+id = "subject"
+type = "string"
+label = { ar = "الموضوع", en = "Subject" }
+default = ""
+maps_to = "subject"
+clears = ["clear"]
+
+[[action.options.field]]
+id = "keywords"
+type = "string"
+label = { ar = "الكلمات المفتاحية", en = "Keywords" }
+default = ""
+maps_to = "keywords"
+clears = ["clear"]
+[[action]]
+id = "pdf.to-text"
+engine = "poppler"
+op = "to-text"
+ring = 1
+order = 50
+accepts = ["pdf"]
+min_files = 1
+output = { mode = "per-file", ext = "txt", suffix = "-text" }
+code = { ar = "نص", en = "TXT" }
+label = { ar = "استخراج النص", en = "Extract text" }
+icon = "text"
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "pages"
+type = "string"
+label = { ar = "الصفحات", en = "Pages" }
+default = ""
+maps_to = "pages"
+[[action]]
+id = "pdf.linearize"
+engine = "qpdf"
+op = "linearize"
+ring = 2
+order = 60
+accepts = ["pdf"]
+output = { mode = "per-file", suffix = "-linearized" }
+code = { ar = "سريع", en = "FAST" }
+label = { ar = "إنشاء نسخة سريعة العرض", en = "Make a fast web view PDF" }
+icon = "pages"
+
+[[action]]
+id = "pdf.cleanup"
+engine = "qpdf"
+op = "cleanup"
+ring = 2
+order = 70
+accepts = ["pdf"]
+output = { mode = "per-file", suffix = "-cleaned" }
+code = { ar = "تنظيف", en = "CLEAN" }
+label = { ar = "تنظيف بنية الملف", en = "Clean the PDF structure" }
+icon = "clean"
+
+[[action]]
+id = "pdf.check"
+engine = "qpdf"
+op = "check"
+ring = 2
+order = 80
+accepts = ["pdf"]
+output = { mode = "per-file", ext = "txt", suffix = "-check" }
+code = { ar = "فحص", en = "CHECK" }
+label = { ar = "فحص الملف وتقرير التشفير", en = "Check the PDF and report encryption" }
+icon = "file"

@@ -1,7 +1,9 @@
-//! `to-pdf`: one page per input, each page exactly the size of its image at
-//! one point per pixel. Upright 8 bit gray or RGB JPEGs are embedded as they
-//! are (DCTDecode); everything else is stored losslessly with Flate, alpha
-//! composited onto white.
+//! `to-pdf`: one page per input. `page_size`, `orientation`, `margin_mm`
+//! and `dpi` set the page box and where the image sits on it: `fit` (the
+//! default) is the image at its dpi size plus the margin on every side, and
+//! A4 or Letter scale the image into the margin inset box. Upright 8 bit gray
+//! or RGB JPEGs are embedded as they are (DCTDecode); everything else is
+//! stored losslessly with Flate, alpha composited onto white.
 
 use super::{Loaded, bad, encode::flatten, load};
 use image::{ColorType, ImageFormat};
@@ -13,6 +15,150 @@ use pdf_writer::{Content, Filter, Finish, Name, Pdf, Rect, Ref};
 const FLATE_LEVEL: u8 = 6;
 const IMAGE_NAME: Name<'static> = Name(b"Im1");
 
+/// Fixed page sizes in points, portrait.
+const A4: (f64, f64) = (595.276, 841.89);
+const LETTER: (f64, f64) = (612.0, 792.0);
+const POINTS_PER_INCH: f64 = 72.0;
+const MM_PER_INCH: f64 = 25.4;
+/// One point per pixel when the action does not set a dpi.
+const DEFAULT_DPI: u32 = 72;
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PageSize {
+    Fit,
+    A4,
+    Letter,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Orientation {
+    Auto,
+    Portrait,
+    Landscape,
+}
+
+/// Validated `to-pdf` options.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Options {
+    page_size: PageSize,
+    orientation: Orientation,
+    margin_mm: f64,
+    dpi: u32,
+}
+
+/// Where one page and its image go, in points.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Placement {
+    page_w: f32,
+    page_h: f32,
+    draw_w: f32,
+    draw_h: f32,
+    x: f32,
+    y: f32,
+}
+
+impl Options {
+    fn parse(task: &Task) -> Result<Self, EngineError> {
+        // Older actions carry `page = "fit"`; `page_size` replaces it.
+        if task.params.contains_key("page") && task.param_str("page") != Some("fit") {
+            return Err(bad("page", "only \"fit\" is supported"));
+        }
+        let page_size = match task.params.get("page_size") {
+            None => PageSize::Fit,
+            Some(v) => match v.as_str() {
+                Some("fit") => PageSize::Fit,
+                Some("a4") => PageSize::A4,
+                Some("letter") => PageSize::Letter,
+                _ => return Err(bad("page_size", "must be \"fit\", \"a4\" or \"letter\"")),
+            },
+        };
+        let orientation = match task.params.get("orientation") {
+            None => Orientation::Auto,
+            Some(v) => match v.as_str() {
+                Some("auto") => Orientation::Auto,
+                Some("portrait") => Orientation::Portrait,
+                Some("landscape") => Orientation::Landscape,
+                _ => {
+                    return Err(bad(
+                        "orientation",
+                        "must be \"auto\", \"portrait\" or \"landscape\"",
+                    ));
+                }
+            },
+        };
+        let margin_mm = match task.params.get("margin_mm") {
+            None => 0.0,
+            Some(_) => match task.param_f64("margin_mm") {
+                Some(m) if (0.0..=50.0).contains(&m) => m,
+                _ => {
+                    return Err(bad(
+                        "margin_mm",
+                        "must be a number from 0 to 50 millimetres",
+                    ));
+                }
+            },
+        };
+        let dpi = match task.params.get("dpi") {
+            None => DEFAULT_DPI,
+            Some(_) => match task.param_i64("dpi") {
+                Some(d @ 72..=600) => d as u32,
+                _ => return Err(bad("dpi", "must be a whole number from 72 to 600")),
+            },
+        };
+        Ok(Self {
+            page_size,
+            orientation,
+            margin_mm,
+            dpi,
+        })
+    }
+
+    /// Page size and placement for an image of `w` by `h` pixels.
+    fn placement(self, w: u32, h: u32) -> Placement {
+        let natural_w = f64::from(w) * POINTS_PER_INCH / f64::from(self.dpi);
+        let natural_h = f64::from(h) * POINTS_PER_INCH / f64::from(self.dpi);
+        let margin = self.margin_mm * POINTS_PER_INCH / MM_PER_INCH;
+        let (page_w, page_h) = match self.page_size {
+            PageSize::Fit => (natural_w + 2.0 * margin, natural_h + 2.0 * margin),
+            PageSize::A4 => self.fixed_page(A4, w, h),
+            PageSize::Letter => self.fixed_page(LETTER, w, h),
+        };
+        let content_w = page_w - 2.0 * margin;
+        let content_h = page_h - 2.0 * margin;
+        // Fit inside the content box, keeping the aspect ratio, and never
+        // enlarge past the image's own dpi size.
+        let scale = (content_w / natural_w).min(content_h / natural_h).min(1.0);
+        let draw_w = natural_w * scale;
+        let draw_h = natural_h * scale;
+        // The margins are symmetric, so the page centre is the content centre.
+        let x = (page_w - draw_w) / 2.0;
+        let y = (page_h - draw_h) / 2.0;
+        Placement {
+            page_w: page_w as f32,
+            page_h: page_h as f32,
+            draw_w: draw_w as f32,
+            draw_h: draw_h as f32,
+            x: x as f32,
+            y: y as f32,
+        }
+    }
+
+    /// A fixed page turned to match the orientation. `auto` follows the
+    /// image: wider than tall is landscape, otherwise portrait.
+    fn fixed_page(self, portrait: (f64, f64), w: u32, h: u32) -> (f64, f64) {
+        let landscape = match self.orientation {
+            Orientation::Auto => w > h,
+            Orientation::Portrait => false,
+            Orientation::Landscape => true,
+        };
+        if landscape {
+            (portrait.1, portrait.0)
+        } else {
+            portrait
+        }
+    }
+}
+
 pub(super) fn run(
     task: &Task,
     progress: Progress,
@@ -21,9 +167,7 @@ pub(super) fn run(
     if task.inputs.is_empty() {
         return Err(bad("inputs", "`to-pdf` needs at least one image"));
     }
-    if task.params.contains_key("page") && task.param_str("page") != Some("fit") {
-        return Err(bad("page", "only \"fit\" is supported"));
-    }
+    let options = Options::parse(task)?;
 
     let n = task.inputs.len();
     let catalog_id = Ref::new(1);
@@ -43,10 +187,11 @@ pub(super) fn run(
         cancel.check()?;
         let (page_id, image_id, content_id) = ids(i);
         let loaded = load(path)?;
-        let (w, h) = (loaded.image.width() as f32, loaded.image.height() as f32);
+        let (w, h) = (loaded.image.width(), loaded.image.height());
+        let placement = options.placement(w, h);
 
         let mut page = pdf.page(page_id);
-        page.media_box(Rect::new(0.0, 0.0, w, h));
+        page.media_box(Rect::new(0.0, 0.0, placement.page_w, placement.page_h));
         page.parent(tree_id);
         page.contents(content_id);
         page.resources().x_objects().pair(IMAGE_NAME, image_id);
@@ -67,7 +212,14 @@ pub(super) fn run(
 
         let mut content = Content::new();
         content.save_state();
-        content.transform([w, 0.0, 0.0, h, 0.0, 0.0]);
+        content.transform([
+            placement.draw_w,
+            0.0,
+            0.0,
+            placement.draw_h,
+            placement.x,
+            placement.y,
+        ]);
         content.x_object(IMAGE_NAME);
         content.restore_state();
         pdf.stream(content_id, &content.finish());

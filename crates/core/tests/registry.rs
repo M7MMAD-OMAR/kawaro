@@ -393,7 +393,7 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
             "jpg",
             "",
             &["jpg", "jpeg", "jpe"],
-            &[("quality", "90")],
+            &[("keep_metadata", "false"), ("quality", "90")],
         ),
         (
             "image.to-avif",
@@ -413,7 +413,13 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
             "pdf",
             "",
             &[],
-            &[("page", "\"fit\"")],
+            &[
+                ("dpi", "72"),
+                ("margin_mm", "0.0"),
+                ("orientation", "\"auto\""),
+                ("page", "\"fit\""),
+                ("page_size", "\"fit\""),
+            ],
         ),
         ("image.to-ico", 1, "convert", P, "ico", "", &["ico"], &[]),
         (
@@ -424,7 +430,7 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
             "",
             "-50",
             &[],
-            &[("scale", "50")],
+            &[("keep_metadata", "false"), ("scale", "50")],
         ),
         (
             "image.fit-1920",
@@ -465,7 +471,7 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
             "",
             "-compressed",
             &[],
-            &[("quality", "75")],
+            &[("keep_metadata", "false"), ("quality", "75")],
         ),
         ("image.strip", 2, "strip", P, "", "-clean", &[], &[]),
         ("image.to-gif", 2, "convert", P, "gif", "", &["gif"], &[]),
@@ -480,6 +486,46 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
             &[],
         ),
         ("image.to-bmp", 2, "convert", P, "bmp", "", &["bmp"], &[]),
+        // S-127 appended the three image mode actions to actions/images.toml.
+        (
+            "image.resize-to",
+            2,
+            "resize-box",
+            P,
+            "",
+            "-resized",
+            &[],
+            &[
+                ("height", "1080"),
+                ("keep_metadata", "false"),
+                ("mode", "\"fit\""),
+                ("width", "1920"),
+            ],
+        ),
+        (
+            "image.crop",
+            2,
+            "crop",
+            P,
+            "",
+            "-crop",
+            &[],
+            &[
+                ("anchor", "\"center\""),
+                ("aspect", "\"original\""),
+                ("keep_metadata", "false"),
+            ],
+        ),
+        (
+            "image.compress-to",
+            2,
+            "compress-to",
+            P,
+            "",
+            "-small",
+            &["png"],
+            &[("keep_metadata", "false"), ("target_bytes", "500000")],
+        ),
     ];
     let image_actions = reg.all().iter().filter(|a| a.engine == "image").count();
     assert_eq!(image_actions, rows.len());
@@ -518,14 +564,16 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
             .filter(|a| a.engine == "image" && a.ring == ring)
             .count()
     };
-    assert_eq!((image(1), image(2)), (6, 10));
+    // S-127 moved ring 2 from 10 to 13 with resize-to, crop and compress-to.
+    assert_eq!((image(1), image(2)), (6, 13));
 }
 
 #[test]
 fn ac6_builtin_hive_for_one_photo() {
     let reg = Registry::builtin();
     let ids = matched(&reg, &["/home/u/photo.JPG"], &any);
-    assert_eq!(ids.len(), 15);
+    // 18 since S-127 added image.resize-to, image.crop and image.compress-to.
+    assert_eq!(ids.len(), 18);
     assert_eq!(ids[0], "image.to-webp");
     assert!(!ids.contains(&"image.to-jpg".to_string()));
     assert!(matched(&reg, &["/home/u/photo.jpg"], &|e| e != "image").is_empty());

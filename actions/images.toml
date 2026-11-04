@@ -20,6 +20,17 @@ label = { ar = "تحويل إلى WebP", en = "Convert to WebP" }
 icon = "image"
 [action.params]
 quality = 85
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "quality"
+type = "int"
+label = { ar = "الجودة", en = "Quality" }
+default = 85
+min = 1
+max = 100
+maps_to = "quality"
+unit = "%"
 
 [[action]]
 id = "image.to-png"
@@ -48,6 +59,25 @@ label = { ar = "تحويل إلى JPG", en = "Convert to JPG" }
 icon = "image"
 [action.params]
 quality = 90
+keep_metadata = false
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "quality"
+type = "int"
+label = { ar = "الجودة", en = "Quality" }
+default = 90
+min = 1
+max = 100
+maps_to = "quality"
+unit = "%"
+
+[[action.options.field]]
+id = "keep_metadata"
+type = "bool"
+label = { ar = "الاحتفاظ بالبيانات الوصفية (JPEG فقط)", en = "Keep metadata (JPEG only)" }
+default = false
+maps_to = "keep_metadata"
 
 [[action]]
 id = "image.to-avif"
@@ -63,6 +93,17 @@ label = { ar = "تحويل إلى AVIF", en = "Convert to AVIF" }
 icon = "image"
 [action.params]
 quality = 70
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "quality"
+type = "int"
+label = { ar = "الجودة", en = "Quality" }
+default = 70
+min = 1
+max = 100
+maps_to = "quality"
+unit = "%"
 
 [[action]]
 id = "image.to-pdf"
@@ -78,6 +119,59 @@ label = { ar = "دمج الصور في ملف PDF واحد", en = "Combine into 
 icon = "pdf"
 [action.params]
 page = "fit"
+page_size = "fit"
+orientation = "auto"
+margin_mm = 0.0
+dpi = 72
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "page_size"
+type = "enum"
+label = { ar = "حجم الصفحة", en = "Page size" }
+default = "fit"
+maps_to = "page_size"
+[[action.options.field.values]]
+id = "fit"
+label = { ar = "ملائم للصورة", en = "Fit image" }
+[[action.options.field.values]]
+id = "a4"
+label = { ar = "A4", en = "A4" }
+[[action.options.field.values]]
+id = "letter"
+label = { ar = "Letter", en = "Letter" }
+[[action.options.field]]
+id = "orientation"
+type = "enum"
+label = { ar = "الاتجاه", en = "Orientation" }
+default = "auto"
+maps_to = "orientation"
+[[action.options.field.values]]
+id = "auto"
+label = { ar = "تلقائي", en = "Auto" }
+[[action.options.field.values]]
+id = "portrait"
+label = { ar = "عمودي", en = "Portrait" }
+[[action.options.field.values]]
+id = "landscape"
+label = { ar = "أفقي", en = "Landscape" }
+[[action.options.field]]
+id = "margin_mm"
+type = "float"
+label = { ar = "الهامش", en = "Margin" }
+default = 0.0
+min = 0.0
+max = 50.0
+unit = "mm"
+maps_to = "margin_mm"
+[[action.options.field]]
+id = "dpi"
+type = "int"
+label = { ar = "الدقة", en = "Resolution" }
+default = 72
+min = 72
+max = 600
+maps_to = "dpi"
 
 [[action]]
 id = "image.to-ico"
@@ -108,6 +202,35 @@ label = { ar = "تصغير إلى النصف", en = "Resize to 50%" }
 icon = "resize"
 [action.params]
 scale = 50
+keep_metadata = false
+[action.options]
+kind = "form"
+readout = ["dimensions", "ratio", "percent", "output_name"]
+[[action.options.field]]
+id = "scale"
+type = "percent"
+label = { ar = "النسبة المئوية", en = "Percent" }
+default = 50
+min = 1
+max = 1000
+maps_to = "scale"
+clears = ["max_side"]
+[[action.options.field]]
+id = "max_side"
+type = "px"
+label = { ar = "أقصى ضلع", en = "Max side" }
+default = 1920
+min = 16
+max = 20000
+maps_to = "max_side"
+clears = ["scale"]
+
+[[action.options.field]]
+id = "keep_metadata"
+type = "bool"
+label = { ar = "الاحتفاظ بالبيانات الوصفية (JPEG فقط)", en = "Keep metadata (JPEG only)" }
+default = false
+maps_to = "keep_metadata"
 
 [[action]]
 id = "image.fit-1920"
@@ -176,6 +299,25 @@ label = { ar = "ضغط الصورة", en = "Compress" }
 icon = "compress"
 [action.params]
 quality = 75
+keep_metadata = false
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "quality"
+type = "int"
+label = { ar = "الجودة", en = "Quality" }
+default = 75
+min = 1
+max = 100
+maps_to = "quality"
+unit = "%"
+
+[[action.options.field]]
+id = "keep_metadata"
+type = "bool"
+label = { ar = "الاحتفاظ بالبيانات الوصفية (JPEG فقط)", en = "Keep metadata (JPEG only)" }
+default = false
+maps_to = "keep_metadata"
 
 [[action]]
 id = "image.strip"
@@ -227,3 +369,151 @@ output = { mode = "per-file", ext = "bmp" }
 code = { ar = "BMP", en = "BMP" }
 label = { ar = "تحويل إلى BMP", en = "Convert to BMP" }
 icon = "image"
+[[action]]
+id = "image.resize-to"
+engine = "image"
+op = "resize-box"
+ring = 2
+order = 110
+accepts = ["image"]
+output = { mode = "per-file", suffix = "-resized" }
+code = { ar = "إطار", en = "BOX" }
+label = { ar = "تغيير الحجم إلى قياس محدد", en = "Resize to a size" }
+icon = "fit"
+[action.params]
+width = 1920
+height = 1080
+mode = "fit"
+keep_metadata = false
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "width"
+type = "int"
+label = { ar = "العرض", en = "Width" }
+default = 1920
+min = 16
+max = 20000
+unit = "px"
+maps_to = "width"
+
+[[action.options.field]]
+id = "height"
+type = "int"
+label = { ar = "الارتفاع", en = "Height" }
+default = 1080
+min = 16
+max = 20000
+unit = "px"
+maps_to = "height"
+
+[[action.options.field]]
+id = "mode"
+type = "enum"
+label = { ar = "الطريقة", en = "Method" }
+default = "fit"
+values = [
+  { id = "fit", label = { ar = "داخل الإطار", en = "Fit inside" } },
+  { id = "fill", label = { ar = "تغطية الإطار", en = "Fill the box" } },
+  { id = "exact", label = { ar = "القياس بالضبط", en = "Exact size" } },
+]
+maps_to = "mode"
+
+[[action.options.field]]
+id = "keep_metadata"
+type = "bool"
+label = { ar = "الاحتفاظ بالبيانات الوصفية (JPEG فقط)", en = "Keep metadata (JPEG only)" }
+default = false
+maps_to = "keep_metadata"
+
+[[action]]
+id = "image.crop"
+engine = "image"
+op = "crop"
+ring = 2
+order = 120
+accepts = ["image"]
+output = { mode = "per-file", suffix = "-crop" }
+code = { ar = "قص", en = "CROP" }
+label = { ar = "قص الصورة", en = "Crop image" }
+icon = "resize"
+[action.params]
+aspect = "original"
+anchor = "center"
+keep_metadata = false
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "aspect"
+type = "enum"
+label = { ar = "الأبعاد", en = "Aspect" }
+default = "original"
+values = [
+  { id = "1:1", label = { ar = "1:1", en = "1:1" } },
+  { id = "4:3", label = { ar = "4:3", en = "4:3" } },
+  { id = "16:9", label = { ar = "16:9", en = "16:9" } },
+  { id = "3:2", label = { ar = "3:2", en = "3:2" } },
+  { id = "original", label = { ar = "الأصلية", en = "Original" } },
+]
+maps_to = "aspect"
+
+[[action.options.field]]
+id = "anchor"
+type = "enum"
+label = { ar = "المرساة", en = "Anchor" }
+default = "center"
+values = [
+  { id = "center", label = { ar = "الوسط", en = "Center" } },
+  { id = "top", label = { ar = "أعلى", en = "Top" } },
+  { id = "bottom", label = { ar = "أسفل", en = "Bottom" } },
+  { id = "left", label = { ar = "يسار", en = "Left" } },
+  { id = "right", label = { ar = "يمين", en = "Right" } },
+]
+maps_to = "anchor"
+
+[[action.options.field]]
+id = "keep_metadata"
+type = "bool"
+label = { ar = "الاحتفاظ بالبيانات الوصفية (JPEG فقط)", en = "Keep metadata (JPEG only)" }
+default = false
+maps_to = "keep_metadata"
+
+[[action]]
+id = "image.compress-to"
+engine = "image"
+op = "compress-to"
+ring = 2
+order = 130
+accepts = ["image"]
+skip_ext = ["png"]
+output = { mode = "per-file", suffix = "-small" }
+code = { ar = "حجم", en = "SIZE" }
+label = { ar = "ضغط إلى حجم محدد", en = "Compress to a size" }
+icon = "compress"
+[action.params]
+target_bytes = 500000
+keep_metadata = false
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "target_bytes"
+type = "int"
+label = { ar = "الحجم المستهدف", en = "Target size" }
+default = 500000
+min = 1
+max = 20000000
+unit = "bytes"
+maps_to = "target_bytes"
+
+[[action.options.field]]
+id = "keep_metadata"
+type = "bool"
+label = { ar = "الاحتفاظ بالبيانات الوصفية (JPEG فقط)", en = "Keep metadata (JPEG only)" }
+default = false
+maps_to = "keep_metadata"

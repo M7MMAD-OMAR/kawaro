@@ -98,6 +98,7 @@ fn cell(i: usize, ring: u8) -> HiveCell {
         ring,
         enabled: true,
         reason: String::new(),
+        customize: false,
     }
 }
 

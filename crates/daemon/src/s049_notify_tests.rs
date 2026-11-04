@@ -64,6 +64,7 @@ fn ac5_one_finished_job_writes_exactly_one_notify_line() {
             failed: 0,
             first_output: None,
             first_error: None,
+            detail: None,
         },
     );
 

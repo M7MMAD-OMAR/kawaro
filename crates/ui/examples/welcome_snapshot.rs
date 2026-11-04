@@ -1,7 +1,7 @@
 //! Renders the welcome window once and writes a PNG, or compares it with a
 //! reference.
 //!
-//!     welcome_snapshot OUT.png [--lang ar|en] [--compare REF.png]
+//!     welcome_snapshot OUT.png [--lang ar|en] [--compare REF.png] [--choose-language]
 //!
 //! The film is frozen at its poster, or at the frame given by `--frame N`,
 //! so the render is deterministic. Needs a Wayland compositor: run it through
@@ -29,6 +29,8 @@ struct Opts {
     frame: Option<usize>,
     /// S-094c: show the hive at the pointer instead of centred.
     at_pointer: bool,
+    /// S-130: render the first-run language screen instead of the film.
+    choose_language: bool,
 }
 
 fn parse(args: &[String]) -> Result<Opts, String> {
@@ -40,6 +42,7 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         size: None,
         frame: None,
         at_pointer: false,
+        choose_language: false,
     };
     let mut it = args.iter();
     while let Some(a) = it.next() {
@@ -48,6 +51,7 @@ fn parse(args: &[String]) -> Result<Opts, String> {
             "--compare" => o.compare = it.next().map(PathBuf::from),
             "--frame" => o.frame = it.next().and_then(|v| v.parse().ok()),
             "--at-pointer" => o.at_pointer = true,
+            "--choose-language" => o.choose_language = true,
             "--page" => o.page = it.next().and_then(|v| v.parse().ok()),
             "--size" => {
                 o.size = it.next().and_then(|v| {
@@ -59,7 +63,9 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         }
     }
     if o.out.as_os_str().is_empty() {
-        return Err("usage: welcome_snapshot OUT.png [--lang ar|en] [--compare REF.png]".into());
+        return Err(
+            "usage: welcome_snapshot OUT.png [--lang ar|en] [--compare REF.png] [--choose-language]".into(),
+        );
     }
     Ok(o)
 }
@@ -105,6 +111,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let win = std::rc::Rc::new(WelcomeWindow::new(o.lang)?);
     // The key-free caption step keeps the reference platform neutral (AC3).
     let captions: Captions = kawaro_core::welcome::captions(o.lang, &Registration::Unbound);
+    if o.choose_language {
+        win.choose_language();
+    }
     win.open(&captions, !o.at_pointer)?;
     if let Some(page) = o.page {
         win.show_page(page);

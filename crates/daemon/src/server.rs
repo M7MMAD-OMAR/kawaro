@@ -43,10 +43,17 @@ pub fn focus_log(ok: bool) -> Option<&'static str> {
 /// S-087 AC1 and D1: with no `welcome_seen` marker the same entry opens the
 /// first-run welcome window instead.
 pub fn settings(state: &Shared) {
+    settings_with_token(state, None);
+}
+
+/// The same route with an activation token (S-131): the settings window asks
+/// the compositor to activate it where the session allows it. The first-run
+/// welcome ignores the token.
+pub fn settings_with_token(state: &Shared, token: Option<String>) {
     let config = lock(state).config.clone();
     match kawaro_core::welcome::route(&config) {
         kawaro_core::welcome::Route::Welcome => ui::present_welcome(state),
-        kawaro_core::welcome::Route::Settings => ui::open_settings(config),
+        kawaro_core::welcome::Route::Settings => ui::open_settings_token(config, token),
     }
 }
 
@@ -186,6 +193,15 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     }
     match req {
         Request::Ping => reply(&mut stream, &Response::Ok),
+        // S-120: the CLI asks before it sends explicit params, so an older
+        // daemon cannot silently drop them.
+        Request::Version => reply(
+            &mut stream,
+            &Response::Version {
+                version: env!("CARGO_PKG_VERSION").to_string(),
+                run_params: true,
+            },
+        ),
         Request::Open { files, token, at } => match open(state, files, token, at) {
             Ok(()) => reply(&mut stream, &Response::Ok),
             Err(message) => error(&mut stream, message),
@@ -204,10 +220,21 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
             action,
             files,
             wait,
+            params,
         } => {
             let mut st = lock(state);
             let Some(def) = st.registry.get(&action).cloned() else {
                 return error(&mut stream, format!("unknown action `{action}`"));
+            };
+            // Explicit option values are resolved onto a copy of the registry
+            // entry, so this run gets them and the next one does not (S-120).
+            // An unknown key or a bad value is refused before any job starts.
+            let def = match &params {
+                Some(params) => match def.with_params(params) {
+                    Ok(def) => def,
+                    Err(e) => return error(&mut stream, e.to_string()),
+                },
+                None => def,
             };
             // Holding the lock while submitting keeps the pump from publishing
             // the first events before this client is subscribed.
@@ -228,8 +255,8 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
             queue.cancel_all();
             reply(&mut stream, &Response::Ok);
         }
-        Request::Settings => {
-            settings(state);
+        Request::Settings { token } => {
+            settings_with_token(state, token);
             reply(&mut stream, &Response::Ok);
         }
         Request::Reload => {
@@ -331,5 +358,45 @@ mod tests {
         let mut reply = String::new();
         BufReader::new(&mut client).read_line(&mut reply).unwrap();
         assert_eq!(reply, "{\"status\":\"ok\"}\n");
+    }
+
+    // S-120: explicit option values are resolved before a job is submitted,
+    // and a refused value answers the caller with the option error text.
+    #[cfg(unix)]
+    #[test]
+    fn s120_a_bad_run_param_is_refused_before_any_job() {
+        use super::handle;
+        use crate::state::{Shared, State};
+        use kawaro_core::config::Config;
+        use kawaro_core::queue::Queue;
+        use kawaro_core::transport::{Bound, Endpoint, Listener, Stream};
+        use std::sync::{Arc, Mutex, mpsc};
+
+        let dir = tempfile::tempdir().unwrap();
+        let endpoint = Endpoint::from_path(dir.path().join("kawaro.sock"));
+        let Bound::Listening(listener) = Listener::bind(&endpoint).unwrap() else {
+            panic!("nothing else listens in the temporary directory");
+        };
+        let mut client = Stream::connect(&endpoint).unwrap();
+        let server = listener.accept().unwrap();
+        writeln!(
+            client,
+            r#"{{"cmd":"run","action":"image.to-webp","files":["/tmp/x.png"],"wait":false,"params":{{"bogus":1}}}}"#
+        )
+        .unwrap();
+        let state: Shared = Arc::new(Mutex::new(State::new(Config::default(), &[])));
+        let (tx, _rx) = mpsc::channel();
+        let queue = Arc::new(Queue::new(kawaro_engines::all(), 1, tx));
+        handle(server, &state, &queue);
+        let mut reply = String::new();
+        BufReader::new(&mut client).read_line(&mut reply).unwrap();
+        assert_eq!(
+            reply.trim_end(),
+            r#"{"status":"error","message":"unknown option `bogus`"}"#
+        );
+        assert!(
+            state.lock().unwrap().jobs.is_empty(),
+            "a refused run submits no job"
+        );
     }
 }

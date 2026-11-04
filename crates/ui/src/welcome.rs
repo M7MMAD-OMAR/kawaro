@@ -134,6 +134,11 @@ struct Inner {
 }
 
 impl Inner {
+    /// Runs the daemon save callback for `lang`; true when it was saved.
+    fn save_language(&self, lang: Lang) -> bool {
+        self.on_language.borrow().as_ref().is_some_and(|f| f(lang))
+    }
+
     fn new_ui(self: &Rc<Self>) -> Result<WelcomeUi, slint::PlatformError> {
         let ui = WelcomeUi::new()?;
         ui.set_rtl(self.rtl);
@@ -149,6 +154,13 @@ impl Inner {
             pause_button: film.pause.into(),
             play_accessible: film.play_accessible.into(),
             pause_accessible: film.pause_accessible.into(),
+            language_title: strings.language_title.as_str().into(),
+            language_subtitle: strings.language_subtitle.as_str().into(),
+            language_failed: strings.language_failed.as_str().into(),
+            language_english: strings.language_english.as_str().into(),
+            language_english_accessible: strings.language_english_accessible.as_str().into(),
+            language_arabic: strings.language_arabic.as_str().into(),
+            language_arabic_accessible: strings.language_arabic_accessible.as_str().into(),
         });
         // The shell shows its header and rail from the first frame, so the
         // settings strings go in now, over the default values; `show_settings`
@@ -189,10 +201,18 @@ impl Inner {
         ui.on_select_language(move |arabic| {
             if let Some(inner) = w.upgrade() {
                 let lang = if arabic { Lang::Ar } else { Lang::En };
-                let saved = inner.on_language.borrow().as_ref().is_some_and(|f| f(lang));
-                inner.ui.borrow().set_language_save_failed(!saved);
+                let saved = inner.save_language(lang);
+                let ui = inner.ui.borrow();
+                ui.set_language_save_failed(!saved);
+                if saved {
+                    inner.choose_language.set(false);
+                    ui.set_choose_language(false);
+                    ui.set_language_focus(0);
+                }
             }
         });
+        let w = Rc::downgrade(self);
+        ui.on_escape(move || with(&w, Inner::escape_pressed));
         let w = Rc::downgrade(self);
         ui.on_dismissed(move || with(&w, Inner::close));
         let w = Rc::downgrade(self);
@@ -392,6 +412,16 @@ impl Inner {
         }
     }
 
+    /// Escape (S-131): a settings page cancels the unsaved edits exactly as
+    /// Back does, then the window hides; the Introduction just hides.
+    fn escape_pressed(&self) {
+        let settings_open = self.ui.borrow().get_page() != 0;
+        if settings_open {
+            self.cancel_settings();
+        }
+        self.close();
+    }
+
     fn close(&self) {
         self.timer.stop();
         self.poll_timer.stop();
@@ -507,6 +537,16 @@ fn with(w: &Weak<Inner>, f: impl FnOnce(&Inner)) {
 /// The welcome window. One per process; `open` shows it again with fresh
 /// captions. The demonstration plays from the frame set embedded in
 /// `ui/welcome.slint`.
+/// One key of the language screen (S-130). The daemon and the window share
+/// this small set, so the keyboard path is testable without a compositor.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LanguageKey {
+    Tab,
+    Enter,
+    Space,
+    Escape,
+}
+
 pub struct WelcomeWindow {
     inner: Rc<Inner>,
 }
@@ -588,6 +628,85 @@ impl WelcomeWindow {
     /// Persist a chosen language. False leaves the choice visible with an error.
     pub fn on_language(&self, f: impl Fn(Lang) -> bool + 'static) {
         *self.inner.on_language.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// S-130: the language screen is up.
+    pub fn choose_language_visible(&self) -> bool {
+        self.inner.ui.borrow().get_choose_language()
+    }
+
+    /// S-130: the save failure line is up.
+    pub fn language_save_failed(&self) -> bool {
+        self.inner.ui.borrow().get_language_save_failed()
+    }
+
+    /// S-130: the failure text the screen shows, when a save failed.
+    pub fn language_failure_text(&self) -> Option<String> {
+        self.language_save_failed()
+            .then(|| kawaro_core::welcome::strings(self.inner.lang).language_failed)
+    }
+
+    /// S-130: the focused option, 0 for the first one shown.
+    pub fn language_focus(&self) -> usize {
+        usize::try_from(self.inner.ui.borrow().get_language_focus()).unwrap_or(0)
+    }
+
+    /// S-130: the option order on screen; the Arabic build mirrors it by hand.
+    pub fn language_option_order(&self) -> Vec<Lang> {
+        match self.inner.lang {
+            Lang::En => vec![Lang::En, Lang::Ar],
+            Lang::Ar => vec![Lang::Ar, Lang::En],
+        }
+    }
+
+    /// S-130: the window mirrors right to left.
+    pub fn language_rtl(&self) -> bool {
+        self.inner.rtl
+    }
+
+    /// S-130: one key of the language screen. True when the key saved a
+    /// language; Tab moves the focus and Escape closes without saving.
+    pub fn press_language_key(&self, key: LanguageKey) -> bool {
+        match key {
+            LanguageKey::Tab => {
+                let next = (self.language_focus() + 1) % 2;
+                self.inner.ui.borrow().set_language_focus(next as i32);
+                false
+            }
+            LanguageKey::Enter | LanguageKey::Space => {
+                let order = self.language_option_order();
+                let index = self.language_focus().min(order.len() - 1);
+                let saved = self.inner.save_language(order[index]);
+                let ui = self.inner.ui.borrow();
+                ui.set_language_save_failed(!saved);
+                if saved {
+                    self.inner.choose_language.set(false);
+                    ui.set_choose_language(false);
+                    ui.set_language_focus(0);
+                }
+                saved
+            }
+            LanguageKey::Escape => {
+                self.inner.close();
+                false
+            }
+        }
+    }
+
+    /// S-131: dispatches Escape through the shell, the same path as pressing
+    /// the key: a settings page cancels the unsaved edits and the window
+    /// hides; the Introduction hides.
+    #[doc(hidden)]
+    pub fn press_escape(&self) {
+        self.inner.ui.borrow().invoke_escape();
+    }
+
+    /// S-131: puts the keyboard focus inside the open settings page. True
+    /// when a settings page is open; the Conversion page's folder field is
+    /// the window's text field and Tab from the page scope reaches it.
+    #[doc(hidden)]
+    pub fn focus_settings_text_field(&self) -> bool {
+        self.inner.ui.borrow().invoke_focus_settings_field()
     }
 
     /// Whether the window is currently shown.

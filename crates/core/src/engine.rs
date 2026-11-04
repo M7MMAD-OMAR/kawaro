@@ -92,6 +92,42 @@ pub struct Estimate {
     pub memory_mb: u32,
 }
 
+/// The structured result of one task (S-132): the final and the source size
+/// and the byte count, so every surface localizes its own line instead of
+/// parsing a preformatted string.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct TaskDetail {
+    pub width: u32,
+    pub height: u32,
+    pub source_width: u32,
+    pub source_height: u32,
+    pub bytes: u64,
+    pub downscaled: bool,
+}
+
+/// The one detail line a surface prints (S-132 AC3), in `lang`:
+/// "1536 x 1024, 4242 bytes (downscaled from 2400 x 1600)", or without the
+/// source phrase when nothing was downscaled.
+pub fn detail_line(detail: &TaskDetail, lang: crate::i18n::Lang) -> String {
+    let sizes = format!(
+        "{} x {}, {} bytes",
+        detail.width, detail.height, detail.bytes
+    );
+    if !detail.downscaled {
+        return sizes;
+    }
+    match lang {
+        crate::i18n::Lang::Ar => format!(
+            "{sizes} (مصغّرة من {} x {})",
+            detail.source_width, detail.source_height
+        ),
+        crate::i18n::Lang::En => format!(
+            "{sizes} (downscaled from {} x {})",
+            detail.source_width, detail.source_height
+        ),
+    }
+}
+
 pub trait Engine: Send + Sync {
     /// Matches the `engine` field of action TOML files.
     fn id(&self) -> &'static str;
@@ -123,4 +159,10 @@ pub trait Engine: Send + Sync {
     /// fires. A partial `task.output` left behind is removed by the queue.
     fn run(&self, task: &Task, progress: Progress, cancel: &CancelToken)
     -> Result<(), EngineError>;
+
+    /// The structured result of the task that just ran (S-132), when the
+    /// engine has one; surfaces fall back to the path and bytes line.
+    fn result_detail(&self, _task: &Task) -> Option<TaskDetail> {
+        None
+    }
 }

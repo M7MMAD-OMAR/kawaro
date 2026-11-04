@@ -34,6 +34,7 @@ fn run(mode: NotifyMode, events: Vec<JobEvent>, tasks: usize) -> usize {
             failed: 0,
             first_output: None,
             first_error: None,
+            detail: None,
         },
     );
     let (tx, rx) = channel();
@@ -65,6 +66,7 @@ fn done(name: &str, seconds: u64) -> JobEvent {
         job: 1,
         output: PathBuf::from(name),
         elapsed: Duration::from_secs(seconds),
+        detail: None,
     }
 }
 

@@ -1622,12 +1622,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "fontconfig-parser"
+version = "0.5.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bbc773e24e02d4ddd8395fd30dc147524273a83e54e0f312d986ea30de5f5646"
+dependencies = [
+ "roxmltree 0.20.0",
+]
+
+[[package]]
 name = "fontdb"
 version = "0.24.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2660c5e9157bf76d2db1294e4a9feba604ef610819a3b591088d0d8392a3290f"
 dependencies = [
+ "fontconfig-parser",
  "log",
+ "memmap2",
  "slotmap",
  "tinyvec",
 ]
@@ -1647,7 +1658,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "parlance",
  "read-fonts",
- "roxmltree",
+ "roxmltree 0.21.1",
  "smallvec",
  "windows",
  "windows-core",
@@ -2744,6 +2755,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "jpeg-decoder"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "00810f1d8b74be64b13dbf3db89ac67740615d6c891f0e7b6179326533011a07"
+
+[[package]]
 name = "js-sys"
 version = "0.3.106"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2761,8 +2778,10 @@ dependencies = [
  "clap",
  "kawaro-core",
  "kawaro-engines",
+ "kawaro-mcp",
  "serde_json",
  "tempfile",
+ "toml 0.8.23",
  "windows-sys 0.61.2",
  "winresource",
 ]
@@ -2823,23 +2842,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "kawaro-mcp"
+version = "0.5.0"
+dependencies = [
+ "base64",
+ "image",
+ "kawaro-core",
+ "kawaro-engines",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "toml 0.8.23",
+]
+
+[[package]]
 name = "kawaro-ui"
 version = "0.5.0"
 dependencies = [
  "i-slint-backend-testing",
  "i-slint-backend-winit",
  "i-slint-core",
+ "image",
+ "jpeg-decoder",
  "kawaro-core",
  "kawaro-engines",
  "kawaro-ui",
  "md-5",
  "png 0.17.16",
+ "resvg",
  "rustix 1.1.5",
  "serde_json",
  "sha2",
  "slint",
  "slint-build",
  "tempfile",
+ "toml 0.8.23",
  "wayland-backend",
  "wayland-client",
  "wayland-protocols",
@@ -4580,6 +4617,12 @@ dependencies = [
 
 [[package]]
 name = "roxmltree"
+version = "0.20.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6c20b6793b5c2fa6553b250154b78d6d0db37e72700ae35fad9387a46f487c97"
+
+[[package]]
+name = "roxmltree"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1964b10c76125c36f8afe190065a4bf9a87bf324842c05701330bba9f1cacbb"
@@ -5713,7 +5756,7 @@ dependencies = [
  "kurbo",
  "log",
  "pico-args",
- "roxmltree",
+ "roxmltree 0.21.1",
  "simplecss",
  "siphasher",
  "skrifa",

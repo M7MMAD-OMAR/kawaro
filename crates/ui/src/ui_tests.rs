@@ -22,6 +22,7 @@ fn cells() -> Vec<HiveCell> {
         ring,
         enabled: true,
         reason: String::new(),
+        customize: false,
     };
     // An icon, another icon, none, and a name outside the set.
     vec![
@@ -217,6 +218,7 @@ fn hive_behaviour() {
             ring: if i < 10 { 1 } else { 2 },
             enabled: true,
             reason: String::new(),
+            customize: false,
         })
         .collect();
     hive.present("25", many, None).unwrap();

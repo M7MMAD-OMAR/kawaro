@@ -20,6 +20,10 @@ pub fn socket_path() -> PathBuf {
 #[serde(tag = "cmd", rename_all = "kebab-case")]
 pub enum Request {
     Ping,
+    /// The daemon version, and whether `Run` accepts `params` (S-120). A
+    /// client with values to send asks first, so an older daemon cannot
+    /// silently drop them.
+    Version,
     /// Show the hive for these files. `token` is an xdg-activation token
     /// (Wayland) or startup id (X11) from the caller, if it has one.
     Open {
@@ -60,14 +64,24 @@ pub enum Request {
         files: Vec<PathBuf>,
         #[serde(default)]
         wait: bool,
+        /// Explicit option values for this run only (S-120), resolved by the
+        /// daemon onto the action params. Absent means the action's
+        /// `[action.params]` as they are.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        params: Option<toml::Table>,
     },
     /// Action ids and labels that match these files, for scripts and tests.
     Actions {
         files: Vec<PathBuf>,
     },
     CancelAll,
-    /// Open the settings window, as the tray menu does.
-    Settings,
+    /// Open the settings window, as the tray menu does. `token` is an
+    /// xdg-activation token (Wayland) or startup id (X11) from the caller
+    /// (S-131), if it has one; old clients omit it.
+    Settings {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        token: Option<String>,
+    },
     /// Re-read config and action files.
     Reload,
     Quit,
@@ -81,6 +95,12 @@ pub enum Request {
 #[serde(tag = "status", rename_all = "kebab-case")]
 pub enum Response {
     Ok,
+    /// The answer to `Version` (S-120): the daemon version and whether
+    /// `Request::Run` accepts `params`.
+    Version {
+        version: String,
+        run_params: bool,
+    },
     Error {
         message: String,
     },
@@ -203,5 +223,61 @@ mod tests {
         assert_eq!(serde_json::from_str::<Request>(&line).unwrap(), r);
         let ping: Request = serde_json::from_str(r#"{"cmd":"ping"}"#).unwrap();
         assert_eq!(ping, Request::Ping);
+    }
+
+    #[test]
+    fn s120_run_params_round_trip_and_stay_off_the_wire_when_absent() {
+        let none = Request::Run {
+            action: String::from("image.to-webp"),
+            files: vec!["/a/b.png".into()],
+            wait: false,
+            params: None,
+        };
+        let line = serde_json::to_string(&none).unwrap();
+        assert!(!line.contains("params"), "{line}");
+        assert_eq!(serde_json::from_str::<Request>(&line).unwrap(), none);
+
+        let mut table = toml::Table::new();
+        table.insert(String::from("quality"), toml::Value::Integer(60));
+        let with = Request::Run {
+            action: String::from("image.to-webp"),
+            files: vec!["/a/b.png".into()],
+            wait: true,
+            params: Some(table),
+        };
+        let line = serde_json::to_string(&with).unwrap();
+        assert!(line.contains(r#""params":{"quality":60}"#), "{line}");
+        assert_eq!(serde_json::from_str::<Request>(&line).unwrap(), with);
+
+        // An old client line without the key still parses to no params.
+        let old: Request =
+            serde_json::from_str(r#"{"cmd":"run","action":"a","files":["/x.png"]}"#).unwrap();
+        assert!(matches!(old, Request::Run { params: None, .. }), "{old:?}");
+    }
+
+    #[test]
+    fn s120_version_request_and_response_shape() {
+        assert_eq!(
+            serde_json::to_string(&Request::Version).unwrap(),
+            r#"{"cmd":"version"}"#
+        );
+        let answer = Response::Version {
+            version: String::from("0.5.0"),
+            run_params: true,
+        };
+        assert_eq!(
+            serde_json::to_string(&answer).unwrap(),
+            r#"{"status":"version","version":"0.5.0","run_params":true}"#
+        );
+        assert_eq!(
+            serde_json::from_str::<Response>(
+                r#"{"status":"version","version":"1","run_params":false}"#
+            )
+            .unwrap(),
+            Response::Version {
+                version: String::from("1"),
+                run_params: false,
+            }
+        );
     }
 }

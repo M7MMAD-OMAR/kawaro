@@ -78,7 +78,7 @@ pub fn daemon_binary_in(dir: &Path, suffix: &str) -> PathBuf {
 /// the service, for requests that show a window (ADR 0005, section 5).
 pub fn foreground_grant(req: &Request, server_pid: Option<u32>) -> Option<u32> {
     match req {
-        Request::Open { .. } | Request::Drop { .. } | Request::Settings => server_pid,
+        Request::Open { .. } | Request::Drop { .. } | Request::Settings { .. } => server_pid,
         _ => None,
     }
 }
@@ -250,6 +250,7 @@ mod tests {
     fn every_request() -> Vec<(Request, bool)> {
         let all = vec![
             (Request::Ping, false),
+            (Request::Version, false),
             (
                 Request::Open {
                     files: vec![PathBuf::from("/tmp/a.png")],
@@ -282,12 +283,13 @@ mod tests {
                     action: "to-webp".into(),
                     files: vec![PathBuf::from("/tmp/a.png")],
                     wait: false,
+                    params: None,
                 },
                 false,
             ),
             (Request::Actions { files: vec![] }, false),
             (Request::CancelAll, false),
-            (Request::Settings, true),
+            (Request::Settings { token: None }, true),
             (Request::Reload, false),
             (Request::UpdateCheck, false),
             (Request::UpdateApply, false),
@@ -297,6 +299,7 @@ mod tests {
         for (req, _) in &all {
             match req {
                 Request::Ping
+                | Request::Version
                 | Request::Open { .. }
                 | Request::Drop { .. }
                 | Request::DropRelease
@@ -305,7 +308,7 @@ mod tests {
                 | Request::Run { .. }
                 | Request::Actions { .. }
                 | Request::CancelAll
-                | Request::Settings
+                | Request::Settings { .. }
                 | Request::Reload
                 | Request::UpdateCheck
                 | Request::UpdateApply
@@ -318,7 +321,7 @@ mod tests {
     #[test]
     fn ac5_window_requests_grant_the_server_pid_and_nothing_else_does() {
         let reqs = every_request();
-        assert_eq!(reqs.len(), 15);
+        assert_eq!(reqs.len(), 16);
         for (req, grants) in reqs {
             let want = if grants { Some(42) } else { None };
             assert_eq!(foreground_grant(&req, Some(42)), want, "{req:?}");

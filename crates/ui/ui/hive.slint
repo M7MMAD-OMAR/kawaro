@@ -2,7 +2,11 @@
 // up to 18 action cells. Geometry (cell centres, picking, keyboard order)
 // is computed in Rust (src/layout.rs); this file only draws and forwards input.
 import { Tokens } from "tokens.slint";
+import { SbarMaterial } from "material-tokens.slint";
 import { HexCell } from "../components/hex-cell.slint";
+// The vendored Material 3 controls of the stage 2 panel (S-119). Every colour
+// comes from the design tokens through the generated Material palette.
+import { MaterialPalette, CheckBox, CheckState, FilledButton, FilterChip, RadioButton, ScrollView, Slider, TextButton, TextField } from "../material/material.slint";
 
 // Embedded so the hive never depends on system fonts.
 import "../fonts/IBMPlexSansArabic-Regular.otf";
@@ -25,6 +29,42 @@ export struct CellData {
     // hover when it is not empty.
     enabled: bool,
     reason: string,
+    // S-119: the action carries `[action.options]`, so it has a stage 2 panel.
+    customize: bool,
+}
+
+// S-119 stage 2: one option row, built from the action's option schema.
+export enum StageKind {
+    Bool,
+    Enum,
+    Number,
+    Text,
+}
+
+export struct SegmentChoice {
+    text: string,
+}
+
+export struct StageOption {
+    id: string,
+    label: string,
+    unit: string,
+    // The formatted value with its unit (or the selected choice label), for
+    // the label line and the accessible labels.
+    display: string,
+    kind: StageKind,
+    value: float,
+    text: string,
+    min: float,
+    max: float,
+    step: float,
+    choices: [SegmentChoice],
+    selected: int,
+}
+
+export struct StagePreset {
+    id: string,
+    label: string,
 }
 
 export component HiveWindow inherits Window {
@@ -66,6 +106,46 @@ export component HiveWindow inherits Window {
     // an X11 session has no compositor to count on. No shadow, no gradient,
     // no transparency.
     in property <bool> x11-plate: false;
+    // S-119 stage 2: the option panel replaces the hive content in the same
+    // window, so no new window opens and focus cannot be stolen. The panel
+    // draws only after the user asks for it.
+    in-out property <bool> stage-two: false;
+    in property <string> stage-title;
+    in property <string> stage-readout;
+    in property <bool> stage-preview;
+    in property <image> stage-preview-image;
+    in property <[StageOption]> stage-options;
+    in property <[StagePreset]> stage-presets;
+    in property <string> stage-run-text;
+    in property <string> stage-reset-text;
+    in property <string> stage-back-text;
+    // S-119: the resolved params failure, shown in the danger colour while
+    // the panel stays open; empty when the values are valid.
+    in property <string> stage-error;
+    // "Preview not available" when an image source has no usable picture.
+    in property <string> stage-preview-note;
+    // S-119: the pill under the centre label that opens the panel for the
+    // highlighted cell, its text from the daemon.
+    in property <string> customize-hint;
+    // Which cell's hint pill is showing; it stays while the pointer is over
+    // the pill itself, so the pill is clickable.
+    property <int> hinted-cell: -1;
+    property <bool> hint-visible: root.hinted-cell >= 0 && root.customize-hint != "";
+
+    // Keeps the pill only while a customizable cell or the pill is under the
+    // pointer. The pill is the guaranteed door on every backend (the window
+    // backends report no double clicks), Shift+Return is its keyboard form.
+    function update-hint(index: int) {
+        if (index >= 0 && index < root.cells.length) {
+            if (root.cells[index].customize) {
+                root.hinted-cell = index;
+                return;
+            }
+        }
+        if (!pill-touch.has-hover) {
+            root.hinted-cell = -1;
+        }
+    }
 
     // Index into `cells` under the point, -1 for nothing.
     callback pick(length, length) -> int;
@@ -73,6 +153,15 @@ export component HiveWindow inherits Window {
     callback navigate(int, int) -> int;
     callback choose(int);
     callback dismiss();
+    // S-119: the customize pill under the centre label, and the panel.
+    callback customize(int);
+    callback stage-run();
+    callback stage-reset();
+    callback stage-cancel();
+    callback option-changed(index: int, numeric: float, text: string);
+    callback preset-picked(index: int);
+
+    init => { MaterialPalette.schemes = SbarMaterial.schemes; }
 
     no-frame: true;
     background: transparent;
@@ -103,6 +192,7 @@ export component HiveWindow inherits Window {
     }
 
     layer := Rectangle {
+        visible: !root.stage-two;
         // The close (S-017c): the whole hive fades to
         // `Tokens.hive-close-opacity-to` and shrinks to
         // `Tokens.hive-close-scale-to` over `Tokens.hive-close`. Only
@@ -321,14 +411,18 @@ export component HiveWindow inherits Window {
     touch := TouchArea {
         // `moved` only fires while pressed; hover needs the position itself.
         // The press state follows the pointer, so leaving the pressed cell
-        // returns it to 1 (S-017 AC6).
+        // returns it to 1 (S-017 AC6). Disabled while the panel is open, so
+        // the panel's controls get the pointer.
+        enabled: !root.stage-two;
         changed mouse-x => {
             root.highlight = root.pick(self.mouse-x, self.mouse-y);
             root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
+            root.update-hint(root.highlight);
         }
         changed mouse-y => {
             root.highlight = root.pick(self.mouse-x, self.mouse-y);
             root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
+            root.update-hint(root.highlight);
         }
         changed pressed => {
             root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
@@ -337,6 +431,7 @@ export component HiveWindow inherits Window {
             if !self.has-hover {
                 root.highlight = -1;
                 root.pressed-cell = -1;
+                root.update-hint(-1);
             }
         }
         clicked => {
@@ -348,11 +443,358 @@ export component HiveWindow inherits Window {
         }
     }
 
+    // S-119: the customize pill, under the centre label. It sits above the
+    // pointer catcher so it can be clicked, and it is the door to stage 2 on
+    // every backend.
+    pill := Rectangle {
+        visible: root.hint-visible && !root.stage-two;
+        x: root.centre-x - self.width / 2;
+        y: root.centre-y + root.preview-side / 2 + Tokens.space-2;
+        height: Tokens.space-5 + Tokens.space-1;
+        width: pill-text.preferred-width + 2 * Tokens.space-3;
+        background: Tokens.surface-2;
+        border-radius: Tokens.radius-lg;
+        border-width: Tokens.border-default;
+        border-color: Tokens.border;
+        accessible-role: button;
+        accessible-label: root.customize-hint;
+
+        pill-text := Text {
+            width: 100%;
+            height: 100%;
+            text: root.customize-hint;
+            font-size: Tokens.font-label;
+            color: Tokens.text-primary;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            accessible-role: none;
+        }
+
+        pill-touch := TouchArea {
+            width: 100%;
+            height: 100%;
+            clicked => {
+                if (root.hinted-cell >= 0) {
+                    root.customize(root.hinted-cell);
+                }
+            }
+            accessible-role: button;
+            accessible-label: root.customize-hint;
+            accessible-action-default => {
+                if (root.hinted-cell >= 0) {
+                    root.customize(root.hinted-cell);
+                }
+            }
+        }
+    }
+
+    // S-119 stage 2: the option panel, inside the same window. Every control
+    // is a vendored Material 3 component; every colour, length and radius is
+    // a design token. The panel draws only after the user asks for it, so the
+    // first hive frame is untouched.
+    if root.stage-two && !root.closing: panel := Rectangle {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+        background: Tokens.surface-3;
+        border-width: Tokens.border-default;
+        border-color: Tokens.border;
+        border-radius: Tokens.radius-lg;
+
+        property <length> pad: Tokens.space-4;
+        property <length> content-w: root.width - 2 * self.pad;
+        property <length> title-h: Tokens.font-title + Tokens.space-2;
+        property <length> row-h: 2 * Tokens.space-5 - Tokens.space-1;
+        property <length> footer-h: Tokens.space-7;
+        property <length> body-y: self.pad + self.title-h + Tokens.space-2;
+        property <length> preset-h: root.stage-presets.length > 0 ? Tokens.space-7 : 0;
+        property <length> body-h: root.height - self.body-y - self.footer-h - self.preset-h - self.pad;
+        property <length> well-r: Tokens.layout-stage-well-r;
+        property <length> well-w: self.well-r * 1.7320508;
+        property <length> well-h: self.well-r * 2;
+        property <length> well-x: root.rtl ? root.width - self.pad - self.well-w : self.pad;
+        property <length> opt-w: self.content-w - self.well-w - Tokens.space-4;
+        property <length> opt-x: root.rtl ? self.pad : root.width - self.pad - self.opt-w;
+        property <length> label-w: Tokens.layout-stage-label-w;
+        property <length> ctl-w: self.opt-w - self.label-w - Tokens.space-1;
+        property <length> ctl-x: root.rtl ? 0 : self.label-w + Tokens.space-1;
+
+        Text {
+            x: panel.pad;
+            y: panel.pad;
+            width: panel.content-w;
+            height: panel.title-h;
+            text: root.stage-title;
+            font-size: Tokens.font-title;
+            font-weight: Tokens.weight-semibold;
+            color: Tokens.text-primary;
+            vertical-alignment: center;
+            overflow: elide;
+            horizontal-alignment: root.rtl ? right : left;
+            accessible-role: text;
+            accessible-label: root.stage-title;
+        }
+
+        // The picture well: a pointy top hexagon, with the masked draft over
+        // it once the worker has one.
+        well := Path {
+            x: panel.well-x;
+            y: panel.body-y;
+            width: panel.well-w;
+            height: panel.well-h;
+            viewbox-width: 1.7320508;
+            viewbox-height: 2;
+            commands: "M 0.8660254 0 L 1.7320508 0.5 L 1.7320508 1.5 L 0.8660254 2 L 0 1.5 L 0 0.5 Z";
+            fill: Tokens.surface-0;
+            stroke: Tokens.border;
+            stroke-width: Tokens.border-default;
+            accessible-role: none;
+        }
+        if root.stage-preview: stage-image := Image {
+            x: panel.well-x;
+            y: panel.body-y;
+            width: panel.well-w;
+            height: panel.well-h;
+            source: root.stage-preview-image;
+            image-fit: cover;
+            accessible-role: image;
+            accessible-label: root.stage-readout;
+        }
+        readout := Text {
+            x: panel.well-x;
+            y: panel.body-y + panel.well-h + Tokens.space-2;
+            width: panel.well-w;
+            height: panel.body-h - panel.well-h - Tokens.space-2;
+            text: root.stage-readout;
+            font-size: Tokens.font-label;
+            color: Tokens.text-secondary;
+            wrap: word-wrap;
+            horizontal-alignment: root.rtl ? right : left;
+            accessible-role: text;
+            accessible-label: root.stage-readout;
+        }
+        if root.stage-preview-note != "": preview-note := Text {
+            x: panel.well-x;
+            y: panel.body-y + panel.well-h + Tokens.space-2 + 2 * Tokens.font-label;
+            width: panel.well-w;
+            height: Tokens.font-label;
+            text: root.stage-preview-note;
+            font-size: Tokens.font-label;
+            color: Tokens.text-secondary;
+            overflow: elide;
+            horizontal-alignment: root.rtl ? right : left;
+            accessible-role: text;
+            accessible-label: root.stage-preview-note;
+        }
+
+        // One row per option field, in the schema order.
+        options := ScrollView {
+            x: panel.opt-x;
+            y: panel.body-y;
+            width: panel.opt-w;
+            height: panel.body-h;
+            content-width: self.visible-width;
+            content-height: max(self.visible-height, rows-layout.preferred-height);
+
+            rows-layout := VerticalLayout {
+                width: options.visible-width;
+                spacing: Tokens.space-1;
+
+                for opt[i] in root.stage-options: row := Rectangle {
+                    height: opt.kind == StageKind.Enum ? max(panel.row-h, panel.row-h + (opt.choices.length - 1) * Tokens.space-6) : panel.row-h;
+                    width: rows-layout.width;
+                    background: transparent;
+
+                    if opt.kind != StageKind.Text: label := Text {
+                        x: root.rtl ? parent.width - self.width : 0;
+                        width: panel.label-w;
+                        height: opt.kind == StageKind.Enum ? panel.row-h : parent.height;
+                        text: opt.label + ": " + opt.display;
+                        font-size: Tokens.font-label;
+                        color: Tokens.text-primary;
+                        vertical-alignment: center;
+                        overflow: elide;
+                        horizontal-alignment: root.rtl ? right : left;
+                        accessible-role: none;
+                    }
+
+                    if opt.kind == StageKind.Bool: CheckBox {
+                        x: panel.ctl-x;
+                        width: panel.ctl-w;
+                        height: parent.height;
+                        check_state: opt.value > 0.5 ? CheckState.checked : CheckState.unchecked;
+                        checked_state_changed(state) => {
+                            root.option-changed(i, state == CheckState.checked ? 1 : 0, "");
+                        }
+                        accessible-label: opt.label + ": " + opt.display;
+                    }
+
+                    if opt.kind == StageKind.Number: VerticalLayout {
+                        x: panel.ctl-x;
+                        width: panel.ctl-w;
+                        height: parent.height;
+                        alignment: center;
+                        spacing: 0;
+                        Slider {
+                            minimum: opt.min;
+                            maximum: opt.max;
+                            stop_count: opt.step > 0 ? round((opt.max - opt.min) / opt.step) : 0;
+                            value: opt.value;
+                            value_changed(value) => {
+                                root.option-changed(i, value, "");
+                            }
+                            accessible-label: opt.label + ": " + opt.display;
+                        }
+                        Text {
+                            text: opt.display;
+                            font-size: Tokens.font-label;
+                            color: Tokens.text-secondary;
+                            horizontal-alignment: root.rtl ? right : left;
+                            accessible-role: none;
+                        }
+                    }
+
+                    if opt.kind == StageKind.Enum: VerticalLayout {
+                        x: panel.ctl-x;
+                        width: panel.ctl-w;
+                        height: parent.height;
+                        spacing: 0;
+                        alignment: start;
+                        for choice[c] in opt.choices: HorizontalLayout {
+                            spacing: Tokens.space-1;
+                            RadioButton {
+                                checked: opt.selected == c;
+                                clicked => {
+                                    root.option-changed(i, c, choice.text);
+                                }
+                                accessible-label: choice.text;
+                            }
+                            Text {
+                                text: choice.text;
+                                font-size: Tokens.font-label;
+                                color: Tokens.text-primary;
+                                vertical-alignment: center;
+                                overflow: elide;
+                                accessible-role: none;
+                            }
+                        }
+                    }
+
+                    if opt.kind == StageKind.Text: TextField {
+                        x: 0;
+                        width: parent.width;
+                        height: parent.height;
+                        text: opt.text;
+                        label: opt.label;
+                        edited(text) => {
+                            root.option-changed(i, 0, text);
+                        }
+                        accessible-label: opt.label + ": " + opt.text;
+                    }
+                }
+            }
+        }
+
+        // The resolved values failed: say so and keep the panel open.
+        if root.stage-error != "": stage-error-text := Text {
+            x: panel.pad;
+            y: root.height - panel.pad - panel.footer-h - Tokens.font-label - Tokens.space-1;
+            width: panel.content-w;
+            height: Tokens.font-label;
+            text: root.stage-error;
+            font-size: Tokens.font-label;
+            color: Tokens.danger;
+            overflow: elide;
+            horizontal-alignment: root.rtl ? right : left;
+            accessible-role: text;
+            accessible-label: root.stage-error;
+        }
+
+        // Presets, from the action's [action.options.preset] data.
+        if root.stage-presets.length > 0: HorizontalLayout {
+            x: panel.pad;
+            y: panel.body-y + panel.body-h + Tokens.space-1;
+            width: panel.content-w;
+            height: panel.preset-h;
+            spacing: Tokens.space-1;
+            alignment: start;
+            for preset[p] in root.stage-presets: FilterChip {
+                text: preset.label;
+                checked: false;
+                changed checked => {
+                    if (self.checked) {
+                        root.preset-picked(p);
+                        self.checked = false;
+                    }
+                }
+                accessible-label: preset.label;
+            }
+        }
+
+        // The footer: Run, Reset, Back, mirrored for Arabic.
+        if root.rtl: HorizontalLayout {
+            x: panel.pad;
+            y: root.height - panel.pad - panel.footer-h;
+            width: panel.content-w;
+            height: panel.footer-h;
+            spacing: Tokens.space-2;
+            alignment: end;
+            TextButton {
+                text: root.stage-back-text;
+                clicked => { root.stage-cancel(); }
+            }
+            TextButton {
+                text: root.stage-reset-text;
+                clicked => { root.stage-reset(); }
+            }
+            FilledButton {
+                text: root.stage-run-text;
+                clicked => { root.stage-run(); }
+            }
+        }
+        if !root.rtl: HorizontalLayout {
+            x: panel.pad;
+            y: root.height - panel.pad - panel.footer-h;
+            width: panel.content-w;
+            height: panel.footer-h;
+            spacing: Tokens.space-2;
+            alignment: start;
+            FilledButton {
+                text: root.stage-run-text;
+                clicked => { root.stage-run(); }
+            }
+            TextButton {
+                text: root.stage-reset-text;
+                clicked => { root.stage-reset(); }
+            }
+            TextButton {
+                text: root.stage-back-text;
+                clicked => { root.stage-cancel(); }
+            }
+        }
+    }
+
     keys := FocusScope {
         key-pressed(event) => {
+            if event.text == Key.Escape && root.stage-two {
+                root.stage-cancel();
+                return accept;
+            }
+            if root.stage-two {
+                return reject;
+            }
             if event.text == Key.Escape {
                 root.dismiss();
                 return accept;
+            }
+            if event.text == Key.Return && event.modifiers.shift {
+                if root.highlight >= 0 && root.highlight < root.cells.length {
+                    if root.cells[root.highlight].customize {
+                        root.customize(root.highlight);
+                        return accept;
+                    }
+                }
             }
             if event.text == Key.Return || event.text == Key.Space {
                 if root.highlight >= 0 {

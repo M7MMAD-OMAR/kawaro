@@ -22,6 +22,7 @@ mod portal_bus;
 mod progress;
 mod registration;
 mod server;
+mod settings_focus;
 #[cfg(windows)]
 mod shell;
 // Its tests run everywhere; only the Windows shell uses it.
@@ -40,6 +41,7 @@ mod ui;
 mod update;
 mod update_sys;
 mod watch;
+mod welcome_transition;
 
 #[cfg(test)]
 mod args_tests;
@@ -242,7 +244,7 @@ fn send_open(endpoint: &transport::Endpoint, files: &[String]) -> Option<ExitCod
 /// its reply. `None` when no service answers, so the caller becomes the
 /// service and opens the window itself.
 fn send_settings(endpoint: &transport::Endpoint) -> Option<ExitCode> {
-    send_request(endpoint, &Request::Settings)
+    send_request(endpoint, &Request::Settings { token: None })
 }
 
 /// Sends one request line to the service on `endpoint` and waits for its

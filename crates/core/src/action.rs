@@ -22,6 +22,7 @@
 //! ```
 
 use crate::media::MediaKind;
+use crate::options::{OptionsError, OptionsSpec};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -90,10 +91,36 @@ pub struct ActionDef {
     pub icon: String,
     #[serde(default)]
     pub params: toml::Table,
+    /// Typed options the engine takes (S-117); absent when the action has
+    /// none, which is most of them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub options: Option<OptionsSpec>,
 }
 
 fn one() -> usize {
     1
+}
+
+impl ActionDef {
+    /// This action with the explicit option values applied to a copy of its
+    /// params (S-120). The registry entry is never changed: the caller gets a
+    /// new action for one run.
+    ///
+    /// An action without `[action.options]` takes no explicit value, so its
+    /// first key is reported as unknown rather than dropped.
+    pub fn with_params(&self, explicit: &toml::Table) -> Result<ActionDef, OptionsError> {
+        let params = match &self.options {
+            Some(options) => options.resolve_params(&self.params, explicit)?,
+            None => match explicit.iter().next() {
+                Some((key, _)) => return Err(OptionsError::Unknown(key.clone())),
+                None => self.params.clone(),
+            },
+        };
+        Ok(ActionDef {
+            params,
+            ..self.clone()
+        })
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -139,5 +166,147 @@ impl Registry {
     /// `engine_ok` filters out actions whose engine is unavailable.
     pub fn matching(&self, files: &[&Path], engine_ok: &dyn Fn(&str) -> bool) -> Vec<&ActionDef> {
         crate::action_impl::matching(&self.actions, files, engine_ok)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::options::{Field, Kind, OptionsKind};
+
+    fn localized(en: &str) -> Localized {
+        Localized {
+            ar: String::from("ع"),
+            en: en.to_string(),
+        }
+    }
+
+    fn base(params: &[(&str, toml::Value)], options: Option<OptionsSpec>) -> ActionDef {
+        let table: toml::Table = params
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.clone()))
+            .collect();
+        ActionDef {
+            id: String::from("x.test"),
+            engine: String::from("image"),
+            op: String::from("resize"),
+            ring: 1,
+            order: 0,
+            accepts: vec![MediaKind::Image],
+            skip_ext: vec![],
+            min_files: 1,
+            max_files: 0,
+            output: OutputSpec {
+                mode: OutputMode::PerFile,
+                ext: String::new(),
+                suffix: String::new(),
+                dir: String::new(),
+            },
+            code: localized("T"),
+            label: localized("Test"),
+            icon: String::new(),
+            params: table,
+            options,
+        }
+    }
+
+    fn quality_spec() -> OptionsSpec {
+        OptionsSpec {
+            kind: OptionsKind::Form,
+            readout: vec![],
+            remember: false,
+            suffix_template: String::new(),
+            fields: vec![Field {
+                id: String::from("quality"),
+                kind: Kind::Int,
+                label: localized("Quality"),
+                default: Some(toml::Value::Integer(85)),
+                min: Some(1.0),
+                max: Some(100.0),
+                step: None,
+                unit: Some(String::from("%")),
+                values: vec![],
+                maps_to: Some(String::from("quality")),
+                clears: vec![],
+                no_enlarge: false,
+            }],
+            presets: vec![],
+        }
+    }
+
+    fn table(entries: &[(&str, toml::Value)]) -> toml::Table {
+        entries
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.clone()))
+            .collect()
+    }
+
+    #[test]
+    fn s120_with_params_resolves_onto_a_copy() {
+        let action = base(
+            &[("quality", toml::Value::Integer(85))],
+            Some(quality_spec()),
+        );
+        let explicit = table(&[("quality", toml::Value::Integer(60))]);
+        let run = action.with_params(&explicit).unwrap();
+        assert_eq!(
+            run.params.get("quality").and_then(toml::Value::as_integer),
+            Some(60)
+        );
+        // The source action is untouched: the registry entry never changes.
+        assert_eq!(
+            action
+                .params
+                .get("quality")
+                .and_then(toml::Value::as_integer),
+            Some(85)
+        );
+        // Every other field of the action is carried over.
+        assert_eq!(run.id, action.id);
+        assert_eq!(run.output, action.output);
+    }
+
+    #[test]
+    fn s120_with_params_without_options_refuses_a_key() {
+        let action = base(&[("quality", toml::Value::Integer(85))], None);
+        let explicit = table(&[("quality", toml::Value::Integer(60))]);
+        assert_eq!(
+            action.with_params(&explicit).unwrap_err(),
+            OptionsError::Unknown(String::from("quality"))
+        );
+    }
+
+    #[test]
+    fn s120_with_params_without_options_and_nothing_explicit_copies() {
+        let action = base(&[("quality", toml::Value::Integer(85))], None);
+        let run = action.with_params(&toml::Table::new()).unwrap();
+        assert_eq!(run, action);
+    }
+
+    #[test]
+    fn s120_with_params_reports_an_unknown_key_and_a_wrong_type() {
+        let action = base(
+            &[("quality", toml::Value::Integer(85))],
+            Some(quality_spec()),
+        );
+        assert_eq!(
+            action
+                .with_params(&table(&[("nope", toml::Value::Integer(1))]))
+                .unwrap_err(),
+            OptionsError::Unknown(String::from("nope"))
+        );
+        match action
+            .with_params(&table(&[(
+                "quality",
+                toml::Value::String(String::from("high")),
+            )]))
+            .unwrap_err()
+        {
+            OptionsError::Type { name, expected } => {
+                assert_eq!(name, "quality");
+                assert_eq!(expected, "integer");
+            }
+            other => panic!("expected Type, got {other:?}"),
+        }
     }
 }

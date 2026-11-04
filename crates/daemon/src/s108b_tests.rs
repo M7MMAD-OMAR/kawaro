@@ -34,7 +34,10 @@ fn wired(spy: &Rc<RefCell<Vec<String>>>) -> Hive {
     }
     let hive = Hive::new(Lang::En).unwrap();
     let mut st = State::new(Config::default(), &[]);
-    st.available = ["image".to_string()].into();
+    // S-127 added three image actions, so a PNG selection fills all 18 hive
+    // cells and leaves no room for the skipped and request cells; the PDF
+    // engine leaves room for both.
+    st.available = ["pdf".to_string()].into();
     let shared: Shared = Arc::new(Mutex::new(st));
     let (tx, _rx) = mpsc::channel();
     let queue = Arc::new(Queue::new(kawaro_engines::all(), 1, tx));
@@ -45,7 +48,7 @@ fn wired(spy: &Rc<RefCell<Vec<String>>>) -> Hive {
         &queue,
         Rc::new(move |url: &str| s.borrow_mut().push(url.to_string())),
     );
-    let files = vec![PathBuf::from("/x/a.png"), PathBuf::from("/x/b.xyz")];
+    let files = vec![PathBuf::from("/x/a.pdf"), PathBuf::from("/x/b.xyz")];
     let st = shared.lock().unwrap();
     let outcome = st.classify(&files);
     let p = plan(&outcome, &files, &st);

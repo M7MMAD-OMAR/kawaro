@@ -37,6 +37,7 @@ fn cell(id: &str, code: &str, label: &str, ring: u8, enabled: bool, reason: &str
         ring,
         enabled,
         reason: reason.into(),
+        customize: false,
     }
 }
 

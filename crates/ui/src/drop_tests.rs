@@ -43,6 +43,7 @@ fn cell(id: &str, ring: u8) -> HiveCell {
         ring,
         enabled: true,
         reason: String::new(),
+        customize: false,
     }
 }
 

@@ -144,9 +144,11 @@ fn cells_of(names: &[&str]) -> Vec<HiveCell> {
 #[test]
 fn ac3_one_skipped_file_among_supported_ones_gives_one_xyz_cell() {
     let st = state(Lang::En, &ENGINES);
-    let (_, p) = planned(&st, &["a.png", "b.png", "c.xyz"]);
+    // S-127 added three image actions, so a PNG selection fills all 18 hive
+    // cells and no skipped cell fits; the PDF actions leave room for one.
+    let (_, p) = planned(&st, &["a.pdf", "b.pdf", "c.xyz"]);
     let expected: Vec<String> = st
-        .matching(&paths(&["a.png", "b.png"]))
+        .matching(&paths(&["a.pdf", "b.pdf"]))
         .into_iter()
         .map(|a| a.id)
         .collect();
@@ -193,8 +195,10 @@ fn ac3_a_file_without_extension_gets_a_question_mark_code() {
 
 #[test]
 fn ac3_skipped_cells_are_disabled_and_have_their_own_reason() {
-    let st = state(Lang::En, &["image"]);
-    let (_, p) = planned(&st, &["a.png", "b.xyz", "c.mp4"]);
+    // S-127: a PNG selection fills all 18 cells, so the supported file is a
+    // PDF and the skipped cells still fit.
+    let st = state(Lang::En, &["pdf"]);
+    let (_, p) = planned(&st, &["a.pdf", "b.xyz", "c.mp4"]);
     let s = skipped(&p.cells);
     assert_eq!(s.len(), 2);
     assert!(s.iter().all(|c| !c.enabled));
@@ -209,14 +213,17 @@ fn ac3_skipped_cells_are_disabled_and_have_their_own_reason() {
 #[test]
 fn ac3_cap_rows_keep_every_real_action_and_stay_within_18_cells() {
     let st = state(Lang::En, &ENGINES);
-    let n_real = st.matching(&paths(&["a.png"])).len();
-    assert!(n_real >= 10, "the registry has {n_real} image actions");
-    let mut names = vec!["a.png".to_string()];
+    // S-127 added three image actions, so a PNG selection would fill all 18
+    // cells; the ten matching video actions keep this cap arithmetic as it
+    // was.
+    let n_real = st.matching(&paths(&["a.mp4"])).len();
+    assert!(n_real >= 10, "the registry has {n_real} video actions");
+    let mut names = vec!["a.mp4".to_string()];
     names.extend((0..9).map(|i| format!("f{i}.xyz")));
     let refs: Vec<&str> = names.iter().map(String::as_str).collect();
     let (_, p) = planned(&st, &refs);
     let ids: Vec<String> = st
-        .matching(&paths(&["a.png"]))
+        .matching(&paths(&["a.mp4"]))
         .into_iter()
         .map(|a| a.id)
         .collect();
@@ -263,14 +270,18 @@ fn ac4_a_real_action_id_runs() {
 #[test]
 fn ac5_every_unsupported_plan_has_exactly_one_request_cell() {
     for lang in [Lang::En, Lang::Ar] {
-        let st = state(lang, &["image"]);
-        let selections: [(&str, &[&str]); 3] = [
-            ("unsupported", &["a.xyz"]),
-            ("missing engine", &["a.mp4"]),
-            ("mixed", &["a.png", "b.xyz"]),
+        // S-127 added three image actions, so a PNG selection fills all 18
+        // cells and leaves no room for the request cell; the mixed case uses
+        // the PDF actions, which leave room.
+        let image = state(lang, &["image"]);
+        let pdf = state(lang, &["pdf"]);
+        let selections: [(&str, &State, &[&str]); 3] = [
+            ("unsupported", &image, &["a.xyz"]),
+            ("missing engine", &image, &["a.mp4"]),
+            ("mixed", &pdf, &["a.pdf", "b.xyz"]),
         ];
-        for (what, names) in selections {
-            let (_, p) = planned(&st, names);
+        for (what, st, names) in selections {
+            let (_, p) = planned(st, names);
             let r = req(&p.cells);
             assert_eq!(r.len(), 1, "{what} {lang:?}");
             assert_eq!(r[0].label, request_label(lang));
@@ -286,7 +297,9 @@ fn ac5_the_request_cell_carries_the_first_skipped_extension() {
     let st = state(Lang::En, &["image"]);
     let (_, p) = planned(&st, &["a.xyz"]);
     assert_eq!(req(&p.cells)[0].id, "request:xyz");
-    let (_, mixed) = planned(&st, &["a.png", "b.abc", "c.xyz"]);
+    // S-127: a PNG selection fills all 18 cells, so the mixed case uses the
+    // PDF actions, which leave room for the request cell.
+    let (_, mixed) = planned(&state(Lang::En, &["pdf"]), &["a.pdf", "b.abc", "c.xyz"]);
     assert_eq!(req(&mixed.cells)[0].id, "request:abc");
     let (_, engine) = planned(&st, &["a.mp4"]);
     assert_eq!(req(&engine.cells)[0].id, "request:mp4");

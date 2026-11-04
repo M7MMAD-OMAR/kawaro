@@ -262,7 +262,8 @@ fn run_wait_prints_outputs_and_failures_until_the_job_finishes() {
         [Request::Run {
             action: "image.to-webp".into(),
             files: vec![png],
-            wait: true
+            wait: true,
+            params: None
         }]
     );
 }

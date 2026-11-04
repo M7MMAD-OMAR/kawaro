@@ -6,9 +6,10 @@
 //
 // Contract pinned by the tests (all items visible to `super::*`):
 // - `enum Os { Unix, Windows }`: `Clone`, `Copy`, `Debug`, `PartialEq`.
-// - `enum Program { Office, Ghostscript, Ffmpeg, Ffprobe }`: same derives.
-//   It fills the `names` slot of AC7's signature: each program has its own
-//   name list per system.
+// - `enum Program { Office, Ghostscript, Ffmpeg, Ffprobe, Pdftotext }`:
+//   same derives. It fills the `names` slot of AC7's signature: each
+//   program has its own name list per system. `Pdftotext` is the S-126
+//   poppler engine; the four S-043b programs keep their names and order.
 // - `fn names(os: Os, program: Program) -> &'static [&'static str]`, in
 //   priority order.
 // - `trait Registry` (read only, under `HKEY_LOCAL_MACHINE`; key paths are
@@ -68,6 +69,10 @@ pub enum Program {
     Ghostscript,
     Ffmpeg,
     Ffprobe,
+    /// poppler `pdftotext`, the S-126 child engine for PDF to text.
+    Pdftotext,
+    /// qpdf, the S-128 child engine for linearize, cleanup and check.
+    Qpdf,
 }
 
 /// Program file names in priority order.
@@ -77,10 +82,14 @@ pub(crate) fn names(os: Os, program: Program) -> &'static [&'static str] {
         (Os::Unix, Program::Ghostscript) => &["gs"],
         (Os::Unix, Program::Ffmpeg) => &["ffmpeg"],
         (Os::Unix, Program::Ffprobe) => &["ffprobe"],
+        (Os::Unix, Program::Pdftotext) => &["pdftotext"],
+        (Os::Unix, Program::Qpdf) => &["qpdf"],
         (Os::Windows, Program::Office) => &["soffice.com", "soffice.exe"],
         (Os::Windows, Program::Ghostscript) => &["gswin64c.exe", "gswin32c.exe"],
         (Os::Windows, Program::Ffmpeg) => &["ffmpeg.exe"],
         (Os::Windows, Program::Ffprobe) => &["ffprobe.exe"],
+        (Os::Windows, Program::Pdftotext) => &["pdftotext.exe"],
+        (Os::Windows, Program::Qpdf) => &["qpdf.exe"],
     }
 }
 
@@ -137,6 +146,13 @@ fn known_dir(
             Some(gs.join(newest_gs(&dirs)?).join("bin"))
         }
         Program::Ffmpeg | Program::Ffprobe => exe_dir.map(|d| d.join("ffmpeg").join("bin")),
+        Program::Pdftotext => env("ProgramFiles").map(|pf| {
+            PathBuf::from(pf)
+                .join("poppler")
+                .join("Library")
+                .join("bin")
+        }),
+        Program::Qpdf => env("ProgramFiles").map(|pf| PathBuf::from(pf).join("qpdf").join("bin")),
     }
 }
 
@@ -151,7 +167,7 @@ fn registry_dir(program: Program, registry: &dyn Registry) -> Option<PathBuf> {
             let dll = registry.value(&format!("{GS_KEY}\\{newest}"), "GS_DLL")?;
             Path::new(&dll).parent().map(Path::to_path_buf)
         }
-        Program::Ffmpeg | Program::Ffprobe => None,
+        Program::Ffmpeg | Program::Ffprobe | Program::Pdftotext | Program::Qpdf => None,
     }
 }
 

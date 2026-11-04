@@ -186,6 +186,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
             JobEvent::TaskDone {
                 job: 1,
                 output: p.clone(),
+                detail: None,
                 elapsed: std::time::Duration::ZERO,
             },
             Event::TaskDone {

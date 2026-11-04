@@ -7,7 +7,9 @@ use crate::notify_logic::open_url_command;
 use crate::plan::{Choice, on_choice};
 use crate::portal::{self, TokenStep};
 use crate::server;
+use crate::settings_focus::{Session as FocusSession, SettingsWindowSeam, apply_settings_focus};
 use crate::state::{Shared, common_kind, lock};
+use crate::welcome_transition::{Transition, WindowSeam, language_transition};
 use crate::{jobs, text};
 use kawaro_core::ActionDef;
 use kawaro_core::config::{Config, HOLD_MAX_DEFAULT, LangSetting, Theme};
@@ -174,6 +176,72 @@ pub fn build(
         });
     }
 
+    {
+        // S-119: the Customize pill opens the stage 2 panel for the
+        // highlighted action, in the same window and with the current files.
+        let state = state.clone();
+        hive.on_customize(move |id| {
+            let (action, files, cells, lang) = {
+                let st = lock(&state);
+                let files = st.pending.clone().unwrap_or_default();
+                let Some(action) = st.registry.get(&id).cloned() else {
+                    return;
+                };
+                let cells: Vec<HiveCell> = st
+                    .matching(&files)
+                    .iter()
+                    .map(|a| cell(a, st.lang))
+                    .collect();
+                (action, files, cells, st.lang)
+            };
+            let Some(panel) =
+                kawaro_ui::stage_two::StageTwoState::build(&action, &files, lang, lang.rtl())
+            else {
+                return;
+            };
+            HIVE.with(|h| {
+                if let Some(hive) = h.borrow().as_ref()
+                    && let Err(e) = hive.present_options(cells, std::rc::Rc::new(panel))
+                {
+                    eprintln!("kawarod: cannot show the options: {e}");
+                }
+            });
+        });
+    }
+    {
+        // The panel's Run: the resolved params replace the action params for
+        // this one job, through the same submit path a click uses.
+        let (state, queue) = (state.clone(), queue.clone());
+        hive.on_options_run(move |id, params| {
+            let mut st = lock(&state);
+            let files = st.pending.take().unwrap_or_default();
+            let Some(action) = st.registry.get(&id).cloned() else {
+                return;
+            };
+            let action = match action.with_params(&params) {
+                Ok(action) => action,
+                Err(e) => {
+                    eprintln!("kawarod: options for `{id}`: {e}");
+                    return;
+                }
+            };
+            if files.is_empty() {
+                return;
+            }
+            jobs::submit(&mut st, &queue, action, files);
+            drop(st);
+            gate_hive_closed();
+        });
+    }
+    {
+        // The panel's Back or Escape: nothing runs.
+        let state = state.clone();
+        hive.on_options_cancel(move || {
+            lock(&state).pending = None;
+            gate_hive_closed();
+        });
+    }
+
     HIVE.with(|h| *h.borrow_mut() = Some(hive));
     // A language or theme change drops the old settings window; the next
     // open builds one with the new settings.
@@ -259,6 +327,8 @@ pub fn cell(a: &ActionDef, lang: Lang) -> HiveCell {
         ring: a.ring,
         enabled: true,
         reason: String::new(),
+        // S-119: an action with options has a stage 2 panel.
+        customize: a.options.is_some(),
     }
 }
 
@@ -613,7 +683,12 @@ thread_local! {
 const UPDATES_PAGE: usize = 3;
 
 pub fn open_settings(config: Config) {
-    show_settings(config, None, None);
+    show_settings(config, None, None, None);
+}
+
+/// Opens the settings window with the caller's activation token (S-131).
+pub fn open_settings_token(config: Config, token: Option<String>) {
+    show_settings(config, None, None, token);
 }
 
 /// Opens the settings window on the Updates page, with `Updated to X` when
@@ -623,6 +698,7 @@ pub fn open_settings_updates(config: Config, updated: Option<String>) {
         config,
         Some(UPDATES_PAGE),
         updated.map(kawaro_ui::UpdateResult::Updated),
+        None,
     );
 }
 
@@ -633,6 +709,7 @@ pub fn open_settings_failed(config: Config, version: String) {
         config,
         Some(UPDATES_PAGE),
         Some(kawaro_ui::UpdateResult::Failed(version)),
+        None,
     );
 }
 
@@ -642,7 +719,109 @@ pub fn about(state: &Shared) {
     open_settings_updates(config, None);
 }
 
-fn show_settings(config: Config, page: Option<usize>, result: Option<kawaro_ui::UpdateResult>) {
+/// The real settings window behind the pure focus plan (S-131): it owns the
+/// values one request applies, so \`raise\` updates the visible window in place
+/// while \`build\` creates the fresh one.
+struct SettingsSeam {
+    config: Config,
+    page: Option<usize>,
+    result: Option<kawaro_ui::UpdateResult>,
+}
+
+impl SettingsSeam {
+    /// Applies the requested page and the update banner to \`win\`.
+    fn apply_page_and_result(&self, win: &WelcomeWindow) {
+        if let Some(page) = self.page {
+            win.show_settings_page(page);
+        }
+        if let Some(result) = &self.result {
+            // Failed: the plain failed line (retry hint), never "up to date".
+            let state = match result {
+                kawaro_ui::UpdateResult::Updated(_) => kawaro_ui::UpdateState::UpToDate,
+                kawaro_ui::UpdateResult::Failed(_) => kawaro_ui::UpdateState::Failed(String::new()),
+            };
+            win.set_update_view(env!("CARGO_PKG_VERSION"), state, true);
+            win.show_update_result(Some(result.clone()));
+        }
+    }
+}
+
+impl SettingsWindowSeam for SettingsSeam {
+    fn hide_and_close(&mut self) {
+        WELCOME.with(|slot| {
+            if let Some(win) = slot.borrow_mut().take() {
+                win.close();
+            }
+        });
+    }
+
+    fn build(&mut self, _token: Option<String>) {
+        if let Err(e) = welcome_window() {
+            eprintln!("kawarod: cannot create the main window: {e}");
+            return;
+        }
+        WELCOME.with(|slot| {
+            let slot = slot.borrow();
+            let Some(win) = slot.as_ref() else { return };
+            if !win.is_visible() {
+                let captions = kawaro_core::welcome::captions(
+                    self.config.lang(),
+                    &crate::registration::current(),
+                );
+                if let Err(e) = win.open(&captions, kawaro_ui::welcome::demo_hive_centred()) {
+                    eprintln!("kawarod: cannot open the main window: {e}");
+                    return;
+                }
+            }
+            win.apply_theme(self.config.theme);
+            if !win.settings_visible() {
+                win.show_settings(&self.config);
+            }
+            self.apply_page_and_result(win);
+        });
+    }
+
+    fn raise(&mut self) {
+        WELCOME.with(|slot| {
+            let slot = slot.borrow();
+            let Some(win) = slot.as_ref() else { return };
+            win.apply_theme(self.config.theme);
+            if !win.settings_visible() {
+                win.show_settings(&self.config);
+            }
+            self.apply_page_and_result(win);
+        });
+    }
+
+    fn set_pending_token(&mut self, token: Option<String>) {
+        kawaro_ui::set_pending_token(token);
+    }
+
+    fn clear_pending_token(&mut self) {
+        kawaro_ui::clear_pending_token();
+    }
+
+    fn log(&mut self, line: &str) {
+        eprintln!("kawarod: {line}");
+    }
+}
+
+/// The session, mapped for the pure focus plan (S-131).
+fn focus_session() -> FocusSession {
+    match kawaro_ui::session::current() {
+        kawaro_ui::session::Session::Wayland => FocusSession::Wayland,
+        kawaro_ui::session::Session::X11 => FocusSession::X11,
+        kawaro_ui::session::Session::Windows => FocusSession::Windows,
+        kawaro_ui::session::Session::None => FocusSession::None,
+    }
+}
+
+fn show_settings(
+    config: Config,
+    page: Option<usize>,
+    result: Option<kawaro_ui::UpdateResult>,
+    token: Option<String>,
+) {
     // S-086 AC1: counted before the post, so the routing test sees it
     // without running the event loop.
     #[cfg(test)]
@@ -658,52 +837,40 @@ fn show_settings(config: Config, page: Option<usize>, result: Option<kawaro_ui::
         LAST_RESULT.with(|c| *c.borrow_mut() = result.clone());
     }
     let _ = slint::invoke_from_event_loop(move || {
-        if let Err(e) = welcome_window() {
-            eprintln!("kawarod: cannot create the main window: {e}");
-            return;
-        }
-        WELCOME.with(|slot| {
+        let (window_visible, settings_visible) =
+            WELCOME.with(|slot| match slot.borrow().as_ref() {
+                Some(win) => (win.is_visible(), win.settings_visible()),
+                None => (false, false),
+            });
+        let mut seam = SettingsSeam {
+            config,
+            page,
+            result,
+        };
+        let plan = apply_settings_focus(
+            &mut seam,
+            focus_session(),
+            window_visible,
+            settings_visible,
+            token,
+        );
+        // S-107: every plan ends with one visible window (opened, replaced or
+        // raised), so Windows takes the foreground once here, then exactly one
+        // repeat after the window is really shown.
+        #[cfg(windows)]
+        if let Some(hwnd) = WELCOME.with(|slot| {
             let slot = slot.borrow();
-            let Some(win) = slot.as_ref() else { return };
-            if !win.is_visible() {
-                let captions =
-                    kawaro_core::welcome::captions(config.lang(), &crate::registration::current());
-                if let Err(e) = win.open(&captions, kawaro_ui::welcome::demo_hive_centred()) {
-                    eprintln!("kawarod: cannot open the main window: {e}");
-                    return;
+            slot.as_ref().and_then(|win| win.hwnd())
+        }) {
+            crate::shell_open::foreground(hwnd);
+            slint::Timer::single_shot(Duration::from_millis(150), move || {
+                let verified = crate::shell_open::is_foreground(hwnd);
+                if crate::foreground_logic::should_retry(verified, 0) {
+                    crate::shell_open::foreground(hwnd);
                 }
-            }
-            win.apply_theme(config.theme);
-            if !win.settings_visible() {
-                win.show_settings(&config);
-            }
-            if let Some(page) = page {
-                win.show_settings_page(page);
-            }
-            if let Some(result) = &result {
-                // Failed: the plain failed line (retry hint), never "up to date".
-                let state = match result {
-                    kawaro_ui::UpdateResult::Updated(_) => kawaro_ui::UpdateState::UpToDate,
-                    kawaro_ui::UpdateResult::Failed(_) => {
-                        kawaro_ui::UpdateState::Failed(String::new())
-                    }
-                };
-                win.set_update_view(env!("CARGO_PKG_VERSION"), state, true);
-                win.show_update_result(Some(result.clone()));
-            }
-            // S-107: take the foreground once, then exactly one repeat after
-            // the window is really shown (raise_welcome would add a second).
-            #[cfg(windows)]
-            if let Some(hwnd) = win.hwnd() {
-                crate::shell_open::foreground(hwnd);
-                slint::Timer::single_shot(Duration::from_millis(150), move || {
-                    let verified = crate::shell_open::is_foreground(hwnd);
-                    if crate::foreground_logic::should_retry(verified, 0) {
-                        crate::shell_open::foreground(hwnd);
-                    }
-                });
-            }
-        });
+            });
+        }
+        let _ = plan;
     });
 }
 
@@ -928,6 +1095,59 @@ fn exchange(request: &kawaro_core::ipc::Request) -> Option<kawaro_core::ipc::Res
     serde_json::from_str(&reply).ok()
 }
 
+/// The real welcome window behind the pure language transition (S-130).
+struct WelcomeSeam {
+    state: Shared,
+    queue: Option<Arc<Queue>>,
+}
+
+impl WindowSeam for WelcomeSeam {
+    fn hide_and_close(&mut self) {
+        WELCOME.with(|slot| {
+            if let Some(win) = slot.borrow_mut().take() {
+                win.close();
+            }
+        });
+    }
+
+    fn keep_visible(&mut self) {
+        WELCOME.with(|slot| {
+            if let Some(win) = slot.borrow().as_ref() {
+                win.language_reload_failed();
+            }
+        });
+    }
+
+    fn show_error(&mut self, message: &str) {
+        eprintln!("kawarod: {message}");
+    }
+
+    fn build(&mut self, lang: Lang, choose_language: bool) -> Result<(), String> {
+        let Some(queue) = self.queue.clone() else {
+            return Err(String::from("the queue is not ready"));
+        };
+        let state = self.state.clone();
+        // A window is never created inside a Slint callback; the old window is
+        // already hidden, so the fresh one arrives in a later turn.
+        slint::Timer::single_shot(Duration::ZERO, move || {
+            let theme = lock(&state).config.theme;
+            if let Err(e) = build(lang, theme, &state, &queue) {
+                eprintln!("kawarod: cannot rebuild windows: {e}");
+                return;
+            }
+            if choose_language {
+                WELCOME.with(|slot| {
+                    if let Some(win) = slot.borrow().as_ref() {
+                        win.choose_language();
+                    }
+                });
+            }
+            present_welcome(&state);
+        });
+        Ok(())
+    }
+}
+
 /// Creates the welcome window lazily and wires its two buttons.
 fn welcome_window() -> Result<(), slint::PlatformError> {
     if WELCOME.with(|w| w.borrow().is_some()) {
@@ -976,32 +1196,23 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
     {
         let state = state.clone();
         win.on_language(move |lang| {
-            let Some(path) = Config::path() else {
-                return false;
+            let queue = SETTINGS_ARGS.with(|args| args.borrow().clone().map(|(_, _, queue)| queue));
+            let save = match Config::path() {
+                Some(path) => save_language_choice(&state, &path, lang)
+                    .map_err(|e| format!("cannot save {}: {e}", path.display())),
+                None => Err(String::from("no config path, language not saved")),
             };
-            if let Err(e) = save_language_choice(&state, &path, lang) {
-                eprintln!("kawarod: cannot save {}: {e}", path.display());
-                return false;
-            }
-            crate::tray::set_lang(lang);
-            let state = state.clone();
-            slint::Timer::single_shot(Duration::ZERO, move || {
-                let args = SETTINGS_ARGS.with(|a| a.borrow().clone());
-                if let Some((_, _, queue)) = args {
-                    let theme = lock(&state).config.theme;
-                    if let Err(e) = build(lang, theme, &state, &queue) {
-                        eprintln!("kawarod: cannot rebuild windows: {e}");
-                        WELCOME.with(|slot| {
-                            if let Some(win) = slot.borrow().as_ref() {
-                                win.language_reload_failed();
-                            }
-                        });
-                        return;
-                    }
-                    present_welcome(&state);
+            let mut seam = WelcomeSeam {
+                state: state.clone(),
+                queue,
+            };
+            match language_transition(&mut seam, save, lang) {
+                Transition::Rebuilt => {
+                    crate::tray::set_lang(lang);
+                    true
                 }
-            });
-            true
+                Transition::RebuildFailed | Transition::Kept => false,
+            }
         });
     }
     WELCOME.with(|w| *w.borrow_mut() = Some(win));
@@ -1111,6 +1322,7 @@ mod tests {
                 ring: a.ring,
                 enabled: true,
                 reason: String::new(),
+                customize: false,
             }
         );
         let en = cell(a, Lang::En);

@@ -281,6 +281,7 @@ mod tests {
             ring,
             enabled: true,
             reason: String::new(),
+            customize: false,
         }
     }
 

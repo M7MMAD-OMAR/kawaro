@@ -136,6 +136,7 @@ pub fn action(engine: &str, mode: OutputMode, ext: &str, suffix: &str) -> Action
         },
         icon: String::new(),
         params: toml::Table::new(),
+        options: None,
     }
 }
 

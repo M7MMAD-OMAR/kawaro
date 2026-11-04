@@ -1,0 +1,36 @@
+[package]
+name = "kawaro-mcp"
+description = "Kawaro MCP server: local file conversion tools for an MCP host"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "kawaro_mcp"
+path = "src/lib.rs"
+
+[dependencies]
+kawaro-core.workspace = true
+kawaro-engines.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+# Base64 for the preview block of a tool result (MIT or Apache-2.0, already in
+# Cargo.lock). Licences are recorded in docs/engines.md.
+base64 = "0.23"
+# Decoding a preview and re-encoding it as a small PNG. The engines crate
+# already depends on the same version; the features here are the formats a
+# tool result can preview.
+image = { version = "0.25.10", default-features = false, features = [
+  "png",
+  "jpeg",
+  "webp",
+  "gif",
+  "bmp",
+  "tiff",
+] }
+
+[dev-dependencies]
+tempfile.workspace = true
+# The integration test writes a small PNG and a small JPEG.
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg"] }

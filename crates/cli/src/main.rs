@@ -16,6 +16,7 @@ mod update;
 mod update_sys;
 
 use clap::{Parser, Subcommand};
+use kawaro_core::engine::{Task, TaskDetail, detail_line};
 use kawaro_core::hold::{Outcome, doctor_line_for};
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::{Event, Request, Response};
@@ -101,15 +102,28 @@ enum Cmd {
         /// Wait for the daemon to finish and print the results.
         #[arg(long)]
         wait: bool,
+        /// Set one option value for this run only, repeatable. KEY is a field
+        /// id or a param key; VALUE is a TOML scalar, so true and false, an
+        /// integer, a float, or a quoted string:
+        /// --set 'quality=60' --set 'preset="ebook"'.
+        #[arg(long = "set", value_name = "KEY=VALUE")]
+        set: Vec<String>,
         #[arg(required = true)]
         files: Vec<PathBuf>,
     },
-    /// List the actions offered for these files.
+    /// List the actions offered for these files, or print the options schema
+    /// of one action.
     Actions {
         /// Print JSON instead of a table.
         #[arg(long)]
         json: bool,
-        #[arg(required = true)]
+        /// Print the options schema of the action named by --id, as JSON.
+        #[arg(long, requires = "id", conflicts_with_all = ["json", "files"])]
+        schema: bool,
+        /// The action whose options schema to print (with --schema).
+        #[arg(long)]
+        id: Option<String>,
+        #[arg(required_unless_present = "schema")]
         files: Vec<PathBuf>,
     },
     /// Open the settings window (starts the daemon when needed). This is
@@ -126,6 +140,17 @@ enum Cmd {
     Integration {
         #[command(subcommand)]
         action: IntegrationCmd,
+    },
+    /// Serve the Model Context Protocol on stdin and stdout for a local AI
+    /// app (off unless [mcp] enabled = true in config.toml), or print the
+    /// snippet that host needs.
+    Mcp {
+        /// Path to config.toml (default: the user's config file).
+        #[arg(long)]
+        config: Option<PathBuf>,
+        /// Print the host snippet instead of serving.
+        #[arg(long, value_name = "HOST")]
+        snippet: Option<String>,
     },
     /// Start the daemon in the foreground.
     Daemon,
@@ -235,17 +260,27 @@ fn main() -> ExitCode {
         Cmd::Run {
             action,
             wait,
+            set,
             files,
-        } => run(&action, wait, &files),
-        Cmd::Actions { json, files } => actions(json, &files),
-        Cmd::Settings => client::ensure_daemon()
-            .and_then(|()| client::request(&Request::Settings))
-            .map(|_| ()),
+        } => run(&action, wait, &set, &files),
+        Cmd::Actions {
+            json,
+            schema,
+            id,
+            files,
+        } => actions(json, schema, id.as_deref(), &files),
+        Cmd::Settings => {
+            let token = resolve_token(None, &|k| std::env::var(k).ok());
+            client::ensure_daemon()
+                .and_then(|()| client::request(&Request::Settings { token }))
+                .map(|_| ())
+        }
         Cmd::Doctor { repair: true } => repair(),
         Cmd::Doctor { repair: false } => {
             doctor();
             Ok(())
         }
+        Cmd::Mcp { config, snippet } => mcp(config, snippet),
         Cmd::Daemon => client::exec_daemon(),
         Cmd::Ping => client::request(&Request::Ping).map(|_| out!("pong")),
         Cmd::Reload => client::request(&Request::Reload).map(|_| ()),
@@ -457,14 +492,30 @@ fn run_local(action: &ActionDef, files: &[PathBuf]) -> Res<()> {
     let outputs = queue::run_job(0, action, files, engine.as_ref(), &CancelToken::new(), &tx);
     drop(tx);
     let mut failed = 0;
+    let mut details: std::collections::HashMap<PathBuf, TaskDetail> =
+        std::collections::HashMap::new();
     for ev in rx {
-        if let JobEvent::TaskFailed { input, error, .. } = ev {
-            eprintln!("failed: {}: {error}", input.display());
-            failed += 1;
+        match ev {
+            JobEvent::TaskFailed { input, error, .. } => {
+                eprintln!("failed: {}: {error}", input.display());
+                failed += 1;
+            }
+            JobEvent::TaskDone {
+                output,
+                detail: Some(detail),
+                ..
+            } => {
+                details.insert(output, detail);
+            }
+            _ => {}
         }
     }
     for o in &outputs {
         out!("{}", o.display());
+        // S-132: the result line with the final and source sizes.
+        if let Some(detail) = details.get(o) {
+            out!("{}", detail_line(detail, Lang::En));
+        }
     }
     if failed > 0 {
         Err(format!("{failed} file(s) failed"))
@@ -504,7 +555,7 @@ fn convert(to: &str, quality: Option<i64>, files: &[PathBuf]) -> Res<()> {
     run_local(&action, &files)
 }
 
-fn run(id: &str, wait: bool, files: &[PathBuf]) -> Res<()> {
+fn run(id: &str, wait: bool, set: &[String], files: &[PathBuf]) -> Res<()> {
     let files = absolute(files.to_vec())?;
     existing(&files)?;
     let reg = registry();
@@ -512,13 +563,24 @@ fn run(id: &str, wait: bool, files: &[PathBuf]) -> Res<()> {
         .get(id)
         .ok_or_else(|| format!("unknown action `{id}`"))?
         .clone();
+    let params = set_params(set)?;
     if !client::daemon_up() {
-        return run_local(&action, &files);
+        return run_local(&resolved(&action, &params)?, &files);
+    }
+    // An older daemon would ignore `params` without a word, so a client with
+    // values asks first and runs here when the answer is no (S-120).
+    if !params.is_empty() && !daemon_takes_params() {
+        eprintln!(
+            "kawaro: the running daemon is older than this kawaro and cannot take run parameters, running in this process"
+        );
+        return run_local(&resolved(&action, &params)?, &files);
     }
     let req = Request::Run {
         action: id.to_string(),
-        files,
+        // The closure below reads the same list to name the source size.
+        files: files.clone(),
         wait,
+        params: (!params.is_empty()).then_some(params),
     };
     if !wait {
         return client::request(&req).map(|_| ());
@@ -527,7 +589,14 @@ fn run(id: &str, wait: bool, files: &[PathBuf]) -> Res<()> {
     client::stream(&req, |resp| {
         if let Response::Event { event } = resp {
             match event {
-                Event::TaskDone { output, .. } => out!("{}", output.display()),
+                Event::TaskDone { output, .. } => {
+                    out!("{}", output.display());
+                    // S-132: the daemon does not stream the detail, so the
+                    // engine reads it back from the finished output.
+                    if let Some(detail) = engine_detail(&action, &files, &output) {
+                        out!("{}", detail_line(&detail, Lang::En));
+                    }
+                }
                 Event::TaskFailed { input, error, .. } => {
                     eprintln!("failed: {}: {error}", input.display());
                     failed += 1;
@@ -545,6 +614,104 @@ fn run(id: &str, wait: bool, files: &[PathBuf]) -> Res<()> {
     }
 }
 
+/// The structured result of one finished output (S-132), read from the
+/// output header by the engine; the source size comes from the input the
+/// output was named after, or the first input for a combined action.
+fn engine_detail(action: &ActionDef, files: &[PathBuf], output: &Path) -> Option<TaskDetail> {
+    let input = files
+        .iter()
+        .find(|input| {
+            match (
+                input.file_stem().and_then(|s| s.to_str()),
+                output.file_stem().and_then(|s| s.to_str()),
+            ) {
+                (Some(input_stem), Some(output_stem)) => output_stem
+                    .strip_suffix(&action.output.suffix)
+                    .is_some_and(|base| base == input_stem),
+                _ => false,
+            }
+        })
+        .or_else(|| files.first())?;
+    let task = Task {
+        action_id: action.id.clone(),
+        op: action.op.clone(),
+        params: action.params.clone(),
+        inputs: vec![input.clone()],
+        output: output.to_path_buf(),
+    };
+    engine_for(&action.engine).ok()?.result_detail(&task)
+}
+
+/// The explicit `--set` values as a table; the last value of a key wins.
+fn set_params(set: &[String]) -> Res<toml::Table> {
+    let mut table = toml::Table::new();
+    for arg in set {
+        let (key, value) = parse_set(arg)?;
+        table.insert(key, value);
+    }
+    Ok(table)
+}
+
+/// `KEY=VALUE` as an option key and a TOML scalar.
+fn parse_set(arg: &str) -> Res<(String, toml::Value)> {
+    let (key, value) = arg
+        .split_once('=')
+        .ok_or_else(|| format!("--set needs KEY=VALUE, got `{arg}`"))?;
+    let key = key.trim();
+    if key.is_empty() {
+        return Err(format!("--set needs a key before the =, got `{arg}`"));
+    }
+    let value = parse_scalar(value.trim()).map_err(|e| format!("option `{key}`: {e}"))?;
+    Ok((key.to_string(), value))
+}
+
+/// One TOML scalar: true or false, an integer, a float, or a quoted string.
+fn parse_scalar(text: &str) -> Result<toml::Value, String> {
+    match text {
+        "true" => return Ok(toml::Value::Boolean(true)),
+        "false" => return Ok(toml::Value::Boolean(false)),
+        _ => {}
+    }
+    if let Ok(n) = text.parse::<i64>() {
+        return Ok(toml::Value::Integer(n));
+    }
+    if let Ok(f) = text.parse::<f64>()
+        && f.is_finite()
+    {
+        return Ok(toml::Value::Float(f));
+    }
+    // A quoted string is a TOML value, but a TOML document is a table. One
+    // wrapped key gives the TOML string rules (basic, literal and escapes) and
+    // rejects arrays, tables and dates.
+    let mut wrapped = String::from("v = ");
+    wrapped.push_str(text);
+    let table: toml::Table = toml::from_str(&wrapped).map_err(|_| scalar_error())?;
+    match (table.len(), table.get("v")) {
+        (1, Some(toml::Value::String(s))) => Ok(toml::Value::String(s.clone())),
+        _ => Err(scalar_error()),
+    }
+}
+
+fn scalar_error() -> String {
+    String::from("expected a TOML scalar: true, false, an integer, a float, or a quoted string")
+}
+
+/// True when the running daemon takes `Request::Run` params (S-120).
+fn daemon_takes_params() -> bool {
+    matches!(
+        client::request(&Request::Version),
+        Ok(Response::Version {
+            run_params: true,
+            ..
+        })
+    )
+}
+
+/// The action with the explicit values applied, for a run in this process.
+fn resolved(action: &ActionDef, params: &toml::Table) -> Res<ActionDef> {
+    action.with_params(params).map_err(|e| e.to_string())
+}
+
 fn on_path(tool: &str) -> bool {
     std::env::var_os("PATH")
         .map(|p| std::env::split_paths(&p).any(|d| d.join(tool).is_file()))
@@ -559,9 +726,9 @@ fn doctor() {
     }
     out!("tools");
     use kawaro_engines::locate::Program;
-    // The four engine tools resolve through the engines' shared lookup so
+    // Every engine tool resolves through the engines' shared lookup so
     // doctor and the engines never disagree (S-080).
-    let engine_tools: [(&str, &str, Program); 4] = [
+    let engine_tools: [(&str, &str, Program); 6] = [
         ("ffmpeg", "video and audio", Program::Ffmpeg),
         ("ffprobe", "video and audio progress", Program::Ffprobe),
         ("soffice", "documents", Program::Office),
@@ -570,6 +737,8 @@ fn doctor() {
             "PDF compression and pages to images",
             Program::Ghostscript,
         ),
+        ("pdftotext", "PDF to text", Program::Pdftotext),
+        ("qpdf", "PDF linearize, cleanup and check", Program::Qpdf),
     ];
     for (tool, why, program) in engine_tools {
         let path = kawaro_engines::locate::find(program).map(|p| p.to_string_lossy().into_owned());
@@ -765,10 +934,35 @@ fn drop_bind(binds: Option<&str>) -> kawaro_core::hold::BindState {
     bind_state(binds.map_or(Hyprctl::Failed, Hyprctl::Json))
 }
 
-fn actions(json: bool, files: &[PathBuf]) -> Res<()> {
+fn actions(json: bool, schema: bool, id: Option<&str>, files: &[PathBuf]) -> Res<()> {
+    let reg = registry();
+    if schema {
+        let id = id.ok_or("--schema needs an action id (--id)")?;
+        if json {
+            return Err(String::from("--schema cannot be combined with --json"));
+        }
+        if !files.is_empty() {
+            return Err(String::from("--schema takes no files"));
+        }
+        let action = reg
+            .get(id)
+            .ok_or_else(|| format!("unknown action `{id}`"))?;
+        let document = match &action.options {
+            Some(options) => options.params_schema(),
+            None => serde_json::json!({
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false,
+            }),
+        };
+        out!(
+            "{}",
+            serde_json::to_string_pretty(&document).map_err(|e| e.to_string())?
+        );
+        return Ok(());
+    }
     let files = absolute(files.to_vec())?;
     let lang = Lang::detect();
-    let reg = registry();
     let list = matching(&reg, &files);
     if json {
         let v: Vec<_> = list
@@ -795,6 +989,30 @@ fn actions(json: bool, files: &[PathBuf]) -> Res<()> {
             );
         }
     }
+    Ok(())
+}
+
+/// `kawaro mcp`: the stdio server, or the snippet a host configuration
+/// needs. The snippet is printed even when the server is disabled, so a user
+/// who has to add file access to a host can copy it first.
+fn mcp(config: Option<PathBuf>, snippet: Option<String>) -> Res<()> {
+    match snippet {
+        Some(host) => host_snippet(&host),
+        None => kawaro_mcp::run_stdio(config).map_err(|e| e.to_string()),
+    }
+}
+
+/// One JSON object for the four supported hosts. Claude, Cursor and LM Studio
+/// all read the same `mcpServers` object.
+fn host_snippet(host: &str) -> Res<()> {
+    if !["claude", "cursor", "lm-studio", "generic"].contains(&host) {
+        return Err(format!(
+            "unknown host `{host}`; expected claude, cursor, lm-studio or generic"
+        ));
+    }
+    // Spelled exactly as the hosts' configuration files expect it.
+    const SNIPPET: &str = r#"{"mcpServers":{"kawaro":{"command":"kawaro","args":["mcp"]}}}"#;
+    out!("{}", SNIPPET);
     Ok(())
 }
 
@@ -828,5 +1046,53 @@ mod tests {
             Some("x11")
         );
         assert_eq!(resolve_token(None, &env(&[])), None);
+    }
+
+    use super::{parse_scalar, parse_set, set_params};
+
+    #[test]
+    fn s120_set_parses_a_toml_scalar_and_names_the_key() {
+        assert_eq!(
+            parse_set("quality=60").unwrap(),
+            (String::from("quality"), toml::Value::Integer(60))
+        );
+        assert_eq!(
+            parse_set("flag=true").unwrap().1,
+            toml::Value::Boolean(true)
+        );
+        assert_eq!(
+            parse_set("flag=false").unwrap().1,
+            toml::Value::Boolean(false)
+        );
+        assert_eq!(parse_set("ratio=0.5").unwrap().1, toml::Value::Float(0.5));
+        assert_eq!(
+            parse_set("preset=\"ebook\"").unwrap().1,
+            toml::Value::String(String::from("ebook"))
+        );
+        assert_eq!(
+            parse_set(" preset = \"ebook\" ").unwrap().0,
+            String::from("preset")
+        );
+        // A bare word is not a TOML scalar, and the key is named.
+        let err = parse_set("preset=ebook").unwrap_err();
+        assert!(err.contains("preset"), "{err}");
+        assert!(parse_set("quality").unwrap_err().contains("KEY=VALUE"));
+        assert!(parse_set("=1").unwrap_err().contains("key"));
+        assert_eq!(
+            parse_scalar("x").unwrap_err(),
+            String::from(
+                "expected a TOML scalar: true, false, an integer, a float, or a quoted string"
+            )
+        );
+    }
+
+    #[test]
+    fn s120_duplicate_set_keys_keep_the_last_value() {
+        let params = set_params(&[String::from("quality=60"), String::from("quality=70")]).unwrap();
+        assert_eq!(
+            params.get("quality").and_then(toml::Value::as_integer),
+            Some(70)
+        );
+        assert!(set_params(&[]).unwrap().is_empty());
     }
 }

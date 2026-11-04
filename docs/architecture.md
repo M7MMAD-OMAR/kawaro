@@ -34,6 +34,11 @@ file manager entry ──▶ kawaro open ──▶ (Unix socket, JSON lines) ─
     removes the Unix socket file; on Windows it does nothing.
 - `kawaro` (crates/cli) is a thin client, plus `convert` which runs engines
   in-process with no daemon.
+- `kawaro mcp` (crates/mcp) is a stdio JSON-RPC server started by a local AI
+  host, off unless `[mcp] enabled = true` in config.toml (ADR 0011). In this
+  block it runs the queue and the engines in process, like `kawaro convert`,
+  so it opens no socket and talks to no daemon; a later story moves it behind
+  `kawarod`.
 - Engines (crates/engines) run inside the daemon. Heavy external tools
   (FFmpeg, LibreOffice, Ghostscript, v0.2) run as child processes, each in
   a `ProcessTree` that kills the child and everything it started (S-030).
@@ -61,6 +66,50 @@ file manager entry ──▶ kawaro open ──▶ (Unix socket, JSON lines) ─
   A taken name moves on to the next number; any other error stops and
   keeps the temp file.
 - Queue and events: `queue.rs`. IPC messages: `ipc.rs`.
+- Per-run values on the wire: `Request::Run` carries an optional `params`
+  table and `Request::Version` answers the daemon version plus whether
+  `run_params` is understood (S-120). The daemon resolves the table with
+  `ActionDef::with_params`, which calls the same `resolve_params` as MCP and
+  never mutates the registry entry.
+- Image geometry: `image_geom.rs`. `target(source, mode)` computes the
+  percent, longest side, fit, fill and exact result (with a centred source
+  crop for fill), and the image engine calls it for every resize so a
+  preview and the saved file cannot disagree.
+- Action options: `options.rs`. An action may declare a typed
+  `[action.options]` block (ADR 0012); `OptionsSpec::resolve` and
+  `resolve_params` merge the caller's values over `[action.params]` and the
+  same data exports a JSON Schema for MCP and the future stage 2 form. No
+  default is applied by resolve: the action file's params already carry it.
+
+## Action options (S-117)
+
+- The schema is data in `actions/*.toml`: `[action.options]` with
+  `kind = "form"`, `readout`, `remember`, `suffix_template`,
+  `[[action.options.field]]` and `[[action.options.preset]]`.
+- A field is one of the kinds `percent`, `px`, `px-pair`, `enum`, `bool`,
+  `int`, `float`, `string`, with `label` in Arabic and English, an optional
+  `default`, `min`, `max`, `step`, `unit`, `values`, `maps_to`, `clears` and
+  `no_enlarge`. An unknown kind or key is a parse error, never a free field.
+- Merge: a caller value is validated, the keys in `clears` are removed, and
+  the value is written under `maps_to` (or the field id). A key that names no
+  field is an error. `resolve` reads keys by field id first, `resolve_params`
+  by param key, so the UI and MCP can share one spec.
+- Seventeen built-in actions declare options at this revision: the four
+  lossy image quality actions, `image.to-pdf`, `image.resize-50`,
+  `image.resize-to`, `image.crop`, `image.compress-to`, `pdf.compress`,
+  `pdf.to-images`, `pdf.split`, `pdf.extract-pages`, `pdf.delete-pages`,
+  `pdf.reorder-pages`, `pdf.metadata` and `pdf.to-text`.
+
+## Preview worker (S-118)
+
+`crates/ui/src/preview_worker.rs` reads the header first, decodes a bounded
+ draft (JPEG DCT scaling, PNG row streaming, resvg for SVG, the first frame of
+ animated GIF and WebP), keeps the draft at most 1000 px on the long side and
+ refuses a draft over 40 megapixels while still reporting the dimensions. The
+ hexagon mask is applied in the worker (alpha 0 outside, one antialiased edge
+ pixel), and the `Generation` machine publishes only the newest request. The
+ module starts no work and changes no hive frame; S-119 calls it. The release
+ budget is in `tests/preview/bench.sh`.
 
 ## Image engine operations (engine = "image")
 
@@ -73,7 +122,10 @@ file manager entry ──▶ kawaro open ──▶ (Unix socket, JSON lines) ─
 | `grayscale` | none | 1 | |
 | `compress` | `quality` | 1 | same format; PNG is re-encoded with best compression |
 | `strip` | none | 1 | re-encode without metadata, same format |
-| `to-pdf` | `page` "fit" | n | combined: one page per image, image size as page size |
+| `resize-box` | `width`, `height`, `mode` fit, fill, exact | 1 | fit keeps aspect inside the box, fill centre crops first, exact may distort; uses image_geom |
+| `crop` | `aspect` 1:1, 4:3, 16:9, 3:2, original; `anchor` center, top, bottom, left, right | 1 | largest window of that aspect, anchored; original keeps the whole image |
+| `compress-to` | `target_bytes` 1..20000000 | 1 | quality search for JPEG, WebP and AVIF; lossless formats are UnsupportedOp |
+| `to-pdf` | `page_size` fit, a4, letter; `orientation` auto, portrait, landscape; `margin_mm` 0..50; `dpi` 72..600 | n | combined: one page per image, aspect fit inside the margin box |
 
 All ops apply EXIF orientation before processing. Alpha flattens onto white
 for formats without alpha (JPEG, BMP).
@@ -83,7 +135,7 @@ for formats without alpha (JPEG, BMP).
 ```rust
 /// `icon` names an SVG of the built-in set in crates/ui/icons/ (`icon_names()`);
 /// empty or unknown shows the code alone.
-pub struct HiveCell { pub id: String, pub code: String, pub label: String, pub icon: String, pub ring: u8 }
+pub struct HiveCell { pub id: String, pub code: String, pub label: String, pub icon: String, pub ring: u8, pub customize: bool }
 
 /// Selects winit with the software renderer, installs the activation-token
 /// hook and the focus watcher. Call once, before creating any window.
@@ -105,6 +157,10 @@ impl Hive {
     pub fn present_drop(&self, centre: &str, token: Option<String>) -> Result<(), slint::PlatformError>;
     pub fn close(&self);
     pub fn on_choose(&self, f: impl Fn(String) + 'static);   // action id, hive already closed
+    pub fn on_customize(&self, f: impl Fn(String) + 'static); // action id, Customize pill or Shift+Return
+    pub fn present_options(&self, cells: Vec<HiveCell>, state: Rc<StageTwoState>) -> Result<(), slint::PlatformError>;
+    pub fn on_options_run(&self, f: impl Fn(String, toml::Table) + 'static); // resolved params
+    pub fn on_options_cancel(&self, f: impl Fn() + 'static);
     /// Drag entered the drop hive with these files: centre text and cells (none refuses the drop).
     pub fn on_drop_files(&self, f: impl Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>) + 'static);
     pub fn on_dismiss(&self, f: impl Fn() + 'static);        // Esc, focus loss, click outside or on the centre
@@ -299,6 +355,31 @@ file or a user action file changes (polled every 2 s, `crates/daemon/src/watch.r
 the settings window (v0.2, S-011) writes it. Output naming is fixed: same
 name with the new extension, " (1)", " (2)" on collision, never an overwrite.
 
+## MCP server (S-121, S-122)
+
+`crates/mcp` (package `kawaro-mcp`), served as `kawaro mcp`. It reads the
+`[mcp]` table of config.toml, which is not part of `Config` yet:
+`enabled` (false), `read_only` (true), `allowed_roots` (empty, which refuses
+every path), `max_files` (50), `audit` (true) and `preview_px` (512). The
+server is stateless: both the 2026-07-28 revision (per request `_meta`,
+`server/discover`) and the older `initialize` handshake are answered on the
+same loop. stdout carries JSON-RPC lines only; logs go to stderr.
+
+Tools: `kawaro_formats` and `kawaro_plan` read; `kawaro_convert`,
+`kawaro_images_to_pdf`, `kawaro_pdf` and `kawaro_image` write. Every path is
+made absolute, canonicalised, must be a regular file inside a resolved root
+(an empty root list refuses all), and a selection is capped by `max_files`.
+A write tool refuses when `read_only` is true. The server runs
+`queue::run_job` in process with the action's resolved params, so the
+never-overwrite rule is the core one. A success result carries a text
+summary with absolute paths, an optional PNG preview of the first image
+output, one `resource_link` per output and a `structuredContent` with action,
+engine, resolved params, outputs, elapsed time and `overwritten: false`.
+Failures are tool results with `isError` and a stable code, never a JSON-RPC
+error. One JSON line per `tools/call` goes to
+`<config dir>/mcp-audit.jsonl` when `audit` is true, rotated at 1 MiB.
+The server declares no resources, prompts, Tasks, Apps or HTTP listener.
+
 ## Daemon behaviour
 
 - `open`: match actions; none gives a notification, otherwise show the hive.
@@ -317,7 +398,8 @@ name with the new extension, " (1)", " (2)" on collision, never an overwrite.
 ```
 kawaro open [--token T] [--from-clipboard] [--] FILES...
 kawaro convert --to EXT [--quality N] FILES...      # in-process, no daemon
-kawaro run ACTION_ID [--wait] FILES...
+kawaro run ACTION_ID [--wait] [--set KEY=VALUE]... FILES...
+kawaro actions --id ACTION_ID --schema               # option JSON Schema
 kawaro actions FILES...                             # id, ring, code, label
 kawaro drop [--token T] [--at X,Y] [--hold | --release]
 kawaro daemon                                       # exec kawarod
@@ -354,3 +436,5 @@ where the file manager can give one) and runs `kawaro open`. No logic.
 | 0008 | The product is named Kawaro | accepted |
 | 0009 | How Kawaro builds and tests on macOS | accepted |
 | 0010 | Opt-in model downloads, and whether LFM3 is the first model | proposed |
+| 0011 | A local MCP server for Kawaro | accepted |
+| 0012 | Action options as declarative data | accepted |

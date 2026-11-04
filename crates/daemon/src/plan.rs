@@ -63,6 +63,7 @@ fn extra(id: String, code: String, label: String, reason: String, enabled: bool)
         ring: 2,
         enabled,
         reason,
+        customize: false,
     }
 }
 

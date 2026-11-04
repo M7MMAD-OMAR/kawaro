@@ -29,6 +29,7 @@ fn every_string() -> Vec<String> {
             try_accessible,
             settings_button,
             settings_accessible,
+            ..
         } = welcome::strings(lang);
         out.extend([
             title,

@@ -25,7 +25,10 @@ fn id_and_capabilities() {
             "grayscale",
             "compress",
             "strip",
-            "to-pdf"
+            "to-pdf",
+            "resize-box",
+            "crop",
+            "compress-to"
         ]
     );
     for (op, kinds) in &caps {

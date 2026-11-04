@@ -21,6 +21,7 @@ fn cells(n: usize) -> Vec<HiveCell> {
             ring: if i < 6 { 1 } else { 2 },
             enabled: true,
             reason: String::new(),
+            customize: false,
         })
         .collect()
 }

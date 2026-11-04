@@ -45,6 +45,11 @@ fn validate(name: &str, a: &ActionDef) -> Result<(), RegistryError> {
             format!("action `{}`: max_files is below min_files", a.id),
         ));
     }
+    if let Some(options) = &a.options {
+        options
+            .validate()
+            .map_err(|reason| parse_error(name, format!("action `{}`: {reason}", a.id)))?;
+    }
     Ok(())
 }
 

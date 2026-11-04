@@ -36,7 +36,10 @@ fn settings_asks_the_running_daemon_to_open_its_window() {
         .output()
         .unwrap();
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
-    assert_eq!(seen.lock().unwrap().as_slice(), [Request::Settings]);
+    assert_eq!(
+        seen.lock().unwrap().as_slice(),
+        [Request::Settings { token: None }]
+    );
 }
 
 #[test]

@@ -8,6 +8,8 @@ The original planning document was never exported, so this plan rebuilds it from
 
 **Remaining engineering:** S-082 (GNOME and KDE focus test, needs a virtual machine), a real desktop X11 check (0.5.0 was checked only in a private virtual X session with xfwm4), 0.6.0 Windows native work, S-078 (AUR half; AppStream shipped in S-112), S-016 and S-017 (glass hive), S-077b (KDE and GNOME pointer source), S-075b (native KDE and GNOME Alt paths).
 
+**Unreleased block (2026-11-04):** typed action options (S-117, ADR 0012), the local MCP server (S-121, S-122, ADR 0011), per-run values over IPC and the CLI `--set`/`--schema` (S-120), PDF page operations and split modes (S-123), images-to-PDF page options (S-124), the preview worker with shared image geometry (S-118), PDF metadata (S-125), PDF to text through poppler (S-126), the stage 2 customization panel (S-119), image modes (S-127), PDF compress DPI with the qpdf engine (S-128) and JPEG metadata keep (S-129), all uncommitted as of this note. The next free story number is S-130.
+
 ### Blocked on the owner or outside resources
 
 Everything here is **not checked**. None of it can be closed by an agent alone.

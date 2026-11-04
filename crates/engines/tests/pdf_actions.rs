@@ -2,6 +2,8 @@
 
 use kawaro_core::{ActionDef, Engine, MediaKind, OutputMode};
 use kawaro_engines::pdf::{GhostscriptEngine, PdfEngine};
+use kawaro_engines::poppler::PopplerEngine;
+use kawaro_engines::qpdf::QpdfEngine;
 
 #[derive(serde::Deserialize)]
 struct File {
@@ -16,7 +18,12 @@ fn actions() -> Vec<ActionDef> {
 
 #[test]
 fn pdf_actions_match_engine_capabilities() {
-    let engines: [&dyn Engine; 2] = [&PdfEngine, &GhostscriptEngine::default()];
+    let engines: [&dyn Engine; 4] = [
+        &PdfEngine,
+        &GhostscriptEngine::default(),
+        &PopplerEngine::default(),
+        &QpdfEngine::default(),
+    ];
     for a in actions() {
         assert!(a.id.starts_with("pdf."), "{}", a.id);
         let engine = engines
@@ -103,6 +110,102 @@ fn pdf_actions_have_the_planned_rings_outputs_and_codes() {
             1,
             "SPLIT",
             "تقسيم",
+        ),
+        (
+            "pdf.extract-pages",
+            "pdf",
+            "extract-pages",
+            2,
+            OutputMode::PerFile,
+            "",
+            "-pages",
+            1,
+            "EXTRACT",
+            "استخراج",
+        ),
+        (
+            "pdf.delete-pages",
+            "pdf",
+            "delete-pages",
+            2,
+            OutputMode::PerFile,
+            "",
+            "-deleted",
+            1,
+            "REMOVE",
+            "حذف",
+        ),
+        (
+            "pdf.reorder-pages",
+            "pdf",
+            "reorder-pages",
+            2,
+            OutputMode::PerFile,
+            "",
+            "-ordered",
+            1,
+            "ORDER",
+            "ترتيب",
+        ),
+        (
+            "pdf.metadata",
+            "pdf",
+            "metadata",
+            2,
+            OutputMode::PerFile,
+            "",
+            "-metadata",
+            1,
+            "META",
+            "بيانات",
+        ),
+        (
+            "pdf.to-text",
+            "poppler",
+            "to-text",
+            1,
+            OutputMode::PerFile,
+            "txt",
+            "-text",
+            1,
+            "TXT",
+            "نص",
+        ),
+        (
+            "pdf.linearize",
+            "qpdf",
+            "linearize",
+            2,
+            OutputMode::PerFile,
+            "",
+            "-linearized",
+            1,
+            "FAST",
+            "سريع",
+        ),
+        (
+            "pdf.cleanup",
+            "qpdf",
+            "cleanup",
+            2,
+            OutputMode::PerFile,
+            "",
+            "-cleaned",
+            1,
+            "CLEAN",
+            "تنظيف",
+        ),
+        (
+            "pdf.check",
+            "qpdf",
+            "check",
+            2,
+            OutputMode::PerFile,
+            "txt",
+            "-check",
+            1,
+            "CHECK",
+            "فحص",
         ),
     ];
     assert_eq!(actions.len(), want.len());

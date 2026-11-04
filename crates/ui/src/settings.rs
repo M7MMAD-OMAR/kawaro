@@ -1656,6 +1656,7 @@ mod tests {
                 ring: 1,
                 enabled: true,
                 reason: String::new(),
+                customize: false,
             };
             hive.present("1", vec![cell], None).unwrap();
 

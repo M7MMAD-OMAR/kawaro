@@ -44,12 +44,20 @@ pub mod overlay;
 mod platform;
 #[cfg(unix)]
 mod preview;
+// Preview worker (S-118): header probe, bounded draft decode, hexagon mask
+// and the newest-wins generation machine. Nothing starts until S-119 asks
+// after the first hive frame.
+#[cfg(unix)]
+pub mod preview_worker;
+// S-119 stage 2: the option panel model and its preview. The slint types it
+// fills (StageOption, StagePreset, StageKind) are generated from hive.slint.
 #[cfg(target_os = "linux")]
 mod receiver;
 #[cfg(target_os = "linux")]
-mod session;
+pub mod session;
 mod settings;
 mod shell;
+pub mod stage_two;
 #[cfg(unix)]
 pub mod thumb;
 pub mod welcome;
@@ -98,6 +106,10 @@ pub struct HiveCell {
     pub ring: u8,
     pub enabled: bool,
     pub reason: String,
+    /// S-119: the action declares `[action.options]`, so the hive shows the
+    /// Customize pill when this cell is highlighted and Shift+Enter opens the
+    /// stage 2 panel.
+    pub customize: bool,
 }
 
 /// Activation token for the next window adapter, consumed by the winit
@@ -106,6 +118,22 @@ pub struct HiveCell {
 /// `hide()` (those attributes are rebuilt without the hook). So `present`
 /// builds a fresh hive component whenever it has a token (S-013).
 static PENDING_TOKEN: Mutex<Option<String>> = Mutex::new(None);
+
+/// Puts an activation token in the slot the next window adapter consumes
+/// (S-131). The caller clears it after the build, so it never leaks into
+/// another window.
+pub fn set_pending_token(token: Option<String>) {
+    if let Ok(mut slot) = PENDING_TOKEN.lock() {
+        *slot = token;
+    }
+}
+
+/// Clears the pending activation token after a build (S-131).
+pub fn clear_pending_token() {
+    if let Ok(mut slot) = PENDING_TOKEN.lock() {
+        slot.take();
+    }
+}
 
 thread_local! {
     /// The hive window had keyboard focus since the last `present`.
@@ -478,6 +506,8 @@ pub fn after_next_frame(f: impl FnOnce() + 'static) {
 type ChooseFn = Rc<dyn Fn(String)>;
 type DismissFn = Rc<dyn Fn()>;
 type FilesFn = Rc<dyn Fn(Vec<PathBuf>) -> (String, Vec<HiveCell>)>;
+/// S-119: the Run of the stage 2 panel, with its resolved params.
+type OptionsRunFn = Rc<dyn Fn(String, toml::Table)>;
 
 struct Inner {
     /// Replaced by a fresh component when `present` gets a token.
@@ -492,6 +522,16 @@ struct Inner {
     on_choose: RefCell<Option<ChooseFn>>,
     on_dismiss: RefCell<Option<DismissFn>>,
     on_drop_files: RefCell<Option<FilesFn>>,
+    /// S-119: the Customize pill, the panel's Run and its Back.
+    on_customize: RefCell<Option<ChooseFn>>,
+    on_options_run: RefCell<Option<OptionsRunFn>>,
+    on_options_cancel: RefCell<Option<DismissFn>>,
+    /// The open stage 2 panel, if any.
+    stage: RefCell<Option<Rc<stage_two::StageTwoState>>>,
+    /// Ticks the panel's preview and readout while it is open.
+    stage_timer: slint::Timer,
+    /// The Customize hint text in the hive language.
+    hint: String,
     /// Pending timer that starts the opening animation after the first frame.
     opener: slint::Timer,
     /// Pending timer that hides the hive at the end of the close animation
@@ -558,11 +598,122 @@ impl Inner {
         dnd::windows::hive_closed();
         #[cfg(target_os = "linux")]
         dnd::x11::hive_closed();
+        self.stage_timer.stop();
+        *self.stage.borrow_mut() = None;
         let ui = self.ui.borrow();
         ui.set_highlight(-1);
         // Never keep a picture while hidden (S-018 AC24, AC27).
         ui.set_preview_image(slint::Image::default());
         ui.set_preview_icon(slint::Image::default());
+        // S-119: a closed hive keeps no stage 2 panel or picture.
+        ui.set_stage_two(false);
+        ui.set_stage_preview(false);
+        ui.set_stage_preview_image(slint::Image::default());
+    }
+
+    /// Ends the stage 2 panel: no timer, no state, no picture (S-119). A
+    /// normal show calls it, so the panel never outlives its request.
+    fn end_stage(&self) {
+        self.stage_timer.stop();
+        *self.stage.borrow_mut() = None;
+        let ui = self.ui.borrow();
+        ui.set_stage_two(false);
+        ui.set_stage_preview(false);
+        ui.set_stage_preview_image(slint::Image::default());
+    }
+
+    /// Shows the panel of `state` in the already shown window and starts
+    /// polling its preview and readout (S-119).
+    fn open_stage(&self, state: Rc<stage_two::StageTwoState>) {
+        let (run, reset, back) = stage_two::buttons(state.lang());
+        {
+            let ui = self.ui.borrow();
+            // False first, so a reopened panel builds fresh controls.
+            ui.set_stage_two(false);
+            ui.set_stage_title(state.title().as_str().into());
+            ui.set_stage_options(state.rows());
+            ui.set_stage_presets(state.presets());
+            ui.set_stage_readout(state.readout().as_str().into());
+            ui.set_stage_error("".into());
+            ui.set_stage_preview_note(state.preview_note().unwrap_or("").into());
+            ui.set_stage_preview(state.preview_available());
+            ui.set_stage_preview_image(slint::Image::default());
+            ui.set_stage_run_text(run.into());
+            ui.set_stage_reset_text(reset.into());
+            ui.set_stage_back_text(back.into());
+            ui.set_stage_two(true);
+        }
+        *self.stage.borrow_mut() = Some(state.clone());
+        state.request_preview();
+        let ui = self.ui.borrow().as_weak();
+        let stage = Rc::downgrade(&state);
+        let mut shown = String::new();
+        self.stage_timer.start(
+            slint::TimerMode::Repeated,
+            Duration::from_millis(16),
+            move || {
+                let (Some(ui), Some(stage)) = (ui.upgrade(), stage.upgrade()) else {
+                    return;
+                };
+                if let Some(image) = stage.poll_preview() {
+                    ui.set_stage_preview_image(image);
+                    ui.set_stage_preview(true);
+                }
+                let readout = stage.readout();
+                if readout != shown {
+                    shown = readout.clone();
+                    ui.set_stage_readout(readout.as_str().into());
+                }
+            },
+        );
+    }
+
+    /// Rebuilds the open panel's rows after Reset or a preset (S-119): the
+    /// Material controls keep their own state after an edit, so the panel is
+    /// destroyed and rebuilt once to show the new values.
+    fn reopen_stage(&self) {
+        let Some(state) = self.stage.borrow().clone() else {
+            return;
+        };
+        let ui = self.ui.borrow().as_weak();
+        if let Some(ui) = ui.upgrade() {
+            ui.set_stage_two(false);
+            ui.set_stage_options(ModelRc::new(VecModel::from(Vec::new())));
+        }
+        state.request_preview();
+        let rows = state.rows();
+        let presets = state.presets();
+        let readout: slint::SharedString = state.readout().as_str().into();
+        if let Some(ui) = ui.upgrade() {
+            ui.set_stage_error("".into());
+        }
+        slint::Timer::single_shot(Duration::ZERO, move || {
+            if let Some(ui) = ui.upgrade() {
+                ui.set_stage_options(rows);
+                ui.set_stage_presets(presets);
+                ui.set_stage_readout(readout);
+                ui.set_stage_two(true);
+            }
+        });
+    }
+
+    /// One option change from the panel (S-119): write the value, then show
+    /// the resolved error in the panel or clear it and refresh the readout.
+    fn set_option(&self, index: i32, numeric: f32, text: &str) {
+        let Some(stage) = self.stage.borrow().clone() else {
+            return;
+        };
+        stage.set_value(index, numeric, text);
+        match stage.resolved() {
+            Ok(_) => {
+                let ui = self.ui.borrow();
+                ui.set_stage_error("".into());
+                ui.set_stage_readout(stage.readout().as_str().into());
+            }
+            Err(error) => {
+                self.ui.borrow().set_stage_error(error.to_string().into());
+            }
+        }
     }
 
     /// The user driven close (S-017c AC8): `on_choose` and `on_dismiss` run
@@ -654,6 +805,7 @@ impl Inner {
                     ring: p.axial.distance(),
                     enabled: p.cell.enabled,
                     reason: p.cell.reason.as_str().into(),
+                    customize: p.cell.customize,
                 }
             })
             .collect();
@@ -664,6 +816,7 @@ impl Inner {
         ui.set_win_w(plan.width);
         ui.set_win_h(plan.height);
         ui.set_rtl(self.rtl);
+        ui.set_customize_hint(self.hint.as_str().into());
         #[cfg(target_os = "linux")]
         receiver::set_plan(Some(plan.clone()));
         *self.plan.borrow_mut() = Some(plan);
@@ -865,6 +1018,12 @@ impl Hive {
             on_choose: RefCell::new(None),
             on_dismiss: RefCell::new(None),
             on_drop_files: RefCell::new(None),
+            on_customize: RefCell::new(None),
+            on_options_run: RefCell::new(None),
+            on_options_cancel: RefCell::new(None),
+            stage: RefCell::new(None),
+            stage_timer: slint::Timer::default(),
+            hint: stage_two::customize_hint(lang).to_string(),
             opener: slint::Timer::default(),
             closer: slint::Timer::default(),
             glass: Cell::new(glass),
@@ -1027,6 +1186,8 @@ impl Hive {
         place: Option<(f64, f64)>,
     ) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
+        // A show that is not the panel clears a panel left from before (S-119).
+        inner.end_stage();
         #[cfg(windows)]
         let (plan, win_at) = win_window::plan(cells.clone(), inner.rtl, min_rings);
         #[cfg(all(not(windows), target_os = "linux"))]
@@ -1210,6 +1371,37 @@ impl Hive {
         self.inner.close();
     }
 
+    /// Shows the stage 2 panel of `state` in place of the cells (S-119). The
+    /// window keeps the two-ring size, so no new window opens and the focus
+    /// is not touched; a normal show clears the panel again.
+    pub fn present_options(
+        &self,
+        cells: Vec<HiveCell>,
+        state: Rc<stage_two::StageTwoState>,
+    ) -> Result<(), slint::PlatformError> {
+        let title = state.title();
+        self.show(&title, cells, 2, None, None, false, &[], None)?;
+        self.inner.open_stage(state);
+        Ok(())
+    }
+
+    /// Called with the action id when the Customize pill (or Shift+Return) is
+    /// used on a customizable cell; the daemon opens the panel.
+    pub fn on_customize(&self, f: impl Fn(String) + 'static) {
+        *self.inner.on_customize.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Called with the action id and the resolved params when the panel's Run
+    /// is used. The hive is already closed.
+    pub fn on_options_run(&self, f: impl Fn(String, toml::Table) + 'static) {
+        *self.inner.on_options_run.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// Called when the panel's Back is used (or Escape); the hive is closed.
+    pub fn on_options_cancel(&self, f: impl Fn() + 'static) {
+        *self.inner.on_options_cancel.borrow_mut() = Some(Rc::new(f));
+    }
+
     /// Called with the action id after a cell is chosen; the hive is already
     /// closed.
     pub fn on_choose(&self, f: impl Fn(String) + 'static) {
@@ -1238,6 +1430,20 @@ impl Hive {
     /// Sets the reason line and the suggestion under the centre (S-108),
     /// each its own element, drawn only while its text is not empty. Every
     /// `present*` clears both.
+    /// The stage 2 panel's current error line (S-119): the text the panel
+    /// shows in the danger colour when the values do not resolve, empty when
+    /// they do. A seam for tests and for a caller that wants the reason.
+    pub fn stage_error(&self) -> String {
+        self.inner.ui.borrow().get_stage_error().to_string()
+    }
+
+    /// Drives one panel option change exactly as a control does (S-119), so a
+    /// test can read stage_error and the readout without a pointer.
+    #[doc(hidden)]
+    pub fn set_option(&self, index: i32, numeric: f32, text: &str) {
+        self.inner.set_option(index, numeric, text);
+    }
+
     pub fn set_notes(&self, message: &str, suggestion: Option<&str>) {
         let ui = self.inner.ui.borrow();
         ui.set_centre_message(message.into());
@@ -1381,6 +1587,70 @@ fn wire(inner: &Rc<Inner>) {
     ui.on_choose(move |index| {
         if let Some(i) = w.upgrade() {
             i.choose(index);
+        }
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_customize(move |index| {
+        let Some(i) = w.upgrade() else { return };
+        let id = i
+            .plan
+            .borrow()
+            .as_ref()
+            .and_then(|p| p.cells.get(usize::try_from(index).unwrap_or(usize::MAX)))
+            .map(|c| c.cell.id.clone());
+        if let Some(id) = id
+            && let Some(f) = i.on_customize.borrow().clone()
+        {
+            f(id);
+        }
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_option_changed(move |index, numeric, text| {
+        let Some(i) = w.upgrade() else { return };
+        i.set_option(index, numeric, text.as_str());
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_preset_picked(move |index| {
+        let Some(i) = w.upgrade() else { return };
+        if let Some(stage) = i.stage.borrow().clone() {
+            stage.apply_preset(index);
+            i.reopen_stage();
+        }
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_stage_reset(move || {
+        let Some(i) = w.upgrade() else { return };
+        if let Some(stage) = i.stage.borrow().clone() {
+            stage.reset();
+            i.reopen_stage();
+        }
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_stage_run(move || {
+        let Some(i) = w.upgrade() else { return };
+        let Some(stage) = i.stage.borrow().clone() else {
+            return;
+        };
+        let params = match stage.resolved() {
+            Ok(params) => params,
+            Err(error) => {
+                // Keep the panel open and say what is wrong with the values.
+                i.ui.borrow().set_stage_error(error.to_string().into());
+                return;
+            }
+        };
+        let id = stage.action_id().to_string();
+        i.close();
+        if let Some(f) = i.on_options_run.borrow().clone() {
+            f(id, params);
+        }
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_stage_cancel(move || {
+        let Some(i) = w.upgrade() else { return };
+        i.close();
+        if let Some(f) = i.on_options_cancel.borrow().clone() {
+            f();
         }
     });
     let w = Rc::downgrade(inner);

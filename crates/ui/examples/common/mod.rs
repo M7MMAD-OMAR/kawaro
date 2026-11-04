@@ -114,6 +114,7 @@ pub fn image_actions(lang: Lang) -> Vec<HiveCell> {
             ring: *ring,
             enabled: true,
             reason: String::new(),
+            customize: false,
         })
         .collect()
 }

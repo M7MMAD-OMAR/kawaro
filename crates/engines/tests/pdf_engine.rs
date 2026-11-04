@@ -373,7 +373,16 @@ fn pdf_engine_cancel_unknown_op_and_capabilities() {
     );
     let cancel = CancelToken::new();
     cancel.cancel();
-    for op in ["merge", "rotate", "split"] {
+    let ops = [
+        "merge",
+        "rotate",
+        "split",
+        "extract-pages",
+        "delete-pages",
+        "reorder-pages",
+        "metadata",
+    ];
+    for op in ops {
         let out = dir.path().join(format!("{op}.out"));
         let r = run(&task(op, &[a.clone(), a.clone()], &out, ""), &cancel).0;
         assert!(matches!(r, Err(EngineError::Cancelled)), "{op}: {r:?}");
@@ -394,7 +403,18 @@ fn pdf_engine_cancel_unknown_op_and_capabilities() {
     assert!(PdfEngine.available());
     let caps = PdfEngine.capabilities();
     let ops: Vec<_> = caps.iter().map(|(op, _)| *op).collect();
-    assert_eq!(ops, ["merge", "rotate", "split"]);
+    assert_eq!(
+        ops,
+        [
+            "merge",
+            "rotate",
+            "split",
+            "extract-pages",
+            "delete-pages",
+            "reorder-pages",
+            "metadata",
+        ]
+    );
     assert!(caps.iter().all(|(_, kinds)| kinds == &[MediaKind::Pdf]));
 }
 

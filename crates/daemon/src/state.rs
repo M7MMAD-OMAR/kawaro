@@ -19,6 +19,8 @@ pub struct JobInfo {
     pub failed: usize,
     pub first_output: Option<PathBuf>,
     pub first_error: Option<String>,
+    /// The engine's structured result of the last finished task (S-132).
+    pub detail: Option<kawaro_core::engine::TaskDetail>,
 }
 
 pub struct State {

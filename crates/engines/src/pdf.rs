@@ -1,15 +1,18 @@
-//! PDF engines (S-010).
+//! PDF engines (S-010, S-123, S-125).
 //!
 //! `available()` is per engine, not per op, so the PDF work is split in two:
 //!
-//! - [`PdfEngine`] (id "pdf"): merge, rotate, split. Pure Rust on `lopdf`,
-//!   always available.
+//! - [`PdfEngine`] (id "pdf"): merge, rotate, split, extract-pages,
+//!   delete-pages, reorder-pages, metadata. Pure Rust on `lopdf`, always
+//!   available.
 //! - [`GhostscriptEngine`] (id "ghostscript"): compress, to-images. Runs `gs`
 //!   as a child process and is unavailable without it.
 //!
 //! An engine task writes exactly one file, so `split` and `to-images` write
 //! one ZIP (stored, no recompression: PDF pages and PNG are already
-//! compressed) holding `page-001.pdf` or `page-001.png` and so on.
+//! compressed) holding `page-001.pdf`, `page-002.pdf` or `page-001.png` and
+//! so on. In `split` the number is the output file: one page, one `ranges`
+//! range or `every` pages.
 
 use crate::locate::{self, Program};
 use crate::office::{
@@ -35,6 +38,17 @@ const GS_URL: &str = "https://ghostscript.com/releases/";
 /// Page attributes a page inherits from its ancestors in the page tree.
 const INHERITABLE: [&str; 4] = ["MediaBox", "CropBox", "Resources", "Rotate"];
 
+/// The only params the `metadata` op accepts.
+const METADATA_PARAMS: [&str; 5] = ["title", "author", "subject", "keywords", "clear"];
+
+/// The text params of `metadata` and the Info key each one sets.
+const INFO_TEXT: [(&str, &str); 4] = [
+    ("title", "Title"),
+    ("author", "Author"),
+    ("subject", "Subject"),
+    ("keywords", "Keywords"),
+];
+
 pub struct PdfEngine;
 
 impl Engine for PdfEngine {
@@ -43,10 +57,18 @@ impl Engine for PdfEngine {
     }
 
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
-        ["merge", "rotate", "split"]
-            .into_iter()
-            .map(|op| (op, vec![MediaKind::Pdf]))
-            .collect()
+        [
+            "merge",
+            "rotate",
+            "split",
+            "extract-pages",
+            "delete-pages",
+            "reorder-pages",
+            "metadata",
+        ]
+        .into_iter()
+        .map(|op| (op, vec![MediaKind::Pdf]))
+        .collect()
     }
 
     fn run(
@@ -61,6 +83,10 @@ impl Engine for PdfEngine {
             "merge" => merge(task, progress, cancel),
             "rotate" => rotate(task, cancel),
             "split" => split(task, progress, cancel),
+            "extract-pages" => extract_pages(task, progress, cancel),
+            "delete-pages" => delete_pages(task, progress, cancel),
+            "reorder-pages" => reorder_pages(task, progress, cancel),
+            "metadata" => metadata(task, progress, cancel),
             op => Err(EngineError::UnsupportedOp(op.to_string())),
         }?;
         progress(1.0);
@@ -214,10 +240,123 @@ fn zip_options() -> zip::write::SimpleFileOptions {
         .large_file(true)
 }
 
-fn split(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), EngineError> {
-    let input = single_input(task)?;
-    let doc = load_pdf(input)?;
-    let pages: Vec<ObjectId> = doc.get_pages().into_values().collect();
+/// Pages named by a string like `1`, `1-3`, `1,3,5` or `1-3,7`, 1-based,
+/// in the order they were written. Every page must exist and appear once.
+fn parse_pages(text: &str, page_count: usize) -> Result<Vec<usize>, String> {
+    let text = text.trim();
+    if text.is_empty() {
+        return Err("the selection is empty".into());
+    }
+    let mut seen = vec![false; page_count + 1];
+    let mut pages = Vec::new();
+    for part in text.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            return Err(format!("`{text}` has an empty part"));
+        }
+        let (first, last) = match part.split_once('-') {
+            Some((first, last)) => (
+                page_number(first, page_count)?,
+                page_number(last, page_count)?,
+            ),
+            None => {
+                let page = page_number(part, page_count)?;
+                (page, page)
+            }
+        };
+        if last < first {
+            return Err(format!("`{part}` goes backwards"));
+        }
+        for (page, already) in seen.iter_mut().enumerate().take(last + 1).skip(first) {
+            if *already {
+                return Err(format!("page {page} appears twice"));
+            }
+            *already = true;
+            pages.push(page);
+        }
+    }
+    Ok(pages)
+}
+
+/// One 1-based page number of a selection, inside `1..=page_count`.
+fn page_number(text: &str, page_count: usize) -> Result<usize, String> {
+    let text = text.trim();
+    let page: usize = text
+        .parse()
+        .map_err(|_| format!("`{text}` is not a page number"))?;
+    if page == 0 || page > page_count {
+        return Err(format!("page {page} is not between 1 and {page_count}"));
+    }
+    Ok(page)
+}
+
+/// A string param, or `fallback` when the action leaves it out.
+fn text_param<'a>(task: &'a Task, name: &str, fallback: &'a str) -> Result<&'a str, EngineError> {
+    match task.params.get(name) {
+        None => Ok(fallback),
+        Some(value) => value.as_str().ok_or_else(|| EngineError::BadParam {
+            name: name.to_string(),
+            reason: "must be a string".into(),
+        }),
+    }
+}
+
+/// A page selection param, 1-based, in the order it was written.
+fn pages_param(task: &Task, page_count: usize, name: &str) -> Result<Vec<usize>, EngineError> {
+    let text = text_param(task, name, "1")?;
+    parse_pages(text, page_count).map_err(|reason| EngineError::BadParam {
+        name: name.to_string(),
+        reason,
+    })
+}
+
+/// The `order` param: every page exactly once, in the order the user wrote
+/// it, so the list is a permutation of `1..=page_count`. A partial list is
+/// refused; `extract-pages` is the op for a subset.
+fn order_param(task: &Task, page_count: usize) -> Result<Vec<usize>, EngineError> {
+    let order = pages_param(task, page_count, "order")?;
+    let mut sorted = order.clone();
+    sorted.sort_unstable();
+    let expected: Vec<usize> = (1..=page_count).collect();
+    if sorted != expected {
+        return Err(EngineError::BadParam {
+            name: "order".into(),
+            reason: format!("must list every page from 1 to {page_count} once"),
+        });
+    }
+    Ok(order)
+}
+
+/// The `every` param of `split`: whole pages per output, at least 1.
+fn every_param(task: &Task) -> Result<usize, EngineError> {
+    let every = match task.params.get("every") {
+        None => 1,
+        Some(_) => match task.param_i64("every") {
+            Some(value) if value >= 1 => usize::try_from(value).unwrap_or(usize::MAX),
+            _ => 0,
+        },
+    };
+    if every == 0 {
+        return Err(EngineError::BadParam {
+            name: "every".into(),
+            reason: "must be a whole number of pages, 1 or more".into(),
+        });
+    }
+    Ok(every)
+}
+
+/// 1-based pages as 0-based page indices.
+fn zero_based(pages: Vec<usize>) -> Vec<usize> {
+    pages.into_iter().map(|page| page - 1).collect()
+}
+
+/// The page ids of `doc` in document order.
+fn page_ids(doc: &Document) -> Vec<ObjectId> {
+    doc.get_pages().into_values().collect()
+}
+
+/// The page tree root and the catalog, which a page subset copy rewrites.
+fn page_tree_ids(doc: &Document, input: &Path) -> Result<(ObjectId, ObjectId), EngineError> {
     let catalog = doc.catalog().map_err(|e| input_error(input, e))?;
     let root_pages = catalog
         .get(b"Pages")
@@ -228,34 +367,272 @@ fn split(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), En
         .get(b"Root")
         .and_then(Object::as_reference)
         .map_err(|e| input_error(input, e))?;
-    let mut zip = zip::ZipWriter::new(std::fs::File::create(&task.output)?);
-    for (n, page) in pages.iter().enumerate() {
-        cancel.check()?;
-        let mut one = doc.clone();
-        if let Ok(dict) = one.get_dictionary_mut(root_pages) {
-            dict.set("Kids", vec![Object::Reference(*page)]);
-            dict.set("Count", 1);
-        }
-        if let Ok(dict) = one.get_dictionary_mut(*page) {
+    Ok((root_pages, catalog_id))
+}
+
+/// A copy of `doc` whose page tree holds `order` (0-based page indices) in
+/// that order, under the same page tree root. Pages left out become
+/// unreachable and are pruned, and the catalog drops the trees that point
+/// at every page.
+fn copy_with_pages(
+    doc: &Document,
+    pages: &[ObjectId],
+    order: &[usize],
+    root_pages: ObjectId,
+    catalog_id: ObjectId,
+) -> Document {
+    let mut copy = doc.clone();
+    let kids: Vec<Object> = order
+        .iter()
+        .map(|index| Object::Reference(pages[*index]))
+        .collect();
+    if let Ok(dict) = copy.get_dictionary_mut(root_pages) {
+        dict.set("Kids", kids);
+        dict.set("Count", order.len() as i64);
+    }
+    for index in order {
+        if let Ok(dict) = copy.get_dictionary_mut(pages[*index]) {
             dict.set("Parent", root_pages);
         }
-        if let Ok(dict) = one.get_dictionary_mut(catalog_id) {
-            // These point at every page and would keep them all alive.
-            for key in ["Outlines", "StructTreeRoot", "OpenAction"] {
-                dict.remove(key.as_bytes());
+    }
+    if let Ok(dict) = copy.get_dictionary_mut(catalog_id) {
+        // These point at every page and would keep them all alive.
+        for key in ["Outlines", "StructTreeRoot", "OpenAction"] {
+            dict.remove(key.as_bytes());
+        }
+    }
+    copy.prune_objects();
+    copy
+}
+
+/// Writes one output PDF holding `order` (0-based) of the input pages.
+fn save_pages(
+    doc: &Document,
+    input: &Path,
+    pages: &[ObjectId],
+    order: &[usize],
+    task: &Task,
+    progress: Progress,
+) -> Result<(), EngineError> {
+    let (root_pages, catalog_id) = page_tree_ids(doc, input)?;
+    let mut out = copy_with_pages(doc, pages, order, root_pages, catalog_id);
+    progress(0.9);
+    save(&mut out, &task.output)
+}
+
+/// `extract-pages`: one PDF with the selected pages in document order.
+fn extract_pages(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), EngineError> {
+    let input = single_input(task)?;
+    let doc = load_pdf(input)?;
+    let pages = page_ids(&doc);
+    let mut selection = pages_param(task, pages.len(), "pages")?;
+    selection.sort_unstable();
+    cancel.check()?;
+    save_pages(&doc, input, &pages, &zero_based(selection), task, progress)
+}
+
+/// `delete-pages`: one PDF with the selected pages left out.
+fn delete_pages(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), EngineError> {
+    let input = single_input(task)?;
+    let doc = load_pdf(input)?;
+    let pages = page_ids(&doc);
+    let selection = pages_param(task, pages.len(), "pages")?;
+    let keep: Vec<usize> = (1..=pages.len())
+        .filter(|page| !selection.contains(page))
+        .map(|page| page - 1)
+        .collect();
+    if keep.is_empty() {
+        return Err(EngineError::BadParam {
+            name: "pages".into(),
+            reason: "cannot delete every page".into(),
+        });
+    }
+    cancel.check()?;
+    save_pages(&doc, input, &pages, &keep, task, progress)
+}
+
+/// `reorder-pages`: one PDF with every page once, in the `order` order.
+fn reorder_pages(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), EngineError> {
+    let input = single_input(task)?;
+    let doc = load_pdf(input)?;
+    let pages = page_ids(&doc);
+    let order = order_param(task, pages.len())?;
+    cancel.check()?;
+    save_pages(&doc, input, &pages, &zero_based(order), task, progress)
+}
+
+/// `metadata`: a new PDF with the non-empty Info fields set, or with the
+/// document information and the XMP stream cleared (S-125). The input is
+/// never modified and no file is overwritten; the queue places the result.
+fn metadata(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), EngineError> {
+    check_metadata_params(task)?;
+    let clear = metadata_clear(task)?;
+    let mut fields: Vec<(&str, &str, &str)> = Vec::new();
+    for (name, key) in INFO_TEXT {
+        let value = metadata_text(task, name)?;
+        if !value.is_empty() {
+            fields.push((name, key, value));
+        }
+    }
+    // The options clear one another, but a raw params table can still ask
+    // for both; the op refuses that (AC5).
+    if clear && let Some(field) = fields.first() {
+        let (name, _, _) = *field;
+        return Err(EngineError::BadParam {
+            name: "clear".into(),
+            reason: format!("`{name}` cannot be combined with clear: drop the field or the switch"),
+        });
+    }
+    let input = single_input(task)?;
+    let mut doc = load_pdf(input)?;
+    cancel.check()?;
+    if clear {
+        clear_metadata(&mut doc);
+        // With the trailer and catalog entries gone, the Info dictionary and
+        // the XMP stream are unreachable, so the prune drops their objects too.
+        doc.prune_objects();
+    } else if !fields.is_empty() {
+        for (_, key, value) in fields {
+            let id = info_id(&mut doc);
+            if let Ok(dict) = doc.get_dictionary_mut(id) {
+                dict.set(key, text_object(value));
             }
         }
-        one.prune_objects();
+        // A reader that prefers XMP would show the old values, so the Info
+        // dictionary is the single source after a write (AC6, decision 3).
+        if let Ok(catalog) = doc.catalog_mut() {
+            catalog.remove(b"Metadata");
+        }
+        doc.prune_objects();
+    }
+    progress(0.9);
+    save(&mut doc, &task.output)
+}
+
+/// A PDF text string: plain ASCII as a literal string, anything else as a
+/// hexadecimal UTF-16BE string with the byte order mark (AC6).
+fn text_object(value: &str) -> Object {
+    if value.is_ascii() {
+        return Object::string_literal(value);
+    }
+    let mut bytes = vec![0xFE, 0xFF];
+    for unit in value.encode_utf16() {
+        bytes.extend_from_slice(&unit.to_be_bytes());
+    }
+    Object::String(bytes, lopdf::StringFormat::Hexadecimal)
+}
+
+/// The op accepts only its five params. An unknown param or a wrong type is
+/// BadParam naming the param.
+fn check_metadata_params(task: &Task) -> Result<(), EngineError> {
+    for name in task.params.keys() {
+        if !METADATA_PARAMS.contains(&name.as_str()) {
+            return Err(EngineError::BadParam {
+                name: name.clone(),
+                reason: "is not a metadata parameter".into(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// A text param of `metadata`, empty when it is left out.
+fn metadata_text<'a>(task: &'a Task, name: &str) -> Result<&'a str, EngineError> {
+    match task.params.get(name) {
+        None => Ok(""),
+        Some(value) => value.as_str().ok_or_else(|| EngineError::BadParam {
+            name: name.to_string(),
+            reason: "must be a string".into(),
+        }),
+    }
+}
+
+/// The `clear` param of `metadata`, false when it is left out.
+fn metadata_clear(task: &Task) -> Result<bool, EngineError> {
+    match task.params.get("clear") {
+        None => Ok(false),
+        Some(value) => value.as_bool().ok_or_else(|| EngineError::BadParam {
+            name: "clear".into(),
+            reason: "must be true or false".into(),
+        }),
+    }
+}
+
+/// The trailer Info dictionary, created when the document has none.
+fn info_id(doc: &mut Document) -> ObjectId {
+    if let Ok(id) = doc.trailer.get(b"Info").and_then(Object::as_reference) {
+        return id;
+    }
+    let id = doc.add_object(dictionary! {});
+    doc.trailer.set("Info", id);
+    id
+}
+
+/// Drops the trailer `/Info` entry and the catalog `/Metadata` entry (AC4).
+fn clear_metadata(doc: &mut Document) {
+    doc.trailer.remove(b"Info");
+    if let Ok(catalog) = doc.catalog_mut() {
+        catalog.remove(b"Metadata");
+    }
+}
+
+/// `split`: one ZIP. With a non-empty `ranges` string, one PDF per comma
+/// range; otherwise one PDF per `every` pages. `every = 1` is one PDF per
+/// page, the behaviour before S-123.
+fn split(task: &Task, progress: Progress, cancel: &CancelToken) -> Result<(), EngineError> {
+    let input = single_input(task)?;
+    let doc = load_pdf(input)?;
+    let pages = page_ids(&doc);
+    let groups = split_groups(task, pages.len())?;
+    let (root_pages, catalog_id) = page_tree_ids(&doc, input)?;
+    let total = groups.len();
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(&task.output)?);
+    for (n, group) in groups.iter().enumerate() {
+        cancel.check()?;
+        let mut one = copy_with_pages(&doc, &pages, group, root_pages, catalog_id);
         let mut bytes = Vec::new();
         one.save_to(&mut bytes)
-            .map_err(|e| EngineError::Failed(format!("cannot write page {}: {e}", n + 1)))?;
-        zip.start_file(page_name(n + 1, pages.len(), "pdf"), zip_options())
+            .map_err(|e| EngineError::Failed(format!("cannot write part {}: {e}", n + 1)))?;
+        zip.start_file(page_name(n + 1, total, "pdf"), zip_options())
             .map_err(zip_error)?;
         zip.write_all(&bytes)?;
-        progress((n + 1) as f32 / pages.len() as f32 * 0.99);
+        progress((n + 1) as f32 / total as f32 * 0.99);
     }
     zip.finish().map_err(zip_error)?;
     Ok(())
+}
+
+/// The page groups of `split`, as 0-based indices. `ranges` wins when it
+/// is not empty; otherwise the pages are cut every `every` pages.
+fn split_groups(task: &Task, page_count: usize) -> Result<Vec<Vec<usize>>, EngineError> {
+    let ranges = text_param(task, "ranges", "")?;
+    if !ranges.trim().is_empty() {
+        return range_groups(ranges, page_count).map_err(|reason| EngineError::BadParam {
+            name: "ranges".into(),
+            reason,
+        });
+    }
+    let every = every_param(task)?;
+    let indices: Vec<usize> = (0..page_count).collect();
+    Ok(indices.chunks(every).map(<[usize]>::to_vec).collect())
+}
+
+/// One group per comma range, each a page selection. A page may appear in
+/// one range only.
+fn range_groups(ranges: &str, page_count: usize) -> Result<Vec<Vec<usize>>, String> {
+    let mut seen = vec![false; page_count + 1];
+    let mut groups = Vec::new();
+    for part in ranges.split(',') {
+        let pages = parse_pages(part, page_count)?;
+        for page in &pages {
+            if seen[*page] {
+                return Err(format!("page {page} appears in more than one range"));
+            }
+            seen[*page] = true;
+        }
+        groups.push(zero_based(pages));
+    }
+    Ok(groups)
 }
 
 fn zip_error(e: zip::result::ZipError) -> EngineError {
@@ -338,15 +715,17 @@ impl GhostscriptEngine {
         cancel: &CancelToken,
     ) -> Result<(), EngineError> {
         let preset = preset_param(task)?;
+        let dpi = compress_dpi_param(task)?;
         let input = absolute_input(task)?;
         let work = work_dir(self.temp_root.as_deref(), "kawaro-gs-")?;
         let out = work.path().join("out.pdf");
-        let args = [
+        let mut args = vec![
             "-sDEVICE=pdfwrite".to_string(),
             "-dCompatibilityLevel=1.5".to_string(),
             format!("-dPDFSETTINGS=/{preset}"),
-            format!("-sOutputFile={}", gs_path(&out)),
         ];
+        args.extend(downsample_args(dpi));
+        args.push(format!("-sOutputFile={}", gs_path(&out)));
         self.gs(&args, &input, task, progress, cancel)?;
         if !is_nonempty_file(&out) {
             return Err(EngineError::Failed("Ghostscript wrote no PDF".into()));
@@ -458,14 +837,48 @@ fn preset_param(task: &Task) -> Result<&str, EngineError> {
         None => "ebook",
         Some(_) => task.param_str("preset").unwrap_or(""),
     };
-    if ["screen", "ebook", "printer"].contains(&preset) {
+    if ["screen", "ebook", "printer", "prepress"].contains(&preset) {
         Ok(preset)
     } else {
         Err(EngineError::BadParam {
             name: "preset".into(),
-            reason: "must be screen, ebook or printer".into(),
+            reason: "must be screen, ebook, printer or prepress".into(),
         })
     }
+}
+
+/// The `dpi` target of `compress`: 0 to 600, where 0 keeps the preset alone.
+fn compress_dpi_param(task: &Task) -> Result<i64, EngineError> {
+    match task.params.get("dpi") {
+        None => Ok(0),
+        Some(_) => match task.param_i64("dpi") {
+            Some(dpi) if (0..=600).contains(&dpi) => Ok(dpi),
+            _ => Err(EngineError::BadParam {
+                name: "dpi".into(),
+                reason: "must be a whole number from 0 to 600, 0 uses the preset".into(),
+            }),
+        },
+    }
+}
+
+/// The image downsampling arguments of `compress` for a `dpi` target, empty
+/// for 0 where the preset decides the image resolution. The names are the
+/// documented Ghostscript parameters.
+fn downsample_args(dpi: i64) -> Vec<String> {
+    if dpi <= 0 {
+        return Vec::new();
+    }
+    vec![
+        "-dDownsampleColorImages=true".to_string(),
+        "-dColorImageDownsampleType=/Bicubic".to_string(),
+        format!("-dColorImageResolution={dpi}"),
+        "-dDownsampleGrayImages=true".to_string(),
+        "-dGrayImageDownsampleType=/Bicubic".to_string(),
+        format!("-dGrayImageResolution={dpi}"),
+        "-dDownsampleMonoImages=true".to_string(),
+        "-dMonoImageDownsampleType=/Subsample".to_string(),
+        format!("-dMonoImageResolution={dpi}"),
+    ]
 }
 
 fn dpi_param(task: &Task) -> Result<i64, EngineError> {
@@ -580,13 +993,115 @@ mod tests {
             preset_param(&task("preset = \"screen\"")).unwrap(),
             "screen"
         );
-        assert!(preset_param(&task("preset = \"prepress\"")).is_err());
+        assert_eq!(
+            preset_param(&task("preset = \"prepress\"")).unwrap(),
+            "prepress"
+        );
         assert_eq!(dpi_param(&task("")).unwrap(), 150);
         assert_eq!(dpi_param(&task("dpi = 36")).unwrap(), 36);
         assert_eq!(dpi_param(&task("dpi = 600")).unwrap(), 600);
         assert!(dpi_param(&task("dpi = 35")).is_err());
         assert!(dpi_param(&task("dpi = 601")).is_err());
         assert!(dpi_param(&task("dpi = 150.0")).is_err());
+    }
+
+    #[test]
+    fn s128_compress_dpi_builds_the_downsampling_arguments() {
+        assert!(downsample_args(0).is_empty());
+        assert_eq!(
+            downsample_args(300),
+            [
+                "-dDownsampleColorImages=true",
+                "-dColorImageDownsampleType=/Bicubic",
+                "-dColorImageResolution=300",
+                "-dDownsampleGrayImages=true",
+                "-dGrayImageDownsampleType=/Bicubic",
+                "-dGrayImageResolution=300",
+                "-dDownsampleMonoImages=true",
+                "-dMonoImageDownsampleType=/Subsample",
+                "-dMonoImageResolution=300",
+            ]
+        );
+        assert_eq!(compress_dpi_param(&task("")).unwrap(), 0);
+        assert_eq!(compress_dpi_param(&task("dpi = 0")).unwrap(), 0);
+        assert_eq!(compress_dpi_param(&task("dpi = 600")).unwrap(), 600);
+        for bad in ["dpi = -1", "dpi = 601", "dpi = 72.5", "dpi = \"72\""] {
+            assert!(compress_dpi_param(&task(bad)).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn pdf_page_selections_parse_in_written_order() {
+        assert_eq!(parse_pages("1", 5), Ok(vec![1]));
+        assert_eq!(parse_pages(" 3 ", 5), Ok(vec![3]));
+        assert_eq!(parse_pages("1-3", 5), Ok(vec![1, 2, 3]));
+        assert_eq!(parse_pages("1,3,5", 5), Ok(vec![1, 3, 5]));
+        assert_eq!(parse_pages("1-3,7", 7), Ok(vec![1, 2, 3, 7]));
+        assert_eq!(parse_pages("5,1,2", 5), Ok(vec![5, 1, 2]));
+        assert_eq!(parse_pages("1 - 2", 5), Ok(vec![1, 2]));
+    }
+
+    #[test]
+    fn pdf_page_selections_reject_bad_input() {
+        let bad = [
+            "", "   ", "0", "6", "0-2", "1-6", "3-1", "1,1", "1-3,3", "1,,2", "1,", ",1", "a",
+            "1-a", "1-", "-2", "1-2-3", "1.5",
+        ];
+        for text in bad {
+            assert!(parse_pages(text, 5).is_err(), "{text:?} was accepted");
+        }
+    }
+
+    #[test]
+    fn pdf_page_params_default_and_validate() {
+        assert_eq!(pages_param(&task(""), 5, "pages").unwrap(), vec![1]);
+        assert_eq!(
+            pages_param(&task("pages = \"2\""), 5, "pages").unwrap(),
+            vec![2]
+        );
+        assert!(pages_param(&task("pages = 2"), 5, "pages").is_err());
+        assert_eq!(order_param(&task(""), 1).unwrap(), vec![1]);
+        assert_eq!(
+            order_param(&task("order = \"5,1,2,3,4\""), 5).unwrap(),
+            vec![5, 1, 2, 3, 4]
+        );
+        // Every page exactly once: partial lists, duplicates and pages
+        // outside the document are errors.
+        assert!(order_param(&task("order = \"5,1,2\""), 5).is_err());
+        assert!(order_param(&task("order = \"4,2\""), 5).is_err());
+        assert!(order_param(&task(""), 5).is_err());
+        assert!(order_param(&task("order = \"1,1,2,3,4\""), 5).is_err());
+        assert!(order_param(&task("order = \"6,1,2,3,4\""), 5).is_err());
+        assert!(order_param(&task("order = \"\""), 5).is_err());
+    }
+
+    #[test]
+    fn pdf_split_groups_follow_ranges_then_every() {
+        assert_eq!(
+            split_groups(&task(""), 3).unwrap(),
+            vec![vec![0], vec![1], vec![2]]
+        );
+        assert_eq!(
+            split_groups(&task("every = 2"), 5).unwrap(),
+            vec![vec![0, 1], vec![2, 3], vec![4]]
+        );
+        assert_eq!(
+            split_groups(&task("ranges = \"1-2,3-5\""), 5).unwrap(),
+            vec![vec![0, 1], vec![2, 3, 4]]
+        );
+        // ranges wins over every
+        assert_eq!(
+            split_groups(&task("ranges = \"1-2,3-5\"\nevery = 4"), 5).unwrap(),
+            vec![vec![0, 1], vec![2, 3, 4]]
+        );
+        assert_eq!(
+            split_groups(&task("ranges = \"5\""), 5).unwrap(),
+            vec![vec![4]]
+        );
+        assert!(split_groups(&task("ranges = \"1-2,2-3\""), 5).is_err());
+        assert!(split_groups(&task("ranges = \"1-9\""), 5).is_err());
+        assert!(split_groups(&task("every = 0"), 5).is_err());
+        assert!(split_groups(&task("every = 2.5"), 5).is_err());
     }
 
     #[test]

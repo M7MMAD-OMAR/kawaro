@@ -8,8 +8,15 @@
 # Wayland socket, and its own session bus. Nothing touches the live
 # desktop.
 #
+# S-130 adds the first-run language screen: welcome-choose-en-dark.png,
+# welcome-choose-en-light.png, welcome-choose-ar-dark.png and
+# welcome-choose-ar-light.png.
+#
 # Usage: crates/ui/tests/welcome_snapshots.sh [--update]
 #   --update  rewrites the references (review them before committing).
+# Without --update a missing or different reference fails the run and keeps the
+# rendered candidate PNGs in a candidate folder, printed at the end, for the
+# Lead to review.
 # Exit code 0 when every snapshot matches.
 set -u
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -21,7 +28,8 @@ UPDATE=0
 (cd "$ROOT" && cargo build --quiet --release -p kawaro-ui --example welcome_snapshot) || exit 2
 BIN="${CARGO_TARGET_DIR:-$ROOT/target}/release/examples/welcome_snapshot"
 OUT="$(mktemp -d)"
-mkdir -p "$REF"
+CAND="$OUT/candidates"
+mkdir -p "$REF" "$CAND"
 
 inner() {
   unset DISPLAY XDG_ACTIVATION_TOKEN
@@ -33,6 +41,13 @@ inner() {
   fi
   sleep 1
   local fail=0 lang scheme
+  # The four language screen references, literal so a rename is reviewed here.
+  local CHOOSE_REFS=(
+    welcome-choose-en-dark.png
+    welcome-choose-en-light.png
+    welcome-choose-ar-dark.png
+    welcome-choose-ar-light.png
+  )
   for lang in en ar; do
     for scheme in dark light; do
       local name="welcome-$lang-$scheme.png"
@@ -45,13 +60,29 @@ inner() {
       fi
     done
   done
+  for name in "${CHOOSE_REFS[@]}"; do
+    local lang="${name#welcome-choose-}"
+    lang="${lang%%-*}"
+    local scheme="${name##*-}"
+    scheme="${scheme%.png}"
+    local out="$OUT/$name"
+    local cmp=(--compare "$REF/$name")
+    [ "$UPDATE" = 1 ] && { cmp=(); out="$REF/$name"; }
+    if ! KAWARO_COLOR_SCHEME=$scheme KAWARO_REDUCED_MOTION=1 \
+        "$BIN" "$out" --lang "$lang" --choose-language "${cmp[@]}"; then
+      if [ "$UPDATE" = 0 ] && [ -f "$out" ]; then
+        cp "$out" "$CAND/$name" && echo "candidate $name kept in $CAND"
+      fi
+      echo "FAIL $name (actual: $out)"; fail=1
+    fi
+  done
   kill $cpid 2>/dev/null
   timeout 5 tail --pid=$cpid -f /dev/null || kill -9 $cpid 2>/dev/null
   return $fail
 }
 
 export -f inner
-export BIN OUT REF UPDATE
+export BIN OUT REF CAND UPDATE
 SANDBOX="$(mktemp -d)"
 RUNTIME="$(mktemp -d)"
 chmod 700 "$RUNTIME"
@@ -67,6 +98,6 @@ rm -rf "$SANDBOX" "$RUNTIME"
 if [ $status -eq 0 ]; then
   rm -rf "$OUT"; echo "welcome snapshots: ok"
 else
-  echo "welcome snapshots: FAILED (outputs in $OUT)"
+  echo "welcome snapshots: FAILED (candidates in $CAND)"
 fi
 exit $status

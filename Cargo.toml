@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/core", "crates/engines", "crates/ui", "crates/daemon", "crates/cli"]
+members = ["crates/core", "crates/engines", "crates/ui", "crates/daemon", "crates/cli", "crates/mcp"]
 
 [workspace.package]
 version = "0.5.0"
@@ -13,6 +13,7 @@ rust-version = "1.85"
 kawaro-core = { path = "crates/core" }
 kawaro-engines = { path = "crates/engines" }
 kawaro-ui = { path = "crates/ui" }
+kawaro-mcp = { path = "crates/mcp" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 toml = "0.8"

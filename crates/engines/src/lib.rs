@@ -9,6 +9,10 @@ pub mod image;
 pub mod locate;
 pub mod office;
 pub mod pdf;
+// S-126: PDF to text through the system poppler `pdftotext`.
+pub mod poppler;
+// S-128: linearize, cleanup and check through the system `qpdf`.
+pub mod qpdf;
 // S-030: one killable process tree per engine child.
 pub(crate) mod process;
 
@@ -20,5 +24,7 @@ pub fn all() -> Vec<Arc<dyn Engine>> {
         Arc::new(office::OfficeEngine::default()),
         Arc::new(pdf::PdfEngine),
         Arc::new(pdf::GhostscriptEngine::default()),
+        Arc::new(poppler::PopplerEngine::default()),
+        Arc::new(qpdf::QpdfEngine::default()),
     ]
 }

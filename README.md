@@ -98,6 +98,10 @@ kawaro actions *.jpg                  # what the hive offers for these files
 kawaro open --from-clipboard          # open the hive for copied files
 ```
 
+**MCP for local AI apps.** `kawaro mcp` can serve the same actions to a
+local AI host over stdio, off by default and read only first; nothing leaves
+the machine. See [Use Kawaro from a local AI app](docs/mcp.md).
+
 On Hyprland you can bind Super plus right-click to open the hive for the
 selected files directly; see
 [the Hyprland guide](integrations/linux/hyprland/README.md).

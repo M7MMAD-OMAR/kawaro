@@ -23,6 +23,7 @@ fn cells() -> Vec<HiveCell> {
             ring: 1,
             enabled: true,
             reason: String::new(),
+            customize: false,
         })
         .collect()
 }

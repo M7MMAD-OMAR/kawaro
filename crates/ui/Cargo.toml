@@ -12,6 +12,17 @@ slint.workspace = true
 # name, PNG text chunks for its validity. Both already in the tree.
 md-5 = "0.11"
 png = "0.17"
+# Preview worker (S-118): bounded decode for the stage 2 form. `image` is the
+# same version as the engines with only the formats a preview decodes; resvg
+# is already in Cargo.lock through slint; jpeg-decoder is the one new package
+# (scaled JPEG decode, default features off). Licences in docs/engines.md.
+image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
+jpeg-decoder = { version = "0.3.2", default-features = false }
+resvg = "0.48.1"
+# S-119 stage 2 builds the explicit options table the schema resolves, so the
+# ui crate names toml::Table. Already in Cargo.lock through kawaro-core, so
+# no new package.
+toml.workspace = true
 # S-094: the geometry probes the shell tests read (`src/shell.rs`). Off in
 # every shipped build; the self dev dependency below turns it on for tests.
 i-slint-backend-testing = { version = "=1.18.1", optional = true }

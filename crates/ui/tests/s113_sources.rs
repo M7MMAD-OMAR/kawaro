@@ -13,8 +13,11 @@ fn read(rel: &str) -> String {
 }
 
 /// `[[package]]` entries of Cargo.lock before S-113 (x11rb is already in
-/// the tree through winit, so the count must not move).
-const PACKAGES_BEFORE: usize = 674;
+/// the tree through winit, so the count must not move for S-113). The
+/// unreleased 2026-11-04 block adds kawaro-mcp and, through the S-118
+/// preview worker, jpeg-decoder, fontconfig-parser and roxmltree, so the
+/// current count is 678.
+const PACKAGES_BEFORE: usize = 678;
 
 #[test]
 fn ac7_x11rb_is_a_plain_linux_only_direct_dependency_of_ui() {

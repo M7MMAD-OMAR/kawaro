@@ -33,6 +33,7 @@ fn cell(id: &str, enabled: bool, reason: &str) -> HiveCell {
         ring: 1,
         enabled,
         reason: reason.into(),
+        customize: false,
     }
 }
 

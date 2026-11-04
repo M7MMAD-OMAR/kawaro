@@ -49,6 +49,14 @@ pub struct Strings {
     pub try_accessible: String,
     pub settings_button: String,
     pub settings_accessible: String,
+    /// S-130: the first-run language screen, so it hardcodes no text.
+    pub language_title: String,
+    pub language_subtitle: String,
+    pub language_failed: String,
+    pub language_english: String,
+    pub language_english_accessible: String,
+    pub language_arabic: String,
+    pub language_arabic_accessible: String,
 }
 
 /// The window strings (AC4 and AC5 pin the button wording).
@@ -61,6 +69,15 @@ pub fn strings(lang: Lang) -> Strings {
                 .to_string(),
             settings_button: "Open Settings".to_string(),
             settings_accessible: "Open the Kawaro settings window".to_string(),
+            language_title: "Choose your language".to_string(),
+            language_subtitle:
+                "Kawaro works entirely on this machine. Choose the wording you want; you can change it later in Settings."
+                    .to_string(),
+            language_failed: "Could not save the language. Please try again.".to_string(),
+            language_english: "English".to_string(),
+            language_english_accessible: "Use English for the interface".to_string(),
+            language_arabic: "العربية".to_string(),
+            language_arabic_accessible: "استخدم العربية للواجهة".to_string(),
         },
         Lang::Ar => Strings {
             title: "أهلاً بك في كوارو".to_string(),
@@ -68,6 +85,15 @@ pub fn strings(lang: Lang) -> Strings {
             try_accessible: "جرّب كوارو على صورة تجريبية تُنسخ لك إلى مجلد مؤقت".to_string(),
             settings_button: "افتح الإعدادات".to_string(),
             settings_accessible: "افتح نافذة إعدادات كوارو".to_string(),
+            language_title: "اختر لغتك".to_string(),
+            language_subtitle:
+                "كوارو يعمل كله على هذا الجهاز. اختر الصياغة التي تريدها، ويمكنك تغييرها لاحقاً من الإعدادات."
+                    .to_string(),
+            language_failed: "تعذر حفظ اللغة. حاول مرة أخرى.".to_string(),
+            language_english: "English".to_string(),
+            language_english_accessible: "استخدم الإنجليزية للواجهة".to_string(),
+            language_arabic: "العربية".to_string(),
+            language_arabic_accessible: "استخدم العربية للواجهة".to_string(),
         },
     }
 }

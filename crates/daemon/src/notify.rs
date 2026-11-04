@@ -193,7 +193,13 @@ pub fn finished(lang: Lang, job: &JobInfo, cancelled: bool) {
             .and_then(Path::file_name)
             .map(|n| n.to_string_lossy().into_owned())
             .unwrap_or_default();
-        (text::done(lang, job.ok), name)
+        // S-132: the final and source sizes ride the notification body when
+        // the engine reported them, localized for the window language.
+        let body = match &job.detail {
+            Some(detail) => format!("{name}\n{}", kawaro_core::engine::detail_line(detail, lang)),
+            None => name,
+        };
+        (text::done(lang, job.ok), body)
     };
     write_log(&log_line(&summary));
     let file = job.first_output.clone();

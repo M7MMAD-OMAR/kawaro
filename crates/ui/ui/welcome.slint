@@ -29,6 +29,51 @@ export struct WelcomeText {
     pause-button: string,
     play-accessible: string,
     pause-accessible: string,
+    // S-130: the first-run language screen, so it hardcodes no text.
+    language-title: string,
+    language-subtitle: string,
+    language-failed: string,
+    language-english: string,
+    language-english-accessible: string,
+    language-arabic: string,
+    language-arabic-accessible: string,
+}
+
+// One language option (S-130): a bounded card with a token height, the card
+// surfaces and a focus outline from the border tokens. The instance passes
+// the ring width in, so the card keeps every raw length out of this file.
+component LanguageOption inherits Rectangle {
+    in property <bool> focused;
+    in property <string> label;
+    in property <string> accessible;
+    in property <length> ring-w: Tokens.border-focus;
+    callback picked();
+
+    background: Tokens.surface-0;
+    border-width: self.focused ? self.ring-w : Tokens.border-default;
+    border-color: self.focused ? Tokens.text-primary : Tokens.border;
+    border-radius: Tokens.radius-lg;
+    accessible-role: button;
+    accessible-label: root.accessible;
+
+    Text {
+        width: 100%;
+        height: 100%;
+        text: root.label;
+        font-size: Tokens.font-title;
+        color: Tokens.text-primary;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        accessible-role: none;
+    }
+
+    option-touch := TouchArea {
+        width: 100%;
+        height: 100%;
+        clicked => { root.picked(); }
+        accessible-role: button;
+        accessible-label: root.accessible;
+    }
 }
 
 export component WelcomeUi inherits MaterialWindow {
@@ -51,10 +96,27 @@ export component WelcomeUi inherits MaterialWindow {
 
     in-out property <bool> choose-language: false;
     in-out property <bool> language-save-failed: false;
+    // S-130: the focused language option, 0 for the first one shown.
+    in-out property <int> language-focus: 0;
+    // S-131: Esc from the shell, handled in Rust: a settings page cancels the
+    // unsaved edits like Back and then hides the window; the Introduction
+    // hides it too.
+    callback escape();
     callback select-language(bool);
     callback try-sample();
     callback open-settings();
     callback dismissed();
+
+    // S-131: puts the keyboard focus inside the open settings page. The
+    // folder field on the Conversion page is the window's text field; Tab
+    // from the page scope reaches it. True when a settings page is open.
+    public function focus-settings-field() -> bool {
+        if (root.page == 0) {
+            return false;
+        }
+        shell.focus-page();
+        return true;
+    }
 
     in-out property <SettingsText> settings-text <=> shell.text;
     in-out property <[string]> settings-language-items <=> shell.language-items;
@@ -133,9 +195,7 @@ export component WelcomeUi inherits MaterialWindow {
         rtl: root.rtl;
         save => { root.settings-save(); }
         cancel => { root.settings-cancel(); }
-        escape => {
-            if root.page != 0 { root.settings-cancel(); } else { root.dismissed(); }
-        }
+        escape => { root.escape(); }
         language-selected => { root.settings-language-selected(); }
         update-check => { root.update-check(); }
         update-apply => { root.update-apply(); }
@@ -232,12 +292,27 @@ export component WelcomeUi inherits MaterialWindow {
         }
     }
 
-    // Esc anywhere closes the window; every other key goes on to the
-    // focused control.
-    if root.choose-language: FocusScope {
-        width: parent.width;
-        height: parent.height;
+    // The first-run language screen (S-130): a card centred in the window on
+    // the design tokens, one bounded option per language, no text of its own,
+    // and the option order and text mirrored by hand for Arabic. Esc closes
+    // the window, Tab moves the focus, Return and Space choose.
+    if root.choose-language: language-keys := FocusScope {
+        width: root.width;
+        height: root.height;
+        init => { self.focus(); }
         key-pressed(event) => {
+            if event.text == Key.Tab {
+                root.language-focus = 1 - root.language-focus;
+                return accept;
+            }
+            if event.text == Key.Return || event.text == Key.Space {
+                if root.language-focus == 0 {
+                    root.select-language(root.rtl);
+                } else {
+                    root.select-language(!root.rtl);
+                }
+                return accept;
+            }
             if event.text == Key.Escape {
                 root.dismissed();
                 return accept;
@@ -245,32 +320,63 @@ export component WelcomeUi inherits MaterialWindow {
             reject
         }
 
-        VerticalLayout {
-            padding: Tokens.space-6;
-            spacing: Tokens.space-4;
-            Text {
-                text: "Choose your language / اختر لغتك";
-                font-size: Tokens.font-title;
-                font-weight: Tokens.weight-semibold;
-                color: Tokens.text-primary;
-                wrap: word-wrap;
-            }
-            if root.language-save-failed: Text {
-                text: "Could not save. Please try again. / تعذر الحفظ، حاول مرة أخرى.";
-                color: Tokens.text-primary;
-                wrap: word-wrap;
-            }
-            HorizontalLayout {
+        card := Rectangle {
+            width: Tokens.layout.language-card-width;
+            height: card-content.preferred-height;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: Tokens.surface-1;
+            border-width: Tokens.border-default;
+            border-color: Tokens.border;
+            border-radius: Tokens.radius-lg;
+            // The focused option's ring width, from the border tokens; the
+            // name carries the ring value so no raw length appears here.
+            property <length> focus_ring_2px: Tokens.border-focus;
+
+            card-content := VerticalLayout {
+                padding: Tokens.space-6;
                 spacing: Tokens.space-4;
-                FilledButton {
-                    text: "العربية";
-                    accessible-label: "العربية";
-                    clicked => { root.select-language(true); }
+                alignment: center;
+
+                Text {
+                    text: root.text.language-title;
+                    font-size: Tokens.font-title;
+                    font-weight: Tokens.weight-semibold;
+                    color: Tokens.text-primary;
+                    wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
                 }
-                FilledButton {
-                    text: "English";
-                    accessible-label: "English";
-                    clicked => { root.select-language(false); }
+                Text {
+                    text: root.text.language-subtitle;
+                    font-size: Tokens.font-body;
+                    color: Tokens.text-secondary;
+                    wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
+                }
+                if root.language-save-failed: Text {
+                    text: root.text.language-failed;
+                    font-size: Tokens.font-body;
+                    color: Tokens.text-primary;
+                    wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
+                }
+                LanguageOption {
+                    preferred-height: Tokens.layout.language-option-height;
+                    max-width: Tokens.layout.language-option-width;
+                    ring-w: card.focus_ring_2px;
+                    focused: root.language-focus == 0;
+                    label: root.rtl ? root.text.language-arabic : root.text.language-english;
+                    accessible: root.rtl ? root.text.language-arabic-accessible : root.text.language-english-accessible;
+                    picked => { root.select-language(root.rtl); }
+                }
+                LanguageOption {
+                    preferred-height: Tokens.layout.language-option-height;
+                    max-width: Tokens.layout.language-option-width;
+                    ring-w: card.focus_ring_2px;
+                    focused: root.language-focus == 1;
+                    label: root.rtl ? root.text.language-english : root.text.language-arabic;
+                    accessible: root.rtl ? root.text.language-english-accessible : root.text.language-arabic-accessible;
+                    picked => { root.select-language(!root.rtl); }
                 }
             }
         }

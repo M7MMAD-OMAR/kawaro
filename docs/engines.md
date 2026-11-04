@@ -19,13 +19,35 @@ Ops, inputs and parameters are in `docs/architecture.md`, section
 - PNG is written at balanced zlib compression; `compress` uses the best
   level with adaptive filters.
 - `resize`: `scale` is a percent from 1 to 1000; `max_side` never enlarges.
+- `resize-box`: `width` and `height` from 16 to 20000 and `mode` fit, fill or
+  exact, through core `image_geom`. fit keeps the aspect inside the box, fill
+  centre crops first, exact may distort; the format is kept.
+- `crop`: `aspect` 1:1, 4:3, 16:9, 3:2 or original and `anchor` center, top,
+  bottom, left or right; the largest window of that aspect, anchored, with
+  the arithmetic in core `image_geom`. original keeps the whole image.
+- `compress-to`: `target_bytes` 1 to 20000000. Quality 100 is kept when it
+  already fits, then a binary search spends at most 6 encodes; JPEG, WebP and
+  AVIF only, lossless formats are UnsupportedOp, and an unreachable target
+  fails without writing an output.
+- `keep_metadata` (default false): on convert, resize, resize-box, crop,
+  compress and compress-to, when both the input and the output are JPEG,
+  copy the APP1 Exif and XMP and the APP2 ICC segments into the output and
+  rewrite the Exif orientation to 1 because the pixels are already upright.
+  Non-JPEG pairs ignore it.
 - ICO holds 16, 32, 48, 64, 128 and 256 px frames up to the longest side
   of the source (16 at least), on a transparent square.
-- `to-pdf`: one page per image, 1 pt per pixel. Upright 8 bit gray or RGB
-  JPEGs are copied into the PDF untouched (DCTDecode); everything else is
-  stored losslessly with Flate, alpha composited onto white.
-- No encoder writes EXIF, XMP or ICC data, so every re-encode strips
-  metadata. ICC profiles are therefore dropped too (known limitation).
+- `to-pdf`: one page per image. `page_size` is fit (default), a4 or letter;
+  fit is the image at `dpi` (px * 72 / dpi points) plus `margin_mm` on every
+  side, so dpi 72 and margin 0 is one point per pixel. `orientation` is auto
+  (landscape when the image is wider), portrait or landscape. The image is
+  aspect-fit inside the margin box, never enlarged, and centred. Upright 8 bit
+  gray or RGB JPEGs are copied into the PDF untouched (DCTDecode) and only
+  the page box and the placement matrix change; everything else is stored
+  losslessly with Flate, alpha composited onto white.
+- No encoder writes EXIF, XMP or ICC data by itself, so a re-encode strips
+  metadata by default. The keep_metadata option above copies the JPEG
+  segments when asked; PNG and WebP metadata are still dropped (known
+  limitation).
 
 Not supported in this build:
 
@@ -193,8 +215,11 @@ normal exit so nothing outlives the task. On Windows the fallback is
 | --- | --- | --- | --- | --- |
 | `pdf` | `merge` | none | n, in selection order | pdf |
 | `pdf` | `rotate` | `degrees` 90 (default), 180, 270 | 1 | pdf |
-| `pdf` | `split` | none | 1 | zip of `page-001.pdf`... |
-| `ghostscript` | `compress` | `preset` screen, ebook (default), printer; `timeout_s` (300) | 1 | pdf |
+| `pdf` | `extract-pages` | `pages` selection (default "1") | 1 | pdf |
+| `pdf` | `delete-pages` | `pages` selection (default "1") | 1 | pdf |
+| `pdf` | `reorder-pages` | `order` full permutation (default "1") | 1 | pdf |
+| `pdf` | `split` | `every` >= 1 (default 1) or `ranges` like "1-2,3-5" | 1 | zip of PDFs |
+| `ghostscript` | `compress` | `preset` screen, ebook (default), printer, prepress; `dpi` 0..600 (default 0, 0 keeps the preset); `timeout_s` (300) | 1 | pdf |
 | `ghostscript` | `to-images` | `dpi` 36..600 (default 150); `timeout_s` (300) | 1 | zip of `page-001.png`... |
 
 `pdf` is pure Rust on lopdf and always available. `ghostscript` runs `gs`
@@ -220,9 +245,14 @@ Decisions:
 - **rotate** adds `degrees` to each page's effective `/Rotate`, modulo 360.
 - **merge** drops the inputs' catalogs, outlines and page tree nodes and
   builds one new page tree; unreachable objects are pruned.
-- **split** builds each page's PDF from a copy of the document with the page
-  tree cut to that page and `Outlines`, `StructTreeRoot` and `OpenAction`
-  removed, then prunes unreachable objects.
+- **Page selections** use 1-based `N`, `N-M` and comma lists like `1-3,7`,
+  with no duplicates and inside the page count. `extract-pages` keeps
+  document order, `delete-pages` refuses to remove every page, and
+  `reorder-pages` requires a full permutation. **split** writes one PDF per
+  `every` pages or per comma range inside the ZIP; a single page keeps
+  `page-NNN.pdf` and a group uses `pages-FIRST-LAST.pdf`. Each output PDF is a
+  copy of the document with the page tree cut to its pages and `Outlines`,
+  `StructTreeRoot` and `OpenAction` removed, then unreachable objects pruned.
 - Ghostscript always runs with `-dSAFER -dBATCH -dNOPAUSE`, an absolute input
   path (never read as an option), and `%` escaped in output paths. Progress
   comes from its `Processing pages 1 through N.` and `Page n` lines.
@@ -231,17 +261,57 @@ Limitations:
 
 - Encrypted PDFs that lopdf cannot open, or that stay encrypted after
   loading, are rejected as input errors; there is no password prompt.
-- split copies the whole document once per page in memory; a very large PDF
-  with many pages is slow. A page whose links point at other pages keeps
-  those pages as extra objects in its file (not shown as pages).
+- split and the page ops copy the whole document once per output PDF in
+  memory; a very large PDF with many pages is slow. A page whose links point
+  at other pages keeps those pages as extra objects in its file (not shown as
+  pages).
 - merge does not carry bookmarks, forms (AcroForm) or tagged structure.
 
-### Libraries and tools (office, pdf)
+## poppler `pdftotext` (engine `poppler`, story S-126, ADR 0013)
+
+One op, `to-text`: the text of a PDF with the page layout kept, through the
+system `pdftotext` 26.01 (poppler 26.01, GPL-2.0-or-later) run as a child
+process, never linked. The command is `pdftotext -layout -enc UTF-8
+[-f FIRST -l LAST] <input> -`; the output is UTF-8 without a byte order mark
+with LF line endings. A missing program hides the action and returns
+`Unavailable` naming `pdftotext` (package `poppler-utils` on Debian, Ubuntu
+and Fedora). No OCR: a scanned page gives empty or whitespace only text.
+Arabic and RTL limitation: the tool returns text in content order, so a
+producer that stores visual order, or a subset font without a ToUnicode map,
+gives reversed or missing characters; no bidi reordering and no
+searchability claim is made.
+
+## qpdf (engine `qpdf`, story S-128, ADR 0014)
+
+Three ops through the system `qpdf` (Apache-2.0) run as a child process,
+never linked and never downloaded. `linearize` runs `qpdf --linearize
+<input> <output>` for a fast web view PDF with the `/Linearized` marker.
+`cleanup` runs `qpdf --object-streams=generate --compress-streams=y
+--recompress-flate --compression-level=9 <input> <output>`, a lossless
+structural rewrite: it normalises object streams and compresses the file
+structure without re-encoding any image. `check` runs `qpdf --check
+--show-encryption <input>` and writes its report as one UTF-8 text file
+without a byte order mark and with LF endings; qpdf exit code 2 (warnings)
+still counts as a report, and any run that produced output writes it, so an
+encrypted or damaged file gets its encryption and structure report instead
+of an error. `linearize` and `cleanup` refuse an
+encrypted file with an input error that says a password is needed; nothing
+is decrypted and the input is never modified. A missing program hides the
+three actions and returns `Unavailable` naming `qpdf`, the package `qpdf`
+on Debian, Ubuntu and Fedora, and https://qpdf.readthedocs.io/. qpdf was
+not installed on the build machine of this story, so the live path is
+tested for the missing state and the command construction only; a second
+linearize, the `/Linearized` marker and the cleanup report round trip wait
+for a machine with qpdf.
+
+### Libraries and tools (office, pdf, poppler, qpdf)
 
 | name | used by | license | notes |
 | --- | --- | --- | --- |
 | LibreOffice | office | MPL-2.0 | external program, not linked |
 | Ghostscript | ghostscript | AGPL-3.0 | external program, not linked |
+| pdftotext 26.01 (poppler) | poppler | GPL-2.0-or-later | external program, not linked; PDF to text with `-layout`, no OCR, Arabic content order limitation |
+| qpdf (version not checked here: not installed on the build machine) | qpdf | Apache-2.0 | external program, not linked; linearize, lossless cleanup and `--check` report, structural rewrites break signatures |
 | lopdf 0.45 | pdf | MIT | `default-features = false`; declares rust-version 1.88, above the workspace's 1.85 |
 | zip 9 | pdf, ghostscript | MIT | `default-features = false` (stored only); tests add `deflate-flate2` to read LibreOffice archives |
 | libc 0.2 | office, ghostscript | MIT OR Apache-2.0 | unix only, for `killpg` |
@@ -305,6 +375,13 @@ Not engines, recorded here because CLAUDE.md asks for every new library.
 | ksni | 0.3.6 | Unlicense | daemon (Linux only, `[target.'cfg(target_os = "linux")'.dependencies]` since S-045) | tray icon over StatusNotifierItem, blocking API without tokio |
 | notify-rust | 4.18.2 | MIT OR Apache-2.0 | daemon | end-of-job desktop notification with an "Open folder" action |
 | clap | 4.6.7 | MIT OR Apache-2.0 | cli | argument parsing |
+| base64 | 0.23.1 | MIT OR Apache-2.0 | mcp (S-121) | standard base64 of the small PNG preview in a tool result; already in the tree, so no new package |
+| image | 0.25.10, default features off, features png jpeg webp gif bmp tiff | MIT OR Apache-2.0 | mcp (S-121) | decodes an image output and builds the preview PNG; already in the tree through the image engine, so no new package |
+| image | 0.25.10, default features off, features png jpeg gif webp bmp tiff | MIT OR Apache-2.0 | ui (S-118) | preview draft decode of GIF, WebP, BMP and TIFF, and the header probe of every format; already in the tree through the image engine, so no new package |
+| jpeg-decoder | 0.3.2, default features off | MIT OR Apache-2.0 | ui (S-118) | scaled JPEG decode for a preview draft: the crate picks 1/8, 1/4, 1/2 or full so a 24 MP photo is never decoded at full size for the preview. The one package S-118 adds to Cargo.lock; with default features off it has no dependencies and no rayon |
+| resvg | 0.48.1 (with usvg 0.48.1 and tiny-skia) | Apache-2.0 OR MIT (resvg and usvg); BSD-3-Clause (tiny-skia) | ui (S-118) | renders an SVG preview at the draft size from a usvg tree. resvg and usvg were already in the tree through slint, which builds them without text or system fonts, so the default features needed here add two packages: fontconfig-parser and roxmltree. The contract text called resvg MPL-2.0, which was an older resvg; 0.48.1 declares Apache-2.0 OR MIT |
+| fontconfig-parser | 0.5.8 | MIT | ui (S-118) | reads the fontconfig configuration so usvg finds system fonts for text in an SVG preview; pulled by resvg's system-fonts feature, one of the three packages S-118 adds to Cargo.lock |
+| roxmltree | 0.20.0 | MIT OR Apache-2.0 | ui (S-118) | XML parser of usvg, needed by the SVG preview; 0.21.1 was already in the tree, 0.20.0 is the version fontconfig-parser 0.5.8 pins, and it is the third package S-118 adds to Cargo.lock |
 | IBM Plex Sans Arabic | system copy, embedded | OFL-1.1 | ui, site | the only interface font, so rendering never depends on system fonts |
 | wayland-client | 0.31.15 | MIT | ui (Linux) | drop receiver: a second connection on winit's `wl_display` (S-014b, ADR 0003); already in the tree through winit |
 | wayland-backend | 0.3.17, `client_system` | MIT | ui (Linux) | `Backend::from_foreign_display` for that connection; already in the tree through winit |

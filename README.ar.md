@@ -91,6 +91,10 @@ kawaro actions *.jpg                     # ما تعرضه الخلية لهذه
 kawaro open --from-clipboard             # فتح الخلية للملفات المنسوخة
 ```
 
+**MCP لتطبيقات الذكاء المحلية.** يستطيع `kawaro mcp` تقديم الإجراءات نفسها
+لمضيف ذكاء محلي عبر stdio، وهو مطفأ افتراضياً وقراءة فقط أولاً؛ ولا يغادر
+الملف الجهاز. راجع [استخدام كوارو من تطبيق ذكاء محلي](docs/mcp.ar.md).
+
 على Hyprland يمكنك ربط Super مع النقر اليمين لتفتح الخلية للملفات المحددة مباشرة، والطريقة في [دليل Hyprland](integrations/linux/hyprland/README.ar.md).
 
 ولتظهر الخلية وأنت تسحب ملفاً، اربط الأمر `kawaro drop` باختصار، والافتراضي Super+Z. خطوات GNOME وKDE وHyprland في [اختصار الإفلات](docs/drop-shortcut.ar.md).
