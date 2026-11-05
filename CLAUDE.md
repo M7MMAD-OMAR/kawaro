@@ -137,7 +137,9 @@ Plus: screenshots match, the performance budget holds, UI strings in Arabic and 
 
 ### Fast loop (owner decision 2026-10-30)
 
-Do not rerun the whole suite at every step. Locally run only fmt, clippy and the tests of the touched crates or files; CI runs the full suite after the push, and a red CI is fixed first. The reviewer follows the same scope.
+Do not rerun the whole suite at every development step. Locally run only fmt, clippy and the tests of the touched crates or files; CI runs the full suite after the push, and a red CI is fixed first. The reviewer follows the same scope.
+
+Publication and CI-repair exception (owner decision 2026-11-05): no further partial main/publication pushes. First pass the complete local Linux CI equivalent, both complete Windows cross stages, and fresh review, serialized under the resource limits below. Keep every real test and assertion active; fix platform availability and resource-identity checks rather than suppressing warnings or skipping failures. Prefer a checked candidate PR before merging to main, then require green CI on the exact main commit before creating a release tag. The old scripts/release-gates.sh mutation/copy and parallel-job procedure is not an authorized gate; mutation is not a release requirement. Record external infrastructure failures honestly instead of promising they cannot occur.
 
 ### Mutation testing
 

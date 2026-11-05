@@ -55,7 +55,6 @@ pub mod preview_worker;
 // fills (StageOption, StagePreset, StageKind) are generated from hive.slint.
 #[cfg(target_os = "linux")]
 mod receiver;
-#[cfg(target_os = "linux")]
 pub mod session;
 mod settings;
 mod shell;
@@ -551,6 +550,7 @@ pub(crate) fn generation_is_current(queued: u64) -> bool {
 /// S-136: the single crossing of a queued receiver or layer note to the main
 /// thread. A note stamped with an old session is dropped before the sink, so
 /// an old Enter/Drop/Position cannot touch the session that replaced it.
+#[cfg(target_os = "linux")]
 pub(crate) fn dispatch_stamped_note(generation: u64, note: receiver::Note, sink: receiver::Sink) {
     if !generation_is_current(generation) {
         return;

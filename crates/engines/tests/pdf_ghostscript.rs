@@ -1,10 +1,12 @@
 //! Ghostscript engine tests (S-010): compress and to-images. Real runs need
 //! `gs`; without it those tests print a notice and return early.
 
+#[cfg(unix)]
+use kawaro_core::MediaKind;
 #[cfg_attr(not(unix), allow(unused_imports))]
 use kawaro_core::engine::SkipReason;
 use kawaro_core::engine::TaskOutcome;
-use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Task};
+use kawaro_core::{CancelToken, Engine, EngineError, Task};
 use kawaro_engines::pdf::GhostscriptEngine;
 use lopdf::{Document, Object, Stream, dictionary};
 use std::io::Read;
