@@ -333,18 +333,25 @@ fn ac3_ac6_bad_keymap_fds_are_consumed_clear_state_and_never_guess_text() {
     }
     // An owned write-only descriptor is valid but cannot be read.
     let mut k = ready(US);
+    let backing = fd(US);
     let owned: OwnedFd = OpenOptions::new()
         .write(true)
-        .open("/dev/null")
+        .open(format!("/proc/self/fd/{}", backing.as_raw_fd()))
         .unwrap()
         .into();
+    drop(backing);
     let raw = owned.as_raw_fd();
+    let observer = std::path::PathBuf::from(format!("/proc/self/fd/{raw}"));
+    let original_target = std::fs::read_link(&observer).unwrap();
     k.handle(E::Keymap {
         format: 1,
         fd: owned,
         size: US.len() as u32,
     });
-    assert!(!std::path::Path::new(&format!("/proc/self/fd/{raw}")).exists());
+    assert!(
+        std::fs::read_link(&observer).ok().as_ref() != Some(&original_target),
+        "write-only keymap FD leaked"
+    );
     assert!(key(&mut k, 3, true).is_empty());
     // A directory is also an owned FD whose read fails, without unsafe invalid ownership.
     let directory: OwnedFd = File::open("/").unwrap().into();
