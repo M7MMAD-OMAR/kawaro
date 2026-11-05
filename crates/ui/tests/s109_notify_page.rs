@@ -41,14 +41,14 @@ const EN: [&str; 5] = [
     "Drop first",
     "Every finished job",
     "Choose while dragging",
-    "Only jobs that took 10 seconds or more",
+    "10 seconds or more",
 ];
 const AR: [&str; 5] = [
     "إيقاف",
     "الإفلات أولاً",
     "كل عملية تنتهي",
     "اختر أثناء السحب",
-    "فقط ما استغرق 10 ثوانٍ أو أكثر",
+    "10 ثوانٍ أو أكثر",
 ];
 /// Logical notification option i in the interleaved options list.
 const NOTIFY: [usize; 3] = [0, 2, 4];

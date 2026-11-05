@@ -159,17 +159,7 @@ pub fn build(
         hive.set_preview_source(thumbnails, globs);
     }
     wire_choose(&hive, state, queue, system_opener());
-    {
-        let state = state.clone();
-        hive.on_dismiss(move || {
-            lock(&state).pending = None;
-            if gate_rearm() {
-                start_gate_timer(&state);
-            } else {
-                gate_hive_closed();
-            }
-        });
-    }
+
     {
         // A drag entered the drop hive: its files wait for the chosen cell,
         // which runs through `on_choose` like a click.
@@ -212,6 +202,32 @@ pub fn build(
         }),
     );
 
+    wire_options(&hive, state, queue);
+
+    HIVE.with(|h| *h.borrow_mut() = Some(hive));
+    // A language or theme change drops the old settings window; the next
+    // open builds one with the new settings.
+    SETTINGS_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone(), queue.clone())));
+    // The welcome window follows the same rule (S-087).
+    WELCOME.with(|w| *w.borrow_mut() = None);
+    WELCOME_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone())));
+    Ok(())
+}
+
+/// Production options and terminal-dismiss wiring, shared by startup and
+/// native callback integration tests. Back deliberately retains selection.
+fn wire_options(hive: &Hive, state: &Shared, queue: &Arc<Queue>) {
+    {
+        let state = state.clone();
+        hive.on_dismiss(move || {
+            lock(&state).pending = None;
+            if gate_rearm() {
+                start_gate_timer(&state);
+            } else {
+                gate_hive_closed();
+            }
+        });
+    }
     {
         // S-119: the Customize pill opens the stage 2 panel for the
         // highlighted action, in the same window and with the current files.
@@ -270,22 +286,10 @@ pub fn build(
         });
     }
     {
-        // The panel's Back or Escape: nothing runs.
-        let state = state.clone();
-        hive.on_options_cancel(move || {
-            lock(&state).pending = None;
-            gate_hive_closed();
-        });
+        // Back returns to the existing parent selection. Only terminal
+        // dismissal or Run consumes pending files.
+        hive.on_options_cancel(|| {});
     }
-
-    HIVE.with(|h| *h.borrow_mut() = Some(hive));
-    // A language or theme change drops the old settings window; the next
-    // open builds one with the new settings.
-    SETTINGS_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone(), queue.clone())));
-    // The welcome window follows the same rule (S-087).
-    WELCOME.with(|w| *w.borrow_mut() = None);
-    WELCOME_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone())));
-    Ok(())
 }
 
 /// Writes the settings and reloads them. Runs on the event loop thread
@@ -1427,4 +1431,9 @@ mod s090_tests;
 #[cfg(test)]
 mod s136_tests {
     include!("s136_tests.rs");
+}
+
+#[cfg(test)]
+mod s139_tests {
+    include!("s139_tests.rs");
 }

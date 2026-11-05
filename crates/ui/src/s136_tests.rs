@@ -577,7 +577,7 @@ fn ac2_dismiss_now_hides_immediately_and_no_queued_reset_revives_it() {
 }
 
 #[test]
-fn ac2_a_queued_reset_after_each_terminal_path_keeps_the_panel_closed() {
+fn ac2_a_queued_reset_after_run_or_s139_return_keeps_the_panel_closed() {
     i_slint_backend_testing::init_no_event_loop();
     // Options Run.
     let hive = stage_hive();
@@ -593,7 +593,7 @@ fn ac2_a_queued_reset_after_each_terminal_path_keeps_the_panel_closed() {
     );
     assert_eq!(runs.get(), 1);
 
-    // Options Cancel.
+    // S-139: Options Back is a non-terminal return to actions.
     let hive = stage_hive();
     let cancels = Rc::new(std::cell::Cell::new(0u32));
     let c = cancels.clone();
@@ -606,8 +606,9 @@ fn ac2_a_queued_reset_after_each_terminal_path_keeps_the_panel_closed() {
         "Cancel keeps it closed"
     );
     assert_eq!(cancels.get(), 1);
+    assert!(hive.inner.visible(), "S-139 Back retains the parent hive");
 
-    // Escape.
+    // S-139: first Escape returns, second Escape remains terminal.
     let hive = stage_hive();
     let cancels = Rc::new(std::cell::Cell::new(0u32));
     let c = cancels.clone();
@@ -619,8 +620,18 @@ fn ac2_a_queued_reset_after_each_terminal_path_keeps_the_panel_closed() {
         !hive.inner.ui.borrow().get_stage_two(),
         "Escape keeps it closed"
     );
-    assert_eq!(cancels.get(), 0, "Escape is a dismissal, not an action Run");
-    let _ = &cancels;
+    assert_eq!(
+        cancels.get(),
+        1,
+        "S-139 first Escape returns through options Back"
+    );
+    assert!(
+        hive.inner.visible(),
+        "S-139 first Escape retains the parent hive"
+    );
+    press_escape(&hive);
+    i_slint_backend_testing::mock_elapsed_time(Duration::from_millis(120));
+    assert!(!hive.inner.visible(), "second Escape is terminal");
 }
 
 #[test]

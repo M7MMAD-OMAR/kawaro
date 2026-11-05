@@ -3,6 +3,8 @@
 // is computed in Rust (src/layout.rs); this file only draws and forwards input.
 import { Tokens } from "tokens.slint";
 import { SbarMaterial } from "material-tokens.slint";
+import { Palette } from "std-widgets.slint";
+export { Palette }
 import { HexCell } from "../components/hex-cell.slint";
 // The vendored Material 3 controls of the stage 2 panel (S-119). Every colour
 // comes from the design tokens through the generated Material palette.
@@ -129,23 +131,49 @@ export component HiveWindow inherits Window {
     in property <string> customize-hint;
     // Which cell's hint pill is showing; it stays while the pointer is over
     // the pill itself, so the pill is clickable.
-    property <int> hinted-cell: -1;
+    in-out property <int> hinted-cell: -1;
+    in-out property <int> return-highlight: -1;
+    in-out property <bool> retain-highlight: false;
+    public function reset-hint() {
+        root.hinted-cell = -1;
+        root.return-highlight = -1;
+        root.retain-highlight = false;
+        hint-origin-x = 0 * root.hex-r; hint-origin-y = 0 * root.hex-r;
+        hint-dx = 0 * root.hex-r; hint-dy = 0 * root.hex-r;
+        hint-length = 0; hint-t = 0;
+    }
     property <bool> hint-visible: root.hinted-cell >= 0 && root.customize-hint != "";
 
     // Keeps the pill only while a customizable cell or the pill is under the
     // pointer. The pill is the guaranteed door on every backend (the window
     // backends report no double clicks), Shift+Return is its keyboard form.
     function update-hint(index: int) {
-        if (index >= 0 && index < root.cells.length) {
-            if (root.cells[index].customize) {
-                root.hinted-cell = index;
+        // Keep the intended action along the corridor from its cell to the
+        // fixed Customize button, including when that path crosses a cell.
+        if root.hinted-cell >= 0 && root.hinted-cell < root.cells.length {
+            hint-origin-x = root.cells[root.hinted-cell].x;
+            hint-origin-y = root.cells[root.hinted-cell].y;
+            hint-dx = pill.x + pill.width / 2 - hint-origin-x;
+            hint-dy = pill.y + pill.height / 2 - hint-origin-y;
+            hint-length = (hint-dx / root.hex-r) * (hint-dx / root.hex-r) + (hint-dy / root.hex-r) * (hint-dy / root.hex-r);
+            hint-t = hint-length > 0 ? (((touch.mouse-x - hint-origin-x) / root.hex-r) * (hint-dx / root.hex-r) + ((touch.mouse-y - hint-origin-y) / root.hex-r) * (hint-dy / root.hex-r)) / hint-length : 0;
+            if hint-t >= 0 && hint-t <= 1 && abs(((touch.mouse-x - hint-origin-x) / root.hex-r) * (hint-dy / root.hex-r) - ((touch.mouse-y - hint-origin-y) / root.hex-r) * (hint-dx / root.hex-r)) <= sqrt(hint-length) / 2 {
+                root.highlight = root.hinted-cell;
                 return;
             }
         }
-        if (!pill-touch.has-hover) {
-            root.hinted-cell = -1;
+        if index >= 0 && index < root.cells.length && root.cells[index].customize {
+            root.hinted-cell = index;
         }
+        // Gaps and the centre do not erase the selected mouse door. A new
+        // customizable cell outside its corridor explicitly retargets it.
     }
+    property <length> hint-origin-x;
+    property <length> hint-origin-y;
+    property <length> hint-dx;
+    property <length> hint-dy;
+    property <float> hint-length;
+    property <float> hint-t;
 
     // Index into `cells` under the point, -1 for nothing.
     callback pick(length, length) -> int;
@@ -159,6 +187,8 @@ export component HiveWindow inherits Window {
     callback stage-reset();
     callback stage-cancel();
     callback option-changed(index: int, numeric: float, text: string);
+    callback option-edited(index: int, text: string);
+    public function focus-hive() { keys.focus(); }
     callback preset-picked(index: int);
 
     init => { MaterialPalette.schemes = SbarMaterial.schemes; }
@@ -181,6 +211,62 @@ export component HiveWindow inherits Window {
     // press (S-017: it takes the press scale). Set from the touch handlers
     // below: `pick` is a callback and cannot run in a binding.
     property <int> pressed-cell: -1;
+
+    keys := FocusScope {
+        width: root.width; height: root.height;
+
+        key-pressed(event) => {
+            if event.text == Key.Escape && root.stage-two {
+                root.stage-cancel();
+                return accept;
+            }
+            if root.stage-two {
+                return reject;
+            }
+            if event.text == Key.Escape {
+                root.dismiss();
+                return accept;
+            }
+            if event.text == Key.Return && event.modifiers.shift {
+                if root.highlight >= 0 && root.highlight < root.cells.length {
+                    if root.cells[root.highlight].customize {
+                        root.customize(root.highlight);
+                        return accept;
+                    }
+                }
+            }
+            if event.text == Key.Return || event.text == Key.Space {
+                if root.highlight >= 0 {
+                    root.choose(root.highlight);
+                }
+                return accept;
+            }
+            if event.text == Key.Backtab || (event.text == Key.Tab && event.modifiers.shift) {
+                root.highlight = root.navigate(root.highlight, 1);
+                return accept;
+            }
+            if event.text == Key.Tab {
+                root.highlight = root.navigate(root.highlight, 0);
+                return accept;
+            }
+            if event.text == Key.LeftArrow {
+                root.highlight = root.navigate(root.highlight, 2);
+                return accept;
+            }
+            if event.text == Key.RightArrow {
+                root.highlight = root.navigate(root.highlight, 3);
+                return accept;
+            }
+            if event.text == Key.UpArrow {
+                root.highlight = root.navigate(root.highlight, 4);
+                return accept;
+            }
+            if event.text == Key.DownArrow {
+                root.highlight = root.navigate(root.highlight, 5);
+                return accept;
+            }
+            reject
+        }
 
     if root.x11-plate: plate := Rectangle {
         x: 0;
@@ -415,11 +501,19 @@ export component HiveWindow inherits Window {
         // the panel's controls get the pointer.
         enabled: !root.stage-two;
         changed mouse-x => {
+            if root.stage-two { return; }
+            // Re-enabling the catcher can rehover the footer gap, not an action.
+            if root.retain-highlight && root.pick(self.mouse-x, self.mouse-y) < 0 { return; }
+            root.retain-highlight = false;
             root.highlight = root.pick(self.mouse-x, self.mouse-y);
             root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
             root.update-hint(root.highlight);
         }
         changed mouse-y => {
+            if root.stage-two { return; }
+            // Re-enabling the catcher can rehover the footer gap, not an action.
+            if root.retain-highlight && root.pick(self.mouse-x, self.mouse-y) < 0 { return; }
+            root.retain-highlight = false;
             root.highlight = root.pick(self.mouse-x, self.mouse-y);
             root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
             root.update-hint(root.highlight);
@@ -428,7 +522,7 @@ export component HiveWindow inherits Window {
             root.pressed-cell = self.pressed ? root.pick(self.mouse-x, self.mouse-y) : -1;
         }
         changed has-hover => {
-            if !self.has-hover {
+            if !self.has-hover && !root.stage-two && !root.retain-highlight {
                 root.highlight = -1;
                 root.pressed-cell = -1;
                 root.update-hint(-1);
@@ -446,294 +540,189 @@ export component HiveWindow inherits Window {
     // S-119: the customize pill, under the centre label. It sits above the
     // pointer catcher so it can be clicked, and it is the door to stage 2 on
     // every backend.
-    pill := Rectangle {
+    pill := TextButton {
         visible: root.hint-visible && !root.stage-two;
         x: root.centre-x - self.width / 2;
         y: root.centre-y + root.preview-side / 2 + Tokens.space-2;
-        height: Tokens.space-5 + Tokens.space-1;
-        width: pill-text.preferred-width + 2 * Tokens.space-3;
-        background: Tokens.surface-2;
-        border-radius: Tokens.radius-lg;
-        border-width: Tokens.border-default;
-        border-color: Tokens.border;
-        accessible-role: button;
+        text: root.customize-hint;
+        clicked => {
+            if root.hinted-cell >= 0 { root.customize(root.hinted-cell); }
+        }
         accessible-label: root.customize-hint;
-
-        pill-text := Text {
-            width: 100%;
-            height: 100%;
-            text: root.customize-hint;
-            font-size: Tokens.font-label;
-            color: Tokens.text-primary;
-            horizontal-alignment: center;
-            vertical-alignment: center;
-            accessible-role: none;
-        }
-
-        pill-touch := TouchArea {
-            width: 100%;
-            height: 100%;
-            clicked => {
-                if (root.hinted-cell >= 0) {
-                    root.customize(root.hinted-cell);
-                }
-            }
-            accessible-role: button;
-            accessible-label: root.customize-hint;
-            accessible-action-default => {
-                if (root.hinted-cell >= 0) {
-                    root.customize(root.hinted-cell);
-                }
-            }
-        }
     }
 
-    // S-119 stage 2: the option panel, inside the same window. Every control
-    // is a vendored Material 3 component; every colour, length and radius is
-    // a design token. The panel draws only after the user asks for it, so the
-    // first hive frame is untouched.
+    // Stacked intrinsic rows, source draft and messages scroll together. The
+    // footer stays outside the body at every supported hive size.
     if root.stage-two && !root.closing: panel := Rectangle {
-        x: 0;
-        y: 0;
         width: root.width;
         height: root.height;
         background: Tokens.surface-3;
         border-width: Tokens.border-default;
         border-color: Tokens.border;
         border-radius: Tokens.radius-lg;
-
         property <length> pad: Tokens.space-4;
         property <length> content-w: root.width - 2 * self.pad;
-        property <length> title-h: Tokens.font-title + Tokens.space-2;
-        property <length> row-h: 2 * Tokens.space-5 - Tokens.space-1;
-        property <length> footer-h: Tokens.space-7;
+        property <length> title-h: title.preferred-height;
         property <length> body-y: self.pad + self.title-h + Tokens.space-2;
+        property <length> footer-h: Tokens.space-7;
         property <length> preset-h: root.stage-presets.length > 0 ? Tokens.space-7 : 0;
-        property <length> body-h: root.height - self.body-y - self.footer-h - self.preset-h - self.pad;
-        property <length> well-r: Tokens.layout-stage-well-r;
-        property <length> well-w: self.well-r * 1.7320508;
-        property <length> well-h: self.well-r * 2;
-        property <length> well-x: root.rtl ? root.width - self.pad - self.well-w : self.pad;
-        property <length> opt-w: self.content-w - self.well-w - Tokens.space-4;
-        property <length> opt-x: root.rtl ? self.pad : root.width - self.pad - self.opt-w;
-        property <length> label-w: Tokens.layout-stage-label-w;
-        property <length> ctl-w: self.opt-w - self.label-w - Tokens.space-1;
-        property <length> ctl-x: root.rtl ? 0 : self.label-w + Tokens.space-1;
-
-        Text {
-            x: panel.pad;
-            y: panel.pad;
+        title := Text {
+            x: panel.pad; y: panel.pad;
             width: panel.content-w;
-            height: panel.title-h;
             text: root.stage-title;
             font-size: Tokens.font-title;
             font-weight: Tokens.weight-semibold;
             color: Tokens.text-primary;
-            vertical-alignment: center;
-            overflow: elide;
-            horizontal-alignment: root.rtl ? right : left;
-            accessible-role: text;
-            accessible-label: root.stage-title;
-        }
-
-        // The picture well: a pointy top hexagon, with the masked draft over
-        // it once the worker has one.
-        well := Path {
-            x: panel.well-x;
-            y: panel.body-y;
-            width: panel.well-w;
-            height: panel.well-h;
-            viewbox-width: 1.7320508;
-            viewbox-height: 2;
-            commands: "M 0.8660254 0 L 1.7320508 0.5 L 1.7320508 1.5 L 0.8660254 2 L 0 1.5 L 0 0.5 Z";
-            fill: Tokens.surface-0;
-            stroke: Tokens.border;
-            stroke-width: Tokens.border-default;
-            accessible-role: none;
-        }
-        if root.stage-preview: stage-image := Image {
-            x: panel.well-x;
-            y: panel.body-y;
-            width: panel.well-w;
-            height: panel.well-h;
-            source: root.stage-preview-image;
-            image-fit: cover;
-            accessible-role: image;
-            accessible-label: root.stage-readout;
-        }
-        readout := Text {
-            x: panel.well-x;
-            y: panel.body-y + panel.well-h + Tokens.space-2;
-            width: panel.well-w;
-            height: panel.body-h - panel.well-h - Tokens.space-2;
-            text: root.stage-readout;
-            font-size: Tokens.font-label;
-            color: Tokens.text-secondary;
             wrap: word-wrap;
             horizontal-alignment: root.rtl ? right : left;
-            accessible-role: text;
-            accessible-label: root.stage-readout;
         }
-        if root.stage-preview-note != "": preview-note := Text {
-            x: panel.well-x;
-            y: panel.body-y + panel.well-h + Tokens.space-2 + 2 * Tokens.font-label;
-            width: panel.well-w;
-            height: Tokens.font-label;
-            text: root.stage-preview-note;
-            font-size: Tokens.font-label;
-            color: Tokens.text-secondary;
-            overflow: elide;
-            horizontal-alignment: root.rtl ? right : left;
-            accessible-role: text;
-            accessible-label: root.stage-preview-note;
-        }
-
-        // One row per option field, in the schema order.
         options := ScrollView {
-            x: panel.opt-x;
-            y: panel.body-y;
-            width: panel.opt-w;
-            height: panel.body-h;
+            x: panel.pad; y: panel.body-y;
+            width: panel.content-w;
+            height: root.height - panel.body-y - panel.footer-h - panel.preset-h - 2 * panel.pad;
             content-width: self.visible-width;
-            content-height: max(self.visible-height, rows-layout.preferred-height);
-
-            rows-layout := VerticalLayout {
+            content-height: body.preferred-height;
+            horizontal-scrollbar-policy: always-off;
+            function reveal(y: length, h: length) {
+                if self.content-y < -y { self.content-y = -y; }
+                if y + h + self.content-y > self.visible-height {
+                    self.content-y = min(0 * root.hex-r, self.visible-height - y - h);
+                }
+            }
+            body := VerticalLayout {
                 width: options.visible-width;
-                spacing: Tokens.space-1;
-
-                for opt[i] in root.stage-options: row := Rectangle {
-                    height: opt.kind == StageKind.Enum ? max(panel.row-h, panel.row-h + (opt.choices.length - 1) * Tokens.space-6) : panel.row-h;
-                    width: rows-layout.width;
-                    background: transparent;
-
-                    if opt.kind != StageKind.Text: label := Text {
-                        x: root.rtl ? parent.width - self.width : 0;
-                        width: panel.label-w;
-                        height: opt.kind == StageKind.Enum ? panel.row-h : parent.height;
-                        text: opt.label + ": " + opt.display;
+                spacing: Tokens.space-3;
+                for opt[i] in root.stage-options: row := VerticalLayout {
+                    spacing: Tokens.space-1;
+                    label := Text {
+                        text: opt.label + (opt.unit != "" ? " (" + opt.unit + ")" : "");
                         font-size: Tokens.font-label;
                         color: Tokens.text-primary;
-                        vertical-alignment: center;
-                        overflow: elide;
+                        wrap: word-wrap;
                         horizontal-alignment: root.rtl ? right : left;
-                        accessible-role: none;
+                        accessible-role: text;
+                        accessible-label: self.text;
                     }
-
-                    if opt.kind == StageKind.Bool: CheckBox {
-                        x: panel.ctl-x;
-                        width: panel.ctl-w;
-                        height: parent.height;
+                    if opt.kind == StageKind.Number: number-control := TextField {
+                        text: opt.text;
+                        // The full wrapped label above is not repeated in the
+                        // library's single-line floating label.
+                        label: opt.unit;
+                        edited(text) => { root.option-edited(i, text); }
+                        accepted(text) => { }
+                        changed has-focus => {
+                            if self.has-focus { options.reveal(row.y, row.height); }
+                        }
+                        accessible-label: opt.label + ": " + opt.text + " " + opt.unit;
+                    }
+                    if opt.kind == StageKind.Text: text-control := TextField {
+                        text: opt.text;
+                        edited(text) => { root.option-changed(i, 0, text); }
+                        accepted(text) => { }
+                        changed has-focus => {
+                            if self.has-focus { options.reveal(row.y, row.height); }
+                        }
+                        horizontal-alignment: root.rtl ? right : left;
+                        accessible-label: opt.label + ": " + opt.text;
+                    }
+                    if opt.kind == StageKind.Bool: bool-control := CheckBox {
+                        min-height: Tokens.space-7;
                         check_state: opt.value > 0.5 ? CheckState.checked : CheckState.unchecked;
                         checked_state_changed(state) => {
                             root.option-changed(i, state == CheckState.checked ? 1 : 0, "");
                         }
                         accessible-label: opt.label + ": " + opt.display;
                     }
-
-                    if opt.kind == StageKind.Number: VerticalLayout {
-                        x: panel.ctl-x;
-                        width: panel.ctl-w;
-                        height: parent.height;
-                        alignment: center;
-                        spacing: 0;
-                        Slider {
-                            minimum: opt.min;
-                            maximum: opt.max;
-                            stop_count: opt.step > 0 ? round((opt.max - opt.min) / opt.step) : 0;
-                            value: opt.value;
-                            value_changed(value) => {
-                                root.option-changed(i, value, "");
-                            }
-                            accessible-label: opt.label + ": " + opt.display;
-                        }
-                        Text {
-                            text: opt.display;
-                            font-size: Tokens.font-label;
-                            color: Tokens.text-secondary;
-                            horizontal-alignment: root.rtl ? right : left;
-                            accessible-role: none;
-                        }
-                    }
-
-                    if opt.kind == StageKind.Enum: VerticalLayout {
-                        x: panel.ctl-x;
-                        width: panel.ctl-w;
-                        height: parent.height;
-                        spacing: 0;
-                        alignment: start;
+                    if opt.kind == StageKind.Enum: enum-control := VerticalLayout {
+                        spacing: Tokens.space-1;
                         for choice[c] in opt.choices: HorizontalLayout {
                             spacing: Tokens.space-1;
-                            RadioButton {
-                                checked: opt.selected == c;
-                                clicked => {
-                                    root.option-changed(i, c, choice.text);
-                                }
-                                accessible-label: choice.text;
-                            }
-                            Text {
+                            if root.rtl: Text {
                                 text: choice.text;
                                 font-size: Tokens.font-label;
                                 color: Tokens.text-primary;
-                                vertical-alignment: center;
-                                overflow: elide;
-                                accessible-role: none;
+                                wrap: word-wrap;
+                                horizontal-stretch: 1;
+                                horizontal-alignment: right;
+                            }
+                            RadioButton {
+                                enabled: true;
+                                horizontal-stretch: 0;
+                                checked: opt.selected == c;
+                                clicked => { root.option-changed(i, c, choice.text); }
+                                accessible-label: choice.text;
+                            }
+                            if !root.rtl: Text {
+                                text: choice.text;
+                                font-size: Tokens.font-label;
+                                color: Tokens.text-primary;
+                                wrap: word-wrap;
+                                horizontal-stretch: 1;
+                                horizontal-alignment: left;
                             }
                         }
                     }
-
-                    if opt.kind == StageKind.Text: TextField {
-                        x: 0;
-                        width: parent.width;
-                        height: parent.height;
-                        text: opt.text;
-                        label: opt.label;
-                        edited(text) => {
-                            root.option-changed(i, 0, text);
-                        }
-                        accessible-label: opt.label + ": " + opt.text;
+                }
+                if root.stage-error != "": stage-error-text := Text {
+                    text: root.stage-error;
+                    font-size: Tokens.font-label;
+                    color: Tokens.danger;
+                    wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
+                    accessible-role: text;
+                    accessible-label: self.text;
+                }
+                readout := Text {
+                    text: root.stage-readout;
+                    font-size: Tokens.font-label;
+                    color: Tokens.text-secondary;
+                    wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
+                    accessible-role: text;
+                    accessible-label: self.text;
+                }
+                if root.stage-preview: VerticalLayout {
+                    Text {
+                        text: root.rtl ? "مسودة المصدر" : "Source draft";
+                        font-size: Tokens.font-label;
+                        color: Tokens.text-secondary;
+                        horizontal-alignment: root.rtl ? right : left;
                     }
+                    Image {
+                        height: Tokens.layout-stage-well-r * 2;
+                        source: root.stage-preview-image;
+                        image-fit: contain;
+                        accessible-role: image;
+                        accessible-label: root.rtl ? "مسودة المصدر" : "Source draft";
+                    }
+                }
+                if root.stage-preview-note != "": Text {
+                    text: root.stage-preview-note;
+                    font-size: Tokens.font-label;
+                    color: Tokens.text-secondary;
+                    wrap: word-wrap;
                 }
             }
         }
-
-        // The resolved values failed: say so and keep the panel open.
-        if root.stage-error != "": stage-error-text := Text {
-            x: panel.pad;
-            y: root.height - panel.pad - panel.footer-h - Tokens.font-label - Tokens.space-1;
-            width: panel.content-w;
-            height: Tokens.font-label;
-            text: root.stage-error;
-            font-size: Tokens.font-label;
-            color: Tokens.danger;
-            overflow: elide;
-            horizontal-alignment: root.rtl ? right : left;
-            accessible-role: text;
-            accessible-label: root.stage-error;
-        }
-
-        // Presets, from the action's [action.options.preset] data.
+        // Presets stay outside the scrolling body, so they remain visible
+        // and reachable while the rows scroll (S-139 AC3).
         if root.stage-presets.length > 0: HorizontalLayout {
             x: panel.pad;
-            y: panel.body-y + panel.body-h + Tokens.space-1;
+            y: root.height - panel.pad - panel.footer-h - panel.preset-h;
             width: panel.content-w;
             height: panel.preset-h;
             spacing: Tokens.space-1;
             alignment: start;
-            for preset[p] in root.stage-presets: FilterChip {
+            for preset[p] in root.stage-presets: preset-chip := FilterChip {
                 text: preset.label;
-                checked: false;
-                changed checked => {
-                    if (self.checked) {
-                        root.preset-picked(p);
-                        self.checked = false;
-                    }
-                }
                 accessible-label: preset.label;
+                changed checked => {
+                    if self.checked { root.preset-picked(p); self.checked = false; }
+                }
             }
         }
-
         // The footer: Run, Reset, Back, mirrored for Arabic.
-        if root.rtl: HorizontalLayout {
+        if root.rtl: stage-footer-ar := HorizontalLayout {
             x: panel.pad;
             y: root.height - panel.pad - panel.footer-h;
             width: panel.content-w;
@@ -753,7 +742,7 @@ export component HiveWindow inherits Window {
                 clicked => { root.stage-run(); }
             }
         }
-        if !root.rtl: HorizontalLayout {
+        if !root.rtl: stage-footer-en := HorizontalLayout {
             x: panel.pad;
             y: root.height - panel.pad - panel.footer-h;
             width: panel.content-w;
@@ -775,58 +764,5 @@ export component HiveWindow inherits Window {
         }
     }
 
-    keys := FocusScope {
-        key-pressed(event) => {
-            if event.text == Key.Escape && root.stage-two {
-                root.stage-cancel();
-                return accept;
-            }
-            if root.stage-two {
-                return reject;
-            }
-            if event.text == Key.Escape {
-                root.dismiss();
-                return accept;
-            }
-            if event.text == Key.Return && event.modifiers.shift {
-                if root.highlight >= 0 && root.highlight < root.cells.length {
-                    if root.cells[root.highlight].customize {
-                        root.customize(root.highlight);
-                        return accept;
-                    }
-                }
-            }
-            if event.text == Key.Return || event.text == Key.Space {
-                if root.highlight >= 0 {
-                    root.choose(root.highlight);
-                }
-                return accept;
-            }
-            if event.text == Key.Backtab || (event.text == Key.Tab && event.modifiers.shift) {
-                root.highlight = root.navigate(root.highlight, 1);
-                return accept;
-            }
-            if event.text == Key.Tab {
-                root.highlight = root.navigate(root.highlight, 0);
-                return accept;
-            }
-            if event.text == Key.LeftArrow {
-                root.highlight = root.navigate(root.highlight, 2);
-                return accept;
-            }
-            if event.text == Key.RightArrow {
-                root.highlight = root.navigate(root.highlight, 3);
-                return accept;
-            }
-            if event.text == Key.UpArrow {
-                root.highlight = root.navigate(root.highlight, 4);
-                return accept;
-            }
-            if event.text == Key.DownArrow {
-                root.highlight = root.navigate(root.highlight, 5);
-                return accept;
-            }
-            reject
-        }
     }
 }

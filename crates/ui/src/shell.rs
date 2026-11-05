@@ -100,7 +100,7 @@ pub(crate) mod probe {
     use i_slint_backend_testing::{AccessibleRole, ElementHandle, ElementRoot};
     use slint::ComponentHandle;
 
-    fn rect(e: &ElementHandle) -> Rect {
+    pub(crate) fn rect(e: &ElementHandle) -> Rect {
         let p = e.absolute_position();
         let s = e.size();
         Rect {
@@ -111,8 +111,33 @@ pub(crate) mod probe {
         }
     }
 
-    fn by_id(root: &impl ElementRoot, id: &str) -> Option<ElementHandle> {
-        ElementHandle::find_by_element_id(root, id).next()
+    /// True when the element's qualified id is id or ends with ::id. Slint
+    /// reports ids qualified with their component name, so an id written as
+    /// options in the markup arrives as HiveWindow::options.
+    pub(crate) fn id_is(e: &ElementHandle, id: &str) -> bool {
+        let suffix = format!("::{id}");
+        e.id()
+            .is_some_and(|full| full == id || full.ends_with(&suffix))
+    }
+
+    pub(crate) fn by_id(root: &impl ElementRoot, id: &str) -> Option<ElementHandle> {
+        if let Some(e) = ElementHandle::find_by_element_id(root, id).next() {
+            return Some(e);
+        }
+        let wanted = id.to_string();
+        root.root_element()
+            .query_descendants()
+            .match_predicate(move |e| id_is(e, &wanted))
+            .find_first()
+    }
+
+    /// Every element whose qualified id is id or ends with ::id.
+    pub(crate) fn elements_by_id(root: &impl ElementRoot, id: &str) -> Vec<ElementHandle> {
+        let wanted = id.to_string();
+        root.root_element()
+            .query_descendants()
+            .match_predicate(move |e| id_is(e, &wanted))
+            .find_all()
     }
 
     /// The rectangle of the element `id`; empty when it is not on screen.
@@ -426,6 +451,75 @@ pub(crate) mod probe {
             .collect();
         items.sort_by(|a, b| a.x.total_cmp(&b.x));
         items
+    }
+
+    /// Shape each actual live Text item with its renderer, resolved font,
+    /// width and wrap policy. This observes glyphs, not an estimated layout.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn glyphs(root: &impl ElementRoot) -> Vec<(String, Rect, (f32, f32))> {
+        use i_slint_core::items::TextWrap;
+        use i_slint_core::items::{ComplexText, ItemRc, SimpleText};
+        let item = ItemRc::new_root(root.item_tree());
+        let mut out = Vec::new();
+        item.visit_descendants(|item| {
+            let Some(window) = item.window_adapter() else {
+                return std::ops::ControlFlow::<()>::Continue(());
+            };
+            let geometry = item.geometry();
+            let p = item.map_to_window(geometry.origin);
+            let rect = Rect {
+                x: p.x,
+                y: p.y,
+                w: geometry.size.width,
+                h: geometry.size.height,
+            };
+            if let Some(text) = item.downcast::<ComplexText>() {
+                let text = text.as_pin_ref();
+                let size = window
+                    .renderer()
+                    .text_size(text, item, Some(text.width()), text.wrap());
+                out.push((text.text().to_string(), rect, (size.width, size.height)));
+            } else if let Some(text) = item.downcast::<SimpleText>() {
+                let text = text.as_pin_ref();
+                let size = window
+                    .renderer()
+                    .text_size(text, item, None, TextWrap::NoWrap);
+                out.push((text.text().to_string(), rect, (size.width, size.height)));
+            }
+            std::ops::ControlFlow::Continue(())
+        });
+        out
+    }
+
+    /// The actual segment items and the shaped text they contain.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn notification_geometry(root: &impl ElementRoot) -> Vec<(Rect, (f32, f32))> {
+        let Some(group) = by_id(root, "notify-buttons") else {
+            return Vec::new();
+        };
+        let glyphs = glyphs(root);
+        group
+            .query_descendants()
+            .match_accessible_role(AccessibleRole::ListItem)
+            .find_all()
+            .iter()
+            .map(|segment| {
+                let bounds = rect(segment);
+                let label = segment.accessible_label().unwrap_or_default();
+                let shaped = glyphs
+                    .iter()
+                    .find(|(text, r, _)| {
+                        text == label.as_str()
+                            && r.x >= bounds.x - 1.
+                            && r.x < bounds.x + bounds.w
+                            && r.y >= bounds.y - 1.
+                            && r.y < bounds.y + bounds.h
+                    })
+                    .map(|(_, _, size)| *size)
+                    .expect("actual notification label Text");
+                (bounds, shaped)
+            })
+            .collect()
     }
 
     /// The options in logical order (Off, All, Long), whatever the direction.

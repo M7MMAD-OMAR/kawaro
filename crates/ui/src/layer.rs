@@ -35,13 +35,14 @@
 
 use crate::HiveCell;
 use crate::dnd;
+use crate::layer_keyboard::{KeyboardEvent, NativeKeyboard};
 use crate::layout::{self, Plan};
 use crate::overlay::{self, Surface};
 use rustix::event::{PollFd, PollFlags, poll};
 use slint::platform::software_renderer::{
     PremultipliedRgbaColor, RepaintBufferType, SoftwareRenderer, TargetPixel,
 };
-use slint::platform::{Key, PointerEventButton, Renderer, WindowAdapter, WindowEvent};
+use slint::platform::{PointerEventButton, Renderer, WindowAdapter, WindowEvent};
 use slint::{LogicalPosition, LogicalSize, PhysicalSize, PlatformError, WindowSize};
 use std::cell::{Cell, RefCell};
 use std::io::Write;
@@ -492,7 +493,7 @@ struct Wl {
     /// already; the position of a map time enter (S-104).
     map_at: Option<Instant>,
     probe: ProbeState,
-    shift: bool,
+    keys: NativeKeyboard,
     events: Vec<Ev>,
     /// Buffers of the shown hive the compositor has not released yet,
     /// destroyed on release or, at the latest, on hide (S-018 AC18).
@@ -518,12 +519,8 @@ enum Ev {
         pressed: bool,
         on_hive: bool,
     },
-    Key {
-        code: u32,
-        pressed: bool,
-    },
+    Keyboard(WindowEvent),
     Focus(bool),
-    Shift(bool),
 }
 
 /// Connects to the compositor and, when [`overlay::choose_surface`] says
@@ -651,7 +648,7 @@ fn bind(globals: &GlobalList, qh: &QueueHandle<Wl>) -> Option<Wl> {
         catcher: None,
         hive: None,
         pointer_on_hive: false,
-        shift: false,
+        keys: NativeKeyboard::default(),
         events: Vec::new(),
         buffers: Vec::new(),
     })
@@ -740,7 +737,15 @@ fn dispatch() {
         std::mem::take(&mut wl.events)
     });
     if let Some(a) = OWNER.with(|o| o.borrow().upgrade()) {
+        let generation = crate::session_generation();
         for e in events {
+            // A callback may close or replace the owner during this batch.
+            if !crate::generation_is_current(generation)
+                || !OWNER.with(|o| std::ptr::eq(o.borrow().as_ptr(), Rc::as_ptr(&a)))
+                || a.surfaces.borrow().is_none()
+            {
+                break;
+            }
             a.handle(e);
         }
     }
@@ -1134,12 +1139,7 @@ impl LayerAdapter {
                 self.window.dispatch_event(WindowEvent::CloseRequested)
             }
             Ev::Button { .. } => {}
-            Ev::Key { code, pressed } => {
-                if let Some(k) = overlay::key_for_evdev(code) {
-                    self.key(k, pressed);
-                }
-            }
-            Ev::Shift(down) => self.key(Key::Shift, down),
+            Ev::Keyboard(event) => self.window.dispatch_event(event),
             Ev::Focus(f) => {
                 // Observation hook for tests/focus, as on the window path.
                 if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
@@ -1151,15 +1151,6 @@ impl LayerAdapter {
                     .dispatch_event(WindowEvent::WindowActiveChanged(f));
             }
         }
-    }
-
-    fn key(&self, k: Key, pressed: bool) {
-        let text: slint::SharedString = k.into();
-        self.window.dispatch_event(if pressed {
-            WindowEvent::KeyPressed { text }
-        } else {
-            WindowEvent::KeyReleased { text }
-        });
     }
 
     /// Maps the catcher (a transparent pixel) so the pointer can enter it,
@@ -1357,8 +1348,13 @@ impl LayerAdapter {
         s.layer.destroy();
         s.catcher.destroy();
         // try_with: a hive dropped at thread exit may outlive these.
+        let mut releases = Vec::new();
         let _ = SHARED.try_with(|sh| {
             if let Some(sh) = sh.borrow_mut().as_mut() {
+                releases = sh.wl.keys.handle(KeyboardEvent::Leave);
+                sh.wl
+                    .events
+                    .retain(|e| !matches!(e, Ev::Keyboard(_) | Ev::Focus(_)));
                 sh.wl.catcher = None;
                 sh.wl.hive = None;
                 sh.wl.pointer_on_hive = false;
@@ -1372,6 +1368,10 @@ impl LayerAdapter {
                 }
             }
         });
+        // Deliver releases outside the Wayland borrow: Slint callbacks may re-enter.
+        for event in releases {
+            self.window.dispatch_event(event);
+        }
         let _ = OWNER.try_with(|o| {
             if std::ptr::eq(o.borrow().as_ptr(), self) {
                 *o.borrow_mut() = Weak::new();
@@ -1796,9 +1796,18 @@ impl Dispatch<WlSeat, ()> for Wl {
                     .map(|m| m.get_pointer(&pointer, qh, ()));
                 s.pointer = Some(pointer);
             }
-            if c.contains(wl_seat::Capability::Keyboard) && s.keyboard.is_none() {
-                s.keyboard = Some(seat.get_keyboard(qh, ()));
-            }
+            let events = crate::layer_keyboard::update_keyboard_capability(
+                c.contains(wl_seat::Capability::Keyboard),
+                &mut s.keyboard,
+                &mut s.keys,
+                || seat.get_keyboard(qh, ()),
+                |keyboard| {
+                    if keyboard.version() >= 3 {
+                        keyboard.release();
+                    }
+                },
+            );
+            s.events.extend(events.into_iter().map(Ev::Keyboard));
         }
     }
 }
@@ -1881,41 +1890,77 @@ impl Dispatch<WlPointer, ()> for Wl {
 impl Dispatch<WlKeyboard, ()> for Wl {
     fn event(
         s: &mut Self,
-        _: &WlKeyboard,
+        keyboard: &WlKeyboard,
         e: wl_keyboard::Event,
         _: &(),
         _: &Connection,
         _: &QueueHandle<Self>,
     ) {
+        // A released device may still have queued protocol events. It cannot
+        // update the keymap or key state of the keyboard that replaced it.
+        if s.keyboard.as_ref() != Some(keyboard) {
+            return;
+        }
         let ours = |s: &Self, surface: &WlSurface| {
             s.catcher.as_ref() == Some(surface) || s.hive.as_ref() == Some(surface)
         };
-        match e {
-            // The keymap fd is closed unread: the hive needs layout
-            // independent keys only.
-            wl_keyboard::Event::Enter { surface, .. } if ours(s, &surface) => {
-                s.events.push(Ev::Focus(true))
+        let input = match e {
+            wl_keyboard::Event::Keymap { format, fd, size } => {
+                s.events
+                    .extend(s.keys.reset().into_iter().map(Ev::Keyboard));
+                KeyboardEvent::Keymap {
+                    format: format.into(),
+                    fd,
+                    size,
+                }
+            }
+            wl_keyboard::Event::Enter { surface, keys, .. } if ours(s, &surface) => {
+                s.events.push(Ev::Focus(true));
+                KeyboardEvent::Enter {
+                    held: keys
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .copied()
+                        .map(u32::from_ne_bytes)
+                        .collect(),
+                }
             }
             wl_keyboard::Event::Leave { surface, .. } if ours(s, &surface) => {
-                s.events.push(Ev::Focus(false))
+                s.events.extend(
+                    s.keys
+                        .handle(KeyboardEvent::Leave)
+                        .into_iter()
+                        .map(Ev::Keyboard),
+                );
+                s.events.push(Ev::Focus(false));
+                return;
             }
             wl_keyboard::Event::Key {
                 key,
-                state: WEnum::Value(st),
+                state: WEnum::Value(state),
                 ..
-            } => s.events.push(Ev::Key {
-                code: key,
-                pressed: st == wl_keyboard::KeyState::Pressed,
-            }),
-            wl_keyboard::Event::Modifiers { mods_depressed, .. } => {
-                let shift = mods_depressed & 1 != 0;
-                if shift != s.shift {
-                    s.shift = shift;
-                    s.events.push(Ev::Shift(shift));
-                }
-            }
-            _ => {}
-        }
+            } => KeyboardEvent::Key {
+                key,
+                pressed: state == wl_keyboard::KeyState::Pressed,
+            },
+            wl_keyboard::Event::Modifiers {
+                mods_depressed,
+                mods_latched,
+                mods_locked,
+                group,
+                ..
+            } => KeyboardEvent::Modifiers {
+                depressed: mods_depressed,
+                latched: mods_latched,
+                locked: mods_locked,
+                group,
+            },
+            _ => return,
+        };
+        // Translate here, before later modifiers in the same Wayland batch.
+        s.events
+            .extend(s.keys.handle(input).into_iter().map(Ev::Keyboard));
     }
 }
 

@@ -48,6 +48,8 @@ pub struct StageTwoState {
     /// The values the user set, by param key. Empty means the base params.
     explicit: RefCell<toml::Table>,
     rows: Rc<VecModel<StageOption>>,
+    /// Raw numeric drafts, including invalid and empty edits.
+    drafts: RefCell<std::collections::BTreeMap<String, String>>,
     presets: Rc<VecModel<StagePreset>>,
     /// Header dimensions of the first file, when it is an image.
     source: Cell<Option<(u32, u32)>>,
@@ -75,6 +77,7 @@ impl StageTwoState {
             action: action.clone(),
             explicit: RefCell::new(toml::Table::new()),
             rows: Rc::new(VecModel::default()),
+            drafts: RefCell::default(),
             presets: Rc::new(VecModel::default()),
             source: Cell::new(source),
             image,
@@ -134,10 +137,47 @@ impl StageTwoState {
             }
             explicit.insert(field.param_key().to_string(), value);
         }
+        self.drafts.borrow_mut().remove(field.param_key());
+        for key in &field.clears {
+            self.drafts.borrow_mut().remove(key);
+        }
         let field = field.clone();
         self.refresh_row(index, &field);
         // A cleared sibling changes the resolved table, so refresh every row
         // that the field names.
+        self.refresh_cleared(&field);
+        self.request_preview();
+    }
+
+    /// Preserve raw text independently of the last resolved number. Invalid
+    /// drafts are explicit values too, so Run cannot reuse an older value.
+    pub fn set_draft(&self, index: i32, text: &str) {
+        let Some(field) = self.field(index).cloned() else {
+            return;
+        };
+        let value = match field.kind {
+            Kind::Int | Kind::Percent | Kind::Px => {
+                text.parse::<i64>().ok().map(toml::Value::Integer)
+            }
+            Kind::Float => text
+                .parse::<f64>()
+                .ok()
+                .filter(|n| n.is_finite())
+                .map(toml::Value::Float),
+            _ => None,
+        }
+        .unwrap_or_else(|| toml::Value::String(text.to_string()));
+        {
+            let mut explicit = self.explicit.borrow_mut();
+            let mut drafts = self.drafts.borrow_mut();
+            for key in &field.clears {
+                explicit.remove(key);
+                drafts.remove(key);
+            }
+            drafts.insert(field.param_key().into(), text.into());
+            explicit.insert(field.param_key().into(), value);
+        }
+        self.refresh_row(index, &field);
         self.refresh_cleared(&field);
         self.request_preview();
     }
@@ -158,8 +198,10 @@ impl StageTwoState {
                 let Some(field) = options.fields.iter().find(|f| &f.id == key) else {
                     continue;
                 };
+                self.drafts.borrow_mut().remove(field.param_key());
                 for clear in &field.clears {
                     explicit.remove(clear);
+                    self.drafts.borrow_mut().remove(clear);
                 }
                 explicit.insert(field.param_key().to_string(), value.clone());
             }
@@ -171,6 +213,7 @@ impl StageTwoState {
     /// Reset returns every control to the base [action.params] value.
     pub fn reset(&self) {
         self.explicit.borrow_mut().clear();
+        self.drafts.borrow_mut().clear();
         self.refresh_all();
         self.request_preview();
     }
@@ -178,7 +221,32 @@ impl StageTwoState {
     /// The params a Run submits: the base table with the explicit values.
     pub fn resolved(&self) -> Result<toml::Table, OptionsError> {
         match &self.action.options {
-            Some(options) => options.resolve_params(&self.action.params, &self.explicit.borrow()),
+            Some(options) => {
+                let explicit = self.explicit.borrow();
+                let params = options.resolve_params(&self.action.params, &explicit)?;
+                for field in &options.fields {
+                    let number = match explicit.get(field.param_key()) {
+                        Some(toml::Value::Integer(n)) => *n as f64,
+                        Some(toml::Value::Float(n)) => *n,
+                        _ => continue,
+                    };
+                    let invalid_step = field.step.filter(|s| *s > 0.).is_some_and(|step| {
+                        let steps = (number - field.min.unwrap_or(0.)) / step;
+                        (steps - steps.round()).abs() > 1e-7
+                    });
+                    if !number.is_finite() || invalid_step {
+                        return Err(OptionsError::Value {
+                            name: field.id.clone(),
+                            reason: if invalid_step {
+                                format!("expected steps of {}", field.step.unwrap())
+                            } else {
+                                "expected a finite number".into()
+                            },
+                        });
+                    }
+                }
+                Ok(params)
+            }
             None => Ok(self.action.params.clone()),
         }
     }
@@ -201,9 +269,9 @@ impl StageTwoState {
     /// the bidi isolates U+2068 and U+2069 so digits and Arabic keep their
     /// order. Without tokens it falls back to the resolved params.
     pub fn readout(&self) -> String {
-        let params = self
-            .resolved()
-            .unwrap_or_else(|_| self.action.params.clone());
+        let Ok(params) = self.resolved() else {
+            return String::new();
+        };
         let target = self.dimension_target(&params);
         let mut parts = Vec::new();
         if let Some(options) = &self.action.options {
@@ -445,8 +513,16 @@ impl StageTwoState {
         let value = number_of(base, field).unwrap_or(0.0);
         let text = match base {
             Some(toml::Value::String(text)) => text.clone(),
+            Some(toml::Value::Integer(n)) => n.to_string(),
+            Some(toml::Value::Float(n)) => n.to_string(),
             _ => String::new(),
         };
+        let text = self
+            .drafts
+            .borrow()
+            .get(field.param_key())
+            .cloned()
+            .unwrap_or(text);
         let display = self.display_of(field, base);
         StageOption {
             id: field.id.as_str().into(),

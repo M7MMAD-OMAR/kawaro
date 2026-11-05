@@ -31,6 +31,8 @@ mod icons;
 #[cfg(target_os = "linux")]
 mod layer;
 #[cfg(target_os = "linux")]
+mod layer_keyboard;
+#[cfg(target_os = "linux")]
 #[doc(hidden)]
 pub use layer::after_catcher_ready;
 pub mod layout;
@@ -568,6 +570,7 @@ pub(crate) fn bump_generation_for_test() -> u64 {
 }
 
 /// S-136: a queued stage reset may only rebuild its own live session.
+#[allow(dead_code)]
 pub(crate) fn stage_reopen_allowed(terminal: bool, session: u64, queued: u64) -> bool {
     !terminal && session == queued
 }
@@ -629,6 +632,8 @@ struct Inner {
     stage: RefCell<Option<Rc<stage_two::StageTwoState>>>,
     /// Ticks the panel's preview and readout while it is open.
     stage_timer: slint::Timer,
+    /// Invalidates delayed work within the same S-136 session.
+    panel_generation: Cell<u64>,
     /// The Customize hint text in the hive language.
     hint: String,
     /// Pending timer that starts the opening animation after the first frame.
@@ -680,6 +685,7 @@ impl Inner {
         self.session.set(generation);
         crate::set_session_generation(generation);
         self.terminal.set(false);
+        self.ui.borrow().invoke_reset_hint();
         self.session_is_drop.set(drop);
         self.session_mode.set(mode);
         self.dragged.borrow_mut().clear();
@@ -745,9 +751,12 @@ impl Inner {
         dnd::windows::hive_closed();
         #[cfg(target_os = "linux")]
         dnd::x11::hive_closed();
+        self.panel_generation
+            .set(self.panel_generation.get().wrapping_add(1));
         self.stage_timer.stop();
         *self.stage.borrow_mut() = None;
         let ui = self.ui.borrow();
+        ui.invoke_reset_hint();
         ui.set_highlight(-1);
         // Never keep a picture while hidden (S-018 AC24, AC27).
         ui.set_preview_image(slint::Image::default());
@@ -761,6 +770,8 @@ impl Inner {
     /// Ends the stage 2 panel: no timer, no state, no picture (S-119). A
     /// normal show calls it, so the panel never outlives its request.
     fn end_stage(&self) {
+        self.panel_generation
+            .set(self.panel_generation.get().wrapping_add(1));
         self.stage_timer.stop();
         *self.stage.borrow_mut() = None;
         let ui = self.ui.borrow();
@@ -771,7 +782,19 @@ impl Inner {
 
     /// Shows the panel of `state` in the already shown window and starts
     /// polling its preview and readout (S-119).
-    fn open_stage(&self, state: Rc<stage_two::StageTwoState>) {
+    fn open_stage(self: &Rc<Self>, state: Rc<stage_two::StageTwoState>) {
+        {
+            let ui = self.ui.borrow();
+            if !ui.get_stage_two() {
+                let highlight = ui.get_highlight();
+                ui.set_return_highlight(if highlight >= 0 {
+                    highlight
+                } else {
+                    ui.get_hinted_cell()
+                });
+            }
+        }
+        self.end_stage();
         let (run, reset, back) = stage_two::buttons(state.lang());
         {
             let ui = self.ui.borrow();
@@ -792,74 +815,35 @@ impl Inner {
         }
         *self.stage.borrow_mut() = Some(state.clone());
         state.request_preview();
-        let ui = self.ui.borrow().as_weak();
+        let weak = Rc::downgrade(self);
+        let stamp = (self.session.get(), self.panel_generation.get());
         let stage = Rc::downgrade(&state);
-        let session = self.session.clone();
-        let generation = session.get();
-        let mut shown = String::new();
         self.stage_timer.start(
             slint::TimerMode::Repeated,
             Duration::from_millis(16),
             move || {
-                let (Some(ui), Some(stage)) = (ui.upgrade(), stage.upgrade()) else {
-                    return;
-                };
-                // S-136: a panel poll from an old session writes nothing.
-                if session.get() != generation {
-                    return;
-                }
-                if let Some(image) = stage.poll_preview() {
-                    ui.set_stage_preview_image(image);
-                    ui.set_stage_preview(true);
-                }
-                let readout = stage.readout();
-                if readout != shown {
-                    shown = readout.clone();
-                    ui.set_stage_readout(readout.as_str().into());
-                }
+                dispatch_stage_update(&weak, stamp, |ui| {
+                    let Some(stage) = stage.upgrade() else { return };
+                    if let Some(image) = stage.poll_preview() {
+                        ui.set_stage_preview_image(image);
+                        ui.set_stage_preview(true);
+                    }
+                    ui.set_stage_readout(stage.readout().as_str().into());
+                });
             },
         );
     }
 
-    /// Rebuilds the open panel's rows after Reset or a preset (S-119): the
-    /// Material controls keep their own state after an edit, so the panel is
-    /// destroyed and rebuilt once to show the new values.
-    fn reopen_stage(&self) {
-        // S-136: a terminal session never rebuilds the panel.
+    /// Rebuild only this panel instance after a Reset or preset. The old
+    /// native controls are discarded without changing the owning session.
+    fn reopen_stage(self: &Rc<Self>) {
         if self.terminal.get() {
             return;
         }
         let Some(state) = self.stage.borrow().clone() else {
             return;
         };
-        let ui = self.ui.borrow().as_weak();
-        if let Some(ui) = ui.upgrade() {
-            ui.set_stage_two(false);
-            ui.set_stage_options(ModelRc::new(VecModel::from(Vec::new())));
-        }
-        state.request_preview();
-        let rows = state.rows();
-        let presets = state.presets();
-        let readout: slint::SharedString = state.readout().as_str().into();
-        if let Some(ui) = ui.upgrade() {
-            ui.set_stage_error("".into());
-        }
-        let session = self.session.clone();
-        let generation = session.get();
-        let terminal = self.terminal.clone();
-        slint::Timer::single_shot(Duration::ZERO, move || {
-            // S-136: the rebuild belongs to the session that asked for it and
-            // a terminal session never rebuilds the panel.
-            if !stage_reopen_allowed(terminal.get(), session.get(), generation) {
-                return;
-            }
-            if let Some(ui) = ui.upgrade() {
-                ui.set_stage_options(rows);
-                ui.set_stage_presets(presets);
-                ui.set_stage_readout(readout);
-                ui.set_stage_two(true);
-            }
-        });
+        self.open_stage(state);
     }
 
     /// One option change from the panel (S-119): write the value, then show
@@ -990,6 +974,7 @@ impl Inner {
                 }
             })
             .collect();
+        ui.invoke_reset_hint();
         ui.set_cells(ModelRc::new(VecModel::from(data)));
         ui.set_hex_r(plan.layout.radius);
         ui.set_centre_x(plan.layout.origin.0);
@@ -1271,6 +1256,7 @@ impl Hive {
             on_options_cancel: RefCell::new(None),
             stage: RefCell::new(None),
             stage_timer: slint::Timer::default(),
+            panel_generation: Cell::new(0),
             hint: stage_two::customize_hint(lang).to_string(),
             opener: slint::Timer::default(),
             closer: slint::Timer::default(),
@@ -1642,10 +1628,33 @@ impl Hive {
         cells: Vec<HiveCell>,
         state: Rc<stage_two::StageTwoState>,
     ) -> Result<(), slint::PlatformError> {
-        let title = state.title();
-        self.show(&title, cells, 2, None, None, false, &[], None)?;
+        // Legacy callers may start hidden. A visible parent must never be
+        // shown, placed, activated or assigned a new session for Customize.
+        if !self.inner.visible() {
+            let title = state.title();
+            self.show(&title, cells, 2, None, None, false, &[], None)?;
+        }
         self.inner.open_stage(state);
         Ok(())
+    }
+
+    /// The owner of current panel deliveries, separate from hive ownership.
+    pub fn stage_stamp(&self) -> (u64, u64) {
+        (self.inner.session.get(), self.inner.panel_generation.get())
+    }
+
+    /// Named live item bounds and glyph measurements for candidate review.
+    #[cfg(all(feature = "testing-hooks", target_os = "linux"))]
+    #[doc(hidden)]
+    pub fn stage_geometry(&self) -> Vec<(String, Rect, (f32, f32))> {
+        stage_geometry(self)
+    }
+
+    /// The real generated root for native control observations.
+    #[cfg(feature = "testing-hooks")]
+    #[doc(hidden)]
+    pub fn testing_window(&self) -> HiveWindow {
+        self.inner.ui.borrow().clone_strong()
     }
 
     /// Called with the action id when the Customize pill (or Shift+Return) is
@@ -1844,6 +1853,12 @@ fn build_window(reduced_motion: bool, glass: bool) -> Result<HiveWindow, slint::
     let tokens = ui.global::<Tokens>();
     if let Some(dark) = forced_dark(std::env::var("KAWARO_COLOR_SCHEME").ok().as_deref()) {
         tokens.set_dark(dark);
+        // Material controls and hive surfaces must share the forced scheme.
+        ui.global::<Palette>().set_color_scheme(if dark {
+            slint::language::ColorScheme::Dark
+        } else {
+            slint::language::ColorScheme::Light
+        });
     }
     tokens.set_reduced_motion(reduced_motion);
     ui.set_glass(glass);
@@ -1923,12 +1938,34 @@ fn wire(inner: &Rc<Inner>) {
     let w = Rc::downgrade(inner);
     ui.on_option_changed(move |index, numeric, text| {
         let Some(i) = w.upgrade() else { return };
-        i.set_option(index, numeric, text.as_str());
+        let stamp = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, stamp, |_| i.set_option(index, numeric, text.as_str()));
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_option_edited(move |index, text| {
+        let Some(i) = w.upgrade() else { return };
+        let stamp = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, stamp, |ui| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            stage.set_draft(index, text.as_str());
+            ui.set_stage_error(
+                stage
+                    .resolved()
+                    .err()
+                    .map(|e| e.to_string())
+                    .unwrap_or_default()
+                    .into(),
+            );
+            ui.set_stage_readout(stage.readout().as_str().into());
+        });
     });
     let w = Rc::downgrade(inner);
     ui.on_preset_picked(move |index| {
         let Some(i) = w.upgrade() else { return };
-        if let Some(stage) = i.stage.borrow().clone() {
+        let stage = i.stage.borrow().clone();
+        if let Some(stage) = stage {
             stage.apply_preset(index);
             i.reopen_stage();
         }
@@ -1936,10 +1973,14 @@ fn wire(inner: &Rc<Inner>) {
     let w = Rc::downgrade(inner);
     ui.on_stage_reset(move || {
         let Some(i) = w.upgrade() else { return };
-        if let Some(stage) = i.stage.borrow().clone() {
-            stage.reset();
-            i.reopen_stage();
-        }
+        let stamp = (i.session.get(), i.panel_generation.get());
+        let stage = i.stage.borrow().clone();
+        dispatch_stage_update(&w, stamp, |_| {
+            if let Some(stage) = stage {
+                stage.reset();
+            }
+        });
+        i.reopen_stage();
     });
     let w = Rc::downgrade(inner);
     ui.on_stage_run(move || {
@@ -1972,8 +2013,13 @@ fn wire(inner: &Rc<Inner>) {
         if i.terminal.get() {
             return;
         }
-        i.terminal.set(true);
-        i.close();
+        i.end_stage();
+        {
+            let ui = i.ui.borrow();
+            ui.set_retain_highlight(true);
+            ui.set_highlight(ui.get_return_highlight());
+            ui.invoke_focus_hive();
+        }
         if let Some(f) = i.on_options_cancel.borrow().clone() {
             f();
         }
@@ -1987,6 +2033,94 @@ fn wire(inner: &Rc<Inner>) {
         // its timer hides the window (S-017c AC8).
         slint::CloseRequestResponse::KeepWindowShown
     });
+}
+
+/// Deliver a real panel update only while both its session and instance own
+/// the live stage. All asynchronous panel delivery uses this gate.
+fn dispatch_stage_update(w: &Weak<Inner>, stamp: (u64, u64), update: impl FnOnce(&HiveWindow)) {
+    let Some(inner) = w.upgrade() else { return };
+    if inner.terminal.get()
+        || inner.stage.borrow().is_none()
+        || stamp != (inner.session.get(), inner.panel_generation.get())
+    {
+        return;
+    }
+    update(&inner.ui.borrow());
+}
+
+/// Observe actual named panel items and renderer-shaped wrapped text.
+#[cfg(all(feature = "testing-hooks", target_os = "linux"))]
+fn stage_geometry(hive: &Hive) -> Vec<(String, Rect, (f32, f32))> {
+    use i_slint_backend_testing::ElementHandle;
+    use shell::probe::{by_id, elements_by_id, glyphs, id_is, rect};
+    let ui = hive.inner.ui.borrow();
+    let glyphs = glyphs(&*ui);
+    let mut out = Vec::new();
+    let mut add = |name: String, e: ElementHandle, text: bool| {
+        let bounds = rect(&e);
+        let extent = if text {
+            let label = e.accessible_label().unwrap_or_default();
+            glyphs
+                .iter()
+                .find(|(value, r, _)| {
+                    value == label.as_str()
+                        && (r.x - bounds.x).abs() < 1.
+                        && (r.y - bounds.y).abs() < 1.
+                })
+                .map(|(_, _, size)| *size)
+                .expect("actual stage Text glyph metrics")
+        } else {
+            (0., 0.)
+        };
+        out.push((name, bounds, extent));
+    };
+    for (id, name, text) in [
+        ("options", "viewport", false),
+        (
+            if hive.inner.rtl {
+                "stage-footer-ar"
+            } else {
+                "stage-footer-en"
+            },
+            "footer",
+            false,
+        ),
+        ("readout", "readout", true),
+        ("stage-error-text", "error", true),
+    ] {
+        if let Some(e) = by_id(&*ui, id) {
+            add(name.into(), e, text);
+        }
+    }
+    let rows = elements_by_id(&*ui, "row");
+    for (i, row) in rows.into_iter().enumerate() {
+        let Some(option) = ui.get_stage_options().row_data(i) else {
+            continue;
+        };
+        add(format!("row:{}", option.id), row.clone(), false);
+        if let Some(label) = row
+            .query_descendants()
+            .match_predicate(|e| id_is(e, "label"))
+            .find_first()
+        {
+            add(format!("label:{}", option.id), label, true);
+        }
+        for id in [
+            "number-control",
+            "text-control",
+            "bool-control",
+            "enum-control",
+        ] {
+            if let Some(control) = row
+                .query_descendants()
+                .match_predicate(move |e| id_is(e, id))
+                .find_first()
+            {
+                add(format!("control:{}", option.id), control, false);
+            }
+        }
+    }
+    out
 }
 
 fn dismiss_weak(w: &Weak<Inner>) {
@@ -2033,6 +2167,8 @@ mod drop_hive_tests;
 mod drop_tests;
 #[cfg(test)]
 mod drop_track_tests;
+#[cfg(all(test, target_os = "linux"))]
+mod layer_keyboard_tests;
 #[cfg(test)]
 mod monitor_tests;
 #[cfg(test)]
@@ -2060,5 +2196,7 @@ mod s115_tests;
 mod s116_tests;
 #[cfg(test)]
 mod s136_tests;
+#[cfg(test)]
+mod s139_tests;
 #[cfg(test)]
 mod ui_tests;

@@ -323,7 +323,7 @@ pub(crate) fn strings(lang: Lang) -> Strings {
             themes: ["تلقائي", "فاتح", "داكن"],
             outputs: ["بجانب الملف الأصلي", "في مجلد فرعي"],
             qualities: ["ملفات أصغر", "متوازنة", "أفضل جودة"],
-            notify_modes: ["إيقاف", "كل عملية تنتهي", "فقط ما استغرق 10 ثوانٍ أو أكثر"],
+            notify_modes: ["إيقاف", "كل عملية تنتهي", "10 ثوانٍ أو أكثر"],
             channels: ["مستقرة", "تجريبية"],
             modes: ["اسألني", AUTO_AR],
         },
@@ -379,11 +379,7 @@ pub(crate) fn strings(lang: Lang) -> Strings {
             themes: ["Automatic", "Light", "Dark"],
             outputs: ["Next to the original", "In a subfolder"],
             qualities: ["Smaller files", "Balanced", "Best quality"],
-            notify_modes: [
-                "Off",
-                "Every finished job",
-                "Only jobs that took 10 seconds or more",
-            ],
+            notify_modes: ["Off", "Every finished job", "10 seconds or more"],
             channels: ["Stable", "Beta"],
             modes: ["Ask me", AUTO_EN],
         },
@@ -635,6 +631,13 @@ pub struct SettingsWindow {
 }
 
 impl SettingsWindow {
+    /// Actual notification segment bounds and renderer-shaped glyph extents.
+    #[cfg(all(feature = "testing-hooks", target_os = "linux"))]
+    #[doc(hidden)]
+    pub fn notification_geometry(&self) -> Vec<(crate::Rect, (f32, f32))> {
+        crate::shell::probe::notification_geometry(&*self.inner.ui.borrow())
+    }
+
     /// Creates a window in the requested initial language.
     pub fn new(lang: Lang) -> Result<Self, slint::PlatformError> {
         let ui = SettingsUi::new()?;
@@ -1757,11 +1760,7 @@ mod tests {
                 "enabled for a subfolder"
             );
             folder.set_accessible_value("Converted");
-            let notify = find(
-                &win,
-                "Only jobs that took 10 seconds or more",
-                AccessibleRole::ListItem,
-            );
+            let notify = find(&win, "10 seconds or more", AccessibleRole::ListItem);
             click(&win, &notify);
             assert_eq!(notify.accessible_item_selected(), Some(true));
             find(&win, "Open the folder when done", AccessibleRole::Switch)
