@@ -43,9 +43,8 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: mingw-w64
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y mingw-w64
+        timeout-minutes: 15
+        run: bash scripts/ci/install-mingw.sh
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-gnu
