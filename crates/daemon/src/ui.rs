@@ -1437,3 +1437,8 @@ mod s136_tests {
 mod s139_tests {
     include!("s139_tests.rs");
 }
+
+#[cfg(test)]
+mod s140_tests {
+    include!("s140_tests.rs");
+}

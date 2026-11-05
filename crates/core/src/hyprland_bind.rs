@@ -82,7 +82,7 @@ pub fn hyprland_bind_text(key: &str, syntax: Syntax, kawaro_path: &str) -> Strin
             let mut t = format!(
                 "-- kawaro:begin\n\
                  hl.bind(\"{keys}\", hl.dsp.exec_cmd(\"{bin} drop --hold --at \\\"$(hyprctl cursorpos)\\\"\"), {{ {press_opts}, description = \"{press_label}\" }})\n\
-                 hl.bind(\"{keys}\", hl.dsp.exec_cmd(\"{bin} drop --release\"), {{ release = true, non_consuming = true, ignore_mods = true, description = \"{release_label}\" }})\n"
+                 hl.bind(\"{keys}\", hl.dsp.exec_cmd(\"{bin} drop --release\"), {{ release = true, transparent = true, non_consuming = true, ignore_mods = true, description = \"{release_label}\" }})\n"
             );
             if alt {
                 t.push_str(&format!(
@@ -90,6 +90,8 @@ pub fn hyprland_bind_text(key: &str, syntax: Syntax, kawaro_path: &str) -> Strin
                      hl.on(\"input.keyboard.key\", function(code, _, state)\n  \
                      if code == 64 then -- Alt_L, the evdev code 56 plus 8\n    \
                      alt_down = state == 1\n  \
+                     elseif alt_down and state == 1 and code == 9 then\n    \
+                     hl.exec_cmd(\"{bin} drop --other-key; {bin} drop --release\")\n  \
                      elseif alt_down and state == 1 then\n    \
                      hl.exec_cmd(\"sleep 0.05; {bin} drop --other-key\")\n  \
                      end\n\
@@ -106,7 +108,7 @@ pub fn hyprland_bind_text(key: &str, syntax: Syntax, kawaro_path: &str) -> Strin
             format!(
                 "# kawaro:begin\n\
                  {press} = {m}, {k}, exec, {bin} drop --hold --at \"$(hyprctl cursorpos)\"\n\
-                 bindrni = {m}, {k}, exec, {bin} drop --release\n\
+                 bindrnit = {m}, {k}, exec, {bin} drop --release\n\
                  # kawaro:end\n"
             )
         }

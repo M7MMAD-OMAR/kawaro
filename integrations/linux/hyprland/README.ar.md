@@ -75,7 +75,7 @@ source = kawaro.conf
 
 ```
 bindn = SUPER, Z, exec, /usr/bin/kawaro drop --hold --at "$(hyprctl cursorpos)"
-bindrni = SUPER, Z, exec, /usr/bin/kawaro drop --release
+bindrnit = SUPER, Z, exec, /usr/bin/kawaro drop --release
 ```
 
 وبصيغة Lua للربطين نفسيهما:
@@ -84,14 +84,14 @@ bindrni = SUPER, Z, exec, /usr/bin/kawaro drop --release
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("/usr/bin/kawaro drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "Kawaro: hold to drop" })
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("/usr/bin/kawaro drop --release"),
-    { release = true, non_consuming = true, ignore_mods = true, description = "Kawaro: release to close" })
+    { release = true, transparent = true, non_consuming = true, ignore_mods = true, description = "Kawaro: release to close" })
 ```
 
 ### Alt مع مفتاح آخر (Alt+a وAlt+Tab)
 
-لا يُطلق Hyprland ربط الترك إذا جاء مفتاح آخر بين الضغط والترك، فبعد Alt+a تنتظر الخدمة تركاً لن يأتي، وتُظهر الخلية بعد 400 ملي ثانية دون أن يكون Alt ممسوكاً. في إعداد Lua يكتب `kawaro doctor --repair` خطّاف مفاتيح بجوار ربطَي Alt. الخطّاف يراقب المفاتيح فقط ولا يستهلك شيئاً، فتصل كل تركيبة إلى برنامجها بحكم التصميم. وقد قِيس هذا مع Alt+a فقط؛ ولم يُقَس Alt+Tab ولا Alt+F4 في بيئة الاختبار (إذ يأخذ المُركِّب الخارجي الخاص Alt+Tab). وما دام Alt مضغوطاً يشغّل أي مفتاح آخر الأمر `kawaro drop --other-key`، فتنتهي الضغطة المعلّقة (تسجّل الخدمة `hold: chord`) ولا يظهر شيء. و`sleep` القصير يبقيه خلف ربط الضغط الذي يشغّل `hyprctl` أولاً؛ وتتذكر الخدمة المفتاح الآخر 150 ملي ثانية، فالمفتاح الذي يسبق الضغطة رغم ذلك يلغيها. الرقم `64` هو `Alt_L` (الرمز 56 في evdev زائد 8). قِيس على Hyprland 0.57.0 في الجلسة الخاصة لـ `tests/hyprland/repro.sh --altdrag`: مع Alt+a لا يظهر سطح خلية ويُسجَّل `hold: chord`، وقبل الإصلاح كانت خمسة أسطح.
+قد يحجب مفتاح آخر بين الضغط والترك ربطَ الترك إن لم يكن محمياً. يستخدم الربط المولَّد الآن transparent = true (العلم t في hyprlang) فلا يُحجب، مع بقائه غير مستهلِك ومتجاهلاً للمعدِّلات. كانت الروابط الأقدم قد تترك الخدمة تنتظر تركاً لا يصل. في إعداد Lua يكتب `kawaro doctor --repair` خطّاف مفاتيح بجوار ربطَي Alt. الخطّاف يراقب المفاتيح فقط ولا يستهلك شيئاً، فتصل كل تركيبة إلى برنامجها بحكم التصميم. وقد قِيس هذا مع Alt+a فقط؛ ولم يُقَس Alt+Tab ولا Alt+F4 في بيئة الاختبار (إذ يأخذ المُركِّب الخارجي الخاص Alt+Tab). وما دام Alt مضغوطاً يشغّل أي مفتاح آخر الأمر `kawaro drop --other-key`، فتنتهي الضغطة المعلّقة (تسجّل الخدمة `hold: chord`) ولا يظهر شيء. و`sleep` القصير يبقيه خلف ربط الضغط الذي يشغّل `hyprctl` أولاً؛ وتتذكر الخدمة المفتاح الآخر 150 ملي ثانية، فالمفتاح الذي يسبق الضغطة رغم ذلك يلغيها. الرقم `64` هو `Alt_L` (الرمز 56 في evdev زائد 8). قِيس على Hyprland 0.57.0 في الجلسة الخاصة لـ `tests/hyprland/repro.sh --altdrag`: مع Alt+a لا يظهر سطح خلية ويُسجَّل `hold: chord`، وقبل الإصلاح كانت خمسة أسطح.
 
-الكتلة المولَّدة بصيغة Lua تتضمن هذا الخطّاف، فلا شيء يُضاف يدوياً.
+الكتلة المولَّدة بصيغة Lua تتضمن هذا الخطّاف، فلا شيء يُضاف يدوياً. يختلف Escape (رمز XKB هو 9) أثناء إمساك Alt عن المفتاح العادي: يرسل أمر متسلسل فوري other-key ثم release، فيحافظ على منع التركيبة قبل العتبة ويغلق جلسة الإفلات الظاهرة دون انتظار ترك Alt أو انتهاء المهلة. لا تلغي المفاتيح العادية الجلسة بعد ظهورها. ولا يغيّر هذا الخطّاف سلوك الرجوع بأول Escape في لوحة تخصيص عادية. بعد التحديث شغّل kawaro doctor --repair لتجديد كتلة كوارو فقط، مع إبقاء إعدادك الرئيسي وروابطك الأخرى كما هي.
 
 
 لا مقابل لهذا في hyprlang: مفتاحه `catchall` يعمل داخل submap فقط، والـ submap يعطّل بقية ربطك ما دام Alt مضغوطاً. ومع hyprlang تعالج الحدَّ الزمني (`hold_max_ms`) هذه الحالة. والأمر `kawaro drop --other-key` لا يشغّل الخدمة، ولا ينهي إلا ضغطة لم تظهر خليتها بعد؛ والخلية الظاهرة تبقى حتى الترك.

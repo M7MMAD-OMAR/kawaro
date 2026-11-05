@@ -73,7 +73,7 @@ The generated text, for reference. hyprlang (Super+Z shown; for Alt the first li
 
 ```
 bindn = SUPER, Z, exec, /usr/bin/kawaro drop --hold --at "$(hyprctl cursorpos)"
-bindrni = SUPER, Z, exec, /usr/bin/kawaro drop --release
+bindrnit = SUPER, Z, exec, /usr/bin/kawaro drop --release
 ```
 
 Lua form of the same two binds:
@@ -82,14 +82,14 @@ Lua form of the same two binds:
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("/usr/bin/kawaro drop --hold --at \"$(hyprctl cursorpos)\""),
     { non_consuming = true, description = "Kawaro: hold to drop" })
 hl.bind("SUPER + Z", hl.dsp.exec_cmd("/usr/bin/kawaro drop --release"),
-    { release = true, non_consuming = true, ignore_mods = true, description = "Kawaro: release to close" })
+    { release = true, transparent = true, non_consuming = true, ignore_mods = true, description = "Kawaro: release to close" })
 ```
 
 ### Alt with another key (Alt+a, Alt+Tab)
 
-Hyprland does not fire a release bind when another key came between the press and the release, so after Alt+a the daemon would wait for a release that never comes and show the hive 400 ms later with no Alt held. In the Lua config, `kawaro doctor --repair` writes a key hook next to the two Alt binds. It only watches keys and consumes nothing; by design every combination still reaches its application. This was measured for Alt+a only; Alt+Tab and Alt+F4 were not measured in the test setup (the outer private compositor takes Alt+Tab). While Alt is down, any other key press runs `kawaro drop --other-key`, which ends the pending press (the daemon logs `hold: chord`) and shows nothing. The short `sleep` keeps it behind the press bind, which runs `hyprctl` first; the daemon also remembers an other-key for 150 ms, so a key that still wins the race cancels the press that follows it. `64` is `Alt_L` (evdev 56 plus 8); measured on Hyprland 0.57.0 in the private session of `tests/hyprland/repro.sh --altdrag` (Alt+a: 0 hive surfaces and `hold: chord`; before: 5 surfaces):
+Without shadow protection, another key between press and release can suppress the release bind. The generated release now uses transparent = true (the t flag in hyprlang), so it is not shadowed; it remains non-consuming and ignores modifiers. Older bindings could leave the daemon waiting for a release that never arrived. In the Lua config, `kawaro doctor --repair` writes a key hook next to the two Alt binds. It only watches keys and consumes nothing; by design every combination still reaches its application. This was measured for Alt+a only; Alt+Tab and Alt+F4 were not measured in the test setup (the outer private compositor takes Alt+Tab). While Alt is down, any other key press runs `kawaro drop --other-key`, which ends the pending press (the daemon logs `hold: chord`) and shows nothing. The short `sleep` keeps it behind the press bind, which runs `hyprctl` first; the daemon also remembers an other-key for 150 ms, so a key that still wins the race cancels the press that follows it. `64` is `Alt_L` (evdev 56 plus 8); measured on Hyprland 0.57.0 in the private session of `tests/hyprland/repro.sh --altdrag` (Alt+a: 0 hive surfaces and `hold: chord`; before: 5 surfaces):
 
-The generated Lua block contains this hook, so there is nothing to add by hand.
+The generated Lua block contains this hook, so there is nothing to add by hand. Escape (XKB code 9) while Alt is held is different from an ordinary key: one immediate sequential command sends other-key first, then release. This preserves pre-threshold chord suppression and closes a shown drop session without waiting for Alt-up or the watchdog. Ordinary keys after show still do not cancel. This hook does not change the first-Escape Back behavior of a normal customization panel. After updating, run kawaro doctor --repair to regenerate the Kawaro-owned block; keep your main config and foreign bindings unchanged.
 
 
 hyprlang has no equivalent: its `catchall` key works in submaps only, and a submap would switch off your other binds while Alt is down. With hyprlang a chord is handled by the time limit (`hold_max_ms`) instead. `kawaro drop --other-key` never starts the daemon and ends a press only before the hive has shown; a shown hive stays until the release.

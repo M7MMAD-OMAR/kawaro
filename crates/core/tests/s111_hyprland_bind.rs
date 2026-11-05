@@ -47,7 +47,23 @@ fn ac1_bind_text_equals_the_golden_for_four_cases() {
 fn ac1_hook_and_bind_line_counts() {
     let hook = |t: &str| count(t, "drop --other-key");
     let alt_lua = hyprland_bind_text("Alt", Syntax::Lua, "/usr/bin/kawaro");
-    assert_eq!(hook(&alt_lua), 1);
+    assert_eq!(hook(&alt_lua), 2);
+    // S140: exactly one immediate, ordered Escape route and one unchanged
+    // delayed ordinary-key route, not two copies of either command.
+    let escape_route = concat!(
+        "  elseif alt_down and state == 1 and code == 9 then\n",
+        "    hl.exec_cmd(\"/usr/bin/kawaro drop --other-key; /usr/bin/kawaro drop --release\")\n",
+    );
+    let ordinary_route = concat!(
+        "  elseif alt_down and state == 1 then\n",
+        "    hl.exec_cmd(\"sleep 0.05; /usr/bin/kawaro drop --other-key\")\n",
+    );
+    assert_eq!(count(&alt_lua, escape_route), 1, "{alt_lua}");
+    assert_eq!(count(&alt_lua, ordinary_route), 1, "{alt_lua}");
+    assert!(
+        alt_lua.contains(&format!("{escape_route}{ordinary_route}")),
+        "Escape must precede the ordinary-key fallback: {alt_lua}"
+    );
     let alt_conf = hyprland_bind_text("Alt", Syntax::Hyprlang, "/usr/bin/kawaro");
     assert_eq!(hook(&alt_conf), 0);
     let binds = alt_conf.lines().filter(|l| l.starts_with("bind")).count();
