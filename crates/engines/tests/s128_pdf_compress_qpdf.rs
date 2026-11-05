@@ -7,6 +7,7 @@
 
 use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{ActionDef, CancelToken, Engine, EngineError, MediaKind, OutputMode, Task};
+#[cfg(unix)]
 use kawaro_engines::locate::{self, Os, Program};
 use lopdf::{Document, Object, Stream, dictionary};
 use std::path::{Path, PathBuf};

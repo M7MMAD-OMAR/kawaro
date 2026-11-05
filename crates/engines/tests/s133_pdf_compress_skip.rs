@@ -24,6 +24,7 @@ fn run(engine: &GhostscriptEngine, task: &Task) -> Result<TaskOutcome, EngineErr
     engine.run(task, &|_fraction| {}, &CancelToken::new())
 }
 
+#[cfg(unix)]
 fn fake_gs(dir: &Path, name: &str, size: usize) -> PathBuf {
     let path = dir.join(name);
     let script = String::from(
@@ -39,6 +40,7 @@ fn fake_gs(dir: &Path, name: &str, size: usize) -> PathBuf {
     path
 }
 
+#[cfg(unix)]
 fn input_pdf(dir: &Path) -> PathBuf {
     let path = dir.join("doc.pdf");
     let mut bytes = b"%PDF-1.5\n".to_vec();
