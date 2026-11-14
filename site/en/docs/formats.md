@@ -22,6 +22,9 @@ What the hive does for each kind of file. An action whose tool is missing does n
 | Convert to GIF | built in |  |
 | Convert to TIFF | built in |  |
 | Convert to BMP | built in |  |
+| Resize to a size | built in |  |
+| Crop image | built in |  |
+| Compress to a size | built in |  |
 
 ## Video
 
@@ -70,4 +73,12 @@ What the hive does for each kind of file. An action whose tool is missing does n
 | Merge PDFs into one | built in | 2 or more files |
 | Convert pages to PNG images | Ghostscript |  |
 | Rotate pages 90 degrees | built in |  |
-| Split into one PDF per page | built in |  |
+| Extract text | Poppler |  |
+| Split into several PDFs | built in |  |
+| Extract pages | built in |  |
+| Delete pages | built in |  |
+| Reorder pages | built in |  |
+| Edit metadata | built in |  |
+| Make a fast web view PDF | qpdf |  |
+| Clean the PDF structure | qpdf |  |
+| Check the PDF and report encryption | qpdf |  |

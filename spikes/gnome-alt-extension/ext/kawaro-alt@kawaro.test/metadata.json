@@ -1,0 +1,7 @@
+{
+  "uuid": "kawaro-alt@kawaro.test",
+  "name": "Kawaro Alt-hold spike",
+  "description": "Spike: capture Alt_L press and release globally and feed kawaro drop --hold / --release.",
+  "shell-version": ["50"],
+  "session-modes": ["user"]
+}

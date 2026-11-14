@@ -29,7 +29,7 @@ PAD = 4
 BASE = "https://kawaro.sbarah.com/"
 REPO = "https://github.com/M7MMAD-OMAR/kawaro"
 RELEASES = REPO + "/releases"
-VERSION = "0.5.0"
+VERSION = "0.5.1"
 # S-061: download links point at release assets only once the release exists.
 # Set RELEASE_PUBLISHED=1 after the tag and its assets are on GitHub.
 PUBLISHED = os.environ.get("RELEASE_PUBLISHED", "0") == "1"
@@ -929,7 +929,8 @@ GUIDE = ROOT / "docs" / "guide"
 GUIDE_SLUGS = ["start", "install", "use", "how", "shortcuts", "settings", "troubleshoot", "contribute"]
 DOC_ORDER = ["start", "install", "use", "how", "formats", "shortcuts", "settings", "troubleshoot", "contribute"]
 EDIT_BASE = REPO + "/blob/main/docs/guide/"
-TOOLS = {"ffmpeg": "FFmpeg", "ghostscript": "Ghostscript", "office": "LibreOffice"}
+TOOLS = {"ffmpeg": "FFmpeg", "ghostscript": "Ghostscript", "office": "LibreOffice",
+         "poppler": "Poppler", "qpdf": "qpdf"}
 GROUPS = [("images", "image", "الصور", "Images"), ("video", "video", "الفيديو", "Video"),
           ("audio", "audio", "الصوت", "Audio"), ("documents", "document", "المستندات", "Documents"),
           ("pdf", "pdf", "PDF", "PDF")]

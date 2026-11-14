@@ -1,6 +1,14 @@
 # Releases
 
-## 0.5.0
+## 0.5.1
+
+## 0.5.1 (2026-11-05)
+- Release cut metadata ([S-141](backlog/S-141-publish-0.5.1.md))
+- Typed action options as data ([S-117](backlog/S-117-action-options.md))
+- A local MCP server, read side ([S-121](backlog/S-121-mcp-read-only.md))
+- The MCP write tools ([S-122](backlog/S-122-mcp-write-tools.md))
+- Per-run values on the wire and in the CLI ([S-120](backlog/S-120-cli-set-and-schema.md))
+- PDF page operations ([S-123](backlog/S-123-pdf-page-operations.md))
 
 ## 0.5.0 (2026-10-31)
 - X11 support ([S-113](backlog/S-113-x11-hive-window.md), [S-114](backlog/S-114-x11-private-

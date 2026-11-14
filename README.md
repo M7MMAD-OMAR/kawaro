@@ -47,6 +47,8 @@ Kawaro comes from «كوّارة» (kawwara), an old Arabic word for a beehive. 
 
 ## Download and install
 
+Candidate: **0.5.1**, dated 2026-11-05 ([release notes](docs/release-notes-0.5.1.md)). The current public release remains **0.5.0** until the new tag and publication are verified. These install links select published releases, not unverified candidate packages.
+
 Get the latest release from the [releases page](https://github.com/M7MMAD-OMAR/kawaro/releases/latest), or from [kawaro.sbarah.com](https://kawaro.sbarah.com/).
 
 | System | File | How |
@@ -57,7 +59,7 @@ Get the latest release from the [releases page](https://github.com/M7MMAD-OMAR/k
 
 Every release has a `SHA256SUMS` file to verify your download. Package channels and what is live (apt and Scoop are live, WinGet waits for review, AUR and COPR wait for accounts): [distribution guide](docs/distribution.md). After installing, reopen your file manager and right-click a file.
 
-**Windows warning.** The Windows files are signed with a self-signed test certificate, so SmartScreen warns on first run: click "More info", then "Run anyway" ([details](docs/windows-smartscreen.md)). On Windows 11 the Kawaro item is under "Show more options". A trusted certificate is not available to the project for now; WinGet and Scoop are the other install routes.
+**Windows warning.** The Windows files are signed with a self-signed test certificate, so SmartScreen warns on first run: click "More info", then "Run anyway" ([details](docs/windows-smartscreen.md)). On Windows 11 the Kawaro item is under "Show more options". A trusted certificate is not available to the project for now; Scoop is another install route; WinGet is not installable until moderator approval.
 
 **Updates.** Kawaro checks for new versions and updates itself: Settings, Updates shows the installed version, "Check for updates" and "Update now". The command line does the same with `kawaro update`.
 
@@ -77,14 +79,15 @@ cd kawaro
 
 | Platform | Tested | What works |
 |---|---|---|
-| Windows 10 and 11 | Installed and run in a Windows 11 virtual machine | MSI, right-click menu, tray icon, drop hive |
-| Hyprland 0.56 | Tested | Works as a layer at the pointer, with drop and long press |
-| KDE Plasma 6 (KWin 6.7) | Tested | Works as a layer, with focus, drop and the shortcut |
-| GNOME 50 | Tested | Works as a centred window |
-| Fedora 41 and later (RPM), Ubuntu 22.04 and 24.04, Debian 12 (DEB) | Tested | The packages install and run |
-| Sway and wlroots | Not tested | Expected to work as a layer |
-| X11 | Tested in a virtual X server with xfwm4, not on a real desktop yet | Hive at the pointer, drop with `kawaro drop` |
-| macOS | Not supported yet | Planned |
+| Windows 10 and 11 | Tested in a virtual Windows 11 machine, historical baseline only | New customization UI runtime and physical hardware unverified; self-signed, SmartScreen warns |
+| Hyprland | Tested in the accepted private native S-139/S-140 scope | Layer/window paths checked in that scope, not universal desktop acceptance |
+| KDE Plasma and GNOME | Virtual/private compositor evidence only | Real desktop focus/activation remains open, [issue #1](https://github.com/M7MMAD-OMAR/kawaro/issues/1) |
+| Fedora, Ubuntu and Debian packages | Tested historical release packages only | 0.5.1 packages and channels not yet verified |
+| Sway and wlroots | Not tested | Layer path not accepted here |
+| X11 | Tested only in a private virtual X server with xfwm4 | Real GNOME/KDE X11 desktops and file-manager drag sources remain unverified |
+| macOS | Not supported | No runtime acceptance |
+
+S-138 whole-output far coverage and final position remain unverified. Fresh under-150 ms show/preview timing, IME, physical hotplug, legacy Hyprlang runtime and separate compositor Closed injection remain unverified. Bare Alt is not a supported GNOME/KDE portal shortcut; use a supported chord such as Super+Z.
 
 ## Windows
 
@@ -99,8 +102,10 @@ kawaro open --from-clipboard          # open the hive for copied files
 ```
 
 **MCP for local AI apps.** `kawaro mcp` can serve the same actions to a
-local AI host over stdio, off by default and read only first; nothing leaves
-the machine. See [Use Kawaro from a local AI app](docs/mcp.md).
+local AI host over stdio, off by default and read-only first. Restrict
+`allowed_roots`, opt in to writes, and configure audit logging as needed.
+Kawaro processes files locally; the host has its own privacy policy for tool
+results. See [Use Kawaro from a local AI app](docs/mcp.md).
 
 On Hyprland you can bind Super plus right-click to open the hive for the
 selected files directly; see
@@ -109,6 +114,8 @@ selected files directly; see
 To show the hive while you drag a file, bind `kawaro drop` to a shortcut,
 Super+Z by default; GNOME, KDE and Hyprland steps are in
 [Drop shortcut](docs/drop-shortcut.md).
+
+DropFirst is the default; an existing saved choose-during-drag preference is preserved. The customization preview is a source draft, not rendered output. On Hyprland, `kawaro doctor --repair` updates only the generated owned binding file, which must be sourced by your active configuration. Custom legacy Kawaro sections need equivalent S-140 updates manually; foreign bindings are not edited. See the [release notes](docs/release-notes-0.5.1.md) for optional system engines (qpdf is not downloaded) and validation limits.
 
 ## Settings
 
@@ -135,7 +142,7 @@ Kawaro is free and built in the open. If it helps you, you can support its devel
 
 ## Distribution and signing
 
-Current release: 0.5.0. apt and Scoop are live and update on every release. The WinGet package (`Sbarah.Kawaro`) passed all automated checks and waits for a volunteer moderator since 2026-10-27, so it is not installable yet. AUR and COPR wait for accounts that only a person can create. The maintainer has no code signing certificate available, so the Windows build stays self-signed and SmartScreen warns; the Microsoft Store and SignPath are parked, not planned for now. Details: [distribution status](docs/distribution-status.md) and the [code signing policy](CODE_SIGNING_POLICY.md).
+Current release: 0.5.1. This source is the candidate release cut, not a verified published tag; public packages remain 0.5.0 until publication is complete. apt and Scoop are live and update on every release. The WinGet package (`Sbarah.Kawaro`) passed all automated checks and waits for a volunteer moderator since 2026-10-27, so it is not installable yet. AUR and COPR wait for accounts that only a person can create. The maintainer has no code signing certificate available, so the Windows build stays self-signed and SmartScreen warns; the Microsoft Store and SignPath are parked, not planned for now. Details: [distribution status](docs/distribution-status.md) and the [code signing policy](CODE_SIGNING_POLICY.md).
 
 ## License
 

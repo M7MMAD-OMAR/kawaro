@@ -51,6 +51,12 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
+    <release version="0.5.1" date="2026-11-05">
+      <description>
+        <p>Typed action options and native customization with a source draft preview, opt-in local stdio MCP, more PDF and image operations, DropFirst by default with saved preferences preserved, and Hyprland Escape/release cancellation fixes. Originals remain unchanged. Real GNOME and KDE focus remains unverified; Windows is self-signed, new UI runtime and physical hardware are unverified, and macOS is unsupported.</p>
+        <p xml:lang="ar">خيارات إجراءات محددة الأنواع وتخصيص أصلي مع معاينة مسودة المصدر، وMCP محلي اختياري عبر stdio، وعمليات PDF وصور إضافية، والإفلات أولاً افتراضياً مع حفظ التفضيلات، وإصلاح إلغاء Escape وترك المفتاح على Hyprland. تبقى الأصول دون تغيير. التركيز على GNOME وKDE الحقيقيين غير متحقق منه؛ ويندوز ذاتي التوقيع وتشغيل الواجهة الجديدة والعتاد الفعلي غير متحقق منهما، وmacOS غير مدعوم.</p>
+      </description>
+    </release>
     <release version="0.5.0" date="2026-10-31">
       <description>
         <p>Adds X11 support: the hive opens at the pointer as an ordinary window, and kawaro drop opens it above other windows so a dragged file can be dropped on a cell. It was checked in a private virtual X session with xfwm4, not yet on a real GNOME or KDE X11 desktop. Known limits: the Windows files are still self-signed, so SmartScreen or Defender may warn.</p>

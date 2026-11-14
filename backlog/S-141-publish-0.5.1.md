@@ -1,5 +1,5 @@
 # S-141 Publish the reviewed backlog as Kawaro 0.5.1
-Status: approved publication plan; reviewed source pushed, resolving CI before version implementation or tag
+Status: repaired main publicly green; 0.5.1 metadata and eight real private captures prepared, full gates/review/public version CI pending before tag
 
 ## Story
 As a user, I want the accepted local changes available as a verifiable public release. Cut 0.5.1, not 0.6.0, which remains reserved for native Windows work. Baseline supplied by Lead: local main b7235be, public main d9e9f70, tracked tree clean, unrelated untracked spikes excluded; v0.5.1 absent. Recheck before execution.
