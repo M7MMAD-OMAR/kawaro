@@ -1,5 +1,8 @@
 # S-139 Correct compact customization without moving or consuming the hive
-Status: implemented, locally accepted and installed, 2026-11-05; unreleased
+Status: implemented with historical local acceptance and installation; source public, release verification pending.
+
+Current-source note (2026-11-15): main contains the source discussed here. The original problem statement and dated logs below are historical evidence, not a claim that the original bug is still present or that new acceptance/release gates passed. Current feature plans: [active programme](../docs/PLAN.md). Executable checks remain deferred under the current owner instruction.
+
 
 ## Story
 As a user, I want readable, exactly editable options and a reversible customization step, preserving one-click defaults and one-drop ChooseDuringDrag.

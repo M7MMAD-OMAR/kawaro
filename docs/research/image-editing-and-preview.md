@@ -1,5 +1,7 @@
 # Image editing, live preview and the option UI
 
+> Historical research baseline. The source now contains later option, customization, PDF/image and MCP work. For current facts and the planned next scope, read [2026-11-15 evidence](2026-11-15-next-features-evidence.md) and the [product specification](../specs/2026-11-15-next-features.md). Preserve the original dated conclusions below as historical context.
+
 Research note, not a decision. Author: image-researcher. Date 2026-11-04. Question: which image capabilities Kawaro should add, and how a customization step with a live preview fits a hexagonal hive drawn by the Slint software renderer. External claims link to Sources at the end; anything not verified by fetching a primary page is marked **unverified**. Effort sizes are guesses.
 
 ## What exists today (repo facts)

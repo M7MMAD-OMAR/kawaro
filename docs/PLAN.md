@@ -2,7 +2,33 @@
 
 The original planning document was never exported, so this plan rebuilds it from `CLAUDE.md` and the hive spike (`docs/adr/0001-ui-toolkit.md`). Any later conflict is settled here with a written decision.
 
-## Where we are (2026-11-05)
+## Active feature programme (2026-11-15)
+
+The owner requested complete research and planning for the next useful features. This programme is the current development order; older release sections remain historical context. Product code is not implemented by these plans.
+
+- Product scope and decisions: [next features specification](specs/2026-11-15-next-features.md).
+- Current source and official technical sources: [research evidence](research/2026-11-15-next-features-evidence.md).
+- Detailed files, proposed APIs, failure behavior and deferred focused cases: [implementation plan](superpowers/plans/2026-11-15-next-features.md).
+- Proposed architecture boundary: [ADR 0016](adr/0016-image-preview-and-presets.md), not accepted or implemented.
+
+| Order | Story | Deliverable | Prerequisite | State |
+| --- | --- | --- | --- | --- |
+| 1 | [S-142](../backlog/S-142-transformed-image-preview.md) | Shared transformed image preview, explicit encoded mode | Existing options/customization and shared image preparation | Planned |
+| 2 | [S-143](../backlog/S-143-named-user-presets.md) | Explicit named image-action presets, versioned separate store | Options validation; S-142 preview update contract | Planned |
+| 3 | [S-144](../backlog/S-144-batch-results-and-safe-retry.md) | Quiet batch outcomes and safe failed-unit retry | Production queue task identity | Planned |
+| 4 | [S-145](../backlog/S-145-unavailable-action-explanations.md) | Unified unavailable-action reasons and curated help | Existing filtering, doctor and engine lookup | Planned |
+| 5 | [S-146](../backlog/S-146-local-image-ocr.md) | Optional Tesseract image-to-text, installed languages | S-145 language capability report | Planned |
+| 6 | [S-147](../backlog/S-147-searchable-pdf-feasibility.md) | Searchable-PDF dependency/correctness decision | OCR contract and primary PDF sources | Desktop study written; qualification/final decision planned, no adapter |
+
+Current limits: **no builds, tests, benchmarks, compositors, installers, model inference, factory or CI during planning**. Test cases are written as future acceptance designs; they have not run. Later feature development uses focused affected checks only when their execution is resumed. Full release validation remains a separate stage. Pi/MiniMax-M3.1-Flash is the selected implementation/research model; parent owns all planning and review.
+
+Other-system adaptation and qualification follow stable core feature behavior. Plan real GNOME/KDE focus and Alt/pointer, Windows integration and real X11 evidence in that later phase. Preserve portable contracts now without claiming support from static review. macOS remains unsupported until its own feasibility plan. This ordering does not certify an absence of defects.
+
+Existing S-138 remains a separate draft, blocked on the distant-drop baseline and release-before-drop semantics. Existing S-141 remains separate publication work with deferred gates; 0.5.0 is public and 0.5.1 is only a candidate. No tag, feature implementation, release date or new performance claim is authorized by writing these plans. Source/status reconciliation for S-132/S-133/S-134 is required before changing acceptance labels.
+
+Next free story: **S-148**. Do not allocate the searchable-PDF implementation before the S-147 decision.
+
+## Historical release baseline (2026-11-05)
 
 **Now:** 0.5.0 is the current release (tag v0.5.0, 2026-10-31). apt and Scoop publish on every tag. WinGet ([winget-pkgs#462805](https://github.com/microsoft/winget-pkgs/pull/462805)) passed all automated checks and waits for a volunteer moderator since 2026-10-27. AUR and COPR need an account only a person can create, so they stay skipped. The maintainer has no code signing certificate and no identity document usable for the Microsoft Store verification, so the Windows build stays self-signed (SmartScreen warns); the Store, SignPath and a paid certificate are parked, not planned for now.
 
@@ -10,7 +36,7 @@ The original planning document was never exported, so this plan rebuilds it from
 
 **Consolidation pass (2026-11-15):** every non-`main` branch and every extra worktree was consolidated into `main`. The implementation was done by the selected Pi implementation agent (`pi/minimax/MiniMax-M3.1-Flash`); the parent agent owned the planning and the final review. No software factory job was used. The 0.5.1 candidate source, the restored spike sources (`spikes/alt-portal/`, `spikes/gnome-alt-extension/`) and the historical goldfish review were preserved and pushed to `main` with a `[skip ci]` commit marker. The full local gate set and the remote CI were **deferred by owner order for this one consolidation push**, so no gate result is claimed for it. Before that deferral the parent ran the six focused site generator tests and `git diff --check`; the full gate run was stopped during the settings snapshot release compile and produced no success result. The public release stays **0.5.0**. The 0.5.1 tree stays a candidate with no tag, no packages, no signatures and no channel publication. Evidence, the branch and worktree counts and the cleanup record are in `docs/maintenance/2026-11-15-consolidation.md`.
 
-**0.5.1 candidate (S-141):** the release cut includes accepted S-117 through S-140 except S-138. Typed options, customization with a source-draft preview (not transformed output), local opt-in/read-only-first MCP, PDF/image operations and drag-session fixes are included. S-139/S-140 source and the CI repair in PR #11 are public on main `c0444b0858204370f40478eaec3726b612264ace`; all three CI jobs passed in run `42058502635` (Lead-confirmed). Current public release remains **0.5.0** until tagging and publication verification. Candidate metadata does not certify a 0.5.1 tag, packages, signatures, feeds or channels. Lead owns fresh version snapshots, four public General captures, full Linux and both complete Windows stages including Release DLL/resources, and fresh review before a candidate PR push; exact public main CI must be green before tagging. Historical S-139/S-140 private native layer/window and installed Release evidence remains scoped to those reviewed builds, not new-version acceptance. S-138 remains reserved DRAFT [#9](https://github.com/M7MMAD-OMAR/kawaro/issues/9) for whole-output/final-position coverage. Real GNOME/KDE focus stays the top open risk [#1](https://github.com/M7MMAD-OMAR/kawaro/issues/1), not closed by this release. Fresh show/preview timing, IME, physical hotplug, legacy Hyprlang runtime, separate compositor Closed injection, the new Windows UI runtime and physical Windows remain unverified; Windows stays self-signed with SmartScreen warnings, macOS unsupported. Next free story: **S-142**; 0.6.0 remains reserved for Windows native work.
+**0.5.1 candidate (S-141):** the release cut includes accepted S-117 through S-140 except S-138. Typed options, customization with a source-draft preview (not transformed output), local opt-in/read-only-first MCP, PDF/image operations and drag-session fixes are included. S-139/S-140 source and the CI repair in PR #11 are public on main `c0444b0858204370f40478eaec3726b612264ace`; all three CI jobs passed in run `42058502635` (Lead-confirmed). Current public release remains **0.5.0** until tagging and publication verification. Candidate metadata does not certify a 0.5.1 tag, packages, signatures, feeds or channels. Lead owns fresh version snapshots, four public General captures, full Linux and both complete Windows stages including Release DLL/resources, and fresh review before a candidate PR push; exact public main CI must be green before tagging. Historical S-139/S-140 private native layer/window and installed Release evidence remains scoped to those reviewed builds, not new-version acceptance. S-138 remains reserved DRAFT [#9](https://github.com/M7MMAD-OMAR/kawaro/issues/9) for whole-output/final-position coverage. Real GNOME/KDE focus stays the top open risk [#1](https://github.com/M7MMAD-OMAR/kawaro/issues/1), not closed by this release. Fresh show/preview timing, IME, physical hotplug, legacy Hyprlang runtime, separate compositor Closed injection, the new Windows UI runtime and physical Windows remain unverified; Windows stays self-signed with SmartScreen warnings, macOS unsupported. Next free story: **S-148**; 0.6.0 remains reserved for Windows native work.
 
 ### Blocked on the owner or outside resources
 

@@ -1,5 +1,8 @@
 # S-132 image.compress-to: reach a byte target by downscaling when quality alone cannot
-Status: in progress (this block, 2026-11-04; found by the real e2e run of 2026-11-04)
+Status: source implementation present; historical acceptance scope is recorded below. Public release verification remains pending.
+
+Current-source note (2026-11-15): main contains the source discussed here. The original problem statement and dated logs below are historical evidence, not a claim that the original bug is still present or that new acceptance/release gates passed. Current feature plans: [active programme](../docs/PLAN.md). Executable checks remain deferred under the current owner instruction.
+
 
 ## Story
 As a user, I want to ask for a picture under a size in bytes and actually get one, so that I can attach or upload it without guessing dimensions myself. Today `image.compress-to` only lowers JPEG, WebP or AVIF quality. On an ordinary 2400 x 1600 photo the engine's quality 1 is 106,428 bytes, larger than the 68,625 byte source, so a 50,000 byte target fails and writes nothing. The real e2e run recorded ImageMagick quality 1 at 23,435 bytes and PIL at 61,324, so the quality ladder alone is the limit, not the format.

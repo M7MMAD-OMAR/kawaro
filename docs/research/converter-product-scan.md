@@ -1,5 +1,7 @@
 # Converter product scan: what Kawaro should copy, refuse and build next
 
+> Historical research baseline. The source now contains later option, customization, PDF/image and MCP work. For current facts and the planned next scope, read [2026-11-15 evidence](2026-11-15-next-features-evidence.md) and the [product specification](../specs/2026-11-15-next-features.md). Preserve the original dated conclusions below as historical context.
+
 Status: research note, decision input for the owner question of November 2026.
 Date: 2026-11-04. Scope: product, UX, pricing, "completeness" and the MCP and AI-agent angle.
 Method: primary product pages fetched with `web_fetch`; DuckDuckGo HTML only to find URLs, because the search APIs failed in this session. 25 products and 6 MCP or AI sources were read. Cells marked **unverified** could not be checked against a primary page today. Effort letters (S, M, L) are guesses, not measurements. No file in this repo other than this one was modified.

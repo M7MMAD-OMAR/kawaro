@@ -1,5 +1,7 @@
 # Agent integration and product expansion: study and recommendation
 
+> Historical research baseline. The source now contains later option, customization, PDF/image and MCP work. For current facts and the planned next scope, read [2026-11-15 evidence](2026-11-15-next-features-evidence.md) and the [product specification](../specs/2026-11-15-next-features.md). Preserve the original dated conclusions below as historical context.
+
 Status: decision input for the owner, not a decision. Date 2026-11-04.
 This note synthesises four parallel research files and a repo audit. Estimates are guesses and are labelled as such.
 

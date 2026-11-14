@@ -1,5 +1,8 @@
 # S-134 MCP audit_path: make the config key real, with rotation
-Status: in progress (this block, 2026-11-04; found by the real e2e run of 2026-11-04)
+Status: source implementation present; historical acceptance scope is recorded below. Public release verification remains pending.
+
+Current-source note (2026-11-15): main contains the source discussed here. The original problem statement and dated logs below are historical evidence, not a claim that the original bug is still present or that new acceptance/release gates passed. Current feature plans: [active programme](../docs/PLAN.md). Executable checks remain deferred under the current owner instruction.
+
 
 ## Story
 As a user or administrator, I want to choose where the MCP audit log lives with `[mcp] audit_path`, so that the record of what a model asked this machine to do can go to a state folder, a mounted log, or a per-project location instead of always landing in the Kawaro config folder. The key exists in the struct today but is not read from TOML, so the documented and actual behaviour disagree.

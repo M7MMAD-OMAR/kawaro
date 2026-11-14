@@ -1,5 +1,8 @@
 # S-140 Reliably cancel held Alt sessions with Escape and release
-Status: implemented, independently reviewed, natively verified and installed locally; active Kawaro integration updated, public source/release pending
+Status: implemented with historical independent/native acceptance and local installation; source public, release verification pending.
+
+Current-source note (2026-11-15): main contains the source discussed here. The original problem statement and dated logs below are historical evidence, not a claim that the original bug is still present or that new acceptance/release gates passed. Current feature plans: [active programme](../docs/PLAN.md). Executable checks remain deferred under the current owner instruction.
+
 
 ## Story
 As a file-manager user, I want Escape or release-before-drop to cancel without the watchdog, and a fresh drag to work without restarting.

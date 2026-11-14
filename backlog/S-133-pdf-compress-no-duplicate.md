@@ -1,5 +1,8 @@
 # S-133 pdf.compress: no duplicate file when the result is not smaller
-Status: in progress (this block, 2026-11-04; found by the real e2e run of 2026-11-04)
+Status: source implementation present; historical acceptance scope is recorded below. Public release verification remains pending.
+
+Current-source note (2026-11-15): main contains the source discussed here. The original problem statement and dated logs below are historical evidence, not a claim that the original bug is still present or that new acceptance/release gates passed. Current feature plans: [active programme](../docs/PLAN.md). Executable checks remain deferred under the current owner instruction.
+
 
 ## Story
 As a user, when a PDF is already compressed, I want `pdf.compress` to tell me there is no smaller result instead of writing a second file named `-compressed` that is byte identical to the original, so that I do not end up with a duplicate and a misleading name. The keep-smaller rule is right and stays: the engine never replaces a good original with a larger rewrite.

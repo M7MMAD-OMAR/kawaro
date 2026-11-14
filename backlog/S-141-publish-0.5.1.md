@@ -1,5 +1,8 @@
 # S-141 Publish the reviewed backlog as Kawaro 0.5.1
-Status: repaired main publicly green; 0.5.1 metadata and eight real private captures prepared, full gates/review/public version CI pending before tag
+Status: 0.5.1 candidate source/metadata public; full candidate gates and release publication deferred by owner. Historical green CI applies only to its recorded SHA.
+
+Current-source note (2026-11-15): main contains the source discussed here. The original problem statement and dated logs below are historical evidence, not a claim that the original bug is still present or that new acceptance/release gates passed. Current feature plans: [active programme](../docs/PLAN.md). Executable checks remain deferred under the current owner instruction.
+
 
 ## Story
 As a user, I want the accepted local changes available as a verifiable public release. Cut 0.5.1, not 0.6.0, which remains reserved for native Windows work. Baseline supplied by Lead: local main b7235be, public main d9e9f70, tracked tree clean, unrelated untracked spikes excluded; v0.5.1 absent. Recheck before execution.

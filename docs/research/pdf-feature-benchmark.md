@@ -1,5 +1,7 @@
 # PDF feature benchmark and engine plan
 
+> Historical research baseline. The source now contains later option, customization, PDF/image and MCP work. For current facts and the planned next scope, read [2026-11-15 evidence](2026-11-15-next-features-evidence.md) and the [product specification](../specs/2026-11-15-next-features.md). Preserve the original dated conclusions below as historical context.
+
 Status: research note for the PDF expansion. Date 2026-11-04. Scope: which PDF features Kawaro should build, in what order, on which engine, under which licence.
 
 Method: web_search was unavailable in this session, so every external fact below comes from a direct fetch of a primary page (official docs, project documentation, repository licence file) listed in Sources, all accessed 2026-11-04. Pages that could not be read are marked unverified instead of guessed. Effort sizes, memory figures and timings are estimates and are labelled as such.
