@@ -112,9 +112,10 @@ Reachability is measured against `main` at `c0444b0`. `ahead` is
 `git rev-list --count main..BRANCH`. `patch+` is the count of `+` lines from
 `git cherry main BRANCH`, that is, commits whose patch is not already in `main`.
 
-Every branch below is **pending** deletion from the local repository, and the one
-remote branch other than `main`, `origin/fix/ci-portability-and-fd-identity`, is
-**pending** deletion on `origin`. Nothing has been deleted.
+Every branch below was **pending** deletion from the local repository, and the one
+remote branch other than `main`, `origin/fix/ci-portability-and-fd-identity`, was
+**pending** deletion on `origin`. The deletion was executed on 2026-11-15, after the
+source push; see the "Closeout" section.
 
 ### Ancestors, patch already in `main` (22 branches)
 
@@ -199,8 +200,9 @@ change, so they count as two commits but one change.
 At the baseline, 14 worktrees: the main checkout plus 13 extra. Every extra worktree
 except `s016a` and the detached `spikes/gnome-alt-extension` was clean. On 2026-11-15
 the GNOME worktree was parked outside the repository with `git worktree move`, so the
-registered count is still 14 while one of them now lives under
-`~/kawaro-consolidation-2026-11-15/parked-worktrees/`.
+registered count was still 14 while one of them lived under
+`~/kawaro-consolidation-2026-11-15/parked-worktrees/`. All 13 extra worktrees were
+removed later on the same day, after the source push; see the "Closeout" section.
 
 | Worktree | HEAD | Branch or detached | State | Payload | Disposition |
 | --- | --- | --- | --- | --- | --- |
@@ -241,9 +243,10 @@ refs.
 
 ## Executed restoration, 2026-11-15
 
-Only restoration was executed. No commit, no push, no tag, no branch deletion, no
-worktree deletion and no remote write happened. The parked GNOME worktree is the only
-change to the worktree list.
+Only restoration was executed in this pass. At the time of writing there was no
+commit, no push, no tag, no branch deletion, no worktree deletion and no remote write.
+The parked GNOME worktree was the only change to the worktree list. The later push
+and cleanup are recorded in the "Closeout" section.
 
 | Action | Result | Evidence |
 | --- | --- | --- |
@@ -258,10 +261,11 @@ change to the worktree list.
 The KDE native spike has no source and none was written. `spikes/kde-alt-native/`
 is still a registered worktree holding a checkout of `50715f0` and nothing else.
 
-## Pending consolidation actions
+## Consolidation actions, the list as it stood before the execution
 
-Items 1 to 3 below are done for the restoration part only. Everything else is
-still pending, and the cleanup is not complete.
+The numbered list below was written before the execution and is kept as the plan of
+record. Items 1 to 3 are done, the rest was executed on 2026-11-15 and is recorded in
+the "Closeout" section at the end of this document.
 
 1. Done on 2026-11-15: `spikes/alt-portal/` and `spikes/gnome-alt-extension/` were
    added as tracked spike source and `docs/reviews/goldfish-zoomout-s083-s088.md`
@@ -504,3 +508,121 @@ Notes for the parent:
   ancestors of `main`, 10 of them not, and 18 distinct unique commits over the ten
   non-ancestor branches.
 - The restoration evidence is listed in "Executed restoration".
+
+## Closeout, 2026-11-15
+
+This section is the authoritative record of the finished consolidation. Where an
+earlier section of this document says "pending" or "nothing was pushed", that was the
+historical baseline and it no longer describes the repository.
+
+### What was pushed
+
+| Item | Value |
+| --- | --- |
+| Parent commit | `c0444b0858204370f40478eaec3726b612264ace` (the baseline `main` tip) |
+| Source consolidation commit | `chore: consolidate candidate sources and planning [skip ci]`, 81 paths |
+| Push | `git push origin main`, fast-forward only, no force, no tag, no pull request |
+| Remote `main` after the push | equals the local `HEAD` of the source consolidation commit |
+| Remote CI | not started, by the `[skip ci]` marker in the commit subject. No workflow was disabled and no test assertion was changed |
+| Local gate set | **not run, deferred by owner order.** No gate result is claimed for this commit |
+| Public release | still **0.5.0**. The 0.5.1 tree stays a candidate: no tag, no packages, no signatures, no feed and no channel publication |
+
+The 81 paths are the 57 modified tracked paths of the candidate set, the 19 restored or
+added source paths (`spikes/alt-portal/`, `spikes/gnome-alt-extension/`,
+`docs/reviews/goldfish-zoomout-s083-s088.md`, `tests/site/test_formats_tools.py`) and
+the 5 new documentation paths (`docs/maintenance/2026-11-15-consolidation.md`,
+`docs/release-notes-0.5.1.md`, `docs/release-notes-0.5.1.ar.md`,
+`docs/superpowers/plans/2026-11-15-main-consolidation.md`,
+`docs/whats-new/0.5.1.json`).
+
+What the commit does not touch: any product Rust or Slint source, any test
+assertion, and any workflow file. The only product-adjacent changes are the version
+bump already carried by the candidate set, the regenerated site tree and the
+generator tool mapping.
+
+### What was removed, and what was checked before the removal
+
+The removal happened only after the source was safely on `origin/main`, and only
+after each payload was compared with its preserved copy.
+
+| Removed | Count | Check before removal |
+| --- | --- | --- |
+| Extra registered worktrees | 13 | Every one was re-read with `git status` first. None held a `target/` directory. The largest was 56 MB. The dirty payloads were compared byte for byte, see below. |
+| Local non-`main` branches | 32 | Each branch is classified in the branch table above as an ancestor of `main` or as a branch whose unique commits are semantically superseded, and every one of them is retained in the verified bundle. |
+| Remote branches other than `main` | 1 (`origin/fix/ci-portability-and-fd-identity`) | Deleted by its exact name after the source push. `origin/HEAD` stays as the symbolic ref to `main`. |
+
+Byte identity checks that ran before the removals:
+
+- The `s016a` dirty payload: the six untracked files
+  (`tests/apt/containers.sh`, `tests/apt/lib.sh`, `tests/apt/repo_builder.sh`,
+  `tests/apt/run_all.sh`, `tests/apt/signing.sh`,
+  `tests/release/install_commands.sh`) are SHA-256 identical to the files in
+  `worktree-payloads/s016a/untracked-apt-tests-and-install-commands.tar.gz`, and the
+  modified `tests/release/run_all.sh` diff is SHA-256 identical to
+  `worktree-payloads/s016a/tracked.patch`
+  (`e0ddc9bb6b9db164d6319ad82018c76c032eb79a0565cf333ae687514fa45b92`).
+- The GNOME Alt spike: the six source files in the parked worktree are SHA-256
+  identical to the restored copies in `main`; the `README.md` differs on purpose, the
+  restored one carries the added provenance note.
+- The KDE native spike: the worktree was clean and held no
+  `spikes/kde-alt-native/` source, because that spike was never written.
+- The `lfm3` research worktree held ignored OCR scratch output under
+  `spikes/lfm3/out/`. It was copied to `staging/lfm3-scratch/` before the removal.
+- The `s081` worktree held the four `debug_test*` binaries and their four `.rs`
+  files. They are tracked in `10462b5`, they are excluded from the backup by
+  design as build artifacts, and the commit survives in the bundle.
+
+### What was kept
+
+- The external backup at `~/kawaro-consolidation-2026-11-15`, including the 41 MB
+  bundle, the ref inventory, the patches, the payload archives and the restored
+  staging copies.
+- The two stashes, `stash@{0}` and `stash@{1}`.
+- The 20 tags, from `v0.1.0` to `v0.5.0`, plus `v0.4.0-beta.1` and `updates`.
+- The five `refs/original/*` refs and the one `refs/codex/...` checkpoint.
+- The root checkout and its `target/` build directory.
+
+### Final Git state
+
+Verified with Git only, no build, no test and no lint:
+
+- Local branches: `main` only.
+- Remote branches: `main` only.
+- Worktrees: the root checkout only.
+- `git status`: clean.
+- `HEAD` equals `origin/main`.
+
+### Remaining gates
+
+The consolidation is complete as a Git operation. It is **not** a release
+acceptance. The following stay open and are not claimed anywhere:
+
+- The full local gate set (`~/kawaro-publish/verify-version-0.5.1.sh`) for the
+  consolidation commit.
+- The remote CI on the consolidation commit.
+- The 0.5.1 publication itself: tag, packages, signatures, feeds and channels. This
+  needs a fresh authorization to run the gates, and it stays a separate story from
+  this consolidation.
+
+### Ordered next work
+
+The order below is the one proposed in "Recommended next work" and kept in
+`docs/PLAN.md` and `CLAUDE.md`:
+
+1. The actual 0.5.1 publication, S-141, as a separate job. It needs a fresh
+   authorization to run the full gate set and the remote CI.
+2. S-082, the real GNOME and KDE focus and activation check. It needs real
+   desktops or prepared virtual machines with a file manager session. This is the top
+   open risk.
+3. S-138, the whole-output and final-position coverage. It needs a recorded
+   near and far DropFirst baseline first, and the release-before-drop semantics
+   confirmed in writing.
+4. The native Alt and pointer paths, S-075b and S-077b. The GNOME extension spike
+   source is now tracked in `main`; the KDE native spike still has no source.
+5. Real X11 and Windows runtime evidence: a real GNOME or KDE X11 desktop, the
+   physical Windows check and the fresh show and preview timings.
+6. The live container install tests for apt, COPR and AUR, adapted to the current
+   install command schema.
+7. The remaining external channels: AUR and COPR need owner accounts, and the WinGet
+   pull request still waits for a volunteer moderator.
+
