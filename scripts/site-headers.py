@@ -9,13 +9,15 @@ after the build date, so a stale deploy shows.
 import base64
 import datetime
 import hashlib
+import json
 import pathlib
 import re
 import sys
 
 out = pathlib.Path(sys.argv[1])
 # The only foreign origin: the website's aggregate visit counter (not the app).
-STATS = "https://stats.sbarah.com"
+# One source of truth: scripts/site/analytics.json (docs/analytics.md).
+STATS = json.loads((pathlib.Path(__file__).resolve().parent / "site" / "analytics.json").read_text(encoding="utf-8"))["host"].rstrip("/")
 hashes = set()
 for f in out.rglob("*.html"):
     for m in re.finditer(r"<script(?![^>]*\bsrc=)([^>]*)>(.*?)</script>", f.read_text(encoding="utf-8"), re.S):

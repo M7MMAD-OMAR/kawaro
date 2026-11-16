@@ -45,7 +45,7 @@
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "Shortcuts", "inLanguage": "en", "url": "https://kawaro.sbarah.com/en/docs/shortcuts/", "author": {"@type": "Organization", "name": "Kawaro"}}</script>
 
 <script>document.documentElement.classList.add("js")</script>
-<script defer src="https://stats.sbarah.com/script.js" data-website-id="4cdd34ca-0750-45ab-9618-7c3009c97287"></script>
+<script defer src="https://stats.sbarah.com/script.js" data-website-id="4cdd34ca-0750-45ab-9618-7c3009c97287" data-domains="kawaro.sbarah.com" data-do-not-track="true" data-performance="true" data-errors="true"></script>
 </head>
 <body class="inner">
 <a class="skip" href="#main">Skip to content</a>
@@ -57,9 +57,9 @@
     </a>
     <nav class="site-nav" aria-label="Main navigation">
       <a class="nav-link" href="../" aria-current="page">Docs</a><a class="nav-link" href="../../releases/">Releases</a>
-      <a class="nav-link nav-support" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer" aria-label="Support Sbarah"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21L4 12.5V7.5L8 4L12 7L16 4L20 7.5V12.5Z"/></svg><span>Support Sbarah</span></a>
-      <a class="nav-link lang-switch" href="../../../docs/shortcuts/" hreflang="ar" lang="ar">العربية</a>
-      <a class="hex-button button-primary hex-button-sm nav-cta" href="../../#download">Download</a>
+      <a class="nav-link nav-support" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer" aria-label="Support Sbarah" data-umami-event="outbound-click" data-umami-event-to="sbarah.com"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 21L4 12.5V7.5L8 4L12 7L16 4L20 7.5V12.5Z"/></svg><span>Support Sbarah</span></a>
+      <a class="nav-link lang-switch" href="../../../docs/shortcuts/" hreflang="ar" lang="ar" data-umami-event="language-switch" data-umami-event-to="ar">العربية</a>
+      <a class="hex-button button-primary hex-button-sm nav-cta" href="../../#download" data-umami-event="cta-click" data-umami-event-where="nav-download">Download</a>
     </nav>
   </div>
 </header>
@@ -67,12 +67,12 @@
 
 <section class="sec s-docs">
 <div class="wrap">
-<div class="docs-layout"><aside><form class="search" role="search" data-pagefind-ignore data-js="../../../pagefind/pagefind.js" data-none="No results"><label class="sr-only" for="q">Search</label><input id="q" type="search" placeholder="Search the docs" autocomplete="off"><ul class="results" id="results" aria-live="polite"></ul></form><nav class="docs-nav" aria-label="Documentation"><ul role="list"><li><a href="../start/">Quick start</a></li><li><a href="../install/">Install</a></li><li><a href="../use/">Use the hive</a></li><li><a href="../how/">How it works</a></li><li><a href="../formats/">Formats</a></li><li><a href="./" aria-current="page">Shortcuts</a></li><li><a href="../settings/">Settings</a></li><li><a href="../troubleshoot/">Troubleshooting</a></li><li><a href="../contribute/">Contribute</a></li></ul></nav></aside><article class="prose" data-pagefind-body data-pagefind-meta="title:Shortcuts"><h1>Shortcuts</h1>
+<div class="docs-layout"><aside><form class="search" role="search" data-pagefind-ignore data-js="../../../pagefind/pagefind.js" data-none="No results"><label class="sr-only" for="q">Search</label><input id="q" type="search" placeholder="Search the docs" autocomplete="off" data-umami-event="docs-search"><ul class="results" id="results" aria-live="polite"></ul></form><nav class="docs-nav" aria-label="Documentation"><ul role="list"><li><a href="../start/">Quick start</a></li><li><a href="../install/">Install</a></li><li><a href="../use/">Use the hive</a></li><li><a href="../how/">How it works</a></li><li><a href="../formats/">Formats</a></li><li><a href="./" aria-current="page">Shortcuts</a></li><li><a href="../settings/">Settings</a></li><li><a href="../troubleshoot/">Troubleshooting</a></li><li><a href="../contribute/">Contribute</a></li></ul></nav></aside><article class="prose" data-pagefind-body data-pagefind-meta="title:Shortcuts"><h1>Shortcuts</h1>
 <h2 id="linux-the-drop-shortcut">Linux: the drop shortcut</h2>
 <p>Hold <strong>Super+Z</strong> while dragging files and the hive appears. Let go and it closes. A short tap shows nothing.</p>
-<ul><li>GNOME 48 and later, KDE 6: Kawaro registers the shortcut through the desktop portal. The first time, the desktop asks you to allow it.</li><li>Older desktops and Hyprland: bind <code>kawaro drop</code> yourself. The steps are in the <a href="https://github.com/M7MMAD-OMAR/kawaro/blob/main/docs/drop-shortcut.md">full guide</a>.</li><li>Change the hold time with <code>hold_ms</code> in <a href="../settings/">settings</a>.</li></ul>
+<ul><li>GNOME 48 and later, KDE 6: Kawaro registers the shortcut through the desktop portal. The first time, the desktop asks you to allow it.</li><li>Older desktops and Hyprland: bind <code>kawaro drop</code> yourself. The steps are in the <a href="https://github.com/M7MMAD-OMAR/kawaro/blob/main/docs/drop-shortcut.md" data-umami-event="outbound-click" data-umami-event-to="github.com">full guide</a>.</li><li>Change the hold time with <code>hold_ms</code> in <a href="../settings/">settings</a>.</li></ul>
 <h2 id="windows">Windows</h2>
-<p>Drag a file with the right mouse button and the hive opens during the drag, at the dragged file. Drop it on the cell of the action you want. No key is held while you drag, so Explorer keeps its own drag behavior: a drop outside the hive copies, moves or creates shortcuts as it always does, and the original file is never touched. A short right click shows nothing.</p><p class="edit"><a href="https://github.com/M7MMAD-OMAR/kawaro/blob/main/docs/guide/shortcuts.md">Edit this page on GitHub</a> · <a href="https://github.com/M7MMAD-OMAR/kawaro/issues">Report an issue</a> · <a href="../shortcuts.md">Markdown</a></p></article></div>
+<p>Drag a file with the right mouse button and the hive opens during the drag, at the dragged file. Drop it on the cell of the action you want. No key is held while you drag, so Explorer keeps its own drag behavior: a drop outside the hive copies, moves or creates shortcuts as it always does, and the original file is never touched. A short right click shows nothing.</p><p class="edit"><a href="https://github.com/M7MMAD-OMAR/kawaro/blob/main/docs/guide/shortcuts.md" data-umami-event="outbound-click" data-umami-event-to="github.com">Edit this page on GitHub</a> · <a href="https://github.com/M7MMAD-OMAR/kawaro/issues" data-umami-event="outbound-click" data-umami-event-to="github.com">Report an issue</a> · <a href="../shortcuts.md">Markdown</a></p></article></div>
 </div>
 </section>
 </main>
@@ -80,8 +80,8 @@
   <div class="wrap">
     <div class="footer-row">
       <p>Free software under the GPLv3. <span class="muted">0.5.1</span></p>
-      <ul class="footer-product" role="list"><li><a href="https://github.com/M7MMAD-OMAR/kawaro">GitHub</a></li><li><a href="../../windows/">Windows</a></li><li><a href="https://github.com/M7MMAD-OMAR/kawaro/releases">GitHub Releases</a></li><li><a class="" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer">Support Sbarah</a></li></ul>
-      <ul class="footer-lang" role="list"><li><a href="../../../docs/shortcuts/" hreflang="ar" lang="ar">العربية</a></li></ul>
+      <ul class="footer-product" role="list"><li><a href="https://github.com/M7MMAD-OMAR/kawaro" data-umami-event="outbound-click" data-umami-event-to="github.com">GitHub</a></li><li><a href="../../windows/">Windows</a></li><li><a href="https://github.com/M7MMAD-OMAR/kawaro/releases" data-umami-event="outbound-click" data-umami-event-to="github.com">GitHub Releases</a></li><li><a class="" href="https://sbarah.com/support" target="_blank" rel="noopener noreferrer" data-umami-event="outbound-click" data-umami-event-to="sbarah.com">Support Sbarah</a></li></ul>
+      <ul class="footer-lang" role="list"><li><a href="../../../docs/shortcuts/" hreflang="ar" lang="ar" data-umami-event="language-switch" data-umami-event-to="ar">العربية</a></li></ul>
     </div>
   </div>
   <div class="footer-band" aria-hidden="true">

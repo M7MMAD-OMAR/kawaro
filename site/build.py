@@ -40,10 +40,47 @@ PAGES = ["index", "windows"]
 # The tab icon is a same origin file: the CSP has no data: source (S-059).
 FAVICON = "/favicon.svg"
 
-# Website only: aggregate visit counts, no cookies. The desktop app has no telemetry.
-STATS_ORIGIN = "https://stats.sbarah.com"
-STATS_TAG = (f'<script defer src="{STATS_ORIGIN}/script.js" '
-             'data-website-id="4cdd34ca-0750-45ab-9618-7c3009c97287"></script>')
+# Website only: aggregate visit counts, no cookies. The desktop app has no
+# telemetry. The host, website id and hostnames live in ONE file that the CSP
+# script and the tests read too: scripts/site/analytics.json (docs/analytics.md).
+ANALYTICS = json.loads((HERE.parent / "scripts" / "site" / "analytics.json").read_text(encoding="utf-8"))
+STATS_ORIGIN = ANALYTICS["host"].rstrip("/")
+STATS_HOST = urllib.parse.urlsplit(STATS_ORIGIN).hostname
+STATS_TAG = (f'<script defer src="{STATS_ORIGIN}/script.js" data-website-id="{ANALYTICS["website_id"]}" '
+             f'data-domains="{",".join(ANALYTICS["domains"])}" data-do-not-track="true" '
+             'data-performance="true" data-errors="true"></script>')
+OWN_HOSTS = set(ANALYTICS["domains"])
+_A_TAG = re.compile(r"<a\b([^>]*)>")
+
+
+def _ev(name, **props):
+    """Event attributes for Umami. Props are fixed words or a hostname, never free text."""
+    return f'data-umami-event="{name}"' + "".join(f' data-umami-event-{k}="{v}"' for k, v in props.items())
+
+
+def track(page_html):
+    """Adds Umami event attributes to real anchors in finished HTML: language
+    switch, downloads and outbound links. Anchors that already carry an event keep it."""
+    def one(m):
+        attrs = m.group(1)
+        if "data-umami-event" in attrs:
+            return m.group(0)
+        href = re.search(r'\shref="([^"]*)"', " " + attrs)
+        href = href.group(1) if href else ""
+        dl = re.search(r'data-dl="(msi|deb|rpm)"', attrs)
+        hl = re.search(r'\shreflang="([a-z]+)"', " " + attrs)
+        if dl:
+            os_ = "windows" if dl.group(1) == "msi" else "linux"
+            ev = _ev("download", target=f"{os_}/{dl.group(1)}")
+        elif hl:
+            ev = _ev("language-switch", to=hl.group(1))
+        else:
+            host = urllib.parse.urlsplit(href).hostname if href.startswith("https://") else None
+            if not host or host in OWN_HOSTS:
+                return m.group(0)
+            ev = _ev("outbound-click", to=host)
+        return f"<a{attrs} {ev}>"
+    return _A_TAG.sub(one, page_html)
 
 
 def spiral(rings):
@@ -423,7 +460,7 @@ def header(lang, page, root):
           f'hreflang="{other}" lang="{other}">{p["other_lang"]}</a>')
     sup = support_link(lang, "nav-link nav-support")
     cta = hex_button(dl_anchor(lang, page), "تنزيل" if lang == "ar" else "Download", "primary", "sm",
-                     "", extra="nav-cta")
+                     " " + _ev("cta-click", where="nav-download"), extra="nav-cta")
     meter = '<div class="scroll-meter" aria-hidden="true"></div>' if page == "index" else ""
     return f'''<header class="site-header">
   <div class="wrap">
@@ -846,7 +883,7 @@ def closing_section(lang):
 <div class="closing-open">
 <h2 id="open-title">{t["open"]}</h2>
 <p>{t["open_p"]}</p>
-<div class="actions">{hex_button(REPO, t["gh"], "primary", "lg")}</div>
+<div class="actions">{hex_button(REPO, t["gh"], "primary", "lg", " " + _ev("cta-click", where="open-source-github"))}</div>
 </div>
 <div class="closing-support" id="support">
 <h3>{t["support_h"]}</h3>
@@ -860,7 +897,7 @@ def closing_section(lang):
 def home(lang):
     t = T_HOME[lang]
     note = t["note"].format(win=t["win_link"])
-    btn = hex_button("#download", t["dl"], "primary", "lg")
+    btn = hex_button("#download", t["dl"], "primary", "lg", " " + _ev("cta-click", where="hero-download"))
     hero = f'''<section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
 <h1 id="hero-title"><span class="h1-line"><span>{t["h1a"]}</span></span>
@@ -1096,7 +1133,7 @@ def search_box(lang, root):
     ph, none, lab = SEARCH[lang]
     return (f'<form class="search" role="search" data-pagefind-ignore data-js="{root}pagefind/pagefind.js" data-none="{none}">'
             f'<label class="sr-only" for="q">{lab}</label>'
-            f'<input id="q" type="search" placeholder="{ph}" autocomplete="off">'
+            f'<input id="q" type="search" placeholder="{ph}" autocomplete="off" {_ev("docs-search")}>'
             f'<ul class="results" id="results" aria-live="polite"></ul></form>')
 
 
@@ -1302,7 +1339,7 @@ def build_extras():
             out, src = docs_page(lang, slug)
             d = base / "docs" / slug
             d.mkdir(parents=True, exist_ok=True)
-            (d / "index.html").write_text(out, encoding="utf-8")
+            (d / "index.html").write_text(track(out), encoding="utf-8")
             twin = re.sub(r"\(site:([a-z]+)(#[^)]*)?\)", lambda m: f"({abs_url(lang, m.group(1))}{m.group(2) or ''})", src)
             twin = twin.replace(".ar.md)", ".md)")
             twin = re.sub(r"\(diagram:([a-z]+)\)", lambda m: f"({BASE}diagrams/{m.group(1)}.{lang}.light.svg)", twin)
@@ -1310,13 +1347,13 @@ def build_extras():
             sources[(lang, slug)] = src
         d = base / "docs"
         d.mkdir(parents=True, exist_ok=True)
-        (d / "index.html").write_text(docs_index(lang), encoding="utf-8")
+        (d / "index.html").write_text(track(docs_index(lang)), encoding="utf-8")
         r = base / "releases"
         r.mkdir(parents=True, exist_ok=True)
-        (r / "index.html").write_text(releases_page(lang), encoding="utf-8")
+        (r / "index.html").write_text(track(releases_page(lang)), encoding="utf-8")
         (r / "feed.xml").write_text(feed_xml(lang), encoding="utf-8")
         (base / "releases.md").write_text(releases_md(lang), encoding="utf-8")
-    (HERE / "404.html").write_text(not_found(), encoding="utf-8")
+    (HERE / "404.html").write_text(track(not_found()), encoding="utf-8")
     (HERE / "sitemap.xml").write_text(sitemap(), encoding="utf-8")
     (HERE / "robots.txt").write_text(ROBOTS, encoding="utf-8")
     llms, full = llms_files(sources)
@@ -1371,7 +1408,7 @@ def main():
             parts = (["en"] if lang == "en" else []) + ([] if page == "index" else [page])
             out = HERE.joinpath(*parts, "index.html")
             out.parent.mkdir(parents=True, exist_ok=True)
-            out.write_text(render(lang, page), encoding="utf-8")
+            out.write_text(track(render(lang, page)), encoding="utf-8")
             print("wrote", out.relative_to(HERE.parent))
     write_download_stubs()
     build_extras()

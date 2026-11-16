@@ -14,6 +14,7 @@ from lib import REPO, RELEASES, SUPPORT, LANGS, VERSION, parse_file, page_file, 
 CSS = lambda: (site() / "style.css").read_text(encoding="utf-8")
 JS = lambda: (site() / "app.js").read_text(encoding="utf-8")
 FILEPATHS = ("README.md", "README.ar.md")
+STATS = json.loads((Path(__file__).resolve().parents[2] / "scripts/site/analytics.json").read_text(encoding="utf-8"))["host"].rstrip("/")
 
 
 def hero(lang):
@@ -362,11 +363,11 @@ class AC12Finish(unittest.TestCase):
         h = (site() / "_headers").read_text(encoding="utf-8")
         # S-059 AC2 replaced the S-061 values: no data: images, inline style only as attributes.
         for d in ("default-src 'none'", "style-src 'self';", "style-src-attr 'unsafe-inline'", "img-src 'self';", "media-src 'self'", "font-src 'self'",
-                  "connect-src 'self' https://stats.sbarah.com", "frame-ancestors 'none'"):
+                  f"connect-src 'self' {STATS}", "frame-ancestors 'none'"):
             self.assertIn(d, h)
         csp_line = h.split("Content-Security-Policy:")[1].split("\n")[0]
         self.assertEqual(csp_line.count("https://"), 2)
-        self.assertEqual(csp_line.count("https://stats.sbarah.com"), 2)
+        self.assertEqual(csp_line.count(STATS), 2)
         for f in html_files():
             scripts = re.findall(r"<script(?![^>]*\bsrc=)([^>]*)>", f.read_text(encoding="utf-8"))
             self.assertLessEqual(len([s for s in scripts if "json" not in s]), 1, f)

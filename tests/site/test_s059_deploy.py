@@ -31,7 +31,7 @@ PERMISSIONS = ("accelerometer=(), autoplay=(self), browsing-topics=(), camera=()
                "display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), "
                "midi=(), payment=(), usb=()")
 # The one allowed foreign origin: the website visit counter (not the app).
-STATS = "https://stats.sbarah.com"
+STATS = json.loads((Path(__file__).resolve().parents[2] / "scripts/site/analytics.json").read_text(encoding="utf-8"))["host"].rstrip("/")
 # ADR 0007 section 7, script-src hash checked separately.
 CSP_EXPECTED = {
     "default-src": ["'none'"], "style-src": ["'self'"], "style-src-attr": ["'unsafe-inline'"],
@@ -171,7 +171,7 @@ def attrs_of(s):
 
 def foreign(url):
     m = re.match(r"^(?:https?:)?//([^/?#]+)", url.strip(), re.I)
-    return bool(m) and m.group(1).lower() not in (S.DOMAIN, "stats.sbarah.com")
+    return bool(m) and m.group(1).lower() not in (S.DOMAIN, STATS.split("//", 1)[1])
 
 
 class AC3BuiltOutput(unittest.TestCase):
