@@ -32,7 +32,7 @@ Today the domain is attached through `routes` with `custom_domain: true` in `wra
 
 ## Privacy
 
-The site has no analytics, no cookies, no third party requests and no forms that send data. Fonts, scripts and the search index are served from the same origin. Cloudflare sees ordinary request logs as the host.
+The site has no cookies and no forms that send data. It counts visits in aggregate with one script from `https://stats.sbarah.com` (the only foreign origin the CSP allows, in `script-src` and `connect-src`); the desktop app has no telemetry. Fonts, other scripts and the search index are served from the same origin. Cloudflare sees ordinary request logs as the host.
 
 ## Rollback
 

@@ -14,6 +14,8 @@ import re
 import sys
 
 out = pathlib.Path(sys.argv[1])
+# The only foreign origin: the website's aggregate visit counter (not the app).
+STATS = "https://stats.sbarah.com"
 hashes = set()
 for f in out.rglob("*.html"):
     for m in re.finditer(r"<script(?![^>]*\bsrc=)([^>]*)>(.*?)</script>", f.read_text(encoding="utf-8"), re.S):
@@ -22,13 +24,13 @@ for f in out.rglob("*.html"):
             hashes.add("'sha256-" + base64.b64encode(d).decode() + "'")
 csp = "; ".join([
     "default-src 'none'",
-    "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(hashes)),
+    "script-src 'self' 'wasm-unsafe-eval' " + " ".join(sorted(hashes)) + " " + STATS,
     "style-src 'self'",
     "style-src-attr 'unsafe-inline'",
     "img-src 'self'",
     "media-src 'self'",
     "font-src 'self'",
-    "connect-src 'self'",
+    "connect-src 'self' " + STATS,
     "worker-src 'self'",
     "manifest-src 'self'",
     "object-src 'none'",

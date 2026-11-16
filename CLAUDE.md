@@ -10,7 +10,7 @@ Platform order: Linux on Wayland first (GNOME and KDE), then X11, then Windows, 
 
 ## Non-negotiable principles
 
-- No file leaves the user's machine. No processing servers, no telemetry.
+- No file leaves the user's machine. No processing servers, and no telemetry in the app (the website only counts visits in aggregate, without cookies; `PRIVACY.md`).
 - The hive appears less than 150 ms after it is invoked. On the long press path (`kawaro drop --hold`) "invoked" means the `hold_ms` threshold has elapsed, not the key press.
 - The base install is light. Extra engines are downloaded only when needed, or taken from the system when present.
 - The original file is never modified. Write to a temporary file, then rename atomically to the final name.

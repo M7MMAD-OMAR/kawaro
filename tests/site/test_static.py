@@ -362,9 +362,11 @@ class AC12Finish(unittest.TestCase):
         h = (site() / "_headers").read_text(encoding="utf-8")
         # S-059 AC2 replaced the S-061 values: no data: images, inline style only as attributes.
         for d in ("default-src 'none'", "style-src 'self';", "style-src-attr 'unsafe-inline'", "img-src 'self';", "media-src 'self'", "font-src 'self'",
-                  "connect-src 'self'", "frame-ancestors 'none'"):
+                  "connect-src 'self' https://stats.sbarah.com", "frame-ancestors 'none'"):
             self.assertIn(d, h)
-        self.assertNotIn("https://", h.split("Content-Security-Policy:")[1].split("\n")[0])
+        csp_line = h.split("Content-Security-Policy:")[1].split("\n")[0]
+        self.assertEqual(csp_line.count("https://"), 2)
+        self.assertEqual(csp_line.count("https://stats.sbarah.com"), 2)
         for f in html_files():
             scripts = re.findall(r"<script(?![^>]*\bsrc=)([^>]*)>", f.read_text(encoding="utf-8"))
             self.assertLessEqual(len([s for s in scripts if "json" not in s]), 1, f)

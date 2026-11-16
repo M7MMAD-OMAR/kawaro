@@ -40,6 +40,11 @@ PAGES = ["index", "windows"]
 # The tab icon is a same origin file: the CSP has no data: source (S-059).
 FAVICON = "/favicon.svg"
 
+# Website only: aggregate visit counts, no cookies. The desktop app has no telemetry.
+STATS_ORIGIN = "https://stats.sbarah.com"
+STATS_TAG = (f'<script defer src="{STATS_ORIGIN}/script.js" '
+             'data-website-id="4cdd34ca-0750-45ab-9618-7c3009c97287"></script>')
+
 
 def spiral(rings):
     out = [(0, 0)]
@@ -350,6 +355,7 @@ def head(lang, page, root, title=None, desc=None, extra_ld=()):
 </script>
 {"".join('<script type="application/ld+json">' + json.dumps(x, ensure_ascii=False) + '</script>' + chr(10) for x in extra_ld)}
 <script>document.documentElement.classList.add("js")</script>
+{STATS_TAG}
 </head>
 <body class="{"home" if page == "index" else "inner"}">
 <a class="skip" href="#main">{p["nav_skip"]}</a>
@@ -1385,7 +1391,7 @@ def write_download_stubs():
             f'<meta name="viewport" content="width=device-width, initial-scale=1">\n'
             f'<meta name="color-scheme" content="light">\n<meta name="robots" content="noindex">\n'
             f'<meta http-equiv="refresh" content="0; url={target}">\n'
-            f'<link rel="canonical" href="{BASE.rstrip("/")}{target}">\n</head>\n'
+            f'<link rel="canonical" href="{BASE.rstrip("/")}{target}">\n{STATS_TAG}\n</head>\n'
             f'<body><p><a href="{target}">{text}</a></p></body>\n</html>\n', encoding="utf-8")
         print("wrote", out.relative_to(HERE.parent))
 

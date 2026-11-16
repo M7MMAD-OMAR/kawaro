@@ -7,8 +7,10 @@ Kawaro is a local file converter. Your files stay on your machine.
 - **No uploads.** Kawaro opens no processing servers. Files are read and
   written locally, and the original file is never modified: the result is
   written to a temporary file and renamed beside the original.
-- **No telemetry, no analytics, no accounts.** Nothing about your files,
-  conversions or usage is collected or reported.
+- **No telemetry, no analytics, no accounts in the app.** The app sends
+  nothing about your files, conversions or usage.
+- **The website** counts visits in aggregate, without cookies and without
+  identifying visitors. This applies to the website only, never to the app.
 - **The only network access** is an optional update check, once a day. The app
   reads a signed manifest from GitHub Releases, verifies the signature, the
   size and the SHA-256 of a download before installing anything. GitHub sees

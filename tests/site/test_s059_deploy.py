@@ -30,10 +30,12 @@ EIGHT = {
 PERMISSIONS = ("accelerometer=(), autoplay=(self), browsing-topics=(), camera=(), clipboard-read=(), "
                "display-capture=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), "
                "midi=(), payment=(), usb=()")
+# The one allowed foreign origin: the website visit counter (not the app).
+STATS = "https://stats.sbarah.com"
 # ADR 0007 section 7, script-src hash checked separately.
 CSP_EXPECTED = {
     "default-src": ["'none'"], "style-src": ["'self'"], "style-src-attr": ["'unsafe-inline'"],
-    "img-src": ["'self'"], "media-src": ["'self'"], "font-src": ["'self'"], "connect-src": ["'self'"],
+    "img-src": ["'self'"], "media-src": ["'self'"], "font-src": ["'self'"], "connect-src": ["'self'", STATS],
     "worker-src": ["'self'"], "manifest-src": ["'self'"], "object-src": ["'none'"],
     "base-uri": ["'none'"], "form-action": ["'self'"], "frame-ancestors": ["'none'"],
     "upgrade-insecure-requests": [],
@@ -130,12 +132,14 @@ class AC2Headers(unittest.TestCase):
                 bad.append(f"CSP {k}={d.get(k)!r} want {v!r}")
         ss = d.get("script-src", [])
         hashes = [t for t in ss if re.fullmatch(r"'sha256-[A-Za-z0-9+/]{43}='", t)]
-        if ss[:2] != ["'self'", "'wasm-unsafe-eval'"] or len(hashes) != 1 or len(ss) != 3:
+        if ss[:2] != ["'self'", "'wasm-unsafe-eval'"] or len(hashes) != 1 or ss[-1] != STATS or len(ss) != 4:
             bad.append(f"CSP script-src={ss!r}")
         if set(d) != set(CSP_EXPECTED) | {"script-src"}:
             bad.append(f"CSP directives {sorted(d)}")
         toks = [t for v in d.values() for t in v]
         for t in toks:
+            if t == STATS:
+                continue
             if t == "*" or "*" in t or t.startswith(("http:", "https:", "data:")) or t in ("http:", "https:", "data:"):
                 bad.append(f"CSP forbidden source {t}")
             if t == "'unsafe-eval'":
@@ -167,7 +171,7 @@ def attrs_of(s):
 
 def foreign(url):
     m = re.match(r"^(?:https?:)?//([^/?#]+)", url.strip(), re.I)
-    return bool(m) and m.group(1).lower() != S.DOMAIN
+    return bool(m) and m.group(1).lower() not in (S.DOMAIN, "stats.sbarah.com")
 
 
 class AC3BuiltOutput(unittest.TestCase):
