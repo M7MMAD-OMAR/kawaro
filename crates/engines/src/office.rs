@@ -11,6 +11,7 @@
 //! both of which kill the whole tree.
 
 use crate::locate::{self, Program};
+use crate::locks::{read, write};
 use crate::process::ProcessTree;
 use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
@@ -18,8 +19,8 @@ use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::OnceLock;
 use std::sync::mpsc;
+use std::sync::{OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
 /// Default `timeout_s` for one LibreOffice conversion.
@@ -33,7 +34,8 @@ const ALL_DOCS: &[&str] = &[
 ];
 
 pub struct OfficeEngine {
-    program: Option<PathBuf>,
+    /// The looked up program. A refresh replaces it with a fresh lookup.
+    program: RwLock<Option<PathBuf>>,
     prefix_args: Vec<OsString>,
     temp_root: Option<PathBuf>,
 }
@@ -44,7 +46,7 @@ impl Default for OfficeEngine {
         static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
         let program = FOUND.get_or_init(|| locate::find(Program::Office)).clone();
         Self {
-            program,
+            program: RwLock::new(program),
             prefix_args: Vec::new(),
             temp_root: None,
         }
@@ -52,11 +54,21 @@ impl Default for OfficeEngine {
 }
 
 impl OfficeEngine {
+    /// The engine with a fresh lookup of LibreOffice, ignoring the process
+    /// wide cache of the default (S-145).
+    pub fn discover() -> Self {
+        Self {
+            program: RwLock::new(locate::find(Program::Office)),
+            prefix_args: Vec::new(),
+            temp_root: None,
+        }
+    }
+
     /// Runs `program prefix_args.. <libreoffice args>` instead of the detected
     /// LibreOffice. For tests and for unusual installations.
     pub fn with_program(program: impl Into<PathBuf>, prefix_args: Vec<OsString>) -> Self {
         Self {
-            program: Some(program.into()),
+            program: RwLock::new(Some(program.into())),
             prefix_args,
             temp_root: None,
         }
@@ -67,6 +79,11 @@ impl OfficeEngine {
         self.temp_root = Some(dir.into());
         self
     }
+
+    /// The program this engine runs, when one was found (S-145).
+    fn program_path(&self) -> Option<PathBuf> {
+        read(&self.program).as_ref().cloned()
+    }
 }
 
 impl Engine for OfficeEngine {
@@ -75,7 +92,14 @@ impl Engine for OfficeEngine {
     }
 
     fn available(&self) -> bool {
-        self.program.as_deref().is_some_and(Path::is_file)
+        self.program_path().as_deref().is_some_and(Path::is_file)
+    }
+
+    /// Looks LibreOffice up again, so an install after the daemon started
+    /// is seen (S-145). No child runs here.
+    fn refresh(&self) {
+        let found = locate::find(Program::Office);
+        *write(&self.program) = found;
     }
 
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
@@ -99,8 +123,7 @@ impl Engine for OfficeEngine {
         let filter = plan(&task.op, input, &in_ext, &out_ext)?;
         let timeout = timeout_param(task, DEFAULT_TIMEOUT_S)?;
         let program = self
-            .program
-            .clone()
+            .program_path()
             .ok_or_else(|| missing("LibreOffice", OFFICE_URL, None))?;
 
         let work = work_dir(self.temp_root.as_deref(), "kawaro-office-")?;
@@ -725,7 +748,7 @@ mod tests {
         let input = dir.path().join("a.txt");
         std::fs::write(&input, "x").unwrap();
         let engine = OfficeEngine {
-            program: None,
+            program: RwLock::new(None),
             ..OfficeEngine::with_program("unused", vec![])
         }
         .temp_root(dir.path());

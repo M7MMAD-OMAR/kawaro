@@ -7,6 +7,7 @@
 //! only read, and the output is written to `task.output` by the core queue.
 
 use crate::locate::{self, Program};
+use crate::locks::{read, write};
 use crate::office::{
     failure_message, input_error, is_nonempty_file, missing, missing_on_not_found, move_file,
     single_input, timeout_param, work_dir,
@@ -17,7 +18,7 @@ use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
 /// Where to get qpdf, for the message when it is missing.
@@ -32,7 +33,8 @@ const POLL: Duration = Duration::from_millis(25);
 const STDERR_KEEP: usize = 4096;
 
 pub struct QpdfEngine {
-    program: Option<PathBuf>,
+    /// The looked up program. A refresh replaces it with a fresh lookup.
+    program: RwLock<Option<PathBuf>>,
 }
 
 impl Default for QpdfEngine {
@@ -40,22 +42,35 @@ impl Default for QpdfEngine {
     fn default() -> Self {
         static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
         Self {
-            program: FOUND.get_or_init(|| locate::find(Program::Qpdf)).clone(),
+            program: RwLock::new(FOUND.get_or_init(|| locate::find(Program::Qpdf)).clone()),
         }
     }
 }
 
 impl QpdfEngine {
-    /// Runs this program instead of the detected `qpdf`.
-    pub fn with_program(program: impl Into<PathBuf>) -> Self {
+    /// The engine with a fresh lookup of `qpdf`, ignoring the process wide
+    /// cache of the default (S-145).
+    pub fn discover() -> Self {
         Self {
-            program: Some(program.into()),
+            program: RwLock::new(locate::find(Program::Qpdf)),
         }
     }
 
+    /// Runs this program instead of the detected `qpdf`.
+    pub fn with_program(program: impl Into<PathBuf>) -> Self {
+        Self {
+            program: RwLock::new(Some(program.into())),
+        }
+    }
+
+    /// The program this engine runs, when one was found (S-145).
+    fn program_path(&self) -> Option<PathBuf> {
+        read(&self.program).as_ref().cloned()
+    }
+
+    /// The program to run, or the error that names the missing tool.
     fn program(&self) -> Result<PathBuf, EngineError> {
-        self.program
-            .clone()
+        self.program_path()
             .ok_or_else(|| missing("qpdf", QPDF_URL, None))
     }
 
@@ -112,7 +127,14 @@ impl Engine for QpdfEngine {
     }
 
     fn available(&self) -> bool {
-        self.program.as_deref().is_some_and(Path::is_file)
+        self.program_path().as_deref().is_some_and(Path::is_file)
+    }
+
+    /// Looks `qpdf` up again, so an install after the daemon started is seen
+    /// (S-145). No child runs here.
+    fn refresh(&self) {
+        let found = locate::find(Program::Qpdf);
+        *write(&self.program) = found;
     }
 
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {

@@ -221,16 +221,18 @@ fn overflow_error() -> EngineError {
     ))
 }
 
-#[cfg(test)]
+#[cfg(all(test, unix))]
 mod tests {
     use super::*;
 
+    #[cfg(unix)]
     fn sh(script: &str) -> Command {
         let mut cmd = Command::new("/bin/sh");
         cmd.args(["-c", script]);
         cmd
     }
 
+    #[cfg(unix)]
     fn allow() -> Result<(), EngineError> {
         Ok(())
     }

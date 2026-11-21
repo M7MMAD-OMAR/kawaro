@@ -1191,6 +1191,11 @@ fn create_temp(path: &Path) -> Result<(PathBuf, std::fs::File), PresetError> {
 /// is refused and nothing is written. A file that cannot be read as a
 /// store of this version is never overwritten.
 ///
+/// The revision is compared first, before the document is looked at. A
+/// writer that read an older file is told that the store changed, and not
+/// that its own document does not fit: the file moved on, so the document
+/// is compared against what is on disk only when both are the same.
+///
 /// The bytes go to a temporary file in the same folder, are flushed and
 /// synced, and the file is read again before the temporary file is moved
 /// over it. A change made by another program between that last read and
@@ -1209,6 +1214,20 @@ pub fn save(
         });
     }
     let current = read_store_bytes(path)?;
+    let current_revision = match &current {
+        Some(existing) => StoreRevision(sha256_hex(existing)),
+        None => missing_revision(),
+    };
+    // The revision comes first: a stale writer is refused with a conflict
+    // before the counter of the document is compared with the one on disk.
+    if &current_revision != expected {
+        return Err(PresetError::Conflict {
+            reason: format!(
+                "the store on disk is not the revision that was read ({})",
+                current_revision.0
+            ),
+        });
+    }
     let previous = current.as_deref().map(parse_store).transpose()?;
     if let Some(previous) = &previous
         && document.next_id < previous.next_id
@@ -1218,18 +1237,6 @@ pub fn save(
         });
     }
     check_changed_values(document, previous.as_ref())?;
-    let current_revision = match &current {
-        Some(existing) => StoreRevision(sha256_hex(existing)),
-        None => missing_revision(),
-    };
-    if &current_revision != expected {
-        return Err(PresetError::Conflict {
-            reason: format!(
-                "the store on disk is not the revision that was read ({})",
-                current_revision.0
-            ),
-        });
-    }
     if let Some(dir) = path.parent().filter(|d| !d.as_os_str().is_empty()) {
         std::fs::create_dir_all(dir)?;
     }

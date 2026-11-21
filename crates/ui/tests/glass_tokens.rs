@@ -341,32 +341,38 @@ fn ac1_new_durations_are_zero_under_reduced_motion_in_site_tokens_css() {
 
 #[cfg(unix)]
 fn build_script() -> PathBuf {
+    // OUT_DIR is target/<profile>/build/kawaro-ui-<hash>/out (older Cargo) or
+    // target/<profile>/build/kawaro-ui/<hash>/out (newer Cargo). The build
+    // script binary is build-script-build beside `out` in the older layout
+    // and out/build_script_build in the newer one. Search from the `build`
+    // directory so both layouts work.
     let out = PathBuf::from(env!("OUT_DIR"));
-    // The compiled binary is in target/debug/build/kawaro-ui-<hash2>/build-script-build
-    // OUT_DIR is target/debug/build/kawaro-ui-<hash>/out, so we need to search the build directory
     let build_dir = out
-        .parent()
-        .expect("OUT_DIR has a parent")
-        .parent()
-        .expect("OUT_DIR parent has a parent");
+        .ancestors()
+        .find(|p| p.file_name().is_some_and(|n| n == "build"))
+        .expect("OUT_DIR is inside a Cargo build directory")
+        .to_path_buf();
 
-    // Find the most recently modified build-script-build in any kawaro-ui-* directory
     let mut candidates = Vec::new();
-    for entry in std::fs::read_dir(build_dir).expect("read build directory") {
-        let entry = entry.expect("build directory entry");
-        let path = entry.path();
-        if path.is_dir()
-            && path
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .starts_with("kawaro-ui-")
-        {
-            let exe = path.join("build-script-build");
-            if exe.exists() {
-                let modified = exe.metadata().unwrap().modified().unwrap();
-                candidates.push((modified, exe));
+    let mut stack: Vec<(PathBuf, usize)> = Vec::new();
+    for entry in std::fs::read_dir(&build_dir).expect("read build directory") {
+        let path = entry.expect("build directory entry").path();
+        let name = path.file_name().unwrap().to_string_lossy().into_owned();
+        if path.is_dir() && (name == "kawaro-ui" || name.starts_with("kawaro-ui-")) {
+            stack.push((path, 0));
+        }
+    }
+    while let Some((dir, depth)) = stack.pop() {
+        for entry in std::fs::read_dir(&dir).expect("read build directory") {
+            let path = entry.expect("build directory entry").path();
+            let name = path.file_name().unwrap().to_string_lossy().into_owned();
+            if path.is_dir() {
+                if depth < 2 && name != "fingerprint" {
+                    stack.push((path, depth + 1));
+                }
+            } else if name == "build-script-build" || name == "build_script_build" {
+                let modified = path.metadata().unwrap().modified().unwrap();
+                candidates.push((modified, path));
             }
         }
     }

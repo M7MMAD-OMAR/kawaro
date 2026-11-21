@@ -486,13 +486,21 @@ fn build_job_row(
     } else {
         detail.action_label.clone()
     };
+    // Only an expanded job shows its unit outputs, so only its files are
+    // checked on disk; a collapsed job costs no filesystem call per unit.
+    let not_checked = |_: &Path| false;
+    let unit_exists: &dyn Fn(&Path) -> bool = if expanded.contains(&detail.job) {
+        output_exists
+    } else {
+        &not_checked
+    };
     let units: Vec<UnitRow> = if detail.summary_only {
         Vec::new()
     } else {
         detail
             .units
             .iter()
-            .map(|unit| build_unit_row(unit, detail.state, lang, s, output_exists))
+            .map(|unit| build_unit_row(unit, detail.state, lang, s, unit_exists))
             .collect()
     };
     let can_expand = !detail.summary_only && !units.is_empty();

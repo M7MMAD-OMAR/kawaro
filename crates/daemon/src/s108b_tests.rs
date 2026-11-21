@@ -98,7 +98,8 @@ fn s145_partial_setup_hint_uses_existing_set_notes_without_unavailable_cells() {
     let files = vec![PathBuf::from("/x/a.pdf")];
     let outcome = st.classify(&files);
     let p = plan(&outcome, &files, &st);
-    assert_eq!(p.message, "2 more actions need setup, see kawaro doctor");
+    // Ghostscript is absent (2) and, since S-150, OCRmyPDF (1).
+    assert_eq!(p.message, "3 more actions need setup, see kawaro doctor");
     assert!(p.cells.iter().all(|c| c.enabled));
     assert!(!p.cells.is_empty());
     hive.present(&p.centre, p.cells, None).unwrap();

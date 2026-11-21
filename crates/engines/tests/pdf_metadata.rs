@@ -530,21 +530,21 @@ fn ac8_the_action_matches_the_story() {
 }
 
 #[test]
-fn ac9_the_registry_has_57_actions_and_18_with_options() {
+fn ac9_the_registry_has_58_actions_and_19_with_options() {
     let dir = tempfile::tempdir().unwrap();
     let pdf = dir.path().join("a.pdf");
     std::fs::write(&pdf, b"%PDF-1.5\n").unwrap();
     let registry = Registry::builtin();
-    // 57 since S-128 added pdf.linearize, pdf.cleanup and pdf.check, and
-    // S-146 added image.to-text.
-    assert_eq!(registry.all().len(), 57, "built-in action count");
+    // 58 since S-128 added pdf.linearize, pdf.cleanup and pdf.check,
+    // S-146 added image.to-text and S-150 pdf.make-searchable.
+    assert_eq!(registry.all().len(), 58, "built-in action count");
     let with_options: Vec<&str> = registry
         .all()
         .iter()
         .filter(|action| action.options.is_some())
         .map(|action| action.id.as_str())
         .collect();
-    assert_eq!(with_options.len(), 18, "{with_options:?}");
+    assert_eq!(with_options.len(), 19, "{with_options:?}");
     assert!(registry.get("pdf.metadata").is_some());
 
     let paths: Vec<PathBuf> = vec![pdf];

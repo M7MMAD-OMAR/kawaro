@@ -118,18 +118,56 @@ fn pointer_and_area() -> ((i32, i32), Rect) {
     (cursor, work_area_for(cursor, &work_areas()))
 }
 
-/// The hive plan for the pointer, and the physical position of its window.
-pub fn plan(cells: Vec<HiveCell>, rtl: bool, min_rings: i32) -> (Plan, slint::PhysicalPosition) {
+/// The placement of the hive on Windows (S-149): the pointer, the work area
+/// it is in and the scale of the monitor. The hive is planned at this
+/// placement, and a page change reuses it, so the page never moves and the
+/// cursor is never read twice.
+#[derive(Clone, Copy, Debug)]
+pub struct Placement {
+    /// The pointer in virtual screen pixels.
+    pub cursor: (i32, i32),
+    /// The work area of the monitor the pointer is in.
+    pub area: Rect,
+    /// The scale of that monitor.
+    pub scale: f32,
+}
+
+impl Placement {
+    /// The logical size of the work area and the logical anchor of the
+    /// pointer in it.
+    pub fn screen_and_anchor(&self) -> ((u32, u32), (f32, f32)) {
+        let screen = (
+            (self.area.w as f32 / self.scale).round() as u32,
+            (self.area.h as f32 / self.scale).round() as u32,
+        );
+        let anchor = (
+            (self.cursor.0 - self.area.x) as f32 / self.scale,
+            (self.cursor.1 - self.area.y) as f32 / self.scale,
+        );
+        (screen, anchor)
+    }
+}
+
+/// The pointer, its work area and the scale of the monitor.
+pub fn placement() -> Placement {
     let (cursor, area) = pointer_and_area();
     let scale = (unsafe { GetDpiForSystem() }.max(96)) as f32 / 96.0;
-    let screen = (
-        (area.w as f32 / scale).round() as u32,
-        (area.h as f32 / scale).round() as u32,
-    );
-    let anchor = (
-        (cursor.0 - area.x) as f32 / scale,
-        (cursor.1 - area.y) as f32 / scale,
-    );
+    Placement {
+        cursor,
+        area,
+        scale,
+    }
+}
+
+/// The hive plan for a placement, and the physical position of its window.
+pub fn plan_at(
+    cells: Vec<HiveCell>,
+    rtl: bool,
+    min_rings: i32,
+    placement: Placement,
+) -> (Plan, slint::PhysicalPosition) {
+    let scale = placement.scale;
+    let (screen, anchor) = placement.screen_and_anchor();
     let (plan, place) = layout::plan_at(
         cells,
         rtl,
@@ -139,8 +177,8 @@ pub fn plan(cells: Vec<HiveCell>, rtl: bool, min_rings: i32) -> (Plan, slint::Ph
         (scale * 120.0).round() as u32,
     );
     let at = slint::PhysicalPosition::new(
-        area.x + (place.x as f32 * scale).round() as i32,
-        area.y + (place.y as f32 * scale).round() as i32,
+        placement.area.x + (place.x as f32 * scale).round() as i32,
+        placement.area.y + (place.y as f32 * scale).round() as i32,
     );
     (plan, at)
 }

@@ -12,6 +12,7 @@
 //! here.
 
 use crate::locate::{self, Program};
+use crate::locks::{read, write};
 use crate::office::{
     failure_message, input_error, missing, missing_on_not_found, single_input, timeout_param,
 };
@@ -21,7 +22,7 @@ use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 use std::time::{Duration, Instant};
 
 /// Where to get poppler, for the message when it is missing.
@@ -33,7 +34,8 @@ const POLL: Duration = Duration::from_millis(25);
 const STDERR_KEEP: usize = 4096;
 
 pub struct PopplerEngine {
-    program: Option<PathBuf>,
+    /// The looked up program. A refresh replaces it with a fresh lookup.
+    program: RwLock<Option<PathBuf>>,
 }
 
 impl Default for PopplerEngine {
@@ -41,19 +43,34 @@ impl Default for PopplerEngine {
     fn default() -> Self {
         static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
         Self {
-            program: FOUND
-                .get_or_init(|| locate::find(Program::Pdftotext))
-                .clone(),
+            program: RwLock::new(
+                FOUND
+                    .get_or_init(|| locate::find(Program::Pdftotext))
+                    .clone(),
+            ),
         }
     }
 }
 
 impl PopplerEngine {
+    /// The engine with a fresh lookup of `pdftotext`, ignoring the process
+    /// wide cache of the default (S-145).
+    pub fn discover() -> Self {
+        Self {
+            program: RwLock::new(locate::find(Program::Pdftotext)),
+        }
+    }
+
     /// Runs this program instead of the detected `pdftotext`.
     pub fn with_program(program: impl Into<PathBuf>) -> Self {
         Self {
-            program: Some(program.into()),
+            program: RwLock::new(Some(program.into())),
         }
+    }
+
+    /// The program this engine runs, when one was found (S-145).
+    fn program_path(&self) -> Option<PathBuf> {
+        read(&self.program).as_ref().cloned()
     }
 
     /// The `to-text` op: run the tool and write its text to `task.output`.
@@ -79,8 +96,7 @@ impl PopplerEngine {
             });
         }
         let program = self
-            .program
-            .clone()
+            .program_path()
             .ok_or_else(|| missing("pdftotext", POPPLER_URL, None))?;
         let bytes = run_tool(&program, &input, range, task, cancel)?;
         let text = normalized(bytes);
@@ -96,7 +112,14 @@ impl Engine for PopplerEngine {
     }
 
     fn available(&self) -> bool {
-        self.program.as_deref().is_some_and(Path::is_file)
+        self.program_path().as_deref().is_some_and(Path::is_file)
+    }
+
+    /// Looks `pdftotext` up again, so an install after the daemon started is
+    /// seen (S-145). No child runs here.
+    fn refresh(&self) {
+        let found = locate::find(Program::Pdftotext);
+        *write(&self.program) = found;
     }
 
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {

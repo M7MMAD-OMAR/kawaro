@@ -17,6 +17,12 @@
 //!   ring accepts fewer slots, so a page holds fewer actions and the More
 //!   cell takes the last slot the screen accepts. Every action of the queue
 //!   stays reachable either way.
+//! - S-149: a paged hive keeps two rings on every page. The compact
+//!   one-ring rule never applies to it, so the More cell stays in the outer
+//!   ring and the hive never resizes under the pointer.
+//! - S-149: a placement whose outer ring accepts one slot or less gives
+//!   that slot to the More cell, or the last ring-1 slot when the outer
+//!   ring has none at all, and the page holds one action at a time.
 //! - A ring-2 cell never moves inwards to fill a short ring 1: ring 1 is for
 //!   the common actions and an empty slot there reads better than a rare
 //!   action in it. Exception: when every cell fits in ring 1 (6 or fewer in
@@ -44,11 +50,29 @@ pub const PAGE_SIZE: usize = RING2 - 1;
 
 /// The action cells one page of the outer queue holds for a hive placed
 /// with `slots` accepted slots of the outer ring (S-149). The More cell
-/// takes the last of them, so a page holds `slots - 1` actions. A
-/// placement with one slot or less keeps [`PAGE_SIZE`]: the More cell
-/// would leave no room for an action.
+/// takes the last of them, so a page holds `slots - 1` actions.
+///
+/// A placement with one accepted outer slot or less holds one action per
+/// page: the More cell takes the only outer slot, or the last ring-1 slot
+/// when the outer ring accepts none at all, and the action of the page
+/// takes the ring-1 slot the More cell leaves free.
 pub fn page_size(slots: usize) -> usize {
-    if slots <= 1 { PAGE_SIZE } else { slots - 1 }
+    match slots {
+        0 | 1 => 1,
+        n => n - 1,
+    }
+}
+
+/// The ring-1 slots a paged hive reserves for the More cell and the action
+/// of the page when the outer ring has no room (S-149). With one accepted
+/// outer slot the More cell takes it and the action takes a ring-1 slot.
+/// With no accepted outer slot at all both take a ring-1 slot.
+pub fn reserved_ring1_slots(outer_slots: usize) -> usize {
+    match outer_slots {
+        0 => 2,
+        1 => 1,
+        _ => 0,
+    }
 }
 
 /// A cell with its slot and its pixel centre inside the hive window.
@@ -94,6 +118,32 @@ pub fn assign(cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
     (ring1, outer)
 }
 
+/// Splits the cells by their ring, without the compact one-ring rule (S-149).
+/// The ring-1 cells keep their place and every other cell is an outer cell.
+fn split_rings(cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
+    cells.into_iter().partition(|c| c.ring <= 1)
+}
+
+/// Splits cells into ring 1 and the outer ring without the compact
+/// one-ring rule (S-149). A paged hive keeps two rings on every page, so
+/// the More cell stays in the outer ring and never joins ring 1.
+pub fn assign_paged(cells: Vec<HiveCell>) -> (Vec<HiveCell>, Vec<HiveCell>) {
+    let (mut ring1, ring2) = split_rings(cells);
+    if ring1.len() > RING1 {
+        let mut outer = ring1.split_off(RING1);
+        outer.extend(ring2);
+        return (ring1, outer);
+    }
+    (ring1, ring2)
+}
+
+/// True when the cells hold the More cell, so the hive pages (S-149). The
+/// More cell is a control of the hive and never an action, so only a
+/// paged hive has one.
+pub fn is_paged(cells: &[HiveCell]) -> bool {
+    cells.iter().any(|cell| cell.id == MORE_ID)
+}
+
 /// The number of pages the outer queue needs, with `size` action cells on a
 /// page (S-149). The More cell takes one slot of the outer ring, so a
 /// queue of at most `size + 1` cells fits in the ring without it: one page
@@ -128,8 +178,12 @@ pub fn page(outer: &[HiveCell], page: usize, size: usize, lang: Lang) -> Vec<Hiv
 /// `ring1_slots` cells in ring 1 (S-149). The ring 1 cells the placement
 /// does not hold move to the front of the outer queue, as they were ranked
 /// higher, and the queue keeps every action.
+///
+/// The split follows the ring of every cell, never the compact one-ring
+/// rule: a paged hive shows its ring-1 cells in ring 1 and its outer
+/// queue in the outer ring.
 pub fn queue_at(cells: &[HiveCell], ring1_slots: usize) -> (Vec<HiveCell>, Vec<HiveCell>) {
-    let (mut ring1, outer) = outer_queue(cells.to_vec());
+    let (mut ring1, outer) = split_rings(cells.to_vec());
     let moved = ring1.split_off(ring1.len().min(ring1_slots));
     let mut queue = moved;
     queue.extend(outer);
@@ -213,8 +267,18 @@ pub fn plan(cells: Vec<HiveCell>, rtl: bool) -> Plan {
 /// As [`plan`], with a window of at least `min_rings` rings. The drop hive
 /// uses 2, so its size and centre stay the same when its cells arrive.
 pub fn plan_rings(cells: Vec<HiveCell>, rtl: bool, min_rings: i32) -> Plan {
-    let (ring1, ring2) = assign(cells);
-    let rings = if ring2.is_empty() { 1 } else { 2 }.max(min_rings);
+    let paged = is_paged(&cells);
+    let (ring1, ring2) = if paged {
+        assign_paged(cells)
+    } else {
+        assign(cells)
+    };
+    // S-149: a paged hive keeps two rings, so the More cell never reaches
+    // ring 1 and the window never resizes under the pointer.
+    let paging_rings = if paged { 2 } else { 1 };
+    let rings = if ring2.is_empty() { 1 } else { 2 }
+        .max(min_rings)
+        .max(paging_rings);
     let radius = HEX_SIZE_MD / 3f32.sqrt();
     let (width, height) = Layout::extent(radius, HEX_GAP, rings, PAD);
     let layout = Layout {
@@ -228,10 +292,19 @@ pub fn plan_rings(cells: Vec<HiveCell>, rtl: bool, min_rings: i32) -> Plan {
     let ring1_slots: Vec<Axial> = if rings == 1 && n > 0 && n < RING1 {
         (0..n).map(|i| inner[i * RING1 / n]).collect()
     } else {
-        inner
+        inner.clone()
     };
-    let slots = ring1_slots.into_iter().zip(ring1).chain(place_outer(ring2));
+    let slots: Vec<(Axial, HiveCell)> = if paged {
+        place_paged(&ring1, &ring2, &ring1_slots, &ring(2), RING2)
+    } else {
+        ring1_slots
+            .into_iter()
+            .zip(ring1)
+            .chain(place_outer(ring2))
+            .collect()
+    };
     let cells = slots
+        .into_iter()
         .map(|(axial, cell)| {
             let (x, y) = layout.center(axial);
             Placed { cell, axial, x, y }
@@ -288,6 +361,62 @@ fn place_outer_at(
         if let Some(cell) = actions.next() {
             placed.push((slot, cell));
         }
+    }
+    placed
+}
+
+/// The cells of a paged hive in their slots (S-149).
+///
+/// The ring-1 cells take the first accepted ring-1 slots. The actions of
+/// the page take the accepted slots of the outer ring and the More cell
+/// the last of them, so the More cell never reaches ring 1 and the hive
+/// keeps its two rings on every page.
+///
+/// A placement whose outer ring accepts one slot gives it to the More
+/// cell, and the action of the page takes the last free ring-1 slot. A
+/// placement whose outer ring accepts no slot at all gives the last two
+/// ring-1 slots to the More cell and to the action.
+fn place_paged(
+    ring1: &[HiveCell],
+    outer: &[HiveCell],
+    inner: &[Axial],
+    outer_slots: &[Axial],
+    ring2_slots: usize,
+) -> Vec<(Axial, HiveCell)> {
+    let (actions, more) = split_more(outer.to_vec());
+    let mut placed: Vec<(Axial, HiveCell)> =
+        inner.iter().copied().zip(ring1.iter().cloned()).collect();
+    // The ring-1 slots the ring-1 cells did not take.
+    let mut free: Vec<Axial> = inner.iter().copied().skip(ring1.len()).collect();
+    // The accepted slots of the outer ring.
+    let ring2: Vec<Axial> = outer_slots
+        .iter()
+        .copied()
+        .take(ring2_slots.min(outer_slots.len()))
+        .collect();
+    // The More cell takes the last accepted slot of the outer ring. With
+    // no accepted outer slot it takes the last free ring-1 slot.
+    let more_slot = match (&more, ring2.len()) {
+        (Some(_), 0) => free.pop(),
+        (Some(_), n) => ring2.get(n - 1).copied(),
+        (None, _) => None,
+    };
+    // The actions of the page take the outer slots before the More cell.
+    let mut action_slots: Vec<Axial> = match (&more, ring2.len()) {
+        (Some(_), 0) => Vec::new(),
+        (Some(_), n) => ring2[..n - 1].to_vec(),
+        (None, _) => ring2.clone(),
+    };
+    if action_slots.len() < actions.len() {
+        // The outer ring has no room for the rest of the page: they take
+        // the ring-1 slots the ring-1 cells left free.
+        action_slots.append(&mut free);
+    }
+    for (slot, cell) in action_slots.into_iter().zip(actions) {
+        placed.push((slot, cell));
+    }
+    if let (Some(slot), Some(more)) = (more_slot, more) {
+        placed.push((slot, more));
     }
     placed
 }
@@ -385,7 +514,14 @@ pub fn plan_at(
         origin: (0.0, 0.0),
     };
 
-    let (ring1, ring2) = assign(cells);
+    // S-149: a paged hive never collapses into the compact one-ring
+    // window, so the More cell stays in the outer ring.
+    let paged = is_paged(&cells);
+    let (ring1, ring2) = if paged {
+        assign_paged(cells)
+    } else {
+        assign(cells)
+    };
     let inner = &accepted[0];
     let n1 = ring1.len().min(inner.len());
     let mut ring1 = ring1;
@@ -399,9 +535,13 @@ pub fn plan_at(
     // the slots before it and the outer rings after it. Without a slot of
     // ring 2, it takes the last slot the screen has.
     let ring2_slots = accepted[1].len();
-    let placed = place_outer_at(outer, &outer_slots, ring2_slots);
+    let placed = if paged {
+        place_paged(&ring1, &outer, inner, &outer_slots, ring2_slots)
+    } else {
+        place_outer_at(outer, &outer_slots, ring2_slots)
+    };
     let used = placed.last().map_or(1, |(a, _)| a.distance());
-    let rings = used.max(min_rings);
+    let rings = used.max(min_rings).max(if paged { 2 } else { 1 });
     // A lone ring spreads its cells; with every slot filled this is the
     // slots in order, and with no cell it is empty.
     let ring1_slots: Vec<Axial> = if rings == 1 {
@@ -420,8 +560,13 @@ pub fn plan_at(
         origin: (mx - b.0, my - b.1),
         ..offsets
     };
-    let slots = ring1_slots.into_iter().zip(ring1).chain(placed);
+    let slots: Vec<(Axial, HiveCell)> = if paged {
+        placed
+    } else {
+        ring1_slots.into_iter().zip(ring1).chain(placed).collect()
+    };
     let cells = slots
+        .into_iter()
         .map(|(axial, cell)| {
             let (x, y) = layout.center(axial);
             Placed { cell, axial, x, y }
@@ -715,10 +860,170 @@ mod tests {
         assert_eq!(page_size(12), 11);
         assert_eq!(page_size(8), 7);
         assert_eq!(page_size(5), 4);
-        // A placement with one slot or less keeps the default size: the
-        // More cell would leave no room for an action.
-        assert_eq!(page_size(1), PAGE_SIZE);
-        assert_eq!(page_size(0), PAGE_SIZE);
+        assert_eq!(page_size(2), 1);
+        // A placement with one slot or less holds one action per page: the
+        // More cell takes the only outer slot, or a ring-1 slot when there
+        // is no outer slot at all.
+        assert_eq!(page_size(1), 1);
+        assert_eq!(page_size(0), 1);
+    }
+
+    #[test]
+    fn the_reserved_ring_one_slots_follow_the_accepted_outer_slots() {
+        assert_eq!(reserved_ring1_slots(RING2), 0);
+        assert_eq!(reserved_ring1_slots(2), 0);
+        assert_eq!(reserved_ring1_slots(1), 1);
+        assert_eq!(reserved_ring1_slots(0), 2);
+    }
+
+    /// The cells of a page and the slots they take, for a placement with
+    /// `ring1_slots` accepted ring-1 slots and `outer_slots` accepted
+    /// outer slots.
+    fn paged_placement(
+        cells: &[HiveCell],
+        ring1_slots: usize,
+        outer_slots: usize,
+        index: usize,
+    ) -> Vec<(Axial, HiveCell)> {
+        let reserved = reserved_ring1_slots(outer_slots);
+        let (ring1, outer) = queue_at(cells, ring1_slots.saturating_sub(reserved));
+        let size = page_size(outer_slots);
+        let page_cells = page(&outer, index, size, Lang::En);
+        let inner: Vec<Axial> = ring(1).into_iter().take(ring1_slots).collect();
+        let outer_axial: Vec<Axial> = ring(2).into_iter().take(outer_slots).collect();
+        place_paged(&ring1, &page_cells, &inner, &outer_axial, outer_slots)
+    }
+
+    #[test]
+    fn a_page_with_two_accepted_outer_slots_holds_one_action_and_the_more_cell() {
+        let mut cells = many("r", 6, 1);
+        cells.extend(many("a", 5, 2));
+        let placed = paged_placement(&cells, 6, 2, 0);
+        // The ring-1 cells keep their slots, the page adds two cells.
+        assert_eq!(placed.len(), 8);
+        // The action takes the outer slot before the More cell.
+        assert_eq!(placed[6].0, ring(2)[0]);
+        assert_eq!(placed[6].1.id, "a0");
+        // The More cell takes the last accepted outer slot.
+        let more = placed
+            .iter()
+            .position(|(_, c)| c.id == MORE_ID)
+            .expect("the More cell");
+        assert_eq!(placed[more].0, ring(2)[1]);
+    }
+
+    #[test]
+    fn a_page_with_one_accepted_outer_slot_gives_it_to_the_more_cell() {
+        let mut cells = many("r", 6, 1);
+        cells.extend(many("a", 5, 2));
+        let placed = paged_placement(&cells, 6, 1, 0);
+        // One ring-1 slot is reserved for the action of the page.
+        assert_eq!(placed.len(), 7);
+        // The More cell takes the only accepted outer slot.
+        let more = placed
+            .iter()
+            .position(|(_, c)| c.id == MORE_ID)
+            .expect("the More cell");
+        assert_eq!(placed[more].0, ring(2)[0]);
+        // The action of the page takes the ring-1 slot the More cell
+        // leaves free. It is the ring-1 cell that did not fit.
+        let action = placed
+            .iter()
+            .position(|(_, c)| c.id == "r5")
+            .expect("the action of the page");
+        assert_eq!(placed[action].0, ring(1)[5]);
+    }
+
+    #[test]
+    fn a_page_without_any_accepted_outer_slot_keeps_both_cells_in_ring_one() {
+        let mut cells = many("r", 6, 1);
+        cells.extend(many("a", 5, 2));
+        let placed = paged_placement(&cells, 6, 0, 0);
+        // Two ring-1 slots are reserved for the More cell and the action.
+        assert_eq!(placed.len(), 6);
+        // The action of the page takes the ring-1 slot before the More
+        // cell, and the More cell the last one.
+        let action = placed
+            .iter()
+            .position(|(_, c)| c.id == "r4")
+            .expect("the action of the page");
+        assert_eq!(placed[action].0, ring(1)[4]);
+        let more = placed
+            .iter()
+            .position(|(_, c)| c.id == MORE_ID)
+            .expect("the More cell");
+        assert_eq!(placed[more].0, ring(1)[5]);
+    }
+
+    #[test]
+    fn every_action_is_reachable_with_few_accepted_outer_slots() {
+        for outer_slots in [0, 1, 2] {
+            let mut cells = many("r", 6, 1);
+            cells.extend(many("a", 7, 2));
+            let reserved = reserved_ring1_slots(outer_slots);
+            let (ring1, outer) = queue_at(&cells, 6usize.saturating_sub(reserved));
+            let size = page_size(outer_slots);
+            let mut seen: Vec<String> = Vec::new();
+            for p in 0..pages(&outer, size) {
+                let page_cells = page(&outer, p, size, Lang::En);
+                for cell in &page_cells {
+                    if cell.id != MORE_ID {
+                        seen.push(cell.id.clone());
+                    }
+                }
+                // Every cell of the page is placed: none is dropped.
+                let inner: Vec<Axial> = ring(1).into_iter().take(6).collect();
+                let outer_axial: Vec<Axial> = ring(2).into_iter().take(outer_slots).collect();
+                let placed = place_paged(&ring1, &page_cells, &inner, &outer_axial, outer_slots);
+                assert_eq!(
+                    placed.len(),
+                    ring1.len() + page_cells.len(),
+                    "{outer_slots} outer slots, page {p}"
+                );
+            }
+            // Every action of the queue is on exactly one page.
+            let want: Vec<String> = outer.iter().map(|c| c.id.clone()).collect();
+            assert_eq!(seen, want, "{outer_slots} outer slots");
+        }
+    }
+
+    #[test]
+    fn a_paged_hive_keeps_two_rings_and_the_more_cell_out_of_ring_one() {
+        // Two ring-1 cells, one action and the More cell: five cells in
+        // all, few enough for the compact one-ring rule. A paged hive never
+        // takes it.
+        let mut cells = many("r", 2, 1);
+        cells.extend(page(&many("a", 3, 2), 0, 1, Lang::En));
+        assert!(is_paged(&cells));
+        let plan = plan_rings(cells, false, 1);
+        // The window keeps the two rings of the hive.
+        let two = plan_rings(many("x", 18, 1), false, 2);
+        assert_eq!((plan.width, plan.height), (two.width, two.height));
+        // The More cell is in the outer ring.
+        let more = plan
+            .cells
+            .iter()
+            .find(|c| c.cell.id == MORE_ID)
+            .expect("the More cell");
+        assert_eq!(more.axial.distance(), 2);
+    }
+
+    #[test]
+    fn the_more_cell_takes_the_last_accepted_outer_slot_of_the_plan() {
+        let screen = (1920, 1080);
+        let anchor = (960.0, 540.0);
+        let mut cells = many("r", 6, 1);
+        cells.extend(page(&many("a", 20, 2), 0, PAGE_SIZE, Lang::En));
+        let (plan, _) = plan_at(cells, false, 2, screen, Some(anchor), 120);
+        let accepted = accepted_rings(false, screen, anchor);
+        let more = plan
+            .cells
+            .iter()
+            .find(|c| c.cell.id == MORE_ID)
+            .expect("the More cell");
+        assert_eq!(more.axial, *accepted[1].last().unwrap());
+        // The actions of the page take the slots before it.
+        assert_eq!(plan.cells.len(), 6 + PAGE_SIZE + 1);
     }
 
     #[test]

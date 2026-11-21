@@ -35,6 +35,10 @@ pub struct State {
     pub lang: Lang,
     pub registry: Registry,
     pub available: Vec<String>,
+    /// The engines this state was built with. A reload refreshes them, so a
+    /// tool installed after the daemon started is seen without a restart
+    /// (S-145).
+    engines: Vec<Arc<dyn Engine>>,
     /// Files of the hive currently shown, consumed by the choice.
     pub pending: Option<Vec<PathBuf>>,
     pub jobs: HashMap<JobId, JobInfo>,
@@ -113,15 +117,14 @@ pub fn load_registry() -> Registry {
 
 impl State {
     pub fn new(config: Config, engines: &[Arc<dyn Engine>]) -> Self {
+        let ocr = OcrEngine::default();
+        let available = available_ids(engines, &ocr);
         Self {
             lang: config.lang(),
             config,
             registry: load_registry(),
-            available: engines
-                .iter()
-                .filter(|e| e.available())
-                .map(|e| e.id().to_string())
-                .collect(),
+            available,
+            engines: engines.to_vec(),
             pending: None,
             jobs: HashMap::new(),
             subscribers: HashMap::new(),
@@ -130,7 +133,7 @@ impl State {
             pending_retries: HashMap::new(),
             presets: crate::presets::PresetService::new(kawaro_core::presets::path()),
             probe_cache: ProbeCache::new(),
-            ocr: OcrEngine::default(),
+            ocr,
         }
     }
 
@@ -150,7 +153,8 @@ impl State {
         action
     }
 
-    /// Re-reads settings and action files, and invalidates cached tool probes (S-145).
+    /// Re-reads settings and action files, refreshes the engines, and
+    /// invalidates cached tool probes (S-145).
     pub fn reload(&mut self) {
         let (config, warning) = Config::load();
         if let Some(w) = warning {
@@ -163,6 +167,13 @@ impl State {
         OcrEngine::invalidate_language_cache();
         self.ocr = OcrEngine::discover();
         self.ocr.warm_language_probe();
+        // S-145: every engine looks its program up again, so a tool
+        // installed after the daemon started is seen. The lookup starts no
+        // child process and uses no network.
+        for engine in &self.engines {
+            engine.refresh();
+        }
+        self.available = available_ids(&self.engines, &self.ocr);
     }
 
     pub fn matching(&self, files: &[PathBuf]) -> Vec<ActionDef> {
@@ -204,6 +215,25 @@ impl State {
             self.subscribers.remove(&job);
         }
     }
+}
+
+/// The ids of the available engines, in the order of the engine list.
+///
+/// The OCR engine is read from the OCR handle, because the daemon discovers
+/// Tesseract again on every reload (S-145). Every other engine answers for
+/// itself, after its own refresh.
+fn available_ids(engines: &[Arc<dyn Engine>], ocr: &OcrEngine) -> Vec<String> {
+    engines
+        .iter()
+        .filter(|engine| {
+            if engine.id() == "ocr" {
+                ocr.available()
+            } else {
+                engine.available()
+            }
+        })
+        .map(|engine| engine.id().to_string())
+        .collect()
 }
 
 /// The common kind of a selection, or None when it is mixed.

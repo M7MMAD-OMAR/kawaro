@@ -97,6 +97,26 @@ fn check_ocr_language(state: &State, language: &str) -> Option<UnavailableReason
         .and_then(|cached| cached.check_language("tesseract", parts))
 }
 
+/// Checks whether OCRmyPDF and its requested Tesseract language are ready
+/// from cached probes only, never running a child on the hive path (S-150).
+fn check_ocrmypdf(state: &State, language: &str) -> Option<UnavailableReason> {
+    let ocrmypdf = kawaro_engines::ocrmypdf::OcrmypdfEngine::default();
+    let Some(program) = ocrmypdf.program() else {
+        return Some(UnavailableReason::MissingExecutable {
+            program: String::from("ocrmypdf"),
+        });
+    };
+    if let Some(reason) = state
+        .probe_cache
+        .get(program)
+        .or_else(|| ocrmypdf.cached_version_probe())
+        .and_then(|cached| cached.into_reason("ocrmypdf"))
+    {
+        return Some(reason);
+    }
+    check_ocr_language(state, language)
+}
+
 /// Evaluates why `action` is unavailable under `state`, or `None` when runnable.
 fn action_reason(state: &State, action: &ActionDef) -> Option<UnavailableReason> {
     let ok = |e: &str| state.available.iter().any(|a| a == e);
@@ -110,6 +130,14 @@ fn action_reason(state: &State, action: &ActionDef) -> Option<UnavailableReason>
             .and_then(|v| v.as_str())
             .unwrap_or("ara+eng");
         return check_ocr_language(state, ocr_lang);
+    }
+    if action.engine == "ocrmypdf" {
+        let ocr_lang = action
+            .params
+            .get("lang")
+            .and_then(|v| v.as_str())
+            .unwrap_or("ara+eng");
+        return check_ocrmypdf(state, ocr_lang);
     }
     None
 }

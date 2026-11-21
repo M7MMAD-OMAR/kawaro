@@ -331,17 +331,14 @@ impl UiPresetAdapter {
             .entries
             .into_iter()
             .map(|entry| {
-                let action_ok = current.as_ref().is_some_and(|current| {
-                    current.id == entry.preset.action_id
-                        && presets::validate_preset(&entry.preset, Some(current)).is_ready()
-                });
-                let status = if action_ok {
-                    entry.status
-                } else {
-                    PresetStatus::Unavailable(format!(
+                // The live registry decides: Ready, NeedsReview (offered for
+                // review, never applied) or Unavailable with its reason.
+                let status = match current.as_ref() {
+                    Some(current) if current.id == entry.preset.action_id => entry.status,
+                    _ => PresetStatus::Unavailable(format!(
                         "the action `{}` is not available in the current registry",
                         entry.preset.action_id
-                    ))
+                    )),
                 };
                 PresetItem::new(entry.preset, status)
             })
@@ -615,7 +612,7 @@ impl PresetService {
     /// The worker sender, started once.
     fn sender(&self) -> Result<SyncSender<Envelope>, PresetError> {
         let path = self.path.clone().ok_or(PresetError::UnavailablePath)?;
-        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        let mut guard = crate::state::lock(&self.inner);
         if let Some(sender) = guard.as_ref() {
             return Ok(sender.clone());
         }

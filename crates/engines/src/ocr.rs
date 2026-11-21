@@ -41,14 +41,13 @@ use kawaro_core::unsupported::{ProbeCache, ProbeOutcome, UnavailableReason};
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::ffi::OsString;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Mutex, MutexGuard, OnceLock, TryLockError};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
-mod child;
+pub(crate) mod child;
 
 /// Where to get Tesseract, for the message when it is missing.
 pub const TESSERACT_URL: &str = "https://tesseract-ocr.github.io/tessdoc/";
@@ -86,14 +85,14 @@ fn lang_cache() -> &'static ProbeCache {
 
 /// The right to run the one child, released on drop. The guard is held for
 /// its drop: the permit is the absence of a second child.
-struct Permit {
+pub(crate) struct Permit {
     _guard: MutexGuard<'static, ()>,
 }
 
 /// Takes the child permit, checking `cancel` before the wait, while waiting
 /// and after it. A poisoned lock is still a lock: a holder that panicked is
 /// gone and the child limit stays at one.
-fn acquire_permit(cancel: &CancelToken) -> Result<Permit, EngineError> {
+pub(crate) fn acquire_permit(cancel: &CancelToken) -> Result<Permit, EngineError> {
     cancel.check()?;
     loop {
         // A poisoned lock is still a lock: a holder that panicked is gone and
@@ -350,7 +349,8 @@ impl OcrEngine {
         // the characters the engine returned.
         recognized_text(&bytes)?;
         cancel.check()?;
-        write_atomic(&task.output, &bytes)?;
+        // `task.output` is the queue's temp path; the queue finalizes it.
+        std::fs::write(&task.output, &bytes).map_err(EngineError::Io)?;
         Ok(())
     }
 }
@@ -399,7 +399,7 @@ pub(crate) fn argv(input: &Path, output_base: &Path, language: &str) -> Vec<OsSt
 }
 
 /// The `lang` param: one of [`SUPPORTED_LANGUAGES`], exact.
-fn language_param(task: &Task) -> Result<String, EngineError> {
+pub(crate) fn language_param(task: &Task) -> Result<String, EngineError> {
     let bad = |reason: String| EngineError::BadParam {
         name: "lang".into(),
         reason,
@@ -547,14 +547,14 @@ pub(crate) fn recognized_text(bytes: &[u8]) -> Result<&str, EngineError> {
     Ok(text)
 }
 
-/// Runs one bounded `tesseract --list-langs` probe under the shared child
-/// permit and translates its result into a [`ProbeOutcome`].
+/// Runs one bounded `tesseract --list-langs` probe and translates its result into a [`ProbeOutcome`].
 ///
 /// Returns `Err(EngineError::Cancelled)` when cancelled so callers do not
 /// cache a cancellation as a broken tool. Timeouts, non-zero exit codes, and
 /// oversized reports become [`ProbeOutcome::Unknown`], never ready.
 fn run_language_probe(program: &Path, cancel: &CancelToken) -> Result<ProbeOutcome, EngineError> {
-    let _permit = acquire_permit(cancel)?;
+    // No run permit: the probe is a short bounded child, so a discovery call
+    // never waits for a running extraction.
     cancel.check()?;
     let mut cmd = Command::new(program);
     cmd.arg("--list-langs");
@@ -576,42 +576,6 @@ fn run_language_probe(program: &Path, cancel: &CancelToken) -> Result<ProbeOutco
             Ok(ProbeOutcome::Ready { items })
         }
     }
-}
-
-/// Writes `bytes` to a unique sibling temporary file in `dest`'s parent
-/// directory, flushes it, and renames it atomically to `dest`. On any error,
-/// removes the temporary file so no partial file remains.
-fn write_atomic(dest: &Path, bytes: &[u8]) -> Result<(), EngineError> {
-    static COUNTER: AtomicU64 = AtomicU64::new(0);
-    let parent = match dest.parent() {
-        Some(p) if !p.as_os_str().is_empty() => p,
-        _ => Path::new("."),
-    };
-    let pid = std::process::id();
-    let seq = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or_default();
-    let tmp = parent.join(format!(".kawaro-ocr-{pid}-{seq}-{nanos}.tmp"));
-    let write_res = (|| -> std::io::Result<()> {
-        let mut file = std::fs::OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&tmp)?;
-        file.write_all(bytes)?;
-        file.flush()?;
-        Ok(())
-    })();
-    if let Err(err) = write_res {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(EngineError::Io(err));
-    }
-    if let Err(err) = std::fs::rename(&tmp, dest) {
-        let _ = std::fs::remove_file(&tmp);
-        return Err(EngineError::Io(err));
-    }
-    Ok(())
 }
 
 /// A text file the child left that cannot be read.

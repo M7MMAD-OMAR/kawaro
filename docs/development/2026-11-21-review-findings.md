@@ -1,0 +1,44 @@
+# Fresh review findings on the S-142 to S-149 source (2026-11-21)
+
+Two independent read-only reviews of commit 82771bc: Gemini 4 Neon (UI and daemon) and MiniMax-M3.1-Flash (core, engines, CLI, MCP). Each line names the fix owner and state.
+
+## Fixed by the parent
+
+- MCP read-only mode reported every action `disabled-by-policy`; read-only refuses the write tools, not the actions, so discovery now reports the machine like `kawaro doctor` (crates/mcp/src/tools.rs).
+- MCP kept the first Tesseract lookup and language probe for the whole server life; discovery now looks the program up again and forgets its language probe per call.
+- The daemon preset adapter turned every NeedsReview preset into Unavailable, so Review and save could never run (crates/daemon/src/presets.rs snapshot).
+- Tried: cancelling a superseded running preview. Reverted, because an early cancel publishes a cancelled outcome before the newer request is queued; the scheduler tests pin one running plus one waiting request. Kept as a known limit.
+- A language switch now asks the daemon for a fresh Results model, so job and unit rows follow the language (welcome.rs, settings.rs).
+- Only expanded jobs check their unit outputs on disk (results_view.rs).
+- Retry runs its disk checks on a worker thread and reports back on the event loop (daemon ui.rs).
+- Customize Run drops keys equal to the action's fixed params before validation, so image.to-pdf runs (daemon ui.rs).
+- The OCR language probe no longer waits on the run permit, and the OCR adapter writes straight to the queue's temp output (engines ocr.rs).
+
+## Fix packets
+
+Presets panel (crates/ui/src/stage_two.rs, lib.rs, hive.slint):
+- After a delete or external reload the selection is validated against the old list and can point at a deleted preset.
+- Conflict and success messages are overwritten at once by the automatic List reload.
+- Editing an option never marks the preset controls dirty, so Save current stays wrongly enabled or disabled.
+- Applying a named preset leaves user-edited text fields and the stage error stale; the preset name field keeps typed text after selecting a preset.
+- Non-image engines on image input (image.to-text) show an empty "Transformed draft" well.
+- Named preset rows and the preview note are not mirrored in RTL.
+
+Paging (crates/ui/src/layout.rs, lib.rs, layer.rs):
+- A last page with ring 1 plus few outer cells collapses to one ring and pulls More into ring 1, resizing the hive under the pointer.
+- When the accepted ring-2 slots are 1 or fewer, the page size falls back to 11 and actions are dropped.
+- Dropping files on More in ChooseDuringDrag pages and then dismisses the hive.
+- Windows paging ignores the monitor edge and re-reads the cursor on page change.
+- An X11 drop show keeps a stale placement from an earlier edge show.
+- Page change is not guarded against a terminal or closing hive.
+
+Results and daemon (crates/ui/src/welcome.rs, settings.rs, results_view.rs, crates/daemon/src/ui.rs, plan.rs):
+- A refused retry is only logged; the Results page re-enables Retry without showing the reason. (The checks now run off the UI thread.)
+
+## Accepted as documented limits
+
+- The skipped-file and REQ cells keep the S-108 18-cell budget (S-108 AC3 tests pin it). With S-149 paging this budget could grow; that is a separate S-108 change, not done here.
+
+- Preset store compare-and-replace is not a transaction against external editors (documented in ADR 0016).
+- A plain `kawaro cancel JOB` without an instance targets the current daemon by design; `INSTANCE:JOB` is the checked form.
+- A cancel that lands between the queue dropping a finished job's token and the Finished event reports success and cancels nothing.

@@ -263,6 +263,8 @@ fn missing_output_shows_unavailable_and_existing_output_offers_show_in_folder() 
     let detail = JobDetail::of(ledger.job(40).expect("job 40 in ledger"), "Convert to WebP");
     let mut state = ResultsViewState::new();
     state.update(vec![detail], HashSet::new());
+    // Unit outputs are checked on disk only for an expanded job.
+    assert!(state.toggle_expanded(40));
 
     let vm = state.view_fs(Lang::En);
     let row = &vm.jobs[0];

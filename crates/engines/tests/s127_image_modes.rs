@@ -355,8 +355,8 @@ fn the_three_actions_declare_their_options() {
     let actions = image_actions();
     assert_eq!(
         actions.len(),
-        19,
-        "the 16 shipped image actions plus the 3 new ones"
+        20,
+        "the 16 shipped image actions, the 3 of S-127 and image.to-text (S-146)"
     );
     for id in SHIPPED_IMAGE_ACTIONS {
         assert!(

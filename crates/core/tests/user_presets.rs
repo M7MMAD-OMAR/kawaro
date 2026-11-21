@@ -82,9 +82,11 @@ fn a_missing_store_is_an_empty_store() {
     assert_eq!(doc.version, 1);
     assert_eq!(doc.next_id, 1);
     // The revision of a missing store is not the revision of an empty file.
+    // An existing empty file is a corrupt store and not a missing one, so
+    // it is read through its revision and not as a document.
     let empty = dir.path().join("empty.toml");
     std::fs::write(&empty, "").unwrap();
-    let (_, empty_revision) = presets::load(&empty).unwrap();
+    let empty_revision = presets::revision_of(&empty).unwrap();
     assert_ne!(revision, empty_revision);
 }
 

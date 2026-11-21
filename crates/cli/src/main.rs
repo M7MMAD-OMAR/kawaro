@@ -834,6 +834,7 @@ fn on_path(tool: &str) -> bool {
 }
 
 fn doctor() {
+    reload_running_daemon();
     let mark = |ok: bool| if ok { "ok     " } else { "missing" };
     let all_engines = engines();
     out!("engines");
@@ -912,6 +913,17 @@ fn doctor() {
     }
 }
 
+/// Asks the running daemon to reload its settings, its actions and its engine
+/// availability (S-145), so a tool installed after the daemon started is
+/// seen. A daemon that does not run is left alone: this never starts one.
+/// The line says what happened, and nothing is printed when no daemon
+/// answered.
+fn reload_running_daemon() {
+    if matches!(client::request(&Request::Reload), Ok(Response::Ok)) {
+        out!("daemon: reloaded");
+    }
+}
+
 /// The `drop key state:` line (S-111), or none when nothing is known.
 fn drop_key_state_line(binds: Option<&str>, bind: kawaro_core::hold::BindState) -> Option<String> {
     use kawaro_core::hyprland_bind::{
@@ -938,6 +950,7 @@ fn repair() -> Res<()> {
     use kawaro_core::hyprland_bind::{
         MergeError, Syntax, foreign_on, hyprland_bind_text, merge_block, message, stale_launchers,
     };
+    reload_running_daemon();
     let lang = Lang::detect();
     if std::env::var_os("HYPRLAND_INSTANCE_SIGNATURE").is_none() {
         out!("{}", message(lang, "repair.not_hyprland"));

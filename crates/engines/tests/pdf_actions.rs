@@ -1,6 +1,7 @@
 //! actions/pdf.toml parses and only names ops the PDF engines run (S-010).
 
 use kawaro_core::{ActionDef, Engine, MediaKind, OutputMode};
+use kawaro_engines::ocrmypdf::OcrmypdfEngine;
 use kawaro_engines::pdf::{GhostscriptEngine, PdfEngine};
 use kawaro_engines::poppler::PopplerEngine;
 use kawaro_engines::qpdf::QpdfEngine;
@@ -18,11 +19,12 @@ fn actions() -> Vec<ActionDef> {
 
 #[test]
 fn pdf_actions_match_engine_capabilities() {
-    let engines: [&dyn Engine; 4] = [
+    let engines: [&dyn Engine; 5] = [
         &PdfEngine,
         &GhostscriptEngine::default(),
         &PopplerEngine::default(),
         &QpdfEngine::default(),
+        &OcrmypdfEngine::default(),
     ];
     for a in actions() {
         assert!(a.id.starts_with("pdf."), "{}", a.id);
@@ -206,6 +208,18 @@ fn pdf_actions_have_the_planned_rings_outputs_and_codes() {
             1,
             "CHECK",
             "فحص",
+        ),
+        (
+            "pdf.make-searchable",
+            "ocrmypdf",
+            "make-searchable",
+            2,
+            OutputMode::PerFile,
+            "pdf",
+            "-searchable",
+            1,
+            "OCR",
+            "بحث",
         ),
     ];
     assert_eq!(actions.len(), want.len());

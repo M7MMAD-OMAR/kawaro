@@ -688,6 +688,11 @@ struct Inner {
     /// The display system and where X11 reads the pointer (S-113).
     #[cfg(target_os = "linux")]
     x11: X11State,
+    /// S-149: the placement of the hive on Windows: the pointer and the
+    /// work area it was placed on, so a page change plans the page at the
+    /// same place and never reads the cursor again.
+    #[cfg(windows)]
+    win: Cell<Option<win_window::Placement>>,
 }
 
 /// What the X11 window path keeps between shows (S-113).
@@ -738,6 +743,12 @@ struct Paging {
     /// The action cells on a page. It follows the placement: the More cell
     /// takes the last slot the screen accepts.
     size: usize,
+}
+
+/// True when the id is the id of the More cell (S-149), the control that
+/// pages the outer queue and never an action.
+fn is_more_id(id: &str) -> bool {
+    matches!(layout::activation(id), layout::Activation::More)
 }
 
 /// The root size used to centre the hive when the pointer is unreadable.
@@ -954,6 +965,17 @@ impl Inner {
                     // the panel never waits for the store.
                     if let Some(update) = stage.poll_preset(session, panel) {
                         apply_preset_update(ui, &update);
+                        if update.rebuild {
+                            // A named preset was applied: the controls are
+                            // rebuilt, so the fields the user edited show
+                            // the applied values again, like the action
+                            // preset path does.
+                            ui.set_stage_two(false);
+                            ui.set_stage_options(stage.rows());
+                            ui.set_stage_readout(stage.readout().as_str().into());
+                            ui.set_stage_error("".into());
+                            ui.set_stage_two(true);
+                        }
                     }
                 });
             },
@@ -1156,7 +1178,12 @@ impl Inner {
         ring1_slots: usize,
         outer_slots: usize,
     ) -> Vec<HiveCell> {
-        let (ring1, outer) = layout::queue_at(&paging.cells, ring1_slots);
+        // S-149: a placement whose outer ring has no room keeps the More
+        // cell and the action of the page in ring 1, so those slots are
+        // reserved and the ring-1 cells that do not fit move to the queue.
+        let reserved = layout::reserved_ring1_slots(outer_slots);
+        let visible = ring1_slots.saturating_sub(reserved);
+        let (ring1, outer) = layout::queue_at(&paging.cells, visible);
         paging.ring1 = ring1;
         paging.outer = outer;
         paging.size = layout::page_size(outer_slots);
@@ -1176,6 +1203,19 @@ impl Inner {
         let mut slot = self.paging.borrow_mut();
         let paging = slot.as_mut()?;
         let (ring1_slots, outer_slots) = layout::accepted_slots(self.rtl, screen, anchor);
+        Some(self.page_cells_for(paging, ring1_slots, outer_slots))
+    }
+
+    /// S-149: the cells of the page for the Windows placement: the page
+    /// holds as many actions as the work area accepts and the More cell
+    /// takes the last slot. The placement is the one of the show, never a
+    /// new cursor reading.
+    #[cfg(windows)]
+    fn page_cells_at_win(&self, placement: win_window::Placement) -> Option<Vec<HiveCell>> {
+        let mut slot = self.paging.borrow_mut();
+        let paging = slot.as_mut()?;
+        let (screen, anchor) = placement.screen_and_anchor();
+        let (ring1_slots, outer_slots) = layout::accepted_slots(self.rtl, screen, Some(anchor));
         Some(self.page_cells_for(paging, ring1_slots, outer_slots))
     }
 
@@ -1200,7 +1240,14 @@ impl Inner {
     /// S-149: the plan of the page, laid out the way the shown hive was.
     #[cfg(windows)]
     fn page_plan(&self, cells: Vec<HiveCell>, min_rings: i32) -> Plan {
-        win_window::plan(cells, self.rtl, min_rings).0
+        // S-149: the page is planned at the placement of the show. The
+        // cursor is read once, at the show, and never again.
+        let placement = self.win.get().unwrap_or_else(|| {
+            let placement = win_window::placement();
+            self.win.set(Some(placement));
+            placement
+        });
+        win_window::plan_at(cells, self.rtl, min_rings, placement).0
     }
 
     /// S-149: the plan of the page, laid out the way the shown hive was.
@@ -1249,6 +1296,11 @@ impl Inner {
     /// the outer cells move. `keep_more` keeps the focus on the More cell,
     /// where the pointer and the keyboard are.
     fn change_page(&self, delta: i32, keep_more: bool) {
+        // S-149: a terminal, hidden or closing hive does not page. The
+        // session owns the cells and nothing else may move them.
+        if self.terminal.get() || !self.visible() || self.ui.borrow().get_closing() {
+            return;
+        }
         let Some(mut paging) = self.paging.borrow_mut().take() else {
             return;
         };
@@ -1413,6 +1465,23 @@ impl Inner {
         if !self.session_is_drop.get() {
             return;
         }
+        // S-149: a drop on the More cell is not a choice. The hive pages
+        // the outer queue, stays open and the drag session lives on, so
+        // the files can still be dropped on an action.
+        if matches!(event, dnd::Event::Drop) {
+            let over = self.machine.borrow().state();
+            if let dnd::State::Over(i) = over
+                && self.is_more_cell(i)
+            {
+                self.change_page(1, true);
+                // The machine follows the new page, so the next drop hits
+                // the cell under the pointer.
+                if let Some(index) = self.more_cell_index() {
+                    self.drag(dnd::Event::Motion(Some(index)));
+                }
+                return;
+            }
+        }
         let before = self.machine.borrow().state();
         let state = self.machine.borrow_mut().handle(event, Instant::now());
         // Its line before the hide unmaps the catcher.
@@ -1456,6 +1525,23 @@ impl Inner {
         }
     }
 
+    /// True when the cell at `index` of the shown plan is the More cell
+    /// (S-149), the control that pages the outer queue.
+    fn is_more_cell(&self, index: usize) -> bool {
+        let plan = self.plan.borrow();
+        let Some(cell) = plan.as_ref().and_then(|p| p.cells.get(index)) else {
+            return false;
+        };
+        is_more_id(&cell.cell.id)
+    }
+
+    /// The index of the More cell of the shown plan (S-149).
+    fn more_cell_index(&self) -> Option<usize> {
+        let plan = self.plan.borrow();
+        let cells = &plan.as_ref()?.cells;
+        cells.iter().position(|c| is_more_id(&c.cell.id))
+    }
+
     fn choose(&self, index: i32) {
         // S-136: a terminal session submits nothing, not twice and not later.
         if self.terminal.get() {
@@ -1477,7 +1563,7 @@ impl Inner {
         }
         // S-149: the More cell is a control of the hive. It pages the outer
         // queue, it never runs an action and never ends the session.
-        if matches!(layout::activation(&id), layout::Activation::More) {
+        if is_more_id(&id) {
             self.change_page(1, true);
             return;
         }
@@ -1582,6 +1668,8 @@ impl Hive {
                 placement: Cell::new(None),
                 line: RefCell::new(None),
             },
+            #[cfg(windows)]
+            win: Cell::new(None),
         });
         wire(&inner);
         let w = Rc::downgrade(&inner);
@@ -1742,12 +1830,26 @@ impl Hive {
         // in the outer ring keeps today's placement.
         let cells = inner.start_paging(&cells, min_rings);
         #[cfg(windows)]
-        let (plan, win_at) = win_window::plan(cells.clone(), inner.rtl, min_rings);
+        let (plan, win_at) = {
+            // S-149: the page follows the placement at show time, and the
+            // placement is kept, so a page change plans the page at the
+            // same place and never reads the cursor again.
+            let placement = win_window::placement();
+            inner.win.set(Some(placement));
+            let page = inner
+                .page_cells_at_win(placement)
+                .unwrap_or_else(|| cells.clone());
+            win_window::plan_at(page, inner.rtl, min_rings, placement)
+        };
         #[cfg(all(not(windows), target_os = "linux"))]
         let on_x11 = inner.x11.session.get() == session::Session::X11;
         #[cfg(all(not(windows), target_os = "linux"))]
         let (plan, x11_at) = if on_x11 && drop.is_some() {
-            // S-115: a drop hive opens at the root centre, not at the pointer.
+            // S-115: a drop hive opens at the root centre, not at the
+            // pointer.
+            // S-149: the placement of an earlier show is dropped, so a
+            // page change never reuses a stale edge placement.
+            inner.x11.placement.set(None);
             let root = inner
                 .x11
                 .source
@@ -2282,7 +2384,7 @@ fn wire(inner: &Rc<Inner>) {
         // S-149: the More cell is a control of the hive, it never opens the
         // customization panel of an action.
         if let Some(id) = id
-            && !matches!(layout::activation(&id), layout::Activation::More)
+            && !is_more_id(&id)
             && let Some(f) = i.on_customize.borrow().clone()
         {
             f(id);

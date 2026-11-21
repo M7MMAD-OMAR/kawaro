@@ -367,15 +367,22 @@ impl Inner {
         ui.set_settings_update_channel_items(list(&strings.channels));
         ui.set_settings_update_mode_items(list(&strings.modes));
         self.show_update(ui, lang);
-        {
+        let relocalize = {
             let mut r = self.results.borrow_mut();
-            if r.lang != lang {
+            let changed = r.lang != lang;
+            if changed {
                 r.lang = lang;
                 r.rtl = rtl;
                 r.strings = crate::results_view::strings(lang);
             }
-        }
+            changed
+        };
         self.show_results(ui);
+        // The job and unit rows carry localized text too: ask the owner for
+        // a fresh model in the new language, the same as opening the page.
+        if relocalize {
+            self.results_handlers.shown();
+        }
         ui.set_settings_subfolder_index(settings::to_visual(
             &settings::OUTPUTS,
             &OutputPlace::Subfolder,

@@ -11,15 +11,24 @@
 //! fewer slots, so a page holds fewer actions and the More cell takes the
 //! last accepted slot. Every action stays reachable either way.
 //!
+//! A paged hive keeps two rings on every page: the More cell never reaches
+//! ring 1 and the hive never resizes under the pointer. A placement whose
+//! outer ring accepts one slot or less gives that slot to the More cell, or
+//! the last ring-1 slot when it accepts none at all, and holds one action
+//! per page.
+//!
 //! The pure layout is the contract, so these tests need no window and no
-//! compositor.
+//! compositor. The last test drives the real hive through the drop path.
 
+use kawaro_core::config::DropMode;
 use kawaro_ui::HiveCell;
 use kawaro_ui::Lang;
 use kawaro_ui::layout::{
     Activation, MORE_ID, PAGE_SIZE, activation, more_cell, outer_queue, page, page_size, pages,
-    plan_rings,
+    plan_rings, queue_at, reserved_ring1_slots,
 };
+use slint::{ComponentHandle, Model};
+use std::path::PathBuf;
 
 /// One action cell, as the daemon builds it.
 fn cell(id: &str, ring: u8) -> HiveCell {
@@ -184,10 +193,20 @@ fn the_page_size_follows_the_accepted_slots() {
     assert_eq!(page_size(12), PAGE_SIZE);
     assert_eq!(page_size(8), 7);
     assert_eq!(page_size(5), 4);
-    // A placement with one slot or less keeps the default size: the More
-    // cell would leave no room for an action.
-    assert_eq!(page_size(1), PAGE_SIZE);
-    assert_eq!(page_size(0), PAGE_SIZE);
+    assert_eq!(page_size(2), 1);
+    // A placement with one slot or less holds one action per page: the
+    // More cell takes the only outer slot, or the last ring-1 slot when
+    // there is no outer slot at all.
+    assert_eq!(page_size(1), 1);
+    assert_eq!(page_size(0), 1);
+}
+
+#[test]
+fn the_reserved_ring_one_slots_follow_the_accepted_outer_slots() {
+    assert_eq!(reserved_ring1_slots(12), 0);
+    assert_eq!(reserved_ring1_slots(2), 0);
+    assert_eq!(reserved_ring1_slots(1), 1);
+    assert_eq!(reserved_ring1_slots(0), 2);
 }
 
 #[test]
@@ -222,7 +241,7 @@ fn every_action_stays_reachable_with_fewer_accepted_slots() {
 
 #[test]
 fn a_queue_that_fits_in_the_accepted_slots_has_no_more_cell() {
-    for slots in [12, 8, 5] {
+    for slots in [12, 8, 5, 2, 1, 0] {
         for n in 0..=slots {
             let outer = queue(n);
             let size = page_size(slots);
@@ -235,6 +254,120 @@ fn a_queue_that_fits_in_the_accepted_slots_has_no_more_cell() {
             );
         }
     }
+}
+
+// AC: a placement with one outer slot or less -----------------------------
+
+#[test]
+fn every_action_stays_reachable_with_one_or_no_accepted_outer_slots() {
+    for slots in [0, 1, 2] {
+        for n in [13, 19, 30] {
+            // The ring-1 slots the More cell and the action of the page
+            // need are reserved, so the ring-1 cells that do not fit move
+            // to the queue and stay reachable.
+            let reserved = reserved_ring1_slots(slots);
+            let cells = actions(n + 6, 6);
+            let (ring1, outer) = queue_at(&cells, 6usize.saturating_sub(reserved));
+            let size = page_size(slots);
+            let mut seen: Vec<String> = ring1.iter().map(|c| c.id.clone()).collect();
+            for p in 0..pages(&outer, size) {
+                for c in page(&outer, p, size, Lang::En) {
+                    if c.id != MORE_ID {
+                        seen.push(c.id.clone());
+                    }
+                }
+            }
+            // Every action of the selection is on exactly one page.
+            assert_eq!(
+                seen.len(),
+                ring1.len() + outer.len(),
+                "{slots} slots, {n} actions"
+            );
+            let mut unique = seen.clone();
+            unique.sort();
+            unique.dedup();
+            assert_eq!(
+                unique.len(),
+                seen.len(),
+                "{slots} slots, {n} actions, one page each"
+            );
+            // The page holds one action at a time when the outer ring has
+            // no room.
+            if slots <= 1 {
+                assert_eq!(size, 1, "{slots} slots");
+            }
+        }
+    }
+}
+
+// AC: a paged hive keeps two rings ----------------------------------------
+
+#[test]
+fn a_paged_hive_keeps_two_rings_and_the_more_cell_out_of_ring_one() {
+    // Two ring-1 cells, one action and the More cell: few enough for the
+    // compact one-ring rule, which a paged hive never takes.
+    let mut cells = actions(2, 2);
+    cells.extend(page(&actions(3, 0), 0, 1, Lang::En));
+    let plan = plan_rings(cells, false, 1);
+    // The window keeps the two rings of the hive.
+    let two = plan_rings(actions(18, 6), false, 2);
+    assert_eq!((plan.width, plan.height), (two.width, two.height));
+    // The More cell is in the outer ring.
+    let more = plan
+        .cells
+        .iter()
+        .find(|c| c.cell.id == MORE_ID)
+        .expect("the More cell");
+    assert_eq!(more.axial.distance(), 2);
+}
+
+// AC: a drop on the More cell pages and keeps the hive open ---------------
+
+/// The labels of the cells of the shown hive.
+fn labels(hive: &kawaro_ui::Hive) -> Vec<String> {
+    let cells = hive.testing_window().get_cells();
+    (0..cells.row_count())
+        .filter_map(|i| cells.row_data(i).map(|c| c.label.to_string()))
+        .collect()
+}
+
+#[test]
+fn a_drop_on_the_more_cell_pages_the_hive_and_keeps_it_open() {
+    i_slint_backend_testing::init_no_event_loop();
+    let hive = kawaro_ui::Hive::new(Lang::En).expect("a hive window");
+    hive.set_drop_mode(DropMode::ChooseDuringDrag);
+    let dismissed = std::rc::Rc::new(std::cell::Cell::new(0u32));
+    let d = dismissed.clone();
+    hive.on_dismiss(move || d.set(d.get() + 1));
+    hive.on_drop_files(|_files| (String::from("20 images"), actions(20, 6)));
+    hive.present_drop("", None).expect("the drop hive");
+    hive.feed_enter(vec![PathBuf::from("/tmp/a.png")]);
+
+    let before = labels(&hive);
+    let more = before
+        .iter()
+        .position(|label| label.starts_with("More actions"))
+        .expect("the More cell");
+    assert!(
+        hive.testing_window().window().is_visible(),
+        "the hive is open before the drop"
+    );
+
+    // A drop on the More cell is not a choice: the hive pages the outer
+    // queue, stays open and the drag session lives on.
+    hive.feed_drop(Some(more));
+
+    let after = labels(&hive);
+    assert_ne!(before, after, "the page changed");
+    assert!(
+        after.iter().any(|label| label.starts_with("More actions")),
+        "the More cell is still there"
+    );
+    assert_eq!(dismissed.get(), 0, "the hive was not dismissed");
+    assert!(
+        hive.testing_window().window().is_visible(),
+        "the hive stays open after a drop on the More cell"
+    );
 }
 
 // AC: LTR and RTL page transitions -----------------------------------------

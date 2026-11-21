@@ -75,6 +75,8 @@ pub enum Program {
     Qpdf,
     /// Tesseract, the S-146 child engine for printed text from a picture.
     Tesseract,
+    /// OCRmyPDF, the S-150 child engine for searchable PDFs.
+    Ocrmypdf,
 }
 
 /// Program file names in priority order.
@@ -87,6 +89,7 @@ pub(crate) fn names(os: Os, program: Program) -> &'static [&'static str] {
         (Os::Unix, Program::Pdftotext) => &["pdftotext"],
         (Os::Unix, Program::Qpdf) => &["qpdf"],
         (Os::Unix, Program::Tesseract) => &["tesseract"],
+        (Os::Unix, Program::Ocrmypdf) => &["ocrmypdf"],
         (Os::Windows, Program::Office) => &["soffice.com", "soffice.exe"],
         (Os::Windows, Program::Ghostscript) => &["gswin64c.exe", "gswin32c.exe"],
         (Os::Windows, Program::Ffmpeg) => &["ffmpeg.exe"],
@@ -94,6 +97,7 @@ pub(crate) fn names(os: Os, program: Program) -> &'static [&'static str] {
         (Os::Windows, Program::Pdftotext) => &["pdftotext.exe"],
         (Os::Windows, Program::Qpdf) => &["qpdf.exe"],
         (Os::Windows, Program::Tesseract) => &["tesseract.exe"],
+        (Os::Windows, Program::Ocrmypdf) => &["ocrmypdf.exe"],
     }
 }
 
@@ -160,6 +164,9 @@ fn known_dir(
         // The Windows installer of Tesseract puts the program in one folder
         // under Program Files.
         Program::Tesseract => env("ProgramFiles").map(|pf| PathBuf::from(pf).join("Tesseract-OCR")),
+        // OCRmyPDF has no standard Program Files installer on Windows; it is
+        // looked up on PATH only.
+        Program::Ocrmypdf => None,
     }
 }
 
@@ -175,8 +182,8 @@ fn registry_dir(program: Program, registry: &dyn Registry) -> Option<PathBuf> {
             Path::new(&dll).parent().map(Path::to_path_buf)
         }
         Program::Ffmpeg | Program::Ffprobe | Program::Pdftotext | Program::Qpdf => None,
-        // Tesseract records no install path in the registry.
-        Program::Tesseract => None,
+        // Tesseract and OCRmyPDF record no install path in the registry.
+        Program::Tesseract | Program::Ocrmypdf => None,
     }
 }
 

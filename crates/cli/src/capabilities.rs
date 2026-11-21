@@ -4,18 +4,33 @@
 
 use kawaro_core::i18n::Lang;
 use kawaro_core::unsupported::{
-    CapabilityReport, capability_reports, default_engine_reason, help_message, reason_message,
+    CapabilityReport, UnavailableReason, capability_reports, default_engine_reason, help_message,
+    reason_message,
 };
 use kawaro_core::{ActionDef, CancelToken, Engine, Registry};
 use kawaro_engines::ocr::OcrEngine;
+use kawaro_engines::ocrmypdf::OcrmypdfEngine;
 use std::sync::Arc;
 
-/// Evaluates every registered action against the current engine list and OCR
-/// language probe, returning the shared S-145 [`CapabilityReport`] list.
+/// Evaluates every registered action against the current engine list, OCR
+/// language probe and OCRmyPDF version probe, returning the shared S-145
+/// [`CapabilityReport`] list.
 pub(crate) fn evaluate(
     reg: &Registry,
     engines: &[Arc<dyn Engine>],
     ocr: &OcrEngine,
+) -> Vec<CapabilityReport> {
+    let ocrmypdf = OcrmypdfEngine::discover();
+    evaluate_with(reg, engines, ocr, &ocrmypdf)
+}
+
+/// Evaluates every registered action with explicit `ocr` and `ocrmypdf`
+/// handles, so tests can inject fake executables.
+pub(crate) fn evaluate_with(
+    reg: &Registry,
+    engines: &[Arc<dyn Engine>],
+    ocr: &OcrEngine,
+    ocrmypdf: &OcrmypdfEngine,
 ) -> Vec<CapabilityReport> {
     let cancel = CancelToken::new();
     capability_reports(reg, &[], &|action: &ActionDef| {
@@ -31,6 +46,22 @@ pub(crate) fn evaluate(
                 .get("lang")
                 .and_then(|v| v.as_str())
                 .unwrap_or("ara+eng");
+            return ocr.check_language(lang, &cancel).err();
+        }
+        if action.engine == "ocrmypdf" {
+            let lang = action
+                .params
+                .get("lang")
+                .and_then(|v| v.as_str())
+                .unwrap_or("ara+eng");
+            if ocrmypdf.program().is_none() {
+                return Some(UnavailableReason::MissingExecutable {
+                    program: String::from("ocrmypdf"),
+                });
+            }
+            if let Some(reason) = ocrmypdf.probe_version(&cancel).into_reason("ocrmypdf") {
+                return Some(reason);
+            }
             return ocr.check_language(lang, &cancel).err();
         }
         None
@@ -64,7 +95,6 @@ pub(crate) fn format_unavailable(reports: &[CapabilityReport], lang: Lang) -> Ve
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kawaro_core::unsupported::UnavailableReason;
 
     #[test]
     fn s145_doctor_formats_missing_tool_missing_language_and_policy_distinctly() {
@@ -131,5 +161,42 @@ mod tests {
             format_unavailable(&reports, Lang::En),
             vec![String::from("unavailable actions"), String::from("  none")]
         );
+    }
+
+    #[test]
+    fn s150_doctor_formats_ocrmypdf_missing_and_probe_unknown_with_curated_help() {
+        let reports = vec![
+            CapabilityReport {
+                action_id: String::from("pdf.make-searchable"),
+                runnable: false,
+                reason: Some(UnavailableReason::MissingExecutable {
+                    program: String::from("ocrmypdf"),
+                }),
+                help_id: Some(String::from("ocrmypdf")),
+            },
+            CapabilityReport {
+                action_id: String::from("pdf.make-searchable"),
+                runnable: false,
+                reason: Some(UnavailableReason::ProbeUnknown),
+                help_id: Some(String::from("ocrmypdf")),
+            },
+        ];
+        for lang in [Lang::En, Lang::Ar] {
+            let text = format_unavailable(&reports, lang).join("\n");
+            assert!(text.contains("pdf.make-searchable"), "{text}");
+            assert!(text.contains("ocrmypdf"), "{text}");
+            assert!(text.contains("14.4.0"), "{text}");
+            assert!(text.contains("Fedora"), "{text}");
+            assert!(text.contains("Debian"), "{text}");
+            assert!(
+                text.contains("https://ocrmypdf.readthedocs.io/en/stable/installation.html"),
+                "{text}"
+            );
+            assert!(!text.contains("sudo"), "{text}");
+            assert!(
+                !text.contains('\u{2013}') && !text.contains('\u{2014}'),
+                "{text}"
+            );
+        }
     }
 }

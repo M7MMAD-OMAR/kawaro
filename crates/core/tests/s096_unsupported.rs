@@ -194,7 +194,8 @@ fn ac3_install_hint_table_names_tool_once_with_link_and_package() {
             "Ghostscript",
             "Poppler",
             "qpdf",
-            "Tesseract"
+            "Tesseract",
+            "OCRmyPDF"
         ]
     );
     for h in hints {

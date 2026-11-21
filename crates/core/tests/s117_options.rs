@@ -600,14 +600,15 @@ default = "a"
 }
 
 #[test]
-fn builtin_actions_carry_options_and_all_57_parse() {
+fn builtin_actions_carry_options_and_all_58_parse() {
     let reg = Registry::builtin();
-    // 57 since S-123 added pdf.extract-pages, pdf.delete-pages and
+    // 58 since S-123 added pdf.extract-pages, pdf.delete-pages and
     // pdf.reorder-pages, S-125 pdf.metadata, S-126 pdf.to-text, S-127
     // image.resize-to, image.crop and image.compress-to, S-128
-    // pdf.linearize, pdf.cleanup and pdf.check, and S-146 image.to-text
+    // pdf.linearize, pdf.cleanup and pdf.check, S-146 image.to-text and S-150
+    // pdf.make-searchable
     // (none of the qpdf actions carries options).
-    assert_eq!(reg.all().len(), 57, "every built-in action still parses");
+    assert_eq!(reg.all().len(), 58, "every built-in action still parses");
     let with_options: Vec<&str> = reg
         .all()
         .iter()
@@ -639,6 +640,8 @@ fn builtin_actions_carry_options_and_all_57_parse() {
             "pdf.reorder-pages",
             "pdf.metadata",
             "pdf.to-text",
+            // S-150 appended the searchable PDF action to actions/pdf.toml.
+            "pdf.make-searchable",
         ]
     );
     assert!(reg.get("image.to-png").unwrap().options.is_none());

@@ -1,8 +1,8 @@
 # S-150: Optional searchable-PDF OCR adapter (OCRmyPDF)
 
-Status: DRAFT, not started. Awaits parent approval of proposed ADR 0017 and explicit implementation authorization. No product code written; executable checks remain deferred by owner order.
+Status: source implemented and parent-reviewed on 2026-11-21 (registered in the engine list, fmt and clippy clean, workspace tests run on Linux). The Arabic fixture acceptance matrix and runtime checks with a real OCRmyPDF remain open.
 Date: 2026-11-21
-ADR: ../docs/adr/0017-searchable-pdf-ocr.md (Proposed)
+ADR: ../docs/adr/0017-searchable-pdf-ocr.md (Accepted)
 Feasibility: ../docs/research/searchable-pdf-feasibility.md
 Spec: ../docs/specs/2026-11-15-next-features.md, section 10
 
@@ -43,3 +43,4 @@ As a user with scanned or mixed-content PDFs, I want to generate a new locally p
 ## Review log
 
 - 2026-11-21: drafted from S-147 feasibility study and proposed ADR 0017. Marked DRAFT, not started. No product code written and no checks executed.
+- 2026-11-21: ADR 0017 accepted by parent. Implemented AC1 through AC6 in source (`crates/engines/src/ocrmypdf.rs`, `crates/engines/src/locate.rs`, `crates/engines/src/ocr.rs`, `crates/engines/tests/ocrmypdf.rs`, `actions/pdf.toml`, `crates/core/src/unsupported.rs`, `crates/cli/src/capabilities.rs`, `crates/daemon/src/plan.rs`, `docs/engines.md`). Marked source implemented; engine registration in `crates/engines/src/lib.rs` and executable checks stay with the parent/check stage.

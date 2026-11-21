@@ -111,6 +111,9 @@ pub struct PresetUpdate {
     pub read_only: bool,
     pub pending: bool,
     pub can_save: bool,
+    /// True when a named preset was applied, so the panel has to show the
+    /// new values in its own controls (S-143-C).
+    pub rebuild: bool,
 }
 
 /// The state behind one open stage 2 panel.
@@ -130,6 +133,9 @@ pub struct StageTwoState {
     pub(crate) selected_preset: RefCell<Option<String>>,
     pub(crate) preset_read_only: Cell<bool>,
     pub(crate) preset_status: RefCell<String>,
+    /// True while the status shows the message of the last mutation. The
+    /// list that follows a mutation must not clear it (S-143-C).
+    pub(crate) preset_status_sticky: Cell<bool>,
     pub(crate) preset_name: RefCell<String>,
     pub(crate) pending_preset: RefCell<Option<Rc<dyn PresetPoller>>>,
     pub(crate) pending_preset_label: RefCell<Option<&'static str>>,
@@ -140,6 +146,9 @@ pub struct StageTwoState {
     pub(crate) preset_attached: Cell<Option<(u64, u64)>>,
     /// The preset id whose delete is armed and waits for a second click.
     pub(crate) armed_delete: RefCell<Option<String>>,
+    /// True when a named preset was applied and the panel has to show the
+    /// new values in its own controls (S-143-C).
+    pub(crate) rebuild_pending: Cell<bool>,
     /// Header dimensions of the first file, when it is an image.
     pub(crate) source: Cell<Option<(u32, u32)>>,
     /// True when the first file is an image, for the preview note.
@@ -181,6 +190,7 @@ impl StageTwoState {
             selected_preset: RefCell::new(None),
             preset_read_only: Cell::new(false),
             preset_status: RefCell::new(String::new()),
+            preset_status_sticky: Cell::new(false),
             preset_name: RefCell::new(String::new()),
             pending_preset: RefCell::new(None),
             pending_preset_label: RefCell::new(None),
@@ -188,6 +198,7 @@ impl StageTwoState {
             preset_request_counter: Cell::new(0),
             preset_attached: Cell::new(None),
             armed_delete: RefCell::new(None),
+            rebuild_pending: Cell::new(false),
             source: Cell::new(source),
             image,
             path,
@@ -263,6 +274,7 @@ impl StageTwoState {
         *self.preset_name.borrow_mut() = name;
         self.disarm_delete();
         *self.preset_status.borrow_mut() = String::new();
+        self.preset_status_sticky.set(false);
         self.refresh_named_rows();
         self.preset_dirty.set(true);
     }
@@ -320,6 +332,7 @@ impl StageTwoState {
         *self.preset_revision.borrow_mut() = None;
         self.preset_read_only.set(false);
         *self.preset_status.borrow_mut() = String::new();
+        self.preset_status_sticky.set(false);
         self.pending_preset.borrow_mut().take();
         self.pending_preset_label.borrow_mut().take();
         self.rebuild_named_rows();
@@ -360,6 +373,7 @@ impl StageTwoState {
         self.preset_attached.set(None);
         self.preset_read_only.set(false);
         *self.preset_status.borrow_mut() = String::new();
+        self.preset_status_sticky.set(false);
         self.named_presets.set_vec(Vec::new());
     }
 
@@ -454,6 +468,7 @@ impl StageTwoState {
             // The first click only arms the confirmation.
             *self.armed_delete.borrow_mut() = Some(id.to_string());
             *self.preset_status.borrow_mut() = delete_prompt(self.lang).into();
+            self.preset_status_sticky.set(true);
             self.preset_dirty.set(true);
             return false;
         }
@@ -484,6 +499,7 @@ impl StageTwoState {
         *self.armed_delete.borrow_mut() = None;
         if self.preset_status.borrow().eq(&delete_prompt(self.lang)) {
             *self.preset_status.borrow_mut() = String::new();
+            self.preset_status_sticky.set(false);
         }
         self.preset_dirty.set(true);
     }
@@ -593,6 +609,7 @@ impl StageTwoState {
                 self.drop_pending_preset();
                 *self.preset_status.borrow_mut() =
                     preset_failure_text(self.lang, &PresetFailure::ChannelClosed);
+                self.preset_status_sticky.set(true);
                 self.preset_dirty.set(true);
                 return Some(self.preset_update());
             }
@@ -626,8 +643,10 @@ impl StageTwoState {
             ) if action.id == self.action.id => {
                 if preset.name == name {
                     self.apply_saved_revision(revision);
-                    self.refresh_preset_list(session, panel);
+                    // The message comes first: the list that follows keeps
+                    // it and shows no loading text (S-143-C).
                     self.set_preset_success(saved_text(self.lang));
+                    self.refresh_preset_list(session, panel);
                 } else {
                     self.set_preset_failure(&PresetFailure::ChannelClosed);
                 }
@@ -636,16 +655,16 @@ impl StageTwoState {
                 if action_id == self.action.id && saved.preset.id == id =>
             {
                 self.apply_saved_revision(saved.revision);
-                self.refresh_preset_list(session, panel);
                 self.set_preset_success(renamed_text(self.lang));
+                self.refresh_preset_list(session, panel);
             }
             (PresetRequest::Delete { action_id, id, .. }, PresetReply::Deleted(saved))
                 if action_id == self.action.id && saved.preset.id == id =>
             {
                 self.apply_saved_revision(saved.revision);
                 self.choose_after_delete(&id);
-                self.refresh_preset_list(session, panel);
                 self.set_preset_success(deleted_text(self.lang));
+                self.refresh_preset_list(session, panel);
             }
             (
                 PresetRequest::Refresh {
@@ -660,8 +679,8 @@ impl StageTwoState {
                 && saved.preset.id == id =>
             {
                 self.apply_saved_revision(saved.revision);
-                self.refresh_preset_list(session, panel);
                 self.set_preset_success(refreshed_text(self.lang));
+                self.refresh_preset_list(session, panel);
             }
             (
                 PresetRequest::Apply {
@@ -714,7 +733,14 @@ impl StageTwoState {
                 self.drop_pending_preset();
                 let label = pending_label(self.lang, &request);
                 *self.pending_preset_label.borrow_mut() = Some(label);
-                *self.preset_status.borrow_mut() = label.into();
+                // S-143-C: the list that follows a mutation keeps the
+                // message of that mutation, so it shows no loading text.
+                // Only an explicit list shows it.
+                let is_list = matches!(&request, PresetRequest::List { .. });
+                if !(is_list && self.preset_status_sticky.get()) {
+                    self.preset_status_sticky.set(false);
+                    *self.preset_status.borrow_mut() = label.into();
+                }
                 *self.pending_preset.borrow_mut() =
                     Some(Rc::new(ChannelPoller::new(request, receiver)));
                 self.preset_dirty.set(true);
@@ -733,8 +759,10 @@ impl StageTwoState {
     pub(crate) fn apply_preset_snapshot(&self, snapshot: PresetSnapshot) {
         *self.preset_revision.borrow_mut() = Some(snapshot.revision);
         self.preset_read_only.set(snapshot.read_only.is_some());
-        let selected = self.valid_selected_id();
+        // The items come first: the selection is validated against the list
+        // that just arrived, so it never points at a deleted preset.
         *self.preset_items.borrow_mut() = snapshot.items;
+        let selected = self.valid_selected_id();
         if let Some(selected) = selected {
             *self.selected_preset.borrow_mut() = Some(selected);
         } else {
@@ -743,7 +771,10 @@ impl StageTwoState {
         self.refresh_named_rows();
         if let Some(error) = snapshot.read_only {
             *self.preset_status.borrow_mut() = preset_failure_text(self.lang, &error);
-        } else {
+            self.preset_status_sticky.set(false);
+        } else if !self.preset_status_sticky.get() {
+            // The message of the last mutation stays: the list that follows
+            // it must not clear it.
             *self.preset_status.borrow_mut() = String::new();
         }
     }
@@ -792,6 +823,8 @@ impl StageTwoState {
         *self.selected_preset.borrow_mut() = Some(id.to_string());
         self.refresh_all();
         self.request_preview();
+        // The panel has to show the applied values in its own controls.
+        self.rebuild_pending.set(true);
         Ok(())
     }
 
@@ -822,11 +855,21 @@ impl StageTwoState {
 
     pub(crate) fn choose_after_delete(&self, deleted: &str) {
         let items = self.preset_items.borrow();
-        let deleted_position = items.iter().position(|item| item.id == deleted);
-        let next_id = deleted_position
-            .and_then(|position| items.get(position).or_else(|| items.last()))
-            .or_else(|| items.first())
-            .map(|item| item.id.clone());
+        let position = items.iter().position(|item| item.id == deleted);
+        let next_id = match position {
+            Some(position) => {
+                // The neighbour of the deleted preset, never the deleted
+                // one: the one after it, else the one before it.
+                let after = items.get(position + 1).map(|item| item.id.clone());
+                let before = if position == 0 {
+                    None
+                } else {
+                    items.get(position - 1).map(|item| item.id.clone())
+                };
+                after.or(before)
+            }
+            None => None,
+        };
         drop(items);
         *self.selected_preset.borrow_mut() = next_id;
     }
@@ -863,11 +906,15 @@ impl StageTwoState {
             self.preset_read_only.set(true);
         }
         *self.preset_status.borrow_mut() = preset_failure_text(self.lang, failure);
+        // The message of a mutation stays until the next one.
+        self.preset_status_sticky.set(true);
         self.preset_dirty.set(true);
     }
 
     pub(crate) fn set_preset_success(&self, message: &str) {
         *self.preset_status.borrow_mut() = message.to_string();
+        // The message of a mutation stays until the next one.
+        self.preset_status_sticky.set(true);
         self.preset_dirty.set(true);
     }
 
@@ -930,13 +977,20 @@ impl StageTwoState {
             read_only: self.preset_read_only.get(),
             pending: self.pending_preset.borrow().is_some(),
             can_save: self.can_save_preset(),
+            rebuild: self.rebuild_pending.replace(false),
         }
     }
 
-    /// True when the first file is an image with readable dimensions, so a
-    /// picture is expected (the decode may still fail softly).
+    /// True when a picture can show in the preview well (S-142). The
+    /// transformed draft needs the image engine: any other engine (the OCR
+    /// of `image.to-text`, for one) refuses the request, so the well stays
+    /// closed instead of showing an empty "Transformed draft".
+    ///
+    /// Without a provider behind the panel the request falls back to the
+    /// legacy source draft, a picture of the source, so the well still has
+    /// something to show.
     pub fn preview_available(&self) -> bool {
-        self.source.get().is_some()
+        self.source.get().is_some() && self.image && self.action.engine == "image"
     }
 
     /// A value changed in the panel: write it to the explicit table, prune
@@ -965,6 +1019,9 @@ impl StageTwoState {
         // that the field names.
         self.refresh_cleared(&field);
         self.request_preview();
+        // The values changed, so the preset controls are dirty and the
+        // next poll refreshes what can be saved (S-143-C).
+        self.preset_dirty.set(true);
     }
 
     /// Preserve raw text independently of the last resolved number. Invalid
@@ -998,6 +1055,9 @@ impl StageTwoState {
         self.refresh_row(index, &field);
         self.refresh_cleared(&field);
         self.request_preview();
+        // The draft changed, so the preset controls are dirty and the next
+        // poll refreshes what can be saved (S-143-C).
+        self.preset_dirty.set(true);
     }
 
     /// An action defined preset was picked: its values name field ids, so
@@ -1027,6 +1087,8 @@ impl StageTwoState {
         }
         self.refresh_all();
         self.request_preview();
+        // The values changed, so the preset controls are dirty (S-143-C).
+        self.preset_dirty.set(true);
     }
 
     /// Reset returns every control to the configured base of the current
@@ -1036,6 +1098,8 @@ impl StageTwoState {
         self.drafts.borrow_mut().clear();
         self.refresh_all();
         self.request_preview();
+        // The values changed, so the preset controls are dirty (S-143-C).
+        self.preset_dirty.set(true);
     }
 
     /// The params a Run submits: the configured base with explicit values.

@@ -31,15 +31,19 @@ use crate::plan::{Choice, choice, on_choice, plan, plan_with_reports};
 use crate::state::State;
 use kawaro_core::Registry;
 use kawaro_core::config::Config;
+use kawaro_core::engine::{Progress, Task, TaskOutcome};
 use kawaro_core::i18n::Lang;
 use kawaro_core::unsupported::{
     CapabilityReport, Outcome, ProbeOutcome, UnavailableReason, centre_text,
     missing_engine_message, more_label, reason_message, request_hover, request_label, request_url,
     skipped_label, unsupported_message,
 };
+use kawaro_core::{CancelToken, Engine, EngineError, MediaKind};
 use kawaro_ui::HiveCell;
 use std::cell::Cell;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 const ENGINES: [&str; 5] = ["image", "ffmpeg", "office", "ghostscript", "pdf"];
 
@@ -390,12 +394,13 @@ fn s145_partial_unavailable_actions_show_centre_hint_without_extra_cells() {
     assert!(!p_one.cells.iter().any(|c| c.id == "image.to-text"));
     assert_eq!(p_one.pending, Some(paths(&["a.png", "b.png"])));
 
-    // 2 unavailable matching actions (`ghostscript` absent for PDF).
+    // 3 unavailable matching actions (`ghostscript` absent for PDF, and
+    // `ocrmypdf` for pdf.make-searchable since S-150).
     let st_two_en = state(Lang::En, &["pdf", "poppler", "qpdf"]);
     let (_, p_two_en) = planned(&st_two_en, &["a.pdf"]);
     assert_eq!(
         p_two_en.message,
-        "2 more actions need setup, see kawaro doctor"
+        "3 more actions need setup, see kawaro doctor"
     );
     assert!(real(&p_two_en.cells).iter().all(|c| c.enabled));
 
@@ -403,15 +408,16 @@ fn s145_partial_unavailable_actions_show_centre_hint_without_extra_cells() {
     let (_, p_two_ar) = planned(&st_two_ar, &["a.pdf"]);
     assert_eq!(
         p_two_ar.message,
-        "إجراءان آخران يحتاجان إعداداً، راجع kawaro doctor"
+        "3 إجراءات أخرى تحتاج إعداداً، راجع kawaro doctor"
     );
 
-    // 4 unavailable matching actions (`poppler` + `qpdf` absent for PDF).
+    // 5 unavailable matching actions (`poppler` + `qpdf` absent for PDF,
+    // and `ocrmypdf` since S-150).
     let st_four_ar = state(Lang::Ar, &["pdf", "ghostscript"]);
     let (_, p_four_ar) = planned(&st_four_ar, &["a.pdf"]);
     assert_eq!(
         p_four_ar.message,
-        "4 إجراءات أخرى تحتاج إعداداً، راجع kawaro doctor"
+        "5 إجراءات أخرى تحتاج إعداداً، راجع kawaro doctor"
     );
     assert!(!p_four_ar.cells.iter().any(|c| c.id == "pdf.to-text"));
     assert!(!p_four_ar.cells.iter().any(|c| c.id == "pdf.linearize"));
@@ -522,4 +528,56 @@ lang = "ara+eng"
     // Reload invalidates the cached probe entries.
     st.reload();
     assert_eq!(st.probe_cache.get(&fake_tesseract), None);
+}
+
+// S-145: a reload refreshes the engines and recomputes the available ones.
+
+/// A test engine that stays unavailable until its refresh (S-145).
+struct FlipEngine {
+    ready: AtomicBool,
+}
+
+impl FlipEngine {
+    /// The engine as the daemon holds it.
+    fn engine() -> Arc<dyn Engine> {
+        Arc::new(Self {
+            ready: AtomicBool::new(false),
+        })
+    }
+}
+
+impl Engine for FlipEngine {
+    fn id(&self) -> &'static str {
+        "flip"
+    }
+
+    fn available(&self) -> bool {
+        self.ready.load(Ordering::SeqCst)
+    }
+
+    fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
+        Vec::new()
+    }
+
+    fn run(
+        &self,
+        _task: &Task,
+        _progress: Progress,
+        _cancel: &CancelToken,
+    ) -> Result<TaskOutcome, EngineError> {
+        Err(EngineError::UnsupportedOp(String::from("none")))
+    }
+
+    fn refresh(&self) {
+        self.ready.store(true, Ordering::SeqCst);
+    }
+}
+
+#[test]
+fn s145_the_reload_refreshes_the_engines_and_recomputes_the_available_ones() {
+    let engine = FlipEngine::engine();
+    let mut st = State::new(Config::default(), &[engine]);
+    assert!(st.available.is_empty(), "the engine is not available yet");
+    st.reload();
+    assert_eq!(st.available, vec![String::from("flip")]);
 }

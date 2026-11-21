@@ -287,7 +287,9 @@ fn evaluate_capabilities(
 ) -> Vec<CapabilityReport> {
     let cancel = CancelToken::new();
     capability_reports(registry, files, &|action: &ActionDef| {
-        if !config.enabled || config.read_only {
+        // Read-only refuses the write tools, not the action: the reason
+        // reports the machine, the same as `kawaro doctor`.
+        if !config.enabled {
             return Some(UnavailableReason::DisabledByPolicy);
         }
         let available = engines
@@ -306,6 +308,17 @@ fn evaluate_capabilities(
         }
         None
     })
+}
+
+/// The OCR engine looked up again for this call, with its language probe
+/// forgotten, so a tool or language pack installed while the server runs is
+/// seen on the next discovery call, as `kawaro doctor` sees it.
+fn fresh_ocr() -> OcrEngine {
+    let ocr = OcrEngine::discover();
+    if let Some(program) = ocr.program() {
+        OcrEngine::invalidate_language_cache_for(program);
+    }
+    ocr
 }
 
 /// Serializes every non-runnable [`CapabilityReport`] into the additive S-145
@@ -329,7 +342,7 @@ fn unavailable_entries(reports: &[CapabilityReport]) -> Vec<Value> {
 fn formats(config: &Config) -> Value {
     let registry = registry();
     let all_engines = kawaro_engines::all();
-    let ocr = OcrEngine::default();
+    let ocr = fresh_ocr();
     let reports = evaluate_capabilities(&registry, &[], &all_engines, &ocr, config);
     let unavailable = unavailable_entries(&reports);
     let engines: Vec<Value> = all_engines
@@ -376,27 +389,15 @@ fn plan(args: &Value, config: &Config) -> Value {
     };
     let registry = registry();
     let engines = kawaro_engines::all();
-    let ocr = OcrEngine::default();
+    let ocr = fresh_ocr();
     let refs: Vec<&Path> = files.iter().map(PathBuf::as_path).collect();
     let reports = evaluate_capabilities(&registry, &refs, &engines, &ocr, config);
     let unavailable = unavailable_entries(&reports);
-    let matching: Vec<&ActionDef> = if !config.enabled || config.read_only {
-        // Keep read-only planning intact: `actions` still shows fitting
-        // actions and planned paths, while `unavailable` reports matching
-        // actions as `disabled-by-policy`.
-        let available: Vec<String> = engines
-            .iter()
-            .filter(|engine| engine.available())
-            .map(|engine| engine.id().to_string())
-            .collect();
-        registry.matching(&refs, &|id| available.iter().any(|known| known == id))
-    } else {
-        reports
-            .iter()
-            .filter(|report| report.runnable)
-            .filter_map(|report| registry.get(&report.action_id))
-            .collect()
-    };
+    let matching: Vec<&ActionDef> = reports
+        .iter()
+        .filter(|report| report.runnable)
+        .filter_map(|report| registry.get(&report.action_id))
+        .collect();
     let actions: Vec<Value> = matching
         .iter()
         .map(|action| {

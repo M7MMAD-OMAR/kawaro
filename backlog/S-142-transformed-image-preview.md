@@ -1,6 +1,6 @@
 # S-142: Transformed image preview
 
-Status: engine preparation, transformed draft, scheduler and panel integration source implemented; parent source-reviewed on 2026-11-21 (fixed missing Clone derives on the scheduler Job and Work types). Known limit: a superseded running preview is not cancelled, it finishes and is discarded. Runtime, timing and visual checks deferred by owner order.
+Status: engine preparation, transformed draft, scheduler and panel integration source implemented; parent source-reviewed on 2026-11-21 (fixed missing Clone derives on the scheduler Job and Work types). Known limit: a superseded running preview is not cancelled; it finishes and is discarded (the scheduler tests pin one running plus one waiting request). Runtime, timing and visual checks deferred by owner order.
 Date: 2026-11-15.
 Spec: ../docs/specs/2026-11-15-next-features.md
 Implementation packet: ../docs/superpowers/plans/2026-11-15-next-features.md

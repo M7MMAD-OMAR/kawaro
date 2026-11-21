@@ -8,6 +8,7 @@
 //! command line, so they are unit tested without spawning anything.
 
 use crate::locate::{self, Program};
+use crate::locks::{mutex, read, write};
 use crate::process::ProcessTree;
 use kawaro_core::engine::TaskOutcome;
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
@@ -16,8 +17,8 @@ use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use std::sync::OnceLock;
 use std::sync::mpsc::{self, RecvTimeoutError};
+use std::sync::{Arc, Mutex, OnceLock, RwLock};
 use std::time::Duration;
 
 /// Lines of ffmpeg stderr kept for [`EngineError::Failed`] messages.
@@ -38,11 +39,27 @@ const OPS: &[(&str, MediaKind)] = &[
 /// Encoder names reported by `ffmpeg -encoders`.
 pub type Encoders = HashSet<String>;
 
-pub struct FfmpegEngine {
+/// The two programs of the FFmpeg engine. They are looked up again on a
+/// refresh (S-145).
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Programs {
     ffmpeg: PathBuf,
     ffprobe: PathBuf,
-    /// `None` when either binary is missing. Probed once per engine.
-    encoders: OnceLock<Option<Encoders>>,
+}
+
+/// The probed encoder list of one `ffmpeg` program.
+struct EncoderProbe {
+    /// The program the list belongs to.
+    program: PathBuf,
+    /// `None` when the program does not run or has no encoder list.
+    encoders: Option<Arc<Encoders>>,
+}
+
+pub struct FfmpegEngine {
+    /// The looked up programs. A refresh replaces them with a fresh lookup.
+    programs: RwLock<Programs>,
+    /// The encoder list of the current `ffmpeg`, probed once per program.
+    encoders: Mutex<Option<EncoderProbe>>,
 }
 
 impl Default for FfmpegEngine {
@@ -70,31 +87,58 @@ impl FfmpegEngine {
     /// Engine using explicit binaries, for tests and custom installs.
     pub fn with_binaries(ffmpeg: impl Into<PathBuf>, ffprobe: impl Into<PathBuf>) -> Self {
         Self {
-            ffmpeg: ffmpeg.into(),
-            ffprobe: ffprobe.into(),
-            encoders: OnceLock::new(),
+            programs: RwLock::new(Programs {
+                ffmpeg: ffmpeg.into(),
+                ffprobe: ffprobe.into(),
+            }),
+            encoders: Mutex::new(None),
         }
     }
 
-    fn encoders(&self) -> Option<&Encoders> {
-        self.encoders
-            .get_or_init(|| {
-                if !runs_ok(&self.ffmpeg, &["-version"]) || !runs_ok(&self.ffprobe, &["-version"]) {
-                    return None;
-                }
-                let out = command(&self.ffmpeg)
-                    .args(["-hide_banner", "-encoders"])
-                    .stdin(Stdio::null())
-                    .stderr(Stdio::null())
-                    .output()
-                    .ok()?;
-                Some(parse_encoders(&String::from_utf8_lossy(&out.stdout)))
-            })
-            .as_ref()
+    /// The engine with a fresh lookup of both programs, ignoring the
+    /// process wide cache of [`located`] (S-145). A program that is not
+    /// found keeps its bare name, so the error names it.
+    pub fn discover() -> Self {
+        Self::with_binaries(
+            locate::find(Program::Ffmpeg).unwrap_or_else(|| "ffmpeg".into()),
+            locate::find(Program::Ffprobe).unwrap_or_else(|| "ffprobe".into()),
+        )
+    }
+
+    /// The programs this engine runs now.
+    fn programs(&self) -> Programs {
+        let programs = read(&self.programs);
+        Programs {
+            ffmpeg: programs.ffmpeg.clone(),
+            ffprobe: programs.ffprobe.clone(),
+        }
+    }
+
+    /// The encoder list of the current `ffmpeg`, probed once per program
+    /// path. A refresh that changes the program probes again.
+    fn encoders(&self) -> Option<Arc<Encoders>> {
+        let programs = self.programs();
+        {
+            let cache = mutex(&self.encoders);
+            if let Some(probe) = cache.as_ref()
+                && probe.program == programs.ffmpeg
+            {
+                return probe.encoders.clone();
+            }
+        }
+        // The probe runs a child, so the lock is not held while it runs.
+        let encoders = probe_encoders(&programs.ffmpeg, &programs.ffprobe);
+        let mut cache = mutex(&self.encoders);
+        *cache = Some(EncoderProbe {
+            program: programs.ffmpeg.clone(),
+            encoders: encoders.clone(),
+        });
+        encoders
     }
 
     fn probe(&self, input: &Path) -> MediaInfo {
-        let out = command(&self.ffprobe)
+        let programs = self.programs();
+        let out = command(&programs.ffprobe)
             .args(["-v", "error", "-show_entries"])
             .arg("format=duration:stream=codec_type,codec_name,width,height")
             .args(["-of", "flat"])
@@ -106,6 +150,22 @@ impl FfmpegEngine {
         out.map(|o| parse_probe(&String::from_utf8_lossy(&o.stdout)))
             .unwrap_or_default()
     }
+}
+
+/// The encoder list of `ffmpeg`, or `None` when it does not run.
+fn probe_encoders(ffmpeg: &Path, ffprobe: &Path) -> Option<Arc<Encoders>> {
+    if !runs_ok(ffmpeg, &["-version"]) || !runs_ok(ffprobe, &["-version"]) {
+        return None;
+    }
+    let out = command(ffmpeg)
+        .args(["-hide_banner", "-encoders"])
+        .stdin(Stdio::null())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+    Some(Arc::new(parse_encoders(&String::from_utf8_lossy(
+        &out.stdout,
+    ))))
 }
 
 /// Every ffmpeg and ffprobe command starts here, so none opens a console
@@ -140,6 +200,16 @@ impl Engine for FfmpegEngine {
         self.encoders().is_some()
     }
 
+    /// Looks both programs up again, so an FFmpeg installed after the
+    /// daemon started is seen (S-145). No child runs here.
+    fn refresh(&self) {
+        let programs = Programs {
+            ffmpeg: locate::find(Program::Ffmpeg).unwrap_or_else(|| "ffmpeg".into()),
+            ffprobe: locate::find(Program::Ffprobe).unwrap_or_else(|| "ffprobe".into()),
+        };
+        *write(&self.programs) = programs;
+    }
+
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
         OPS.iter().map(|(op, kind)| (*op, vec![*kind])).collect()
     }
@@ -161,11 +231,12 @@ impl Engine for FfmpegEngine {
             });
         };
         cancel.check()?;
+        let programs = self.programs();
         let encoders = self.encoders().ok_or_else(|| {
             EngineError::Unavailable(format!(
                 "`{}` or `{}` not found; install FFmpeg from {FFMPEG_URL}",
-                self.ffmpeg.display(),
-                self.ffprobe.display()
+                programs.ffmpeg.display(),
+                programs.ffprobe.display()
             ))
         })?;
         if !input.is_file() {
@@ -176,10 +247,10 @@ impl Engine for FfmpegEngine {
         }
         let info = self.probe(input);
         let ext = kawaro_core::media::extension(&task.output);
-        let codec_args = plan(&task.op, &ext, &params, &info, encoders)?;
+        let codec_args = plan(&task.op, &ext, &params, &info, &encoders)?;
         let args = command_args(input, &task.output, &ext, codec_args)?;
         let tree = ProcessTree::spawn(
-            command(&self.ffmpeg)
+            command(&programs.ffmpeg)
                 .args(args)
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
@@ -696,8 +767,9 @@ mod tests {
     #[test]
     fn s028_ac2_default_engine_has_the_located_paths() {
         let e = FfmpegEngine::default();
-        assert_eq!(e.ffmpeg, located().0);
-        assert_eq!(e.ffprobe, located().1);
+        let programs = e.programs();
+        assert_eq!(programs.ffmpeg, located().0);
+        assert_eq!(programs.ffprobe, located().1);
     }
 
     fn all_encoders() -> Encoders {

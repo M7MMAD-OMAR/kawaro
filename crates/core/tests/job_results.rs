@@ -37,15 +37,30 @@ fn identity(path: &str, len: u64) -> InputIdentity {
 }
 
 /// A manifest with the given units, without touching the file system.
+///
+/// The units follow the production planner: a per-file action has one
+/// unit per file, and a combined action has one unit holding the whole
+/// ordered group. A group of a per-file action is therefore split into one
+/// unit per path, the way `plan` splits the selection of a per-file
+/// action.
 fn manifest(act: &ActionDef, groups: &[&[&str]]) -> JobManifest {
-    let units = groups
-        .iter()
-        .enumerate()
-        .map(|(ordinal, group)| TaskUnitManifest {
-            id: ordinal as TaskUnitId,
-            inputs: group.iter().map(|p| identity(p, 10)).collect(),
-        })
-        .collect();
+    let combined = matches!(act.output.mode, Combined);
+    let mut units: Vec<TaskUnitManifest> = Vec::new();
+    for group in groups {
+        if combined {
+            let inputs = group.iter().map(|p| identity(p, 10)).collect();
+            let id = units.len() as TaskUnitId;
+            units.push(TaskUnitManifest { id, inputs });
+        } else {
+            for path in group.iter() {
+                let id = units.len() as TaskUnitId;
+                units.push(TaskUnitManifest {
+                    id,
+                    inputs: vec![identity(path, 10)],
+                });
+            }
+        }
+    }
     JobManifest {
         action: act.clone(),
         snapshot: ActionSnapshot::of(act),
@@ -418,7 +433,7 @@ fn a_job_without_a_failed_unit_is_not_retried() {
 fn a_duplicate_unit_is_refused() {
     let act = action("fake", PerFile, "webp", "");
     let mut ledger = ResultLedger::new();
-    ledger.start(1, manifest(&act, &[AB]));
+    ledger.start(1, manifest(&act, &[A]));
     assert!(ledger.record_unit(1, 0, ok(), Duration::from_millis(1)));
     // The same unit never counts twice.
     assert!(!ledger.record_unit(1, 0, failed(), Duration::from_millis(1)));

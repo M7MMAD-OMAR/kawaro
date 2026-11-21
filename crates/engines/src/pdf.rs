@@ -15,6 +15,7 @@
 //! range or `every` pages.
 
 use crate::locate::{self, Program};
+use crate::locks::{read, write};
 use crate::office::{
     failure_message, input_error, is_nonempty_file, missing, missing_on_not_found, move_file,
     run_child, single_input, timeout_param, work_dir,
@@ -25,7 +26,7 @@ use lopdf::{Document, Object, ObjectId, dictionary};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 
 /// Default `timeout_s` for one Ghostscript run.
 pub const GS_DEFAULT_TIMEOUT_S: f64 = 300.0;
@@ -641,7 +642,8 @@ fn zip_error(e: zip::result::ZipError) -> EngineError {
 }
 
 pub struct GhostscriptEngine {
-    program: Option<PathBuf>,
+    /// The looked up program. A refresh replaces it with a fresh lookup.
+    program: RwLock<Option<PathBuf>>,
     temp_root: Option<PathBuf>,
 }
 
@@ -654,17 +656,26 @@ impl Default for GhostscriptEngine {
             .get_or_init(|| locate::find(Program::Ghostscript))
             .clone();
         Self {
-            program,
+            program: RwLock::new(program),
             temp_root: None,
         }
     }
 }
 
 impl GhostscriptEngine {
+    /// The engine with a fresh lookup of Ghostscript, ignoring the process
+    /// wide cache of the default (S-145).
+    pub fn discover() -> Self {
+        Self {
+            program: RwLock::new(locate::find(Program::Ghostscript)),
+            temp_root: None,
+        }
+    }
+
     /// Runs this program instead of the detected Ghostscript.
     pub fn with_program(program: impl Into<PathBuf>) -> Self {
         Self {
-            program: Some(program.into()),
+            program: RwLock::new(Some(program.into())),
             temp_root: None,
         }
     }
@@ -673,6 +684,11 @@ impl GhostscriptEngine {
     pub fn temp_root(mut self, dir: impl Into<PathBuf>) -> Self {
         self.temp_root = Some(dir.into());
         self
+    }
+
+    /// The program this engine runs, when one was found (S-145).
+    fn program_path(&self) -> Option<PathBuf> {
+        read(&self.program).as_ref().cloned()
     }
 
     fn gs(
@@ -685,8 +701,7 @@ impl GhostscriptEngine {
     ) -> Result<(), EngineError> {
         let timeout = timeout_param(task, GS_DEFAULT_TIMEOUT_S)?;
         let program = self
-            .program
-            .clone()
+            .program_path()
             .ok_or_else(|| missing("Ghostscript", GS_URL, None))?;
         let mut cmd = Command::new(&program);
         cmd.args(["-dSAFER", "-dBATCH", "-dNOPAUSE"])
@@ -788,7 +803,14 @@ impl Engine for GhostscriptEngine {
     }
 
     fn available(&self) -> bool {
-        self.program.as_deref().is_some_and(Path::is_file)
+        self.program_path().as_deref().is_some_and(Path::is_file)
+    }
+
+    /// Looks Ghostscript up again, so an install after the daemon started is
+    /// seen (S-145). No child runs here.
+    fn refresh(&self) {
+        let found = locate::find(Program::Ghostscript);
+        *write(&self.program) = found;
     }
 
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
@@ -1180,7 +1202,7 @@ mod tests {
         let input = dir.path().join("a.pdf");
         std::fs::write(&input, "%PDF-1.4\n").unwrap();
         let engine = GhostscriptEngine {
-            program: None,
+            program: RwLock::new(None),
             ..GhostscriptEngine::with_program("unused")
         }
         .temp_root(dir.path());

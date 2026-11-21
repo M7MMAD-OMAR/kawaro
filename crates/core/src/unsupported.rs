@@ -35,9 +35,10 @@ pub struct InstallHint {
 }
 
 /// The curated help of the tools Kawaro does not bundle: the general engines
-/// (S-096) first, then the PDF tools and Tesseract (S-145, S-146). The page
-/// and the package name come from the tree: `crates/engines/src/poppler.rs`,
-/// `crates/engines/src/qpdf.rs`, `crates/engines/src/ocr.rs` and
+/// (S-096) first, then the PDF tools, Tesseract (S-145, S-146) and OCRmyPDF
+/// (S-150). The page and the package name come from the tree:
+/// `crates/engines/src/poppler.rs`, `crates/engines/src/qpdf.rs`,
+/// `crates/engines/src/ocr.rs`, `crates/engines/src/ocrmypdf.rs` and
 /// `docs/engines.md`. Nothing here is downloaded, installed or run.
 const HINTS: &[InstallHint] = &[
     InstallHint {
@@ -70,6 +71,11 @@ const HINTS: &[InstallHint] = &[
         url: "https://tesseract-ocr.github.io/tessdoc/",
         package: "tesseract-ocr",
     },
+    InstallHint {
+        tool: "OCRmyPDF",
+        url: "https://ocrmypdf.readthedocs.io/en/stable/installation.html",
+        package: "ocrmypdf",
+    },
 ];
 
 /// Every curated external-tool hint, in the displayed order.
@@ -90,6 +96,7 @@ pub fn tool_name(engine_id: &str) -> Option<&'static str> {
         "poppler" => Some("Poppler"),
         "qpdf" => Some("qpdf"),
         "ocr" => Some("Tesseract"),
+        "ocrmypdf" => Some("OCRmyPDF"),
         _ => None,
     }
 }
@@ -453,6 +460,7 @@ pub fn program_name(engine_id: &str) -> Option<&'static str> {
         "poppler" => Some("pdftotext"),
         "qpdf" => Some("qpdf"),
         "ocr" => Some("tesseract"),
+        "ocrmypdf" => Some("ocrmypdf"),
         _ => None,
     }
 }
@@ -463,9 +471,6 @@ pub fn program_name(engine_id: &str) -> Option<&'static str> {
 pub fn help_id_for(engine_id: &str, reason: &UnavailableReason) -> Option<String> {
     match reason {
         UnavailableReason::MissingExecutable { program } => {
-            if tool_name(engine_id).is_some() {
-                return Some(engine_id.to_string());
-            }
             match program.to_ascii_lowercase().as_str() {
                 "ffmpeg" | "ffprobe" => Some("ffmpeg".to_string()),
                 "soffice" | "libreoffice" => Some("office".to_string()),
@@ -473,7 +478,8 @@ pub fn help_id_for(engine_id: &str, reason: &UnavailableReason) -> Option<String
                 "pdftotext" | "poppler" => Some("poppler".to_string()),
                 "qpdf" => Some("qpdf".to_string()),
                 "tesseract" => Some("ocr".to_string()),
-                _ => None,
+                "ocrmypdf" => Some("ocrmypdf".to_string()),
+                _ => tool_name(engine_id).map(|_| engine_id.to_string()),
             }
         }
         UnavailableReason::MissingLanguageData { .. } => Some("ocr-lang".to_string()),
@@ -549,6 +555,16 @@ pub fn reason_message(reason: &UnavailableReason, lang: Lang) -> String {
 pub fn help_message(help_id: &str, reason: &UnavailableReason, lang: Lang) -> Option<String> {
     let hint = install_hint_for_help(help_id)?;
     match reason {
+        UnavailableReason::MissingExecutable { .. } if help_id == "ocrmypdf" => Some(match lang {
+            Lang::En => format!(
+                "OCRmyPDF (>= 14.4.0) is not installed. Install the package ocrmypdf with Tesseract language packs (Fedora: ocrmypdf, tesseract-langpack-ara, tesseract-langpack-eng; Debian 13+ / Ubuntu 24.04+: ocrmypdf, tesseract-ocr-ara, tesseract-ocr-eng): {}",
+                hint.url
+            ),
+            Lang::Ar => format!(
+                "أداة OCRmyPDF (الإصدار 14.4.0 أو أحدث) غير مثبتة. ثبّت حزمة ocrmypdf مع حزم لغات Tesseract (في Fedora: ocrmypdf وtesseract-langpack-ara وtesseract-langpack-eng، وفي Debian 13+ وUbuntu 24.04+: ocrmypdf وtesseract-ocr-ara وtesseract-ocr-eng): {}",
+                hint.url
+            ),
+        }),
         UnavailableReason::MissingExecutable { .. } => {
             Some(missing_engine_message(hint.tool, lang))
         }
@@ -559,6 +575,16 @@ pub fn help_message(help_id: &str, reason: &UnavailableReason, lang: Lang) -> Op
             ),
             Lang::Ar => format!(
                 "ثبّت حزمة بيانات اللغة في Tesseract للغة {language} (مثل tesseract-ocr-ara أو tesseract-ocr-eng): {}",
+                hint.url
+            ),
+        }),
+        UnavailableReason::ProbeUnknown if help_id == "ocrmypdf" => Some(match lang {
+            Lang::En => format!(
+                "Check that OCRmyPDF 14.4.0 or newer (package ocrmypdf on Fedora or Debian 13+ / Ubuntu 24.04+) runs locally, then refresh: {}",
+                hint.url
+            ),
+            Lang::Ar => format!(
+                "تحقق من عمل OCRmyPDF بالإصدار 14.4.0 أو أحدث (حزمة ocrmypdf على Fedora أو Debian 13+ / Ubuntu 24.04+) محلياً ثم حدّث الحالة: {}",
                 hint.url
             ),
         }),

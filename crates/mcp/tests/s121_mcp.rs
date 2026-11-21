@@ -1079,7 +1079,7 @@ fn an_unknown_tool_is_a_protocol_error_and_is_audited() {
 // S-145: unavailable-action capability reports on MCP discovery tools
 
 #[test]
-fn s145_formats_and_plan_report_disabled_by_policy_when_read_only() {
+fn s145_read_only_reports_the_machine_not_a_policy() {
     let fx = fixture();
     let mut cfg = config_for(fx.dir.path());
     cfg.read_only = true;
@@ -1093,6 +1093,8 @@ fn s145_formats_and_plan_report_disabled_by_policy_when_read_only() {
         &cfg,
     );
 
+    // Read-only refuses the write tools, not the actions: an action the
+    // machine can run is not reported unavailable, as in `kawaro doctor`.
     let formats = tool_result(&out, 1);
     assert_eq!(formats["isError"].as_bool(), Some(false), "{formats}");
     let fsc = &formats["structuredContent"];
@@ -1100,17 +1102,18 @@ fn s145_formats_and_plan_report_disabled_by_policy_when_read_only() {
     let f_unavailable = fsc["unavailable"]
         .as_array()
         .expect("kawaro_formats returns unavailable array");
-    let webp_fmt = f_unavailable
-        .iter()
-        .find(|entry| entry["action_id"] == "image.to-webp")
-        .expect("read-only marks image.to-webp unavailable by policy");
-    assert_eq!(webp_fmt["runnable"].as_bool(), Some(false));
-    assert_eq!(
-        webp_fmt["reason"],
-        json!({ "kind": "disabled-by-policy" }),
-        "MCP policy must not be reported as missing software: {webp_fmt}"
+    assert!(
+        f_unavailable
+            .iter()
+            .all(|entry| entry["reason"] != json!({ "kind": "disabled-by-policy" })),
+        "read-only is not a reason for an action: {fsc}"
     );
-    assert!(webp_fmt["help_id"].is_null(), "{webp_fmt}");
+    assert!(
+        !f_unavailable
+            .iter()
+            .any(|entry| entry["action_id"] == "image.to-webp"),
+        "{fsc}"
+    );
 
     let plan = tool_result(&out, 2);
     assert_eq!(plan["isError"].as_bool(), Some(false), "{plan}");
@@ -1121,19 +1124,11 @@ fn s145_formats_and_plan_report_disabled_by_policy_when_read_only() {
             .unwrap()
             .iter()
             .any(|a| a["id"] == "image.to-webp"),
-        "existing read-only planning actions field stays populated: {psc}"
+        "read-only planning keeps the fitting actions: {psc}"
     );
     let p_unavailable = psc["unavailable"]
         .as_array()
         .expect("kawaro_plan returns unavailable array");
-    let webp_plan = p_unavailable
-        .iter()
-        .find(|entry| entry["action_id"] == "image.to-webp")
-        .expect("matching action in read-only plan is disabled-by-policy");
-    assert_eq!(webp_plan["runnable"].as_bool(), Some(false));
-    assert_eq!(webp_plan["reason"], json!({ "kind": "disabled-by-policy" }));
-    assert!(webp_plan["help_id"].is_null());
-
     let pdf_plan = p_unavailable
         .iter()
         .find(|entry| entry["action_id"] == "pdf.merge")

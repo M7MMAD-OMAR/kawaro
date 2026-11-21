@@ -93,7 +93,8 @@ fn ac2_the_pdf_tools_have_a_curated_page_and_a_package() {
             "Ghostscript",
             "Poppler",
             "qpdf",
-            "Tesseract"
+            "Tesseract",
+            "OCRmyPDF"
         ]
     );
     let poppler = install_hint("Poppler").expect("the Poppler hint");
@@ -126,7 +127,8 @@ fn ac3_one_complete_table_names_every_tool_once() {
             "Ghostscript",
             "Poppler",
             "qpdf",
-            "Tesseract"
+            "Tesseract",
+            "OCRmyPDF"
         ]
     );
     // Every tool is named once in the same public table used by messages.

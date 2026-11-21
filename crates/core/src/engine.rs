@@ -156,6 +156,19 @@ pub trait Engine: Send + Sync {
         true
     }
 
+    /// Re-runs the program lookup of this engine, so a tool that was
+    /// installed after the daemon started is seen without a restart (S-145).
+    ///
+    /// The default does nothing: an engine that needs no external program
+    /// (the image engine and the built-in PDF engine) has nothing to look
+    /// up. An engine that runs an external program replaces its stored
+    /// program with a fresh lookup of the same kind it used at start.
+    ///
+    /// A refresh never starts a child process, never installs anything,
+    /// never uses the network and never touches a file of the user. It only
+    /// reads the file system to find the program.
+    fn refresh(&self) {}
+
     /// Operations this engine understands, as (op, accepted input kinds).
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)>;
 

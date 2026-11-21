@@ -16,20 +16,26 @@ The owner requested complete research and planning for the next useful features.
 
 | Order | Story | Deliverable | Prerequisite | State |
 | --- | --- | --- | --- | --- |
-| 1 | [S-142](../backlog/S-142-transformed-image-preview.md) | Shared transformed image preview, explicit encoded mode | Existing options/customization and shared image preparation | Planned |
-| 2 | [S-143](../backlog/S-143-named-user-presets.md) | Explicit named image-action presets, versioned separate store | Options validation; S-142 preview update contract | Planned |
-| 3 | [S-144](../backlog/S-144-batch-results-and-safe-retry.md) | Quiet batch outcomes and safe failed-unit retry | Production queue task identity | Planned |
-| 4 | [S-145](../backlog/S-145-unavailable-action-explanations.md) | Unified unavailable-action reasons and curated help | Existing filtering, doctor and engine lookup | Planned |
-| 5 | [S-146](../backlog/S-146-local-image-ocr.md) | Optional Tesseract image-to-text, installed languages | S-145 language capability report | Planned |
-| 6 | [S-147](../backlog/S-147-searchable-pdf-feasibility.md) | Searchable-PDF dependency/correctness decision | OCR contract and primary PDF sources | Desktop study written; qualification/final decision planned, no adapter |
+| 1 | [S-142](../backlog/S-142-transformed-image-preview.md) | Shared transformed image preview, explicit encoded mode | Existing options/customization and shared image preparation | Source implemented, tests run on Linux 2026-11-21 |
+| 2 | [S-143](../backlog/S-143-named-user-presets.md) | Explicit named image-action presets, versioned separate store | Options validation; S-142 preview update contract | Source implemented, tests run on Linux 2026-11-21 |
+| 3 | [S-144](../backlog/S-144-batch-results-and-safe-retry.md) | Quiet batch outcomes and safe failed-unit retry | Production queue task identity | Source implemented, tests run on Linux 2026-11-21 |
+| 4 | [S-145](../backlog/S-145-unavailable-action-explanations.md) | Unified unavailable-action reasons and curated help | Existing filtering, doctor and engine lookup | Source implemented, tests run on Linux 2026-11-21 |
+| 5 | [S-146](../backlog/S-146-local-image-ocr.md) | Optional Tesseract image-to-text, installed languages | S-145 language capability report | Source implemented, tests run on Linux 2026-11-21 |
+| 6 | [S-147](../backlog/S-147-searchable-pdf-feasibility.md) | Searchable-PDF dependency/correctness decision | OCR contract and primary PDF sources | Adopt (ADR 0017 accepted); implemented as S-150 |
 
-Current limits: **no builds, tests, benchmarks, compositors, installers, model inference, factory or CI during planning**. Test cases are written as future acceptance designs; they have not run. Later feature development uses focused affected checks only when their execution is resumed. Full release validation remains a separate stage. Pi/MiniMax-M3.1-Flash is the selected implementation/research model; parent owns all planning and review.
+Current limits: on 2026-11-21 the owner approved compile checks and the Linux and Windows cross test stages on the second machine; compositor, visual, real desktop and physical Windows checks stay deferred. Test cases are written as future acceptance designs; they have not run. Later feature development uses focused affected checks only when their execution is resumed. Full release validation remains a separate stage. Pi/MiniMax-M3.1-Flash is the selected implementation/research model; parent owns all planning and review.
 
 Other-system adaptation and qualification follow stable core feature behavior. Plan real GNOME/KDE focus and Alt/pointer, Windows integration and real X11 evidence in that later phase. Preserve portable contracts now without claiming support from static review. macOS remains unsupported until its own feasibility plan. This ordering does not certify an absence of defects.
 
 Existing S-138 remains a separate draft, blocked on the distant-drop baseline and release-before-drop semantics. Existing S-141 remains separate publication work with deferred gates; 0.5.0 is public and 0.5.1 is only a candidate. No tag, feature implementation, release date or new performance claim is authorized by writing these plans. Source/status reconciliation for S-132/S-133/S-134 is required before changing acceptance labels.
 
-Next free story: **S-150**. Do not allocate the searchable-PDF implementation before the S-147 decision.
+| 7 | [S-148](../backlog/S-148-job-control-without-tray.md) | Instance-checked job list and single-job cancel | S-144 ledger | Source implemented, tests run on Linux 2026-11-21 |
+| 8 | [S-149](../backlog/S-149-all-actions-reachable.md) | Every action reachable through outer-ring pages | Layout and placement | Source implemented, tests run on Linux 2026-11-21 |
+| 9 | [S-150](../backlog/S-150-searchable-pdf-ocr.md) | Optional OCRmyPDF searchable PDF | S-147 Adopt, ADR 0017 | Source implemented, tests run on Linux 2026-11-21; Arabic fixture matrix open |
+
+Execution record: [execution status](development/2026-11-15-execution-status.md) and [review findings](development/2026-11-21-review-findings.md). Executors MiniMax-M3.1-Flash and Gemini 4 Neon, parent review by the manager. Visual, compositor, real desktop and physical Windows checks are not claimed.
+
+Next free story: **S-151**.
 
 ### Supplemental workflow and user-control audit
 

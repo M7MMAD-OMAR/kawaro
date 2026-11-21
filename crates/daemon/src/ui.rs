@@ -4,7 +4,7 @@
 
 use crate::notify;
 use crate::notify_logic::{open_folder_command, open_url_command};
-use crate::plan::{Choice, on_choice};
+use crate::plan::{Choice, on_choice, plan};
 use crate::portal::{self, TokenStep};
 use crate::server;
 use crate::settings_focus::{Session as FocusSession, SettingsWindowSeam, apply_settings_focus};
@@ -197,8 +197,10 @@ pub fn build(
                 st.pending = None;
                 note_hold(Outcome::NoActionFile);
                 let outcome = st.classify(&files);
-                let why = kawaro_core::unsupported::notification(&outcome, lang);
-                return (why.unwrap_or_default(), Vec::new());
+                // S-145: the typed reason of the hive centre, so the drag
+                // hover and the hive say the same thing.
+                let why = plan(&outcome, &files, &st).message;
+                return (why, Vec::new());
             }
             let centre = text::selection(lang, files.len(), common_kind(&files));
             let cells = actions.iter().map(|a| cell(a, lang)).collect();
@@ -320,6 +322,13 @@ fn wire_options(hive: &Hive, state: &Shared, queue: &Arc<Queue>) {
                 let label = configured.label.get(st.lang).to_string();
                 (configured, files, label)
             };
+            // The panel may send its full resolved table. A key equal to the
+            // action's own fixed value adds nothing and may not be a declared
+            // option (image.to-pdf `page`), so only real choices are checked.
+            let params: toml::Table = params
+                .into_iter()
+                .filter(|(key, value)| configured.params.get(key) != Some(value))
+                .collect();
             let resolved = match configured.with_params(&params) {
                 Ok(action) => action,
                 Err(e) => {
@@ -1360,15 +1369,23 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
             if !accepted {
                 return;
             }
-            let result = {
-                let mut st = lock(&retry_state);
-                jobs::retry(&mut st, &retry_queue, job)
-            };
-            if let Err(refusal) = result {
-                eprintln!("kawarod: retry job {job} refused: {refusal}");
-                RESULTS_STATE.with(|rs| rs.borrow_mut().finish_retry_refusal(job));
-            }
-            refresh_results_now(&retry_state);
+            // The retry checks every failed input on disk: run it off the
+            // event loop, then report back on it.
+            let (state, queue) = (retry_state.clone(), retry_queue.clone());
+            std::thread::spawn(move || {
+                let result = {
+                    let mut st = lock(&state);
+                    jobs::retry(&mut st, &queue, job)
+                };
+                let refused = result.err().map(|refusal| refusal.to_string());
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(refusal) = refused {
+                        eprintln!("kawarod: retry job {job} refused: {refusal}");
+                        RESULTS_STATE.with(|rs| rs.borrow_mut().finish_retry_refusal(job));
+                    }
+                    refresh_results_now(&state);
+                });
+            });
         });
         let (cancel_state, cancel_queue) = (settings_state, queue);
         win.on_results_cancel(move |job| {

@@ -817,6 +817,7 @@ export component HiveWindow inherits Window {
                     font-size: Tokens.font-label;
                     color: Tokens.text-secondary;
                     wrap: word-wrap;
+                    horizontal-alignment: root.rtl ? right : left;
                 }
                 if root.stage-named-presets-available: named-panel := Rectangle {
                     min-height: named-body.preferred-height + 2 * Tokens.space-2;
@@ -836,7 +837,9 @@ export component HiveWindow inherits Window {
                             accessible-label: self.text;
                         }
                         TextField {
-                            text: root.stage-preset-name;
+                            // Two ways, so the name of the selected preset
+                            // reaches the field the user edited (S-143-C).
+                            text <=> root.stage-preset-name;
                             label: root.stage-preset-name-label;
                             enabled: !root.stage-preset-pending && !root.stage-preset-read-only;
                             edited(text) => { root.preset-name-edited(text); }
@@ -855,8 +858,50 @@ export component HiveWindow inherits Window {
                         }
                         for item[i] in root.stage-named-presets: named-row := VerticalLayout {
                             spacing: Tokens.space-1;
-                            HorizontalLayout {
+                            // The row is mirrored for Arabic, like the
+                            // preview header and the footer.
+                            if root.rtl: HorizontalLayout {
                                 spacing: Tokens.space-1;
+                                alignment: end;
+                                if !root.stage-preset-read-only: TextButton {
+                                    text: root.stage-preset-delete-text;
+                                    enabled: !root.stage-preset-pending;
+                                    clicked => { root.preset-delete(item.id); }
+                                    accessible-label: root.stage-preset-delete-text + ": " + item.name;
+                                }
+                                if !root.stage-preset-read-only: TextButton {
+                                    text: root.stage-preset-rename-text;
+                                    enabled: !root.stage-preset-pending && root.stage-preset-name != "";
+                                    clicked => { root.preset-rename(item.id); }
+                                    accessible-label: root.stage-preset-rename-text + ": " + item.name;
+                                }
+                                if item.can-review && !root.stage-preset-read-only: TextButton {
+                                    text: root.stage-preset-review-text;
+                                    enabled: !root.stage-preset-pending;
+                                    clicked => { root.preset-review(item.id); }
+                                    accessible-label: root.stage-preset-review-text + ": " + item.name;
+                                }
+                                if item.can-apply: TextButton {
+                                    text: root.stage-preset-apply-text;
+                                    enabled: !root.stage-preset-pending && !root.stage-preset-read-only;
+                                    clicked => { root.preset-apply(item.id); }
+                                    accessible-label: root.stage-preset-apply-text + ": " + item.name;
+                                }
+                                FilterChip {
+                                    text: item.name;
+                                    accessible-label: item.name + ": " + item.detail;
+                                    // The chip owns its own toggle, so the
+                                    // panel reads the change instead of
+                                    // binding the state. The selected row
+                                    // says so in its detail line.
+                                    changed checked => {
+                                        if self.checked { root.preset-select(item.id); self.checked = false; }
+                                    }
+                                }
+                            }
+                            if !root.rtl: HorizontalLayout {
+                                spacing: Tokens.space-1;
+                                alignment: start;
                                 FilterChip {
                                     text: item.name;
                                     accessible-label: item.name + ": " + item.detail;

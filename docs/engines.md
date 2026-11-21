@@ -401,6 +401,77 @@ order the engine returns it, and no bidi reordering is done here. The quality
 of Arabic and mixed direction output depends on the installed traineddata and
 on the picture, and it is not claimed.
 
+## OCRmyPDF (engine `ocrmypdf`, story S-150, ADR 0017)
+
+One op, `make-searchable`, exposed as action `pdf.make-searchable` in
+`actions/pdf.toml` (`OutputMode::PerFile`, ext `pdf`, suffix `-searchable`,
+explicit `lang` enum `eng`, `ara`, `ara+eng`). Runs the optional system
+`ocrmypdf` executable as a child process; zero new Cargo dependencies, no
+bundled Python runtime, no bundled binaries, and no automatic installer or
+download. Plain-text extraction remains in the separate `pdf.to-text` action
+(`poppler` `pdftotext`): Kawaro never passes `--sidecar` because OCRmyPDF
+sidecars omit existing text pages and skipped pages.
+
+Minimum version floor: **`ocrmypdf >= 14.4.0`**. Upstream added default
+digital-signature detection and refusal (`DigitalSignatureError`) in 14.4.0.
+Older releases (such as Debian 12 Bookworm's `14.0.1`) are refused by the
+bounded, cached `ocrmypdf --version` probe (5 s timeout, 64 KiB stdout cap)
+with `UnavailableReason::ProbeUnknown` and curated read-only setup guidance.
+Supported distro repositories meeting the floor include Fedora 42 to 44
+(`ocrmypdf`, `tesseract-langpack-ara`, `tesseract-langpack-eng`), Debian 13
+Trixie, and Ubuntu 24.04 LTS (`ocrmypdf`, `tesseract-ocr-ara`,
+`tesseract-ocr-eng`).
+
+External system dependencies (never linked or redistributed by Kawaro, so
+their licences do not combine with Kawaro's GPL-3.0-or-later binaries):
+
+- `ocrmypdf >= 14.4.0` (MPL-2.0) and its distro Python runtime packages,
+  including `pikepdf` (MPL-2.0) and `qpdf` (Apache-2.0).
+- `tesseract` (Apache-2.0, with Leptonica BSD-2-Clause) and the requested
+  language packs (`ara` and/or `eng`, Apache-2.0 upstream), preflighted via
+  the shared cached `tesseract --list-langs` probe (`OcrEngine`).
+- One PDF rasterizer: `ghostscript` (AGPL-3.0-or-later) on OCRmyPDF 14.4 to
+  16.x, or `pypdfium2` (Apache-2.0 OR BSD-3-Clause) / `ghostscript` on
+  OCRmyPDF 17.x (`fpdf2`, LGPL-3.0-or-later, on 17.x).
+- Explicitly excluded from the required set in v1: `unpaper` (GPL-2.0-only),
+  `jbig2enc` (Apache-2.0), `pngquant`, and `tesseract-osd`.
+
+Fixed, non-destructive argv (every value passed as a distinct `OsString`,
+never shell-joined):
+`ocrmypdf --language <lang> --skip-text --output-type pdf --optimize 0 --jobs 1 --tesseract-timeout 180 --quiet -- <abs_input> <private_output>`.
+`--force-ocr`, `--redo-ocr`, `--invalidate-digital-signatures`, `--sidecar`,
+`--rotate-pages`, `--deskew`, and `--clean` are never passed.
+
+Safety, isolation, and policy bounds (initial admission policy, not measured
+guarantees):
+
+- Digitally signed PDFs (exit 2 / `DigitalSignatureError`), encrypted or
+  password-protected PDFs (exit 8 / `EncryptedPdfError`), and corrupt or
+  non-PDF files fail cleanly with `EngineError::Input` and commit no output.
+  Original input bytes are never modified.
+- Runs through the shared `ocr::child::run_bounded` runner (`ProcessTree`)
+  under the single-child OCR concurrency permit shared with `OcrEngine`.
+  Child `TMPDIR`, `TEMP`, and `TMP` point to `<work>/tmp` inside the private
+  task work directory, which is removed on every exit path.
+- Admission and output bounds: 128 MiB max input PDF, 250 max pages, 256 MiB
+  max output PDF (polled during execution and checked strictly before moving
+  to `task.output`), 180 s per-page OCR timeout, 600 s whole-job timeout,
+  5 s / 64 KiB version probe, 4 KiB stderr tail. Any per-page timeout warning
+  on stderr fails the task even on exit code 0 without committing output.
+  Only the existing queue finalizes `task.output` to `<stem>-searchable.pdf`.
+
+Explicit non-claims:
+
+- No PDF/A archival claim (`--output-type pdf` writes standard non-archival
+  PDFs).
+- No PDF/UA or accessibility-tagging claim.
+- No digital-signature preservation claim (signed PDFs are refused).
+- No encrypted-PDF decryption or password-prompt support in v1.
+- No Arabic searchability or copy-order quality claim is published until the
+  deferred Arabic fixture acceptance matrix in
+  `docs/research/searchable-pdf-feasibility.md` is executed and recorded with
+  exact `ocrmypdf`, `tesseract`, and `ara.traineddata` versions.
+
 ### Libraries and tools (office, pdf, poppler, qpdf, OCR)
 
 | name | used by | license | notes |
@@ -409,7 +480,8 @@ on the picture, and it is not claimed.
 | Ghostscript | ghostscript | AGPL-3.0 | external program, not linked |
 | pdftotext 26.01 (poppler) | poppler | GPL-2.0-or-later | external program, not linked; PDF to text with `-layout`, no OCR, Arabic content order limitation |
 | qpdf (version not checked here: not installed on the build machine) | qpdf | Apache-2.0 | external program, not linked; linearize, lossless cleanup and `--check` report, structural rewrites break signatures |
-| tesseract 5 (the upstream version the research recorded; the installed version is not read here) | ocr | Apache-2.0 | external program, not linked; the traineddata of each language carries its own licence, and no language data is downloaded by Kawaro |
+| tesseract 5 (the upstream version the research recorded; the installed version is not read here) | ocr, ocrmypdf | Apache-2.0 | external program, not linked; the traineddata of each language carries its own licence, and no language data is downloaded by Kawaro |
+| ocrmypdf >= 14.4.0 (version floor enforced by probe; not executed on this machine) | ocrmypdf | MPL-2.0 | external program, not linked; uses system pikepdf (MPL-2.0), qpdf (Apache-2.0), tesseract (Apache-2.0), and ghostscript (AGPL-3.0-or-later) or pypdfium2 (Apache-2.0 OR BSD-3-Clause); no PDF/A, PDF/UA, or signature-preservation claim |
 | lopdf 0.45 | pdf | MIT | `default-features = false`; declares rust-version 1.88, above the workspace's 1.85 |
 | zip 9 | pdf, ghostscript | MIT | `default-features = false` (stored only); tests add `deflate-flate2` to read LibreOffice archives |
 | libc 0.2 | office, ghostscript | MIT OR Apache-2.0 | unix only, for `killpg` |
@@ -439,6 +511,7 @@ a message with the program's name and its download page.
 | pdftotext (poppler) | `pdftotext` | `pdftotext.exe` | `%ProgramFiles%\poppler\Library\bin` | none | https://poppler.freedesktop.org/ |
 | qpdf | `qpdf` | `qpdf.exe` | `%ProgramFiles%\qpdf\bin` | none | https://qpdf.readthedocs.io/ |
 | tesseract | `tesseract` | `tesseract.exe` | `%ProgramFiles%\Tesseract-OCR` | none (the installer records no install path) | https://tesseract-ocr.github.io/tessdoc/ |
+| ocrmypdf | `ocrmypdf` | `ocrmypdf.exe` | none (`PATH` only) | none | https://ocrmypdf.readthedocs.io/en/stable/installation.html |
 
 Within one folder the names keep their order. The two registry keys are
 assumptions from ADR 0005, checked on a real Windows install in S-052. On

@@ -1,8 +1,8 @@
 # ADR 0017: Searchable PDF through an optional system OCRmyPDF child process
 
-Status: Proposed (authored 2026-11-21 under S-147; awaits parent approval; no code implemented and no runtime check executed)
+Status: Accepted (approved by parent 2026-11-21; source implemented under S-150; runtime and Arabic fixture verification deferred to check stage)
 Date: 2026-11-21
-Story: backlog/S-147-searchable-pdf-feasibility.md (feasibility), backlog/S-150-searchable-pdf-ocr.md (DRAFT, not started)
+Story: backlog/S-147-searchable-pdf-feasibility.md (feasibility), backlog/S-150-searchable-pdf-ocr.md (source implemented)
 Research: docs/research/searchable-pdf-feasibility.md
 Spec: docs/specs/2026-11-15-next-features.md, section 10
 
@@ -22,7 +22,7 @@ Feasibility research in `docs/research/searchable-pdf-feasibility.md` compared t
 
 | Option | Cost | What it gives | Verdict |
 | --- | --- | --- | --- |
-| Optional system `ocrmypdf >= 14.4.0` child process | Optional system Python/OCRmyPDF stack installed by the user; renderer differences across v15/16 vs v17 require explicit Arabic fixture qualification | Preserves existing text pages (`--skip-text`), refuses signed and encrypted PDFs by default, fits `Engine` one-task/one-output contract and `ProcessTree`, zero new Rust crates, zero bundled binaries | Proposed |
+| Optional system `ocrmypdf >= 14.4.0` child process | Optional system Python/OCRmyPDF stack installed by the user; renderer differences across v15/16 vs v17 require explicit Arabic fixture qualification | Preserves existing text pages (`--skip-text`), refuses signed and encrypted PDFs by default, fits `Engine` one-task/one-output contract and `ProcessTree`, zero new Rust crates, zero bundled binaries | Accepted |
 | Rasterize PDF pages via Ghostscript + Tesseract PDF output + `lopdf` merge | Loses existing text, vectors, links, and forms on born-digital pages unless Kawaro builds its own page classifier and PDF reassembler | Reuses existing `gs` and `tesseract` binaries | Rejected |
 | Build a custom Rust PDF text-layer writer | High complexity in font subsetting, ToUnicode CMaps, Arabic RTL placement, and PDF preservation | No Python dependency | Rejected |
 | Cloud OCR service | Violates local-only non-negotiable principle | Offloads dependencies | Rejected |
@@ -79,4 +79,4 @@ Feasibility research in `docs/research/searchable-pdf-feasibility.md` compared t
 - **Explicit non-claims:** Kawaro makes no PDF/A archival claim, no PDF/UA or accessibility-tagging claim, no digital-signature preservation claim, and no encrypted-PDF support claim for this action.
 - **Arabic RTL qualification gate:** OCRmyPDF 15.x and 16.x use legacy `sandwich`/`hocr` renderers while OCRmyPDF 17.x defaults to the `fpdf2` renderer with updated RTL shaping. No Arabic searchability or copy-order quality claim may be published until the real-fixture Arabic acceptance matrix in `docs/research/searchable-pdf-feasibility.md` is executed and recorded with exact tool and traineddata versions.
 - **Platform order preserved:** Linux (Fedora, Debian 13+, Ubuntu 24.04+) is the first target. Debian 12 (`14.0.1`) is rejected safely by the `14.4.0` version floor. Native Windows setup remains manual/optional and is deferred to the later platform phase.
-- **Next step:** If the parent accepts this ADR, implementation proceeds under draft story `backlog/S-150-searchable-pdf-ocr.md` as a bounded source packet, followed by deferred runtime and Arabic acceptance checks when executable validation resumes.
+- **Next step:** Accepted on 2026-11-21 and source-implemented under story `backlog/S-150-searchable-pdf-ocr.md`. Compile, integration tests, and the deferred Arabic fixture acceptance matrix run in the check stage before any quality claim is published.

@@ -1,6 +1,6 @@
 # S-145: Unavailable-action explanations
 
-Status: core CapabilityReport, probe cache, `kawaro doctor`, hive centre hint and MCP discovery source implemented and parent source-reviewed on 2026-11-21. Parent changed the hive path to read only cached OCR language probes (warmed in the background at daemon start and reload) so a show never waits for a child. Open: `kawaro doctor` does not ask the running daemon to reload, non-OCR engine availability is still probed once at start, and the drag notification still uses the older message. Executable checks deferred by owner order.
+Status: core CapabilityReport, probe cache, `kawaro doctor`, hive centre hint and MCP discovery source implemented and parent source-reviewed on 2026-11-21. Parent changed the hive path to read only cached OCR language probes (warmed in the background at daemon start and reload) so a show never waits for a child. The three open gaps are source implemented in this pass: every child engine re-runs its program lookup on `Engine::refresh`, the daemon reload refreshes the engines and recomputes the available ones, `kawaro doctor` asks the running daemon to reload before it prints, and the drag notification now uses the typed reason of the hive centre. No executable check ran: the owner deferred builds, tests and gates for this pass.
 Date: 2026-11-15.
 Spec: ../docs/specs/2026-11-15-next-features.md
 Implementation packet: ../docs/superpowers/plans/2026-11-15-next-features.md

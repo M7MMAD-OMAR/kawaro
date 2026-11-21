@@ -322,3 +322,37 @@ output = { mode = "per-file", ext = "txt", suffix = "-check" }
 code = { ar = "فحص", en = "CHECK" }
 label = { ar = "فحص الملف وتقرير التشفير", en = "Check the PDF and report encryption" }
 icon = "file"
+
+[[action]]
+id = "pdf.make-searchable"
+engine = "ocrmypdf"
+op = "make-searchable"
+ring = 2
+order = 90
+accepts = ["pdf"]
+min_files = 1
+output = { mode = "per-file", ext = "pdf", suffix = "-searchable" }
+code = { ar = "بحث", en = "OCR" }
+label = { ar = "جعل ملف PDF قابلاً للبحث", en = "Make PDF searchable" }
+icon = "text"
+[action.params]
+lang = "ara+eng"
+
+[action.options]
+kind = "form"
+
+[[action.options.field]]
+id = "lang"
+type = "enum"
+label = { ar = "لغة النص المطبوع", en = "Printed text language" }
+default = "ara+eng"
+maps_to = "lang"
+[[action.options.field.values]]
+id = "eng"
+label = { ar = "الإنجليزية", en = "English" }
+[[action.options.field.values]]
+id = "ara"
+label = { ar = "العربية", en = "Arabic" }
+[[action.options.field.values]]
+id = "ara+eng"
+label = { ar = "العربية والإنجليزية", en = "Arabic and English" }
