@@ -5,13 +5,14 @@ use crate::notify_logic::open_folder_command;
 use crate::state::{JobInfo, RetryRefusal, Shared, State, lock};
 use crate::{notify, tray};
 use kawaro_core::ActionDef;
+use kawaro_core::OutputMode;
 use kawaro_core::config::{NotifyMode, notify_decision};
 use kawaro_core::ipc::Event;
 use kawaro_core::job_report::{JobDetail, JobState, JobSummary};
-use kawaro_core::job_results::{UnitOutcome, current_identity};
+use kawaro_core::job_results::{InputIdentity, JobRecord, UnitOutcome, current_identity};
 use kawaro_core::paths::CURRENT;
 use kawaro_core::queue::{JobEvent, JobId, Queue};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::Receiver;
 
@@ -46,6 +47,72 @@ pub fn submit_resolved(
     job
 }
 
+/// Claims the retry of `job` (S-151).
+///
+/// The claim is taken under the state lock, before any work starts, so a
+/// second trigger of the same job is refused instead of starting a second
+/// child job. The claim is released when the retry is refused or fails, and
+/// it becomes the pending retry of the job when the child is submitted.
+pub fn begin_retry(st: &mut State, job: JobId) -> Result<(), RetryRefusal> {
+    if st.pending_retries.contains_key(&job) {
+        return Err(RetryRefusal::AlreadySubmitting);
+    }
+    st.pending_retries.insert(job, None);
+    Ok(())
+}
+
+/// Releases the claim of a retry that did not start (S-151).
+///
+/// A retry that already started keeps its place: only a claim without a
+/// child job is released.
+pub fn release_retry(st: &mut State, job: JobId) {
+    if matches!(st.pending_retries.get(&job), Some(None)) {
+        st.pending_retries.remove(&job);
+    }
+}
+
+/// The source files whose identity a retry of `job` checks.
+///
+/// The same selection the ledger makes: the inputs of the failed units, in
+/// the order of the original manifest. A combined action retries its whole
+/// group.
+fn retry_sources(record: &JobRecord) -> Vec<PathBuf> {
+    let Some(manifest) = record.manifest.as_ref() else {
+        return Vec::new();
+    };
+    let mut out: Vec<PathBuf> = Vec::new();
+    match manifest.action.output.mode {
+        OutputMode::Combined => {
+            let Some(unit) = manifest.units.first() else {
+                return out;
+            };
+            for input in &unit.inputs {
+                out.push(input.path.clone());
+            }
+        }
+        OutputMode::PerFile => {
+            for source in &manifest.units {
+                let mut failed = false;
+                for unit in &record.units {
+                    if unit.unit != source.id {
+                        continue;
+                    }
+                    if matches!(unit.outcome, UnitOutcome::Failed { .. }) {
+                        failed = true;
+                    }
+                }
+                if !failed {
+                    continue;
+                }
+                for input in &source.inputs {
+                    out.push(input.path.clone());
+                }
+            }
+        }
+    }
+    out
+}
+
 /// Submits a retry of a finished job (S-144).
 ///
 /// The proposal comes from the ledger: it holds the action as it ran and
@@ -53,40 +120,106 @@ pub fn submit_resolved(
 /// The current settings are not applied again, so a changed configuration
 /// never rewrites a retry. A retry that is already pending is refused, so a
 /// double trigger never starts two child jobs.
-pub fn retry(st: &mut State, queue: &Queue, job: JobId) -> Result<JobId, RetryRefusal> {
-    if st.pending_retries.contains_key(&job) {
-        return Err(RetryRefusal::AlreadySubmitting);
-    }
-    let action_id = match st.results.job(job) {
-        Some(record) => record.action_id.clone(),
-        // A job the queue holds and the ledger has no manifest for has not
-        // finished, so it is not a missing job.
-        None if st.jobs.contains_key(&job) => {
+///
+/// The state lock is not held while the sources are read from disk: the
+/// identity of every input is a file system call, and the event loop must
+/// never wait for it (S-151). The lock is taken again afterwards and the
+/// job is checked again, so a job that changed in the meantime is never
+/// retried under a stale plan.
+///
+/// The caller takes the claim of the job with [`begin_retry`] first. A call
+/// without a claim takes one, so a second trigger of the same job is
+/// refused either way.
+pub fn retry(state: &Shared, queue: &Queue, job: JobId) -> Result<JobId, RetryRefusal> {
+    // Under the lock: what the retry needs, and nothing that touches the
+    // disk.
+    let (action_id, current, engines, sources) = {
+        let mut st = lock(state);
+        // A retry of this job already runs: a second one is refused.
+        if matches!(st.pending_retries.get(&job), Some(Some(_))) {
+            return Err(RetryRefusal::AlreadySubmitting);
+        }
+        let found = st
+            .results
+            .job(job)
+            .map(|record| (record.action_id.clone(), retry_sources(record)));
+        let (action_id, sources) = match found {
+            Some(pair) => pair,
+            None => {
+                // A job the queue holds and the ledger has no manifest for
+                // has not finished, so it is not a missing job.
+                let refusal = if st.jobs.contains_key(&job) {
+                    kawaro_core::job_results::RetryRefusal::NotCompleted
+                } else {
+                    kawaro_core::job_results::RetryRefusal::MissingJob
+                };
+                release_retry(&mut st, job);
+                return Err(RetryRefusal::from(refusal));
+            }
+        };
+        // The action as it would run now, so the settings the daemon applies
+        // are already in it and are not read as a change of the action file.
+        let registered = st.registry.get(&action_id).cloned();
+        let current = registered.map(|action| st.configured(action));
+        let engines = st.available.clone();
+        // The claim is taken before any disk work, so a second trigger of
+        // the same job is refused while this one is prepared.
+        st.pending_retries.entry(job).or_insert(None);
+        (action_id, current, engines, sources)
+    };
+    // Outside the lock: the identity of every source is a file system call.
+    let identities: HashMap<PathBuf, Option<InputIdentity>> = sources
+        .iter()
+        .map(|path| (path.clone(), current_identity(path)))
+        .collect();
+    // Under the lock again: the plan is built and the child is submitted.
+    let mut st = lock(state);
+    // The job must still be there, with the same action.
+    let still_there = st.results.job(job).map(|record| record.action_id.clone());
+    match still_there {
+        Some(id) if id == action_id => {}
+        Some(_) => {
+            release_retry(&mut st, job);
             return Err(RetryRefusal::from(
-                kawaro_core::job_results::RetryRefusal::NotCompleted,
+                kawaro_core::job_results::RetryRefusal::ActionChanged(String::from(
+                    "the action of the job changed while the retry was prepared",
+                )),
             ));
         }
         None => {
+            release_retry(&mut st, job);
             return Err(RetryRefusal::from(
                 kawaro_core::job_results::RetryRefusal::MissingJob,
             ));
         }
+    }
+    // Another retry of this job started in the meantime.
+    if matches!(st.pending_retries.get(&job), Some(Some(_))) {
+        return Err(RetryRefusal::AlreadySubmitting);
+    }
+    let engine_ok = |id: &str| engines.iter().any(|a| a.as_str() == id);
+    // A path the selection above did not foresee is read here, so the plan
+    // never mistakes it for a missing file.
+    let identity = move |path: &Path| match identities.get(path) {
+        Some(known) => known.clone(),
+        None => current_identity(path),
     };
-    // The action as it would run now, so the settings the daemon applies
-    // are already in it and are not read as a change of the action file.
-    let registered = st.registry.get(&action_id).cloned();
-    let current = registered.map(|action| st.configured(action));
-    let engines = st.available.clone();
-    let proposal = {
-        let engine_ok = |id: &str| engines.iter().any(|a| a.as_str() == id);
-        let identity = |path: &Path| current_identity(path);
-        st.results
-            .retry_plan(job, current.as_ref(), &engine_ok, &identity)?
+    let plan = st
+        .results
+        .retry_plan(job, current.as_ref(), &engine_ok, &identity);
+    let proposal = match plan {
+        Ok(proposal) => proposal,
+        Err(refusal) => {
+            release_retry(&mut st, job);
+            return Err(RetryRefusal::from(refusal));
+        }
     };
     let label = proposal.action.label.get(st.lang).to_string();
-    let child = submit_resolved(st, queue, proposal.action, proposal.inputs, label);
+    let child = submit_resolved(&mut st, queue, proposal.action, proposal.inputs, label);
     st.retry_parents.insert(child, job);
-    st.pending_retries.insert(job, child);
+    // The claim becomes the pending retry of the job: it is released when
+    // the child job finishes.
+    st.pending_retries.insert(job, Some(child));
     Ok(child)
 }
 
@@ -671,34 +804,65 @@ mod tests {
         use kawaro_core::config::Config;
         use kawaro_core::job_results::UnitOutcome;
         use kawaro_core::queue::Queue;
-        use std::sync::mpsc::channel;
+        use std::sync::{Arc, Mutex, mpsc::channel};
 
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("a.png");
         std::fs::write(&file, b"input").unwrap();
-        let mut st = State::new(Config::default(), &[]);
-        st.available.push(String::from("image"));
-        let action = builtin_action();
-        st.results
-            .start(100, manifest(action, vec![vec![file.clone()]]));
-        st.results.record_unit(
-            100,
-            0,
-            UnitOutcome::Failed {
-                error: String::from("boom"),
-            },
-            Duration::from_secs(1),
-        );
-        st.results.finish(100, Duration::from_secs(2), false);
+        let state = Arc::new(Mutex::new(State::new(Config::default(), &[])));
+        {
+            let mut st = state.lock().unwrap();
+            st.available.push(String::from("image"));
+            let action = builtin_action();
+            st.results
+                .start(100, manifest(action, vec![vec![file.clone()]]));
+            st.results.record_unit(
+                100,
+                0,
+                UnitOutcome::Failed {
+                    error: String::from("boom"),
+                },
+                Duration::from_secs(1),
+            );
+            st.results.finish(100, Duration::from_secs(2), false);
+        }
         let (tx, _rx) = channel();
         let queue = Queue::new(vec![], 1, tx);
-        let child = retry(&mut st, &queue, 100).expect("the retry runs");
+        let child = retry(&state, &queue, 100).expect("the retry runs");
         assert_ne!(child, 100);
-        assert_eq!(st.retry_parents.get(&child), Some(&100));
+        assert_eq!(state.lock().unwrap().retry_parents.get(&child), Some(&100));
         // A second trigger while the first retry is pending starts nothing.
-        let refusal = retry(&mut st, &queue, 100).expect_err("no second child");
+        let refusal = retry(&state, &queue, 100).expect_err("no second child");
         assert_eq!(refusal, RetryRefusal::AlreadySubmitting);
-        assert_eq!(st.pending_retries.get(&100), Some(&child));
+        assert_eq!(
+            state.lock().unwrap().pending_retries.get(&100),
+            Some(&Some(child))
+        );
+    }
+
+    /// S-151: the claim of a retry is taken under the lock, before the
+    /// worker starts, so a second trigger of the same job is refused and
+    /// the Results page already shows the job as pending.
+    #[test]
+    fn a_retry_is_claimed_before_the_worker_starts() {
+        use super::{begin_retry, release_retry};
+        use crate::state::{RetryRefusal, State};
+        use kawaro_core::config::Config;
+
+        let mut st = State::new(Config::default(), &[]);
+        assert!(begin_retry(&mut st, 7).is_ok(), "the claim is taken");
+        // The pending set of the daemon holds the job right away, so a
+        // refresh of the Results page keeps the job marked as pending.
+        let (_details, pending, _lang) = super::results_snapshot(&st);
+        assert!(pending.contains(&7), "{:?}", pending);
+        // A second claim of the same job is refused.
+        assert_eq!(
+            begin_retry(&mut st, 7).expect_err("no second claim"),
+            RetryRefusal::AlreadySubmitting
+        );
+        // A claim without a child job is released again.
+        release_retry(&mut st, 7);
+        assert!(!st.pending_retries.contains_key(&7));
     }
 
     #[test]
@@ -728,7 +892,7 @@ mod tests {
                 },
             );
             st.retry_parents.insert(2, 1);
-            st.pending_retries.insert(1, 2);
+            st.pending_retries.insert(1, Some(2));
         }
         let (tx, rx) = channel();
         tx.send(JobEvent::Started {

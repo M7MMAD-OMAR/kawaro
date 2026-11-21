@@ -172,6 +172,10 @@ fn main() -> ExitCode {
     // S-145: fill the OCR language cache off the hive path, so the first
     // hive show can explain a missing language without running a child.
     kawaro_engines::ocr::OcrEngine::default().warm_language_probe();
+    // S-151: the same for the OCRmyPDF version, so an OCRmyPDF below the
+    // version floor is shown as unavailable with its reason, instead of
+    // being offered and failing.
+    kawaro_engines::ocrmypdf::OcrmypdfEngine::default().warm_version_probe();
 
     let theme = lock(&state).config.theme;
     if let Err(e) = ui::build(lang, theme, &state, &queue) {

@@ -40,6 +40,11 @@ pub(crate) struct Outcome {
     pub stdout: Vec<u8>,
     /// The last [`STDERR_KEEP`] bytes of stderr.
     pub stderr: String,
+    /// True when a stderr line matched the line matcher of the run.
+    ///
+    /// The matcher runs while the child writes, so a warning that is more
+    /// than [`STDERR_KEEP`] bytes before the end is still seen (S-151).
+    pub matched: bool,
 }
 
 /// The stdout capture: bounded bytes and an overflow flag. A child that
@@ -80,19 +85,74 @@ impl Capture {
     }
 }
 
-/// The stderr tail: the last [`STDERR_KEEP`] bytes only.
-#[derive(Default)]
+/// The stderr reader: the last [`STDERR_KEEP`] bytes for a diagnostic, and
+/// the whole lines for a matcher that runs while the child writes.
 struct Tail {
     data: Mutex<Vec<u8>>,
+    line: Mutex<Vec<u8>>,
+    matched: AtomicBool,
+    matcher: Option<fn(&str) -> bool>,
 }
 
 impl Tail {
+    fn new(matcher: Option<fn(&str) -> bool>) -> Self {
+        Self {
+            data: Mutex::new(Vec::new()),
+            line: Mutex::new(Vec::new()),
+            matched: AtomicBool::new(false),
+            matcher,
+        }
+    }
+
     fn push(&self, chunk: &[u8]) {
-        let mut data = self.data.lock().unwrap_or_else(|p| p.into_inner());
-        data.extend_from_slice(chunk);
-        let excess = data.len().saturating_sub(STDERR_KEEP);
-        if excess > 0 {
-            data.drain(..excess);
+        {
+            let mut data = self.data.lock().unwrap_or_else(|p| p.into_inner());
+            data.extend_from_slice(chunk);
+            let excess = data.len().saturating_sub(STDERR_KEEP);
+            if excess > 0 {
+                data.drain(..excess);
+            }
+        }
+        let Some(matcher) = self.matcher else {
+            return;
+        };
+        // Every complete line is matched while it streams, so a warning
+        // that the tail drops later is still seen.
+        let mut rest = chunk;
+        while let Some(pos) = rest.iter().position(|&byte| byte == b'\n') {
+            let (line, tail) = rest.split_at(pos);
+            let mut pending = self.line.lock().unwrap_or_else(|p| p.into_inner());
+            pending.extend_from_slice(line);
+            let hit = {
+                let text = String::from_utf8_lossy(&pending);
+                matcher(&text)
+            };
+            pending.clear();
+            if hit {
+                self.matched.store(true, Ordering::Relaxed);
+            }
+            rest = &tail[1..];
+        }
+        let mut pending = self.line.lock().unwrap_or_else(|p| p.into_inner());
+        pending.extend_from_slice(rest);
+    }
+
+    /// Matches the last line, when the child ended without a newline.
+    fn finish(&self) {
+        let Some(matcher) = self.matcher else {
+            return;
+        };
+        let mut pending = self.line.lock().unwrap_or_else(|p| p.into_inner());
+        if pending.is_empty() {
+            return;
+        }
+        let hit = {
+            let text = String::from_utf8_lossy(&pending);
+            matcher(&text)
+        };
+        pending.clear();
+        if hit {
+            self.matched.store(true, Ordering::Relaxed);
         }
     }
 
@@ -130,6 +190,11 @@ fn spawn_reader(
                 }
             }
         }
+        // The last line of a child that ended without a newline is matched
+        // too.
+        if let Some(tail) = &tail {
+            tail.finish();
+        }
     })
 }
 
@@ -137,14 +202,16 @@ fn spawn_reader(
 ///
 /// `capture_stdout` keeps at most [`STDOUT_LIMIT`] bytes of stdout; above it
 /// the run fails instead of truncating. Stderr always keeps only its last
-/// [`STDERR_KEEP`] bytes. `poll` runs once per loop iteration and may stop
-/// the run with an error, which is how the extraction watches its output
-/// file.
+/// [`STDERR_KEEP`] bytes. `match_line` is called for every stderr line while
+/// the child writes; the result says in [`Outcome::matched`] whether one of
+/// them matched. `poll` runs once per loop iteration and may stop the run
+/// with an error, which is how the extraction watches its output file.
 pub(crate) fn run_bounded(
     cmd: &mut Command,
     cancel: &CancelToken,
     timeout: Duration,
     capture_stdout: bool,
+    match_line: Option<fn(&str) -> bool>,
     poll: &mut dyn FnMut() -> Result<(), EngineError>,
 ) -> Result<Outcome, EngineError> {
     cancel.check()?;
@@ -155,7 +222,7 @@ pub(crate) fn run_bounded(
     let stdout = tree.child_mut().stdout.take();
     let stderr = tree.child_mut().stderr.take();
     let capture = capture_stdout.then(|| Arc::new(Capture::default()));
-    let tail = Arc::new(Tail::default());
+    let tail = Arc::new(Tail::new(match_line));
     let stdout_reader = stdout.map(|stream| spawn_reader(stream, capture.clone(), None));
     let stderr_reader = stderr.map(|stream| spawn_reader(stream, None, Some(tail.clone())));
 
@@ -212,6 +279,7 @@ pub(crate) fn run_bounded(
         status,
         stdout,
         stderr,
+        matched: tail.matched.load(Ordering::Relaxed),
     })
 }
 
@@ -249,6 +317,7 @@ mod tests {
             &CancelToken::new(),
             Duration::from_secs(5),
             true,
+            None,
             &mut allow,
         );
         match r {
@@ -269,6 +338,7 @@ mod tests {
             &CancelToken::new(),
             Duration::from_secs(5),
             true,
+            None,
             &mut allow,
         )
         .expect("the small output fits");
@@ -286,6 +356,7 @@ mod tests {
             &CancelToken::new(),
             Duration::from_secs(10),
             false,
+            None,
             &mut allow,
         )
         .expect("the flood drains");
@@ -302,6 +373,7 @@ mod tests {
             &CancelToken::new(),
             Duration::from_secs(10),
             false,
+            None,
             &mut allow,
         )
         .expect("the child exits");
@@ -318,6 +390,7 @@ mod tests {
             &CancelToken::new(),
             Duration::from_millis(50),
             false,
+            None,
             &mut allow,
         );
         match r {
@@ -359,6 +432,7 @@ mod tests {
             &cancel,
             Duration::from_secs(10),
             false,
+            None,
             &mut allow,
         );
         let grandchild = watcher.join().unwrap().expect("no grandchild pid");
@@ -388,6 +462,46 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn s151_a_line_matched_early_is_kept_after_more_than_the_tail() {
+        // The warning comes first, then more stderr than the kept tail.
+        // The matcher runs while the child writes, so the warning is still
+        // seen, even though the tail no longer holds it.
+        let mut cmd =
+            sh("printf 'WARNING: timed out\\n' >&2; head -c 20000 /dev/zero | tr '\\0' a >&2");
+        let outcome = run_bounded(
+            &mut cmd,
+            &CancelToken::new(),
+            Duration::from_secs(10),
+            false,
+            Some(|line| line.contains("timed out")),
+            &mut allow,
+        )
+        .expect("the child exits");
+        assert!(outcome.matched, "the early warning was lost");
+        assert!(
+            !outcome.stderr.contains("timed out"),
+            "the tail still holds the warning"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn s151_a_line_without_the_marker_is_not_matched() {
+        let mut cmd = sh("printf 'page 2 fine\\n' >&2");
+        let outcome = run_bounded(
+            &mut cmd,
+            &CancelToken::new(),
+            Duration::from_secs(10),
+            false,
+            Some(|line| line.contains("timed out")),
+            &mut allow,
+        )
+        .expect("the child exits");
+        assert!(!outcome.matched, "a line without the marker matched");
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn s146b_the_poll_hook_can_stop_the_run() {
         let mut cmd = sh("sleep 30");
         let mut calls = 0;
@@ -404,6 +518,7 @@ mod tests {
             &CancelToken::new(),
             Duration::from_secs(10),
             false,
+            None,
             &mut poll,
         );
         match r {

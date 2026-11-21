@@ -4,7 +4,7 @@
 
 use crate::notify;
 use crate::notify_logic::{open_folder_command, open_url_command};
-use crate::plan::{Choice, on_choice, plan};
+use crate::plan::{Choice, on_choice, plan, runnable_actions};
 use crate::portal::{self, TokenStep};
 use crate::server;
 use crate::settings_focus::{Session as FocusSession, SettingsWindowSeam, apply_settings_focus};
@@ -189,7 +189,11 @@ pub fn build(
             DRAG_SEEN.with(|d| d.set(true));
             let mut st = lock(&state);
             let lang = st.lang;
-            let actions = st.matching(&files);
+            // S-151: the drop cells go through the same cached checks the
+            // `kawaro open` path uses, so an action the plan marks
+            // unavailable is not offered here. The checks read the daemon
+            // cache only: no child process runs on this path.
+            let actions = runnable_actions(&st, &files);
             if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
                 kawaro_ui::stderr_line(&drop_cells_line(&actions));
             }
@@ -264,11 +268,10 @@ fn wire_options(hive: &Hive, state: &Shared, queue: &Arc<Queue>) {
                     return;
                 };
                 let configured = st.configured(registered.clone());
-                let cells: Vec<HiveCell> = st
-                    .matching(&files)
-                    .iter()
-                    .map(|a| cell(a, st.lang))
-                    .collect();
+                // S-151: the cells of the panel are the cells of the hive:
+                // an action the plan marks unavailable is not offered.
+                let runnable = runnable_actions(&st, &files);
+                let cells: Vec<HiveCell> = runnable.iter().map(|a| cell(a, st.lang)).collect();
                 (registered, configured, files, cells, st.lang)
             };
             let Some(panel) =
@@ -879,10 +882,14 @@ pub(crate) fn reveal_output_command(path: &Path) -> Option<(String, Vec<String>)
 }
 
 fn refresh_results_on(win: &WelcomeWindow, state: &Shared) {
-    let (details, pending, lang) = {
+    let (details, pending) = {
         let st = lock(state);
-        jobs::results_snapshot(&st)
+        let (details, pending, _saved) = jobs::results_snapshot(&st);
+        (details, pending)
     };
+    // S-151: the page follows the language the window shows, which may be a
+    // language picked in the settings window before Save.
+    let lang = win.lang();
     let model = RESULTS_STATE.with(|rs| {
         let mut rs = rs.borrow_mut();
         rs.update(details, pending);
@@ -1369,14 +1376,26 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
             if !accepted {
                 return;
             }
+            // S-151: the daemon claims the retry now, under its lock and
+            // before the worker starts. A second click is refused instead of
+            // starting a second child job, even when the Results page
+            // refreshes in between.
+            let claimed = {
+                let mut st = lock(&retry_state);
+                jobs::begin_retry(&mut st, job)
+            };
+            if let Err(refusal) = claimed {
+                eprintln!("kawarod: retry job {job} refused: {refusal}");
+                RESULTS_STATE.with(|rs| rs.borrow_mut().finish_retry_refusal(job));
+                return;
+            }
             // The retry checks every failed input on disk: run it off the
             // event loop, then report back on it.
             let (state, queue) = (retry_state.clone(), retry_queue.clone());
             std::thread::spawn(move || {
-                let result = {
-                    let mut st = lock(&state);
-                    jobs::retry(&mut st, &queue, job)
-                };
+                // The disk checks run without the state lock, so the event
+                // loop never waits for them (S-151).
+                let result = jobs::retry(&state, &queue, job);
                 let refused = result.err().map(|refusal| refusal.to_string());
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(refusal) = refused {
@@ -1407,14 +1426,17 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
     {
         let state = state.clone();
         win.on_results_toggle_expanded(move |job| {
-            let lang = lock(&state).lang;
-            let model = RESULTS_STATE.with(|rs| {
-                let mut rs = rs.borrow_mut();
-                rs.toggle_expanded(job);
-                rs.view_fs(lang)
-            });
+            let saved = lock(&state).lang;
             WELCOME.with(|slot| {
-                if let Some(win) = slot.borrow().as_ref() {
+                let slot = slot.borrow();
+                // S-151: the language the window shows, else the saved one.
+                let lang = slot.as_ref().map_or(saved, WelcomeWindow::lang);
+                let model = RESULTS_STATE.with(|rs| {
+                    let mut rs = rs.borrow_mut();
+                    rs.toggle_expanded(job);
+                    rs.view_fs(lang)
+                });
+                if let Some(win) = slot.as_ref() {
                     win.set_results(&model);
                 }
             });
@@ -1434,8 +1456,25 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
     {
         let state = state.clone();
         win.on_results_shown(move || {
-            RESULTS_MAY_BE_VISIBLE.store(true, Ordering::Release);
-            refresh_results_now(&state);
+            // S-151: the refresh belongs to the Results page. The window
+            // asks for one when the settings window changes its language,
+            // and that happens on any page. The page of the window is read
+            // in the next turn of the event loop, so the page the user
+            // picked is the one that is seen.
+            let state = state.clone();
+            slint::Timer::single_shot(Duration::ZERO, move || {
+                let on_results_page = WELCOME.with(|slot| {
+                    slot.borrow()
+                        .as_ref()
+                        .is_some_and(WelcomeWindow::results_visible)
+                });
+                if !on_results_page {
+                    RESULTS_MAY_BE_VISIBLE.store(false, Ordering::Release);
+                    return;
+                }
+                RESULTS_MAY_BE_VISIBLE.store(true, Ordering::Release);
+                refresh_results_now(&state);
+            });
         });
     }
     {

@@ -30,8 +30,11 @@
 //!   128 MiB input PDF, 250 pages, 256 MiB output PDF, 180 s per-page OCR
 //!   timeout, 600 s whole-job timeout, 5 s / 64 KiB version probe.
 
-use crate::locate::{self, Program};
-use crate::ocr::{self, OcrEngine, TESSERACT_URL};
+use crate::locate::Program;
+use crate::locks::{read, write};
+use crate::ocr::{
+    self, Lookup, OcrEngine, TESSERACT_URL, intern_path, lookup_program, refresh_lookup,
+};
 use crate::office::{
     failure_message, input_error, missing, missing_on_not_found, move_file, single_input, work_dir,
 };
@@ -42,7 +45,7 @@ use std::ffi::OsString;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
 use std::time::Duration;
 
 /// Where to get OCRmyPDF, for diagnostics when it is missing or unsupported.
@@ -71,9 +74,16 @@ fn version_cache() -> &'static ProbeCache {
     VERSION_PROBE_CACHE.get_or_init(ProbeCache::new)
 }
 
+/// The process-wide lookup of the OCRmyPDF program (S-151).
+static OCRMYPDF: RwLock<Lookup> = RwLock::new(Lookup::Unknown);
+
 /// The OCRmyPDF adapter.
 pub struct OcrmypdfEngine {
-    program: Option<PathBuf>,
+    /// The resolved program, or none when the tool is not installed.
+    program: RwLock<Option<&'static Path>>,
+    /// True when the program was given by hand: a refresh never changes
+    /// it.
+    pinned: bool,
     tesseract: OcrEngine,
     temp_root: Option<PathBuf>,
     job_timeout: Duration,
@@ -81,13 +91,14 @@ pub struct OcrmypdfEngine {
 }
 
 impl Default for OcrmypdfEngine {
-    /// Uses `ocrmypdf` as `locate::find` sees it, looked up once per process.
+    /// Uses `ocrmypdf` as `locate::find` sees it, from the process wide
+    /// lookup: the answer of the last refresh, or a first lookup.
     fn default() -> Self {
-        static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
         Self {
-            program: FOUND
-                .get_or_init(|| locate::find(Program::Ocrmypdf))
-                .clone(),
+            program: RwLock::new(
+                lookup_program(&OCRMYPDF, Program::Ocrmypdf).map(|path| intern_path(&path)),
+            ),
+            pinned: false,
             tesseract: OcrEngine::default(),
             temp_root: None,
             job_timeout: JOB_TIMEOUT,
@@ -97,11 +108,17 @@ impl Default for OcrmypdfEngine {
 }
 
 impl OcrmypdfEngine {
-    /// Looks up `ocrmypdf` and `tesseract` freshly from the current environment
-    /// without reusing the `Default` `OnceLock` caches.
+    /// Looks up `ocrmypdf` and `tesseract` freshly from the current
+    /// environment, without reusing the cached answer (S-145, S-151).
+    ///
+    /// The fresh answers also become the process wide ones, so an engine
+    /// built later with [`Default`] sees the same programs.
     pub fn discover() -> Self {
         Self {
-            program: locate::find(Program::Ocrmypdf),
+            program: RwLock::new(
+                refresh_lookup(&OCRMYPDF, Program::Ocrmypdf).map(|path| intern_path(&path)),
+            ),
+            pinned: false,
             tesseract: OcrEngine::discover(),
             temp_root: None,
             job_timeout: JOB_TIMEOUT,
@@ -111,9 +128,13 @@ impl OcrmypdfEngine {
 
     /// Runs `program` instead of the detected `ocrmypdf`, with the default
     /// `tesseract` lookup.
+    ///
+    /// The OCRmyPDF program is fixed: a refresh never changes it.
     pub fn with_program(program: impl Into<PathBuf>) -> Self {
+        let program = program.into();
         Self {
-            program: Some(program.into()),
+            program: RwLock::new(Some(intern_path(&program))),
+            pinned: true,
             tesseract: OcrEngine::default(),
             temp_root: None,
             job_timeout: JOB_TIMEOUT,
@@ -123,9 +144,14 @@ impl OcrmypdfEngine {
 
     /// Runs explicit `ocrmypdf` and `tesseract` paths. For tests and unusual
     /// installations.
+    ///
+    /// Both programs are fixed: a refresh never changes them.
     pub fn with_programs(ocrmypdf: impl Into<PathBuf>, tesseract: impl Into<PathBuf>) -> Self {
+        let ocrmypdf = ocrmypdf.into();
+        let tesseract = tesseract.into();
         Self {
-            program: Some(ocrmypdf.into()),
+            program: RwLock::new(Some(intern_path(&ocrmypdf))),
+            pinned: true,
             tesseract: OcrEngine::with_program(tesseract),
             temp_root: None,
             job_timeout: JOB_TIMEOUT,
@@ -155,7 +181,14 @@ impl OcrmypdfEngine {
     ///
     /// Availability is a lookup, never a child process.
     pub fn program(&self) -> Option<&Path> {
-        self.program.as_deref().filter(|path| path.is_file())
+        self.program_path().filter(|path| path.is_file())
+    }
+
+    /// The resolved program of this engine, when there is one. It is the
+    /// program of the last refresh, never a new lookup.
+    fn program_path(&self) -> Option<&'static Path> {
+        let guard = read(&self.program);
+        *guard
     }
 
     /// The companion Tesseract handle used for language probing.
@@ -200,7 +233,8 @@ impl OcrmypdfEngine {
     /// Fills the version probe cache on a background thread.
     pub fn warm_version_probe(&self) {
         let engine = Self {
-            program: self.program.clone(),
+            program: RwLock::new(self.program_path()),
+            pinned: false,
             tesseract: OcrEngine::default(),
             temp_root: None,
             job_timeout: self.job_timeout,
@@ -216,7 +250,8 @@ impl OcrmypdfEngine {
     /// Invalidates this engine's cached version probe and runs a fresh bounded
     /// probe.
     pub fn refresh_version_probe(&self, cancel: &CancelToken) -> ProbeOutcome {
-        if let Some(program) = self.program.as_deref() {
+        let current = self.program_path();
+        if let Some(program) = current {
             version_cache().invalidate(program);
         }
         self.probe_version(cancel)
@@ -274,11 +309,10 @@ impl OcrmypdfEngine {
         }
 
         let program = self
-            .program
-            .clone()
+            .program_path()
             .ok_or_else(|| missing("OCRmyPDF", OCRMYPDF_URL, None))?;
         if !program.is_file() {
-            return Err(missing("OCRmyPDF", OCRMYPDF_URL, Some(program.as_path())));
+            return Err(missing("OCRmyPDF", OCRMYPDF_URL, Some(program)));
         }
 
         let abs_input = std::path::absolute(input).map_err(|e| input_error(input, e))?;
@@ -293,7 +327,7 @@ impl OcrmypdfEngine {
         match version_probe {
             ProbeOutcome::Ready { .. } => {}
             ProbeOutcome::Missing => {
-                return Err(missing("OCRmyPDF", OCRMYPDF_URL, Some(program.as_path())));
+                return Err(missing("OCRmyPDF", OCRMYPDF_URL, Some(program)));
             }
             ProbeOutcome::Unknown => {
                 return Err(EngineError::Unavailable(format!(
@@ -324,7 +358,7 @@ impl OcrmypdfEngine {
         std::fs::create_dir(&tmp_dir)?;
         let produced = work_path.join("searchable.pdf");
 
-        let mut cmd = Command::new(&program);
+        let mut cmd = Command::new(program);
         cmd.args(argv(&abs_input, &produced, &language))
             .current_dir(&work_path)
             .env("TMPDIR", &tmp_dir)
@@ -342,15 +376,24 @@ impl OcrmypdfEngine {
             Ok(())
         };
 
-        let outcome =
-            ocr::child::run_bounded(&mut cmd, cancel, self.job_timeout, false, &mut watch)
-                .map_err(|e| missing_on_not_found(e, "OCRmyPDF", OCRMYPDF_URL, &program))?;
+        // The per-page timeout warning is looked for while the child
+        // writes, so a warning that is more than the kept stderr tail
+        // before the end still fails the task (S-151, ADR 0017).
+        let outcome = ocr::child::run_bounded(
+            &mut cmd,
+            cancel,
+            self.job_timeout,
+            false,
+            Some(is_per_page_timeout_line),
+            &mut watch,
+        )
+        .map_err(|e| missing_on_not_found(e, "OCRmyPDF", OCRMYPDF_URL, program))?;
 
         if !outcome.status.success() {
             return Err(map_child_error(input, outcome.status, &outcome.stderr));
         }
 
-        if has_per_page_timeout_warning(&outcome.stderr) {
+        if outcome.matched || has_per_page_timeout_warning(&outcome.stderr) {
             return Err(EngineError::Failed(failure_message(
                 "OCRmyPDF did not complete every page (per-page OCR timeout)",
                 outcome.status,
@@ -378,6 +421,24 @@ impl Engine for OcrmypdfEngine {
 
     fn available(&self) -> bool {
         self.program().is_some()
+    }
+
+    /// Looks `ocrmypdf` up again, so an install after the daemon started is
+    /// seen (S-151). No child runs here.
+    ///
+    /// The program given by hand through [`Self::with_program`] and
+    /// [`Self::with_programs`] never changes. The cached version probe is
+    /// dropped, so the version floor is checked again for the tool that is
+    /// there now.
+    fn refresh(&self) {
+        if !self.pinned {
+            let found = refresh_lookup(&OCRMYPDF, Program::Ocrmypdf);
+            *write(&self.program) = found.map(|path| intern_path(&path));
+        }
+        // The version floor is checked again after the refresh.
+        Self::invalidate_version_cache();
+        // The companion Tesseract handle sees its own new program.
+        self.tesseract.refresh();
     }
 
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
@@ -489,7 +550,7 @@ fn run_version_probe(program: &Path, cancel: &CancelToken) -> Result<ProbeOutcom
     cancel.check()?;
     let mut cmd = Command::new(program);
     cmd.arg("--version");
-    match ocr::child::run_bounded(&mut cmd, cancel, PROBE_TIMEOUT, true, &mut || {
+    match ocr::child::run_bounded(&mut cmd, cancel, PROBE_TIMEOUT, true, None, &mut || {
         Ok::<(), EngineError>(())
     }) {
         Err(EngineError::Cancelled) => Err(EngineError::Cancelled),
@@ -577,23 +638,31 @@ fn map_language_reason(
 /// warning. Normal `--skip-text` lines noting that a page already has text are
 /// ignored so mixed born-digital/scanned PDFs succeed cleanly.
 pub(crate) fn has_per_page_timeout_warning(stderr: &str) -> bool {
-    for line in stderr.lines() {
-        let lower = line.to_ascii_lowercase();
-        if lower.contains("already has text") {
-            continue;
-        }
-        if lower.contains("timed out")
-            || lower.contains("tesseract timeout")
-            || lower.contains("tesseract-timeout")
-            || lower.contains("timeout expired")
-            || lower.contains("skipping ocr")
-            || lower.contains("skipped due to timeout")
-            || lower.contains("page timeout")
-        {
-            return true;
-        }
+    stderr.lines().any(is_per_page_timeout_line)
+}
+
+/// Whether one stderr line reports a per-page OCR timeout or timeout-skip
+/// warning.
+///
+/// The same rule as [`has_per_page_timeout_warning`], for one line: a normal
+/// `--skip-text` line noting that a page already has text is ignored, so mixed
+/// born-digital/scanned PDFs succeed cleanly.
+///
+/// The child runner calls this for every line while the child writes, so a
+/// warning that is more than the kept stderr tail before the end is still
+/// seen (S-151, ADR 0017).
+pub(crate) fn is_per_page_timeout_line(line: &str) -> bool {
+    let lower = line.to_ascii_lowercase();
+    if lower.contains("already has text") {
+        return false;
     }
-    false
+    lower.contains("timed out")
+        || lower.contains("tesseract timeout")
+        || lower.contains("tesseract-timeout")
+        || lower.contains("timeout expired")
+        || lower.contains("skipping ocr")
+        || lower.contains("skipped due to timeout")
+        || lower.contains("page timeout")
 }
 
 /// Maps OCRmyPDF exit codes and stderr diagnostics to typed [`EngineError`]s.
@@ -797,6 +866,22 @@ mod tests {
         assert!(has_per_page_timeout_warning(
             "ERROR - tesseract-timeout reached\n"
         ));
+    }
+
+    #[test]
+    fn s151_the_per_page_timeout_matcher_works_on_one_line() {
+        assert!(is_per_page_timeout_line("WARNING - 2: Tesseract timed out"));
+        assert!(is_per_page_timeout_line(
+            "ERROR - tesseract-timeout reached"
+        ));
+        assert!(!is_per_page_timeout_line(
+            "1: page already has text! - skipping all processing on this page"
+        ));
+        assert!(!is_per_page_timeout_line(""));
+        // The whole report and the single line agree.
+        let report = "1: page already has text!\nWARNING - 2: Tesseract timed out\n";
+        assert!(has_per_page_timeout_warning(report));
+        assert!(report.lines().any(is_per_page_timeout_line));
     }
 
     #[test]

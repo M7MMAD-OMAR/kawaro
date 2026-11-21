@@ -892,6 +892,12 @@ impl WelcomeWindow {
         self.inner.show_results(&self.inner.ui.borrow());
     }
 
+    /// The language the window shows now (S-151): a language picked in the
+    /// settings window before Save, or the saved one.
+    pub fn lang(&self) -> Lang {
+        self.inner.current_lang()
+    }
+
     /// True while the window is visible and showing the Results page (S-144).
     pub fn results_visible(&self) -> bool {
         self.inner.visible()

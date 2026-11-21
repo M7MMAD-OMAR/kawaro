@@ -4,8 +4,9 @@ use super::{Bound, Cleanup};
 use crate::ipc::{Request, Response};
 use std::fmt;
 use std::io::{self, BufRead, BufReader, ErrorKind, Read, Write};
+use std::os::unix::fs::MetadataExt;
 use std::os::unix::net::{UnixListener, UnixStream};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 /// How long `bind` waits for a running service to answer `ping`.
@@ -32,6 +33,55 @@ pub fn endpoint() -> Endpoint {
     Endpoint(crate::ipc::socket_path())
 }
 
+/// Checks the directory that holds the socket, before the socket is used.
+///
+/// The directory must be a real directory (a symlink is never followed),
+/// owned by this user, and writable by neither the group nor the others.
+/// Another user can then neither take the socket nor read what is written
+/// to it (S-151).
+fn check_socket_dir(socket: &Path) -> io::Result<()> {
+    let dir = socket.parent().ok_or_else(|| {
+        io::Error::new(
+            ErrorKind::InvalidInput,
+            "the socket path has no directory to check",
+        )
+    })?;
+    let meta = std::fs::symlink_metadata(dir)?;
+    if !meta.file_type().is_dir() {
+        return Err(io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("{} is not a directory", dir.display()),
+        ));
+    }
+    let uid = crate::ipc::current_uid().ok_or_else(|| {
+        io::Error::new(
+            ErrorKind::PermissionDenied,
+            "the user id of this process is unknown, the socket directory cannot be checked",
+        )
+    })?;
+    if meta.uid() != uid {
+        return Err(io::Error::new(
+            ErrorKind::PermissionDenied,
+            format!(
+                "{} belongs to user {}, not to user {}",
+                dir.display(),
+                meta.uid(),
+                uid
+            ),
+        ));
+    }
+    if meta.mode() & 0o022 != 0 {
+        return Err(io::Error::new(
+            ErrorKind::PermissionDenied,
+            format!(
+                "{} is writable by the group or by the others",
+                dir.display()
+            ),
+        ));
+    }
+    Ok(())
+}
+
 pub struct Listener {
     listener: UnixListener,
     path: PathBuf,
@@ -41,6 +91,7 @@ impl Listener {
     /// Listens on `e`, unless a service there answers `ping` within 500 ms.
     /// Any other socket file there is stale: it is removed and bound.
     pub fn bind(e: &Endpoint) -> io::Result<Bound> {
+        check_socket_dir(&e.0)?;
         if answers_ping(e) {
             return Ok(Bound::AlreadyRunning);
         }
@@ -83,6 +134,7 @@ pub struct Stream(UnixStream);
 
 impl Stream {
     pub fn connect(e: &Endpoint) -> io::Result<Stream> {
+        check_socket_dir(&e.0)?;
         UnixStream::connect(&e.0).map(Stream)
     }
 

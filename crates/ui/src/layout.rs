@@ -148,11 +148,26 @@ pub fn is_paged(cells: &[HiveCell]) -> bool {
 /// page (S-149). The More cell takes one slot of the outer ring, so a
 /// queue of at most `size + 1` cells fits in the ring without it: one page
 /// and no More cell.
+///
+/// For edge-constrained placements where `outer_slots <= 1`, `size + 1`
+/// overstates the outer capacity (`page_size(1) == 1`); use
+/// [`pages_for_slots`] when `outer_slots` is known (S-151).
 pub fn pages(outer: &[HiveCell], size: usize) -> usize {
     if size == 0 || outer.len() <= size + 1 {
         return 1;
     }
     outer.len().div_ceil(size)
+}
+
+/// The number of pages the outer queue needs for a placement accepting
+/// `outer_slots` slots in the outer ring (S-151). When the queue fits in
+/// `outer_slots`, it uses one page with no More cell. Otherwise each page
+/// holds `page_size(outer_slots)` actions and the More cell.
+pub fn pages_for_slots(outer: &[HiveCell], outer_slots: usize) -> usize {
+    if outer.len() <= outer_slots {
+        return 1;
+    }
+    outer.len().div_ceil(page_size(outer_slots))
 }
 
 /// The cells of page `page` (0 based) of the outer queue (S-149): `size`
@@ -172,6 +187,65 @@ pub fn page(outer: &[HiveCell], page: usize, size: usize, lang: Lang) -> Vec<Hiv
         .collect();
     cells.push(more_cell(lang, (page + 1) % pages, pages));
     cells
+}
+
+/// The cells of page `page` (0 based) of the outer queue for a placement
+/// accepting `outer_slots` slots in the outer ring (S-151). A queue that
+/// fits in `outer_slots` is one page without a More cell.
+pub fn page_for_slots(
+    outer: &[HiveCell],
+    page: usize,
+    outer_slots: usize,
+    lang: Lang,
+) -> Vec<HiveCell> {
+    let total = pages_for_slots(outer, outer_slots);
+    if total <= 1 {
+        return outer.iter().map(|c| outer_cell(c.clone())).collect();
+    }
+    let size = page_size(outer_slots);
+    let page = page.min(total - 1);
+    let start = page * size;
+    let mut cells: Vec<HiveCell> = outer[start..(start + size).min(outer.len())]
+        .iter()
+        .map(|c| outer_cell(c.clone()))
+        .collect();
+    cells.push(more_cell(lang, (page + 1) % total, total));
+    cells
+}
+
+/// True when every cell in `cells` fits on one page without a More cell for
+/// a placement accepting `ring1_slots` in ring 1 and `outer_slots` in the
+/// outer ring (S-151).
+pub fn fits_single_page(cells: &[HiveCell], ring1_slots: usize, outer_slots: usize) -> bool {
+    if cells.len() <= RING1 {
+        return cells.len() <= ring1_slots + outer_slots;
+    }
+    let (_, outer) = queue_at(cells, ring1_slots);
+    outer.len() <= outer_slots
+}
+
+/// Splits `cells` into fixed ring-1 cells and the outer queue for a
+/// placement accepting `ring1_slots` in ring 1 and `outer_slots` in the
+/// outer ring (S-151).
+///
+/// When every action fits in ring 1 and the outer ring without paging, no
+/// ring-1 slots are reserved. Only when actions exceed single-page capacity
+/// does a narrow outer ring reserve ring-1 slots for the page action and
+/// the More control.
+pub fn split_for_placement(
+    cells: &[HiveCell],
+    ring1_slots: usize,
+    outer_slots: usize,
+) -> (Vec<HiveCell>, Vec<HiveCell>) {
+    if fits_single_page(cells, ring1_slots, outer_slots) {
+        if cells.len() <= RING1 {
+            return (cells.to_vec(), Vec::new());
+        }
+        return queue_at(cells, ring1_slots);
+    }
+    let reserved = reserved_ring1_slots(outer_slots);
+    let visible = ring1_slots.saturating_sub(reserved);
+    queue_at(cells, visible)
 }
 
 /// The cells of ring 1 and the whole outer queue for a placement that holds

@@ -44,12 +44,10 @@ mod monitor;
 pub mod overlay;
 #[cfg(target_os = "linux")]
 mod platform;
-#[cfg(unix)]
 mod preview;
 // Preview worker (S-118): header probe, bounded draft decode, hexagon mask
 // and the newest-wins generation machine. Nothing starts until S-119 asks
 // after the first hive frame.
-#[cfg(unix)]
 pub mod preview_worker;
 // The production preview scheduler (S-142): one worker, one provider, one
 // running request and one pending request for every panel of the hive.
@@ -743,6 +741,8 @@ struct Paging {
     /// The action cells on a page. It follows the placement: the More cell
     /// takes the last slot the screen accepts.
     size: usize,
+    /// The accepted outer-ring slots of the current placement (S-151).
+    outer_slots: usize,
 }
 
 /// True when the id is the id of the More cell (S-149), the control that
@@ -1147,6 +1147,7 @@ impl Inner {
             page: 0,
             min_rings,
             size: layout::PAGE_SIZE,
+            outer_slots: layout::RING2,
         };
         // The unconstrained placement: the whole ring 1 and the whole outer
         // ring fit.
@@ -1159,34 +1160,31 @@ impl Inner {
     /// of the page, the More cell last.
     fn page_cells(&self, paging: &Paging) -> Vec<HiveCell> {
         let mut cells = paging.ring1.clone();
-        cells.extend(layout::page(
+        cells.extend(layout::page_for_slots(
             &paging.outer,
             paging.page,
-            paging.size,
+            paging.outer_slots,
             self.lang,
         ));
         cells
     }
 
-    /// S-149: the cells of the page for a placement that holds
+    /// S-149 / S-151: the cells of the page for a placement that holds
     /// `ring1_slots` cells in ring 1 and `outer_slots` in the outer ring.
     /// The queue and the size of the page follow the placement, so every
-    /// action of the selection stays reachable.
+    /// action of the selection stays reachable and nothing reserves ring-1
+    /// slots when everything fits on one page.
     fn page_cells_for(
         &self,
         paging: &mut Paging,
         ring1_slots: usize,
         outer_slots: usize,
     ) -> Vec<HiveCell> {
-        // S-149: a placement whose outer ring has no room keeps the More
-        // cell and the action of the page in ring 1, so those slots are
-        // reserved and the ring-1 cells that do not fit move to the queue.
-        let reserved = layout::reserved_ring1_slots(outer_slots);
-        let visible = ring1_slots.saturating_sub(reserved);
-        let (ring1, outer) = layout::queue_at(&paging.cells, visible);
+        let (ring1, outer) = layout::split_for_placement(&paging.cells, ring1_slots, outer_slots);
         paging.ring1 = ring1;
         paging.outer = outer;
         paging.size = layout::page_size(outer_slots);
+        paging.outer_slots = outer_slots;
         self.page_cells(paging)
     }
 
@@ -1304,7 +1302,7 @@ impl Inner {
         let Some(mut paging) = self.paging.borrow_mut().take() else {
             return;
         };
-        let pages = layout::pages(&paging.outer, paging.size);
+        let pages = layout::pages_for_slots(&paging.outer, paging.outer_slots);
         if pages <= 1 {
             // One page: there is nothing to page.
             *self.paging.borrow_mut() = Some(paging);
@@ -1329,6 +1327,7 @@ impl Inner {
             .map(|i| i as i32);
         *self.paging.borrow_mut() = Some(paging);
         self.set_plan(plan);
+        self.machine.borrow_mut().reset_idle(Instant::now());
         if let Some(index) = index {
             self.ui.borrow().set_highlight(index);
         }
@@ -1422,12 +1421,26 @@ impl Inner {
         // S-149: the cells of the first page; a short outer queue keeps
         // today's placement.
         let cells = self.start_paging(&cells, 2);
-        #[cfg(target_os = "linux")]
-        let plan = layer::replan(&cells);
-        #[cfg(not(target_os = "linux"))]
-        let plan = None;
-        #[cfg_attr(not(target_os = "linux"), allow(clippy::unnecessary_literal_unwrap))]
-        let plan = plan.unwrap_or_else(|| layout::plan_rings(cells, self.rtl, 2));
+        // S-149 / S-151: the first page follows the placement like every
+        // later page, so the page size, the More cell and the plan agree
+        // with the edge the hive sits at.
+        #[cfg(windows)]
+        let plan = {
+            let placement = self.win.get().unwrap_or_else(|| {
+                let placement = win_window::placement();
+                self.win.set(Some(placement));
+                placement
+            });
+            let page = self
+                .page_cells_at_win(placement)
+                .unwrap_or_else(|| cells.clone());
+            win_window::plan_at(page, self.rtl, 2, placement).0
+        };
+        #[cfg(all(not(windows), target_os = "linux"))]
+        let plan =
+            layer::replan(&cells).unwrap_or_else(|| layout::plan_rings(cells.clone(), self.rtl, 2));
+        #[cfg(all(not(windows), not(target_os = "linux")))]
+        let plan = layout::plan_rings(cells, self.rtl, 2);
         self.apply(&centre, plan);
         // The dragged files in the centre, by the S-018h rules (S-019f).
         #[cfg(unix)]
@@ -1465,20 +1478,26 @@ impl Inner {
         if !self.session_is_drop.get() {
             return;
         }
-        // S-149: a drop on the More cell is not a choice. The hive pages
-        // the outer queue, stays open and the drag session lives on, so
-        // the files can still be dropped on an action.
+        // S-149 / S-151: a drop on the More cell is not a choice. The hive
+        // pages the outer queue and stays open, but the drag session is
+        // over: the hive waits for a click instead, with the dropped files
+        // kept, the cells taking the pointer again and the keyboard closing
+        // it.
         if matches!(event, dnd::Event::Drop) {
             let over = self.machine.borrow().state();
             if let dnd::State::Over(i) = over
                 && self.is_more_cell(i)
             {
-                self.change_page(1, true);
-                // The machine follows the new page, so the next drop hits
-                // the cell under the pointer.
-                if let Some(index) = self.more_cell_index() {
-                    self.drag(dnd::Event::Motion(Some(index)));
+                // The click-to-choose state comes first, so the page change
+                // below refreshes the idle clock of that state.
+                self.machine.borrow_mut().enter_choose(Instant::now());
+                // On the layer path the hive subsurface takes the pointer
+                // again and the catcher takes the clicks outside it.
+                #[cfg(target_os = "linux")]
+                if self.on_layer.get() {
+                    layer::enter_choose();
                 }
+                self.change_page(1, true);
                 return;
             }
         }
@@ -1533,13 +1552,6 @@ impl Inner {
             return false;
         };
         is_more_id(&cell.cell.id)
-    }
-
-    /// The index of the More cell of the shown plan (S-149).
-    fn more_cell_index(&self) -> Option<usize> {
-        let plan = self.plan.borrow();
-        let cells = &plan.as_ref()?.cells;
-        cells.iter().position(|c| is_more_id(&c.cell.id))
     }
 
     fn choose(&self, index: i32) {

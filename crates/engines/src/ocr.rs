@@ -33,6 +33,7 @@
 
 use crate::image::ocr_prep;
 use crate::locate::{self, Program};
+use crate::locks::{read, write};
 use crate::office::{
     failure_message, input_error, missing, missing_on_not_found, single_input, work_dir,
 };
@@ -44,7 +45,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus};
-use std::sync::{Mutex, MutexGuard, OnceLock, TryLockError};
+use std::sync::{Mutex, MutexGuard, OnceLock, RwLock, TryLockError};
 use std::time::Duration;
 
 pub(crate) mod child;
@@ -83,6 +84,83 @@ fn lang_cache() -> &'static ProbeCache {
     LANG_PROBE_CACHE.get_or_init(ProbeCache::new)
 }
 
+/// The result of the process-wide program lookup (S-151).
+///
+/// The lookup runs once per process. A refresh looks the program up again
+/// and keeps the new answer, so a tool installed after the daemon started
+/// is seen by every engine.
+#[derive(Clone, Debug)]
+pub(crate) enum Lookup {
+    /// The lookup never ran.
+    Unknown,
+    /// The lookup ran and the program is not installed.
+    Missing,
+    /// The lookup found the program.
+    Found(PathBuf),
+}
+
+/// The process-wide lookup of the Tesseract program (S-151).
+static TESSERACT: RwLock<Lookup> = RwLock::new(Lookup::Unknown);
+
+/// The program paths this process has looked up (S-151).
+///
+/// They stay for the life of the process, so the reference the public
+/// accessor hands out stays valid while the engine runs. One entry per
+/// distinct path keeps this small.
+static PATHS: RwLock<Vec<&'static Path>> = RwLock::new(Vec::new());
+
+/// The path of `path`, kept for the life of the process. The same path
+/// always gives the same reference.
+pub(crate) fn intern_path(path: &Path) -> &'static Path {
+    let mut paths = write(&PATHS);
+    if let Some(known) = paths
+        .iter()
+        .copied()
+        .find(|known| known.as_os_str() == path.as_os_str())
+    {
+        return known;
+    }
+    let kept: &'static Path = Box::leak(path.to_path_buf().into_boxed_path());
+    paths.push(kept);
+    kept
+}
+
+/// The program of the process-wide lookup, looked up once (S-151).
+///
+/// `cache` holds the answer of the last lookup, so a program installed
+/// later is only seen after a refresh.
+pub(crate) fn lookup_program(cache: &RwLock<Lookup>, program: Program) -> Option<PathBuf> {
+    // The answer of the last lookup, when there is one. The read lock is
+    // released before any write, so the two never wait for each other.
+    let cached: Option<Option<PathBuf>> = match &*read(cache) {
+        Lookup::Found(path) => Some(Some(path.clone())),
+        Lookup::Missing => Some(None),
+        Lookup::Unknown => None,
+    };
+    match cached {
+        Some(found) => found,
+        None => {
+            let found = locate::find(program);
+            *write(cache) = match &found {
+                Some(path) => Lookup::Found(path.clone()),
+                None => Lookup::Missing,
+            };
+            found
+        }
+    }
+}
+
+/// Looks the program up again and keeps the new answer for the whole
+/// process (S-151).
+pub(crate) fn refresh_lookup(cache: &RwLock<Lookup>, program: Program) -> Option<PathBuf> {
+    let found = locate::find(program);
+    *write(cache) = match &found {
+        Some(path) => Lookup::Found(path.clone()),
+        None => Lookup::Missing,
+    };
+    found
+}
+
 /// The right to run the one child, released on drop. The guard is held for
 /// its drop: the permit is the absence of a second child.
 pub(crate) struct Permit {
@@ -113,40 +191,63 @@ pub(crate) fn acquire_permit(cancel: &CancelToken) -> Result<Permit, EngineError
     }
 }
 
-/// The Tesseract adapter. The program is looked up once, like the other
-/// child engines.
+/// The Tesseract adapter. The program is looked up again by
+/// [`Engine::refresh`], so a tool installed after the daemon started is
+/// seen.
 pub struct OcrEngine {
-    program: Option<PathBuf>,
+    /// The resolved program, or none when the tool is not installed.
+    program: RwLock<Option<&'static Path>>,
+    /// True when the program was given by hand: a refresh never changes
+    /// it.
+    pinned: bool,
 }
 
 impl Default for OcrEngine {
-    /// Uses `tesseract` as `locate::find` sees it, looked up once.
+    /// Uses `tesseract` as `locate::find` sees it, from the process wide
+    /// lookup: the answer of the last refresh, or a first lookup.
     fn default() -> Self {
-        static FOUND: OnceLock<Option<PathBuf>> = OnceLock::new();
         Self {
-            program: FOUND
-                .get_or_init(|| locate::find(Program::Tesseract))
-                .clone(),
+            program: RwLock::new(
+                lookup_program(&TESSERACT, Program::Tesseract).map(|path| intern_path(&path)),
+            ),
+            pinned: false,
         }
     }
 }
 
 impl OcrEngine {
     /// Looks up `tesseract` freshly from the current environment without
-    /// reusing the `Default` `OnceLock` cache, for explicit capability
-    /// refreshes after installation or PATH changes (S-145).
+    /// reusing the cached answer, for explicit capability refreshes after
+    /// installation or PATH changes (S-145, S-151).
+    ///
+    /// The fresh answer also becomes the process wide one, so an engine
+    /// built later with [`Default`] sees the same program.
     pub fn discover() -> Self {
         Self {
-            program: locate::find(Program::Tesseract),
+            program: RwLock::new(
+                refresh_lookup(&TESSERACT, Program::Tesseract).map(|path| intern_path(&path)),
+            ),
+            pinned: false,
         }
     }
 
     /// Runs this program instead of the detected `tesseract`. For tests and
     /// for unusual installations.
+    ///
+    /// The program is fixed: a refresh never changes it.
     pub fn with_program(program: impl Into<PathBuf>) -> Self {
+        let program = program.into();
         Self {
-            program: Some(program.into()),
+            program: RwLock::new(Some(intern_path(&program))),
+            pinned: true,
         }
+    }
+
+    /// The resolved program of this engine, when there is one. It is the
+    /// program of the last refresh, never a new lookup.
+    fn program_path(&self) -> Option<&'static Path> {
+        let guard = read(&self.program);
+        *guard
     }
 
     /// The resolved program, when the executable is there.
@@ -155,7 +256,7 @@ impl OcrEngine {
     /// missing language is not known here; it is checked inside the task or
     /// through [`Self::check_language`].
     pub fn program(&self) -> Option<&Path> {
-        self.program.as_deref().filter(|path| path.is_file())
+        self.program_path().filter(|path| path.is_file())
     }
 
     /// Runs or reads the cached bounded `tesseract --list-langs` probe keyed
@@ -195,7 +296,8 @@ impl OcrEngine {
     /// the cache cold; the adapter still preflights before any OCR runs.
     pub fn warm_language_probe(&self) {
         let engine = Self {
-            program: self.program.clone(),
+            program: RwLock::new(self.program_path()),
+            pinned: false,
         };
         let _ = std::thread::Builder::new()
             .name(String::from("kawaro-ocr-probe"))
@@ -207,7 +309,8 @@ impl OcrEngine {
     /// Invalidates this engine's cached language probe and runs a fresh
     /// bounded probe.
     pub fn refresh_language_probe(&self, cancel: &CancelToken) -> ProbeOutcome {
-        if let Some(program) = self.program.as_deref() {
+        let current = self.program_path();
+        if let Some(program) = current {
             lang_cache().invalidate(program);
         }
         self.probe_languages(cancel)
@@ -259,21 +362,56 @@ impl OcrEngine {
         cancel: &CancelToken,
     ) -> Result<Vec<&'static str>, EngineError> {
         let program = self
-            .program
-            .clone()
+            .program_path()
             .ok_or_else(|| missing("Tesseract", TESSERACT_URL, None))?;
         if !program.is_file() {
-            return Err(missing("Tesseract", TESSERACT_URL, Some(program.as_path())));
+            return Err(missing("Tesseract", TESSERACT_URL, Some(program)));
         }
         // The same one child at a time rule as a job, so a surface that asks
         // for the languages never runs a second child beside a running task.
         let _permit = acquire_permit(cancel)?;
         cancel.check()?;
-        let installed = list_languages(&program, cancel)?;
+        let installed = list_languages(program, cancel)?;
         Ok(SUPPORTED_LANGUAGES
             .into_iter()
             .filter(|choice| missing_languages(choice, &installed).is_none())
             .collect())
+    }
+
+    /// The installed languages of `language`, from the cached probe when it
+    /// holds every part of the language, and from one fresh bounded probe
+    /// otherwise (S-151).
+    ///
+    /// A cache miss, or a cached list without the requested language, runs
+    /// the probe again: the language data may have been installed since the
+    /// cache was filled. The fresh answer replaces the cached one.
+    fn installed_languages_cached(
+        &self,
+        language: &str,
+        program: &Path,
+        cancel: &CancelToken,
+    ) -> Result<Vec<&'static str>, EngineError> {
+        let cached = lang_cache().get(program);
+        if let Some(components) = language_components(language)
+            && let Some(ProbeOutcome::Ready { items }) = &cached
+        {
+            let listed = components
+                .iter()
+                .copied()
+                .filter(|component| items.iter().any(|item| item.as_str() == *component))
+                .count();
+            if listed == components.len() {
+                return Ok(components);
+            }
+        }
+        let fresh = list_languages(program, cancel)?;
+        lang_cache().insert(
+            program.to_path_buf(),
+            ProbeOutcome::Ready {
+                items: fresh.iter().map(|item| (*item).to_string()).collect(),
+            },
+        );
+        Ok(fresh)
     }
 
     /// The `to-text` op: prepare the picture, run the child and write its
@@ -285,19 +423,20 @@ impl OcrEngine {
             return Err(input_error(input, "no such file"));
         }
         let program = self
-            .program
-            .clone()
+            .program_path()
             .ok_or_else(|| missing("Tesseract", TESSERACT_URL, None))?;
         if !program.is_file() {
-            return Err(missing("Tesseract", TESSERACT_URL, Some(program.as_path())));
+            return Err(missing("Tesseract", TESSERACT_URL, Some(program)));
         }
         // One child at a time, and the wait is cancellable.
         let _permit = acquire_permit(cancel)?;
         // The cancel may have fired while the permit was waited for.
         cancel.check()?;
         // The language data is checked inside the task, before any image prep
-        // or OCR extraction child starts.
-        let installed = list_languages(&program, cancel)?;
+        // or OCR extraction child starts. The cached probe is used when it
+        // holds the requested language, so a batch of pictures runs no probe
+        // per job (S-151).
+        let installed = self.installed_languages_cached(&language, program, cancel)?;
         if let Some(missing_langs) = missing_languages(&language, &installed) {
             return Err(EngineError::Unavailable(format!(
                 "Tesseract is installed but the language data {} is missing; \
@@ -315,7 +454,7 @@ impl OcrEngine {
         // never derived from the document or from its text.
         let base = work_path.join("text");
         let output = base.with_extension("txt");
-        let mut cmd = Command::new(&program);
+        let mut cmd = Command::new(program);
         cmd.args(argv(&prepared.path, &base, &language))
             .current_dir(&work_path);
         // Best effort, not a hard disk quota: the file length is read between
@@ -332,8 +471,15 @@ impl OcrEngine {
             }
             Ok(())
         };
-        let outcome = child::run_bounded(&mut cmd, cancel, EXTRACTION_TIMEOUT, false, &mut watch)
-            .map_err(|e| missing_on_not_found(e, "Tesseract", TESSERACT_URL, &program))?;
+        let outcome = child::run_bounded(
+            &mut cmd,
+            cancel,
+            EXTRACTION_TIMEOUT,
+            false,
+            None,
+            &mut watch,
+        )
+        .map_err(|e| missing_on_not_found(e, "Tesseract", TESSERACT_URL, program))?;
         if !outcome.status.success() {
             return Err(EngineError::Failed(failure_message(
                 "tesseract failed",
@@ -362,6 +508,27 @@ impl Engine for OcrEngine {
 
     fn available(&self) -> bool {
         self.program().is_some()
+    }
+
+    /// Looks `tesseract` up again, so an install after the daemon started is
+    /// seen (S-151). No child runs here.
+    ///
+    /// The program given by hand through [`Self::with_program`] never
+    /// changes. The cached language probe of the old and of the new program
+    /// is dropped, so the next probe answers for the tool that is there.
+    fn refresh(&self) {
+        if self.pinned {
+            return;
+        }
+        let previous = self.program_path();
+        let found = refresh_lookup(&TESSERACT, Program::Tesseract);
+        if let Some(previous) = previous {
+            lang_cache().invalidate(previous);
+        }
+        if let Some(path) = &found {
+            lang_cache().invalidate(path);
+        }
+        *write(&self.program) = found.map(|path| intern_path(&path));
     }
 
     fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
@@ -482,7 +649,7 @@ pub(crate) fn parse_listed_languages(stdout: &str) -> Vec<&'static str> {
 fn list_languages(program: &Path, cancel: &CancelToken) -> Result<Vec<&'static str>, EngineError> {
     let mut cmd = Command::new(program);
     cmd.arg("--list-langs");
-    let outcome = child::run_bounded(&mut cmd, cancel, PROBE_TIMEOUT, true, &mut || {
+    let outcome = child::run_bounded(&mut cmd, cancel, PROBE_TIMEOUT, true, None, &mut || {
         Ok::<(), EngineError>(())
     })
     .map_err(|e| missing_on_not_found(e, "Tesseract", TESSERACT_URL, program))?;
@@ -558,7 +725,7 @@ fn run_language_probe(program: &Path, cancel: &CancelToken) -> Result<ProbeOutco
     cancel.check()?;
     let mut cmd = Command::new(program);
     cmd.arg("--list-langs");
-    match child::run_bounded(&mut cmd, cancel, PROBE_TIMEOUT, true, &mut || {
+    match child::run_bounded(&mut cmd, cancel, PROBE_TIMEOUT, true, None, &mut || {
         Ok::<(), EngineError>(())
     }) {
         Err(EngineError::Cancelled) => Err(EngineError::Cancelled),
@@ -729,7 +896,10 @@ mod tests {
     fn s146_a_cancelled_task_stops_before_the_first_child() {
         // No program, no input: the cancel comes first, so nothing is read
         // and no child runs.
-        let engine = OcrEngine { program: None };
+        let engine = OcrEngine {
+            program: RwLock::new(None),
+            pinned: false,
+        };
         let cancel = CancelToken::new();
         cancel.cancel();
         let dir = tempfile::tempdir().unwrap();
@@ -760,7 +930,10 @@ mod tests {
             inputs: vec![input],
             output: dir.path().join("out.txt"),
         };
-        let engine = OcrEngine { program: None };
+        let engine = OcrEngine {
+            program: RwLock::new(None),
+            pinned: false,
+        };
         match engine.run(&task, &|_| {}, &CancelToken::new()) {
             Err(EngineError::Unavailable(message)) => {
                 assert!(message.contains("Tesseract"), "{message}");

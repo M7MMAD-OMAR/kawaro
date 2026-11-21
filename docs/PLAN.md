@@ -32,10 +32,11 @@ Existing S-138 remains a separate draft, blocked on the distant-drop baseline an
 | 7 | [S-148](../backlog/S-148-job-control-without-tray.md) | Instance-checked job list and single-job cancel | S-144 ledger | Source implemented, tests run on Linux 2026-11-21 |
 | 8 | [S-149](../backlog/S-149-all-actions-reachable.md) | Every action reachable through outer-ring pages | Layout and placement | Source implemented, tests run on Linux 2026-11-21 |
 | 9 | [S-150](../backlog/S-150-searchable-pdf-ocr.md) | Optional OCRmyPDF searchable PDF | S-147 Adopt, ADR 0017 | Source implemented, tests run on Linux 2026-11-21; Arabic fixture matrix open |
+| 10 | [S-151](../backlog/S-151-review-and-security-fixes.md) | Review and security fixes for S-142 to S-150 | Second review 2026-11-22 | Source fixed, tests and Windows cross stages run on Linux 2026-11-22 |
 
 Execution record: [execution status](development/2026-11-15-execution-status.md) and [review findings](development/2026-11-21-review-findings.md). Executors MiniMax-M3.1-Flash and Gemini 4 Neon, parent review by the manager. Visual, compositor, real desktop and physical Windows checks are not claimed.
 
-Next free story: **S-151**.
+Next free story: **S-152**.
 
 ### Supplemental workflow and user-control audit
 

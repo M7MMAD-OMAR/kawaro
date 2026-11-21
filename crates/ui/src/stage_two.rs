@@ -28,7 +28,7 @@ use crate::saved_presets::{
 };
 use crate::{SegmentChoice, StageKind, StageOption, StagePreset};
 use kawaro_core::CancelToken;
-use kawaro_core::action::ActionDef;
+use kawaro_core::action::{ActionDef, OutputMode};
 use kawaro_core::i18n::Lang;
 use kawaro_core::image_geom::{self, Mode};
 use kawaro_core::image_preview::{ImagePreviewMode, ImagePreviewRequest, PreviewStamp};
@@ -691,8 +691,11 @@ impl StageTwoState {
                 },
                 PresetReply::Applied(applied),
             ) if action.id == self.action.id && action_id == self.action.id => {
-                if let Err(error) = self.apply_resolved_named(&id, applied) {
-                    self.set_preset_failure(&PresetFailure::Invalid(error.to_string()));
+                match self.apply_resolved_named(&id, applied) {
+                    Ok(()) => self.set_preset_success(applied_text(self.lang)),
+                    Err(error) => {
+                        self.set_preset_failure(&PresetFailure::Invalid(error.to_string()));
+                    }
                 }
             }
             (_, PresetReply::Failed(PresetFailure::Conflict(_))) => {
@@ -981,16 +984,26 @@ impl StageTwoState {
         }
     }
 
+    /// True when this action produces a single-image preview that
+    /// `ImageEngine::preview` accepts (S-151): image engine, not `to-pdf`,
+    /// and not `OutputMode::Combined`.
+    fn supports_image_preview(&self) -> bool {
+        self.action.engine == "image"
+            && self.action.op != "to-pdf"
+            && self.action.output.mode != OutputMode::Combined
+    }
+
     /// True when a picture can show in the preview well (S-142). The
-    /// transformed draft needs the image engine: any other engine (the OCR
-    /// of `image.to-text`, for one) refuses the request, so the well stays
-    /// closed instead of showing an empty "Transformed draft".
+    /// transformed draft needs an image action that produces a single picture:
+    /// any other engine (the OCR of `image.to-text`, for one), `to-pdf` or a
+    /// combined output refuses the request, so the well stays closed instead
+    /// of showing an empty "Transformed draft".
     ///
     /// Without a provider behind the panel the request falls back to the
     /// legacy source draft, a picture of the source, so the well still has
     /// something to show.
     pub fn preview_available(&self) -> bool {
-        self.source.get().is_some() && self.image && self.action.engine == "image"
+        self.source.get().is_some() && self.image && self.supports_image_preview()
     }
 
     /// A value changed in the panel: write it to the explicit table, prune
@@ -1296,6 +1309,9 @@ impl StageTwoState {
         if !link.scheduler.has_provider() {
             // No engine behind the panel: the legacy source draft, a bounded
             // local decode. It is a picture of the source, never a result.
+            // The local draft is a Unix only path: the scheduler of the
+            // source draft is gated the same way, so the panel asks for
+            // nothing there and shows no picture (S-151).
             #[cfg(unix)]
             {
                 if self.preview_available() {
@@ -1310,7 +1326,7 @@ impl StageTwoState {
             }
             return;
         }
-        if !self.image || self.action.engine != "image" {
+        if !self.image || !self.supports_image_preview() {
             return;
         }
         let Ok(action) = self.resolved_action() else {
@@ -1444,14 +1460,14 @@ impl StageTwoState {
         }
     }
 
-    /// True when the explicit encoded control is offered: an image action
-    /// with an engine behind it.
+    /// True when the explicit encoded control is offered: a single-image
+    /// action with an engine behind it.
     pub(crate) fn encode_offered(&self) -> bool {
         let link = self.link.borrow().clone();
         let Some(link) = link else {
             return false;
         };
-        link.scheduler.has_provider() && self.image && self.action.engine == "image"
+        link.scheduler.has_provider() && self.image && self.supports_image_preview()
     }
 
     /// The label of a mode: the picture names what it is.
@@ -1721,16 +1737,11 @@ fn gcd(mut a: u32, mut b: u32) -> u32 {
 }
 
 /// The header dimensions of `path`, when readable.
+///
+/// The header probe is portable: it reads the header of the file and never
+/// decodes a picture, so it works on every platform (S-151).
 fn probe(path: &Path) -> Option<(u32, u32)> {
-    #[cfg(unix)]
-    {
-        crate::preview_worker::probe_dimensions(path)
-    }
-    #[cfg(not(unix))]
-    {
-        let _ = path;
-        None
-    }
+    crate::preview_worker::probe_dimensions(path)
 }
 
 /// The preview link of one open panel: the scheduler of the hive, the
@@ -1872,6 +1883,14 @@ pub fn saved_text(lang: Lang) -> &'static str {
     match lang {
         Lang::Ar => "تم حفظ الإعداد",
         Lang::En => "Preset saved",
+    }
+}
+
+/// The confirmation line of a named preset that was applied (S-151).
+pub fn applied_text(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "تم تطبيق الإعداد",
+        Lang::En => "Preset applied",
     }
 }
 

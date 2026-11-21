@@ -9,6 +9,7 @@ use kawaro_core::transport;
 use kawaro_core::unsupported::ProbeCache;
 use kawaro_core::{ActionDef, Engine, MediaKind, Registry, media};
 use kawaro_engines::ocr::OcrEngine;
+use kawaro_engines::ocrmypdf::OcrmypdfEngine;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -48,10 +49,14 @@ pub struct State {
     pub results: ResultLedger,
     /// The parent of every retry child job (S-144).
     pub retry_parents: HashMap<JobId, JobId>,
-    /// The parents whose retry is submitted and whose child has not
-    /// finished yet. A second retry of the same parent is refused while one
-    /// is pending, so a double trigger never starts two child jobs.
-    pub pending_retries: HashMap<JobId, JobId>,
+    /// The parents whose retry is prepared or submitted and whose child has
+    /// not finished yet. A second retry of the same parent is refused while
+    /// one is pending, so a double trigger never starts two child jobs.
+    ///
+    /// `None` is a claim: the retry is prepared and its child is not known
+    /// yet. `Some(child)` is a submitted retry, and the child job is the one
+    /// that ends the claim (S-151).
+    pub pending_retries: HashMap<JobId, Option<JobId>>,
     /// The single writer of the named user preset store (S-143-B). The
     /// handle is cheap to clone; the worker starts on the first command and
     /// every store read and write happens there, never under this mutex.
@@ -59,6 +64,10 @@ pub struct State {
     /// Cached read-only tool probe outcomes, cleared on reload (S-145).
     pub probe_cache: ProbeCache,
     /// System Tesseract handle used for read-only OCR language probes (S-145).
+    ///
+    /// It is re-created on every reload with the same lookup the engine
+    /// refresh does, so the probe cache is keyed by the path of the engine
+    /// the queue runs (S-151).
     pub ocr: OcrEngine,
 }
 
@@ -118,7 +127,7 @@ pub fn load_registry() -> Registry {
 impl State {
     pub fn new(config: Config, engines: &[Arc<dyn Engine>]) -> Self {
         let ocr = OcrEngine::default();
-        let available = available_ids(engines, &ocr);
+        let available = available_ids(engines);
         Self {
             lang: config.lang(),
             config,
@@ -173,7 +182,14 @@ impl State {
         for engine in &self.engines {
             engine.refresh();
         }
-        self.available = available_ids(&self.engines, &self.ocr);
+        // S-151: the availability comes from the engines themselves, after
+        // their refresh, so the hive offers exactly what the queue can run.
+        self.available = available_ids(&self.engines);
+        // The OCRmyPDF version probe is warmed after the refresh: a tool
+        // below the version floor is then shown as unavailable with its
+        // reason, instead of being offered and failing (S-151).
+        OcrmypdfEngine::invalidate_version_cache();
+        OcrmypdfEngine::default().warm_version_probe();
     }
 
     pub fn matching(&self, files: &[PathBuf]) -> Vec<ActionDef> {
@@ -219,19 +235,13 @@ impl State {
 
 /// The ids of the available engines, in the order of the engine list.
 ///
-/// The OCR engine is read from the OCR handle, because the daemon discovers
-/// Tesseract again on every reload (S-145). Every other engine answers for
-/// itself, after its own refresh.
-fn available_ids(engines: &[Arc<dyn Engine>], ocr: &OcrEngine) -> Vec<String> {
+/// Every engine answers for itself, after its own refresh: the daemon
+/// keeps no second copy of an engine, so the hive never offers an action
+/// the queue cannot run (S-151).
+fn available_ids(engines: &[Arc<dyn Engine>]) -> Vec<String> {
     engines
         .iter()
-        .filter(|engine| {
-            if engine.id() == "ocr" {
-                ocr.available()
-            } else {
-                engine.available()
-            }
-        })
+        .filter(|engine| engine.available())
         .map(|engine| engine.id().to_string())
         .collect()
 }
@@ -241,4 +251,74 @@ pub fn common_kind(files: &[PathBuf]) -> Option<MediaKind> {
     let mut kinds = files.iter().map(|f| media::detect(f));
     let first = kinds.next()?;
     kinds.all(|k| k == first).then_some(first)
+}
+
+#[cfg(test)]
+mod s151_tests {
+    use super::*;
+    use kawaro_core::engine::{CancelToken, EngineError, Estimate, Progress, Task, TaskOutcome};
+    use std::sync::atomic::{AtomicBool, Ordering};
+
+    /// A fake engine whose tool is gone after its refresh (S-151).
+    struct FakeEngine {
+        id: &'static str,
+        ready: AtomicBool,
+    }
+
+    impl FakeEngine {
+        fn engine(id: &'static str) -> Arc<dyn Engine> {
+            Arc::new(FakeEngine {
+                id,
+                ready: AtomicBool::new(true),
+            })
+        }
+    }
+
+    impl Engine for FakeEngine {
+        fn id(&self) -> &'static str {
+            self.id
+        }
+
+        fn available(&self) -> bool {
+            self.ready.load(Ordering::Acquire)
+        }
+
+        fn refresh(&self) {
+            self.ready.store(false, Ordering::Release);
+        }
+
+        fn capabilities(&self) -> Vec<(&'static str, Vec<MediaKind>)> {
+            Vec::new()
+        }
+
+        fn estimate(&self, _task: &Task) -> Estimate {
+            Estimate::default()
+        }
+
+        fn run(
+            &self,
+            _task: &Task,
+            _progress: Progress,
+            _cancel: &CancelToken,
+        ) -> Result<TaskOutcome, EngineError> {
+            Err(EngineError::Failed(String::from(
+                "the fake engine runs nothing",
+            )))
+        }
+    }
+
+    /// S-151: the availability comes from the engines themselves, after
+    /// their refresh. The daemon keeps no second copy of the OCR engine,
+    /// so a refresh that loses the tool is seen at once.
+    #[test]
+    fn the_availability_follows_the_engines_after_their_refresh() {
+        let engines: Vec<Arc<dyn Engine>> =
+            vec![FakeEngine::engine("ocr"), FakeEngine::engine("fake")];
+        let mut st = State::new(Config::default(), &engines);
+        let ids: Vec<&str> = st.available.iter().map(String::as_str).collect();
+        assert_eq!(ids, vec!["ocr", "fake"]);
+        // The refresh looks the programs up again and finds nothing.
+        st.reload();
+        assert!(st.available.is_empty(), "{:?}", st.available);
+    }
 }

@@ -117,6 +117,21 @@ fn check_ocrmypdf(state: &State, language: &str) -> Option<UnavailableReason> {
     check_ocr_language(state, language)
 }
 
+/// The actions of `files` that the hive offers as runnable cells.
+///
+/// The same cached checks the `kawaro open` path uses, so a cell is never
+/// an action the plan marks unavailable: a missing language data file or
+/// an OCRmyPDF below the version floor is not offered (S-151). The checks
+/// read the daemon cache only, so no child process runs on this path and
+/// the hive still appears within its budget.
+pub fn runnable_actions(state: &State, files: &[PathBuf]) -> Vec<ActionDef> {
+    state
+        .matching(files)
+        .into_iter()
+        .filter(|action| action_reason(state, action).is_none())
+        .collect()
+}
+
 /// Evaluates why `action` is unavailable under `state`, or `None` when runnable.
 fn action_reason(state: &State, action: &ActionDef) -> Option<UnavailableReason> {
     let ok = |e: &str| state.available.iter().any(|a| a == e);
@@ -353,5 +368,43 @@ pub fn plan_with_reports(
         suggestion,
         cells,
         pending: None,
+    }
+}
+
+#[cfg(test)]
+mod s151_tests {
+    use super::*;
+    use kawaro_core::unsupported::ProbeOutcome;
+
+    /// S-151: a drop cell is never an action the plan marks unavailable.
+    ///
+    /// The OCR engine is there, but the Arabic traineddata is not, so the
+    /// plan explains why the action cannot run. The drop cells use the same
+    /// cached checks and leave the action out.
+    #[test]
+    fn a_drop_cell_excludes_an_action_the_plan_marks_unavailable() {
+        let dir = tempfile::tempdir().unwrap();
+        let tool = dir.path().join("tesseract");
+        std::fs::write(&tool, b"tool").unwrap();
+        let mut st = State::new(kawaro_core::config::Config::default(), &[]);
+        st.available.push(String::from("ocr"));
+        st.ocr = kawaro_engines::ocr::OcrEngine::with_program(tool.clone());
+        st.probe_cache.insert(
+            tool,
+            ProbeOutcome::Ready {
+                items: vec![String::from("eng")],
+            },
+        );
+        let files = vec![PathBuf::from("photo.png")];
+        let offered = st.matching(&files);
+        assert!(
+            offered.iter().any(|a| a.id == "image.to-text"),
+            "the action matches the selection"
+        );
+        let runnable = runnable_actions(&st, &files);
+        assert!(
+            !runnable.iter().any(|a| a.id == "image.to-text"),
+            "the missing language data keeps the action out of the cells"
+        );
     }
 }

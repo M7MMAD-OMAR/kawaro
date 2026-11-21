@@ -263,9 +263,24 @@ pub(crate) fn is_nonempty_file(path: &Path) -> bool {
 }
 
 /// Rename, or copy when `to` is on another file system.
+///
+/// The copy never writes through a symlink: `to` is removed first, and
+/// removing a symlink removes the link only. The new file is then created,
+/// never opened for writing, so nothing that was there can be written
+/// through (S-151).
 pub(crate) fn move_file(from: &Path, to: &Path) -> Result<(), EngineError> {
     if std::fs::rename(from, to).is_err() {
-        std::fs::copy(from, to)?;
+        // A target that cannot be removed makes `create_new` below fail,
+        // so the error of this removal is not needed.
+        let _ = std::fs::remove_file(to);
+        let mut source = std::fs::File::open(from)?;
+        let mut target = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(to)?;
+        std::io::copy(&mut source, &mut target)?;
+        target.sync_all()?;
+        drop(target);
         std::fs::remove_file(from)?;
     }
     Ok(())
@@ -682,6 +697,56 @@ mod tests {
         assert!(!is_nonempty_file(&dir.path().join("missing")));
         // Rename fails into a missing directory, and the copy fallback reports it.
         assert!(move_file(&b, &dir.path().join("no/such/dir/c")).is_err());
+    }
+
+    // S-151: the copy fallback of `move_file` never writes through a symlink
+    // at the target. The file the symlink points at keeps its content.
+    #[cfg(unix)]
+    #[test]
+    fn s151_the_copy_fallback_never_writes_through_a_symlink() {
+        use std::os::unix::fs::{MetadataExt, symlink};
+
+        let dir = tempfile::tempdir().unwrap();
+        let secret = dir.path().join("secret");
+        std::fs::write(&secret, "keep").unwrap();
+        let link = dir.path().join("link");
+        symlink(&secret, &link).unwrap();
+
+        // A source on another file system makes the rename fail, so the copy
+        // fallback runs. Without a second file system the rename path is
+        // checked, and it replaces the link too.
+        let other = other_filesystem_dir();
+        let source = match &other {
+            Some(other) => other.path().join("source"),
+            None => dir.path().join("source"),
+        };
+        std::fs::write(&source, "new").unwrap();
+        let before = std::fs::metadata(&source).unwrap().ino();
+
+        move_file(&source, &link).unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(&secret).unwrap(),
+            "keep",
+            "the file the symlink pointed at was written through"
+        );
+        assert_eq!(std::fs::read_to_string(&link).unwrap(), "new");
+        assert!(!source.exists(), "the source is left behind");
+        if other.is_some() {
+            let after = std::fs::metadata(&link).unwrap().ino();
+            assert_ne!(before, after, "the copy fallback did not run");
+        }
+    }
+
+    /// A temporary directory on another file system, when the machine has
+    /// one. `None` when every writable path is on the same device.
+    #[cfg(unix)]
+    fn other_filesystem_dir() -> Option<tempfile::TempDir> {
+        use std::os::unix::fs::MetadataExt;
+        let dir = tempfile::tempdir_in("/dev/shm").ok()?;
+        let here = std::fs::metadata(std::env::temp_dir()).ok()?;
+        let there = std::fs::metadata(dir.path()).ok()?;
+        (here.dev() != there.dev()).then_some(dir)
     }
 
     // S-025b. `file_url_str(path: &str, windows: bool) -> String`, and an

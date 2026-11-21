@@ -365,6 +365,48 @@ pub(crate) fn replan(cells: &[HiveCell]) -> Option<Plan> {
     Some(plan)
 }
 
+/// Switches a live drop-mode layer surface into click-to-choose mode after a
+/// drop on the More cell (S-151): the hive subsurface accepts pointer clicks
+/// again, the catcher takes full-screen clicks outside the hive to close it,
+/// and keyboard interactivity becomes exclusive so Escape and arrow keys
+/// reach the hive.
+pub(crate) fn enter_choose() {
+    let Some(a) = OWNER.with(|o| o.borrow().upgrade()) else {
+        return;
+    };
+    a.timer.stop();
+    a.may_move.set(false);
+    a.switched.set(false);
+    SHOW.with(|r| r.borrow_mut().drop = false);
+    if let Some(s) = a.surfaces.borrow_mut().as_mut() {
+        s.drop_mode = false;
+        s.hive.set_input_region(None);
+        s.catcher.set_input_region(None);
+        s.layer
+            .set_keyboard_interactivity(KeyboardInteractivity::Exclusive);
+        s.hive.commit();
+        s.catcher.commit();
+    }
+    flush();
+}
+
+/// The anchor `plan_for` actually uses (S-135, S-151): in choose-during-drag
+/// (`clear`), shifted by the 64 px pointer clearance on `screen`.
+fn resolved_anchor(
+    anchor: Option<(f32, f32)>,
+    screen: (u32, u32),
+    clear: bool,
+) -> Option<(f32, f32)> {
+    if clear {
+        anchor.map(|(x, y)| {
+            let at = layout::plan_clear_at((x, y), (screen.0 as f32, screen.1 as f32), 64.0);
+            (at.x, at.y)
+        })
+    } else {
+        anchor
+    }
+}
+
 /// Ends the probe of the shown drop show (S-021): `from` and `to` are the
 /// mode machine's states before and after `event`. A reveal prints `hive
 /// reveal: N`, with `cells` the cells the drag brought, and draws the hive;
@@ -833,8 +875,15 @@ pub(crate) struct LayerAdapter {
     /// (S-105).
     remapped: Cell<bool>,
     /// The anchor the hive was placed at, the output size and the rings
-    /// its box is sized for.
+    /// its box is sized for. It is the anchor the plan really used, so the
+    /// pointer clearance of the choose-during-drag mode is part of it
+    /// (S-135, S-151).
     anchor: Cell<Option<(f32, f32)>>,
+    /// The pointer the show was anchored at, before the clearance moved
+    /// the hive away from it (S-151). The hole of the unrevealed catcher
+    /// stays at the pointer, so the file manager keeps the press that
+    /// starts the drag (S-104).
+    hole: Cell<Option<(f32, f32)>>,
     screen: Cell<(u32, u32)>,
     rings: Cell<i32>,
     /// Subsurface position from the plan, and the last one sent.
@@ -868,6 +917,7 @@ impl LayerAdapter {
             no_drag: Cell::new(false),
             remapped: Cell::new(false),
             anchor: Cell::new(None),
+            hole: Cell::new(None),
             screen: Cell::new((0, 0)),
             rings: Cell::new(1),
             pos: Cell::new(None),
@@ -954,21 +1004,14 @@ impl LayerAdapter {
                 None => crate::stderr_line("hive anchor: none"),
             }
         }
-        let (plan, p) = SHOW.with(|r| {
+        let (used_anchor, plan, p) = SHOW.with(|r| {
             let r = r.borrow();
-            // S-135: in choose-during-drag the hive centre moves by the
-            // pointer clearance, or stays centred as the dead zone.
-            let anchor = if r.clear {
-                anchor.map(|(x, y)| {
-                    let at =
-                        layout::plan_clear_at((x, y), (screen.0 as f32, screen.1 as f32), 64.0);
-                    (at.x, at.y)
-                })
-            } else {
-                anchor
-            };
-            let rings = if r.drop && anchor.is_some() {
-                drop_rings(r.rtl, screen, anchor)
+            // S-135 / S-151: in choose-during-drag the hive centre moves by the
+            // pointer clearance, or stays centred as the dead zone. Keep the
+            // anchor actually used so replan agrees with plan_for.
+            let used_anchor = resolved_anchor(anchor, screen, r.clear);
+            let rings = if r.drop && used_anchor.is_some() {
+                drop_rings(r.rtl, screen, used_anchor)
             } else {
                 r.min_rings
             };
@@ -976,14 +1019,26 @@ impl LayerAdapter {
             // S-149: the page follows the placement: it holds as many
             // actions as the screen accepts and the More cell takes the
             // last slot.
-            let cells = crate::page_cells_at(anchor, screen).unwrap_or_else(|| r.cells.clone());
-            layout::plan_at(cells, r.rtl, rings, screen, anchor, self.scale120.get())
+            let cells =
+                crate::page_cells_at(used_anchor, screen).unwrap_or_else(|| r.cells.clone());
+            let (plan, p) = layout::plan_at(
+                cells,
+                r.rtl,
+                rings,
+                screen,
+                used_anchor,
+                self.scale120.get(),
+            );
+            (used_anchor, plan, p)
         });
         if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
             let (cx, cy) = plan.layout.origin;
             crate::stderr_line(&format!("hive cells: {} {cx} {cy}", plan.cells.len()));
         }
-        self.anchor.set(anchor);
+        self.anchor.set(used_anchor);
+        // The hole of the unrevealed catcher stays at the pointer, not at
+        // the clearance-shifted hive centre (S-104, S-151).
+        self.hole.set(anchor);
         self.screen.set(screen);
         self.pos.set(Some((p.x, p.y)));
         self.reported.set(false);
@@ -1213,6 +1268,7 @@ impl LayerAdapter {
         self.no_drag.set(false);
         self.remapped.set(remap);
         self.anchor.set(None);
+        self.hole.set(None);
         self.pos.set(None);
         self.sent.set(None);
         // `--at`: the output holding the point, and the point on it.
@@ -1422,7 +1478,7 @@ impl LayerAdapter {
             // out, so the surface never takes pointer focus (S-104).
             if let Some((hx, hy, hw, hh)) = region_hole(
                 self.revealed.get(),
-                self.anchor.get(),
+                self.hole.get(),
                 (p.x, p.y, dw as i32, dh as i32),
             ) {
                 r.subtract(hx, hy, hw, hh);
@@ -2062,5 +2118,16 @@ mod pointer_probe_tests {
         );
         assert_eq!(region_hole(true, Some((200.0, 150.0)), rect), None);
         assert_eq!(region_hole(false, None, rect), None);
+    }
+
+    #[test]
+    fn resolved_anchor_applies_clearance_shift_only_when_clear_is_set() {
+        let screen = (1280, 800);
+        let edge = Some((20.0, 400.0));
+        assert_eq!(resolved_anchor(edge, screen, false), edge);
+        let shifted = resolved_anchor(edge, screen, true).expect("a shifted anchor");
+        assert_ne!(shifted, (20.0, 400.0));
+        assert_eq!(shifted, (84.0, 400.0));
+        assert_eq!(resolved_anchor(None, screen, true), None);
     }
 }

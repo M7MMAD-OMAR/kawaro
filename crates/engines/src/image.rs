@@ -525,6 +525,15 @@ fn run_single(
 ) -> Result<(), EngineError> {
     let input = single_input(task)?;
     let target = Target::from_path(&task.output)?;
+    // The options are checked before the source is decoded: a bad value
+    // fails without reading the pixels (S-151).
+    let default = if op == Op::Compress {
+        DEFAULT_COMPRESS_QUALITY
+    } else {
+        DEFAULT_QUALITY
+    };
+    quality(task, default)?;
+    keep_metadata(task)?;
     // Export and preview share transformation, encoding and metadata rules.
     // Each request still operates on its own source snapshot.
     let decoded = load(input)?;

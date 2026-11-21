@@ -16,6 +16,7 @@ use kawaro_core::unsupported::{
 };
 use kawaro_core::{CancelToken, Engine};
 use kawaro_engines::ocr::OcrEngine;
+use kawaro_engines::ocrmypdf::OcrmypdfEngine;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -283,6 +284,7 @@ fn evaluate_capabilities(
     files: &[&Path],
     engines: &[Arc<dyn Engine>],
     ocr: &OcrEngine,
+    ocrmypdf: &OcrmypdfEngine,
     config: &Config,
 ) -> Vec<CapabilityReport> {
     let cancel = CancelToken::new();
@@ -306,6 +308,25 @@ fn evaluate_capabilities(
                 .unwrap_or("ara+eng");
             return ocr.check_language(lang, &cancel).err();
         }
+        // The OCRmyPDF action is checked with the engine itself, so the
+        // reason is the one `kawaro doctor` gives: the same version floor,
+        // the same language data (S-151).
+        if action.engine == "ocrmypdf" {
+            let lang = action
+                .params
+                .get("lang")
+                .and_then(|v| v.as_str())
+                .unwrap_or("ara+eng");
+            if ocrmypdf.program().is_none() {
+                return Some(UnavailableReason::MissingExecutable {
+                    program: String::from("ocrmypdf"),
+                });
+            }
+            if let Some(reason) = ocrmypdf.probe_version(&cancel).into_reason("ocrmypdf") {
+                return Some(reason);
+            }
+            return ocr.check_language(lang, &cancel).err();
+        }
         None
     })
 }
@@ -319,6 +340,17 @@ fn fresh_ocr() -> OcrEngine {
         OcrEngine::invalidate_language_cache_for(program);
     }
     ocr
+}
+
+/// The OCRmyPDF engine looked up again for this call, with its version
+/// probe forgotten, so a tool installed while the server runs is seen on
+/// the next discovery call, as `kawaro doctor` sees it (S-151).
+fn fresh_ocrmypdf() -> OcrmypdfEngine {
+    let ocrmypdf = OcrmypdfEngine::discover();
+    if let Some(program) = ocrmypdf.program() {
+        OcrmypdfEngine::invalidate_version_cache_for(program);
+    }
+    ocrmypdf
 }
 
 /// Serializes every non-runnable [`CapabilityReport`] into the additive S-145
@@ -341,9 +373,12 @@ fn unavailable_entries(reports: &[CapabilityReport]) -> Vec<Value> {
 /// `kawaro_formats`: version, revisions, engines and the action catalog.
 fn formats(config: &Config) -> Value {
     let registry = registry();
-    let all_engines = kawaro_engines::all();
+    // The engines are looked up again first, so the list below is built from
+    // the same fresh answers.
     let ocr = fresh_ocr();
-    let reports = evaluate_capabilities(&registry, &[], &all_engines, &ocr, config);
+    let ocrmypdf = fresh_ocrmypdf();
+    let all_engines = kawaro_engines::all();
+    let reports = evaluate_capabilities(&registry, &[], &all_engines, &ocr, &ocrmypdf, config);
     let unavailable = unavailable_entries(&reports);
     let engines: Vec<Value> = all_engines
         .iter()
@@ -388,10 +423,13 @@ fn plan(args: &Value, config: &Config) -> Value {
         Err(value) => return value,
     };
     let registry = registry();
-    let engines = kawaro_engines::all();
+    // The engines are looked up again first, so the list below is built from
+    // the same fresh answers.
     let ocr = fresh_ocr();
+    let ocrmypdf = fresh_ocrmypdf();
+    let engines = kawaro_engines::all();
     let refs: Vec<&Path> = files.iter().map(PathBuf::as_path).collect();
-    let reports = evaluate_capabilities(&registry, &refs, &engines, &ocr, config);
+    let reports = evaluate_capabilities(&registry, &refs, &engines, &ocr, &ocrmypdf, config);
     let unavailable = unavailable_entries(&reports);
     let matching: Vec<&ActionDef> = reports
         .iter()

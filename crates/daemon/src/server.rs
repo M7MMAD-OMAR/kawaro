@@ -320,11 +320,17 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
             if let Some(message) = stale_instance(instance.as_deref()) {
                 return error(&mut stream, message);
             }
-            let result = {
+            // S-151: the claim is taken under the lock, then the lock is
+            // released before the disk checks, so the event loop never waits
+            // for them and a second retry of the same job is refused.
+            let claim = {
                 let mut st = lock(state);
-                crate::jobs::retry(&mut st, queue, job)
+                crate::jobs::begin_retry(&mut st, job)
             };
-            match result {
+            if let Err(refusal) = claim {
+                return error(&mut stream, refusal.reason());
+            }
+            match crate::jobs::retry(state, queue, job) {
                 Ok(child) => reply(&mut stream, &Response::Retry { job: child }),
                 Err(refusal) => error(&mut stream, refusal.reason()),
             }

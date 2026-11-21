@@ -9,11 +9,99 @@ use std::path::PathBuf;
 
 pub const SOCKET_NAME: &str = "kawaro.sock";
 
+/// The path of the daemon socket.
+///
+/// It is `$XDG_RUNTIME_DIR/kawaro.sock` when the variable is set. Without
+/// it the socket lives in a private directory of this user,
+/// `temp_dir()/kawaro-<uid>/kawaro.sock`, created with mode 0700 when it is
+/// missing, so no other user can reach the socket (S-151).
 pub fn socket_path() -> PathBuf {
-    let dir = std::env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(std::env::temp_dir);
-    dir.join(SOCKET_NAME)
+    if let Some(dir) = std::env::var_os("XDG_RUNTIME_DIR") {
+        return PathBuf::from(dir).join(SOCKET_NAME);
+    }
+    fallback_dir().join(SOCKET_NAME)
+}
+
+/// The private directory of the socket when `XDG_RUNTIME_DIR` is not set.
+#[cfg(unix)]
+fn fallback_dir() -> PathBuf {
+    let dir = match current_uid() {
+        Some(uid) => std::env::temp_dir().join(format!("kawaro-{uid}")),
+        None => std::env::temp_dir().join("kawaro"),
+    };
+    ensure_private_dir(&dir);
+    dir
+}
+
+/// The private directory of the socket when `XDG_RUNTIME_DIR` is not set.
+///
+/// Windows has a named pipe per user and session, so it never needs a
+/// directory.
+#[cfg(not(unix))]
+fn fallback_dir() -> PathBuf {
+    std::env::temp_dir()
+}
+
+/// The directory of the socket, created with mode 0700 when it is missing.
+///
+/// An existing directory is closed again when this user owns it, so an old
+/// wide mode cannot leave the socket reachable for others.
+#[cfg(unix)]
+fn ensure_private_dir(dir: &std::path::Path) {
+    use std::os::unix::fs::{DirBuilderExt, MetadataExt, PermissionsExt};
+    let private = std::fs::Permissions::from_mode(0o700);
+    let mut builder = std::fs::DirBuilder::new();
+    builder.mode(0o700);
+    if builder.create(dir).is_ok() {
+        let _ = std::fs::set_permissions(dir, private);
+        return;
+    }
+    let Ok(meta) = std::fs::symlink_metadata(dir) else {
+        return;
+    };
+    if meta.file_type().is_dir() && current_uid().is_some_and(|uid| meta.uid() == uid) {
+        let _ = std::fs::set_permissions(dir, private);
+    }
+}
+
+/// The effective user id of this process.
+///
+/// Linux and every system with a `/proc`: the `Uid:` line of
+/// `/proc/self/status`, the same source the update path uses. The other Unix
+/// systems have no `/proc`, so the owner of a file this process creates is
+/// read instead: the kernel gives that file to the effective user id.
+#[cfg(unix)]
+pub(crate) fn current_uid() -> Option<u32> {
+    if let Some(uid) = std::fs::read_to_string("/proc/self/status")
+        .ok()
+        .and_then(|status| crate::update::apply::effective_uid(&status))
+    {
+        return Some(uid);
+    }
+    probe_uid()
+}
+
+/// The owner of a file this process just created: its effective user id.
+#[cfg(unix)]
+fn probe_uid() -> Option<u32> {
+    use std::os::unix::fs::MetadataExt;
+    let path = std::env::temp_dir().join(format!(
+        ".kawaro-uid-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|since| since.as_nanos())
+            .unwrap_or_default()
+    ));
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&path)
+        .ok()?;
+    let uid = std::fs::metadata(&path).ok().map(|meta| meta.uid());
+    drop(file);
+    let _ = std::fs::remove_file(&path);
+    uid
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]

@@ -80,6 +80,10 @@ pub struct Machine {
     shown_at: Option<Instant>,
     entered: bool,
     hold: bool,
+    /// Armed when a drop on More ends the OS drag session and switches the
+    /// hive into click-to-choose mode (S-151): `State::Normal` then honours
+    /// `ENTER_TIMEOUT` on `Event::Tick`.
+    idle_timeout: bool,
 }
 
 impl Default for Machine {
@@ -95,11 +99,36 @@ impl Machine {
             shown_at: None,
             entered: false,
             hold: false,
+            idle_timeout: false,
         }
     }
 
     pub fn state(&self) -> State {
         self.state
+    }
+
+    /// True when `State::Normal` has the post-drop idle timeout armed (S-151).
+    pub fn has_idle_timeout(&self) -> bool {
+        self.idle_timeout
+    }
+
+    /// Leaves the ended drag session (e.g. after a drop on More) and puts the
+    /// hive into click-to-choose mode (`State::Normal`) with the 10 s idle
+    /// timeout armed from `now` (S-151).
+    pub fn enter_choose(&mut self, now: Instant) -> State {
+        self.state = State::Normal;
+        self.shown_at = Some(now);
+        self.entered = false;
+        self.hold = false;
+        self.idle_timeout = true;
+        self.state
+    }
+
+    /// Refreshes the post-drop idle clock when the user pages again (S-151).
+    pub fn reset_idle(&mut self, now: Instant) {
+        if self.idle_timeout {
+            self.shown_at = Some(now);
+        }
     }
 
     /// Applies `event` at time `now` and returns the new state.
@@ -110,6 +139,7 @@ impl Machine {
                 self.shown_at = Some(now);
                 self.entered = false;
                 self.hold = hold;
+                self.idle_timeout = false;
                 match (drop, layer) {
                     (true, true) => Probing,
                     (true, false) => Waiting,
@@ -126,6 +156,7 @@ impl Machine {
             (Probing, Event::Release) if self.hold => Hidden,
             (Probing, Event::Tick) if self.timed_out(now) => Hidden,
             (Normal, Event::Escape | Event::FocusLost | Event::ClickOutside) => Hidden,
+            (Normal, Event::Tick) if self.idle_timeout && self.timed_out(now) => Hidden,
             (Waiting | Over(_), Event::Enter) => {
                 self.entered = true;
                 Waiting

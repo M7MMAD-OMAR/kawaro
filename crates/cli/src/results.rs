@@ -12,7 +12,9 @@
 //! number that the restart reused.
 //!
 //! The output is English, like the rest of the CLI. Paths are printed as
-//! plain data: no command opens a file, a folder or a window.
+//! plain data: no command opens a file, a folder or a window. A control
+//! character in a name is shown as its escape, so a file name can never
+//! drive the terminal.
 
 use crate::JobRef;
 use crate::Res;
@@ -172,10 +174,13 @@ pub fn show(job: JobRef, json: bool) -> Res<()> {
             display_paths(&unit.inputs)
         );
         if let Some(output) = &unit.output {
-            out!("        output: {}", output.display());
+            out!(
+                "        output: {}",
+                escape_control(&output.display().to_string())
+            );
         }
         if let Some(reason) = &unit.reason {
-            out!("        reason: {reason}");
+            out!("        reason: {}", escape_control(reason));
         }
     }
     if !detail.retry_units.is_empty() {
@@ -272,12 +277,66 @@ fn elapsed(ms: u64) -> String {
 fn display_paths(paths: &[std::path::PathBuf]) -> String {
     paths
         .iter()
-        .map(|p| p.display().to_string())
+        .map(|p| escape_control(&p.display().to_string()))
         .collect::<Vec<_>>()
         .join(", ")
+}
+
+/// The control characters of `text`, shown as their escape.
+///
+/// A file name may hold an escape or a newline, and the terminal would
+/// run what it reads. The text is data, so every control character (C0,
+/// DEL and C1) is written as its escape and never as itself.
+fn escape_control(text: &str) -> String {
+    let mut escaped = String::with_capacity(text.len());
+    for character in text.chars() {
+        if character.is_control() {
+            escaped.push_str(&character.escape_default().to_string());
+        } else {
+            escaped.push(character);
+        }
+    }
+    escaped
 }
 
 /// The one reply the command did not expect.
 fn unexpected(reply: &Response) -> String {
     format!("the daemon answered {reply:?}, expected a job results reply")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // S-151: a file name may hold an escape or a newline, and the terminal
+    // would run what it reads. The control characters are shown as their
+    // escape.
+    #[test]
+    fn s151_control_characters_are_shown_as_their_escape() {
+        assert_eq!(escape_control("photo.png"), "photo.png");
+        assert_eq!(escape_control("a\nb"), "a\\nb");
+        assert_eq!(escape_control("a\rb"), "a\\rb");
+        assert_eq!(escape_control("a\tb"), "a\\tb");
+        assert_eq!(escape_control("a\u{1b}b"), "a\\u{1b}b");
+        assert_eq!(escape_control("a\u{7f}b"), "a\\u{7f}b");
+        assert_eq!(escape_control("a\u{9b}b"), "a\\u{9b}b");
+        // The null byte is shown as an escape too.
+        let nul = escape_control("a\u{0}b");
+        assert!(!nul.contains('\u{0}'), "{nul}");
+        // Ordinary text, including Arabic and a quote, stays as it is.
+        assert_eq!(escape_control("صورة.png"), "صورة.png");
+        assert_eq!(escape_control("a\"b.png"), "a\"b.png");
+    }
+
+    #[test]
+    fn s151_the_displayed_paths_hold_no_control_character() {
+        let paths = vec![
+            std::path::PathBuf::from("a\nb.png"),
+            std::path::PathBuf::from("c\u{1b}[31m.png"),
+        ];
+        let shown = display_paths(&paths);
+        assert!(!shown.contains('\n'), "{shown}");
+        assert!(!shown.contains('\u{1b}'), "{shown}");
+        assert!(shown.contains("\\n"), "{shown}");
+    }
 }
