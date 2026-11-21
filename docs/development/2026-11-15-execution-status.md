@@ -84,3 +84,7 @@ After the S-150 work, the S-145 refresh gaps and the fixes from two fresh review
 ## Public main and CI (2026-11-21)
 
 Merged to main and pushed: `6fde670` (CI run 44921611464: Linux check and Windows cross passed, windows-native failed one S-150 test whose Unix lookup half needs an executable bit), then `1495c4f` with that half limited to Unix. CI run 44922475478 on `1495c4f`: check, windows-cross and windows-native all passed. Only `main` exists locally and on the remote. Public release stays 0.5.0; nothing was tagged.
+
+## S-151 review and security fixes (2026-11-22)
+
+Three fresh reviews (UI and daemon, core and engines, security) of `fc47ca5..e5fd582`; findings and states in `2026-11-21-review-findings.md`, "Second review". Fix packets by MiniMax-M3.1-Flash and Gemini 4 Neon (Gemini stopped twice on quota, MiniMax finished its packet), parent review and fixes. Second machine: fmt, clippy `-D warnings`, workspace tests and both Windows cross stages green; the S-103f release test still needs `apt-ftparchive` there (environment only). Public main `eb88c08`: CI run 44949515992 green (check, windows-cross, windows-native). No visual, compositor, real desktop or physical Windows check.
