@@ -51,10 +51,10 @@
   </provides>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.5.1" date="2026-11-05">
+    <release version="0.5.1" date="2026-11-22">
       <description>
-        <p>Typed action options and native customization with a source draft preview, opt-in local stdio MCP, more PDF and image operations, DropFirst by default with saved preferences preserved, and Hyprland Escape/release cancellation fixes. Originals remain unchanged. Real GNOME and KDE focus remains unverified; Windows is self-signed, new UI runtime and physical hardware are unverified, and macOS is unsupported.</p>
-        <p xml:lang="ar">خيارات إجراءات محددة الأنواع وتخصيص أصلي مع معاينة مسودة المصدر، وMCP محلي اختياري عبر stdio، وعمليات PDF وصور إضافية، والإفلات أولاً افتراضياً مع حفظ التفضيلات، وإصلاح إلغاء Escape وترك المفتاح على Hyprland. تبقى الأصول دون تغيير. التركيز على GNOME وKDE الحقيقيين غير متحقق منه؛ ويندوز ذاتي التوقيع وتشغيل الواجهة الجديدة والعتاد الفعلي غير متحقق منهما، وmacOS غير مدعوم.</p>
+        <p>Preview of the transformed image, named presets, a Results page with safe retry of failed files, reasons for unavailable actions, optional OCR of images and searchable PDFs through system Tesseract and OCRmyPDF, a More cell that reaches every action, typed action options and native customization, opt-in local stdio MCP, more PDF and image operations, DropFirst by default, and Hyprland Escape/release fixes. Originals remain unchanged. Real GNOME and KDE focus remains unverified; Windows is self-signed, its new UI runtime and physical hardware are unverified, and macOS is unsupported.</p>
+        <p xml:lang="ar">معاينة الصورة بعد التحويل، وإعدادات مسمّاة، وصفحة نتائج مع إعادة محاولة آمنة للملفات الفاشلة، وأسباب للإجراءات غير المتاحة، وتعرف ضوئي اختياري على الصور وملفات PDF قابلة للبحث عبر Tesseract وOCRmyPDF من النظام، وخلية «المزيد» توصل لكل الإجراءات، وخيارات إجراءات محددة الأنواع وتخصيص أصلي، وMCP محلي اختياري عبر stdio، وعمليات PDF وصور إضافية، والإفلات أولاً افتراضياً، وإصلاح Escape وترك المفتاح على Hyprland. تبقى الأصول دون تغيير. التركيز على GNOME وKDE الحقيقيين غير متحقق منه؛ ويندوز ذاتي التوقيع وتشغيل الواجهة الجديدة والعتاد الفعلي غير متحقق منهما، وmacOS غير مدعوم.</p>
       </description>
     </release>
     <release version="0.5.0" date="2026-10-31">

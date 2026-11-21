@@ -1,16 +1,16 @@
 {
   "en": [
-    "Typed options: native fields, safe validation, Back and source preview",
-    "Local stdio MCP: opt-in writes, allowed roots and configurable audit",
-    "More PDF and image operations; optional engines and originals preserved",
-    "DropFirst by default; saved choose-during-drag mode and one submission",
-    "Hyprland Alt/Escape fix: regenerate owned bindings; platform limits remain"
+    "See the transformed image before you run; save named presets",
+    "Results page and safe retry of failed files; job cancel by instance",
+    "Reasons for unavailable actions; tools found after a reload",
+    "Optional OCR: text from images and searchable PDFs, system tools only",
+    "More cell reaches every action; review and security fixes"
   ],
   "ar": [
-    "خيارات محددة الأنواع: حقول أصلية وتحقق آمن ورجوع ومعاينة المصدر",
-    "MCP محلي عبر stdio: كتابة اختيارية وجذور مسموحة وتدقيق قابل للضبط",
-    "عمليات PDF وصور إضافية؛ محركات اختيارية والحفاظ على الأصول",
-    "الإفلات أولاً افتراضياً؛ حفظ اختيار وضع السحب وإرسال العملية مرة واحدة",
-    "إصلاح Alt وEscape: جدّد روابط Hyprland المملوكة؛ تبقى حدود المنصات"
+    "شاهد الصورة بعد التحويل قبل التشغيل؛ واحفظ إعدادات مسمّاة",
+    "صفحة النتائج وإعادة محاولة آمنة للملفات الفاشلة؛ وإلغاء مهمة حسب التشغيل",
+    "أسباب الإجراءات غير المتاحة؛ وتظهر الأدوات بعد إعادة التحميل",
+    "تعرف ضوئي اختياري: نص من الصور وPDF قابل للبحث بأدوات النظام فقط",
+    "خلية «المزيد» توصل لكل الإجراءات؛ وإصلاحات المراجعة والأمان"
   ]
 }

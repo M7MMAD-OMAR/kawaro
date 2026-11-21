@@ -47,7 +47,7 @@ Kawaro comes from «كوّارة» (kawwara), an old Arabic word for a beehive. 
 
 ## Download and install
 
-Candidate: **0.5.1**, dated 2026-11-05 ([release notes](docs/release-notes-0.5.1.md)). The current public release remains **0.5.0** until the new tag and publication are verified. These install links select published releases, not unverified candidate packages.
+Current release: **0.5.1**, dated 2026-11-22 ([release notes](docs/release-notes-0.5.1.md)).
 
 Get the latest release from the [releases page](https://github.com/M7MMAD-OMAR/kawaro/releases/latest), or from [kawaro.sbarah.com](https://kawaro.sbarah.com/).
 
