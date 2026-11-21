@@ -275,7 +275,12 @@ process, never linked. The command is `pdftotext -layout -enc UTF-8
 [-f FIRST -l LAST] <input> -`; the output is UTF-8 without a byte order mark
 with LF line endings. A missing program hides the action and returns
 `Unavailable` naming `pdftotext` (package `poppler-utils` on Debian, Ubuntu
-and Fedora). No OCR: a scanned page gives empty or whitespace only text.
+and Fedora, page https://poppler.freedesktop.org/). The no-action
+explanation of the hive names the same tool as `Poppler`, with the same
+package and page, from the curated hint table in
+`crates/core/src/unsupported.rs` (S-145); it is a page link, never a
+download, an installer or a process call. No OCR: a scanned page gives empty
+or whitespace only text.
 Arabic and RTL limitation: the tool returns text in content order, so a
 producer that stores visual order, or a subset font without a ToUnicode map,
 gives reversed or missing characters; no bidi reordering and no
@@ -298,13 +303,105 @@ of an error. `linearize` and `cleanup` refuse an
 encrypted file with an input error that says a password is needed; nothing
 is decrypted and the input is never modified. A missing program hides the
 three actions and returns `Unavailable` naming `qpdf`, the package `qpdf`
-on Debian, Ubuntu and Fedora, and https://qpdf.readthedocs.io/. qpdf was
+on Debian, Ubuntu and Fedora, and https://qpdf.readthedocs.io/. The no-action
+explanation of the hive names the same tool and the same page, from the
+curated hint table in `crates/core/src/unsupported.rs` (S-145). qpdf stays
+system provided: no download, no installer, no allowlist entry. qpdf was
 not installed on the build machine of this story, so the live path is
 tested for the missing state and the command construction only; a second
 linearize, the `/Linearized` marker and the cleanup report round trip wait
 for a machine with qpdf.
 
-### Libraries and tools (office, pdf, poppler, qpdf)
+## Tesseract (engine `ocr`, story S-146)
+
+One op, `to-text`: the printed text of one still picture, through the system
+`tesseract` run as a child process, never linked and never downloaded. The
+action is `image.to-text` in `actions/images.toml`: `accepts = ["image"]` and
+`skip_ext` naming every other image extension, so the cell is offered for
+JPEG, PNG and BMP only and a container or an animation never reaches the
+engine. The adapter rechecks the decoded format and refuses anything else with
+an input error.
+
+The source is prepared by `crates/engines/src/image/ocr_prep.rs`, which reuses
+the image loader of the export: the EXIF orientation, the alpha flattened onto
+white, the 64 MiB source bound, the 16,000,000 source pixel admission from the
+header and the decoder limits. Animated PNG (APNG, detected by an `acTL` chunk
+before `IDAT`) is refused along with every format outside still JPEG, PNG and
+BMP. The picture is one private PNG in the private work directory of the task;
+nothing is written next to the source. There is no contrast, deskew or
+threshold step: format and orientation only.
+
+Upstream Tesseract is Apache-2.0, its command line is documented by the
+upstream project, and its language data is a separate system package the owner
+installs (`docs/research/2026-11-15-next-features-evidence.md`). System
+packages: `tesseract-ocr` with `tesseract-ocr-ara` and `tesseract-ocr-eng` on
+Debian and Ubuntu; `tesseract` with `tesseract-langpack-ara` and
+`tesseract-langpack-eng` on Fedora; on Windows, the official installer from
+`https://tesseract-ocr.github.io/tessdoc/` with Arabic and English language
+data selected. Kawaro reads the language data that is installed locally and
+never downloads or installs packages or traineddata.
+
+The command is `tesseract <private png> <private base> -l <language> txt` with
+every argument separate, so a path with spaces or dashes stays one argument.
+The text file is `<private base>.txt`, a fixed name inside the private
+directory, never derived from the document.
+
+The child runs through the bounded runner in `crates/engines/src/ocr/child.rs`,
+which spawns through the shared `ProcessTree` (the Unix process group and the
+Windows kill-on-close job every engine uses) and adds a bounded drain. Each
+stream is read in fixed 8 KiB chunks on its own thread, with no line buffer and
+no message channel. The language probe keeps at most 64 KiB of stdout and a
+larger report is an error, never a silent truncation. The extraction discards
+its stdout after draining it, so a chatty child cannot grow the capture.
+Stderr keeps only its last 4 KiB. The main loop only polls the child, the
+cancel token, the deadline and a caller hook, so a noisy child cannot starve a
+cancel or a timeout, and the whole tree is killed and reaped on every exit
+path, with both reader threads joined before the runner returns.
+
+The exit status alone is not trusted. The text file must exist: a missing file
+is its own error, and an empty or whitespace only file is the diagnostic `No
+printed text recognized` with no output file. While the child runs, the
+adapter also reads the output file length between polls and stops the tree when
+it is over 8 MiB. That check is best effort, not a hard disk quota: Tesseract
+can write past the limit between two polls, so the exact bound is the read
+after exit, through `File::take(8 MiB + 1)`, before any UTF-8 validation. A
+file over the bound is refused, not truncated, and a read error names the file.
+Its bytes are then written atomically via a same-directory temporary file and
+renamed to `task.output` unchanged (the queue then atomically finalizes
+`task.output` next to the original): no digit, spelling, diacritic or reading
+order is normalized. A read I/O error is reported with its path.
+
+One child at a time per process: the adapter holds a shared permit while it
+probes the languages and while the child runs, and the wait for the permit
+checks cancellation. The language probe is one bounded `tesseract
+--list-langs` with a 5 second budget, and only the languages the adapter knows
+(`ara`, `eng`) are parsed from it. For capability reporting (S-145), probe
+results are cached by resolved tool path in `kawaro_core::unsupported::ProbeCache`
+with explicit refresh and invalidation; a timed-out or failing probe reports
+`ProbeUnknown` (never ready), and an installed executable missing a requested
+language reports `MissingLanguageData` before any OCR runs. The language choice
+is the explicit `lang` option of the action (`eng`, `ara`, `ara+eng`), and a
+choice whose every component is not installed becomes an `Unavailable` error
+naming the missing traineddata. The extraction budget is 240 seconds. Cancel
+and timeout kill the whole process tree and the private directory is removed
+on every exit path; the task output is written only after the text passed
+every check.
+
+Limits, all of them admission policy and none of them a measurement: 64 MiB of
+source bytes, 16,000,000 source pixels, 8 MiB of recognized text, 64 KiB of
+probe stdout, 4 KiB of stderr tail, 5 seconds of language probe and 240 seconds
+of extraction. The 8 MiB file check during the run is a poll and can overshoot
+between polls; the read after exit is the exact bound. No throughput, accuracy
+or memory claim is made here, and no OCR quality has been measured on this
+project: the executable and its language data stay system provided, no
+installer runs, and the live path is not qualified yet.
+
+Arabic limitation: the recognized text keeps what the engine returns, in the
+order the engine returns it, and no bidi reordering is done here. The quality
+of Arabic and mixed direction output depends on the installed traineddata and
+on the picture, and it is not claimed.
+
+### Libraries and tools (office, pdf, poppler, qpdf, OCR)
 
 | name | used by | license | notes |
 | --- | --- | --- | --- |
@@ -312,6 +409,7 @@ for a machine with qpdf.
 | Ghostscript | ghostscript | AGPL-3.0 | external program, not linked |
 | pdftotext 26.01 (poppler) | poppler | GPL-2.0-or-later | external program, not linked; PDF to text with `-layout`, no OCR, Arabic content order limitation |
 | qpdf (version not checked here: not installed on the build machine) | qpdf | Apache-2.0 | external program, not linked; linearize, lossless cleanup and `--check` report, structural rewrites break signatures |
+| tesseract 5 (the upstream version the research recorded; the installed version is not read here) | ocr | Apache-2.0 | external program, not linked; the traineddata of each language carries its own licence, and no language data is downloaded by Kawaro |
 | lopdf 0.45 | pdf | MIT | `default-features = false`; declares rust-version 1.88, above the workspace's 1.85 |
 | zip 9 | pdf, ghostscript | MIT | `default-features = false` (stored only); tests add `deflate-flate2` to read LibreOffice archives |
 | libc 0.2 | office, ghostscript | MIT OR Apache-2.0 | unix only, for `killpg` |
@@ -324,11 +422,12 @@ Apache-2.0 or BSD-3-Clause, all compatible with GPL-3.0-or-later.
 
 ## Finding the programs (S-043b)
 
-`crates/engines/src/locate.rs` looks each external program up (once per process for LibreOffice and Ghostscript, once per engine for ffmpeg), in this
+`crates/engines/src/locate.rs` looks each external program up (once per process for LibreOffice and Ghostscript, once per engine for ffmpeg, pdftotext, qpdf and tesseract), in this
 order, and takes the first executable file: `PATH`, then on Windows the usual
 install folder, then on Windows the folder the installer wrote in the
 registry (`HKEY_LOCAL_MACHINE`, read by `locate/windows.rs`). On Windows a
-file counts only with an `.exe` or `.com` name. Kawaro never downloads an
+file counts only with an `.exe` or `.com` name. Each program is looked up once
+per process, or once per engine, and never as a probe of the interface. Kawaro never downloads an
 engine; a missing one makes its actions unavailable, and running one returns
 a message with the program's name and its download page.
 
@@ -337,6 +436,9 @@ a message with the program's name and its download page.
 | LibreOffice | `soffice`, then `libreoffice` | `soffice.com`, `soffice.exe` | `%ProgramFiles%\LibreOffice\program` | default value of `SOFTWARE\LibreOffice\UNO\InstallPath` (the folder) | https://www.libreoffice.org/download/ |
 | Ghostscript | `gs` | `gswin64c.exe`, `gswin32c.exe` | `%ProgramFiles%\gs\<newest gs*>\bin`, newest by version number | newest version subkey of `SOFTWARE\GPL Ghostscript`, its `GS_DLL` value's folder | https://ghostscript.com/releases/ |
 | FFmpeg | `ffmpeg`, `ffprobe` | `ffmpeg.exe`, `ffprobe.exe` | `<folder of kawaro.exe>\ffmpeg\bin` | none | https://ffmpeg.org/download.html |
+| pdftotext (poppler) | `pdftotext` | `pdftotext.exe` | `%ProgramFiles%\poppler\Library\bin` | none | https://poppler.freedesktop.org/ |
+| qpdf | `qpdf` | `qpdf.exe` | `%ProgramFiles%\qpdf\bin` | none | https://qpdf.readthedocs.io/ |
+| tesseract | `tesseract` | `tesseract.exe` | `%ProgramFiles%\Tesseract-OCR` | none (the installer records no install path) | https://tesseract-ocr.github.io/tessdoc/ |
 
 Within one folder the names keep their order. The two registry keys are
 assumptions from ADR 0005, checked on a real Windows install in S-052. On

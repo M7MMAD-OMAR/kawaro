@@ -6,6 +6,7 @@
 //! must answer with an Option and never panic, whatever the file holds.
 #![cfg(unix)]
 
+use kawaro_core::image_preview::PreviewStamp;
 use kawaro_ui::preview_worker::{
     Generation, MAX_DRAFT_SIDE, Next, decode_draft, mask_hexagon, probe_dimensions,
 };
@@ -248,12 +249,31 @@ fn a_degenerate_mask_answers_none() {
     assert!(mask_hexagon(&mut buffer, f32::NAN).is_none());
 }
 
+/// The stamp of one request.
+fn stamp(request: u64) -> PreviewStamp {
+    PreviewStamp {
+        session: 1,
+        panel: 1,
+        request,
+    }
+}
+
 #[test]
 fn twenty_rapid_changes_publish_only_the_newest_generation() {
     let mut generation = Generation::new();
-    assert_eq!(generation.submit(), Next::Render(0));
+    let first = generation.allocate();
+    assert_eq!(first, 0, "the machine is the only counter");
+    assert_eq!(
+        generation.submit(first, stamp(first), false),
+        Next::Render(0)
+    );
     for _ in 0..19 {
-        assert_eq!(generation.submit(), Next::Idle, "one render at a time");
+        let id = generation.allocate();
+        assert_eq!(
+            generation.submit(id, stamp(id), false),
+            Next::Idle,
+            "one render at a time"
+        );
     }
     assert_eq!(generation.running(), Some(0));
     assert_eq!(generation.wanted(), Some(19));
@@ -269,6 +289,37 @@ fn twenty_rapid_changes_publish_only_the_newest_generation() {
 }
 
 #[test]
+fn a_held_request_waits_for_its_release() {
+    let mut generation = Generation::new();
+    let id = generation.allocate();
+    // A held request is the newest one, so a running one is stale, but it
+    // does not start yet.
+    assert_eq!(generation.submit(id, stamp(id), true), Next::Idle);
+    assert_eq!(generation.running(), None);
+    assert_eq!(generation.wanted(), Some(id));
+    assert_eq!(generation.wanted_stamp(), Some(stamp(id)));
+
+    assert_eq!(generation.release(), Next::Render(id));
+    assert_eq!(generation.running(), Some(id));
+    assert_eq!(generation.running_stamp(), Some(stamp(id)));
+
+    let (published, next) = generation.finish();
+    assert_eq!(published, Some(id));
+    assert_eq!(next, Next::Idle);
+}
+
+#[test]
+fn a_cancelled_request_leaves_no_wanted_generation() {
+    let mut generation = Generation::new();
+    let id = generation.allocate();
+    assert_eq!(generation.submit(id, stamp(id), true), Next::Idle);
+    generation.cancel_wanted();
+    assert_eq!(generation.wanted(), None);
+    assert_eq!(generation.wanted_stamp(), None);
+    assert_eq!(generation.release(), Next::Idle);
+}
+
+#[test]
 fn a_fake_renderer_keeps_one_render_in_flight_and_publishes_in_order() {
     // The fake renderer finishes immediately unless the next change lands
     // while it runs: every third change waits for the render before it.
@@ -276,7 +327,8 @@ fn a_fake_renderer_keeps_one_render_in_flight_and_publishes_in_order() {
     let mut published = Vec::new();
     let mut renders = 0;
     for _ in 0..20 {
-        match generation.submit() {
+        let id = generation.allocate();
+        match generation.submit(id, stamp(id), false) {
             Next::Render(_) => renders += 1,
             Next::Idle => {}
         }

@@ -66,11 +66,25 @@ file manager entry ──▶ kawaro open ──▶ (Unix socket, JSON lines) ─
   A taken name moves on to the next number; any other error stops and
   keeps the temp file.
 - Queue and events: `queue.rs`. IPC messages: `ipc.rs`.
+- Job results: `job_results.rs` is the in-memory ledger of what happened to
+  every unit of every job of the session. `job_report.rs` is the bounded
+  wire view of it: a job id, an action label, a state, counts, an elapsed
+  time, one first output, and for one selected job its units with their
+  input paths, terminal state, output and reason. No `ActionDef`, no
+  resolved params, no whole manifest and no internal diagnostic reach the
+  wire. The history is memory only: no file, no restart survival and no
+  replay. A retry preflight compares the current registry action with the
+  stored snapshot, revalidates every stored typed option value through the
+  current `OptionsSpec` (including a value that is still the action file
+  default), checks the engine and the current input identity, and submits
+  the stored action through the normal queue path.
 - Per-run values on the wire: `Request::Run` carries an optional `params`
   table and `Request::Version` answers the daemon version plus whether
-  `run_params` is understood (S-120). The daemon resolves the table with
+  `run_params` is understood (S-120) and whether the job results commands
+  are answered (S-144-C). The daemon resolves the table with
   `ActionDef::with_params`, which calls the same `resolve_params` as MCP and
-  never mutates the registry entry.
+  never mutates the registry entry. An older daemon omits `job_results`;
+  the field reads as false and is never written back.
 - Image geometry: `image_geom.rs`. `target(source, mode)` computes the
   percent, longest side, fit, fill and exact result (with a centred source
   crop for fill), and the image engine calls it for every resize so a
@@ -401,10 +415,26 @@ kawaro convert --to EXT [--quality N] FILES...      # in-process, no daemon
 kawaro run ACTION_ID [--wait] [--set KEY=VALUE]... FILES...
 kawaro actions --id ACTION_ID --schema               # option JSON Schema
 kawaro actions FILES...                             # id, ring, code, label
+kawaro jobs [--json]                                # session outcomes, with the daemon instance id
+kawaro results [INSTANCE:]JOB [--json] | --clear    # one job, or clear
+kawaro retry [INSTANCE:]JOB                         # failed units as a new job
+kawaro cancel [INSTANCE:]JOB                        # one queued or running job
+# INSTANCE:JOB is refused when the daemon restarted (S-148); `jobs --json` is {"instance", "jobs"}
 kawaro drop [--token T] [--at X,Y] [--hold | --release]
 kawaro daemon                                       # exec kawarod
 kawaro ping | quit
 ```
+
+`jobs`, `results`, `retry` and `cancel` read the running daemon and never
+start one, so there is no history to show without it. The session history
+is memory only: a restart loses it, and a job that left the ledger reads as
+`unknown`, never as finished. `--json` prints the bounded DTO of this
+revision as stable machine output. The commands first read
+`Request::Version`; a daemon that does not advertise `job_results` is
+refused with a readable reason instead of an empty list, a silent
+conversion or a replay. `retry` runs the full preflight, so a changed
+input, a removed action or an already pending retry is refused with its
+reason and exits non-zero.
 
 `open` reads `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID` when `--token`
 is absent. `--from-clipboard` reads `text/uri-list` with `wl-paste` on

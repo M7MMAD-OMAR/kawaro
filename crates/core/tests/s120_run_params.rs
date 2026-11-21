@@ -134,9 +134,26 @@ fn version_request_and_response_pin_the_params_capability() {
     let response = Response::Version {
         version: "0.5.0".into(),
         run_params: true,
+        // S-144-C: the same answer now carries the job results capability.
+        job_results: true,
+        // S-148: the instance of the daemon that answers. An old daemon has
+        // none, and it reads as absent.
+        instance: None,
     };
     let line = serde_json::to_string(&response).unwrap();
     assert!(line.contains(r#""status":"version""#), "{line}");
     assert!(line.contains(r#""run_params":true"#), "{line}");
+    assert!(line.contains(r#""job_results":true"#), "{line}");
     assert_eq!(serde_json::from_str::<Response>(&line).unwrap(), response);
+    // An older daemon does not send the field, and it reads as false.
+    let old = r#"{"status":"version","version":"0.5.0","run_params":true}"#;
+    assert_eq!(
+        serde_json::from_str::<Response>(old).unwrap(),
+        Response::Version {
+            version: "0.5.0".into(),
+            run_params: true,
+            job_results: false,
+            instance: None,
+        }
+    );
 }

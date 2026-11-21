@@ -10,6 +10,7 @@
 
 use crate::Lang;
 use crate::film;
+use crate::results_view::{RESULTS_PAGE, ResultsViewModel};
 use crate::settings::{self, FormState};
 use crate::updates::{POLL_TICK, UpdateModel, UpdateState, clock_ms};
 use kawaro_core::config::{Config, OutputPlace};
@@ -17,6 +18,7 @@ use kawaro_core::update::manifest::Notes;
 use kawaro_core::welcome::Captions;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use std::time::Duration;
@@ -29,7 +31,10 @@ mod resources {
     include!(concat!(env!("OUT_DIR"), "/welcome_resources.rs"));
 }
 
-use generated::{FilmPose, FormValues, Palette, Tokens, UpdateCard, WelcomeText, WelcomeUi};
+use generated::{
+    FilmPose, FormValues, Palette, ResultJobItem, ResultUnitItem, ResultsPageText, Tokens,
+    UpdateCard, WelcomeText, WelcomeUi,
+};
 
 /// How the first welcome demonstration played (S-087 AC2). Kept as the pure
 /// timing rule of that story; the film of S-094c plays only on request, at
@@ -121,6 +126,8 @@ struct Inner {
     update: RefCell<UpdateModel>,
     on_update_check: RefCell<Option<Callback>>,
     pub(crate) about: crate::shell::AboutHandlers,
+    results: RefCell<ResultsViewModel>,
+    pub(crate) results_handlers: crate::shell::ResultsHandlers,
     on_update_apply: RefCell<Option<Callback>>,
     timer: slint::Timer,
     /// Fires `poll_tick` while the window is open (S-099 B3).
@@ -171,6 +178,7 @@ impl Inner {
         ui.set_settings_loaded(settings::form_values!(FormValues, &defaults));
         ui.set_settings_shortcut_text(Config::default().shortcut.as_str().into());
         self.show_update(&ui, self.lang);
+        self.show_results(&ui);
         let w = Rc::downgrade(self);
         ui.on_page_changed(move |page| with(&w, |i| i.page_changed(page)));
         let w = Rc::downgrade(self);
@@ -181,6 +189,20 @@ impl Inner {
         ui.on_open_link(move |id| with(&w, |i| i.about.open_link(&id)));
         let w = Rc::downgrade(self);
         ui.on_copy_version(move || with(&w, |i| i.about.copy_version()));
+        let w = Rc::downgrade(self);
+        ui.on_results_retry(move |job| with(&w, |i| i.results_handlers.retry(&job)));
+        let w = Rc::downgrade(self);
+        ui.on_results_cancel(move |job| with(&w, |i| i.results_handlers.cancel(&job)));
+        let w = Rc::downgrade(self);
+        ui.on_results_clear(move || with(&w, |i| i.results_handlers.clear()));
+        let w = Rc::downgrade(self);
+        ui.on_results_show_in_folder(move |job, unit| {
+            with(&w, |i| i.results_handlers.show_in_folder(&job, &unit))
+        });
+        let w = Rc::downgrade(self);
+        ui.on_results_toggle_expanded(move |job| {
+            with(&w, |i| i.results_handlers.toggle_expanded(&job))
+        });
         let w = Rc::downgrade(self);
         ui.on_film_toggle(move || {
             if let Some(inner) = w.upgrade() {
@@ -239,6 +261,15 @@ impl Inner {
         ui.set_settings_update_cards(settings::update_cards!(UpdateCard, &r.cards));
         ui.set_settings_update_check_enabled(r.check_enabled);
         ui.set_settings_update_apply_enabled(r.apply_enabled);
+    }
+
+    fn show_results(&self, ui: &WelcomeUi) {
+        let model = self.results.borrow();
+        let (text, jobs, can_clear) =
+            crate::shell::results_slint!(ResultsPageText, ResultJobItem, ResultUnitItem, &model);
+        ui.set_results_text(text);
+        ui.set_results_jobs(jobs);
+        ui.set_results_can_clear(can_clear);
     }
 
     fn current_lang(&self) -> Lang {
@@ -336,6 +367,15 @@ impl Inner {
         ui.set_settings_update_channel_items(list(&strings.channels));
         ui.set_settings_update_mode_items(list(&strings.modes));
         self.show_update(ui, lang);
+        {
+            let mut r = self.results.borrow_mut();
+            if r.lang != lang {
+                r.lang = lang;
+                r.rtl = rtl;
+                r.strings = crate::results_view::strings(lang);
+            }
+        }
+        self.show_results(ui);
         ui.set_settings_subfolder_index(settings::to_visual(
             &settings::OUTPUTS,
             &OutputPlace::Subfolder,
@@ -365,6 +405,9 @@ impl Inner {
     fn page_changed(&self, page: i32) {
         if page > 0 && !self.settings_loaded.get() {
             self.open_settings();
+        }
+        if page == i32::try_from(RESULTS_PAGE + 1).unwrap_or(6) {
+            self.results_handlers.shown();
         }
     }
 
@@ -570,6 +613,14 @@ impl WelcomeWindow {
             update: RefCell::new(UpdateModel::default()),
             on_update_check: RefCell::new(None),
             about: Default::default(),
+            results: RefCell::new(ResultsViewModel::build(
+                &[],
+                &HashSet::new(),
+                &HashSet::new(),
+                lang,
+                &|_| false,
+            )),
+            results_handlers: Default::default(),
             on_update_apply: RefCell::new(None),
             timer: slint::Timer::default(),
             poll_timer: slint::Timer::default(),
@@ -819,13 +870,45 @@ impl WelcomeWindow {
         inner.set_loaded(&state);
     }
 
-    /// Shows settings page `page` (0 is General, 3 is Updates) of the
-    /// already open window.
+    /// Shows settings page `page` (0 is General, 3 is Updates, 5 is Results)
+    /// of the already open window.
     pub fn show_settings_page(&self, page: usize) {
         self.inner
             .ui
             .borrow()
             .set_page(i32::try_from(page + 1).unwrap_or(1));
+    }
+
+    /// Updates the Results page with a fresh view model snapshot (S-144).
+    pub fn set_results(&self, model: &ResultsViewModel) {
+        *self.inner.results.borrow_mut() = model.clone();
+        self.inner.show_results(&self.inner.ui.borrow());
+    }
+
+    /// True while the window is visible and showing the Results page (S-144).
+    pub fn results_visible(&self) -> bool {
+        self.inner.visible()
+            && self.inner.ui.borrow().get_page() == i32::try_from(RESULTS_PAGE + 1).unwrap_or(6)
+    }
+
+    /// Switches the already open window to the Results page (S-144).
+    pub fn show_results(&self) {
+        self.show_settings_page(RESULTS_PAGE);
+    }
+
+    /// Opens the window directly on the Results page (S-144).
+    pub fn open_results(
+        &self,
+        captions: &Captions,
+        centred: bool,
+        config: &Config,
+    ) -> Result<(), slint::PlatformError> {
+        if !self.is_visible() {
+            self.open(captions, centred)?;
+        }
+        self.show_settings(config);
+        self.show_results();
+        Ok(())
     }
 
     /// Called when embedded settings are saved.
@@ -971,6 +1054,7 @@ impl WelcomeWindow {
 }
 
 crate::shell::about_api!(WelcomeWindow);
+crate::shell::results_api!(WelcomeWindow);
 
 #[cfg(feature = "testing-hooks")]
 impl WelcomeWindow {

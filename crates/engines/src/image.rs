@@ -10,6 +10,11 @@
 mod encode;
 mod metadata;
 mod pdf;
+// S-146: the private PNG an OCR child reads. Public so the engine adapter
+// and its tests can prepare a picture without a second image loader.
+pub mod ocr_prep;
+mod prepare;
+mod source;
 
 use encode::Target;
 use image::{DynamicImage, ImageDecoder, ImageFormat, ImageReader, imageops::FilterType};
@@ -17,7 +22,7 @@ use kawaro_core::engine::TaskOutcome;
 use kawaro_core::image_geom::{self, Anchor, Mode};
 use kawaro_core::{CancelToken, Engine, EngineError, MediaKind, Progress, Task};
 use std::io::Cursor;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// Operations in the order the hive lists them.
 const OPS: [&str; 11] = [
@@ -187,6 +192,15 @@ fn bad(name: &str, reason: impl Into<String>) -> EngineError {
     }
 }
 
+/// What an operation does to the size of an oriented source.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Geometry {
+    /// The width of the result.
+    width: u32,
+    /// The height of the result.
+    height: u32,
+}
+
 impl Op {
     fn parse(op: &str, task: &Task) -> Result<Self, EngineError> {
         Ok(match op {
@@ -216,6 +230,83 @@ impl Op {
             "strip" => Op::Strip,
             other => return Err(EngineError::UnsupportedOp(other.to_string())),
         })
+    }
+
+    /// The part of the source the operation keeps, when it crops (S-142).
+    ///
+    /// The same `image_geom` the operation applies, so a bounded draft
+    /// preview cuts its proxy exactly where the export cuts the source.
+    fn crop_window(self, source: (u32, u32)) -> Option<image_geom::Crop> {
+        match self {
+            Op::Crop { aspect, anchor } => aspect
+                .ratio()
+                .and_then(|ratio| image_geom::window(source, ratio, anchor)),
+            Op::ResizeBox {
+                width,
+                height,
+                mode: BoxFit::Fill,
+            } => image_geom::target(source, Mode::Fill { width, height })
+                .and_then(|target| target.crop),
+            _ => None,
+        }
+    }
+
+    /// The size of the operation on an oriented source of `source` size,
+    /// without decoding a pixel (S-142).
+    ///
+    /// The arithmetic is the same `image_geom` the operation applies, so a
+    /// preview and the written file never disagree about the size. A
+    /// bounded draft preview needs this, because it works on a proxy of the
+    /// source but must report the geometry of the original.
+    fn geometry(self, source: (u32, u32)) -> Geometry {
+        let same = Geometry {
+            width: source.0,
+            height: source.1,
+        };
+        match self {
+            Op::Convert
+            | Op::Compress
+            | Op::CompressTo(_)
+            | Op::Strip
+            | Op::Flip(_)
+            | Op::Grayscale => same,
+            Op::Resize(size) => {
+                let (width, height) = size.target(source.0, source.1);
+                Geometry { width, height }
+            }
+            Op::ResizeBox {
+                width,
+                height,
+                mode,
+            } => {
+                let geom = match mode {
+                    BoxFit::Fit => Mode::Fit { width, height },
+                    BoxFit::Fill => Mode::Fill { width, height },
+                    BoxFit::Exact => Mode::Exact { width, height },
+                };
+                match image_geom::target(source, geom) {
+                    Some(target) => Geometry {
+                        width: target.width,
+                        height: target.height,
+                    },
+                    None => same,
+                }
+            }
+            Op::Crop { .. } => match self.crop_window(source) {
+                Some(window) => Geometry {
+                    width: window.width,
+                    height: window.height,
+                },
+                None => same,
+            },
+            Op::Rotate(180) => same,
+            // 90 and 270 turn the picture on its side. The parser accepts
+            // no other angle.
+            Op::Rotate(_) => Geometry {
+                width: source.1,
+                height: source.0,
+            },
+        }
     }
 
     fn apply(self, img: DynamicImage) -> DynamicImage {
@@ -416,45 +507,6 @@ fn keep_metadata(task: &Task) -> Result<bool, EngineError> {
     }
 }
 
-/// Rewrites `path` atomically (S-129): the new bytes go to a sibling file
-/// that is renamed over it, so a failure never leaves a half written JPEG.
-fn write_over(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
-    static TEMP_COUNT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let count = TEMP_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    let mut name = path.as_os_str().to_owned();
-    name.push(format!(".{}.{count}.meta.tmp", std::process::id()));
-    let temp = PathBuf::from(name);
-    std::fs::write(&temp, bytes)?;
-    match std::fs::rename(&temp, path) {
-        Ok(()) => Ok(()),
-        Err(e) => {
-            let _ = std::fs::remove_file(&temp);
-            Err(e)
-        }
-    }
-}
-
-/// Copies the JPEG metadata of `source` into `output` (S-129). Any failure
-/// removes the output, so a task never leaves a JPEG that lost the metadata
-/// it asked to keep.
-fn copy_metadata(source: &[u8], output: &Path) -> Result<(), EngineError> {
-    let segments = metadata::extract(source).unwrap_or_default();
-    if segments.is_empty() {
-        return Ok(());
-    }
-    let discard = |error: EngineError| {
-        let _ = std::fs::remove_file(output);
-        error
-    };
-    let encoded = std::fs::read(output).map_err(|e| discard(e.into()))?;
-    let Some(with_metadata) = metadata::inject(&encoded, &segments) else {
-        return Err(discard(EngineError::Failed(
-            "cannot copy the JPEG metadata".into(),
-        )));
-    };
-    write_over(output, &with_metadata).map_err(|e| discard(e.into()))
-}
-
 fn single_input(task: &Task) -> Result<&Path, EngineError> {
     match task.inputs.as_slice() {
         [one] => Ok(one),
@@ -473,58 +525,22 @@ fn run_single(
 ) -> Result<(), EngineError> {
     let input = single_input(task)?;
     let target = Target::from_path(&task.output)?;
-    // Only the lossy formats can trade quality for a byte target.
-    if matches!(op, Op::CompressTo(_))
-        && !matches!(target, Target::Jpeg | Target::Webp | Target::Avif)
-    {
-        return Err(EngineError::UnsupportedOp(format!(
-            "compress-to needs a lossy target: {target:?} has no quality control"
-        )));
-    }
-    let default = if op == Op::Compress {
-        DEFAULT_COMPRESS_QUALITY
-    } else {
-        DEFAULT_QUALITY
-    };
-    let quality = quality(task, default)?;
-
-    let Loaded {
-        image: img,
-        bytes: source,
-        format,
-        ..
-    } = load(input)?;
-    // S-129: the metadata copy needs a JPEG on both sides and an op that
-    // re-encodes the pixels.
-    let keep = keep_metadata(task)?
-        && matches!(
-            op,
-            Op::Convert
-                | Op::Resize(_)
-                | Op::ResizeBox { .. }
-                | Op::Crop { .. }
-                | Op::Compress
-                | Op::CompressTo(_)
-        )
-        && format == ImageFormat::Jpeg
-        && target == Target::Jpeg;
+    // Export and preview share transformation, encoding and metadata rules.
+    // Each request still operates on its own source snapshot.
+    let decoded = load(input)?;
+    let prepared = prepare::prepare(task, op, target, decoded, cancel)?;
     progress(0.4);
     cancel.check()?;
 
-    let img = op.apply(img);
+    let encoded = prepare::encode(&prepared, cancel)?;
     progress(0.7);
     cancel.check()?;
 
-    let bytes = match op {
-        Op::CompressTo(target_bytes) => encode_to_target(&img, target, target_bytes, cancel)?,
-        _ => encode::encode(&img, target, quality, op == Op::Compress)?,
-    };
+    // The metadata is injected in memory (S-129), so the file is written
+    // once with its final content and a failed injection leaves no file.
+    let bytes = prepare::finalize(&prepared, encoded)?;
     cancel.check()?;
     std::fs::write(&task.output, &bytes)?;
-    if keep {
-        // The encode is done; copy the input's metadata into the encoded file.
-        copy_metadata(&source, &task.output)?;
-    }
     progress(1.0);
     Ok(())
 }
@@ -628,6 +644,25 @@ fn load(path: &Path) -> Result<Loaded, EngineError> {
         reason,
     };
     let bytes = std::fs::read(path).map_err(|e| input_err(e.to_string()))?;
+    // The export has no limit of its own: the bytes of the file are the
+    // bytes of the source.
+    load_bytes(bytes, path, None)
+}
+
+/// Decodes and orients bytes, with optional decoder limits.
+///
+/// The export and the preview share this one loader, so a preview and the
+/// file the engine writes decode the same way. The limits are the
+/// preview's own; the export passes none.
+fn load_bytes(
+    bytes: Vec<u8>,
+    path: &Path,
+    limits: Option<image::Limits>,
+) -> Result<Loaded, EngineError> {
+    let input_err = |reason: String| EngineError::Input {
+        path: path.to_path_buf(),
+        reason,
+    };
     let reader = ImageReader::new(Cursor::new(bytes.as_slice()))
         .with_guessed_format()
         .map_err(|e| input_err(e.to_string()))?;
@@ -644,6 +679,11 @@ fn load(path: &Path) -> Result<Loaded, EngineError> {
     let mut decoder = reader
         .into_decoder()
         .map_err(|e| input_err(e.to_string()))?;
+    if let Some(limits) = limits {
+        decoder
+            .set_limits(limits)
+            .map_err(|e| input_err(e.to_string()))?;
+    }
     let orientation = decoder
         .orientation()
         .unwrap_or(image::metadata::Orientation::NoTransforms);

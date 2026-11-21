@@ -186,13 +186,26 @@ fn ac1_tool_names_map_from_engine_ids() {
 fn ac3_install_hint_table_names_tool_once_with_link_and_package() {
     let hints = install_hints();
     let tools: Vec<&str> = hints.iter().map(|h| h.tool).collect();
-    assert_eq!(tools, ["FFmpeg", "LibreOffice", "Ghostscript"]);
+    assert_eq!(
+        tools,
+        [
+            "FFmpeg",
+            "LibreOffice",
+            "Ghostscript",
+            "Poppler",
+            "qpdf",
+            "Tesseract"
+        ]
+    );
     for h in hints {
         assert!(h.url.starts_with("https://"), "{}", h.url);
         assert!(!h.package.is_empty());
         for lang in [Lang::En, Lang::Ar] {
             let msg = missing_engine_message(h.tool, lang);
-            assert_eq!(msg.matches(h.tool).count(), 1, "{lang:?}: {msg}");
+            // Count the tool in the heading, not inside its package or URL.
+            // qpdf legitimately appears in all three parts of its guidance.
+            let heading = msg.split(". ").next().unwrap_or(&msg);
+            assert_eq!(heading.matches(h.tool).count(), 1, "{lang:?}: {msg}");
             assert!(msg.contains(h.url), "{lang:?}: {msg}");
             assert!(msg.contains(h.package), "{lang:?}: {msg}");
         }

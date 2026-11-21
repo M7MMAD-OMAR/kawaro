@@ -89,6 +89,44 @@ pub enum Request {
     UpdateCheck,
     /// Install the verified update that is ready (S-054b).
     UpdateApply,
+    /// The jobs of this session, one bounded summary each (S-144-C). The
+    /// history is session memory: a job that left the ledger is unknown, and
+    /// nothing is read from disk.
+    Jobs,
+    /// The detail of one job (S-144-C): its units, their input paths, their
+    /// terminal state and their output. A job with no session record answers
+    /// `Unknown`, never a fabricated finished job.
+    JobResults {
+        job: u64,
+        /// The daemon instance the reference was taken from (S-148 AC3). It
+        /// is absent in a request of a client that names the daemon that
+        /// answers, and it is refused when it belongs to an earlier daemon
+        /// lifecycle, so a job number reused after a restart is never taken
+        /// for the current one.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        instance: Option<String>,
+    },
+    /// Submit a retry of a finished job (S-144-C). The daemon checks the
+    /// stored action, its options and the current inputs, then submits the
+    /// stored action through the normal queue path. A retry that is already
+    /// pending is refused, so a double trigger never starts two children.
+    RetryJob {
+        job: u64,
+        /// The daemon instance the reference was taken from (S-148 AC3).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        instance: Option<String>,
+    },
+    /// Forget the completed jobs of this session (S-144-C). Active jobs keep
+    /// running, no output file is touched, and nothing is replayed.
+    ClearJobResults,
+    /// Cancel one job of the queue (S-144-C). The queue already cancels a
+    /// single job; this is the explicit entry the CLI uses.
+    CancelJob {
+        job: u64,
+        /// The daemon instance the reference was taken from (S-148 AC3).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        instance: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -97,9 +135,40 @@ pub enum Response {
     Ok,
     /// The answer to `Version` (S-120): the daemon version and whether
     /// `Request::Run` accepts `params`.
+    ///
+    /// `job_results` (S-144-C) says the daemon answers the job results
+    /// commands. A field an older daemon does not send is absent and reads
+    /// as false, and a false value is not written, so the old reply keeps
+    /// its exact published shape.
+    ///
+    /// `instance` (S-148 AC3) is the identity of the daemon process. A
+    /// daemon older than this one does not send it, and it reads as absent.
     Version {
         version: String,
         run_params: bool,
+        #[serde(default, skip_serializing_if = "is_false")]
+        job_results: bool,
+        /// The identity of the daemon process (S-148 AC3). A client that
+        /// checks a job reference needs it, and an old daemon has none.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        instance: Option<String>,
+    },
+    /// The answer to `Jobs`: one bounded summary per job, the running ones
+    /// first, then the queued ones, then the finished ones.
+    Jobs {
+        jobs: Vec<crate::job_report::JobSummary>,
+        /// The identity of the daemon process (S-148 AC3), so a client can
+        /// keep the reference of a job it reads now.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        instance: Option<String>,
+    },
+    /// The answer to `JobResults`: the bounded detail of that job.
+    JobResults {
+        job: crate::job_report::JobDetail,
+    },
+    /// The answer to `RetryJob`: the new child job of the retry.
+    Retry {
+        job: u64,
     },
     Error {
         message: String,
@@ -142,7 +211,17 @@ pub struct ActionSummary {
     pub label: String,
 }
 
+/// The `skip_serializing_if` of the `job_results` capability: an older daemon
+/// never wrote the field, so a false value is not written either.
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 /// Serializable mirror of [`crate::queue::JobEvent`].
+///
+/// The wire shape is exactly what it was. The internal fields of the queue
+/// events (the manifest of a started job and the unit ordinal of a task)
+/// are dropped here and never reach the wire.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 pub enum Event {
@@ -189,6 +268,7 @@ impl From<crate::queue::JobEvent> for Event {
                 job,
                 action_id,
                 tasks,
+                ..
             } => Event::Started {
                 job,
                 action_id,
@@ -278,10 +358,12 @@ mod tests {
         let answer = Response::Version {
             version: String::from("0.5.0"),
             run_params: true,
+            job_results: true,
+            instance: None,
         };
         assert_eq!(
             serde_json::to_string(&answer).unwrap(),
-            r#"{"status":"version","version":"0.5.0","run_params":true}"#
+            r#"{"status":"version","version":"0.5.0","run_params":true,"job_results":true}"#
         );
         assert_eq!(
             serde_json::from_str::<Response>(
@@ -291,6 +373,145 @@ mod tests {
             Response::Version {
                 version: String::from("1"),
                 run_params: false,
+                job_results: false,
+                instance: None,
+            }
+        );
+    }
+
+    // S-144-C: an old daemon never wrote the capability, so its exact reply
+    // still parses, reads as false and is written back unchanged.
+    #[test]
+    fn s144c_an_old_version_reply_keeps_its_exact_shape() {
+        let old = r#"{"status":"version","version":"0.5.0","run_params":true}"#;
+        let answer: Response = serde_json::from_str(old).unwrap();
+        assert_eq!(
+            answer,
+            Response::Version {
+                version: String::from("0.5.0"),
+                run_params: true,
+                job_results: false,
+                instance: None,
+            }
+        );
+        assert_eq!(serde_json::to_string(&answer).unwrap(), old);
+    }
+
+    #[test]
+    fn s144c_the_job_results_requests_round_trip() {
+        let cases = [
+            (Request::Jobs, r#"{"cmd":"jobs"}"#),
+            (
+                Request::JobResults {
+                    job: 7,
+                    instance: None,
+                },
+                r#"{"cmd":"job-results","job":7}"#,
+            ),
+            (
+                Request::RetryJob {
+                    job: 7,
+                    instance: None,
+                },
+                r#"{"cmd":"retry-job","job":7}"#,
+            ),
+            (Request::ClearJobResults, r#"{"cmd":"clear-job-results"}"#),
+            (
+                Request::CancelJob {
+                    job: 7,
+                    instance: None,
+                },
+                r#"{"cmd":"cancel-job","job":7}"#,
+            ),
+        ];
+        for (request, line) in cases {
+            assert_eq!(serde_json::to_string(&request).unwrap(), line);
+            assert_eq!(serde_json::from_str::<Request>(line).unwrap(), request);
+        }
+    }
+
+    // S-148 AC3: a job reference may carry the daemon instance it was taken
+    // from. A request without one keeps the old wire line, and an old line
+    // without the field still parses.
+    #[test]
+    fn s148_a_job_request_carries_an_optional_instance() {
+        let cases = [
+            (
+                Request::JobResults {
+                    job: 7,
+                    instance: Some(String::from("k-1a-2b")),
+                },
+                r#"{"cmd":"job-results","job":7,"instance":"k-1a-2b"}"#,
+            ),
+            (
+                Request::RetryJob {
+                    job: 7,
+                    instance: Some(String::from("k-1a-2b")),
+                },
+                r#"{"cmd":"retry-job","job":7,"instance":"k-1a-2b"}"#,
+            ),
+            (
+                Request::CancelJob {
+                    job: 7,
+                    instance: Some(String::from("k-1a-2b")),
+                },
+                r#"{"cmd":"cancel-job","job":7,"instance":"k-1a-2b"}"#,
+            ),
+        ];
+        for (request, line) in cases {
+            assert_eq!(serde_json::to_string(&request).unwrap(), line);
+            assert_eq!(serde_json::from_str::<Request>(line).unwrap(), request);
+        }
+        // The lines of an older client, without the field, still parse and
+        // read as the current session of the daemon that answers.
+        let old = r#"{"cmd":"cancel-job","job":7}"#;
+        assert_eq!(
+            serde_json::from_str::<Request>(old).unwrap(),
+            Request::CancelJob {
+                job: 7,
+                instance: None,
+            }
+        );
+    }
+
+    // S-148 AC3: the answers of the daemon carry its instance, and an older
+    // answer without one still parses and reads as no instance.
+    #[test]
+    fn s148_the_answers_carry_the_daemon_instance() {
+        let answer = Response::Version {
+            version: String::from("0.5.0"),
+            run_params: true,
+            job_results: true,
+            instance: Some(String::from("k-1a-2b")),
+        };
+        assert_eq!(
+            serde_json::to_string(&answer).unwrap(),
+            r#"{"status":"version","version":"0.5.0","run_params":true,"job_results":true,"instance":"k-1a-2b"}"#
+        );
+        let old = r#"{"status":"version","version":"0.5.0","run_params":true,"job_results":true}"#;
+        assert_eq!(
+            serde_json::from_str::<Response>(old).unwrap(),
+            Response::Version {
+                version: String::from("0.5.0"),
+                run_params: true,
+                job_results: true,
+                instance: None,
+            }
+        );
+        let jobs = Response::Jobs {
+            jobs: Vec::new(),
+            instance: Some(String::from("k-1a-2b")),
+        };
+        assert_eq!(
+            serde_json::to_string(&jobs).unwrap(),
+            r#"{"status":"jobs","jobs":[],"instance":"k-1a-2b"}"#
+        );
+        let old = r#"{"status":"jobs","jobs":[]}"#;
+        assert_eq!(
+            serde_json::from_str::<Response>(old).unwrap(),
+            Response::Jobs {
+                jobs: Vec::new(),
+                instance: None,
             }
         );
     }

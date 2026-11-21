@@ -8,15 +8,23 @@
 //! scale the draft needs, a PNG is read row by row, an SVG is rendered at the
 //! target and the other formats decode their first frame.
 //!
-//! Nothing here runs on its own: there is no thread, timer or channel in this
-//! module until S-119 starts one after the first hive frame. Every failure
-//! (a corrupt file, an unsupported layout, a size over the cap) returns None,
-//! so a preview can never fail a job or block the UI.
+//! Nothing here runs on its own: this module holds the decoders and the
+//! newest-wins machine, not a thread. The production worker that runs them
+//! lives in `crate::preview_schedule` (S-142). Every failure (a corrupt
+//! file, an unsupported layout, a size over the cap) returns None, so a
+//! preview can never fail a job or block the UI.
+//!
+//! The newest-wins machine itself lives in `crate::preview_schedule`, because
+//! the production scheduler needs it on every platform. It is re-exported
+//! here under its old name, so `preview_worker::Generation` keeps working.
 
 use crate::preview;
 use slint::{Rgba8Pixel, SharedPixelBuffer};
 use std::io::Read;
 use std::path::Path;
+
+// S-142: the newest-wins machine, extended with the stamps and the hold.
+pub use crate::preview_schedule::{Generation, Next};
 
 /// Longest side of one draft, in pixels (the memory cap of AC4).
 pub const MAX_DRAFT_SIDE: u32 = 1000;
@@ -242,80 +250,4 @@ pub fn mask_hexagon(buffer: &mut SharedPixelBuffer<Rgba8Pixel>, circumradius: f3
         }
     }
     Some(())
-}
-
-/// What the worker should do next.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Next {
-    /// Render this generation now.
-    Render(u64),
-    /// Nothing to render until the next submit.
-    Idle,
-}
-
-/// The newest-wins state machine of one preview worker (S-118 AC5): one
-/// render in flight, at most one generation waiting, and a finished render is
-/// published only while it is still the newest.
-#[derive(Clone, Debug, Default)]
-pub struct Generation {
-    next: u64,
-    wanted: Option<u64>,
-    running: Option<u64>,
-    published: Option<u64>,
-}
-
-impl Generation {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// The generation being rendered now, if any.
-    pub fn running(&self) -> Option<u64> {
-        self.running
-    }
-
-    /// The generation waiting for the render in flight, if any.
-    pub fn wanted(&self) -> Option<u64> {
-        self.wanted
-    }
-
-    /// The last published generation, if any.
-    pub fn published(&self) -> Option<u64> {
-        self.published
-    }
-
-    /// A value changed: it becomes the newest generation, and it starts only
-    /// when nothing is in flight.
-    pub fn submit(&mut self) -> Next {
-        let id = self.next;
-        self.next += 1;
-        self.wanted = Some(id);
-        self.start()
-    }
-
-    /// The render in flight finished. Returns the generation that may be
-    /// published (only when it is still the newest) and what to render next.
-    pub fn finish(&mut self) -> (Option<u64>, Next) {
-        let Some(done) = self.running.take() else {
-            return (None, self.start());
-        };
-        let published = self.wanted.is_none().then_some(done);
-        if published.is_some() {
-            self.published = Some(done);
-        }
-        (published, self.start())
-    }
-
-    fn start(&mut self) -> Next {
-        if self.running.is_some() {
-            return Next::Idle;
-        }
-        match self.wanted.take() {
-            Some(id) => {
-                self.running = Some(id);
-                Next::Render(id)
-            }
-            None => Next::Idle,
-        }
-    }
 }

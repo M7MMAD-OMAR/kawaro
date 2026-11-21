@@ -1,6 +1,6 @@
 # S-146: Optional local image OCR
 
-Status: planned, implementation not started. Executable checks deferred by owner order.
+Status: source implemented and parent source-reviewed on 2026-11-21 (adapter, language preflight, probe cache, APNG refusal). Runtime and OCR quality unverified; executable checks deferred by owner order.
 Date: 2026-11-15.
 Spec: ../docs/specs/2026-11-15-next-features.md
 Implementation packet: ../docs/superpowers/plans/2026-11-15-next-features.md

@@ -3,7 +3,7 @@
 //! `invoke_from_event_loop`.
 
 use crate::notify;
-use crate::notify_logic::open_url_command;
+use crate::notify_logic::{open_folder_command, open_url_command};
 use crate::plan::{Choice, on_choice};
 use crate::portal::{self, TokenStep};
 use crate::server;
@@ -15,8 +15,10 @@ use kawaro_core::ActionDef;
 use kawaro_core::config::{Config, HOLD_MAX_DEFAULT, LangSetting, Theme};
 use kawaro_core::hold::{Effect, Gate, Hide, Outcome, Signal};
 use kawaro_core::i18n::Lang;
+use kawaro_core::image_preview::SharedPreviewProvider;
 use kawaro_core::paths::CURRENT;
 use kawaro_core::queue::Queue;
+use kawaro_ui::results_view::{RESULTS_PAGE, ResultsViewState};
 #[cfg(unix)]
 use kawaro_ui::thumb;
 use kawaro_ui::welcome::WelcomeWindow;
@@ -24,8 +26,15 @@ use kawaro_ui::{Hive, HiveCell, SettingsWindow};
 use std::cell::RefCell;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
+
+/// True while the Results page may be visible, so `jobs::pump` skips posting
+/// event-loop refreshes when the page is closed or inactive (S-144).
+static RESULTS_MAY_BE_VISIBLE: AtomicBool = AtomicBool::new(false);
+/// Coalesces bursts of job-pump events into one event-loop refresh (S-144).
+static RESULTS_REFRESH_QUEUED: AtomicBool = AtomicBool::new(false);
 
 thread_local! {
     static HIVE: RefCell<Option<Hive>> = const { RefCell::new(None) };
@@ -36,6 +45,8 @@ thread_local! {
     /// settings window.
     static WELCOME: RefCell<Option<WelcomeWindow>> = const { RefCell::new(None) };
     static WELCOME_ARGS: RefCell<Option<(Lang, Shared)>> = const { RefCell::new(None) };
+    /// Session results view controller on the event-loop thread (S-144).
+    static RESULTS_STATE: RefCell<ResultsViewState> = RefCell::new(ResultsViewState::new());
     /// The long press gate of `kawaro drop --hold` (S-019e AC17), on the
     /// event loop thread like the hive it shows.
     static GATE: RefCell<Option<Gate>> = const { RefCell::new(None) };
@@ -153,6 +164,16 @@ pub fn build(
 ) -> Result<(), slint::PlatformError> {
     apply_theme(theme);
     let hive = Hive::new(lang)?;
+    // S-142: the image engine is the provider of the panel preview. The
+    // hive owns the scheduler and its one worker; the daemon only hands
+    // over the engine side of the contract.
+    let provider: SharedPreviewProvider = Arc::new(kawaro_engines::image::ImageEngine::default());
+    hive.set_preview_provider(provider);
+    let preset_adapter = std::sync::Arc::new(crate::presets::UiPresetAdapter::new(
+        lock(state).presets.clone(),
+        state.clone(),
+    ));
+    hive.set_preset_service(preset_adapter);
     #[cfg(unix)]
     {
         let (thumbnails, globs) = preview_source();
@@ -209,6 +230,7 @@ pub fn build(
     // open builds one with the new settings.
     SETTINGS_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone(), queue.clone())));
     // The welcome window follows the same rule (S-087).
+    RESULTS_MAY_BE_VISIBLE.store(false, Ordering::Release);
     WELCOME.with(|w| *w.borrow_mut() = None);
     WELCOME_ARGS.with(|a| *a.borrow_mut() = Some((lang, state.clone())));
     Ok(())
@@ -233,44 +255,72 @@ fn wire_options(hive: &Hive, state: &Shared, queue: &Arc<Queue>) {
         // highlighted action, in the same window and with the current files.
         let state = state.clone();
         hive.on_customize(move |id| {
-            let (action, files, cells, lang) = {
+            let (action, configured, files, cells, lang) = {
                 let st = lock(&state);
                 let files = st.pending.clone().unwrap_or_default();
-                let Some(action) = st.registry.get(&id).cloned() else {
+                let Some(registered) = st.registry.get(&id).cloned() else {
                     return;
                 };
+                let configured = st.configured(registered.clone());
                 let cells: Vec<HiveCell> = st
                     .matching(&files)
                     .iter()
                     .map(|a| cell(a, st.lang))
                     .collect();
-                (action, files, cells, st.lang)
+                (registered, configured, files, cells, st.lang)
             };
             let Some(panel) =
-                kawaro_ui::stage_two::StageTwoState::build(&action, &files, lang, lang.rtl())
+                kawaro_ui::stage_two::StageTwoState::build(&configured, &files, lang, lang.rtl())
             else {
                 return;
             };
+            let panel = std::rc::Rc::new(panel);
             HIVE.with(|h| {
-                if let Some(hive) = h.borrow().as_ref()
-                    && let Err(e) = hive.present_options(cells, std::rc::Rc::new(panel))
-                {
+                let guard = h.borrow();
+                let Some(hive) = guard.as_ref() else {
+                    return;
+                };
+                let adapter = std::sync::Arc::new(crate::presets::UiPresetAdapter::new(
+                    lock(&state).presets.clone(),
+                    state.clone(),
+                ));
+                hive.set_preset_service(adapter);
+                if let Err(e) = hive.present_options(cells, panel.clone()) {
                     eprintln!("kawarod: cannot show the options: {e}");
+                    return;
                 }
+                let (session, generation) = hive.stage_stamp();
+                panel.attach_preset_service(
+                    std::sync::Arc::new(crate::presets::UiPresetAdapter::new(
+                        lock(&state).presets.clone(),
+                        state.clone(),
+                    )),
+                    session,
+                    generation,
+                );
+                let _ = action.id.as_str();
             });
         });
     }
     {
-        // The panel's Run: the resolved params replace the action params for
-        // this one job, through the same submit path a click uses.
+        // The panel's Run: validate the explicit form params against the
+        // current configured registry action, then submit that resolved
+        // action. The settings are not applied again, so global quality
+        // cannot overwrite an explicit choice.
         let (state, queue) = (state.clone(), queue.clone());
         hive.on_options_run(move |id, params| {
-            let mut st = lock(&state);
-            let files = st.pending.take().unwrap_or_default();
-            let Some(action) = st.registry.get(&id).cloned() else {
-                return;
+            let (configured, files, label) = {
+                let st = lock(&state);
+                let Some(registered) = st.registry.get(&id).cloned() else {
+                    eprintln!("kawarod: action `{id}` is no longer registered");
+                    return;
+                };
+                let configured = st.configured(registered);
+                let files = st.pending.clone().unwrap_or_default();
+                let label = configured.label.get(st.lang).to_string();
+                (configured, files, label)
             };
-            let action = match action.with_params(&params) {
+            let resolved = match configured.with_params(&params) {
                 Ok(action) => action,
                 Err(e) => {
                     eprintln!("kawarod: options for `{id}`: {e}");
@@ -280,7 +330,19 @@ fn wire_options(hive: &Hive, state: &Shared, queue: &Arc<Queue>) {
             if files.is_empty() {
                 return;
             }
-            jobs::submit(&mut st, &queue, action, files);
+            let mut st = lock(&state);
+            if st.pending.as_ref() != Some(&files) {
+                eprintln!("kawarod: selection changed since Customize; Run refused");
+                return;
+            }
+            let registered = st.registry.get(&id).cloned();
+            let current = registered.as_ref().map(|a| st.configured(a.clone()));
+            if current.as_ref() != Some(&configured) {
+                eprintln!("kawarod: action configuration changed; reopen Customize");
+                return;
+            }
+            st.pending = None;
+            jobs::submit_resolved(&mut st, &queue, resolved, files, label);
             drop(st);
             gate_hive_closed();
         });
@@ -764,6 +826,83 @@ pub fn about(state: &Shared) {
     open_settings_updates(config, None);
 }
 
+/// Opens the settings window directly on the Results page (S-144).
+pub fn open_settings_results(config: Config) {
+    show_settings(config, Some(RESULTS_PAGE), None, None);
+}
+
+/// The tray's Results item: opens the Results page through the existing
+/// `show_settings` / `apply_settings_focus` path (S-144).
+pub fn results(state: &Shared) {
+    let config = lock(state).config.clone();
+    open_settings_results(config);
+}
+
+/// Refreshes the Results page on the event loop only while it is visible.
+/// Called from the job pump in `jobs.rs` (S-144).
+pub fn notify_results_changed(state: &Shared) {
+    if !RESULTS_MAY_BE_VISIBLE.load(Ordering::Acquire) {
+        return;
+    }
+    if RESULTS_REFRESH_QUEUED.swap(true, Ordering::AcqRel) {
+        return;
+    }
+    let state = state.clone();
+    if slint::invoke_from_event_loop(move || {
+        RESULTS_REFRESH_QUEUED.store(false, Ordering::Release);
+        refresh_results_if_visible(&state);
+    })
+    .is_err()
+    {
+        RESULTS_REFRESH_QUEUED.store(false, Ordering::Release);
+    }
+}
+
+/// Builds the platform folder-reveal command for a recorded output file's
+/// parent directory (S-144). Returns `None` when the file or its parent
+/// directory no longer exists; never executes the file and never opens a URL.
+pub(crate) fn reveal_output_command(path: &Path) -> Option<(String, Vec<String>)> {
+    if !path.is_file() {
+        return None;
+    }
+    let dir = path.parent().filter(|d| d.is_dir())?;
+    Some(open_folder_command(CURRENT, dir, Some(path)))
+}
+
+fn refresh_results_on(win: &WelcomeWindow, state: &Shared) {
+    let (details, pending, lang) = {
+        let st = lock(state);
+        jobs::results_snapshot(&st)
+    };
+    let model = RESULTS_STATE.with(|rs| {
+        let mut rs = rs.borrow_mut();
+        rs.update(details, pending);
+        rs.view_fs(lang)
+    });
+    win.set_results(&model);
+}
+
+fn refresh_results_now(state: &Shared) {
+    WELCOME.with(|slot| {
+        if let Some(win) = slot.borrow().as_ref() {
+            refresh_results_on(win, state);
+        }
+    });
+}
+
+fn refresh_results_if_visible(state: &Shared) {
+    let visible = WELCOME.with(|slot| {
+        slot.borrow()
+            .as_ref()
+            .is_some_and(WelcomeWindow::results_visible)
+    });
+    if !visible {
+        RESULTS_MAY_BE_VISIBLE.store(false, Ordering::Release);
+        return;
+    }
+    refresh_results_now(state);
+}
+
 /// The real settings window behind the pure focus plan (S-131): it owns the
 /// values one request applies, so \`raise\` updates the visible window in place
 /// while \`build\` creates the fresh one.
@@ -778,6 +917,14 @@ impl SettingsSeam {
     fn apply_page_and_result(&self, win: &WelcomeWindow) {
         if let Some(page) = self.page {
             win.show_settings_page(page);
+            if page == RESULTS_PAGE {
+                RESULTS_MAY_BE_VISIBLE.store(true, Ordering::Release);
+                if let Some(state) =
+                    WELCOME_ARGS.with(|a| a.borrow().as_ref().map(|(_, s)| s.clone()))
+                {
+                    refresh_results_on(win, &state);
+                }
+            }
         }
         if let Some(result) = &self.result {
             // Failed: the plain failed line (retry hint), never "up to date".
@@ -793,6 +940,7 @@ impl SettingsSeam {
 
 impl SettingsWindowSeam for SettingsSeam {
     fn hide_and_close(&mut self) {
+        RESULTS_MAY_BE_VISIBLE.store(false, Ordering::Release);
         WELCOME.with(|slot| {
             if let Some(win) = slot.borrow_mut().take() {
                 win.close();
@@ -1204,7 +1352,74 @@ fn welcome_window() -> Result<(), slint::PlatformError> {
     let win = WelcomeWindow::new(lang)?;
     wire_about_welcome(&win, system_opener());
     if let Some((_, settings_state, queue)) = SETTINGS_ARGS.with(|a| a.borrow().clone()) {
-        win.on_settings_save(move |config| save_settings(config, &settings_state, &queue));
+        let (save_state, save_queue) = (settings_state.clone(), queue.clone());
+        win.on_settings_save(move |config| save_settings(config, &save_state, &save_queue));
+        let (retry_state, retry_queue) = (settings_state.clone(), queue.clone());
+        win.on_results_retry(move |job| {
+            let accepted = RESULTS_STATE.with(|rs| rs.borrow_mut().begin_retry(job));
+            if !accepted {
+                return;
+            }
+            let result = {
+                let mut st = lock(&retry_state);
+                jobs::retry(&mut st, &retry_queue, job)
+            };
+            if let Err(refusal) = result {
+                eprintln!("kawarod: retry job {job} refused: {refusal}");
+                RESULTS_STATE.with(|rs| rs.borrow_mut().finish_retry_refusal(job));
+            }
+            refresh_results_now(&retry_state);
+        });
+        let (cancel_state, cancel_queue) = (settings_state, queue);
+        win.on_results_cancel(move |job| {
+            jobs::cancel_job(&cancel_queue, job);
+            refresh_results_now(&cancel_state);
+        });
+    }
+    {
+        let state = state.clone();
+        win.on_results_clear(move || {
+            {
+                let mut st = lock(&state);
+                jobs::clear_completed(&mut st);
+            }
+            RESULTS_STATE.with(|rs| rs.borrow_mut().clear_completed_local());
+            refresh_results_now(&state);
+        });
+    }
+    {
+        let state = state.clone();
+        win.on_results_toggle_expanded(move |job| {
+            let lang = lock(&state).lang;
+            let model = RESULTS_STATE.with(|rs| {
+                let mut rs = rs.borrow_mut();
+                rs.toggle_expanded(job);
+                rs.view_fs(lang)
+            });
+            WELCOME.with(|slot| {
+                if let Some(win) = slot.borrow().as_ref() {
+                    win.set_results(&model);
+                }
+            });
+        });
+    }
+    {
+        let state = state.clone();
+        win.on_results_show_in_folder(move |job, unit| {
+            let path =
+                RESULTS_STATE.with(|rs| rs.borrow().output_for_folder(job, unit, &|p| p.is_file()));
+            match path.as_deref().and_then(reveal_output_command) {
+                Some((program, args)) => notify::open_folder(program, args),
+                None => refresh_results_now(&state),
+            }
+        });
+    }
+    {
+        let state = state.clone();
+        win.on_results_shown(move || {
+            RESULTS_MAY_BE_VISIBLE.store(true, Ordering::Release);
+            refresh_results_now(&state);
+        });
     }
     {
         win.on_update_check(|| update_round_trip(kawaro_core::ipc::Request::UpdateCheck, false));
@@ -1422,6 +1637,27 @@ mod tests {
                 None => std::env::remove_var(VAR),
             }
         }
+    }
+
+    #[test]
+    fn s144_tray_results_opens_the_results_page_and_reveal_checks_existence() {
+        let state: Shared = Arc::new(std::sync::Mutex::new(crate::state::State::new(
+            Config::default(),
+            &[],
+        )));
+        let before = settings_opens();
+        results(&state);
+        assert_eq!(settings_opens(), before + 1);
+        assert_eq!(last_settings_page(), Some(RESULTS_PAGE));
+
+        let dir = tempfile::tempdir().unwrap();
+        let present = dir.path().join("out.webp");
+        let missing = dir.path().join("gone.webp");
+        std::fs::write(&present, b"webp").unwrap();
+        assert_eq!(reveal_output_command(&missing), None);
+        let (program, args) = reveal_output_command(&present).expect("existing output reveals");
+        let expected = open_folder_command(CURRENT, dir.path(), Some(&present));
+        assert_eq!((program, args), expected);
     }
 }
 

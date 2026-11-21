@@ -154,6 +154,7 @@ fn ac3_menu_order_and_labels_in_english_with_jobs() {
             action(Command::About, text::about(Lang::En), true),
             action(Command::CancelAll, text::cancel_all(Lang::En), true),
             action(Command::Settings, text::settings(Lang::En), true),
+            action(Command::Results, text::results(Lang::En), true),
             Item::Separator,
             action(Command::Quit, text::quit(Lang::En), true),
         ]
@@ -163,7 +164,7 @@ fn ac3_menu_order_and_labels_in_english_with_jobs() {
 #[test]
 fn ac3_cancel_all_is_disabled_without_jobs() {
     let m = menu(Lang::En, 0, false);
-    assert_eq!(m.len(), 7);
+    assert_eq!(m.len(), 8);
     assert_eq!(m[0], action(Command::UpdateNow, "Update now", false));
     assert_eq!(
         m[1],
@@ -178,8 +179,12 @@ fn ac3_cancel_all_is_disabled_without_jobs() {
         m[4],
         action(Command::Settings, text::settings(Lang::En), true)
     );
-    assert_eq!(m[5], Item::Separator);
-    assert_eq!(m[6], action(Command::Quit, text::quit(Lang::En), true));
+    assert_eq!(
+        m[5],
+        action(Command::Results, text::results(Lang::En), true)
+    );
+    assert_eq!(m[6], Item::Separator);
+    assert_eq!(m[7], action(Command::Quit, text::quit(Lang::En), true));
 }
 
 #[test]
@@ -201,6 +206,7 @@ fn ac3_arabic_labels() {
             action(Command::About, text::about(Lang::Ar), true),
             action(Command::CancelAll, text::cancel_all(Lang::Ar), true),
             action(Command::Settings, text::settings(Lang::Ar), true),
+            action(Command::Results, text::results(Lang::Ar), true),
             Item::Separator,
             action(Command::Quit, text::quit(Lang::Ar), true),
         ]
@@ -218,8 +224,8 @@ fn s054b_update_now_is_first_and_enabled_only_when_an_update_is_ready() {
             let on = menu(lang, jobs, true);
             assert_eq!(off[0], action(Command::UpdateNow, label, false));
             assert_eq!(on[0], action(Command::UpdateNow, label, true));
-            // S-087 D7 and S-099b B7: Get started and About.
-            assert_eq!(off.len(), 7);
+            // S-087 D7, S-099b B7 and S-144: Get started, About and Results.
+            assert_eq!(off.len(), 8);
             // Nothing else depends on the update.
             assert_eq!(off[1..], on[1..]);
         }

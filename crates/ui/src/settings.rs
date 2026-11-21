@@ -12,6 +12,7 @@
 //! are the only place that knows the order.
 
 use crate::Lang;
+use crate::results_view::{RESULTS_PAGE, ResultsViewModel};
 use crate::shell::{privacy_statement, remember_page, remembered_page};
 use crate::updates::{POLL_TICK, UpdateModel, UpdateState, about_line, clock_ms};
 use kawaro_core::config::{
@@ -21,13 +22,17 @@ use kawaro_core::update::Channel;
 use kawaro_core::update::manifest::Notes;
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 use std::cell::{Cell, RefCell};
+use std::collections::HashSet;
 use std::rc::{Rc, Weak};
 
 pub(crate) mod generated {
     include!(concat!(env!("OUT_DIR"), "/settings_ui.rs"));
 }
 
-use generated::{FormValues, Palette, SettingsText, SettingsUi, UpdateCard};
+use generated::{
+    FormValues, Palette, ResultJobItem, ResultUnitItem, ResultsPageText, SettingsText, SettingsUi,
+    UpdateCard,
+};
 
 /// Options in reading order, as shown to an English reader from left to right.
 pub(crate) const LANGUAGES: [LangSetting; 3] =
@@ -172,6 +177,7 @@ macro_rules! convert_text {
             nav_conversion: t.nav_conversion,
             nav_notifications: t.nav_notifications,
             nav_about: t.nav_about,
+            nav_results: t.nav_results,
             group_language: t.group_language,
             group_results: t.group_results,
             group_finish: t.group_finish,
@@ -297,6 +303,7 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 nav_conversion: "التحويل".into(),
                 nav_notifications: "الإشعارات والتكامل".into(),
                 nav_about: "حول".into(),
+                nav_results: crate::results_view::strings(Lang::Ar).page_title.into(),
                 group_language: "اللغة والمظهر".into(),
                 group_results: "النتائج".into(),
                 group_finish: "عند انتهاء المهمة".into(),
@@ -353,6 +360,7 @@ pub(crate) fn strings(lang: Lang) -> Strings {
                 nav_conversion: "Conversion".into(),
                 nav_notifications: "Notifications and integration".into(),
                 nav_about: "About".into(),
+                nav_results: crate::results_view::strings(Lang::En).page_title.into(),
                 group_language: "Language and appearance".into(),
                 group_results: "Results".into(),
                 group_finish: "When a job finishes".into(),
@@ -414,6 +422,8 @@ struct Inner {
     on_update_check: RefCell<Option<Callback>>,
     on_update_apply: RefCell<Option<Callback>>,
     pub(crate) about: crate::shell::AboutHandlers,
+    results: RefCell<ResultsViewModel>,
+    pub(crate) results_handlers: crate::shell::ResultsHandlers,
     /// Fires `poll_tick` while the window is open.
     timer: slint::Timer,
     /// The complete [`Config`] the window was opened with. `hive_surface`
@@ -443,8 +453,29 @@ impl Inner {
         ui.on_open_link(move |id| with(&w, |i| i.about.open_link(&id)));
         let w = Rc::downgrade(self);
         ui.on_copy_version(move || with(&w, |i| i.about.copy_version()));
+        let w = Rc::downgrade(self);
+        ui.on_results_retry(move |job| with(&w, |i| i.results_handlers.retry(&job)));
+        let w = Rc::downgrade(self);
+        ui.on_results_cancel(move |job| with(&w, |i| i.results_handlers.cancel(&job)));
+        let w = Rc::downgrade(self);
+        ui.on_results_clear(move || with(&w, |i| i.results_handlers.clear()));
+        let w = Rc::downgrade(self);
+        ui.on_results_show_in_folder(move |job, unit| {
+            with(&w, |i| i.results_handlers.show_in_folder(&job, &unit))
+        });
+        let w = Rc::downgrade(self);
+        ui.on_results_toggle_expanded(move |job| {
+            with(&w, |i| i.results_handlers.toggle_expanded(&job))
+        });
         // The page the user picked is remembered while the process runs.
-        ui.on_page_changed(|page| remember_page(usize::try_from(page).unwrap_or(0)));
+        let w = Rc::downgrade(self);
+        ui.on_page_changed(move |page| {
+            let p = usize::try_from(page).unwrap_or(0);
+            remember_page(p);
+            if p == RESULTS_PAGE {
+                with(&w, |i| i.results_handlers.shown());
+            }
+        });
         let w = Rc::downgrade(self);
         ui.window().on_close_requested(move || {
             with(&w, Inner::close);
@@ -468,6 +499,24 @@ impl Inner {
         ui.set_update_channel_items(list(&s.channels));
         ui.set_update_mode_items(list(&s.modes));
         self.show_update(ui, lang);
+        {
+            let mut r = self.results.borrow_mut();
+            if r.lang != lang {
+                r.lang = lang;
+                r.rtl = rtl;
+                r.strings = crate::results_view::strings(lang);
+            }
+        }
+        self.show_results(ui);
+    }
+
+    fn show_results(&self, ui: &SettingsUi) {
+        let model = self.results.borrow();
+        let (text, jobs, can_clear) =
+            crate::shell::results_slint!(ResultsPageText, ResultJobItem, ResultUnitItem, &model);
+        ui.set_results_text(text);
+        ui.set_results_jobs(jobs);
+        ui.set_results_can_clear(can_clear);
     }
 
     fn show_update(&self, ui: &SettingsUi, lang: Lang) {
@@ -650,6 +699,14 @@ impl SettingsWindow {
             on_update_check: RefCell::new(None),
             on_update_apply: RefCell::new(None),
             about: Default::default(),
+            results: RefCell::new(ResultsViewModel::build(
+                &[],
+                &HashSet::new(),
+                &HashSet::new(),
+                lang,
+                &|_| false,
+            )),
+            results_handlers: Default::default(),
             timer: slint::Timer::default(),
             opened: RefCell::new(Config::default()),
         });
@@ -662,6 +719,15 @@ impl SettingsWindow {
     /// window. A fresh window is built on every call, so a theme saved as
     /// automatic follows the system again after a forced light or dark one.
     pub fn open(&self, config: &Config) -> Result<(), slint::PlatformError> {
+        self.open_at(config, remembered_page())
+    }
+
+    /// Opens the settings window directly on the Results page (S-144).
+    pub fn open_results(&self, config: &Config) -> Result<(), slint::PlatformError> {
+        self.open_at(config, RESULTS_PAGE)
+    }
+
+    fn open_at(&self, config: &Config, page: usize) -> Result<(), slint::PlatformError> {
         let inner = &self.inner;
         inner.close();
         inner.update.borrow_mut().reset_view();
@@ -675,7 +741,7 @@ impl SettingsWindow {
         if let Some(scheme) = forced_scheme(env.as_deref(), config.theme) {
             ui.global::<Palette>().set_color_scheme(scheme);
         }
-        ui.set_page(i32::try_from(remembered_page()).unwrap_or(0));
+        ui.set_page(i32::try_from(page).unwrap_or(0));
         ui.set_shortcut_text(config.shortcut.as_str().into());
         *inner.ui.borrow_mut() = ui;
         *inner.opened.borrow_mut() = config.clone();
@@ -689,6 +755,26 @@ impl SettingsWindow {
                 with(&w, |i| i.poll_tick(clock_ms()));
             });
         inner.ui.borrow().show()
+    }
+
+    /// Updates the Results page with a fresh view model snapshot (S-144).
+    pub fn set_results(&self, model: &ResultsViewModel) {
+        *self.inner.results.borrow_mut() = model.clone();
+        self.inner.show_results(&self.inner.ui.borrow());
+    }
+
+    /// True while the window is visible and showing the Results page (S-144).
+    pub fn results_visible(&self) -> bool {
+        self.inner.visible()
+            && self.inner.ui.borrow().get_page() == i32::try_from(RESULTS_PAGE).unwrap_or(5)
+    }
+
+    /// Switches the already open window to the Results page (S-144).
+    pub fn show_results(&self) {
+        self.inner
+            .ui
+            .borrow()
+            .set_page(i32::try_from(RESULTS_PAGE).unwrap_or(5));
     }
 
     /// Whether the window is currently shown (S-086 AC2): an open window is
@@ -929,6 +1015,7 @@ impl SettingsWindow {
 }
 
 crate::shell::about_api!(SettingsWindow);
+crate::shell::results_api!(SettingsWindow);
 
 #[cfg(feature = "testing-hooks")]
 impl SettingsWindow {

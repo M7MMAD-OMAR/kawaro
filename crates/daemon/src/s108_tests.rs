@@ -27,12 +27,14 @@
 //! - `notify_logic::open_url_command(Os, &str) -> (String, Vec<String>)`.
 
 use crate::notify_logic::{Os, open_url_command};
-use crate::plan::{Choice, choice, on_choice, plan};
+use crate::plan::{Choice, choice, on_choice, plan, plan_with_reports};
 use crate::state::State;
+use kawaro_core::Registry;
 use kawaro_core::config::Config;
 use kawaro_core::i18n::Lang;
 use kawaro_core::unsupported::{
-    centre_text, missing_engine_message, more_label, request_hover, request_label, request_url,
+    CapabilityReport, Outcome, ProbeOutcome, UnavailableReason, centre_text,
+    missing_engine_message, more_label, reason_message, request_hover, request_label, request_url,
     skipped_label, unsupported_message,
 };
 use kawaro_ui::HiveCell;
@@ -110,7 +112,9 @@ fn ac1_plan_gives_centre_and_message_as_two_values_in_arabic() {
 #[test]
 fn ac1_a_supported_plan_has_no_message() {
     let st = state(Lang::En, &ENGINES);
-    let (_, p) = planned(&st, &["a.png", "b.png"]);
+    // WebP skips `image.to-text` (engine `ocr`), so every matching action is
+    // runnable under `ENGINES` and the centre message stays empty.
+    let (_, p) = planned(&st, &["a.webp", "b.webp"]);
     assert_eq!(p.message, "");
     assert!(!p.cells.is_empty());
 }
@@ -370,4 +374,152 @@ fn ac10_plan_for_1000_paths_takes_20_ms_or_less() {
     let took = start.elapsed();
     assert!(!p.cells.is_empty());
     assert!(took.as_millis() <= 20, "{took:?}");
+}
+
+// S-145: unavailable-action explanations on the hive surface
+
+#[test]
+fn s145_partial_unavailable_actions_show_centre_hint_without_extra_cells() {
+    // 1 unavailable matching action (`image.to-text` when `ocr` is absent).
+    let st_one = state(Lang::En, &ENGINES);
+    let (_, p_one) = planned(&st_one, &["a.png", "b.png"]);
+    assert_eq!(
+        p_one.message,
+        "1 more action needs setup, see kawaro doctor"
+    );
+    assert!(!p_one.cells.iter().any(|c| c.id == "image.to-text"));
+    assert_eq!(p_one.pending, Some(paths(&["a.png", "b.png"])));
+
+    // 2 unavailable matching actions (`ghostscript` absent for PDF).
+    let st_two_en = state(Lang::En, &["pdf", "poppler", "qpdf"]);
+    let (_, p_two_en) = planned(&st_two_en, &["a.pdf"]);
+    assert_eq!(
+        p_two_en.message,
+        "2 more actions need setup, see kawaro doctor"
+    );
+    assert!(real(&p_two_en.cells).iter().all(|c| c.enabled));
+
+    let st_two_ar = state(Lang::Ar, &["pdf", "poppler", "qpdf"]);
+    let (_, p_two_ar) = planned(&st_two_ar, &["a.pdf"]);
+    assert_eq!(
+        p_two_ar.message,
+        "إجراءان آخران يحتاجان إعداداً، راجع kawaro doctor"
+    );
+
+    // 4 unavailable matching actions (`poppler` + `qpdf` absent for PDF).
+    let st_four_ar = state(Lang::Ar, &["pdf", "ghostscript"]);
+    let (_, p_four_ar) = planned(&st_four_ar, &["a.pdf"]);
+    assert_eq!(
+        p_four_ar.message,
+        "4 إجراءات أخرى تحتاج إعداداً، راجع kawaro doctor"
+    );
+    assert!(!p_four_ar.cells.iter().any(|c| c.id == "pdf.to-text"));
+    assert!(!p_four_ar.cells.iter().any(|c| c.id == "pdf.linearize"));
+    assert_eq!(p_four_ar.pending, Some(paths(&["a.pdf"])));
+}
+
+#[test]
+fn s145_zero_runnable_actions_report_typed_reasons_and_cached_ocr_probe() {
+    let dir = tempfile::tempdir().unwrap();
+    let fake_tesseract = dir.path().join("tesseract");
+    std::fs::write(&fake_tesseract, b"").unwrap();
+
+    let mut reg = Registry::default();
+    reg.add_toml(
+        "ocr-only.toml",
+        r#"
+[[action]]
+id = "ocr.only"
+engine = "ocr"
+op = "to-text"
+ring = 1
+accepts = ["image"]
+output = { mode = "per-file", ext = "txt" }
+code = { ar = "نص", en = "TEXT" }
+label = { ar = "استخراج النص", en = "Extract text" }
+[action.params]
+lang = "ara+eng"
+"#,
+    )
+    .unwrap();
+
+    let mut st = state(Lang::En, &["ocr"]);
+    st.registry = reg;
+    st.ocr = kawaro_engines::ocr::OcrEngine::with_program(&fake_tesseract);
+
+    // Installed Tesseract missing `ara` reports MissingLanguageData, not MissingExecutable.
+    st.probe_cache.insert(
+        fake_tesseract.clone(),
+        ProbeOutcome::Ready {
+            items: vec!["eng".to_string()],
+        },
+    );
+    let (_, missing_lang_en) = planned(&st, &["a.png"]);
+    assert_eq!(missing_lang_en.pending, None);
+    assert!(real(&missing_lang_en.cells).is_empty());
+    assert_eq!(
+        missing_lang_en.message,
+        reason_message(
+            &UnavailableReason::MissingLanguageData {
+                language: "ara".to_string()
+            },
+            Lang::En
+        )
+    );
+
+    st.lang = Lang::Ar;
+    let (_, missing_lang_ar) = planned(&st, &["a.png"]);
+    assert_eq!(
+        missing_lang_ar.message,
+        reason_message(
+            &UnavailableReason::MissingLanguageData {
+                language: "ara".to_string()
+            },
+            Lang::Ar
+        )
+    );
+
+    // Hung/unhealthy probe reports ProbeUnknown, never runnable.
+    st.lang = Lang::En;
+    st.probe_cache
+        .insert(fake_tesseract.clone(), ProbeOutcome::Unknown);
+    let (_, unknown) = planned(&st, &["a.png"]);
+    assert_eq!(unknown.pending, None);
+    assert!(real(&unknown.cells).is_empty());
+    assert_eq!(
+        unknown.message,
+        reason_message(&UnavailableReason::ProbeUnknown, Lang::En)
+    );
+
+    // Policy-disabled report uses DisabledByPolicy, distinct from missing software.
+    let policy_files = paths(&["a.png"]);
+    let policy_reports = vec![CapabilityReport {
+        action_id: "ocr.only".to_string(),
+        runnable: false,
+        reason: Some(UnavailableReason::DisabledByPolicy),
+        help_id: None,
+    }];
+    let policy_plan = plan_with_reports(&Outcome::Supported, &policy_files, &st, &policy_reports);
+    assert_eq!(policy_plan.pending, None);
+    assert!(real(&policy_plan.cells).is_empty());
+    assert_eq!(
+        policy_plan.message,
+        reason_message(&UnavailableReason::DisabledByPolicy, Lang::En)
+    );
+
+    // When both `ara` and `eng` are ready, the single OCR action becomes runnable.
+    st.probe_cache.insert(
+        fake_tesseract.clone(),
+        ProbeOutcome::Ready {
+            items: vec!["ara".to_string(), "eng".to_string()],
+        },
+    );
+    let (_, ready) = planned(&st, &["a.png"]);
+    assert_eq!(ready.pending, Some(paths(&["a.png"])));
+    assert_eq!(real(&ready.cells).len(), 1);
+    assert_eq!(ready.message, "");
+
+    // Reload invalidates the cached probe entries.
+    st.reload();
+    assert_eq!(st.probe_cache.get(&fake_tesseract), None);
 }

@@ -1,6 +1,6 @@
 # S-143: Named user presets
 
-Status: planned, implementation not started. Executable checks deferred by owner order.
+Status: store, daemon worker and panel UI wiring source implemented; parent source-reviewed on 2026-11-21. Runtime, visual and restart checks unverified; executable checks deferred by owner order.
 Date: 2026-11-15.
 Spec: ../docs/specs/2026-11-15-next-features.md
 Implementation packet: ../docs/superpowers/plans/2026-11-15-next-features.md

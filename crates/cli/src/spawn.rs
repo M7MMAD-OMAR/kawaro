@@ -293,6 +293,29 @@ mod tests {
             (Request::Reload, false),
             (Request::UpdateCheck, false),
             (Request::UpdateApply, false),
+            (Request::Jobs, false),
+            (
+                Request::JobResults {
+                    job: 1,
+                    instance: None,
+                },
+                false,
+            ),
+            (
+                Request::RetryJob {
+                    job: 1,
+                    instance: None,
+                },
+                false,
+            ),
+            (Request::ClearJobResults, false),
+            (
+                Request::CancelJob {
+                    job: 1,
+                    instance: None,
+                },
+                false,
+            ),
             (Request::Quit, false),
         ];
         // No wildcard: a new Request variant must be added to this list.
@@ -312,6 +335,11 @@ mod tests {
                 | Request::Reload
                 | Request::UpdateCheck
                 | Request::UpdateApply
+                | Request::Jobs
+                | Request::JobResults { .. }
+                | Request::RetryJob { .. }
+                | Request::ClearJobResults
+                | Request::CancelJob { .. }
                 | Request::Quit => {}
             }
         }
@@ -321,7 +349,7 @@ mod tests {
     #[test]
     fn ac5_window_requests_grant_the_server_pid_and_nothing_else_does() {
         let reqs = every_request();
-        assert_eq!(reqs.len(), 16);
+        assert_eq!(reqs.len(), 21);
         for (req, grants) in reqs {
             let want = if grants { Some(42) } else { None };
             assert_eq!(foreground_grant(&req, Some(42)), want, "{req:?}");

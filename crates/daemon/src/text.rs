@@ -120,6 +120,14 @@ pub fn settings(lang: Lang) -> &'static str {
     }
 }
 
+/// The tray item that opens the quiet session Results page (S-144).
+pub fn results(lang: Lang) -> &'static str {
+    match lang {
+        Lang::Ar => "النتائج",
+        Lang::En => "Results",
+    }
+}
+
 /// The tray item that opens the first-run welcome window again (S-087 AC1),
 /// at any time and regardless of the marker.
 pub fn get_started(lang: Lang) -> &'static str {
@@ -208,12 +216,21 @@ pub fn update_manual(lang: Lang, how: &str) -> String {
 
 /// The tray menu labels in order. The first is always the update entry;
 /// `update_item_enabled` says whether it can be chosen. S-087 D7: the
-/// second is the Get started item and S-099 B7 adds About third.
+/// second is the Get started item, S-099 B7 adds About third, and S-144 adds
+/// Results after Settings.
 pub fn menu_labels(lang: Lang, _update: &UpdateState) -> Vec<String> {
-    [update_now, get_started, about, cancel_all, settings, quit]
-        .iter()
-        .map(|label| label(lang).to_string())
-        .collect()
+    [
+        update_now,
+        get_started,
+        about,
+        cancel_all,
+        settings,
+        results,
+        quit,
+    ]
+    .iter()
+    .map(|label| label(lang).to_string())
+    .collect()
 }
 
 /// The update entry is enabled only when a verified package is ready.

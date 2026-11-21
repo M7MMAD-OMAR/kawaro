@@ -4,6 +4,18 @@ All notable changes. Format: one line per finished story, newest first under eac
 
 ## [Unreleased]
 
+Source implemented and parent source-reviewed on 2026-11-21; not built, tested or released (executable checks deferred by owner order).
+
+### Added
+- Transformed image preview ([S-142](backlog/S-142-transformed-image-preview.md)): the customization panel previews the resolved action, not the source, through one newest-wins worker with an explicit encoded size | معاينة الصورة بعد التحويل ([S-142](backlog/S-142-transformed-image-preview.md)): تعرض لوحة التخصيص نتيجة الإجراء المحلول لا الأصل، عبر عامل واحد يعرض الأحدث فقط مع حجم مرمّز عند الطلب
+- Named user presets ([S-143](backlog/S-143-named-user-presets.md)): save, apply, rename and delete named option sets per image action in a versioned store written only by the daemon; a changed action asks for review instead of applying silently | إعدادات مسماة للمستخدم ([S-143](backlog/S-143-named-user-presets.md)): حفظ مجموعات خيارات مسماة لكل إجراء صور وتطبيقها وإعادة تسميتها وحذفها في مخزن ذي إصدار تكتبه الخدمة وحدها؛ والإجراء الذي تغيّر يطلب المراجعة بدل التطبيق بصمت
+- Batch results and safe retry ([S-144](backlog/S-144-batch-results-and-safe-retry.md)): `kawaro jobs`, `results`, `retry` and `cancel`, plus a Results settings page opened from the tray, show per-file outcomes and retry only the failed units once | نتائج الدفعات وإعادة المحاولة الآمنة ([S-144](backlog/S-144-batch-results-and-safe-retry.md)): الأوامر `kawaro jobs` و`results` و`retry` و`cancel` وصفحة نتائج في الإعدادات تفتح من أيقونة النظام، تعرض نتيجة كل ملف وتعيد المحاولة للوحدات الفاشلة فقط مرة واحدة
+- Unavailable action explanations ([S-145](backlog/S-145-unavailable-action-explanations.md)): one shared capability report gives each unavailable action a typed reason and install help, shown by `kawaro doctor` | شرح الإجراءات غير المتاحة ([S-145](backlog/S-145-unavailable-action-explanations.md)): تقرير قدرات مشترك يعطي كل إجراء غير متاح سبباً محدداً ومساعدة للتثبيت، ويعرضه `kawaro doctor`
+- Local image OCR ([S-146](backlog/S-146-local-image-ocr.md)): `image.to-text` runs the system Tesseract with Arabic and English, checks the language data before it starts and refuses animated PNG | التعرف الضوئي المحلي على الصور ([S-146](backlog/S-146-local-image-ocr.md)): يشغّل `image.to-text` برنامج Tesseract من النظام بالعربية والإنجليزية، ويتحقق من بيانات اللغة قبل البدء ويرفض PNG المتحرك
+- Searchable PDF decision ([S-147](backlog/S-147-searchable-pdf-feasibility.md)): adopt an optional system OCRmyPDF child engine (proposed ADR 0017, draft story S-150) | قرار PDF القابل للبحث ([S-147](backlog/S-147-searchable-pdf-feasibility.md)): اعتماد محرك OCRmyPDF اختياري من النظام كعملية ابنة (ADR 0017 مقترح، وقصة S-150 مسودة)
+- Job control without the tray ([S-148](backlog/S-148-job-control-without-tray.md)): each daemon run has an instance id, `kawaro cancel INSTANCE:JOB` refuses a reference from an earlier run instead of cancelling a reused job number, and an older daemon gets a clear refusal | التحكم بالمهام دون أيقونة النظام ([S-148](backlog/S-148-job-control-without-tray.md)): لكل تشغيل للخدمة معرّف، ويرفض `kawaro cancel INSTANCE:JOB` مرجعاً من تشغيل سابق بدل إلغاء مهمة أعيد استخدام رقمها، وتتلقى الخدمة القديمة رفضاً واضحاً
+- Every action reachable ([S-149](backlog/S-149-all-actions-reachable.md)): when more than 12 outer actions match, the outer ring pages with a More cell and PageUp or PageDown, so no action is dropped | كل الإجراءات في المتناول ([S-149](backlog/S-149-all-actions-reachable.md)): عندما يطابق أكثر من 12 إجراء خارجياً تنقسم الحلقة الخارجية إلى صفحات بخلية «المزيد» وPageUp وPageDown، فلا يسقط أي إجراء
+
 ## [0.5.1] - 2026-11-05
 
 ### Added

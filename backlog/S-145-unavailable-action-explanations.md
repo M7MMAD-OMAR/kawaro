@@ -1,6 +1,6 @@
 # S-145: Unavailable-action explanations
 
-Status: planned, implementation not started. Executable checks deferred by owner order.
+Status: core CapabilityReport, probe cache, `kawaro doctor`, hive centre hint and MCP discovery source implemented and parent source-reviewed on 2026-11-21. Parent changed the hive path to read only cached OCR language probes (warmed in the background at daemon start and reload) so a show never waits for a child. Open: `kawaro doctor` does not ask the running daemon to reload, non-OCR engine availability is still probed once at start, and the drag notification still uses the older message. Executable checks deferred by owner order.
 Date: 2026-11-15.
 Spec: ../docs/specs/2026-11-15-next-features.md
 Implementation packet: ../docs/superpowers/plans/2026-11-15-next-features.md

@@ -279,6 +279,7 @@ fn show_menu(hwnd: HWND) {
             let config = lock(&state).config.clone();
             crate::ui::open_settings(config);
         }
+        Some(Command::Results) => crate::ui::results(&state),
         Some(Command::Quit) => crate::ui::quit(),
         None => {}
     }

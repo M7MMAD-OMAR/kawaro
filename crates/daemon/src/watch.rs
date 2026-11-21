@@ -14,6 +14,14 @@ const EVERY: Duration = Duration::from_secs(2);
 /// What changes when a watched file is written, added or removed.
 pub type Stamp = Vec<(PathBuf, Option<SystemTime>, u64)>;
 
+/// One path, its modification time and its length.
+fn stamp_entry(path: &Path) -> (PathBuf, Option<SystemTime>, u64) {
+    let meta = std::fs::metadata(path).ok();
+    let modified = meta.as_ref().and_then(|m| m.modified().ok());
+    let len = meta.map_or(0, |m| m.len());
+    (path.to_path_buf(), modified, len)
+}
+
 /// The config file plus every `*.toml` file in the actions directory.
 pub fn stamp(config: &Path, actions: &Path) -> Stamp {
     let mut files = vec![config.to_path_buf()];
@@ -26,29 +34,46 @@ pub fn stamp(config: &Path, actions: &Path) -> Stamp {
         tomls.sort();
         files.extend(tomls);
     }
-    files
-        .into_iter()
-        .map(|p| {
-            let meta = std::fs::metadata(&p).ok();
-            let modified = meta.as_ref().and_then(|m| m.modified().ok());
-            let len = meta.map_or(0, |m| m.len());
-            (p, modified, len)
-        })
-        .collect()
+    files.iter().map(|p| stamp_entry(p)).collect()
+}
+
+/// The preset store alone. It lives outside the actions directory, so it has
+/// its own stamp and a preset-only change never reloads the settings.
+pub fn preset_stamp(path: &Path) -> Stamp {
+    vec![stamp_entry(path)]
 }
 
 pub fn run(state: Shared, queue: Arc<Queue>) {
     let (Some(config), Some(actions)) = (Config::path(), Config::actions_dir()) else {
         return;
     };
-    let mut last = stamp(&config, &actions);
+    let preset_path = kawaro_core::presets::path();
+    let mut last_settings = stamp(&config, &actions);
+    let mut last_presets = preset_path.as_deref().map(preset_stamp);
     loop {
         std::thread::sleep(EVERY);
-        let now = stamp(&config, &actions);
-        if now != last {
-            last = now;
+        let settings = stamp(&config, &actions);
+        let settings_changed = settings != last_settings;
+        if settings_changed {
+            last_settings = settings;
+        }
+        let presets = preset_path.as_deref().map(preset_stamp);
+        let presets_changed = presets != last_presets;
+        if presets_changed {
+            last_presets = presets;
+        }
+        if !settings_changed && !presets_changed {
+            continue;
+        }
+        if settings_changed {
             let (state, queue) = (state.clone(), queue.clone());
             let _ = slint::invoke_from_event_loop(move || crate::ui::reload(&state, &queue));
+        }
+        if presets_changed {
+            // A preset change is independent of a settings change in the
+            // same poll interval.
+            let presets = crate::state::lock(&state).presets.clone();
+            presets.reload_async();
         }
     }
 }

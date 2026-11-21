@@ -1075,3 +1075,173 @@ fn an_unknown_tool_is_a_protocol_error_and_is_audited() {
     assert_eq!(line["tool"].as_str(), Some("kawaro_nope"));
     assert_eq!(line["ok"].as_bool(), Some(false));
 }
+
+// S-145: unavailable-action capability reports on MCP discovery tools
+
+#[test]
+fn s145_formats_and_plan_report_disabled_by_policy_when_read_only() {
+    let fx = fixture();
+    let mut cfg = config_for(fx.dir.path());
+    cfg.read_only = true;
+    let before = entries(fx.dir.path());
+    let photo = fx.photo.to_str().unwrap();
+    let out = run(
+        &[
+            call(1, "kawaro_formats", json!({})),
+            call(2, "kawaro_plan", json!({ "paths": [photo] })),
+        ],
+        &cfg,
+    );
+
+    let formats = tool_result(&out, 1);
+    assert_eq!(formats["isError"].as_bool(), Some(false), "{formats}");
+    let fsc = &formats["structuredContent"];
+    assert!(fsc["actions"].is_array(), "{fsc}");
+    let f_unavailable = fsc["unavailable"]
+        .as_array()
+        .expect("kawaro_formats returns unavailable array");
+    let webp_fmt = f_unavailable
+        .iter()
+        .find(|entry| entry["action_id"] == "image.to-webp")
+        .expect("read-only marks image.to-webp unavailable by policy");
+    assert_eq!(webp_fmt["runnable"].as_bool(), Some(false));
+    assert_eq!(
+        webp_fmt["reason"],
+        json!({ "kind": "disabled-by-policy" }),
+        "MCP policy must not be reported as missing software: {webp_fmt}"
+    );
+    assert!(webp_fmt["help_id"].is_null(), "{webp_fmt}");
+
+    let plan = tool_result(&out, 2);
+    assert_eq!(plan["isError"].as_bool(), Some(false), "{plan}");
+    let psc = &plan["structuredContent"];
+    assert!(
+        psc["actions"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|a| a["id"] == "image.to-webp"),
+        "existing read-only planning actions field stays populated: {psc}"
+    );
+    let p_unavailable = psc["unavailable"]
+        .as_array()
+        .expect("kawaro_plan returns unavailable array");
+    let webp_plan = p_unavailable
+        .iter()
+        .find(|entry| entry["action_id"] == "image.to-webp")
+        .expect("matching action in read-only plan is disabled-by-policy");
+    assert_eq!(webp_plan["runnable"].as_bool(), Some(false));
+    assert_eq!(webp_plan["reason"], json!({ "kind": "disabled-by-policy" }));
+    assert!(webp_plan["help_id"].is_null());
+
+    let pdf_plan = p_unavailable
+        .iter()
+        .find(|entry| entry["action_id"] == "pdf.merge")
+        .expect("non-matching PDF action is unsupported-input");
+    assert_eq!(pdf_plan["runnable"].as_bool(), Some(false));
+    assert_eq!(pdf_plan["reason"], json!({ "kind": "unsupported-input" }));
+    assert!(pdf_plan["help_id"].is_null());
+
+    assert_eq!(entries(fx.dir.path()), before, "discovery writes nothing");
+}
+
+#[test]
+fn s145_formats_and_plan_distinguish_missing_tools_from_incompatible_inputs() {
+    let fx = fixture();
+    let pdf = fx.dir.path().join("doc.pdf");
+    write_fixture_pdf(&pdf);
+    let cfg = config_for(fx.dir.path());
+    let before = entries(fx.dir.path());
+    let photo = fx.photo.to_str().unwrap();
+    let pdf_str = pdf.to_str().unwrap();
+
+    let out = run(
+        &[
+            call(1, "kawaro_formats", json!({})),
+            call(2, "kawaro_plan", json!({ "paths": [photo] })),
+            call(3, "kawaro_plan", json!({ "paths": [photo, pdf_str] })),
+        ],
+        &cfg,
+    );
+
+    // kawaro_formats: runnable pure-Rust image action is not unavailable; any
+    // engine marked available=false reports missing-executable with its help_id.
+    let formats = tool_result(&out, 1);
+    assert_eq!(formats["isError"].as_bool(), Some(false), "{formats}");
+    let fsc = &formats["structuredContent"];
+    let f_unavailable = fsc["unavailable"].as_array().unwrap();
+    assert!(
+        !f_unavailable
+            .iter()
+            .any(|entry| entry["action_id"] == "image.to-webp"),
+        "runnable action is not in unavailable: {f_unavailable:?}"
+    );
+    let missing_engines: Vec<&str> = fsc["engines"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e["available"] == false)
+        .filter_map(|e| e["id"].as_str())
+        .collect();
+    for action in fsc["actions"].as_array().unwrap() {
+        let engine = action["engine"].as_str().unwrap();
+        if missing_engines.contains(&engine) {
+            let id = action["id"].as_str().unwrap();
+            let entry = f_unavailable
+                .iter()
+                .find(|u| u["action_id"] == id)
+                .unwrap_or_else(|| {
+                    panic!("missing engine `{engine}` action `{id}` not in unavailable")
+                });
+            assert_eq!(entry["runnable"].as_bool(), Some(false));
+            assert_eq!(
+                entry["reason"]["kind"].as_str(),
+                Some("missing-executable"),
+                "{entry}"
+            );
+            assert!(
+                entry["reason"]["program"]
+                    .as_str()
+                    .is_some_and(|p| !p.is_empty()),
+                "{entry}"
+            );
+            assert_eq!(entry["help_id"].as_str(), Some(engine), "{entry}");
+        }
+    }
+
+    // kawaro_plan on a JPG: PDF actions are unsupported-input, never missing-executable.
+    let jpg_plan = tool_result(&out, 2);
+    assert_eq!(jpg_plan["isError"].as_bool(), Some(false), "{jpg_plan}");
+    let jsc = &jpg_plan["structuredContent"];
+    let j_unavailable = jsc["unavailable"].as_array().unwrap();
+    assert!(
+        !j_unavailable
+            .iter()
+            .any(|entry| entry["action_id"] == "image.to-webp")
+    );
+    let pdf_lin = j_unavailable
+        .iter()
+        .find(|entry| entry["action_id"] == "pdf.linearize")
+        .expect("pdf.linearize is unavailable for a JPG");
+    assert_eq!(pdf_lin["runnable"].as_bool(), Some(false));
+    assert_eq!(pdf_lin["reason"], json!({ "kind": "unsupported-input" }));
+    assert!(pdf_lin["help_id"].is_null());
+
+    // kawaro_plan on an incompatible mixed selection (JPG + PDF): never called missing software.
+    let mixed_plan = tool_result(&out, 3);
+    assert_eq!(mixed_plan["isError"].as_bool(), Some(false), "{mixed_plan}");
+    let msc = &mixed_plan["structuredContent"];
+    assert!(msc["actions"].as_array().unwrap().is_empty(), "{msc}");
+    let m_unavailable = msc["unavailable"].as_array().unwrap();
+    for id in ["image.to-webp", "pdf.linearize"] {
+        let entry = m_unavailable
+            .iter()
+            .find(|u| u["action_id"] == id)
+            .unwrap_or_else(|| panic!("{id} missing from mixed unavailable"));
+        assert_eq!(entry["runnable"].as_bool(), Some(false));
+        assert_eq!(entry["reason"], json!({ "kind": "unsupported-input" }));
+        assert!(entry["help_id"].is_null());
+    }
+
+    assert_eq!(entries(fx.dir.path()), before, "discovery writes nothing");
+}

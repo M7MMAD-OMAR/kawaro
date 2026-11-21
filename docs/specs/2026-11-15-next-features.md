@@ -1,6 +1,6 @@
 # Kawaro next features: product specification
 
-Status: planned, not implemented by this document.
+Status: source implementation authorized by explicit owner GO on 2026-11-15; runtime acceptance deferred.
 Date: 2026-11-15.
 Baseline: main 43ca8f5. Public release 0.5.0; 0.5.1 is a source candidate.
 Authority: owner request for complete research and planning, with heavy checks deferred and other platforms planned after the features stabilize.
@@ -23,7 +23,7 @@ Success means each feature has an explicit observable outcome and failure behavi
 
 ## 3. Working policy for this programme
 
-1. Research and document now. No build, test, benchmark, compositor, model inference, installer or CI is run by this plan.
+1. Owner GO now authorizes full source implementation, following completed research/planning. No build, test, benchmark, compositor, model inference, installer or CI runs while the existing owner deferral is in force.
 2. Implementation uses the owner-selected Pi/MiniMax-M3.1-Flash agent with small explicit work packets. The parent owns plans, decisions and review. No factory is implied.
 3. During development, source review and focused acceptance designs are mandatory. Executable checks are deferred under the current owner instruction. A planned test must not be reported as run.
 4. When executable validation is resumed, use the touched feature's cases first. Do not rebuild all platforms after every small edit. Complete release gates belong to a separate release candidate, not every documentation or implementation step.

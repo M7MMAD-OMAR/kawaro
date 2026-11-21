@@ -19,6 +19,7 @@ mod plan;
 mod portal;
 #[cfg(unix)]
 mod portal_bus;
+mod presets;
 mod progress;
 mod registration;
 mod server;
@@ -71,6 +72,8 @@ mod s108b_tests;
 mod s109_tests;
 #[cfg(test)]
 mod s110_tests;
+#[cfg(test)]
+mod s143b_tests;
 #[cfg(test)]
 mod server_tests;
 #[cfg(test)]
@@ -166,6 +169,9 @@ fn main() -> ExitCode {
     let (ev_tx, ev_rx) = mpsc::channel();
     let queue = Arc::new(Queue::new(engines.clone(), workers(), ev_tx));
     let state: state::Shared = Arc::new(Mutex::new(state::State::new(config, &engines)));
+    // S-145: fill the OCR language cache off the hive path, so the first
+    // hive show can explain a missing language without running a child.
+    kawaro_engines::ocr::OcrEngine::default().warm_language_probe();
 
     let theme = lock(&state).config.theme;
     if let Err(e) = ui::build(lang, theme, &state, &queue) {

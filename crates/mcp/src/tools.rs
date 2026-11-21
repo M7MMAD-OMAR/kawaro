@@ -11,7 +11,11 @@ use kawaro_core::action::{ActionDef, Registry};
 use kawaro_core::engine::{SkipReason, TaskDetail, detail_line};
 use kawaro_core::i18n::Lang;
 use kawaro_core::queue::{self, JobEvent};
+use kawaro_core::unsupported::{
+    CapabilityReport, UnavailableReason, capability_reports, default_engine_reason,
+};
 use kawaro_core::{CancelToken, Engine};
+use kawaro_engines::ocr::OcrEngine;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -181,7 +185,7 @@ fn tool(name: &str, title: &str, description: &str, schema: Value, writes: bool)
 /// Calls one tool. `None` is an unknown tool name.
 pub(crate) fn call(name: &str, args: &Value, config: &Config) -> Option<Value> {
     match name {
-        "kawaro_formats" => Some(formats()),
+        "kawaro_formats" => Some(formats(config)),
         "kawaro_plan" => Some(plan(args, config)),
         // The action id is read inside run_action, after the paths and the
         // read only check, so the refusal order holds.
@@ -268,10 +272,67 @@ fn registry() -> Registry {
     registry
 }
 
+/// Evaluates S-145 capability reports for every action in `registry` against
+/// `files`, the local engines, cached OCR language probes, and MCP policy.
+///
+/// Read-only: never starts a conversion job, never runs an installer, and
+/// keeps MCP policy restrictions (`DisabledByPolicy`) distinct from missing
+/// software (`MissingExecutable`) and incompatible files (`UnsupportedInput`).
+fn evaluate_capabilities(
+    registry: &Registry,
+    files: &[&Path],
+    engines: &[Arc<dyn Engine>],
+    ocr: &OcrEngine,
+    config: &Config,
+) -> Vec<CapabilityReport> {
+    let cancel = CancelToken::new();
+    capability_reports(registry, files, &|action: &ActionDef| {
+        if !config.enabled || config.read_only {
+            return Some(UnavailableReason::DisabledByPolicy);
+        }
+        let available = engines
+            .iter()
+            .any(|engine| engine.id() == action.engine && engine.available());
+        if !available {
+            return default_engine_reason(&action.engine, false);
+        }
+        if action.engine == "ocr" {
+            let lang = action
+                .params
+                .get("lang")
+                .and_then(|v| v.as_str())
+                .unwrap_or("ara+eng");
+            return ocr.check_language(lang, &cancel).err();
+        }
+        None
+    })
+}
+
+/// Serializes every non-runnable [`CapabilityReport`] into the additive S-145
+/// MCP entry `{ action_id, runnable: false, reason, help_id }`.
+fn unavailable_entries(reports: &[CapabilityReport]) -> Vec<Value> {
+    reports
+        .iter()
+        .filter(|report| !report.runnable)
+        .map(|report| {
+            json!({
+                "action_id": report.action_id,
+                "runnable": false,
+                "reason": report.reason,
+                "help_id": report.help_id,
+            })
+        })
+        .collect()
+}
+
 /// `kawaro_formats`: version, revisions, engines and the action catalog.
-fn formats() -> Value {
+fn formats(config: &Config) -> Value {
     let registry = registry();
-    let engines: Vec<Value> = kawaro_engines::all()
+    let all_engines = kawaro_engines::all();
+    let ocr = OcrEngine::default();
+    let reports = evaluate_capabilities(&registry, &[], &all_engines, &ocr, config);
+    let unavailable = unavailable_entries(&reports);
+    let engines: Vec<Value> = all_engines
         .iter()
         .map(|engine| json!({"id": engine.id(), "available": engine.available()}))
         .collect();
@@ -301,6 +362,7 @@ fn formats() -> Value {
             "protocolVersions": DISCOVER_VERSIONS,
             "engines": engines,
             "actions": actions,
+            "unavailable": unavailable,
         }),
     )
 }
@@ -314,13 +376,27 @@ fn plan(args: &Value, config: &Config) -> Value {
     };
     let registry = registry();
     let engines = kawaro_engines::all();
-    let available: Vec<String> = engines
-        .iter()
-        .filter(|engine| engine.available())
-        .map(|engine| engine.id().to_string())
-        .collect();
+    let ocr = OcrEngine::default();
     let refs: Vec<&Path> = files.iter().map(PathBuf::as_path).collect();
-    let matching = registry.matching(&refs, &|id| available.iter().any(|known| known == id));
+    let reports = evaluate_capabilities(&registry, &refs, &engines, &ocr, config);
+    let unavailable = unavailable_entries(&reports);
+    let matching: Vec<&ActionDef> = if !config.enabled || config.read_only {
+        // Keep read-only planning intact: `actions` still shows fitting
+        // actions and planned paths, while `unavailable` reports matching
+        // actions as `disabled-by-policy`.
+        let available: Vec<String> = engines
+            .iter()
+            .filter(|engine| engine.available())
+            .map(|engine| engine.id().to_string())
+            .collect();
+        registry.matching(&refs, &|id| available.iter().any(|known| known == id))
+    } else {
+        reports
+            .iter()
+            .filter(|report| report.runnable)
+            .filter_map(|report| registry.get(&report.action_id))
+            .collect()
+    };
     let actions: Vec<Value> = matching
         .iter()
         .map(|action| {
@@ -346,7 +422,10 @@ fn plan(args: &Value, config: &Config) -> Value {
     } else {
         format!("{} actions fit these {} files.", actions.len(), files.len())
     };
-    success(text, json!({"actions": actions}))
+    success(
+        text,
+        json!({"actions": actions, "unavailable": unavailable}),
+    )
 }
 
 /// `kawaro_convert`: the action comes from the arguments.

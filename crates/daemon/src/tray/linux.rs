@@ -129,9 +129,17 @@ impl ksni::Tray for SbarTray {
                 ..Default::default()
             }
             .into(),
+            StandardItem {
+                // S-144: opens the Results page via the existing settings path.
+                label: labels[5].clone(),
+                icon_name: "document-open-recent".into(),
+                activate: Box::new(|t: &mut Self| crate::ui::results(&t.state)),
+                ..Default::default()
+            }
+            .into(),
             MenuItem::Separator,
             StandardItem {
-                label: labels[5].clone(),
+                label: labels[6].clone(),
                 icon_name: "application-exit".into(),
                 activate: Box::new(|_| crate::ui::quit()),
                 ..Default::default()

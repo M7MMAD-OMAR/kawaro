@@ -5,6 +5,7 @@ mod common;
 use common::{FakeEngine, action, files, listing};
 use kawaro_core::action::OutputMode::{Combined, PerFile};
 use kawaro_core::engine::{CancelToken, Engine};
+use kawaro_core::job_results::JobManifest;
 use kawaro_core::queue::{JobEvent, Queue, plan, run_job};
 use std::path::PathBuf;
 use std::sync::mpsc::{Receiver, channel};
@@ -219,7 +220,11 @@ fn ac2_run_job_event_sequence_and_outputs() {
         JobEvent::Started {
             job: 7,
             action_id: "test.copy".into(),
-            tasks: 3
+            tasks: 3,
+            manifest: JobManifest::new(
+                action("fake", PerFile, "webp", ""),
+                fs.iter().map(|f| vec![f.clone()]).collect(),
+            ),
         }
     );
     let important: Vec<&JobEvent> = ev
@@ -296,7 +301,8 @@ fn ac2_run_job_combined_and_empty() {
         &JobEvent::Started {
             job: 2,
             action_id: "test.copy".into(),
-            tasks: 0
+            tasks: 0,
+            manifest: JobManifest::new(action("fake", PerFile, "webp", ""), Vec::new()),
         }
     );
     assert_eq!(finished_of(&ev, 2), (0, 0, false));

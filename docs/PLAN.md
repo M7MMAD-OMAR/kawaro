@@ -1,15 +1,18 @@
 # Kawaro plan: releases
 
+**Implementation interruption (2026-11-15):** the selected Pi MiniMax provider exhausted its token plan (HTTP 429). Partial source is preserved; no feature completion or executable acceptance is claimed. See [execution status](development/2026-11-15-execution-status.md) for the recovery snapshot and resume order.
+
+
 The original planning document was never exported, so this plan rebuilds it from `CLAUDE.md` and the hive spike (`docs/adr/0001-ui-toolkit.md`). Any later conflict is settled here with a written decision.
 
 ## Active feature programme (2026-11-15)
 
-The owner requested complete research and planning for the next useful features. This programme is the current development order; older release sections remain historical context. Product code is not implemented by these plans.
+The owner requested complete research and planning for the next useful features. This programme is the current development order; older release sections remain historical context. The owner subsequently authorized full source implementation on 2026-11-15. Execution now proceeds through bounded source packets and parent review; executable evidence stays deferred.
 
 - Product scope and decisions: [next features specification](specs/2026-11-15-next-features.md).
 - Current source and official technical sources: [research evidence](research/2026-11-15-next-features-evidence.md).
 - Detailed files, proposed APIs, failure behavior and deferred focused cases: [implementation plan](superpowers/plans/2026-11-15-next-features.md).
-- Proposed architecture boundary: [ADR 0016](adr/0016-image-preview-and-presets.md), not accepted or implemented.
+- Proposed architecture boundary: [ADR 0016](adr/0016-image-preview-and-presets.md), accepted for source implementation under the owner GO; runtime evidence pending.
 
 | Order | Story | Deliverable | Prerequisite | State |
 | --- | --- | --- | --- | --- |
@@ -26,7 +29,13 @@ Other-system adaptation and qualification follow stable core feature behavior. P
 
 Existing S-138 remains a separate draft, blocked on the distant-drop baseline and release-before-drop semantics. Existing S-141 remains separate publication work with deferred gates; 0.5.0 is public and 0.5.1 is only a candidate. No tag, feature implementation, release date or new performance claim is authorized by writing these plans. Source/status reconciliation for S-132/S-133/S-134 is required before changing acceptance labels.
 
-Next free story: **S-148**. Do not allocate the searchable-PDF implementation before the S-147 decision.
+Next free story: **S-150**. Do not allocate the searchable-PDF implementation before the S-147 decision.
+
+### Supplemental workflow and user-control audit
+
+Read [lightweight development workflow](development/workflow.md) for current build/cache/resource gaps, explicit source/check/visual/release modes and the later factory/skill integration boundary. No heavy operation was run for that audit. Factory is not installed in this repository; current Pi execution continues directly.
+
+[S-148](../backlog/S-148-job-control-without-tray.md) proposes instance-aware individual cancellation and a non-tray jobs view after S-144. It is planned separately, not implemented by the current ledger packet. Next free story is S-149.
 
 ## Historical release baseline (2026-11-05)
 
@@ -36,7 +45,7 @@ Next free story: **S-148**. Do not allocate the searchable-PDF implementation be
 
 **Consolidation pass (2026-11-15):** every non-`main` branch and every extra worktree was consolidated into `main`. The implementation was done by the selected Pi implementation agent (`pi/minimax/MiniMax-M3.1-Flash`); the parent agent owned the planning and the final review. No software factory job was used. The 0.5.1 candidate source, the restored spike sources (`spikes/alt-portal/`, `spikes/gnome-alt-extension/`) and the historical goldfish review were preserved and pushed to `main` with a `[skip ci]` commit marker. The full local gate set and the remote CI were **deferred by owner order for this one consolidation push**, so no gate result is claimed for it. Before that deferral the parent ran the six focused site generator tests and `git diff --check`; the full gate run was stopped during the settings snapshot release compile and produced no success result. The public release stays **0.5.0**. The 0.5.1 tree stays a candidate with no tag, no packages, no signatures and no channel publication. Evidence, the branch and worktree counts and the cleanup record are in `docs/maintenance/2026-11-15-consolidation.md`.
 
-**0.5.1 candidate (S-141):** the release cut includes accepted S-117 through S-140 except S-138. Typed options, customization with a source-draft preview (not transformed output), local opt-in/read-only-first MCP, PDF/image operations and drag-session fixes are included. S-139/S-140 source and the CI repair in PR #11 are public on main `c0444b0858204370f40478eaec3726b612264ace`; all three CI jobs passed in run `42058502635` (Lead-confirmed). Current public release remains **0.5.0** until tagging and publication verification. Candidate metadata does not certify a 0.5.1 tag, packages, signatures, feeds or channels. Lead owns fresh version snapshots, four public General captures, full Linux and both complete Windows stages including Release DLL/resources, and fresh review before a candidate PR push; exact public main CI must be green before tagging. Historical S-139/S-140 private native layer/window and installed Release evidence remains scoped to those reviewed builds, not new-version acceptance. S-138 remains reserved DRAFT [#9](https://github.com/M7MMAD-OMAR/kawaro/issues/9) for whole-output/final-position coverage. Real GNOME/KDE focus stays the top open risk [#1](https://github.com/M7MMAD-OMAR/kawaro/issues/1), not closed by this release. Fresh show/preview timing, IME, physical hotplug, legacy Hyprlang runtime, separate compositor Closed injection, the new Windows UI runtime and physical Windows remain unverified; Windows stays self-signed with SmartScreen warnings, macOS unsupported. Next free story: **S-148**; 0.6.0 remains reserved for Windows native work.
+**0.5.1 candidate (S-141):** the release cut includes accepted S-117 through S-140 except S-138. Typed options, customization with a source-draft preview (not transformed output), local opt-in/read-only-first MCP, PDF/image operations and drag-session fixes are included. S-139/S-140 source and the CI repair in PR #11 are public on main `c0444b0858204370f40478eaec3726b612264ace`; all three CI jobs passed in run `42058502635` (Lead-confirmed). Current public release remains **0.5.0** until tagging and publication verification. Candidate metadata does not certify a 0.5.1 tag, packages, signatures, feeds or channels. Lead owns fresh version snapshots, four public General captures, full Linux and both complete Windows stages including Release DLL/resources, and fresh review before a candidate PR push; exact public main CI must be green before tagging. Historical S-139/S-140 private native layer/window and installed Release evidence remains scoped to those reviewed builds, not new-version acceptance. S-138 remains reserved DRAFT [#9](https://github.com/M7MMAD-OMAR/kawaro/issues/9) for whole-output/final-position coverage. Real GNOME/KDE focus stays the top open risk [#1](https://github.com/M7MMAD-OMAR/kawaro/issues/1), not closed by this release. Fresh show/preview timing, IME, physical hotplug, legacy Hyprlang runtime, separate compositor Closed injection, the new Windows UI runtime and physical Windows remain unverified; Windows stays self-signed with SmartScreen warnings, macOS unsupported. Next free story: **S-150**; 0.6.0 remains reserved for Windows native work.
 
 ### Blocked on the owner or outside resources
 

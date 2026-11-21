@@ -7,6 +7,7 @@ use kawaro_core::engine::{
 };
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::Event;
+use kawaro_core::job_results::JobManifest;
 use kawaro_core::queue::JobEvent;
 use std::path::PathBuf;
 
@@ -161,12 +162,42 @@ fn lang_detect_prefers_the_override_then_the_locale() {
 #[test]
 fn every_job_event_maps_to_the_same_ipc_event() {
     let p = PathBuf::from("/a");
+    let action = kawaro_core::action::ActionDef {
+        id: "x".into(),
+        engine: "e".into(),
+        op: "o".into(),
+        ring: 1,
+        order: 0,
+        accepts: vec![MediaKind::Image],
+        skip_ext: vec![],
+        min_files: 1,
+        max_files: 0,
+        output: kawaro_core::action::OutputSpec {
+            mode: kawaro_core::action::OutputMode::PerFile,
+            ext: "webp".into(),
+            suffix: String::new(),
+            dir: String::new(),
+        },
+        code: Localized {
+            ar: "ا".into(),
+            en: "A".into(),
+        },
+        label: Localized {
+            ar: "ا".into(),
+            en: "A".into(),
+        },
+        icon: String::new(),
+        params: toml::Table::new(),
+        options: None,
+    };
+    let manifest = JobManifest::new(action.clone(), vec![vec![p.clone()]]);
     let cases = [
         (
             JobEvent::Started {
                 job: 1,
                 action_id: "x".into(),
                 tasks: 2,
+                manifest: manifest.clone(),
             },
             Event::Started {
                 job: 1,
@@ -187,6 +218,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
         (
             JobEvent::TaskDone {
                 job: 1,
+                unit: 0,
                 output: p.clone(),
                 detail: None,
                 elapsed: std::time::Duration::ZERO,
@@ -199,6 +231,7 @@ fn every_job_event_maps_to_the_same_ipc_event() {
         (
             JobEvent::TaskFailed {
                 job: 1,
+                unit: 0,
                 input: p.clone(),
                 error: "e".into(),
                 elapsed: std::time::Duration::ZERO,

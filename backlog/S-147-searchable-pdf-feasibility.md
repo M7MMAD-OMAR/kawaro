@@ -1,6 +1,6 @@
 # S-147: Searchable-PDF feasibility and design
 
-Status: desktop feasibility research written; version qualification and final architecture decision planned. No PDF OCR adapter implementation. Executable checks deferred by owner order.
+Status: feasibility study completed on 2026-11-21 with Adopt decision for optional system OCRmyPDF (>= 14.4.0); proposed ADR 0017 and DRAFT story S-150 written for parent review. No PDF OCR adapter implementation. Executable checks deferred by owner order.
 Date: 2026-11-15.
 Spec: ../docs/specs/2026-11-15-next-features.md
 Implementation packet: ../docs/superpowers/plans/2026-11-15-next-features.md
@@ -36,3 +36,4 @@ Parent owns architecture, packet approval and final review. Selected Pi/MiniMax-
 
 ## Planning log
 - 2026-11-15: parent authored this story from current source research and the owner request. No product code or executable check changed or ran.
+- 2026-11-21: completed S-147 feasibility study in `docs/research/searchable-pdf-feasibility.md` using primary sources (version-specific dependency and licence inventory, optional-install boundaries, single-output and sidecar rationale, signed/encrypted/corrupt/mixed-page/rotation/timeout/temp/argv contract, unexecuted Arabic acceptance matrix, explicit non-claims, and Adopt decision with `>= 14.4.0` floor and smallest viable dependency set). Authored proposed [ADR 0017](../docs/adr/0017-searchable-pdf-ocr.md) (status Proposed) and draft story [S-150](S-150-searchable-pdf-ocr.md) (DRAFT, not started), and ticked completed items in plan section 6. Documentation-only packet; no product code changed and no executable check ran.

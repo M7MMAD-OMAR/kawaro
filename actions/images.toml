@@ -517,3 +517,41 @@ type = "bool"
 label = { ar = "الاحتفاظ بالبيانات الوصفية (JPEG فقط)", en = "Keep metadata (JPEG only)" }
 default = false
 maps_to = "keep_metadata"
+
+# Ring 2: printed text from a still picture (S-146). The engine is the
+# system Tesseract, so the action is hidden while the executable is missing.
+# Only JPEG, PNG and BMP are read: every other image extension media::detect
+# knows is skipped here, and the adapter refuses anything else rather than
+# reducing a container or an animation to one frame.
+
+[[action]]
+id = "image.to-text"
+engine = "ocr"
+op = "to-text"
+ring = 2
+order = 140
+accepts = ["image"]
+skip_ext = ["webp", "avif", "gif", "tif", "tiff", "ico", "tga", "qoi", "pnm", "pbm", "pgm", "ppm", "heic", "heif", "jxl"]
+output = { mode = "per-file", ext = "txt", suffix = "-text" }
+code = { ar = "نص", en = "TEXT" }
+label = { ar = "استخراج النص من الصورة", en = "Extract text from image" }
+icon = "text"
+[action.params]
+lang = "ara+eng"
+[action.options]
+kind = "form"
+[[action.options.field]]
+id = "lang"
+type = "enum"
+label = { ar = "لغة النص المطبوع", en = "Printed text language" }
+default = "ara+eng"
+maps_to = "lang"
+[[action.options.field.values]]
+id = "eng"
+label = { ar = "الإنجليزية", en = "English" }
+[[action.options.field.values]]
+id = "ara"
+label = { ar = "العربية", en = "Arabic" }
+[[action.options.field.values]]
+id = "ara+eng"
+label = { ar = "العربية والإنجليزية", en = "Arabic and English" }

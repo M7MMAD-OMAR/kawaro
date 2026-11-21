@@ -10,13 +10,13 @@ import { Tokens } from "tokens.slint";
 import { SbarMaterial } from "material-tokens.slint";
 import { MaterialPalette, MaterialWindow } from "@material";
 import { Palette } from "std-widgets.slint";
-import { AppShell, SettingsText, FormValues, UpdateCard } from "shell.slint";
+import { AppShell, SettingsText, FormValues, UpdateCard, ResultsPageText, ResultUnitItem, ResultJobItem } from "shell.slint";
 
 import "../fonts/IBMPlexSansArabic-Regular.otf";
 import "../fonts/IBMPlexSansArabic-Medium.otf";
 import "../fonts/IBMPlexSansArabic-SemiBold.otf";
 
-export { Tokens, Palette, SettingsText, FormValues, UpdateCard }
+export { Tokens, Palette, SettingsText, FormValues, UpdateCard, ResultsPageText, ResultUnitItem, ResultJobItem }
 
 export component SettingsUi inherits MaterialWindow {
     forward-focus: shell;
@@ -54,6 +54,9 @@ export component SettingsUi inherits MaterialWindow {
     in-out property <int> update-mode <=> shell.update-mode;
     in-out property <string> shortcut-text <=> shell.shortcut-text;
     in-out property <FormValues> loaded <=> shell.loaded;
+    in-out property <ResultsPageText> results-text <=> shell.results-text;
+    in-out property <[ResultJobItem]> results-jobs <=> shell.results-jobs;
+    in-out property <bool> results-can-clear <=> shell.results-can-clear;
     in-out property <int> page <=> shell.page;
     out property <int> rail-focus <=> shell.rail-focus;
     out property <length> scroll-content-height <=> shell.scroll-content-height;
@@ -68,6 +71,11 @@ export component SettingsUi inherits MaterialWindow {
     callback open-link(string);
     callback copy-version();
     callback page-changed(int);
+    callback results-retry(string);
+    callback results-cancel(string);
+    callback results-clear();
+    callback results-show-in-folder(string, string);
+    callback results-toggle-expanded(string);
     public function focus-rail() {
         shell.focus-rail();
     }
@@ -93,5 +101,10 @@ export component SettingsUi inherits MaterialWindow {
         open-link(id) => { root.open-link(id); }
         copy-version => { root.copy-version(); }
         page-changed(p) => { root.page-changed(p); }
+        results-retry(job) => { root.results-retry(job); }
+        results-cancel(job) => { root.results-cancel(job); }
+        results-clear => { root.results-clear(); }
+        results-show-in-folder(job, unit) => { root.results-show-in-folder(job, unit); }
+        results-toggle-expanded(job) => { root.results-toggle-expanded(job); }
     }
 }

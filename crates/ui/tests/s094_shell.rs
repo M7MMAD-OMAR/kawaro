@@ -319,12 +319,15 @@ fn ac2_the_rail_has_five_items_in_order_and_each_page_shows_only_its_rows() {
     let _g = init();
     let w = settings(Lang::En);
     let labels = w.sh_rail_labels();
-    assert_eq!(labels.len(), 5, "{labels:?}");
-    for (l, want) in
-        labels
-            .iter()
-            .zip(["general", "conversion", "notifications", "updates", "about"])
-    {
+    assert_eq!(labels.len(), 6, "{labels:?}");
+    for (l, want) in labels.iter().zip([
+        "general",
+        "conversion",
+        "notifications",
+        "updates",
+        "about",
+        "results",
+    ]) {
         assert!(l.to_lowercase().contains(want), "{l:?} should name {want}");
     }
     assert!(
@@ -334,7 +337,7 @@ fn ac2_the_rail_has_five_items_in_order_and_each_page_shows_only_its_rows() {
     );
 
     let mut pages: Vec<Vec<String>> = Vec::new();
-    for p in 0..5 {
+    for p in 0..6 {
         w.sh_select_page(p);
         // S-099 ruling: the Updates page scrolls at 880x640, so its rows are
         // brought into view by a tall window before they are read.
@@ -363,7 +366,7 @@ fn ac2_the_rail_has_five_items_in_order_and_each_page_shows_only_its_rows() {
 
     // Selecting an item shows only its rows: the labels on screen contain the
     // rows of this page and none of another page.
-    for p in 0..5 {
+    for p in 0..6 {
         w.sh_select_page(p);
         let on_screen = w.sh_visible_labels();
         for row in &pages[p] {
@@ -430,7 +433,7 @@ fn ac3_content_is_centred_and_at_most_640_wide_at_1920() {
     for lang in [Lang::En, Lang::Ar] {
         let w = settings(lang);
         w.sh_set_window_size(1920.0, 1080.0);
-        for p in 0..5 {
+        for p in 0..6 {
             w.sh_select_page(p);
             let (area, col) = (w.sh_page_area_rect(), w.sh_content_rect());
             assert!(col.w <= 640.0 + 0.5, "{lang:?} page {p}: {}", col.w);
@@ -552,8 +555,8 @@ fn ac5_the_rail_shows_all_items_unclipped_at_the_minimum_size() {
         let w = settings(lang);
         w.sh_set_window_size(560.0, 560.0);
         let rail = w.sh_rail_rect();
-        assert_eq!(w.sh_rail_labels().len(), 5);
-        for i in 0..5 {
+        assert_eq!(w.sh_rail_labels().len(), 6);
+        for i in 0..6 {
             let it = w.sh_rail_item_rect(i);
             assert!(it.w > 0.0 && it.h > 0.0);
             assert!(
@@ -577,7 +580,7 @@ fn ac6_save_and_cancel_stay_visible_at_the_minimum_size_on_every_page() {
         let w = settings(lang);
         w.sh_set_window_size(560.0, 560.0);
         let (ww, wh) = w.sh_window_size();
-        for p in 0..5 {
+        for p in 0..6 {
             w.sh_select_page(p);
             assert!(w.sh_save_row_visible(), "{lang:?} page {p}");
             let f = w.sh_footer_rect();
@@ -627,7 +630,7 @@ fn ac6_the_marker_is_visible_on_the_page_where_the_change_was_not_made() {
     let _g = init();
     let w = settings(Lang::En);
     w.sh_set_theme(Theme::Dark);
-    for p in 0..5 {
+    for p in 0..6 {
         w.sh_select_page(p);
         assert!(w.sh_unsaved_marker_visible(), "page {p}");
     }
@@ -761,7 +764,7 @@ fn ac7_every_control_rail_item_and_the_logo_has_a_label_in_both_languages() {
         let w = settings(lang);
         assert!(w.sh_rail_labels().iter().all(|l| !l.trim().is_empty()));
         assert!(!w.sh_logo_label().trim().is_empty());
-        for p in 0..5 {
+        for p in 0..6 {
             w.sh_select_page(p);
             assert_eq!(w.sh_unlabelled_controls(), 0, "{lang:?} page {p}");
             assert!(w.sh_visible_labels().iter().all(|l| !l.trim().is_empty()));
@@ -783,15 +786,15 @@ fn ac7_ctrl_tab_walks_the_pages_and_wraps_after_five_presses() {
         kawaro_ui::reset_page_memory();
         let w = settings(lang);
         let mut seen = vec![w.sh_page()];
-        for _ in 0..5 {
+        for _ in 0..6 {
             w.sh_send_key(&key(Key::Tab), true, false);
             seen.push(w.sh_page());
         }
-        assert_eq!(seen, [0, 1, 2, 3, 4, 0], "{lang:?}");
+        assert_eq!(seen, [0, 1, 2, 3, 4, 5, 0], "{lang:?}");
         w.sh_send_key(&key(Key::Tab), true, true);
-        assert_eq!(w.sh_page(), 4, "{lang:?}: Ctrl+Shift+Tab wraps backwards");
+        assert_eq!(w.sh_page(), 5, "{lang:?}: Ctrl+Shift+Tab wraps backwards");
         w.sh_send_key(&key(Key::Tab), true, true);
-        assert_eq!(w.sh_page(), 3);
+        assert_eq!(w.sh_page(), 4);
     }
 }
 
@@ -832,8 +835,8 @@ fn ac8_welcome_has_introduction_first_and_the_settings_window_never_does() {
         let wel = welcome(lang);
         let set = settings(lang);
         let (wl, sl) = (wel.sh_rail_labels(), set.sh_rail_labels());
-        assert_eq!(wl.len(), 6, "{wl:?}");
-        assert_eq!(sl.len(), 5, "{sl:?}");
+        assert_eq!(wl.len(), 7, "{wl:?}");
+        assert_eq!(sl.len(), 6, "{sl:?}");
         assert!(
             wl[0].to_lowercase().contains("intro") || (lang == Lang::Ar && has_arabic(&wl[0])),
             "{lang:?}: {}",
@@ -851,7 +854,7 @@ fn ac8_both_windows_expose_the_same_rows_for_the_same_page() {
     for lang in [Lang::En, Lang::Ar] {
         let wel = welcome(lang);
         let set = settings(lang);
-        for p in 0..5 {
+        for p in 0..6 {
             set.sh_select_page(p);
             wel.sh_select_page(p + 1);
             assert_eq!(wel.sh_page_rows(), set.sh_page_rows(), "{lang:?} page {p}");
@@ -882,11 +885,11 @@ fn ac8_ctrl_tab_wraps_over_six_pages_in_the_welcome_window() {
     let _g = init();
     let wel = welcome(Lang::En);
     let mut seen = vec![wel.sh_page()];
-    for _ in 0..6 {
+    for _ in 0..7 {
         wel.sh_send_key(&key(Key::Tab), true, false);
         seen.push(wel.sh_page());
     }
-    assert_eq!(seen, [0, 1, 2, 3, 4, 5, 0]);
+    assert_eq!(seen, [0, 1, 2, 3, 4, 5, 6, 0]);
 }
 
 // ------------------------------------------------------------ AC9

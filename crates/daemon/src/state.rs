@@ -3,9 +3,12 @@
 use kawaro_core::config::{Config, OutputPlace};
 use kawaro_core::i18n::Lang;
 use kawaro_core::ipc::{ActionSummary, Event, Response};
+use kawaro_core::job_results::{ResultLedger, RetryRefusal as LedgerRefusal};
 use kawaro_core::queue::JobId;
 use kawaro_core::transport;
+use kawaro_core::unsupported::ProbeCache;
 use kawaro_core::{ActionDef, Engine, MediaKind, Registry, media};
+use kawaro_engines::ocr::OcrEngine;
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -36,6 +39,59 @@ pub struct State {
     pub pending: Option<Vec<PathBuf>>,
     pub jobs: HashMap<JobId, JobInfo>,
     pub subscribers: HashMap<JobId, Vec<transport::Stream>>,
+    /// What happened to every unit of every job of this session (S-144).
+    /// It is filled from the queue events, never from a guessed manifest.
+    pub results: ResultLedger,
+    /// The parent of every retry child job (S-144).
+    pub retry_parents: HashMap<JobId, JobId>,
+    /// The parents whose retry is submitted and whose child has not
+    /// finished yet. A second retry of the same parent is refused while one
+    /// is pending, so a double trigger never starts two child jobs.
+    pub pending_retries: HashMap<JobId, JobId>,
+    /// The single writer of the named user preset store (S-143-B). The
+    /// handle is cheap to clone; the worker starts on the first command and
+    /// every store read and write happens there, never under this mutex.
+    pub presets: crate::presets::PresetService,
+    /// Cached read-only tool probe outcomes, cleared on reload (S-145).
+    pub probe_cache: ProbeCache,
+    /// System Tesseract handle used for read-only OCR language probes (S-145).
+    pub ocr: OcrEngine,
+}
+
+/// Why the daemon refuses a retry (S-144).
+///
+/// The refusal is typed so a later surface can tell a missing action from a
+/// changed source from a retry that is already running.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RetryRefusal {
+    /// The ledger refuses the retry.
+    Ledger(LedgerRefusal),
+    /// A retry of this job is already submitted and has not finished.
+    AlreadySubmitting,
+}
+
+impl RetryRefusal {
+    /// The readable reason of the refusal.
+    pub fn reason(&self) -> String {
+        match self {
+            RetryRefusal::Ledger(refusal) => refusal.to_string(),
+            RetryRefusal::AlreadySubmitting => {
+                String::from("a retry of this job is already running")
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for RetryRefusal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.reason())
+    }
+}
+
+impl From<LedgerRefusal> for RetryRefusal {
+    fn from(refusal: LedgerRefusal) -> Self {
+        RetryRefusal::Ledger(refusal)
+    }
 }
 
 pub type Shared = Arc<Mutex<State>>;
@@ -69,6 +125,12 @@ impl State {
             pending: None,
             jobs: HashMap::new(),
             subscribers: HashMap::new(),
+            results: ResultLedger::new(),
+            retry_parents: HashMap::new(),
+            pending_retries: HashMap::new(),
+            presets: crate::presets::PresetService::new(kawaro_core::presets::path()),
+            probe_cache: ProbeCache::new(),
+            ocr: OcrEngine::default(),
         }
     }
 
@@ -88,7 +150,7 @@ impl State {
         action
     }
 
-    /// Re-reads settings and action files.
+    /// Re-reads settings and action files, and invalidates cached tool probes (S-145).
     pub fn reload(&mut self) {
         let (config, warning) = Config::load();
         if let Some(w) = warning {
@@ -97,6 +159,10 @@ impl State {
         self.lang = config.lang();
         self.config = config;
         self.registry = load_registry();
+        self.probe_cache.invalidate_all();
+        OcrEngine::invalidate_language_cache();
+        self.ocr = OcrEngine::discover();
+        self.ocr.warm_language_probe();
     }
 
     pub fn matching(&self, files: &[PathBuf]) -> Vec<ActionDef> {

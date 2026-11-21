@@ -1,6 +1,6 @@
 # S-144: Batch results and safe retry
 
-Status: planned, implementation not started. Executable checks deferred by owner order.
+Status: ledger, CLI/IPC results commands and the Results settings page with tray entry (Linux and Windows) source implemented; parent source-reviewed on 2026-11-21. Open check: the sixth rail item may clip at the 560 px minimum window height (s094 AC5). Runtime, visual and Windows cross checks deferred by owner order.
 Date: 2026-11-15.
 Spec: ../docs/specs/2026-11-15-next-features.md
 Implementation packet: ../docs/superpowers/plans/2026-11-15-next-features.md

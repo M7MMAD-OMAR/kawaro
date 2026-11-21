@@ -14,7 +14,7 @@
 
 ## Global constraints
 
-- Planning only is authorized in this pass. No product code, executable check, screenshot capture, build, installer, model inference, factory or CI execution.
+- Owner GO of 2026-11-15 authorizes full source implementation. Existing prohibition on executable checks, screenshot capture, builds, installers, model inference, factory and CI remains. Test source may be prepared but not executed.
 - Selected implementation agent: pi/minimax/MiniMax-M3.1-Flash. Parent owns design decisions and final review.
 - Heavy checks remain deferred. All test names/cases below are future acceptance designs, never execution instructions for this pass.
 - Keep existing defaults, original-file preservation, collision-safe finalization, local processing and S-136 session ownership.
@@ -105,7 +105,7 @@ The engines crate implements ImagePreviewProvider for ImageEngine. Daemon inject
 
 ### Implementation sequence
 
-- [ ] Draft ADR 0016 as proposed and parent-review it against existing engine/options ADRs. Do not mark it accepted solely because this plan exists.
+- [x] Parent reviewed and accepted ADR 0016 for source implementation under the explicit owner GO; executable evidence remains deferred.
 - [ ] Record run_single behavior and the output-write boundary before extraction. Keep the parent method's signature and all unrelated operation behavior stable.
 - [ ] Introduce an internal PreparedImage result with transformed pixels, output format, oriented source dimensions, transformed dimensions, metadata segments and target-size-search information. Its constructor takes the existing parsed operation, decoded image and resolved params. Keep encode/metadata logic in engines.
 - [ ] Route both export and preview through that preparation. Export alone writes the queue-provided temp output. Preview stops before any output write and emits no JobEvent.
@@ -280,13 +280,13 @@ Add manifest: JobManifest to internal JobEvent::Started and unit: TaskUnitId to 
 **Files:** The current desktop study is docs/research/searchable-pdf-feasibility.md. Extend that evidence with the supported-version/dependency decision and a proposed PDF OCR ADR only after its number is confirmed free. No product adapter/action/dependency change in this task.
 
 - [x] Desktop research compared system OCRmyPDF, Tesseract raster/PDF reassembly and a new Rust text-layer writer; conditional preference is system OCRmyPDF, with sources and limits in the feasibility document.
-- [ ] Complete the version-specific executable/library/language-data dependency/license inventory and optional-install boundaries before final adoption. No installer or runtime qualification is authorized by the desktop preference.
-- [ ] Define exactly one searchable-PDF output per task. Keep plain text extraction a separate operation. Explain why an OCR-only sidecar omits already-present text.
-- [ ] Define first-scope refusal for signed/encrypted documents and behavior for corrupt PDFs, mixed text/image pages, page ranges, rotation, existing text and unavailable languages. Preserve original page order/size and untouched input.
-- [ ] Specify child argv, child-tree cancellation, per-page/whole-job timeout policy, temp limits and no partial final commit. No force-OCR/redo by default, no silent PDF/A conversion or signature removal.
-- [ ] Define later Arabic acceptance: searchable words, logical copy/paste order, mixed Arabic/Latin/numbers, diacritics, multiple columns, rotated scans and existing-text pages. A picture that looks correct does not prove the hidden text layer works.
-- [ ] Record limitations of fixtures, accessibility tagging and archival claims. Do not advertise PDF/A, PDF/UA, searchable Arabic quality or digital-signature preservation without corresponding validation.
-- [ ] Return Adopt/Defer/Reject with reasons and the smallest viable dependency set. Only Adopt plus a reviewed scope creates the future PDF OCR implementation story. Do not reserve that implementation as done work now.
+- [x] Complete the version-specific executable/library/language-data dependency/license inventory and optional-install boundaries before final adoption. No installer or runtime qualification is authorized by the desktop preference.
+- [x] Define exactly one searchable-PDF output per task. Keep plain text extraction a separate operation. Explain why an OCR-only sidecar omits already-present text.
+- [x] Define first-scope refusal for signed/encrypted documents and behavior for corrupt PDFs, mixed text/image pages, page ranges, rotation, existing text and unavailable languages. Preserve original page order/size and untouched input.
+- [x] Specify child argv, child-tree cancellation, per-page/whole-job timeout policy, temp limits and no partial final commit. No force-OCR/redo by default, no silent PDF/A conversion or signature removal.
+- [x] Define later Arabic acceptance: searchable words, logical copy/paste order, mixed Arabic/Latin/numbers, diacritics, multiple columns, rotated scans and existing-text pages. A picture that looks correct does not prove the hidden text layer works.
+- [x] Record limitations of fixtures, accessibility tagging and archival claims. Do not advertise PDF/A, PDF/UA, searchable Arabic quality or digital-signature preservation without corresponding validation.
+- [x] Return Adopt/Defer/Reject with reasons and the smallest viable dependency set. Only Adopt plus a reviewed scope creates the future PDF OCR implementation story. Do not reserve that implementation as done work now.
 
 ## 7. Later platform planning and release work
 
@@ -324,3 +324,21 @@ Parent reviewed both Pi source reports against the baseline and official technic
 Coverage: the five requested proposals have user outcomes, exclusions, files, proposed interfaces, failure cases and deferred focused acceptance. Searchable PDF has a separately scoped feasibility decision. Native platform work follows stabilized contracts. Existing S-138 and S-141 are preserved as separate work. Six new planned stories reserve S-142 through S-147; S-148 is next free.
 
 Review method was source/document reading and exact diff inspection only. No build, test, lint suite, benchmark, compositor, installer, OCR/model execution or CI was run in this planning pass. The numerical limits are proposed policies, not measured results. Proposed ADR 0016 remains proposed. Planning completion is not product implementation or release acceptance.
+
+## 11. Execution GO (2026-11-15)
+
+The owner explicitly requested full implementation, selected MiniMax as executor and retained parent planning/review. Source implementation is now authorized. Build/test/visual/runtime/CI evidence remains deferred by the prior owner constraint. Work proceeds in bounded source packets with parent review of exact diffs; no packet is recorded as runtime-proven or released. S-142 shared engine preparation precedes preview UI. The independent missing-Poppler/qpdf explanation repair may proceed on disjoint paths while that foundation is built. No new branch/worktree is created.
+
+## 12. Source execution record (2026-11-21)
+
+Executors: `pi/minimax/MiniMax-M3.1-Flash` and `antigravity/gemini-4-neon`; parent review by the Opus manager. Status per section, source only, nothing built or tested:
+
+- Section 1, S-142: source implemented and reviewed; superseded running previews finish and are discarded.
+- Section 2, S-143: store, daemon worker and panel wiring implemented and reviewed.
+- Section 3, S-144: ledger, CLI/IPC commands, Results settings page and tray entry implemented and reviewed.
+- Section 4, S-145: core report and `kawaro doctor` implemented; hive and MCP surfaces in a follow-up packet.
+- Section 5, S-146: adapter, language preflight, probe cache and APNG refusal implemented and reviewed.
+- Section 6, S-147: Adopt, proposed ADR 0017, draft S-150.
+- S-148 and S-149: implemented and reviewed; S-149 page size from accepted slots in a follow-up packet.
+
+The unchecked boxes above stay unchecked until the deferred check stage runs their focused cases. Details: docs/development/2026-11-15-execution-status.md.

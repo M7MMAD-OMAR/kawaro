@@ -69,6 +69,14 @@ export struct StagePreset {
     label: string,
 }
 
+export struct NamedPresetRow {
+    id: string,
+    name: string,
+    detail: string,
+    can-apply: bool,
+    can-review: bool,
+}
+
 export component HiveWindow inherits Window {
     in property <[CellData]> cells;
     in property <length> hex-r;
@@ -118,9 +126,34 @@ export component HiveWindow inherits Window {
     in property <image> stage-preview-image;
     in property <[StageOption]> stage-options;
     in property <[StagePreset]> stage-presets;
+    // S-143-C: named user presets stay a secondary in-panel control. No
+    // fourth footer action or separate top-level window is introduced.
+    in property <bool> stage-named-presets-available;
+    in property <[NamedPresetRow]> stage-named-presets;
+    in-out property <string> stage-preset-name;
+    in property <string> stage-preset-status;
+    in property <bool> stage-preset-pending;
+    in property <bool> stage-preset-read-only;
+    in property <bool> stage-preset-can-save;
+    in property <string> stage-preset-save-text;
+    in property <string> stage-preset-apply-text;
+    in property <string> stage-preset-rename-text;
+    in property <string> stage-preset-delete-text;
+    in property <string> stage-preset-review-text;
+    in property <string> stage-preset-name-label;
     in property <string> stage-run-text;
     in property <string> stage-reset-text;
     in property <string> stage-back-text;
+    // S-142: the preview of the panel. The label names the mode of the
+    // picture (a transformed draft, an encoded result or the legacy source
+    // draft), the byte count belongs to an encoded result only, and the
+    // status explains a refused or failed request.
+    in property <string> stage-preview-label;
+    in property <string> stage-preview-bytes;
+    in property <string> stage-preview-status;
+    // True when the explicit encoded control is offered.
+    in property <bool> stage-preview-encode;
+    in property <string> stage-encode-text;
     // S-119: the resolved params failure, shown in the danger colour while
     // the panel stays open; empty when the values are valid.
     in property <string> stage-error;
@@ -180,14 +213,27 @@ export component HiveWindow inherits Window {
     // Next highlight for a key code (see layout::Nav::from_code).
     callback navigate(int, int) -> int;
     callback choose(int);
+    // S-149: the next or the previous page of the outer ring. The delta is
+    // 1 for the next page and -1 for the previous one.
+    callback change-page(int);
     callback dismiss();
     // S-119: the customize pill under the centre label, and the panel.
     callback customize(int);
     callback stage-run();
     callback stage-reset();
     callback stage-cancel();
+    // S-142: the explicit encoded control. It asks for the encoded result
+    // once; nothing asks for it on its own.
+    callback stage-encode();
     callback option-changed(index: int, numeric: float, text: string);
     callback option-edited(index: int, text: string);
+    callback preset-name-edited(text: string);
+    callback preset-save();
+    callback preset-select(id: string);
+    callback preset-apply(id: string);
+    callback preset-rename(id: string);
+    callback preset-delete(id: string);
+    callback preset-review(id: string);
     public function focus-hive() { keys.focus(); }
     callback preset-picked(index: int);
 
@@ -263,6 +309,15 @@ export component HiveWindow inherits Window {
             }
             if event.text == Key.DownArrow {
                 root.highlight = root.navigate(root.highlight, 5);
+                return accept;
+            }
+            // S-149: the pages of the outer ring. The panel keeps the keys.
+            if event.text == Key.PageDown {
+                root.change-page(1);
+                return accept;
+            }
+            if event.text == Key.PageUp {
+                root.change-page(-1);
                 return accept;
             }
             reject
@@ -681,19 +736,80 @@ export component HiveWindow inherits Window {
                     accessible-role: text;
                     accessible-label: self.text;
                 }
-                if root.stage-preview: VerticalLayout {
-                    Text {
-                        text: root.rtl ? "مسودة المصدر" : "Source draft";
+                if root.stage-preview || root.stage-preview-status != "": VerticalLayout {
+                    spacing: Tokens.space-1;
+                    // The label of the picture and the explicit encoded
+                    // control. The control lives in the body, so the fixed
+                    // footer keeps its three actions (S-142). The row is
+                    // mirrored for Arabic, like the footer.
+                    if root.rtl: HorizontalLayout {
+                        spacing: Tokens.space-2;
+                        alignment: end;
+                        if root.stage-preview-encode: TextButton {
+                            text: root.stage-encode-text;
+                            clicked => { root.stage-encode(); }
+                            accessible-label: root.stage-encode-text;
+                        }
+                        Text {
+                            text: root.stage-preview-label;
+                            font-size: Tokens.font-label;
+                            color: Tokens.text-secondary;
+                            vertical-alignment: center;
+                            // The label takes the free room, so the control
+                            // stays reachable in a small panel.
+                            horizontal-stretch: 1;
+                            horizontal-alignment: right;
+                            overflow: elide;
+                            accessible-role: text;
+                            accessible-label: self.text;
+                        }
+                    }
+                    if !root.rtl: HorizontalLayout {
+                        spacing: Tokens.space-2;
+                        alignment: start;
+                        Text {
+                            text: root.stage-preview-label;
+                            font-size: Tokens.font-label;
+                            color: Tokens.text-secondary;
+                            vertical-alignment: center;
+                            horizontal-stretch: 1;
+                            horizontal-alignment: left;
+                            overflow: elide;
+                            accessible-role: text;
+                            accessible-label: self.text;
+                        }
+                        if root.stage-preview-encode: TextButton {
+                            text: root.stage-encode-text;
+                            clicked => { root.stage-encode(); }
+                            accessible-label: root.stage-encode-text;
+                        }
+                    }
+                    // The exact byte count of an encoded result. A draft has
+                    // none, so the line stays empty.
+                    if root.stage-preview-bytes != "": Text {
+                        text: root.stage-preview-bytes;
                         font-size: Tokens.font-label;
                         color: Tokens.text-secondary;
                         horizontal-alignment: root.rtl ? right : left;
+                        accessible-role: text;
+                        accessible-label: self.text;
+                    }
+                    // The typed reason of a refused or failed request.
+                    if root.stage-preview-status != "": Text {
+                        text: root.stage-preview-status;
+                        font-size: Tokens.font-label;
+                        color: Tokens.danger;
+                        wrap: word-wrap;
+                        horizontal-alignment: root.rtl ? right : left;
+                        accessible-role: text;
+                        accessible-label: self.text;
                     }
                     Image {
                         height: Tokens.layout-stage-well-r * 2;
                         source: root.stage-preview-image;
                         image-fit: contain;
                         accessible-role: image;
-                        accessible-label: root.rtl ? "مسودة المصدر" : "Source draft";
+                        accessible-label: root.stage-preview-label;
                     }
                 }
                 if root.stage-preview-note != "": Text {
@@ -701,6 +817,99 @@ export component HiveWindow inherits Window {
                     font-size: Tokens.font-label;
                     color: Tokens.text-secondary;
                     wrap: word-wrap;
+                }
+                if root.stage-named-presets-available: named-panel := Rectangle {
+                    min-height: named-body.preferred-height + 2 * Tokens.space-2;
+                    background: Tokens.surface-2;
+                    border-width: Tokens.border-default;
+                    border-color: Tokens.border;
+                    border-radius: Tokens.radius-md;
+                    named-body := VerticalLayout {
+                        padding: Tokens.space-2;
+                        spacing: Tokens.space-2;
+                        Text {
+                            text: root.stage-preset-name-label;
+                            font-size: Tokens.font-label;
+                            color: Tokens.text-secondary;
+                            horizontal-alignment: root.rtl ? right : left;
+                            accessible-role: text;
+                            accessible-label: self.text;
+                        }
+                        TextField {
+                            text: root.stage-preset-name;
+                            label: root.stage-preset-name-label;
+                            enabled: !root.stage-preset-pending && !root.stage-preset-read-only;
+                            edited(text) => { root.preset-name-edited(text); }
+                            accepted(text) => { }
+                            horizontal-alignment: root.rtl ? right : left;
+                            accessible-label: root.stage-preset-name-label;
+                        }
+                        if root.stage-preset-status != "": Text {
+                            text: root.stage-preset-status;
+                            font-size: Tokens.font-label;
+                            color: root.stage-preset-read-only ? Tokens.danger : Tokens.text-secondary;
+                            wrap: word-wrap;
+                            horizontal-alignment: root.rtl ? right : left;
+                            accessible-role: text;
+                            accessible-label: self.text;
+                        }
+                        for item[i] in root.stage-named-presets: named-row := VerticalLayout {
+                            spacing: Tokens.space-1;
+                            HorizontalLayout {
+                                spacing: Tokens.space-1;
+                                FilterChip {
+                                    text: item.name;
+                                    accessible-label: item.name + ": " + item.detail;
+                                    // The chip owns its own toggle, so the
+                                    // panel reads the change instead of
+                                    // binding the state. The selected row
+                                    // says so in its detail line.
+                                    changed checked => {
+                                        if self.checked { root.preset-select(item.id); self.checked = false; }
+                                    }
+                                }
+                                if item.can-apply: TextButton {
+                                    text: root.stage-preset-apply-text;
+                                    enabled: !root.stage-preset-pending && !root.stage-preset-read-only;
+                                    clicked => { root.preset-apply(item.id); }
+                                    accessible-label: root.stage-preset-apply-text + ": " + item.name;
+                                }
+                                if item.can-review && !root.stage-preset-read-only: TextButton {
+                                    text: root.stage-preset-review-text;
+                                    enabled: !root.stage-preset-pending;
+                                    clicked => { root.preset-review(item.id); }
+                                    accessible-label: root.stage-preset-review-text + ": " + item.name;
+                                }
+                                if !root.stage-preset-read-only: TextButton {
+                                    text: root.stage-preset-rename-text;
+                                    enabled: !root.stage-preset-pending && root.stage-preset-name != "";
+                                    clicked => { root.preset-rename(item.id); }
+                                    accessible-label: root.stage-preset-rename-text + ": " + item.name;
+                                }
+                                if !root.stage-preset-read-only: TextButton {
+                                    text: root.stage-preset-delete-text;
+                                    enabled: !root.stage-preset-pending;
+                                    clicked => { root.preset-delete(item.id); }
+                                    accessible-label: root.stage-preset-delete-text + ": " + item.name;
+                                }
+                            }
+                            if item.detail != "": Text {
+                                text: item.detail;
+                                font-size: Tokens.font-label;
+                                color: Tokens.text-secondary;
+                                wrap: word-wrap;
+                                horizontal-alignment: root.rtl ? right : left;
+                                accessible-role: text;
+                                accessible-label: self.text;
+                            }
+                        }
+                        TextButton {
+                            text: root.stage-preset-save-text;
+                            enabled: root.stage-preset-can-save && !root.stage-preset-pending && !root.stage-preset-read-only;
+                            clicked => { root.preset-save(); }
+                            accessible-label: root.stage-preset-save-text;
+                        }
+                    }
                 }
             }
         }

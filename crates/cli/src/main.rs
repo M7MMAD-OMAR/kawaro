@@ -8,9 +8,11 @@ macro_rules! out {
     }};
 }
 
+mod capabilities;
 mod client;
 mod clipboard;
 mod integration;
+mod results;
 mod spawn;
 mod update;
 mod update_sys;
@@ -160,6 +162,49 @@ enum Cmd {
     Reload,
     /// Stop the daemon.
     Quit,
+    /// List the jobs of this session with their outcome counts (S-144-C).
+    /// Reads the running daemon; it never starts one.
+    Jobs {
+        /// Print JSON instead of a table.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show what happened to one job, unit by unit (S-144-C). Reads the
+    /// running daemon; it never starts one.
+    Results {
+        /// The job to show: a job number, or INSTANCE:JOB for a reference
+        /// that is checked against the daemon that answers. Required unless
+        /// --clear is given.
+        #[arg(
+            value_name = "JOB",
+            required_unless_present = "clear",
+            value_parser = parse_job_ref
+        )]
+        job: Option<JobRef>,
+        /// Forget the completed jobs of this session; active jobs keep
+        /// running. Takes no job id.
+        #[arg(long, conflicts_with_all = ["job", "json"])]
+        clear: bool,
+        /// Print JSON instead of a table.
+        #[arg(long, conflicts_with = "clear")]
+        json: bool,
+    },
+    /// Retry the failed units of a finished job as a new job (S-144-C).
+    /// The daemon checks the stored action, its options and the current
+    /// inputs first, so a changed job is refused rather than rewritten.
+    Retry {
+        /// The job to retry: a job number, or INSTANCE:JOB for a reference
+        /// that is checked against the daemon that answers.
+        #[arg(value_name = "JOB", value_parser = parse_job_ref)]
+        job: JobRef,
+    },
+    /// Ask the queue to cancel one job (S-144-C).
+    Cancel {
+        /// The job to cancel: a job number, or INSTANCE:JOB for a reference
+        /// that is checked against the daemon that answers.
+        #[arg(value_name = "JOB", value_parser = parse_job_ref)]
+        job: JobRef,
+    },
 }
 
 #[derive(Subcommand)]
@@ -194,6 +239,57 @@ struct Privileged {
     /// The package format.
     #[arg(long, value_parser = parse_kind)]
     kind: PkgKind,
+}
+
+/// A job reference on the command line (S-148 AC3).
+///
+/// A plain job number names a job of the daemon that answers now. A
+/// reference with an instance names a job of one daemon lifecycle, so a
+/// reference taken before a restart is refused by the daemon instead of
+/// hitting a job number that the restart reused.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct JobRef {
+    /// The daemon instance the reference was taken from, when the user gave
+    /// one.
+    pub instance: Option<String>,
+    /// The job number inside that daemon.
+    pub job: u64,
+}
+
+/// Parses `JOB` or `INSTANCE:JOB` (S-148 AC3).
+fn parse_job_ref(text: &str) -> Result<JobRef, String> {
+    match text.rsplit_once(':') {
+        Some((instance, job)) => {
+            let job = job.parse::<u64>().map_err(|_| bad_job_ref(text))?;
+            if !is_instance(instance) {
+                return Err(bad_job_ref(text));
+            }
+            Ok(JobRef {
+                instance: Some(instance.to_string()),
+                job,
+            })
+        }
+        None => {
+            let job = text.parse::<u64>().map_err(|_| bad_job_ref(text))?;
+            Ok(JobRef {
+                instance: None,
+                job,
+            })
+        }
+    }
+}
+
+/// The reason a job reference is refused.
+fn bad_job_ref(text: &str) -> String {
+    format!("expected a job number, or INSTANCE:JOB like k-1a2b-3c4d:7, got {text:?}")
+}
+
+/// True when the text looks like a daemon instance: letters, digits, the
+/// dash and the underscore. A path or a sentence is refused here, before it
+/// reaches the daemon.
+fn is_instance(text: &str) -> bool {
+    let plain = |c: char| c.is_ascii_alphanumeric() || c == '-' || c == '_';
+    !text.is_empty() && text.chars().all(plain)
 }
 
 fn parse_kind(text: &str) -> Result<PkgKind, String> {
@@ -285,6 +381,14 @@ fn main() -> ExitCode {
         Cmd::Ping => client::request(&Request::Ping).map(|_| out!("pong")),
         Cmd::Reload => client::request(&Request::Reload).map(|_| ()),
         Cmd::Quit => client::request(&Request::Quit).map(|_| ()),
+        Cmd::Jobs { json } => results::list(json),
+        Cmd::Results { job, clear, json } => match (clear, job) {
+            (true, _) => results::clear(),
+            (false, Some(job)) => results::show(job, json),
+            (false, None) => Err(String::from("results needs a job id, or --clear")),
+        },
+        Cmd::Retry { job } => results::retry(job),
+        Cmd::Cancel { job } => results::cancel(job),
         Cmd::Integration { .. } | Cmd::Update { .. } => unreachable!("handled above"),
     };
     match result {
@@ -731,15 +835,16 @@ fn on_path(tool: &str) -> bool {
 
 fn doctor() {
     let mark = |ok: bool| if ok { "ok     " } else { "missing" };
+    let all_engines = engines();
     out!("engines");
-    for e in engines() {
+    for e in &all_engines {
         out!("  {} {}", mark(e.available()), e.id());
     }
     out!("tools");
     use kawaro_engines::locate::Program;
     // Every engine tool resolves through the engines' shared lookup so
     // doctor and the engines never disagree (S-080).
-    let engine_tools: [(&str, &str, Program); 6] = [
+    let engine_tools: [(&str, &str, Program); 7] = [
         ("ffmpeg", "video and audio", Program::Ffmpeg),
         ("ffprobe", "video and audio progress", Program::Ffprobe),
         ("soffice", "documents", Program::Office),
@@ -750,6 +855,11 @@ fn doctor() {
         ),
         ("pdftotext", "PDF to text", Program::Pdftotext),
         ("qpdf", "PDF linearize, cleanup and check", Program::Qpdf),
+        (
+            "tesseract",
+            "printed text from a picture",
+            Program::Tesseract,
+        ),
     ];
     for (tool, why, program) in engine_tools {
         let path = kawaro_engines::locate::find(program).map(|p| p.to_string_lossy().into_owned());
@@ -791,6 +901,13 @@ fn doctor() {
     let bind = drop_bind(binds.as_deref());
     out!("{}", doctor_line_for(&bind, up, last));
     if let Some(line) = drop_key_state_line(binds.as_deref(), bind) {
+        out!("{line}");
+    }
+    let reg = registry();
+    let ocr = kawaro_engines::ocr::OcrEngine::discover();
+    let reports = capabilities::evaluate(&reg, &all_engines, &ocr);
+    let lang = Lang::detect();
+    for line in capabilities::format_unavailable(&reports, lang) {
         out!("{line}");
     }
 }
@@ -1029,7 +1146,86 @@ fn host_snippet(host: &str) -> Res<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_token;
+    use super::{Cli, Cmd, JobRef, resolve_token};
+
+    /// The job reference of a parsed job command.
+    fn job_ref(cmd: Cmd) -> JobRef {
+        match cmd {
+            Cmd::Cancel { job } => job,
+            Cmd::Retry { job } => job,
+            Cmd::Results { job, .. } => job.expect("the results command names a job"),
+            _ => panic!("not a job command"),
+        }
+    }
+
+    // S-144-C: the results commands parse, and the clap rules keep `--clear`
+    // away from a job id and `--json` away from `--clear`. Source only: this
+    // case is never executed in this pass.
+    #[test]
+    fn s144c_results_commands_parse_and_keep_their_conflicts() {
+        use clap::Parser;
+        let cli = Cli::try_parse_from(["kawaro", "jobs"]).unwrap();
+        assert!(matches!(cli.cmd, Cmd::Jobs { json: false }));
+        let cli = Cli::try_parse_from(["kawaro", "jobs", "--json"]).unwrap();
+        assert!(matches!(cli.cmd, Cmd::Jobs { json: true }));
+
+        let cli = Cli::try_parse_from(["kawaro", "results", "7"]).unwrap();
+        let job = job_ref(cli.cmd);
+        assert_eq!(job.job, 7);
+        assert!(job.instance.is_none(), "no instance is sent");
+        let cli = Cli::try_parse_from(["kawaro", "results", "7", "--json"]).unwrap();
+        assert_eq!(job_ref(cli.cmd).job, 7);
+        let cli = Cli::try_parse_from(["kawaro", "results", "--clear"]).unwrap();
+        assert!(matches!(
+            cli.cmd,
+            Cmd::Results {
+                job: None,
+                clear: true,
+                json: false,
+            }
+        ));
+        // A job id and --clear never go together, and --json alone names no job.
+        assert!(Cli::try_parse_from(["kawaro", "results", "7", "--clear"]).is_err());
+        assert!(Cli::try_parse_from(["kawaro", "results", "--json"]).is_err());
+        assert!(Cli::try_parse_from(["kawaro", "results", "--clear", "--json"]).is_err());
+
+        let cli = Cli::try_parse_from(["kawaro", "retry", "3"]).unwrap();
+        assert_eq!(job_ref(cli.cmd).job, 3);
+        let cli = Cli::try_parse_from(["kawaro", "cancel", "3"]).unwrap();
+        assert_eq!(job_ref(cli.cmd).job, 3);
+    }
+
+    // S-148 AC3: a job reference is a job number, or a job number with the
+    // daemon instance it was taken from.
+    #[test]
+    fn s148_a_job_reference_is_a_job_or_an_instance_and_a_job() {
+        use super::parse_job_ref;
+        use clap::Parser;
+        let plain = parse_job_ref("7").unwrap();
+        assert_eq!(plain.job, 7);
+        assert!(plain.instance.is_none());
+        let checked = parse_job_ref("k-1a2b-3c4d:7").unwrap();
+        assert_eq!(checked.job, 7);
+        assert_eq!(checked.instance.as_deref(), Some("k-1a2b-3c4d"));
+        // A text that is no job number and no reference is refused, and the
+        // reason names the two accepted forms.
+        let err = parse_job_ref("seven").unwrap_err();
+        assert!(err.contains("JOB"), "{err}");
+        assert!(parse_job_ref("k-1a2b:seven").is_err());
+        assert!(parse_job_ref("k-1a2b:").is_err());
+        assert!(parse_job_ref("a b:7").is_err());
+        assert!(parse_job_ref("-1").is_err());
+
+        let cli = Cli::try_parse_from(["kawaro", "cancel", "k-1a2b-3c4d:7"]).unwrap();
+        let job = job_ref(cli.cmd);
+        assert_eq!(job.job, 7);
+        assert_eq!(job.instance.as_deref(), Some("k-1a2b-3c4d"));
+        let cli = Cli::try_parse_from(["kawaro", "results", "k-1a2b-3c4d:7"]).unwrap();
+        assert_eq!(job_ref(cli.cmd).job, 7);
+        // A reference that is not one is refused by the parser, before the
+        // command runs.
+        assert!(Cli::try_parse_from(["kawaro", "cancel", "seven"]).is_err());
+    }
 
     #[test]
     fn token_comes_from_the_flag_then_wayland_then_x11() {

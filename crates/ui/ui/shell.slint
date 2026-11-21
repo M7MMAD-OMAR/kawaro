@@ -13,7 +13,7 @@
 // rows and the footer. Layout mirroring is not automatic in Slint, so the
 // positions below are written out for both directions.
 import { Tokens } from "tokens.slint";
-import { NavigationRail, NavigationItem, SegmentedButton, Switch, TextField, FilledButton, TextButton, ScrollView } from "@material";
+import { NavigationRail, NavigationItem, SegmentedButton, Switch, TextField, FilledButton, OutlineButton, TextButton, ScrollView, HorizontalDivider } from "@material";
 
 // Every visible string, filled from Rust in the window language.
 export struct SettingsText {
@@ -41,6 +41,7 @@ export struct SettingsText {
     nav-conversion: string,
     nav-notifications: string,
     nav-about: string,
+    nav-results: string,
     group-language: string,
     group-results: string,
     group-finish: string,
@@ -88,6 +89,81 @@ export struct UpdateCard {
     title: string,
     label: string,
     bullets: [string],
+}
+
+// Static localized labels for the Results page (S-144).
+export struct ResultsPageText {
+    page-title: string,
+    empty-title: string,
+    empty-body: string,
+    clear-history: string,
+    clear-history-accessible: string,
+}
+
+// One unit row inside an expanded job on the Results page (S-144).
+export struct ResultUnitItem {
+    unit-id: string,
+    input-display: string,
+    status-label: string,
+    // 0 pending, 1 succeeded, 2 skipped, 3 failed, 4 cancelled, 5 interrupted.
+    status-kind: int,
+    reason: string,
+    can-show-in-folder: bool,
+    show-in-folder-label: string,
+    show-in-folder-accessible: string,
+    output-unavailable-label: string,
+}
+
+// One job row on the Results page (S-144).
+export struct ResultJobItem {
+    job-id: string,
+    action-label: string,
+    state-label: string,
+    // 0 queued, 1 active, 2 completed, 3 inconsistent, 4 unknown.
+    state-kind: int,
+    counts-summary: string,
+    summary-only: bool,
+    summary-only-notice: string,
+    can-show-first-output: bool,
+    first-output-label: string,
+    first-output-accessible: string,
+    first-output-unavailable-label: string,
+    expanded: bool,
+    can-expand: bool,
+    expand-label: string,
+    expand-accessible: string,
+    retry-visible: bool,
+    retry-enabled: bool,
+    retry-label: string,
+    retry-accessible: string,
+    retry-reason: string,
+    can-cancel: bool,
+    cancel-label: string,
+    cancel-accessible: string,
+    units: [ResultUnitItem],
+}
+
+// A compact status label on surface-2 with token spacing and colour.
+component StatusBadge inherits Rectangle {
+    in property <string> label;
+    in property <color> ink;
+
+    background: Tokens.surface-2;
+    border-radius: Tokens.radius-sm;
+    min-width: badge-text.preferred-width + 2 * Tokens.space-2;
+    min-height: badge-text.preferred-height + 2 * Tokens.space-1;
+    preferred-width: self.min-width;
+    preferred-height: self.min-height;
+    max-height: self.min-height;
+
+    badge-text := Text {
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        text: root.label;
+        font-size: Tokens.font-label;
+        font-weight: Tokens.weight-medium;
+        color: root.ink;
+    }
 }
 
 // The segments of a choice: two or three options, already in visual order.
@@ -301,6 +377,11 @@ export component AppShell inherits Rectangle {
     in-out property <int> update-channel;
     in-out property <int> update-mode;
 
+    // The Results page (S-144). Rust renders ResultsViewModel into these props.
+    in property <ResultsPageText> results-text;
+    in property <[ResultJobItem]> results-jobs;
+    in property <bool> results-can-clear: false;
+
     out property <bool> dirty: root.language != root.loaded.language
         || root.theme != root.loaded.theme
         || root.output != root.loaded.output
@@ -336,6 +417,12 @@ export component AppShell inherits Rectangle {
     callback copy-version();
     // The user picked a page (rail, Ctrl+Tab, arrows).
     callback page-changed(int);
+    // Results page actions (S-144).
+    callback results-retry(string);
+    callback results-cancel(string);
+    callback results-clear();
+    callback results-show-in-folder(string, string);
+    callback results-toggle-expanded(string);
 
     public function focus-rail() {
         rail-keys.focus();
@@ -346,9 +433,9 @@ export component AppShell inherits Rectangle {
         keys.focus();
     }
 
-    // The settings page index: 0 General to 4 About.
+    // The settings page index: 0 General to 5 Results.
     property <int> sp: root.page - (root.has-intro ? 1 : 0);
-    property <int> page-count: root.has-intro ? 6 : 5;
+    property <int> page-count: root.has-intro ? 7 : 6;
     property <length> footer-h: root.show-footer ? Tokens.space-8 + Tokens.space-2 : 0;
     property <length> pad: Tokens.space-5;
     property <bool> wide: column.width >= Tokens.layout-row-breakpoint;
@@ -378,6 +465,7 @@ export component AppShell inherits Rectangle {
         { icon: @image-url("../resources/rail/notifications.svg"), selected-icon: @image-url("../resources/rail/notifications.svg"), text: root.text.nav-notifications },
         { icon: @image-url("../resources/rail/updates.svg"), selected-icon: @image-url("../resources/rail/updates.svg"), text: root.text.updates },
         { icon: @image-url("../resources/rail/about.svg"), selected-icon: @image-url("../resources/rail/about.svg"), text: root.text.nav-about },
+        { icon: @image-url("../resources/rail/conversion.svg"), selected-icon: @image-url("../resources/rail/conversion.svg"), text: root.text.nav-results },
     ];
     property <[NavigationItem]> intro-items: [
         { icon: @image-url("../resources/rail/introduction.svg"), selected-icon: @image-url("../resources/rail/introduction.svg"), text: root.text.nav-intro },
@@ -386,6 +474,7 @@ export component AppShell inherits Rectangle {
         { icon: @image-url("../resources/rail/notifications.svg"), selected-icon: @image-url("../resources/rail/notifications.svg"), text: root.text.nav-notifications },
         { icon: @image-url("../resources/rail/updates.svg"), selected-icon: @image-url("../resources/rail/updates.svg"), text: root.text.updates },
         { icon: @image-url("../resources/rail/about.svg"), selected-icon: @image-url("../resources/rail/about.svg"), text: root.text.nav-about },
+        { icon: @image-url("../resources/rail/conversion.svg"), selected-icon: @image-url("../resources/rail/conversion.svg"), text: root.text.nav-results },
     ];
 
     function go(p: int) {
@@ -890,6 +979,258 @@ export component AppShell inherits Rectangle {
                                             root.go(3 + (root.has-intro ? 1 : 0));
                                             root.update-check();
                                         }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if root.sp == 5: VerticalLayout {
+                        spacing: Tokens.space-4;
+
+                        // Header row: page title and Clear history button in reading order.
+                        HorizontalLayout {
+                            spacing: Tokens.space-2;
+                            if !root.rtl: SectionTitle {
+                                horizontal-stretch: 1;
+                                vertical-alignment: center;
+                                rtl: false;
+                                text: root.results-text.page-title;
+                            }
+                            if !root.rtl: TextButton {
+                                text: root.results-text.clear-history;
+                                enabled: root.results-can-clear;
+                                accessible-label: root.results-text.clear-history-accessible;
+                                clicked => { root.results-clear(); }
+                            }
+                            if root.rtl: TextButton {
+                                text: root.results-text.clear-history;
+                                enabled: root.results-can-clear;
+                                accessible-label: root.results-text.clear-history-accessible;
+                                clicked => { root.results-clear(); }
+                            }
+                            if root.rtl: SectionTitle {
+                                horizontal-stretch: 1;
+                                vertical-alignment: center;
+                                rtl: true;
+                                text: root.results-text.page-title;
+                            }
+                        }
+
+                        if root.results-jobs.length == 0: Card {
+                            Text {
+                                text: root.results-text.empty-title;
+                                font-size: Tokens.font-body;
+                                font-weight: Tokens.weight-semibold;
+                                color: Tokens.text-primary;
+                                wrap: word-wrap;
+                                horizontal-alignment: root.rtl ? right : left;
+                            }
+                            Text {
+                                text: root.results-text.empty-body;
+                                font-size: Tokens.font-body;
+                                color: Tokens.text-secondary;
+                                wrap: word-wrap;
+                                horizontal-alignment: root.rtl ? right : left;
+                            }
+                        }
+
+                        for job in root.results-jobs: Card {
+                            // Job title and status pill, mirrored by language.
+                            HorizontalLayout {
+                                spacing: Tokens.space-3;
+                                if !root.rtl: Text {
+                                    horizontal-stretch: 1;
+                                    vertical-alignment: center;
+                                    text: job.action-label;
+                                    font-size: Tokens.font-body;
+                                    font-weight: Tokens.weight-semibold;
+                                    color: Tokens.text-primary;
+                                    wrap: word-wrap;
+                                    horizontal-alignment: left;
+                                }
+                                if !root.rtl: VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        label: job.state-label;
+                                        ink: job.state-kind == 2 ? Tokens.success : job.state-kind == 3 ? Tokens.warning : job.state-kind == 1 ? Tokens.accent : Tokens.text-secondary;
+                                    }
+                                }
+                                if root.rtl: VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        label: job.state-label;
+                                        ink: job.state-kind == 2 ? Tokens.success : job.state-kind == 3 ? Tokens.warning : job.state-kind == 1 ? Tokens.accent : Tokens.text-secondary;
+                                    }
+                                }
+                                if root.rtl: Text {
+                                    horizontal-stretch: 1;
+                                    vertical-alignment: center;
+                                    text: job.action-label;
+                                    font-size: Tokens.font-body;
+                                    font-weight: Tokens.weight-semibold;
+                                    color: Tokens.text-primary;
+                                    wrap: word-wrap;
+                                    horizontal-alignment: right;
+                                }
+                            }
+
+                            Text {
+                                text: job.counts-summary;
+                                font-size: Tokens.font-body;
+                                color: Tokens.text-secondary;
+                                wrap: word-wrap;
+                                horizontal-alignment: root.rtl ? right : left;
+                            }
+
+                            if job.summary-only-notice != "": Text {
+                                text: job.summary-only-notice;
+                                font-size: Tokens.font-label;
+                                color: Tokens.text-secondary;
+                                wrap: word-wrap;
+                                horizontal-alignment: root.rtl ? right : left;
+                            }
+
+                            if job.summary-only && !job.can-show-first-output && job.first-output-unavailable-label != "": Text {
+                                text: job.first-output-unavailable-label;
+                                font-size: Tokens.font-label;
+                                color: Tokens.text-secondary;
+                                wrap: word-wrap;
+                                horizontal-alignment: root.rtl ? right : left;
+                            }
+
+                            if job.retry-reason != "" && job.retry-reason != job.summary-only-notice: Text {
+                                text: job.retry-reason;
+                                font-size: Tokens.font-label;
+                                color: Tokens.text-secondary;
+                                wrap: word-wrap;
+                                horizontal-alignment: root.rtl ? right : left;
+                            }
+
+                            // Job actions in reading order, reversed in Arabic.
+                            if !root.rtl && (job.can-expand || (job.summary-only && job.can-show-first-output) || job.can-cancel || job.retry-visible): HorizontalLayout {
+                                alignment: start;
+                                spacing: Tokens.space-2;
+
+                                if job.can-expand: TextButton {
+                                    text: job.expand-label;
+                                    accessible-label: job.expand-accessible;
+                                    clicked => { root.results-toggle-expanded(job.job-id); }
+                                }
+                                if job.summary-only && job.can-show-first-output: TextButton {
+                                    text: job.first-output-label;
+                                    accessible-label: job.first-output-accessible;
+                                    clicked => { root.results-show-in-folder(job.job-id, ""); }
+                                }
+                                if job.can-cancel: OutlineButton {
+                                    text: job.cancel-label;
+                                    accessible-label: job.cancel-accessible;
+                                    clicked => { root.results-cancel(job.job-id); }
+                                }
+                                if job.retry-visible: FilledButton {
+                                    text: job.retry-label;
+                                    enabled: job.retry-enabled;
+                                    accessible-label: job.retry-accessible;
+                                    clicked => { root.results-retry(job.job-id); }
+                                }
+                            }
+
+                            if root.rtl && (job.can-expand || (job.summary-only && job.can-show-first-output) || job.can-cancel || job.retry-visible): HorizontalLayout {
+                                alignment: end;
+                                spacing: Tokens.space-2;
+
+                                if job.retry-visible: FilledButton {
+                                    text: job.retry-label;
+                                    enabled: job.retry-enabled;
+                                    accessible-label: job.retry-accessible;
+                                    clicked => { root.results-retry(job.job-id); }
+                                }
+                                if job.can-cancel: OutlineButton {
+                                    text: job.cancel-label;
+                                    accessible-label: job.cancel-accessible;
+                                    clicked => { root.results-cancel(job.job-id); }
+                                }
+                                if job.summary-only && job.can-show-first-output: TextButton {
+                                    text: job.first-output-label;
+                                    accessible-label: job.first-output-accessible;
+                                    clicked => { root.results-show-in-folder(job.job-id, ""); }
+                                }
+                                if job.can-expand: TextButton {
+                                    text: job.expand-label;
+                                    accessible-label: job.expand-accessible;
+                                    clicked => { root.results-toggle-expanded(job.job-id); }
+                                }
+                            }
+
+                            // Expandable unit rows.
+                            if job.expanded && job.units.length > 0: VerticalLayout {
+                                spacing: Tokens.space-3;
+
+                                for unit in job.units: VerticalLayout {
+                                    spacing: Tokens.space-1;
+
+                                    HorizontalDivider {}
+
+                                    HorizontalLayout {
+                                        spacing: Tokens.space-2;
+                                        if !root.rtl: Text {
+                                            horizontal-stretch: 1;
+                                            vertical-alignment: center;
+                                            text: unit.input-display;
+                                            font-size: Tokens.font-body;
+                                            color: Tokens.text-primary;
+                                            wrap: word-wrap;
+                                            horizontal-alignment: left;
+                                        }
+                                        if !root.rtl: VerticalLayout {
+                                            alignment: center;
+                                            StatusBadge {
+                                                label: unit.status-label;
+                                                ink: unit.status-kind == 1 ? Tokens.success : unit.status-kind == 3 ? Tokens.danger : (unit.status-kind == 2 || unit.status-kind == 5) ? Tokens.warning : Tokens.text-secondary;
+                                            }
+                                        }
+                                        if !root.rtl && unit.can-show-in-folder: TextButton {
+                                            text: unit.show-in-folder-label;
+                                            accessible-label: unit.show-in-folder-accessible;
+                                            clicked => { root.results-show-in-folder(job.job-id, unit.unit-id); }
+                                        }
+                                        if root.rtl && unit.can-show-in-folder: TextButton {
+                                            text: unit.show-in-folder-label;
+                                            accessible-label: unit.show-in-folder-accessible;
+                                            clicked => { root.results-show-in-folder(job.job-id, unit.unit-id); }
+                                        }
+                                        if root.rtl: VerticalLayout {
+                                            alignment: center;
+                                            StatusBadge {
+                                                label: unit.status-label;
+                                                ink: unit.status-kind == 1 ? Tokens.success : unit.status-kind == 3 ? Tokens.danger : (unit.status-kind == 2 || unit.status-kind == 5) ? Tokens.warning : Tokens.text-secondary;
+                                            }
+                                        }
+                                        if root.rtl: Text {
+                                            horizontal-stretch: 1;
+                                            vertical-alignment: center;
+                                            text: unit.input-display;
+                                            font-size: Tokens.font-body;
+                                            color: Tokens.text-primary;
+                                            wrap: word-wrap;
+                                            horizontal-alignment: right;
+                                        }
+                                    }
+
+                                    if unit.reason != "": Text {
+                                        text: unit.reason;
+                                        font-size: Tokens.font-label;
+                                        color: unit.status-kind == 3 ? Tokens.danger : Tokens.text-secondary;
+                                        wrap: word-wrap;
+                                        horizontal-alignment: root.rtl ? right : left;
+                                    }
+
+                                    if !unit.can-show-in-folder && unit.output-unavailable-label != "": Text {
+                                        text: unit.output-unavailable-label;
+                                        font-size: Tokens.font-label;
+                                        color: Tokens.text-secondary;
+                                        wrap: word-wrap;
+                                        horizontal-alignment: root.rtl ? right : left;
                                     }
                                 }
                             }

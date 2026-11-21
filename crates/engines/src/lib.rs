@@ -8,6 +8,8 @@ pub mod image;
 // S-043b: program lookup (PATH, known dirs, registry).
 pub mod locate;
 pub mod office;
+// S-146: printed text from a picture through the system Tesseract.
+pub mod ocr;
 pub mod pdf;
 // S-126: PDF to text through the system poppler `pdftotext`.
 pub mod poppler;
@@ -26,5 +28,6 @@ pub fn all() -> Vec<Arc<dyn Engine>> {
         Arc::new(pdf::GhostscriptEngine::default()),
         Arc::new(poppler::PopplerEngine::default()),
         Arc::new(qpdf::QpdfEngine::default()),
+        Arc::new(ocr::OcrEngine::default()),
     ]
 }

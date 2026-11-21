@@ -50,6 +50,7 @@ pub enum Command {
     About,
     CancelAll,
     Settings,
+    Results,
     Quit,
 }
 
@@ -67,7 +68,7 @@ pub enum Item {
 /// The tray menu, as the Linux tray has it: Update now (enabled only when a
 /// verified update is ready), Get started (S-087, always enabled), About
 /// (S-099, opens the Updates page), Cancel
-/// all (disabled with no running job), Settings, a separator, Quit.
+/// all (disabled with no running job), Settings, Results (S-144), a separator, Quit.
 pub fn menu(lang: Lang, active_count: usize, update_ready: bool) -> Vec<Item> {
     let action = |command, label: &str, enabled| Item::Action {
         command,
@@ -80,6 +81,7 @@ pub fn menu(lang: Lang, active_count: usize, update_ready: bool) -> Vec<Item> {
         action(Command::About, text::about(lang), true),
         action(Command::CancelAll, text::cancel_all(lang), active_count > 0),
         action(Command::Settings, text::settings(lang), true),
+        action(Command::Results, text::results(lang), true),
         Item::Separator,
         action(Command::Quit, text::quit(lang), true),
     ]

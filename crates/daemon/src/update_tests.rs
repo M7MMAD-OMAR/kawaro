@@ -425,6 +425,7 @@ fn ac5_menu_labels_in_both_languages_with_update_now_first() {
             "About",
             "Cancel all jobs",
             "Settings",
+            "Results",
             "Quit Kawaro"
         ]
     );
@@ -436,6 +437,7 @@ fn ac5_menu_labels_in_both_languages_with_update_now_first() {
             "حول كوارو",
             "إلغاء كل المهام",
             "الإعدادات",
+            "النتائج",
             "إنهاء كوارو"
         ]
     );
@@ -1809,7 +1811,7 @@ mod s099b {
         let (st, _rig) = state_for("0.3.3", Os::Linux);
         for lang in [Lang::En, Lang::Ar] {
             let labels = text::menu_labels(lang, &st);
-            assert_eq!(labels.len(), 6, "{labels:?}");
+            assert_eq!(labels.len(), 7, "{labels:?}");
             assert_eq!(labels[1], text::get_started(lang));
             assert_eq!(labels[2], text::about(lang));
         }
@@ -1819,7 +1821,7 @@ mod s099b {
     fn ac_b7_windows_menu_has_about_after_get_started_and_seven_entries() {
         for lang in [Lang::En, Lang::Ar] {
             let m = menu(lang, 0, false);
-            assert_eq!(m.len(), 7, "{m:?}");
+            assert_eq!(m.len(), 8, "{m:?}");
             assert_eq!(
                 m[2],
                 Item::Action {

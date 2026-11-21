@@ -51,10 +51,18 @@ mod preview;
 // after the first hive frame.
 #[cfg(unix)]
 pub mod preview_worker;
+// The production preview scheduler (S-142): one worker, one provider, one
+// running request and one pending request for every panel of the hive.
+pub mod preview_schedule;
 // S-119 stage 2: the option panel model and its preview. The slint types it
 // fills (StageOption, StagePreset, StageKind) are generated from hive.slint.
 #[cfg(target_os = "linux")]
 mod receiver;
+/// S-149: the pointer a hive opened at and the root size it was placed on.
+type Placement = ((f32, f32), (u32, u32));
+
+pub mod results_view;
+pub mod saved_presets;
 pub mod session;
 mod settings;
 mod shell;
@@ -81,13 +89,15 @@ mod updates;
 pub use updates::{UpdateResult, UpdateState, about_line, state_from_status};
 
 use kawaro_core::config::DropMode;
+use kawaro_core::image_preview::SharedPreviewProvider;
 use layout::{Nav, Plan};
+use preview_schedule::Scheduler;
 use slint::winit_030::{CustomApplicationHandler, EventResult, winit};
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::cell::{Cell, RefCell};
 use std::path::PathBuf;
 use std::rc::{Rc, Weak};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 slint::include_modules!();
@@ -175,6 +185,18 @@ fn set_shown_plan(plan: Plan) {
     if let Some(inner) = SHOWN.with(|h| h.borrow().upgrade()) {
         inner.set_plan(plan);
     }
+}
+
+/// S-149: the cells of the shown page for a hive placed at `anchor` on a
+/// `screen` sized output. The layer path asks for them once its placement
+/// is known, so the page fits the slots the screen accepts.
+#[cfg(target_os = "linux")]
+pub(crate) fn page_cells_at(
+    anchor: Option<(f32, f32)>,
+    screen: (u32, u32),
+) -> Option<Vec<HiveCell>> {
+    let inner = SHOWN.with(|h| h.borrow().upgrade())?;
+    inner.page_cells_at(anchor, screen)
 }
 
 /// Prints `hive surface: KIND X Y W H` in logical screen pixels when
@@ -608,8 +630,13 @@ struct Inner {
     /// The current component draws on the layer-shell overlay.
     on_layer: Cell<bool>,
     rtl: bool,
+    /// The language of the hive, for the texts it builds itself (S-149).
+    lang: Lang,
     reduced_motion: bool,
     plan: RefCell<Option<Plan>>,
+    /// S-149: the paging state of the shown hive, when its outer queue is
+    /// longer than the outer ring.
+    paging: RefCell<Option<Paging>>,
     on_choose: RefCell<Option<ChooseFn>>,
     on_dismiss: RefCell<Option<DismissFn>>,
     on_drop_files: RefCell<Option<FilesFn>>,
@@ -630,8 +657,14 @@ struct Inner {
     on_options_cancel: RefCell<Option<DismissFn>>,
     /// The open stage 2 panel, if any.
     stage: RefCell<Option<Rc<stage_two::StageTwoState>>>,
+    /// The injected asynchronous preset service (S-143-C).
+    preset_service: RefCell<Option<Arc<dyn saved_presets::PresetService>>>,
     /// Ticks the panel's preview and readout while it is open.
     stage_timer: slint::Timer,
+    /// The preview scheduler (S-142): one worker thread and one provider for
+    /// every panel of this hive, so a panel replacement never starts a
+    /// second codec.
+    scheduler: Rc<Scheduler>,
     /// Invalidates delayed work within the same S-136 session.
     panel_generation: Cell<u64>,
     /// The Customize hint text in the hive language.
@@ -665,8 +698,46 @@ struct X11State {
     log: RefCell<x11::PointerLog>,
     /// The position set by the last show on X11.
     position: Cell<Option<(i32, i32)>>,
+    /// S-149: the pointer the hive opened at and the root it was placed
+    /// on, so a page change is planned at the same place.
+    placement: Cell<Option<Placement>>,
     /// The last surface choice line printed.
     line: RefCell<Option<String>>,
+}
+
+/// A pointer source that always answers the same pointer (S-149), so the
+/// plan of the hive and its page agree on the placement.
+#[cfg(all(not(windows), target_os = "linux"))]
+struct FixedPointer(Option<x11::Pointer>);
+
+#[cfg(all(not(windows), target_os = "linux"))]
+impl x11::PointerSource for FixedPointer {
+    fn pointer(&self) -> Option<x11::Pointer> {
+        self.0
+    }
+}
+
+/// S-149: the paging state of a hive whose outer queue is longer than the
+/// outer ring. The ring 1 cells stay on every page, the outer queue keeps
+/// every action of the registry in its order, and `page` is the page shown
+/// now.
+struct Paging {
+    /// Every cell of the selection, in the registry order. The ring 1
+    /// cells and the outer queue are split again for every placement,
+    /// because the screen decides how many cells fit in ring 1.
+    cells: Vec<HiveCell>,
+    /// The ring 1 cells of the current placement, the same on every page.
+    ring1: Vec<HiveCell>,
+    /// The whole outer queue of the current placement, in the registry
+    /// order.
+    outer: Vec<HiveCell>,
+    /// The page shown now, 0 based.
+    page: usize,
+    /// The rings the hive was laid out for.
+    min_rings: i32,
+    /// The action cells on a page. It follows the placement: the More cell
+    /// takes the last slot the screen accepts.
+    size: usize,
 }
 
 /// The root size used to centre the hive when the pointer is unreadable.
@@ -751,33 +822,51 @@ impl Inner {
         dnd::windows::hive_closed();
         #[cfg(target_os = "linux")]
         dnd::x11::hive_closed();
-        self.panel_generation
-            .set(self.panel_generation.get().wrapping_add(1));
-        self.stage_timer.stop();
-        *self.stage.borrow_mut() = None;
         let ui = self.ui.borrow();
         ui.invoke_reset_hint();
         ui.set_highlight(-1);
         // Never keep a picture while hidden (S-018 AC24, AC27).
         ui.set_preview_image(slint::Image::default());
         ui.set_preview_icon(slint::Image::default());
+        drop(ui);
         // S-119: a closed hive keeps no stage 2 panel or picture.
-        ui.set_stage_two(false);
-        ui.set_stage_preview(false);
-        ui.set_stage_preview_image(slint::Image::default());
+        // S-142: the panel's preview work stops with it, and its stamp is
+        // dropped, so a late result never reaches a newer panel.
+        self.end_stage();
     }
 
     /// Ends the stage 2 panel: no timer, no state, no picture (S-119). A
     /// normal show calls it, so the panel never outlives its request.
+    ///
+    /// S-142: the panel's preview work is cancelled and its stamp is
+    /// dropped, so a result that arrives after the panel closed never
+    /// reaches a newer panel.
     fn end_stage(&self) {
         self.panel_generation
             .set(self.panel_generation.get().wrapping_add(1));
         self.stage_timer.stop();
-        *self.stage.borrow_mut() = None;
+        let stage = self.stage.borrow_mut().take();
+        if let Some(stage) = stage {
+            stage.detach_preview();
+            // S-143-C: the named preset poller is dropped with the panel, so
+            // a late reply of a closed panel never reaches a replacement.
+            stage.detach_preset_service();
+        }
         let ui = self.ui.borrow();
         ui.set_stage_two(false);
         ui.set_stage_preview(false);
         ui.set_stage_preview_image(slint::Image::default());
+        ui.set_stage_preview_label("".into());
+        ui.set_stage_preview_bytes("".into());
+        ui.set_stage_preview_status("".into());
+        ui.set_stage_preview_encode(false);
+        // S-143-C: the saved preset controls leave with the panel.
+        ui.set_stage_named_presets_available(false);
+        ui.set_stage_preset_name("".into());
+        ui.set_stage_preset_status("".into());
+        ui.set_stage_preset_pending(false);
+        ui.set_stage_preset_read_only(false);
+        ui.set_stage_preset_can_save(false);
     }
 
     /// Shows the panel of `state` in the already shown window and starts
@@ -795,7 +884,22 @@ impl Inner {
             }
         }
         self.end_stage();
+        // S-142: the panel gets the scheduler of the hive, the session and
+        // the panel id. The id changes with every panel, so a result of an
+        // older panel never reaches this one.
+        let session = self.session.get();
+        let panel = self.panel_generation.get();
+        state.attach_preview(self.scheduler.clone(), session, panel);
+        // S-143-C: the named presets are a secondary control of the panel.
+        // The service is injected by the daemon; without one the panel shows
+        // no saved presets at all. The attach starts the stamped list of
+        // this action's presets.
+        let preset_service = self.preset_service.borrow().clone();
+        if let Some(service) = preset_service {
+            state.attach_preset_service(service, session, panel);
+        }
         let (run, reset, back) = stage_two::buttons(state.lang());
+        let labels = stage_two::preset_labels(state.lang());
         {
             let ui = self.ui.borrow();
             // False first, so a reopened panel builds fresh controls.
@@ -808,27 +912,49 @@ impl Inner {
             ui.set_stage_preview_note(state.preview_note().unwrap_or("").into());
             ui.set_stage_preview(state.preview_available());
             ui.set_stage_preview_image(slint::Image::default());
+            ui.set_stage_preview_label(state.preview_label().as_str().into());
+            ui.set_stage_preview_bytes("".into());
+            ui.set_stage_preview_status("".into());
+            ui.set_stage_preview_encode(state.encode_offered());
+            ui.set_stage_encode_text(stage_two::encode_hint(state.lang()).into());
             ui.set_stage_run_text(run.into());
             ui.set_stage_reset_text(reset.into());
             ui.set_stage_back_text(back.into());
+            // S-143-C: the saved preset controls and their labels.
+            ui.set_stage_named_presets(state.named_presets());
+            ui.set_stage_named_presets_available(state.named_presets_available());
+            ui.set_stage_preset_name(state.preset_name().as_str().into());
+            ui.set_stage_preset_status(state.preset_status().as_str().into());
+            ui.set_stage_preset_pending(state.preset_pending());
+            ui.set_stage_preset_read_only(state.preset_read_only());
+            ui.set_stage_preset_can_save(state.can_save_preset());
+            ui.set_stage_preset_name_label(labels.name.as_str().into());
+            ui.set_stage_preset_save_text(labels.save.as_str().into());
+            ui.set_stage_preset_apply_text(labels.apply.as_str().into());
+            ui.set_stage_preset_rename_text(labels.rename.as_str().into());
+            ui.set_stage_preset_delete_text(labels.delete.as_str().into());
+            ui.set_stage_preset_review_text(labels.review.as_str().into());
             ui.set_stage_two(true);
         }
         *self.stage.borrow_mut() = Some(state.clone());
         state.request_preview();
         let weak = Rc::downgrade(self);
-        let stamp = (self.session.get(), self.panel_generation.get());
         let stage = Rc::downgrade(&state);
         self.stage_timer.start(
             slint::TimerMode::Repeated,
             Duration::from_millis(16),
             move || {
-                dispatch_stage_update(&weak, stamp, |ui| {
+                dispatch_stage_update(&weak, (session, panel), |ui| {
                     let Some(stage) = stage.upgrade() else { return };
-                    if let Some(image) = stage.poll_preview() {
-                        ui.set_stage_preview_image(image);
-                        ui.set_stage_preview(true);
+                    if let Some(update) = stage.poll_preview() {
+                        apply_preview(ui, &update, stage.lang());
                     }
                     ui.set_stage_readout(stage.readout().as_str().into());
+                    // S-143-C: the saved preset replies are polled here, so
+                    // the panel never waits for the store.
+                    if let Some(update) = stage.poll_preset(session, panel) {
+                        apply_preset_update(ui, &update);
+                    }
                 });
             },
         );
@@ -988,6 +1114,174 @@ impl Inner {
         *self.plan.borrow_mut() = Some(plan);
     }
 
+    /// S-149: starts the paging of a show with `cells` and returns the
+    /// cells its plan takes. A show whose outer queue fits in the outer ring
+    /// keeps today's placement and gets no More cell.
+    fn start_paging(&self, cells: &[HiveCell], min_rings: i32) -> Vec<HiveCell> {
+        let mut paging = Paging {
+            cells: cells.to_vec(),
+            ring1: Vec::new(),
+            outer: Vec::new(),
+            page: 0,
+            min_rings,
+            size: layout::PAGE_SIZE,
+        };
+        // The unconstrained placement: the whole ring 1 and the whole outer
+        // ring fit.
+        let page_cells = self.page_cells_for(&mut paging, layout::RING1, layout::RING2);
+        *self.paging.borrow_mut() = Some(paging);
+        page_cells
+    }
+
+    /// S-149: the cells of the page: the ring 1 cells and the outer cells
+    /// of the page, the More cell last.
+    fn page_cells(&self, paging: &Paging) -> Vec<HiveCell> {
+        let mut cells = paging.ring1.clone();
+        cells.extend(layout::page(
+            &paging.outer,
+            paging.page,
+            paging.size,
+            self.lang,
+        ));
+        cells
+    }
+
+    /// S-149: the cells of the page for a placement that holds
+    /// `ring1_slots` cells in ring 1 and `outer_slots` in the outer ring.
+    /// The queue and the size of the page follow the placement, so every
+    /// action of the selection stays reachable.
+    fn page_cells_for(
+        &self,
+        paging: &mut Paging,
+        ring1_slots: usize,
+        outer_slots: usize,
+    ) -> Vec<HiveCell> {
+        let (ring1, outer) = layout::queue_at(&paging.cells, ring1_slots);
+        paging.ring1 = ring1;
+        paging.outer = outer;
+        paging.size = layout::page_size(outer_slots);
+        self.page_cells(paging)
+    }
+
+    /// S-149: the cells of the page for a hive placed at `anchor` on a
+    /// `screen` sized output. The size of the page follows the placement:
+    /// it holds as many actions as the screen accepts, and the More cell
+    /// takes the last slot. `None` when the shown hive does not page.
+    #[cfg(target_os = "linux")]
+    fn page_cells_at(
+        &self,
+        anchor: Option<(f32, f32)>,
+        screen: (u32, u32),
+    ) -> Option<Vec<HiveCell>> {
+        let mut slot = self.paging.borrow_mut();
+        let paging = slot.as_mut()?;
+        let (ring1_slots, outer_slots) = layout::accepted_slots(self.rtl, screen, anchor);
+        Some(self.page_cells_for(paging, ring1_slots, outer_slots))
+    }
+
+    /// S-149: the cells of the page for the X11 placement at `pointer`:
+    /// the hive opens at the pointer and the root decides how many slots
+    /// it accepts.
+    #[cfg(all(not(windows), target_os = "linux"))]
+    fn page_cells_at_pointer(&self, pointer: Option<x11::Pointer>) -> Option<Vec<HiveCell>> {
+        let (anchor, screen) = match pointer {
+            Some(p) => {
+                let clamp = |v: i32, size: u32| v.clamp(0, (size as i32 - 1).max(0));
+                (
+                    Some((clamp(p.x, p.root_w) as f32, clamp(p.y, p.root_h) as f32)),
+                    (p.root_w, p.root_h),
+                )
+            }
+            None => (None, X11_FALLBACK_ROOT),
+        };
+        self.page_cells_at(anchor, screen)
+    }
+
+    /// S-149: the plan of the page, laid out the way the shown hive was.
+    #[cfg(windows)]
+    fn page_plan(&self, cells: Vec<HiveCell>, min_rings: i32) -> Plan {
+        win_window::plan(cells, self.rtl, min_rings).0
+    }
+
+    /// S-149: the plan of the page, laid out the way the shown hive was.
+    #[cfg(all(not(windows), target_os = "linux"))]
+    fn page_plan(&self, cells: Vec<HiveCell>, min_rings: i32) -> Plan {
+        if self.x11.session.get() == session::Session::X11 {
+            // S-149: the hive stays where it opened, so the page is planned
+            // at the same place.
+            let pointer = self
+                .x11
+                .placement
+                .get()
+                .map(|((x, y), (w, h))| x11::Pointer {
+                    x: x.round() as i32,
+                    y: y.round() as i32,
+                    root_w: w,
+                    root_h: h,
+                });
+            let (plan, _at) = x11::plan_with(
+                &FixedPointer(pointer),
+                X11_FALLBACK_ROOT,
+                cells,
+                self.rtl,
+                min_rings,
+                &mut self.x11.log.borrow_mut(),
+                &mut |l| stderr_line(l),
+            );
+            plan
+        } else if self.on_layer.get()
+            && let Some(plan) = layer::replan(&cells)
+        {
+            plan
+        } else {
+            layout::plan_rings(cells, self.rtl, min_rings)
+        }
+    }
+
+    /// S-149: the plan of the page, laid out the way the shown hive was.
+    #[cfg(all(not(windows), not(target_os = "linux")))]
+    fn page_plan(&self, cells: Vec<HiveCell>, min_rings: i32) -> Plan {
+        layout::plan_rings(cells, self.rtl, min_rings)
+    }
+
+    /// S-149: shows the next or the previous page of the outer queue. The
+    /// session, the selection, the drag state and the window size stay; only
+    /// the outer cells move. `keep_more` keeps the focus on the More cell,
+    /// where the pointer and the keyboard are.
+    fn change_page(&self, delta: i32, keep_more: bool) {
+        let Some(mut paging) = self.paging.borrow_mut().take() else {
+            return;
+        };
+        let pages = layout::pages(&paging.outer, paging.size);
+        if pages <= 1 {
+            // One page: there is nothing to page.
+            *self.paging.borrow_mut() = Some(paging);
+            return;
+        }
+        paging.page = (paging.page as i32 + delta).rem_euclid(pages as i32) as usize;
+        let cells = self.page_cells(&paging);
+        let plan = self.page_plan(cells, paging.min_rings);
+        // The focus follows the page: the More cell stays, or the first
+        // action cell of the new page takes it.
+        let wanted = if keep_more {
+            Some(layout::MORE_ID.to_string())
+        } else {
+            paging
+                .outer
+                .get(paging.page * paging.size)
+                .map(|c| c.id.clone())
+        };
+        let index = wanted
+            .as_deref()
+            .and_then(|id| plan.cells.iter().position(|p| p.cell.id == id))
+            .map(|i| i as i32);
+        *self.paging.borrow_mut() = Some(paging);
+        self.set_plan(plan);
+        if let Some(index) = index {
+            self.ui.borrow().set_highlight(index);
+        }
+    }
+
     /// Puts `files` in the centre cell (S-018h): one file's cached thumbnail,
     /// downscaled to the physical side of the square inscribed in the centre
     /// hexagon, else the icon of the files' common kind with their shared
@@ -1073,6 +1367,9 @@ impl Inner {
         }
         // On the layer path the hive keeps the place and box it took at the
         // pointer (S-019d).
+        // S-149: the cells of the first page; a short outer queue keeps
+        // today's placement.
+        let cells = self.start_paging(&cells, 2);
         #[cfg(target_os = "linux")]
         let plan = layer::replan(&cells);
         #[cfg(not(target_os = "linux"))]
@@ -1178,6 +1475,12 @@ impl Inner {
         if !self.visible() || self.ui.borrow().get_closing() {
             return;
         }
+        // S-149: the More cell is a control of the hive. It pages the outer
+        // queue, it never runs an action and never ends the session.
+        if matches!(layout::activation(&id), layout::Activation::More) {
+            self.change_page(1, true);
+            return;
+        }
         // S-136: the session is terminal before the external callback runs.
         self.terminal.set(true);
         self.animate_close();
@@ -1238,8 +1541,10 @@ impl Hive {
             builds: Cell::new(1),
             on_layer: Cell::new(built_on_layer()),
             rtl: lang.rtl(),
+            lang,
             reduced_motion,
             plan: RefCell::new(None),
+            paging: RefCell::new(None),
             on_choose: RefCell::new(None),
             on_dismiss: RefCell::new(None),
             on_drop_files: RefCell::new(None),
@@ -1255,7 +1560,9 @@ impl Hive {
             on_options_run: RefCell::new(None),
             on_options_cancel: RefCell::new(None),
             stage: RefCell::new(None),
+            preset_service: RefCell::new(None),
             stage_timer: slint::Timer::default(),
+            scheduler: Scheduler::new(),
             panel_generation: Cell::new(0),
             hint: stage_two::customize_hint(lang).to_string(),
             opener: slint::Timer::default(),
@@ -1272,6 +1579,7 @@ impl Hive {
                 source: RefCell::new(Box::new(x11_pointer::Live)),
                 log: RefCell::new(x11::PointerLog::default()),
                 position: Cell::new(None),
+                placement: Cell::new(None),
                 line: RefCell::new(None),
             },
         });
@@ -1430,6 +1738,9 @@ impl Hive {
         // S-136: the show captures the mode and owns a new session, so a later
         // set_drop_mode or a stale callback cannot change it.
         inner.begin_session(drop.is_some(), inner.drop_mode.get());
+        // S-149: the cells of the first page. A show whose outer queue fits
+        // in the outer ring keeps today's placement.
+        let cells = inner.start_paging(&cells, min_rings);
         #[cfg(windows)]
         let (plan, win_at) = win_window::plan(cells.clone(), inner.rtl, min_rings);
         #[cfg(all(not(windows), target_os = "linux"))]
@@ -1448,10 +1759,24 @@ impl Hive {
             let at = x11::drop_placement(drop.flatten().or(place), root, size);
             (plan, Some((at.x, at.y)))
         } else if on_x11 {
+            // S-149: the page follows the placement at the pointer, so
+            // every action stays reachable near a screen edge. The pointer
+            // is read once, so the plan and the page agree.
+            let pointer = inner.x11.source.borrow().pointer();
+            let cells = inner
+                .page_cells_at_pointer(pointer)
+                .unwrap_or_else(|| cells.clone());
+            inner.x11.placement.set(pointer.map(|p| {
+                let clamp = |v: i32, size: u32| v.clamp(0, (size as i32 - 1).max(0));
+                (
+                    (clamp(p.x, p.root_w) as f32, clamp(p.y, p.root_h) as f32),
+                    (p.root_w, p.root_h),
+                )
+            }));
             let (plan, at) = x11::plan_with(
-                &**inner.x11.source.borrow(),
+                &FixedPointer(pointer),
                 X11_FALLBACK_ROOT,
-                cells.clone(),
+                cells,
                 inner.rtl,
                 min_rings,
                 &mut inner.x11.log.borrow_mut(),
@@ -1663,6 +1988,14 @@ impl Hive {
         *self.inner.on_customize.borrow_mut() = Some(Rc::new(f));
     }
 
+    /// The injected service for named user presets (S-143-C). The daemon
+    /// maps typed requests to its one store worker and rechecks every
+    /// command against the current registry. Without a provider the panel
+    /// omits the saved controls and keeps its existing behavior.
+    pub fn set_preset_service(&self, service: Arc<dyn saved_presets::PresetService>) {
+        *self.inner.preset_service.borrow_mut() = Some(service);
+    }
+
     /// Called with the action id and the resolved params when the panel's Run
     /// is used. The hive is already closed.
     pub fn on_options_run(&self, f: impl Fn(String, toml::Table) + 'static) {
@@ -1678,6 +2011,16 @@ impl Hive {
     /// closed.
     pub fn on_choose(&self, f: impl Fn(String) + 'static) {
         *self.inner.on_choose.borrow_mut() = Some(Rc::new(f));
+    }
+
+    /// The engine that answers the preview requests of the panel (S-142).
+    ///
+    /// The hive owns the scheduler and its one worker thread; the provider
+    /// is the engine side of the contract, and the daemon injects it. A hive
+    /// without a provider keeps the legacy source draft and never asks an
+    /// engine.
+    pub fn set_preview_provider(&self, provider: SharedPreviewProvider) {
+        self.inner.scheduler.set_provider(provider);
     }
 
     /// Called after Esc, focus loss, a click in a gap or on the centre, or a
@@ -1917,6 +2260,13 @@ fn wire(inner: &Rc<Inner>) {
             i.choose(index);
         }
     });
+    // S-149: PageDown and PageUp move through the pages of the outer ring.
+    let w = Rc::downgrade(inner);
+    ui.on_change_page(move |delta| {
+        if let Some(i) = w.upgrade() {
+            i.change_page(delta, false);
+        }
+    });
     let w = Rc::downgrade(inner);
     ui.on_customize(move |index| {
         let Some(i) = w.upgrade() else { return };
@@ -1929,7 +2279,10 @@ fn wire(inner: &Rc<Inner>) {
             .as_ref()
             .and_then(|p| p.cells.get(usize::try_from(index).unwrap_or(usize::MAX)))
             .map(|c| c.cell.id.clone());
+        // S-149: the More cell is a control of the hive, it never opens the
+        // customization panel of an action.
         if let Some(id) = id
+            && !matches!(layout::activation(&id), layout::Activation::More)
             && let Some(f) = i.on_customize.borrow().clone()
         {
             f(id);
@@ -1969,6 +2322,87 @@ fn wire(inner: &Rc<Inner>) {
             stage.apply_preset(index);
             i.reopen_stage();
         }
+    });
+    // S-143-C: the named preset controls of the panel. Every one of them
+    // asks the injected service, and the panel never waits for it.
+    let w = Rc::downgrade(inner);
+    ui.on_preset_name_edited(move |text| {
+        let Some(i) = w.upgrade() else { return };
+        let (session, panel) = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, (session, panel), |_| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            stage.set_preset_name(text.as_str());
+        });
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_preset_save(move || {
+        let Some(i) = w.upgrade() else { return };
+        let (session, panel) = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, (session, panel), |_| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            stage.save_current_preset(session, panel);
+        });
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_preset_select(move |id| {
+        let Some(i) = w.upgrade() else { return };
+        let (session, panel) = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, (session, panel), |_| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            stage.select_preset(id.as_str());
+        });
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_preset_apply(move |id| {
+        let Some(i) = w.upgrade() else { return };
+        let (session, panel) = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, (session, panel), |_| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            stage.apply_named_preset(session, panel, id.as_str());
+        });
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_preset_rename(move |id| {
+        let Some(i) = w.upgrade() else { return };
+        let (session, panel) = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, (session, panel), |_| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            let name = stage.preset_name();
+            stage.rename_preset(session, panel, id.as_str(), &name);
+        });
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_preset_delete(move |id| {
+        let Some(i) = w.upgrade() else { return };
+        let (session, panel) = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, (session, panel), |_| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            // The first click only arms the confirmation.
+            stage.delete_preset(session, panel, id.as_str());
+        });
+    });
+    let w = Rc::downgrade(inner);
+    ui.on_preset_review(move |id| {
+        let Some(i) = w.upgrade() else { return };
+        let (session, panel) = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, (session, panel), |_| {
+            let Some(stage) = i.stage.borrow().clone() else {
+                return;
+            };
+            stage.review_preset(session, panel, id.as_str());
+        });
     });
     let w = Rc::downgrade(inner);
     ui.on_stage_reset(move || {
@@ -2024,6 +2458,22 @@ fn wire(inner: &Rc<Inner>) {
             f();
         }
     });
+    // S-142: the explicit encoded control of the panel. It asks for the
+    // encoded result once; nothing starts it on its own.
+    let w = Rc::downgrade(inner);
+    ui.on_stage_encode(move || {
+        let Some(i) = w.upgrade() else { return };
+        if i.terminal.get() {
+            return;
+        }
+        let stamp = (i.session.get(), i.panel_generation.get());
+        dispatch_stage_update(&w, stamp, |_| {
+            let stage = i.stage.borrow().clone();
+            if let Some(stage) = stage {
+                stage.request_encoded();
+            }
+        });
+    });
     let w = Rc::downgrade(inner);
     ui.on_dismiss(move || dismiss_weak(&w));
     let w = Rc::downgrade(inner);
@@ -2046,6 +2496,46 @@ fn dispatch_stage_update(w: &Weak<Inner>, stamp: (u64, u64), update: impl FnOnce
         return;
     }
     update(&inner.ui.borrow());
+}
+
+/// Puts one preview update into the panel (S-142).
+///
+/// The picture, its label, the byte count of an encoded result and the typed
+/// status of a failure are four separate fields, so the panel never shows a
+/// byte count for a draft and never shows a picture without its label.
+fn apply_preview(ui: &HiveWindow, update: &stage_two::PreviewUpdate, lang: Lang) {
+    let image = update
+        .image
+        .clone()
+        .map(slint::Image::from_rgba8)
+        .unwrap_or_default();
+    ui.set_stage_preview_image(image);
+    ui.set_stage_preview_label(update.label.as_str().into());
+    ui.set_stage_preview_bytes(stage_two::preview_bytes(lang, update.bytes).as_str().into());
+    ui.set_stage_preview_status(
+        update
+            .failure
+            .map(|failure| stage_two::preview_status(lang, failure))
+            .unwrap_or_default()
+            .into(),
+    );
+}
+
+/// Puts one named preset update into the panel (S-143-C).
+///
+/// The rows live in the panel's own model, so only the fields the panel
+/// reads as text or as a state are set here. The name is only written back
+/// when it changed, so the caret of the name field stays where the user
+/// left it.
+fn apply_preset_update(ui: &HiveWindow, update: &stage_two::PresetUpdate) {
+    ui.set_stage_named_presets_available(update.available);
+    ui.set_stage_preset_status(update.status.as_str().into());
+    ui.set_stage_preset_pending(update.pending);
+    ui.set_stage_preset_read_only(update.read_only);
+    ui.set_stage_preset_can_save(update.can_save);
+    if ui.get_stage_preset_name().as_str() != update.name {
+        ui.set_stage_preset_name(update.name.as_str().into());
+    }
 }
 
 /// Observe actual named panel items and renderer-shaped wrapped text.

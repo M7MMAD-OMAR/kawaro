@@ -55,6 +55,234 @@ macro_rules! about_api {
 }
 pub(crate) use about_api;
 
+/// Callback types for the Results page (S-144).
+pub(crate) type JobCallback = Rc<dyn Fn(kawaro_core::queue::JobId)>;
+pub(crate) type ClearCallback = Rc<dyn Fn()>;
+pub(crate) type FolderCallback =
+    Rc<dyn Fn(kawaro_core::queue::JobId, Option<kawaro_core::job_results::TaskUnitId>)>;
+
+/// The injected handlers of the Results page (S-144).
+#[derive(Default)]
+pub(crate) struct ResultsHandlers {
+    pub(crate) retry: RefCell<Option<JobCallback>>,
+    pub(crate) cancel: RefCell<Option<JobCallback>>,
+    pub(crate) clear: RefCell<Option<ClearCallback>>,
+    pub(crate) show_in_folder: RefCell<Option<FolderCallback>>,
+    pub(crate) toggle_expanded: RefCell<Option<JobCallback>>,
+    pub(crate) shown: RefCell<Option<ClearCallback>>,
+}
+
+impl ResultsHandlers {
+    pub(crate) fn retry(&self, job_id: &str) {
+        let (Ok(job), Some(f)) = (job_id.parse(), self.retry.borrow().clone()) else {
+            return;
+        };
+        f(job);
+    }
+
+    pub(crate) fn cancel(&self, job_id: &str) {
+        let (Ok(job), Some(f)) = (job_id.parse(), self.cancel.borrow().clone()) else {
+            return;
+        };
+        f(job);
+    }
+
+    pub(crate) fn clear(&self) {
+        let f = self.clear.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
+    }
+
+    pub(crate) fn show_in_folder(&self, job_id: &str, unit_id: &str) {
+        let Ok(job) = job_id.parse() else {
+            return;
+        };
+        let unit = if unit_id.is_empty() {
+            None
+        } else {
+            match unit_id.parse() {
+                Ok(u) => Some(u),
+                Err(_) => return,
+            }
+        };
+        let f = self.show_in_folder.borrow().clone();
+        if let Some(f) = f {
+            f(job, unit);
+        }
+    }
+
+    pub(crate) fn toggle_expanded(&self, job_id: &str) {
+        let (Ok(job), Some(f)) = (job_id.parse(), self.toggle_expanded.borrow().clone()) else {
+            return;
+        };
+        f(job);
+    }
+
+    pub(crate) fn shown(&self) {
+        let f = self.shown.borrow().clone();
+        if let Some(f) = f {
+            f();
+        }
+    }
+}
+
+/// Extracts Slint-ready fields from an [`crate::results_view::OutputLinkState`].
+pub(crate) fn output_link_fields(
+    o: &crate::results_view::OutputLinkState,
+) -> (bool, &str, &str, &str) {
+    use crate::results_view::OutputLinkState;
+    match o {
+        OutputLinkState::None => (false, "", "", ""),
+        OutputLinkState::Available {
+            action_label,
+            accessible_label,
+            ..
+        } => (true, action_label.as_str(), accessible_label.as_str(), ""),
+        OutputLinkState::Unavailable { label, .. } => (false, "", "", label.as_str()),
+    }
+}
+
+/// Maps a [`crate::results_view::ResultsViewModel`] into a window's generated
+/// Slint structs (`ResultsPageText`, `ModelRc<ResultJobItem>`, `bool`).
+macro_rules! results_slint {
+    ($text_ty:ident, $job_ty:ident, $unit_ty:ident, $model:expr) => {{
+        use crate::results_view::UnitViewStatus;
+        use kawaro_core::job_report::JobState;
+
+        let m: &crate::results_view::ResultsViewModel = $model;
+        let text = $text_ty {
+            page_title: m.strings.page_title.into(),
+            empty_title: m.strings.empty_title.into(),
+            empty_body: m.strings.empty_body.into(),
+            clear_history: m.strings.clear_history.into(),
+            clear_history_accessible: m.strings.clear_history_accessible.into(),
+        };
+        let mut jobs = Vec::with_capacity(m.jobs.len());
+        for row in &m.jobs {
+            let state_kind = match row.state {
+                JobState::Queued => 0,
+                JobState::Active => 1,
+                JobState::Completed => 2,
+                JobState::Inconsistent => 3,
+                JobState::Unknown => 4,
+            };
+            let (first_ok, first_label, first_acc, first_unavail) =
+                crate::shell::output_link_fields(&row.first_output);
+            let retry_enabled = row.retry.is_enabled();
+            let retry_reason = row.retry.reason().unwrap_or("");
+            let retry_visible = retry_enabled || !retry_reason.is_empty();
+            let mut units = Vec::new();
+            if row.expanded {
+                units.reserve(row.units.len());
+                for unit in &row.units {
+                    let status_kind = match unit.status {
+                        UnitViewStatus::Pending => 0,
+                        UnitViewStatus::Succeeded => 1,
+                        UnitViewStatus::Skipped => 2,
+                        UnitViewStatus::Failed => 3,
+                        UnitViewStatus::Cancelled => 4,
+                        UnitViewStatus::Interrupted => 5,
+                    };
+                    let (can_show, show_label, show_acc, unavail) =
+                        crate::shell::output_link_fields(&unit.output);
+                    units.push($unit_ty {
+                        unit_id: unit.unit.to_string().into(),
+                        input_display: unit.input_display.as_str().into(),
+                        status_label: unit.status_label.as_str().into(),
+                        status_kind,
+                        reason: unit.reason.as_deref().unwrap_or("").into(),
+                        can_show_in_folder: can_show,
+                        show_in_folder_label: show_label.into(),
+                        show_in_folder_accessible: show_acc.into(),
+                        output_unavailable_label: unavail.into(),
+                    });
+                }
+            }
+            jobs.push($job_ty {
+                job_id: row.job.to_string().into(),
+                action_label: row.action_label.as_str().into(),
+                state_label: row.state_label.as_str().into(),
+                state_kind,
+                counts_summary: row.counts_summary.as_str().into(),
+                summary_only: row.summary_only,
+                summary_only_notice: row.summary_only_notice.as_deref().unwrap_or("").into(),
+                can_show_first_output: first_ok,
+                first_output_label: first_label.into(),
+                first_output_accessible: first_acc.into(),
+                first_output_unavailable_label: first_unavail.into(),
+                expanded: row.expanded,
+                can_expand: row.can_expand,
+                expand_label: row.expand_label.as_str().into(),
+                expand_accessible: row.expand_accessible_label.as_str().into(),
+                retry_visible,
+                retry_enabled,
+                retry_label: row.retry.label().into(),
+                retry_accessible: row.retry.accessible_label().into(),
+                retry_reason: retry_reason.into(),
+                can_cancel: row.can_cancel,
+                cancel_label: row.cancel_label.as_str().into(),
+                cancel_accessible: row.cancel_accessible_label.as_str().into(),
+                units: slint::ModelRc::new(slint::VecModel::from(units)),
+            });
+        }
+        (
+            text,
+            slint::ModelRc::new(slint::VecModel::from(jobs)),
+            m.can_clear_history,
+        )
+    }};
+}
+pub(crate) use results_slint;
+
+/// The Results page callback setters both windows expose (S-144).
+macro_rules! results_api {
+    ($t:ty) => {
+        impl $t {
+            /// Called when Retry is pressed on a job row.
+            pub fn on_results_retry(&self, f: impl Fn(kawaro_core::queue::JobId) + 'static) {
+                *self.inner.results_handlers.retry.borrow_mut() = Some(std::rc::Rc::new(f));
+            }
+
+            /// Called when Cancel is pressed on an active or queued job row.
+            pub fn on_results_cancel(&self, f: impl Fn(kawaro_core::queue::JobId) + 'static) {
+                *self.inner.results_handlers.cancel.borrow_mut() = Some(std::rc::Rc::new(f));
+            }
+
+            /// Called when Clear history is pressed.
+            pub fn on_results_clear(&self, f: impl Fn() + 'static) {
+                *self.inner.results_handlers.clear.borrow_mut() = Some(std::rc::Rc::new(f));
+            }
+
+            /// Called when Show in folder is pressed on a unit row (`Some(unit)`)
+            /// or on a summary-only job row (`None`).
+            pub fn on_results_show_in_folder(
+                &self,
+                f: impl Fn(kawaro_core::queue::JobId, Option<kawaro_core::job_results::TaskUnitId>)
+                + 'static,
+            ) {
+                *self.inner.results_handlers.show_in_folder.borrow_mut() =
+                    Some(std::rc::Rc::new(f));
+            }
+
+            /// Called when Show/Hide details is pressed on an expandable job row.
+            pub fn on_results_toggle_expanded(
+                &self,
+                f: impl Fn(kawaro_core::queue::JobId) + 'static,
+            ) {
+                *self.inner.results_handlers.toggle_expanded.borrow_mut() =
+                    Some(std::rc::Rc::new(f));
+            }
+
+            /// Called when the user switches to the Results page via the rail or keyboard.
+            pub fn on_results_shown(&self, f: impl Fn() + 'static) {
+                *self.inner.results_handlers.shown.borrow_mut() = Some(std::rc::Rc::new(f));
+            }
+        }
+    };
+}
+pub(crate) use results_api;
+
 /// A rectangle in logical px, in window coordinates.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Rect {
@@ -69,8 +297,8 @@ pub struct Rect {
 /// it. 0 is General, which is also the first ever open.
 static PAGE: AtomicUsize = AtomicUsize::new(0);
 
-/// The number of settings pages, General to About.
-pub(crate) const SETTINGS_PAGES: usize = 5;
+/// The number of settings pages, General to Results.
+pub(crate) const SETTINGS_PAGES: usize = 6;
 
 pub(crate) fn remembered_page() -> usize {
     PAGE.load(Ordering::Relaxed)
@@ -888,13 +1116,13 @@ pub(crate) use shell_probes;
 mod tests {
     use super::*;
 
-    /// A remembered page never leaves the five settings pages.
+    /// A remembered page never leaves the settings pages.
     #[test]
     fn the_page_memory_is_clamped_to_the_last_settings_page() {
         remember_page(99);
         assert_eq!(remembered_page(), SETTINGS_PAGES - 1);
         remember_page(SETTINGS_PAGES - 1);
-        assert_eq!(remembered_page(), 4);
+        assert_eq!(remembered_page(), 5);
         remember_page(0);
         assert_eq!(remembered_page(), 0);
     }

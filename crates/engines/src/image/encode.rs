@@ -39,7 +39,14 @@ pub(super) enum Target {
 
 impl Target {
     pub(super) fn from_path(path: &Path) -> Result<Self, EngineError> {
-        Ok(match extension(path).as_str() {
+        Self::from_extension(&extension(path))
+    }
+
+    /// The format of an output extension, without a path. The rule is the
+    /// one the output naming uses: the extension of the action, or the
+    /// extension of the source when the action keeps the input format.
+    pub(super) fn from_extension(ext: &str) -> Result<Self, EngineError> {
+        Ok(match ext.to_ascii_lowercase().as_str() {
             "png" => Target::Png,
             "jpg" | "jpeg" => Target::Jpeg,
             "webp" => Target::Webp,
@@ -57,6 +64,20 @@ impl Target {
                 });
             }
         })
+    }
+
+    /// The extension the format is written with.
+    pub(super) fn ext(self) -> &'static str {
+        match self {
+            Target::Png => "png",
+            Target::Jpeg => "jpg",
+            Target::Webp => "webp",
+            Target::Avif => "avif",
+            Target::Gif => "gif",
+            Target::Bmp => "bmp",
+            Target::Tiff => "tiff",
+            Target::Ico => "ico",
+        }
     }
 }
 
@@ -185,7 +206,8 @@ fn ico(img: &DynamicImage) -> Result<Vec<u8>, EngineError> {
     Ok(out)
 }
 
-fn is_gray(c: ColorType) -> bool {
+/// True when the picture has no colour channel.
+pub(super) fn is_gray(c: ColorType) -> bool {
     matches!(
         c,
         ColorType::L8 | ColorType::La8 | ColorType::L16 | ColorType::La16

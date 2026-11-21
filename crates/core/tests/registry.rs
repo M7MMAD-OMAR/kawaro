@@ -564,7 +564,9 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
             .filter(|a| a.engine == "image" && a.ring == ring)
             .count()
     };
-    // S-127 moved ring 2 from 10 to 13 with resize-to, crop and compress-to.
+    // S-127 moved ring 2 from 10 to 13 with resize-to, crop and
+    // compress-to. The S-146 OCR action is engine `ocr`, so this image
+    // engine count is unchanged.
     assert_eq!((image(1), image(2)), (6, 13));
 }
 
@@ -572,9 +574,16 @@ fn ac6_builtin_image_actions_follow_the_engine_table() {
 fn ac6_builtin_hive_for_one_photo() {
     let reg = Registry::builtin();
     let ids = matched(&reg, &["/home/u/photo.JPG"], &any);
-    // 18 since S-127 added image.resize-to, image.crop and image.compress-to.
-    assert_eq!(ids.len(), 18);
+    // 19 since S-127 added image.resize-to, image.crop and
+    // image.compress-to, and S-146 added image.to-text.
+    assert_eq!(ids.len(), 19);
     assert_eq!(ids[0], "image.to-webp");
     assert!(!ids.contains(&"image.to-jpg".to_string()));
-    assert!(matched(&reg, &["/home/u/photo.jpg"], &|e| e != "image").is_empty());
+    // A JPEG reaches the image engine only, apart from the S-146 OCR
+    // action, whose engine is `ocr`.
+    assert!(
+        matched(&reg, &["/home/u/photo.jpg"], &|e| e != "image"
+            && e != "ocr")
+        .is_empty()
+    );
 }

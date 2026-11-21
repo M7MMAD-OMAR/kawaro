@@ -4,23 +4,34 @@
 
 use crate::action::ActionDef;
 use crate::engine::{Engine, Task};
+use crate::job_results::{JobManifest, TaskUnitId};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::mpsc::Sender;
 
 pub type JobId = u64;
 
+/// A Started event carries its manifest once per job; boxing it would only
+/// move one allocation.
 #[derive(Clone, Debug, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum JobEvent {
     Started {
         job: JobId,
         action_id: String,
         tasks: usize,
+        /// What the job is made of (S-144): the resolved action and the
+        /// ordered units with the identity of their sources, captured before
+        /// the first task runs.
+        manifest: JobManifest,
     },
     /// Overall job fraction in `0.0..=1.0`, monotonic.
     Progress { job: JobId, fraction: f32 },
     TaskDone {
         job: JobId,
+        /// The unit of the job this task ran (S-144): the ordinal of the
+        /// task in the planned order.
+        unit: TaskUnitId,
         output: PathBuf,
         elapsed: std::time::Duration,
         /// The engine's structured result (S-132), when it has one.
@@ -30,12 +41,16 @@ pub enum JobEvent {
     /// failed, and any temp file is gone.
     TaskSkipped {
         job: JobId,
+        /// The unit of the job this task ran (S-144).
+        unit: TaskUnitId,
         input: PathBuf,
         reason: crate::engine::SkipReason,
         elapsed: std::time::Duration,
     },
     TaskFailed {
         job: JobId,
+        /// The unit of the job this task ran (S-144).
+        unit: TaskUnitId,
         input: PathBuf,
         error: String,
         elapsed: std::time::Duration,

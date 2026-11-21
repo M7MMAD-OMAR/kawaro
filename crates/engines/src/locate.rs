@@ -73,6 +73,8 @@ pub enum Program {
     Pdftotext,
     /// qpdf, the S-128 child engine for linearize, cleanup and check.
     Qpdf,
+    /// Tesseract, the S-146 child engine for printed text from a picture.
+    Tesseract,
 }
 
 /// Program file names in priority order.
@@ -84,12 +86,14 @@ pub(crate) fn names(os: Os, program: Program) -> &'static [&'static str] {
         (Os::Unix, Program::Ffprobe) => &["ffprobe"],
         (Os::Unix, Program::Pdftotext) => &["pdftotext"],
         (Os::Unix, Program::Qpdf) => &["qpdf"],
+        (Os::Unix, Program::Tesseract) => &["tesseract"],
         (Os::Windows, Program::Office) => &["soffice.com", "soffice.exe"],
         (Os::Windows, Program::Ghostscript) => &["gswin64c.exe", "gswin32c.exe"],
         (Os::Windows, Program::Ffmpeg) => &["ffmpeg.exe"],
         (Os::Windows, Program::Ffprobe) => &["ffprobe.exe"],
         (Os::Windows, Program::Pdftotext) => &["pdftotext.exe"],
         (Os::Windows, Program::Qpdf) => &["qpdf.exe"],
+        (Os::Windows, Program::Tesseract) => &["tesseract.exe"],
     }
 }
 
@@ -153,6 +157,9 @@ fn known_dir(
                 .join("bin")
         }),
         Program::Qpdf => env("ProgramFiles").map(|pf| PathBuf::from(pf).join("qpdf").join("bin")),
+        // The Windows installer of Tesseract puts the program in one folder
+        // under Program Files.
+        Program::Tesseract => env("ProgramFiles").map(|pf| PathBuf::from(pf).join("Tesseract-OCR")),
     }
 }
 
@@ -168,6 +175,8 @@ fn registry_dir(program: Program, registry: &dyn Registry) -> Option<PathBuf> {
             Path::new(&dll).parent().map(Path::to_path_buf)
         }
         Program::Ffmpeg | Program::Ffprobe | Program::Pdftotext | Program::Qpdf => None,
+        // Tesseract records no install path in the registry.
+        Program::Tesseract => None,
     }
 }
 

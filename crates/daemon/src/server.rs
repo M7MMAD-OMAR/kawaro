@@ -10,8 +10,40 @@ use kawaro_core::unsupported::{self, Outcome};
 use kawaro_ui::HiveCell;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::PathBuf;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Instant;
+
+/// The identity of this daemon process (S-148 AC3).
+///
+/// It is computed once, at the first use, from the process id and the
+/// system time, and it is never written to disk: it is not a secret and it
+/// does not survive the process. A job reference that carries the instance
+/// of an earlier daemon is refused, so a job number that a restart reused
+/// is never taken for a job of the current daemon.
+pub(crate) fn instance_id() -> &'static str {
+    static INSTANCE: OnceLock<String> = OnceLock::new();
+    INSTANCE.get_or_init(|| {
+        let pid = std::process::id();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        format!("k-{pid:x}-{nanos:x}")
+    })
+}
+
+/// The stable text of a job reference from an earlier daemon (S-148 AC3).
+/// The wording never changes, so a script can match it.
+const STALE_JOB: &str = "stale job reference: the daemon restarted, run `kawaro jobs` again";
+
+/// The refusal of a job reference that does not belong to this daemon
+/// (S-148 AC3). `None` means the reference belongs to this daemon, or the
+/// client named no daemon at all and means the current one.
+fn stale_instance(instance: Option<&str>) -> Option<String> {
+    instance
+        .filter(|want| *want != instance_id())
+        .map(|_| String::from(STALE_JOB))
+}
 
 pub fn serve(listener: Listener, state: Shared, queue: Arc<Queue>) {
     // Failed accepts in a row; each one pauses, so an error does not spin.
@@ -194,12 +226,16 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
     match req {
         Request::Ping => reply(&mut stream, &Response::Ok),
         // S-120: the CLI asks before it sends explicit params, so an older
-        // daemon cannot silently drop them.
+        // daemon cannot silently drop them. S-144-C adds the job results
+        // capability to the same answer, and S-148 adds the instance of this
+        // daemon, so a client can check a job reference later.
         Request::Version => reply(
             &mut stream,
             &Response::Version {
                 version: env!("CARGO_PKG_VERSION").to_string(),
                 run_params: true,
+                job_results: true,
+                instance: Some(instance_id().to_string()),
             },
         ),
         Request::Open { files, token, at } => match open(state, files, token, at) {
@@ -250,6 +286,67 @@ pub(crate) fn handle(mut stream: Stream, state: &Shared, queue: &Arc<Queue>) {
         Request::Actions { files } => {
             let actions = lock(state).summaries(&files);
             reply(&mut stream, &Response::Actions { actions });
+        }
+        // S-144-C: the results are session memory. The DTO is cloned while
+        // the lock is held and the lock is released before the JSON line is
+        // written, so a slow client never holds the daemon state.
+        Request::Jobs => {
+            let jobs = {
+                let st = lock(state);
+                crate::jobs::summaries(&st)
+            };
+            reply(
+                &mut stream,
+                &Response::Jobs {
+                    jobs,
+                    instance: Some(instance_id().to_string()),
+                },
+            );
+        }
+        Request::JobResults { job, instance } => {
+            // S-148 AC3: a reference of an earlier daemon is refused before
+            // anything is read, so a reused job number is never taken for a
+            // job of this daemon.
+            if let Some(message) = stale_instance(instance.as_deref()) {
+                return error(&mut stream, message);
+            }
+            let detail = {
+                let st = lock(state);
+                crate::jobs::detail(&st, job)
+            };
+            reply(&mut stream, &Response::JobResults { job: detail });
+        }
+        Request::RetryJob { job, instance } => {
+            if let Some(message) = stale_instance(instance.as_deref()) {
+                return error(&mut stream, message);
+            }
+            let result = {
+                let mut st = lock(state);
+                crate::jobs::retry(&mut st, queue, job)
+            };
+            match result {
+                Ok(child) => reply(&mut stream, &Response::Retry { job: child }),
+                Err(refusal) => error(&mut stream, refusal.reason()),
+            }
+        }
+        Request::ClearJobResults => {
+            crate::jobs::clear_completed(&mut lock(state));
+            reply(&mut stream, &Response::Ok);
+        }
+        Request::CancelJob { job, instance } => {
+            if let Some(message) = stale_instance(instance.as_deref()) {
+                return error(&mut stream, message);
+            }
+            // S-148 AC4: only a job of this session that is still active can
+            // be cancelled. A job that is missing or already finished gets
+            // the explicit reason, and a repeated cancel of the same job is
+            // harmless: it cancels nothing else and touches no file.
+            let active = { lock(state).jobs.contains_key(&job) };
+            if !active {
+                return error(&mut stream, format!("no such active job: {job}"));
+            }
+            crate::jobs::cancel_job(queue, job);
+            reply(&mut stream, &Response::Ok);
         }
         Request::CancelAll => {
             queue.cancel_all();

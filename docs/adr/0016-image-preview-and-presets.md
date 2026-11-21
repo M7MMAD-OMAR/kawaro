@@ -1,6 +1,6 @@
 # ADR 0016: Shared image preview and explicit user presets
 
-Status: proposed, planning only. No product implementation or executable validation.
+Status: accepted for source implementation by parent design review under the owner GO of 2026-11-15. Runtime/visual acceptance remains unproven.
 Date: 2026-11-15.
 Spec: docs/specs/2026-11-15-next-features.md.
 Implementation plan: docs/superpowers/plans/2026-11-15-next-features.md.
@@ -11,7 +11,7 @@ The customization panel displays a bounded source draft, while the image engine 
 
 Existing accepted boundaries remain: core validates action options, UI depends on core, engines depend on core, and daemon composes both. The Engine trait serves every format and must not require every adapter to provide an image preview.
 
-## Proposed decisions
+## Decisions
 
 1. Add platform-free image preview request/result/provider types in core. Implement the provider in the image engine and inject Arc<dyn ImagePreviewProvider + Send + Sync> through daemon composition into the UI worker.
 2. Extract the existing in-memory image preparation/final-byte path so export and preview share it. Preview never submits a job or writes a converted output. The queue remains the only conversion-output finalizer.
@@ -35,4 +35,4 @@ Existing accepted boundaries remain: core validates action options, UI depends o
 
 Shared preparation is a behavioral refactor and needs later parity evidence, not only a helper unit test. Decoder limits may be best effort and cancellation may be delayed inside a codec. Full-resolution preview admission limits are product policies awaiting measurement. Revalidation and fingerprints add storage complexity but keep action semantics visible.
 
-Native filesystem replacement, worker/resource behavior, actual small-panel layout and later platform adapters need their own acceptance evidence. Tests/builds remain deferred by current owner instruction. This ADR is proposed; its presence does not authorize implementation or establish release readiness.
+Native filesystem replacement, worker/resource behavior, actual small-panel layout and later platform adapters need their own acceptance evidence. Tests/builds remain deferred by current owner instruction. The owner explicitly authorized implementation on 2026-11-15. That source-work authorization does not establish runtime acceptance or release readiness.

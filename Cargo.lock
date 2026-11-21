@@ -2826,6 +2826,7 @@ name = "kawaro-engines"
 version = "0.5.1"
 dependencies = [
  "image",
+ "jpeg-decoder",
  "kawaro-core",
  "libc",
  "lopdf",

@@ -600,14 +600,14 @@ default = "a"
 }
 
 #[test]
-fn builtin_actions_carry_options_and_all_56_parse() {
+fn builtin_actions_carry_options_and_all_57_parse() {
     let reg = Registry::builtin();
-    // 56 since S-123 added pdf.extract-pages, pdf.delete-pages and
+    // 57 since S-123 added pdf.extract-pages, pdf.delete-pages and
     // pdf.reorder-pages, S-125 pdf.metadata, S-126 pdf.to-text, S-127
-    // image.resize-to, image.crop and image.compress-to, and S-128
-    // pdf.linearize, pdf.cleanup and pdf.check (none of the qpdf actions
-    // carries options, so the options list below is unchanged).
-    assert_eq!(reg.all().len(), 56, "every built-in action still parses");
+    // image.resize-to, image.crop and image.compress-to, S-128
+    // pdf.linearize, pdf.cleanup and pdf.check, and S-146 image.to-text
+    // (none of the qpdf actions carries options).
+    assert_eq!(reg.all().len(), 57, "every built-in action still parses");
     let with_options: Vec<&str> = reg
         .all()
         .iter()
@@ -629,6 +629,8 @@ fn builtin_actions_carry_options_and_all_56_parse() {
             "image.resize-to",
             "image.crop",
             "image.compress-to",
+            // S-146 appended the OCR action at the end of images.toml.
+            "image.to-text",
             "pdf.compress",
             "pdf.to-images",
             "pdf.split",

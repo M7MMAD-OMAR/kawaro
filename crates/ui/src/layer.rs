@@ -356,14 +356,12 @@ pub(crate) fn replan(cells: &[HiveCell]) -> Option<Plan> {
         return None;
     }
     let rtl = SHOW.with(|s| s.borrow().rtl);
-    let (plan, _) = layout::plan_at(
-        cells.to_vec(),
-        rtl,
-        a.rings.get(),
-        a.screen.get(),
-        a.anchor.get(),
-        a.scale120.get(),
-    );
+    let screen = a.screen.get();
+    let anchor = a.anchor.get();
+    // S-149: the page follows the placement: it holds as many actions as
+    // the screen accepts and the More cell takes the last slot.
+    let cells = crate::page_cells_at(anchor, screen).unwrap_or_else(|| cells.to_vec());
+    let (plan, _) = layout::plan_at(cells, rtl, a.rings.get(), screen, anchor, a.scale120.get());
     Some(plan)
 }
 
@@ -975,14 +973,11 @@ impl LayerAdapter {
                 r.min_rings
             };
             self.rings.set(rings);
-            layout::plan_at(
-                r.cells.clone(),
-                r.rtl,
-                rings,
-                screen,
-                anchor,
-                self.scale120.get(),
-            )
+            // S-149: the page follows the placement: it holds as many
+            // actions as the screen accepts and the More cell takes the
+            // last slot.
+            let cells = crate::page_cells_at(anchor, screen).unwrap_or_else(|| r.cells.clone());
+            layout::plan_at(cells, r.rtl, rings, screen, anchor, self.scale120.get())
         });
         if std::env::var_os("KAWARO_DEBUG_FOCUS").is_some() {
             let (cx, cy) = plan.layout.origin;

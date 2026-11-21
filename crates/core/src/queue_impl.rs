@@ -6,6 +6,7 @@
 //! started are skipped without an event and are not counted.
 use crate::action::{ActionDef, OutputMode};
 use crate::engine::{CancelToken, Engine, EngineError, Task, TaskOutcome};
+use crate::job_results::{JobManifest, TaskUnitId};
 use crate::output::{finalize, temp_path};
 use crate::output_impl::final_path_with;
 use crate::queue::{JobEvent, JobId, Queue};
@@ -133,10 +134,18 @@ fn run_inner(
     let started = std::time::Instant::now();
     let tasks = plan(action, files);
     let n = tasks.len();
+    // The manifest is built from the planned tasks, before the first one
+    // runs (S-144). It holds the resolved action and the identity of every
+    // source, so a later reader knows what the job was made of.
+    let manifest = JobManifest::new(
+        action.clone(),
+        tasks.iter().map(|(task, _)| task.inputs.clone()).collect(),
+    );
     let _ = events.send(JobEvent::Started {
         job,
         action_id: action.id.clone(),
         tasks: n,
+        manifest,
     });
     let last = Mutex::new(0.0f32);
     let report = |fraction: f32| {
@@ -174,6 +183,7 @@ fn run_inner(
                 outputs.push(path.clone());
                 let _ = events.send(JobEvent::TaskDone {
                     job,
+                    unit: i as TaskUnitId,
                     output: path,
                     elapsed: task_elapsed,
                     detail,
@@ -183,6 +193,7 @@ fn run_inner(
                 skipped += 1;
                 let _ = events.send(JobEvent::TaskSkipped {
                     job,
+                    unit: i as TaskUnitId,
                     input: task.inputs[0].clone(),
                     reason,
                     elapsed: task_elapsed,
@@ -193,6 +204,7 @@ fn run_inner(
                 cancelled |= was_cancel;
                 let _ = events.send(JobEvent::TaskFailed {
                     job,
+                    unit: i as TaskUnitId,
                     input: task.inputs[0].clone(),
                     error,
                     elapsed: task_elapsed,
