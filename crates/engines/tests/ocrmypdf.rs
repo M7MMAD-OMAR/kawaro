@@ -178,6 +178,9 @@ fn s150_locate_finds_ocrmypdf_on_unix_and_windows_path() {
     }
 
     let no_env = |_: &str| -> Option<OsString> { None };
+    // The Unix lookup checks the executable bit, which only a Unix host can
+    // set, so that half runs on Unix; the Windows half runs everywhere.
+    #[cfg(unix)]
     assert_eq!(
         locate::search(
             Os::Unix,
@@ -189,6 +192,8 @@ fn s150_locate_finds_ocrmypdf_on_unix_and_windows_path() {
         ),
         Some(unix_prog)
     );
+    #[cfg(not(unix))]
+    let _ = unix_prog;
     assert_eq!(
         locate::search(
             Os::Windows,
